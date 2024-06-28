@@ -2,39 +2,6 @@ use crate::parsers::ParserState;
 use crate::Readu8::Readu8;
 use crate::u8set::u8set;
 
-// #[derive(Clone)]
-// pub enum $T<S1: ParserState, S2: ParserState> {
-//     S1(S1),
-//     S2(S2),
-// }
-//
-// macro_rules! visit {
-//     ($self:expr, $state:ident => $action:expr) => {
-//         match $self {
-//             $T::S1($state) => $action,
-//             $T::S2($state) => $action,
-//         }
-//     };
-// }
-//
-// impl<S1: ParserState, S2: ParserState> $T<S1, S2> {
-//     pub fn init_next(&mut self, position: usize) -> bool {
-//         let new_state = match self {
-//             $T::S1(state) => S2::new(position),
-//             $T::S2(state) => return false,
-//         };
-//         *self = $T::S2(new_state);
-//         true
-//     }
-// }
-//
-// impl<S1: ParserState, S2: ParserState> ParserState for $T<S1, S2> {
-//     fn new(position: usize) -> Self { $T::S1(S1::new(position)) }
-//     fn parse<F: Readu8>(&mut self, reader: &F) { visit!(self, state => state.parse(reader)) }
-//     fn valid_next_u8set(&self) -> u8set { visit!(self, state => state.valid_next_u8set()) }
-//     fn position(&self) -> usize { visit!(self, state => state.position()) }
-// }
-
 pub(crate) trait EnumCombinator: ParserState {
     fn init_next(&mut self, position: usize) -> bool;
 }

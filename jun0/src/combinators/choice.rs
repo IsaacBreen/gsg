@@ -1,5 +1,5 @@
 // flick between seq.rs and choice.rs to see how similar they are.
-use crate::combinators::r#enum::{EnumCombinator};
+use crate::combinators::r#enum::EnumCombinator;
 use crate::parsers::ParserState;
 use crate::Readu8::Readu8;
 use crate::u8set::u8set;
