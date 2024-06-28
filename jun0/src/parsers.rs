@@ -1,5 +1,5 @@
-use crate::u8set::u8set;
 use crate::Readu8::Readu8;
+use crate::u8set::u8set;
 
 pub trait ParserState: Clone {
     fn new(position: usize) -> Self;
