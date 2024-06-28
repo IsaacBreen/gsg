@@ -2,18 +2,17 @@ use crate::parsers::ParserState;
 use crate::Readu8::Readu8;
 use crate::u8set::u8set;
 
-// seq combinator
 #[derive(Clone)]
-pub struct SeqState<S1: ParserState, S2: ParserState> {
+pub struct ChoiceState<S1: ParserState, S2: ParserState> {
     position: usize,
     state1: S1,
     state2: S2,
     phase: u8,
 }
 
-impl<S1: ParserState, S2: ParserState> ParserState for SeqState<S1, S2> {
+impl<S1: ParserState, S2: ParserState> ParserState for ChoiceState<S1, S2> {
     fn new(position: usize) -> Self {
-        SeqState {
+        ChoiceState {
             position,
             state1: S1::new(position),
             state2: S2::new(position),
@@ -26,10 +25,8 @@ impl<S1: ParserState, S2: ParserState> ParserState for SeqState<S1, S2> {
             0 => {
                 self.state1.parse(reader);
                 if !self.state1.is_valid() {
-                    self.phase = 2;
-                } else if self.state1.position() > self.position {
                     self.phase = 1;
-                    self.state2 = S2::new(self.state1.position());
+                    self.state2 = S2::new(self.position);
                 }
             }
             1 => {
@@ -59,11 +56,11 @@ impl<S1: ParserState, S2: ParserState> ParserState for SeqState<S1, S2> {
     }
 }
 
-pub fn seq<S1: ParserState, S2: ParserState>(
+pub fn choice<S1: ParserState, S2: ParserState>(
     parser1: impl Fn(usize) -> S1,
     parser2: impl Fn(usize) -> S2,
-) -> impl Fn(usize) -> SeqState<S1, S2> {
-    move |position| SeqState {
+) -> impl Fn(usize) -> ChoiceState<S1, S2> {
+    move |position| ChoiceState {
         position,
         state1: parser1(position),
         state2: S2::new(position),

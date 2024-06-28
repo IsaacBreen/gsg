@@ -2,7 +2,6 @@ use crate::parsers::ParserState;
 use crate::Readu8::Readu8;
 use crate::u8set::u8set;
 
-// eat_u8 combinator
 #[derive(Clone)]
 pub struct EatU8State {
     position: usize,
