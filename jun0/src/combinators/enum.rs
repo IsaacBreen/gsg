@@ -7,23 +7,23 @@ pub(crate) trait EnumCombinator: ParserState {
 }
 
 macro_rules! enum_combinator {
-    ($EnumCombinatorX:ident, $T:ident, $($TRest:ident),*) => {
+    ($EnumCombinatorX:ident, $T:ident, $($TRest:ident),+) => {
         #[derive(Clone)]
-        pub enum $EnumCombinatorX<$T: ParserState, $($TRest: ParserState),*> {
+        pub enum $EnumCombinatorX<$T: ParserState, $($TRest: ParserState),+> {
             $T($T),
-            $($TRest($TRest)),*
+            $($TRest($TRest)),+
         }
 
         macro_rules! visit {
             ($self:expr, $state:ident => $action:expr) => {
                 match $self {
                     $EnumCombinatorX::$T($state) => $action,
-                    $($EnumCombinatorX::$TRest($state) => $action,)*
+                    $($EnumCombinatorX::$TRest($state) => $action,)+
                 }
             };
         }
 
-        impl<$T: ParserState, $($TRest: ParserState),*> $EnumCombinatorX<$T, $($TRest),*> {
+        impl<$T: ParserState, $($TRest: ParserState),+> $EnumCombinatorX<$T, $($TRest),+> {
             pub fn init_next(&mut self, position: usize) -> bool {
                 $(
                     if let $EnumCombinatorX::$TRest(state) = self {
@@ -33,12 +33,12 @@ macro_rules! enum_combinator {
                             return true;
                         }
                     }
-                )*
+                )+
                 false
             }
         }
 
-        impl<$T: ParserState, $($TRest: ParserState),*> ParserState for $EnumCombinatorX<$T, $($TRest),*> {
+        impl<$T: ParserState, $($TRest: ParserState),+> ParserState for $EnumCombinatorX<$T, $($TRest),+> {
             fn new(position: usize) -> Self { $EnumCombinatorX::$T($T::new(position)) }
             fn parse<F: Readu8>(&mut self, reader: &F) { visit!(self, state => state.parse(reader)); }
             fn valid_next_u8set(&self) -> u8set { visit!(self, state => state.valid_next_u8set()) }
