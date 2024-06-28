@@ -1,7 +1,7 @@
+use bitvec::prelude::*;
+
 pub mod u8set;
 mod u256;
-
-use bitvec::prelude::*;
 
 pub trait ParserState: Clone {
     fn new() -> Self;
@@ -14,4 +14,3 @@ pub trait ParserState: Clone {
 
 pub trait Readu8: Fn(usize) -> Option<u8> {}
 impl<F: Fn(usize) -> Option<u8>> Readu8 for F {}
-

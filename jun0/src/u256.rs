@@ -1,6 +1,6 @@
-use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Not, Shl, Shr};
-use std::cmp::{PartialEq, PartialOrd, Ordering};
+use std::cmp::{Ordering, PartialEq, PartialOrd};
 use std::fmt;
+use std::ops::{Add, Sub};
 
 #[derive(Debug, Clone, Copy, Default, Eq)]
 pub struct u256(pub(crate) [u64; 4]);
