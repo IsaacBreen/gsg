@@ -4,18 +4,16 @@ use crate::Readu8::Readu8;
 use crate::u8set::u8set;
 
 #[derive(Clone)]
-pub struct ChoiceState<S1: ParserState, S2: ParserState> {
+pub struct ChoiceState<EC: EnumCombinator> {
     initial_position: usize,
-    state: EnumCombinator<S1, S2>,
-    next: Option<S2>,
+    state: EC,
 }
 
-impl<S1: ParserState, S2: ParserState> ParserState for ChoiceState<S1, S2> {
+impl<EC: EnumCombinator> ParserState for ChoiceState<EC> {
     fn new(position: usize) -> Self {
         ChoiceState {
             initial_position: position,
-            state: EnumCombinator::new(position),
-            next: Some(S2::new(position)),
+            state: EC::new(position),
         }
     }
 
