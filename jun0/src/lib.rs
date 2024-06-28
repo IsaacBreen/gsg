@@ -75,10 +75,13 @@ impl ParserState for JsonLikeState {
                 }
                 valid.set('\\' as usize, true);
             }
-        } else {
+        } else if self.depth == 0 {
+            // At the root level, only { and [ are valid
             valid.set('{' as usize, true);
-            valid.set('}' as usize, true);
             valid.set('[' as usize, true);
+        } else {
+            // Inside an object or array
+            valid.set('}' as usize, true);
             valid.set(']' as usize, true);
             valid.set('"' as usize, true);
             valid.set(':' as usize, true);
@@ -90,6 +93,8 @@ impl ParserState for JsonLikeState {
             valid.set('t' as usize, true); // true
             valid.set('f' as usize, true); // false
             valid.set('n' as usize, true); // null
+            // Allow nested arrays, but not nested objects directly
+            valid.set('[' as usize, true);
         }
         valid
     }
@@ -123,17 +128,42 @@ mod tests {
     #[test]
     fn test_valid_next_chars() {
         let mut state = JsonLikeState::new();
-        let input = r#"{"key":"#;
-        let reader = string_reader(input);
 
-        for i in 0..input.len() {
-            state.parse(&|j| reader(i + j));
-        }
+        // Test root level
+        let valid_chars = state.valid_next_chars();
+        assert!(valid_chars['{' as usize]);
+        assert!(valid_chars['[' as usize]);
+        assert!(!valid_chars['"' as usize]);
 
+        // Test inside an object
+        state.parse(&|_| Some('{'));
         let valid_chars = state.valid_next_chars();
         assert!(valid_chars['"' as usize]);
         assert!(!valid_chars['{' as usize]);
-        assert!(!valid_chars['}' as usize]);
+        assert!(!valid_chars['[' as usize]);
+
+        // Test after object key
+        state.parse(&|_| Some('"'));
+        state.parse(&|_| Some('k'));
+        state.parse(&|_| Some('e'));
+        state.parse(&|_| Some('y'));
+        state.parse(&|_| Some('"'));
+        let valid_chars = state.valid_next_chars();
+        assert!(valid_chars[':' as usize]);
+        assert!(!valid_chars['{' as usize]);
+        assert!(!valid_chars['[' as usize]);
+        assert!(!valid_chars['"' as usize]);
+
+        // Test after colon
+        state.parse(&|_| Some(':'));
+        let valid_chars = state.valid_next_chars();
+        assert!(valid_chars['"' as usize]);
+        assert!(valid_chars['[' as usize]);
+        assert!(valid_chars['t' as usize]); // true
+        assert!(valid_chars['f' as usize]); // false
+        assert!(valid_chars['n' as usize]); // null
+        assert!(valid_chars['0' as usize]); // number
+        assert!(!valid_chars['{' as usize]); // nested object not allowed directly
     }
 
     #[test]
