@@ -21,7 +21,7 @@ impl<EC: EnumCombinator> ParserState for ChoiceState<EC> {
     fn parse<F: Readu8>(&mut self, reader: &F) {
         while {
             self.state.parse(reader);
-            !self.state.is_valid() && self.state.init_next(self.state.position())
+            !self.state.is_valid() && self.state.init_next(self.initial_position)
         } {}
     }
 
