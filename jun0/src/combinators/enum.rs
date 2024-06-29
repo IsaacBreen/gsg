@@ -62,3 +62,4 @@ enum_combinator!(EnumCombinator13, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11,
 enum_combinator!(EnumCombinator14, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14);
 enum_combinator!(EnumCombinator15, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15);
 enum_combinator!(EnumCombinator16, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15, S16);
+

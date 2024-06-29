@@ -3,15 +3,15 @@ use crate::Readu8::Readu8;
 use crate::u8set::u8set;
 
 #[derive(Clone)]
-pub struct EatU8State {
+pub struct Eatu8State {
     position: usize,
     target: u8,
     consumed: bool,
 }
 
-impl ParserState for EatU8State {
+impl ParserState for Eatu8State {
     fn new(position: usize) -> Self {
-        EatU8State {
+        Eatu8State {
             position,
             target: 0, // This will be set when creating the combinator
             consumed: false,
@@ -42,8 +42,8 @@ impl ParserState for EatU8State {
     }
 }
 
-pub fn eat_u8(target: u8) -> impl Fn(usize) -> EatU8State {
-    move |position| EatU8State {
+pub fn eat_u8(target: u8) -> impl Fn(usize) -> Eatu8State {
+    move |position| Eatu8State {
         position,
         target,
         consumed: false,
