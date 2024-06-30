@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::iter::FromIterator;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -64,7 +63,7 @@ type Data = ();
 type Combinator = Rc<dyn Fn(Data) -> CombinatorIterator>;
 type CombinatorIterator = Rc<RefCell<dyn Iterator<Item = Result<ParserIterationResult, u8>>>>;
 
-fn process(c: u8, its: &mut Vec<CombinatorIterator>) -> ParserIterationResult {
+fn process(_c: u8, its: &mut Vec<CombinatorIterator>) -> ParserIterationResult {
     let mut final_result = ParserIterationResult {
         u8set: U8Set::none(),
         is_complete: false,
@@ -72,7 +71,7 @@ fn process(c: u8, its: &mut Vec<CombinatorIterator>) -> ParserIterationResult {
 
     its.retain_mut(|it| {
         if let Some(Ok(result)) = it.borrow_mut().next() {
-            final_result = final_result | result;
+            final_result = final_result.clone() | result;
             true
         } else {
             false
@@ -89,26 +88,27 @@ fn seq2(a: Combinator, b: Combinator) -> Combinator {
         let mut b_its = vec![];
 
         let mut a_result = a_it.borrow_mut().next().unwrap().unwrap();
-        let mut b_result = ParserIterationResult {
-            u8set: U8Set::none(),
-            is_complete: false,
-        };
 
         if a_result.is_complete {
             let b_it = b(d.clone());
-            b_result = b_it.borrow_mut().next().unwrap().unwrap();
+            let b_result = b_it.borrow_mut().next().unwrap().unwrap();
             b_its.push(b_it);
             a_result.is_complete = false;
+            a_result = a_result | b_result;
         }
 
-        let it = std::iter::from_fn(move || {
+        let a_clone = a.clone();
+        let b_clone = b.clone();
+        let d_clone = d.clone();
+
+        let it = std::iter::once(Ok(a_result)).chain(std::iter::from_fn(move || {
             if a_its.is_empty() && b_its.is_empty() {
                 None
             } else {
                 let a_result = process(0, &mut a_its);
                 let b_result = process(0, &mut b_its);
                 if a_result.is_complete {
-                    let b_it = b(d.clone());
+                    let b_it = b_clone(d_clone.clone());
                     let new_b_result = b_it.borrow_mut().next().unwrap().unwrap();
                     b_its.push(b_it);
                     Some(Ok(a_result | new_b_result))
@@ -116,7 +116,7 @@ fn seq2(a: Combinator, b: Combinator) -> Combinator {
                     Some(Ok(a_result | b_result))
                 }
             }
-        });
+        }));
 
         Rc::new(RefCell::new(it))
     })
@@ -214,13 +214,16 @@ fn repeat(a: Combinator) -> Combinator {
         result.is_complete = true;
         let mut its = vec![a_it];
 
+        let a_clone = a.clone();
+        let d_clone = d.clone();
+
         let it = std::iter::once(Ok(result)).chain(std::iter::from_fn(move || {
             if its.is_empty() {
                 None
             } else {
                 let result = process(0, &mut its);
                 if result.is_complete {
-                    let new_a_it = a(d.clone());
+                    let new_a_it = a_clone(d_clone.clone());
                     let new_result = new_a_it.borrow_mut().next().unwrap().unwrap();
                     its.push(new_a_it);
                     Some(Ok(result | new_result))
