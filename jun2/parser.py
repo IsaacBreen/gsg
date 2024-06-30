@@ -253,7 +253,7 @@ def test_json():
     def parse_json(json_string):
         try:
             print(f"Parsing JSON string: {json_string}")
-            it = json_value(None)
+            it = json_parser(None)
             result = next(it)
             assert json_string[0] in result.u8set
             print(json_string[0])
