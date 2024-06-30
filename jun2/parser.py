@@ -112,6 +112,20 @@ def eat_string(value: str) -> Combinator:
     return seq(*[eat_u8(c) for c in value])
 
 
+def repeat(A: Combinator) -> Combinator:
+    def _repeat(d: Data) -> Generator[ParserIterationResult, u8, None]:
+        A_it = A(d)
+        next(A_it)
+        its = [A_it]
+        c = yield
+        while its:
+            result = process(c, its)
+            ...
+        ...
+
+    return _repeat
+
+
 def test_eat_u8():
     it = eat_u8("a")(None)
     next(it)
@@ -149,7 +163,3 @@ def test_seq_choice_seq():
     assert result2 == ParserIterationResult(U8Set.from_chars("c"), False)
     result3 = it.send("c")
     assert result3 == ParserIterationResult(U8Set.none(), True)
-
-
-def test_json():
-    ...
