@@ -1,15 +1,15 @@
 from dataclasses import dataclass
+from typing import List
 
 type u8 = str
 
 @dataclass
 class U256:
-    def __init__(self):
-        self.data = [0] * 8  # 8 32-bit integers
+    data: List[int]
 
     @classmethod
     def zero(cls):
-        return cls()
+        return cls([0] * 256)
 
     def is_set(self, index):
         word, bit = divmod(index, 32)
@@ -31,8 +31,7 @@ class U256:
 
 @dataclass
 class U8Set:
-    def __init__(self):
-        self.bitset = U256.zero()
+    bitset: U256
 
     def insert(self, value):
         was_set = self.bitset.is_set(value)
@@ -62,9 +61,7 @@ class U8Set:
     @classmethod
     def all(cls):
         # All ones
-        self = cls()
-        for i in range(256):
-            self.bitset.set_bit(i)
+        self = cls([1] * 8)
         return self
 
     @classmethod
