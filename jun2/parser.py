@@ -131,6 +131,17 @@ def repeat(A: Combinator) -> Combinator:
     return _repeat
 
 
+def eps() -> Combinator:
+    def _eps(d: Data) -> Generator[ParserIterationResult, u8, None]:
+        yield ParserIterationResult(U8Set.none(), True)
+
+    return _eps
+
+
+def opt(A: Combinator) -> Combinator:
+    return choice(A, eps())
+
+
 def test_eat_u8():
     it = eat_u8("a")(None)
     next(it)
@@ -161,7 +172,8 @@ def test_choice():
 def test_seq_choice_seq():
     # Matches "ac" or "abc"
     it = seq(choice(eat_u8("a"), seq(eat_u8("a"), eat_u8("b"))), eat_u8("c"))(None)
-    next(it)
+    result0 = next(it)
+    assert result0 == ParserIterationResult(U8Set.from_chars("a"), False)
     result1 = it.send("a")
     assert result1 == ParserIterationResult(U8Set.from_chars("bc"), False)
     result2 = it.send("b")
@@ -175,10 +187,10 @@ def test_json():
     whitespace = repeat(choice(eat_u8(" "), eat_u8("\t"), eat_u8("\n"), eat_u8("\r")))
     digit = eat_u8_range("0", "9")
     digits = repeat(digit)
-    integer = seq(choice(eat_u8("-"), eat_u8("+")), digits)
+    integer = seq(opt(choice(eat_u8("-"), eat_u8("+"))), digits)
     fraction = seq(eat_u8("."), digits)
-    exponent = seq(choice(eat_u8("e"), eat_u8("E")), choice(eat_u8("+"), eat_u8("-"), eat_u8("")), digits)
-    number = seq(integer, choice(fraction, eat_u8("")), choice(exponent, eat_u8("")))
+    exponent = seq(choice(eat_u8("e"), eat_u8("E")), choice(eat_u8("+"), eat_u8("-"), eps()), digits)
+    number = seq(integer, choice(fraction, eps()), choice(exponent, eps()))
 
     string_char = choice(
         eat_u8_range_complement("\"", "\""),
@@ -211,7 +223,7 @@ def test_json():
                     repeat(seq(whitespace, eat_u8(","), whitespace, json_value)),
                     whitespace
                 ),
-                eat_u8("")
+                eps()
             ),
             eat_u8("]")
         )(d)
@@ -230,7 +242,7 @@ def test_json():
                     repeat(seq(whitespace, eat_u8(","), whitespace, string, whitespace, eat_u8(":"), whitespace, json_value)),
                     whitespace
                 ),
-                eat_u8("")
+                eps()
             ),
             eat_u8("}")
         )(d)
@@ -239,22 +251,28 @@ def test_json():
     json_parser = seq(whitespace, json_value, whitespace)
 
     def parse_json(json_string):
-        print(f"Parsing JSON string: {json_string}")
-        it = json_parser(None)
-        next(it)
-        print(json_string[0])
-        result = it.send(json_string[0])
-        for char in json_string[1:]:
-            print(char)
+        try:
+            print(f"Parsing JSON string: {json_string}")
+            it = json_value(None)
+            result = next(it)
+            assert json_string[0] in result.u8set
+            print(json_string[0])
+            result = it.send(json_string[0])
+            for char in json_string[1:]:
+                assert char in result.u8set
+                print(char)
+                print(result)
+                result = it.send(char)
             print(result)
-            result = it.send(char)
-        print(result)
-        return result.end
+            return result.end
+        except (AssertionError, StopIteration) as e:
+            print(f"Failed to parse JSON string: {json_string}")
+            return False
 
+    assert parse_json('42')
     assert parse_json('{"key": "value"}')
     assert parse_json('[1, 2, 3]')
     assert parse_json('{"nested": {"array": [1, 2, 3], "object": {"a": true, "b": false}}}')
-    assert parse_json('42')
     assert parse_json('"Hello, world!"')
     assert parse_json('null')
     assert parse_json('true')
