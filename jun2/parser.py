@@ -8,13 +8,13 @@ from u8set import U8Set
 @dataclass
 class ParserIterationResult:
     u8set: U8Set
-    end: bool
+    is_complete: bool
 
     def __or__(self, other):
-        return ParserIterationResult(self.u8set | other.u8set, self.end | other.end)
+        return ParserIterationResult(self.u8set | other.u8set, self.is_complete | other.is_complete)
 
     def __and__(self, other):
-        return ParserIterationResult(self.u8set & other.u8set, self.end & other.end)
+        return ParserIterationResult(self.u8set & other.u8set, self.is_complete & other.is_complete)
 
 
 type u8 = str
@@ -39,11 +39,11 @@ def seq2(A: Combinator, B: Combinator) -> Combinator:
         A_result = next(A_it)
         A_its = [A_it]
         B_its = []
-        if A_result.end:
+        if A_result.is_complete:
             B_it = B(d)
             B_result = next(B_it)
             B_its.append(B_it)
-            A_result.end = False
+            A_result.is_complete = False
             c = yield A_result | B_result
         else:
             c = yield A_result
@@ -51,11 +51,11 @@ def seq2(A: Combinator, B: Combinator) -> Combinator:
         while A_its or B_its:
             A_result = process(c, A_its)
             B_result = process(c, B_its)
-            if A_result.end:
+            if A_result.is_complete:
                 B_it = B(d)
                 B_result |= next(B_it)
                 B_its.append(B_it)
-                A_result.end = False
+                A_result.is_complete = False
             c = yield A_result | B_result
 
     return _seq2
@@ -65,20 +65,15 @@ def seq(*args: Combinator) -> Combinator:
     return reduce(seq2, args)
 
 
-def choice2(A: Combinator, B: Combinator) -> Combinator:
-    def _choice2(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        A_it = A(d)
-        B_it = B(d)
-        c = yield next(A_it) | next(B_it)
-        its = [A_it, B_it]
-        while its:
-            c = yield process(c, its)
+def choice(*parsers: Combinator) -> Combinator:
+    def _choice(data: Data) -> Generator[ParserIterationResult, u8, None]:
+        active_parsers = [parser(data) for parser in parsers]
+        char = yield reduce(lambda a, b: a | b, (next(parser) for parser in active_parsers))
 
-    return _choice2
+        while active_parsers:
+            char = yield process(char, active_parsers)
 
-
-def choice(*args: Combinator) -> Combinator:
-    return reduce(choice2, args)
+    return _choice
 
 
 def eat_u8(value: u8) -> Combinator:
@@ -89,22 +84,22 @@ def eat_u8(value: u8) -> Combinator:
     return _eat_u8
 
 
-def eat_u8_range(start: u8, end: u8) -> Combinator:
+def eat_u8_range(start: u8, is_complete: u8) -> Combinator:
     def _eat_u8_range(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        chars = [chr(c) for c in range(ord(start), ord(end) + 1)]
+        chars = [chr(c) for c in range(ord(start), ord(is_complete) + 1)]
         chars = "".join(chars)
         c = yield ParserIterationResult(U8Set.from_chars(chars), False)
-        yield ParserIterationResult(U8Set.none(), start <= c <= end)
+        yield ParserIterationResult(U8Set.none(), start <= c <= is_complete)
 
     return _eat_u8_range
 
 
-def eat_u8_range_complement(start: u8, end: u8) -> Combinator:
+def eat_u8_range_complement(start: u8, is_complete: u8) -> Combinator:
     def _eat_u8_range_complement(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        chars = [chr(c) for c in range(0, ord(start))] + [chr(c) for c in range(ord(end) + 1, 256)]
+        chars = [chr(c) for c in range(0, ord(start))] + [chr(c) for c in range(ord(is_complete) + 1, 256)]
         chars = "".join(chars)
         c = yield ParserIterationResult(U8Set.from_chars(chars), False)
-        yield ParserIterationResult(U8Set.none(), not (start <= c <= end))
+        yield ParserIterationResult(U8Set.none(), not (start <= c <= is_complete))
 
     return _eat_u8_range_complement
 
@@ -117,12 +112,12 @@ def repeat(A: Combinator) -> Combinator:
     def _repeat(d: Data) -> Generator[ParserIterationResult, u8, None]:
         A_it = A(d)
         result = next(A_it)
-        result.end = True
+        result.is_complete = True
         c = yield result
         its = [A_it]
         while its:
             result = process(c, its)
-            if result.end:
+            if result.is_complete:
                 A_it = A(d)
                 result |= next(A_it)
                 its.append(A_it)
@@ -264,7 +259,7 @@ def test_json():
                 print(result)
                 result = it.send(char)
             print(result)
-            return result.end
+            return result.is_complete
         except (AssertionError, StopIteration) as e:
             print(f"Failed to parse JSON string: {json_string}")
             return False
