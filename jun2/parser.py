@@ -21,55 +21,66 @@ class ParseError(Exception):
 
 type u8 = str
 type Data = Any
-type Combinator = Callable[[u8, Data], Generator[ParserIterationResult, u8, None]]
+type Combinator = Callable[[Data], Generator[ParserIterationResult, u8, None]]
 
 
-def process(A, B, c, its):
+def process(c, its):
     final_result = ParserIterationResult(U8Set.none(), False)
     for i, it in reversed(list(enumerate(its))):
-        result = it.send(c)
-        if result.end:
+        try:
+            result = it.send(c)
+            final_result |= result
+        except StopIteration:
             its.pop(i)
-        final_result |= result
     return final_result
 
 
 def seq(A: Combinator, B: Combinator) -> Combinator:
-    def _seq(c: u8, d: Data) -> Generator[ParserIterationResult, u8, None]:
-        A_its = [A(c, d)]
+    def _seq(d: Data) -> Generator[ParserIterationResult, u8, None]:
+        A_it = A(d)
+        next(A_it)
+        A_its = [A_it]
         B_its = []
 
+        c = yield
         while A_its or B_its:
-            A_result = process(A, B, c, A_its)
+            A_result = process(c, A_its)
+            B_result = process(c, B_its)
             if A_result.end:
-                B_its.append(B(c, d))
+                B_it = B(d)
+                next(B_it)
+                B_its.append(B_it)
                 A_result.end = False
-            B_result = process(A, B, c, B_its)
             c = yield A_result | B_result
 
     return _seq
 
 
 def choice(A: Combinator, B: Combinator) -> Combinator:
-    def _choice(c: u8, d: Data) -> Generator[ParserIterationResult, u8, None]:
-        its = [A(c, d), B(c, d)]
+    def _choice(d: Data) -> Generator[ParserIterationResult, u8, None]:
+        A_it = A(d)
+        B_it = B(d)
+        next(A_it)
+        next(B_it)
+        its = [A_it, B_it]
+        c = yield
         while its:
-            c = yield process(A, B, c, its)
+            c = yield process(c, its)
 
     return _choice
 
 
 def eat_u8(value: u8) -> Combinator:
-    def _eat_u8(c: u8, d: Data) -> Generator[ParserIterationResult, u8, None]:
-        if c != value:
-            raise ParseError(f"Expected {value}, got {c}")
-        yield ParserIterationResult(U8Set.none(), True)
+    def _eat_u8(d: Data) -> Generator[ParserIterationResult, u8, None]:
+        c = yield
+        yield ParserIterationResult(U8Set.none(), c == value)
 
     return _eat_u8
 
 
 def eat_u8_range(start: u8, end: u8) -> Combinator:
-    def _eat_u8_range(c: u8, d: Data) -> Generator[ParserIterationResult, u8, None]:
+    def _eat_u8_range(d: Data) -> Generator[ParserIterationResult, u8, None]:
+        c = yield
         if start <= c <= end:
             yield ParserIterationResult(U8Set.none(), True)
         else:
@@ -79,9 +90,49 @@ def eat_u8_range(start: u8, end: u8) -> Combinator:
 
 
 def eat_u8_range_complement(start: u8, end: u8) -> Combinator:
-    def _eat_u8_range_complement(c: u8, d: Data) -> Generator[ParserIterationResult, u8, None]:
+    def _eat_u8_range_complement(d: Data) -> Generator[ParserIterationResult, u8, None]:
+        c = yield
         if start <= c <= end:
             raise ParseError(f"Expected not {start}-{end}, got {c}")
         yield ParserIterationResult(U8Set.none(), True)
 
     return _eat_u8_range_complement
+
+
+def test_eat_u8():
+    it = eat_u8("a")(None)
+    next(it)
+    result = it.send("a")
+    assert result == ParserIterationResult(U8Set.none(), True)
+
+
+def test_seq():
+    it = seq(eat_u8("a"), eat_u8("b"))(None)
+    next(it)
+    result1 = it.send("a")
+    assert result1 == ParserIterationResult(U8Set.from_chars("b"), False)
+    result2 = it.send("b")
+    assert result2 == ParserIterationResult(U8Set.none(), True)
+
+
+def test_choice():
+    it = choice(eat_u8("a"), eat_u8("b"))(None)
+    next(it)
+    result1 = it.send("a")
+    assert result1 == ParserIterationResult(U8Set.none(), True)
+    it = choice(eat_u8("a"), eat_u8("b"))(None)
+    next(it)
+    result2 = it.send("b")
+    assert result2 == ParserIterationResult(U8Set.none(), True)
+
+
+def test_seq_choice_seq():
+    # Matches "ac" or "abc"
+    it = seq(choice(eat_u8("a"), seq(eat_u8("a"), eat_u8("b"))), eat_u8("c"))(None)
+    next(it)
+    result1 = it.send("a")
+    assert result1 == ParserIterationResult(U8Set.from_chars("bc"), False)
+    result2 = it.send("b")
+    assert result2 == ParserIterationResult(U8Set.from_chars("c"), False)
+    result3 = it.send("c")
+    assert result3 == ParserIterationResult(U8Set.none(), True)

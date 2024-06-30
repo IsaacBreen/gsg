@@ -1,5 +1,8 @@
+from dataclasses import dataclass
+
 type u8 = str
 
+@dataclass
 class U256:
     def __init__(self):
         self.data = [0] * 8  # 8 32-bit integers
@@ -25,6 +28,8 @@ class U256:
         result.data = self.data.copy()
         return result
 
+
+@dataclass
 class U8Set:
     def __init__(self):
         self.bitset = U256.zero()
@@ -68,6 +73,13 @@ class U8Set:
         self = cls()
         for i in range(256):
             self.bitset.clear_bit(i)
+        return self
+
+    @classmethod
+    def from_chars(cls, chars):
+        self = cls()
+        for c in chars:
+            self.insert(ord(c))
         return self
 
     def __or__(self, other):
