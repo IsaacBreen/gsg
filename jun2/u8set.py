@@ -1,125 +1,33 @@
 from dataclasses import dataclass
 from typing import List
 
-type u8 = str
-
 @dataclass
-class U256:
-    data: List[int]
+class BitSet:
+    x: int
 
-    @classmethod
-    def zero(cls):
-        return cls([0] * 256)
-
-    def is_set(self, index):
-        word, bit = divmod(index, 32)
-        return bool(self.data[word] & (1 << bit))
-
-    def set_bit(self, index):
-        word, bit = divmod(index, 32)
-        self.data[word] |= (1 << bit)
-
-    def clear_bit(self, index):
-        word, bit = divmod(index, 32)
-        self.data[word] &= ~(1 << bit)
-
-    def copy(self):
-        result = U256()
-        result.data = self.data.copy()
-        return result
-
+    def is_set(self, index: int) -> bool: ...
+    def set_bit(self, index: int) -> None: ...
+    def clear_bit(self, index: int) -> None: ...
+    def copy(self) -> 'BitSet': ...
 
 @dataclass
 class U8Set:
-    bitset: U256
+    bitset: BitSet
 
-    def insert(self, value):
-        was_set = self.bitset.is_set(value)
-        self.bitset.set_bit(value)
-        return not was_set
-
-    def remove(self, value):
-        was_set = self.bitset.is_set(value)
-        self.bitset.clear_bit(value)
-        return was_set
-
-    def update(self, other):
-        self.bitset.data = other.bitset.data
-
-    def contains(self, value):
-        return self.bitset.is_set(value)
-
-    def len(self):
-        return sum(bin(word).count('1') for word in self.bitset.data)
-
-    def is_empty(self):
-        return self.len() == 0
-
-    def clear(self):
-        self.bitset = U256.zero()
-
+    def insert(self, value: int) -> bool: ...
+    def remove(self, value: int) -> bool: ...
+    def update(self, other: 'U8Set') -> None: ...
+    def contains(self, value: int) -> bool: ...
+    def len(self) -> int: ...
+    def is_empty(self) -> bool: ...
+    def clear(self) -> None: ...
     @classmethod
-    def all(cls):
-        # All ones
-        self = cls([1] * 8)
-        return self
-
+    def all(cls) -> 'U8Set': ...
     @classmethod
-    def none(cls):
-        # All zeros
-        self = cls()
-        for i in range(256):
-            self.bitset.clear_bit(i)
-        return self
-
+    def none(cls) -> 'U8Set': ...
     @classmethod
-    def from_chars(cls, chars):
-        self = cls()
-        for c in chars:
-            self.insert(ord(c))
-        return self
-
-    def __or__(self, other):
-        result = self.copy()
-        result.update(other)
-        return result
-
-    def __and__(self, other):
-        result = self.copy()
-        result.clear()
-        result.update(other)
-        return result
-
-    def copy(self):
-        result = U8Set()
-        result.bitset = self.bitset.copy()
-        return result
-
-    def __iter__(self):
-        return U8SetIter(self.bitset)
-
-class U8SetIter:
-    def __init__(self, bitset):
-        self.bitset = bitset
-        self.index = 0
-
-    def __next__(self):
-        while self.index < 256:
-            if self.bitset.is_set(self.index):
-                value = self.index
-                self.index += 1
-                return value
-            self.index += 1
-        raise StopIteration()
-
-# Example usage:
-if __name__ == "__main__":
-    s = U8Set()
-    s.insert(5)
-    s.insert(10)
-    s.insert(15)
-    print(list(s))  # Should print [5, 10, 15]
-    print(s.contains(10))  # Should print True
-    s.remove(10)
-    print(s.contains(10))  # Should print False
-    print(s.len())  # Should print 2
+    def from_chars(cls, chars: str) -> 'U8Set': ...
+    def __or__(self, other: 'U8Set') -> 'U8Set': ...
+    def __and__(self, other: 'U8Set') -> 'U8Set': ...
+    def copy(self) -> 'U8Set': ...
+    def __iter__(self): ...

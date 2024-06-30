@@ -92,6 +92,7 @@ def eat_u8(value: u8) -> Combinator:
 def eat_u8_range(start: u8, end: u8) -> Combinator:
     def _eat_u8_range(d: Data) -> Generator[ParserIterationResult, u8, None]:
         chars = [chr(c) for c in range(ord(start), ord(end) + 1)]
+        chars = "".join(chars)
         c = yield ParserIterationResult(U8Set.from_chars(chars), False)
         yield ParserIterationResult(U8Set.none(), start <= c <= end)
 
@@ -101,6 +102,7 @@ def eat_u8_range(start: u8, end: u8) -> Combinator:
 def eat_u8_range_complement(start: u8, end: u8) -> Combinator:
     def _eat_u8_range_complement(d: Data) -> Generator[ParserIterationResult, u8, None]:
         chars = [chr(c) for c in range(0, ord(start))] + [chr(c) for c in range(ord(end) + 1, 256)]
+        chars = "".join(chars)
         c = yield ParserIterationResult(U8Set.from_chars(chars), False)
         yield ParserIterationResult(U8Set.none(), not (start <= c <= end))
 
@@ -237,6 +239,7 @@ def test_json():
     json_parser = seq(whitespace, json_value, whitespace)
 
     def parse_json(json_string):
+        print(f"Parsing JSON string: {json_string}")
         it = json_parser(None)
         next(it)
         print(json_string[0])
