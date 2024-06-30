@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import reduce
 from typing import Callable, Dict, Any, Generator, Type
 
 from u8set import U8Set
@@ -35,8 +36,8 @@ def process(c, its):
     return final_result
 
 
-def seq(A: Combinator, B: Combinator) -> Combinator:
-    def _seq(d: Data) -> Generator[ParserIterationResult, u8, None]:
+def seq2(A: Combinator, B: Combinator) -> Combinator:
+    def _seq2(d: Data) -> Generator[ParserIterationResult, u8, None]:
         A_it = A(d)
         next(A_it)
         A_its = [A_it]
@@ -53,11 +54,15 @@ def seq(A: Combinator, B: Combinator) -> Combinator:
                 A_result.end = False
             c = yield A_result | B_result
 
-    return _seq
+    return _seq2
 
 
-def choice(A: Combinator, B: Combinator) -> Combinator:
-    def _choice(d: Data) -> Generator[ParserIterationResult, u8, None]:
+def seq(*args: Combinator) -> Combinator:
+    return reduce(seq2, args)
+
+
+def choice2(A: Combinator, B: Combinator) -> Combinator:
+    def _choice2(d: Data) -> Generator[ParserIterationResult, u8, None]:
         A_it = A(d)
         B_it = B(d)
         next(A_it)
@@ -67,7 +72,11 @@ def choice(A: Combinator, B: Combinator) -> Combinator:
         while its:
             c = yield process(c, its)
 
-    return _choice
+    return _choice2
+
+
+def choice(*args: Combinator) -> Combinator:
+    return reduce(choice2, args)
 
 
 def eat_u8(value: u8) -> Combinator:
@@ -97,6 +106,10 @@ def eat_u8_range_complement(start: u8, end: u8) -> Combinator:
         yield ParserIterationResult(U8Set.none(), True)
 
     return _eat_u8_range_complement
+
+
+def eat_string(value: str) -> Combinator:
+    return seq(*[eat_u8(c) for c in value])
 
 
 def test_eat_u8():
@@ -136,3 +149,7 @@ def test_seq_choice_seq():
     assert result2 == ParserIterationResult(U8Set.from_chars("c"), False)
     result3 = it.send("c")
     assert result3 == ParserIterationResult(U8Set.none(), True)
+
+
+def test_json():
+    ...
