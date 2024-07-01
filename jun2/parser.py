@@ -64,8 +64,7 @@ def process(c: Optional[u8], its: List[ActiveCombinator]) -> ParserIterationResu
         result = its[i].send(c)
         if result.is_complete and result.u8set.is_empty():
             its.pop(i)
-        else:
-            final_result |= result
+        final_result |= result
     return final_result
 
 
@@ -92,25 +91,6 @@ class Seq2(Combinator):
         }
 
     def next_state(self, state, c):
-        # A_result = process(c, state['A_its'])
-        # B_result = process(c, state['B_its'])
-        #
-        # if A_result.is_complete and not state['A_complete']:
-        #     state['A_complete'] = True
-        #     B_it = self.B(state['A_its'][0].data)
-        #     state['B_its'].append(B_it)
-        #     B_result = B_it.send(None)  # Initialize B
-        #
-        # return ParserIterationResult(
-        #     A_result.u8set | B_result.u8set,
-        #     A_result.is_complete and B_result.is_complete
-        # )
-
-        # A_its, B_its, c = [A(d)], [], None
-        # while A_its or B_its:
-        #     A_result = process(c, A_its)
-        #     B_result = process(c, B_its)
-        #     c = yield seq2_helper(B, d, A_result, B_its) | B_result
 
         A_result = process(c, state['A_its'])
         B_result = process(c, state['B_its'])
@@ -143,9 +123,7 @@ class Repeat1(Combinator):
 
     def next_state(self, state, c):
         A_result = process(c, state['A_its'])
-        if A_result.is_complete:
-            state['A_its'].append(self.A(state['data']))
-        return A_result
+        return seq2_helper(self.A, state['data'], A_result.copy(), state['A_its']) | A_result
 
     def clone_state(self, state):
         return {
@@ -168,9 +146,7 @@ class Choice(Combinator):
         }
 
     def next_state(self, state, c):
-        result = process(c, state['active_parsers'])
-        is_complete = any(len(p.state) == 0 or p.state.get('stage', 0) == 2 for p in state['active_parsers'])
-        return ParserIterationResult(result.u8set, is_complete)
+        return process(c, state['active_parsers'])
 
     def clone_state(self, state):
         return {
@@ -292,9 +268,9 @@ def test_repeat1():
     result0 = it.send(None)
     assert result0 == ParserIterationResult(U8Set.from_chars("a"), False)
     result1 = it.send("a")
-    assert result1 == ParserIterationResult(U8Set.from_chars("a"), False)
+    assert result1 == ParserIterationResult(U8Set.from_chars("a"), True)
     result2 = it.send("a")
-    assert result2 == ParserIterationResult(U8Set.from_chars("a"), False)
+    assert result2 == ParserIterationResult(U8Set.from_chars("a"), True)
 
 
 def test_choice():
