@@ -1,7 +1,5 @@
-use std::any::Any;
-use std::cell::RefCell;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
-use std::rc::Rc;
+
 use crate::u8set::U8Set;
 
 #[derive(PartialEq, Debug)]
@@ -392,62 +390,6 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
     opt(repeat1(a))
 }
 
-trait CombinatorWrapper: Clone {
-    fn initial_state(&self, data: &Data) -> Box<dyn Any>;
-    fn next_state(&self, state: &mut Box<dyn Any>, c: Option<char>) -> ParserIterationResult;
-}
-
-#[derive(Clone)]
-struct WrappedCombinator<C: Combinator + 'static>(C);
-
-impl<C: Combinator + 'static> CombinatorWrapper for WrappedCombinator<C> {
-    fn initial_state(&self, data: &Data) -> Box<dyn Any> {
-        Box::new(self.0.initial_state(data))
-    }
-
-    fn next_state(&self, state: &mut Box<dyn Any>, c: Option<char>) -> ParserIterationResult {
-        let state = state.downcast_mut::<C::State>().unwrap();
-        self.0.next_state(state, c)
-    }
-}
-
-#[derive(Clone)]
-struct Lazy {
-    combinator: Rc<RefCell<Option<Box<dyn CombinatorWrapper>>>>,
-}
-
-impl Lazy {
-    fn new() -> Self {
-        Self {
-            combinator: Rc::new(RefCell::new(None)),
-        }
-    }
-
-    fn set<C: Combinator + 'static>(&self, combinator: C) {
-        *self.combinator.borrow_mut() = Some(Box::new(WrappedCombinator(combinator)));
-    }
-}
-
-impl Combinator for Lazy {
-    type State = Option<Box<dyn Any>>;
-
-    fn initial_state(&self, data: &Data) -> Self::State {
-        self.combinator.borrow().as_ref().map(|c| c.initial_state(data))
-    }
-
-    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        if let Some(combinator) = self.combinator.borrow().as_ref() {
-            if let Some(inner_state) = state {
-                combinator.next_state(inner_state, c)
-            } else {
-                ParserIterationResult::new(U8Set::none(), true)
-            }
-        } else {
-            ParserIterationResult::new(U8Set::none(), true)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -522,10 +464,10 @@ mod tests {
         // Helper combinators for JSON parsing
         let whitespace = repeat(choice2(eat_u8(' '), choice2(eat_u8('\t'), choice2(eat_u8('\n'), eat_u8('\r')))));
         let digit = eat_u8_range('0', '9');
-        let digits = repeat1(digit);
+        let digits = repeat(digit);
         let integer = seq(opt(choice2(eat_u8('-'), eat_u8('+'))), digits);
         let fraction = seq(eat_u8('.'), digits);
-        let exponent = seq(choice2(eat_u8('e'), eat_u8('E')), seq(opt(choice2(eat_u8('+'), eat_u8('-'))), digits));
+        let exponent = seq(choice2(eat_u8('e'), eat_u8('E')), seq(choice2(choice2(eat_u8('+'), eat_u8('-')), eps()), digits));
         let number = seq(integer, seq(opt(fraction), opt(exponent)));
 
         let string_char = choice2(
@@ -558,46 +500,42 @@ mod tests {
         );
         let string = seq(eat_u8('"'), seq(repeat(string_char), eat_u8('"')));
 
-        let json_value = Lazy::new();
-
         let json_array = seq(
             eat_u8('['),
             seq(
-                whitespace.clone(),
+                whitespace,
                 seq(
                     opt(seq(
                         json_value.clone(),
-                        repeat(seq(seq(whitespace.clone(), eat_u8(',')), seq(whitespace.clone(), json_value.clone()))),
+                        repeat(seq(seq(whitespace, eat_u8(',')), seq(whitespace, json_value.clone()))),
                     )),
-                    seq(whitespace.clone(), eat_u8(']')),
+                    seq(whitespace, eat_u8(']')),
                 ),
             ),
         );
 
-        let key_value_pair = seq(seq(whitespace.clone(), string.clone()), seq(whitespace.clone(), seq(eat_u8(':'), seq(whitespace.clone(), json_value.clone()))));
+        let key_value_pair = seq(seq(whitespace, string.clone()), seq(whitespace, seq(eat_u8(':'), seq(whitespace, json_value.clone()))));
 
         let json_object = seq(
             eat_u8('{'),
             seq(
-                whitespace.clone(),
+                whitespace,
                 seq(
                     opt(seq(
-                        key_value_pair.clone(),
-                        repeat(seq(seq(whitespace.clone(), eat_u8(',')), key_value_pair.clone())),
+                        key_value_pair,
+                        repeat(seq(seq(whitespace, eat_u8(',')), key_value_pair)),
                     )),
-                    seq(whitespace.clone(), eat_u8('}')),
+                    seq(whitespace, eat_u8('}')),
                 ),
             ),
         );
 
-        let json_value_inner = choice2(
-            choice2(string.clone(), number.clone()),
+        let json_value = choice2(
+            choice2(string, number),
             choice2(
                 choice2(eat_string("true"), eat_string("false")),
-                choice2(eat_string("null"), choice2(json_array.clone(), json_object.clone())),
+                choice2(eat_string("null"), choice2(json_array, json_object)),
             ));
-
-        json_value.set(json_value_inner);
 
         // Test cases
         let json_parser = seq(whitespace.clone(), json_value.clone());
@@ -613,14 +551,14 @@ mod tests {
             "false",
         ];
 
-        for json_string in test_cases.iter() {
+        for json_string in test_cases {
             let mut it = ActiveCombinator::new(json_parser.clone(), ());
-            let mut result = it.send(None);
+            let result = it.send(None);
             for char in json_string.chars() {
                 assert!(result.u8set.contains(char as u8), "Expected {} to be in {:?}", char, result.u8set);
-                result = it.send(Some(char));
+                let result = it.send(Some(char));
+                assert!(result.is_complete, "Failed to parse JSON string: {}", json_string);
             }
-            assert!(result.is_complete, "Failed to parse JSON string: {}", json_string);
         }
     }
 }
