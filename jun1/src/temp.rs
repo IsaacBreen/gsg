@@ -97,7 +97,7 @@ fn seq2(a: Combinator, b: Combinator) -> Combinator {
             a_result = a_result | b_result;
         }
 
-        let a_clone = a.clone();
+        // Remove the unused a_clone
         let b_clone = b.clone();
         let d_clone = d.clone();
 
@@ -250,4 +250,200 @@ fn opt(a: Combinator) -> Combinator {
     choice(vec![a, eps()])
 }
 
-// Test functions would go here, but they would need to be adapted for Rust's testing framework
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn run_parser(parser: Combinator, input: &str) -> bool {
+        let it = parser(());  // Remove 'mut'
+        let mut result = it.borrow_mut().next().unwrap().unwrap();
+
+        for c in input.bytes() {
+            if !result.u8set.0.contains(&c) {
+                return false;
+            }
+            result = it.borrow_mut().next().unwrap().unwrap();
+        }
+
+        result.is_complete
+    }
+
+    #[test]
+    fn test_eat_u8() {
+        let parser = eat_u8(b'a');
+        assert!(run_parser(parser.clone(), "a"));
+        assert!(!run_parser(parser, "b"));
+    }
+
+    #[test]
+    fn test_eat_u8_range() {
+        let parser = eat_u8_range(b'0', b'9');
+        assert!(run_parser(parser.clone(), "5"));
+        assert!(!run_parser(parser.clone(), "a"));
+    }
+
+    #[test]
+    fn test_eat_u8_range_complement() {
+        let parser = eat_u8_range_complement(b'0', b'9');
+        assert!(run_parser(parser.clone(), "a"));
+        assert!(!run_parser(parser.clone(), "5"));
+    }
+
+    #[test]
+    fn test_eat_string() {
+        let parser = eat_string("hello");
+        assert!(run_parser(parser.clone(), "hello"));
+        assert!(!run_parser(parser.clone(), "world"));
+    }
+
+    #[test]
+    fn test_seq() {
+        let parser = seq(vec![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')]);
+        assert!(run_parser(parser.clone(), "abc"));
+        assert!(!run_parser(parser.clone(), "acb"));
+    }
+
+    #[test]
+    fn test_choice() {
+        let parser = choice(vec![eat_string("foo"), eat_string("bar")]);
+        assert!(run_parser(parser.clone(), "foo"));
+        assert!(run_parser(parser.clone(), "bar"));
+        assert!(!run_parser(parser.clone(), "baz"));
+    }
+
+    #[test]
+    fn test_repeat() {
+        let parser = repeat(eat_u8(b'a'));
+        assert!(run_parser(parser.clone(), ""));
+        assert!(run_parser(parser.clone(), "a"));
+        assert!(run_parser(parser.clone(), "aaa"));
+        assert!(!run_parser(parser.clone(), "ab"));
+    }
+
+    #[test]
+    fn test_opt() {
+        let parser = seq(vec![
+            eat_u8(b'a'),
+            opt(eat_u8(b'b')),
+            eat_u8(b'c'),
+        ]);
+        assert!(run_parser(parser.clone(), "abc"));
+        assert!(run_parser(parser.clone(), "ac"));
+        assert!(!run_parser(parser.clone(), "ab"));
+    }
+
+    #[test]
+    fn test_eps() {
+        let parser = eps();
+        assert!(run_parser(parser.clone(), ""));
+        assert!(!run_parser(parser.clone(), "a"));
+    }
+
+    // More complex parsing scenarios
+
+    #[test]
+    fn test_parse_number() {
+        let digit = eat_u8_range(b'0', b'9');
+        let number = seq(vec![
+            opt(choice(vec![eat_u8(b'+'), eat_u8(b'-')])),
+            repeat(digit),
+        ]);
+        assert!(run_parser(number.clone(), "123"));
+        assert!(run_parser(number.clone(), "+456"));
+        assert!(run_parser(number.clone(), "-789"));
+        assert!(!run_parser(number.clone(), "12a"));
+    }
+
+    #[test]
+    fn test_parse_identifier() {
+        let letter = choice(vec![
+            eat_u8_range(b'a', b'z'),
+            eat_u8_range(b'A', b'Z'),
+        ]);
+        let digit = eat_u8_range(b'0', b'9');
+        let identifier = seq(vec![
+            letter.clone(),
+            repeat(choice(vec![letter.clone(), digit])),
+        ]);
+        assert!(run_parser(identifier.clone(), "abc"));
+        assert!(run_parser(identifier.clone(), "abc123"));
+        assert!(run_parser(identifier.clone(), "A_b_C"));
+        assert!(!run_parser(identifier.clone(), "123abc"));
+    }
+
+    #[test]
+    fn test_parse_json_like() {
+        let whitespace = repeat(choice(vec![
+            eat_u8(b' '),
+            eat_u8(b'\t'),
+            eat_u8(b'\n'),
+            eat_u8(b'\r'),
+        ]));
+
+        let digit = eat_u8_range(b'0', b'9');
+        let number = seq(vec![
+            opt(eat_u8(b'-')),
+            choice(vec![
+                eat_u8(b'0'),
+                seq(vec![eat_u8_range(b'1', b'9'), repeat(digit.clone())]),
+            ]),
+            opt(seq(vec![
+                eat_u8(b'.'),
+                repeat(digit),
+            ])),
+        ]);
+
+        let string_char = choice(vec![
+            eat_u8_range_complement(b'"', b'"'),
+            seq(vec![eat_u8(b'\\'), eat_u8(b'"')]),
+        ]);
+        let string = seq(vec![
+            eat_u8(b'"'),
+            repeat(string_char),
+            eat_u8(b'"'),
+        ]);
+
+        let json_value = Rc::new(move |d| {
+            choice(vec![
+                string.clone(),
+                number.clone(),
+                eat_string("true"),
+                eat_string("false"),
+                eat_string("null"),
+            ])(d)
+        });
+
+        let json_array = {
+            let json_value = json_value.clone();  // Clone before moving into the closure
+            Rc::new(move |d| {
+                seq(vec![
+                    eat_u8(b'['),
+                    whitespace.clone(),
+                    opt(seq(vec![
+                        json_value.clone(),
+                        repeat(seq(vec![
+                            whitespace.clone(),
+                            eat_u8(b','),
+                            whitespace.clone(),
+                            json_value.clone(),
+                        ])),
+                    ])),
+                    whitespace.clone(),
+                    eat_u8(b']'),
+                ])(d)
+            })
+        };
+
+        assert!(run_parser(json_value.clone(), "\"hello\""));
+        assert!(run_parser(json_value.clone(), "42"));
+        assert!(run_parser(json_value.clone(), "-3.14"));
+        assert!(run_parser(json_value.clone(), "true"));
+        assert!(run_parser(json_value.clone(), "false"));
+        assert!(run_parser(json_value.clone(), "null"));
+
+        assert!(run_parser(json_array.clone(), "[]"));
+        assert!(run_parser(json_array.clone(), "[1, 2, 3]"));
+        assert!(run_parser(json_array.clone(), "[\"a\", true, null]"));
+        assert!(!run_parser(json_array.clone(), "[1, 2,]"));
+    }
+}
