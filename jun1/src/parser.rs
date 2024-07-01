@@ -408,14 +408,15 @@ impl<A: Combinator> ForwardRef<A> {
 }
 
 impl<A: Combinator> Combinator for ForwardRef<A> {
-    type State = A::State;
+    type State = Weak<dyn Combinator<State = A::State>>;
 
     fn initial_state(&self, data: &Data) -> Self::State {
-        self.combinator.upgrade().unwrap().initial_state(data)
+        self.combinator.clone()
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        self.combinator.upgrade().unwrap().next_state(state, c)
+        let combinator = state.upgrade().unwrap();
+        combinator.next_state(state, c)
     }
 }
 
