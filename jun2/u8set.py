@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import List, Iterator
+from typing import List, Iterator, Callable
+
 
 @dataclass
 class BitSet:
@@ -69,6 +70,14 @@ class U8Set:
         result = cls.none()
         for char in chars:
             result.insert(ord(char))
+        return result
+
+    @classmethod
+    def from_test(cls, fn: Callable[[int], bool]) -> 'U8Set':
+        result = cls.none()
+        for i in range(256):
+            if fn(i):
+                result.insert(i)
         return result
 
     def __or__(self, other: 'U8Set') -> 'U8Set':

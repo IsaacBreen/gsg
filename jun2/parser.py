@@ -88,7 +88,7 @@ def choice(*parsers: Combinator) -> Combinator:
 
 def eat_u8(value: u8) -> Combinator:
     def _eat_u8(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        c = yield ParserIterationResult(U8Set.from_chars(value), False)
+        c = yield ParserIterationResult(U8Set.from_test(lambda c: c == ord(value)), False)
         yield ParserIterationResult(U8Set.none(), c == value)
 
     return _eat_u8
@@ -96,9 +96,7 @@ def eat_u8(value: u8) -> Combinator:
 
 def eat_u8_range(start: u8, is_complete: u8) -> Combinator:
     def _eat_u8_range(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        chars = [chr(c) for c in range(ord(start), ord(is_complete) + 1)]
-        chars = "".join(chars)
-        c = yield ParserIterationResult(U8Set.from_chars(chars), False)
+        c = yield ParserIterationResult(U8Set.from_test(lambda c: ord(start) <= c <= ord(is_complete)), False)
         yield ParserIterationResult(U8Set.none(), start <= c <= is_complete)
 
     return _eat_u8_range
@@ -106,10 +104,8 @@ def eat_u8_range(start: u8, is_complete: u8) -> Combinator:
 
 def eat_u8_range_complement(start: u8, is_complete: u8) -> Combinator:
     def _eat_u8_range_complement(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        chars = [chr(c) for c in range(0, ord(start))] + [chr(c) for c in range(ord(is_complete) + 1, 256)]
-        chars = "".join(chars)
-        c = yield ParserIterationResult(U8Set.from_chars(chars), False)
-        yield ParserIterationResult(U8Set.none(), not (start <= c <= is_complete))
+        c = yield ParserIterationResult(U8Set.from_test(lambda c: not ord(start) <= c <= ord(is_complete)), False)
+        yield ParserIterationResult(U8Set.none(), not start <= c <= is_complete)
 
     return _eat_u8_range_complement
 
