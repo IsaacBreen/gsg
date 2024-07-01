@@ -80,8 +80,7 @@ def repeat1(A: Combinator) -> Combinator:
 def choice(*parsers: Combinator) -> Combinator:
     def _choice(data: Data) -> Generator[ParserIterationResult, u8, None]:
         active_parsers = [parser(data) for parser in parsers]
-        char = yield reduce(lambda a, b: a | b, (next(parser) for parser in active_parsers))
-
+        char = None
         while active_parsers:
             char = yield process(char, active_parsers)
 
