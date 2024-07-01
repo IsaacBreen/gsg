@@ -1,5 +1,5 @@
-use std::ops::{BitOr, BitAnd, BitOrAssign, BitAndAssign};
-use std::rc::{Rc, Weak};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
+
 use crate::u8set::U8Set;
 
 #[derive(PartialEq, Debug)]
@@ -390,48 +390,6 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
     opt(repeat1(a))
 }
 
-#[derive(Clone)]
-struct ForwardRef<A: Combinator> {
-    combinator: Weak<dyn Combinator<State = A::State>>,
-}
-
-impl<A: Combinator> ForwardRef<A> {
-    fn new() -> Self {
-        Self {
-            combinator: Weak::new(),
-        }
-    }
-
-    fn set(&mut self, combinator: Weak<dyn Combinator<State = A::State>>) {
-        self.combinator = combinator;
-    }
-}
-
-impl<A: Combinator> Combinator for ForwardRef<A> {
-    type State = Weak<dyn Combinator<State = A::State>>;
-
-    fn initial_state(&self, data: &Data) -> Self::State {
-        self.combinator.clone()
-    }
-
-    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        let combinator = state.upgrade().unwrap();
-        combinator.next_state(state, c)
-    }
-}
-
-impl<T: Combinator> Combinator for Rc<T> {
-    type State = T::State;
-
-    fn initial_state(&self, data: &Data) -> Self::State {
-        (**self).initial_state(data)
-    }
-
-    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        (**self).next_state(state, c)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -542,8 +500,6 @@ mod tests {
         );
         let string = seq(eat_u8('"'), seq(repeat(string_char), eat_u8('"')));
 
-        let json_value: Rc<dyn Combinator<State = _>> = Rc::new(ForwardRef::new());
-
         let json_array = seq(
             eat_u8('['),
             seq(
@@ -574,17 +530,12 @@ mod tests {
             ),
         );
 
-        if let Some(forward_ref) = Rc::get_mut(json_value.clone().downcast_mut::<ForwardRef<_>>().unwrap()) {
-            forward_ref.set(Rc::downgrade(&Rc::new(
-                choice2(
-                    choice2(string, number),
-                    choice2(
-                        choice2(eat_string("true"), eat_string("false")),
-                        choice2(eat_string("null"), choice2(json_array, json_object)),
-                    ),
-                ),
-            ) as Rc<dyn Combinator<State = _>>));
-        }
+        let json_value = choice2(
+            choice2(string, number),
+            choice2(
+                choice2(eat_string("true"), eat_string("false")),
+                choice2(eat_string("null"), choice2(json_array, json_object)),
+            ));
 
         // Test cases
         let json_parser = seq(whitespace.clone(), json_value.clone());
