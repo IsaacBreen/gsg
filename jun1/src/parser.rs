@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cell::RefCell;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
@@ -391,25 +392,44 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
     opt(repeat1(a))
 }
 
-#[derive(Clone)]
-struct Lazy<C: Combinator> {
-    combinator: Rc<RefCell<Option<C>>>,
+trait CombinatorWrapper: Clone {
+    fn initial_state(&self, data: &Data) -> Box<dyn Any>;
+    fn next_state(&self, state: &mut Box<dyn Any>, c: Option<char>) -> ParserIterationResult;
 }
 
-impl<C: Combinator> Lazy<C> {
+#[derive(Clone)]
+struct WrappedCombinator<C: Combinator + 'static>(C);
+
+impl<C: Combinator + 'static> CombinatorWrapper for WrappedCombinator<C> {
+    fn initial_state(&self, data: &Data) -> Box<dyn Any> {
+        Box::new(self.0.initial_state(data))
+    }
+
+    fn next_state(&self, state: &mut Box<dyn Any>, c: Option<char>) -> ParserIterationResult {
+        let state = state.downcast_mut::<C::State>().unwrap();
+        self.0.next_state(state, c)
+    }
+}
+
+#[derive(Clone)]
+struct Lazy {
+    combinator: Rc<RefCell<Option<Box<dyn CombinatorWrapper>>>>,
+}
+
+impl Lazy {
     fn new() -> Self {
         Self {
             combinator: Rc::new(RefCell::new(None)),
         }
     }
 
-    fn set(&self, combinator: C) {
-        *self.combinator.borrow_mut() = Some(combinator);
+    fn set<C: Combinator + 'static>(&self, combinator: C) {
+        *self.combinator.borrow_mut() = Some(Box::new(WrappedCombinator(combinator)));
     }
 }
 
-impl<C: Combinator> Combinator for Lazy<C> {
-    type State = Option<C::State>;
+impl Combinator for Lazy {
+    type State = Option<Box<dyn Any>>;
 
     fn initial_state(&self, data: &Data) -> Self::State {
         self.combinator.borrow().as_ref().map(|c| c.initial_state(data))
@@ -427,7 +447,6 @@ impl<C: Combinator> Combinator for Lazy<C> {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
