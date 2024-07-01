@@ -96,15 +96,21 @@ def eat_u8_matching(fn: Callable[[int], bool]) -> Combinator:
 
 
 def eat_u8(value: u8) -> Combinator:
-    return eat_u8_matching(lambda c: c == ord(value))
+    def match_fn(c: int) -> bool:
+        return c == ord(value)
+    return eat_u8_matching(match_fn)
 
 
 def eat_u8_range(start: u8, is_complete: u8) -> Combinator:
-    return eat_u8_matching(lambda c: ord(start) <= c <= ord(is_complete))
+    def match_fn(c: int) -> bool:
+        return ord(start) <= c <= ord(is_complete)
+    return eat_u8_matching(match_fn)
 
 
 def eat_u8_range_complement(start: u8, is_complete: u8) -> Combinator:
-    return eat_u8_matching(lambda c: not ord(start) <= c <= ord(is_complete))
+    def match_fn(c: int) -> bool:
+        return not ord(start) <= c <= ord(is_complete)
+    return eat_u8_matching(match_fn)
 
 
 def eat_string(value: str) -> Combinator:
