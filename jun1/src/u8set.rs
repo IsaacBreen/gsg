@@ -1,31 +1,9 @@
-use std::ops::{BitOr, BitAnd};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
+use crate::bitset256::BitSet256;
 
-#[derive(Clone)]
-struct BitSet {
-    x: u32,
-}
-
-impl BitSet {
-    fn is_set(&self, index: u8) -> bool {
-        self.x & (1 << index) != 0
-    }
-
-    fn set_bit(&mut self, index: u8) {
-        self.x |= 1 << index;
-    }
-
-    fn clear_bit(&mut self, index: u8) {
-        self.x &= !(1 << index);
-    }
-
-    fn clone(&self) -> Self {
-        BitSet { x: self.x }
-    }
-}
-
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct U8Set {
-    bitset: BitSet,
+    bitset: BitSet256,
 }
 
 impl U8Set {
@@ -48,32 +26,31 @@ impl U8Set {
     }
 
     pub fn update(&mut self, other: &U8Set) {
-        self.bitset.x |= other.bitset.x;
+        self.bitset.update(&other.bitset);
     }
 
     pub fn contains(&self, value: impl Into<u8>) -> bool {
-        let value: u8 = value.into();
-        self.bitset.is_set(value)
+        self.bitset.is_set(value.into())
     }
 
     pub fn len(&self) -> usize {
-        self.bitset.x.count_ones() as usize
+        self.bitset.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.bitset.x == 0
+        self.bitset.is_empty()
     }
 
     pub fn clear(&mut self) {
-        self.bitset.x = 0;
+        self.bitset.clear();
     }
 
     pub fn all() -> Self {
-        U8Set { bitset: BitSet { x: u32::MAX } }
+        U8Set { bitset: BitSet256::all() }
     }
 
     pub fn none() -> Self {
-        U8Set { bitset: BitSet { x: 0 } }
+        U8Set { bitset: BitSet256::none() }
     }
 
     pub fn from_chars(chars: &str) -> Self {
@@ -106,9 +83,7 @@ impl BitOr for &U8Set {
     type Output = U8Set;
 
     fn bitor(self, other: &U8Set) -> U8Set {
-        U8Set {
-            bitset: BitSet { x: self.bitset.x | other.bitset.x },
-        }
+        U8Set { bitset: self.bitset.clone() | other.bitset.clone() }
     }
 }
 
@@ -117,8 +92,36 @@ impl BitAnd for &U8Set {
 
     fn bitand(self, other: &U8Set) -> U8Set {
         U8Set {
-            bitset: BitSet { x: self.bitset.x & other.bitset.x },
+            bitset: self.bitset.clone() & other.bitset.clone(),
         }
+    }
+}
+
+impl BitOr for U8Set {
+    type Output = U8Set;
+
+    fn bitor(self, other: U8Set) -> U8Set {
+        &self | &other
+    }
+}
+
+impl BitAnd for U8Set {
+    type Output = U8Set;
+
+    fn bitand(self, other: U8Set) -> U8Set {
+        &self & &other
+    }
+}
+
+impl BitOrAssign for U8Set {
+    fn bitor_assign(&mut self, other: U8Set) {
+        self.update(&other);
+    }
+}
+
+impl BitAndAssign for U8Set {
+    fn bitand_assign(&mut self, other: U8Set) {
+        self.bitset &= other.bitset;
     }
 }
 
