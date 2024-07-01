@@ -36,29 +36,27 @@ def process(c, its):
 
 
 def seq2(A: Combinator, B: Combinator) -> Combinator:
+    def helper(A_result, B_its, B_result, d):
+        if A_result.is_complete:
+            B_it = B(d)
+            B_result |= next(B_it)
+            B_its.append(B_it)
+            A_result.is_complete = False
+            A_result |= B_result
+        return A_result | B_result
+
     def _seq2(d: Data) -> Generator[ParserIterationResult, u8, None]:
         A_it = A(d)
         A_result = next(A_it)
         A_its = [A_it]
         B_its = []
-        if A_result.is_complete:
-            B_it = B(d)
-            B_result = next(B_it)
-            B_its.append(B_it)
-            A_result.is_complete = False
-            c = yield A_result | B_result
-        else:
-            c = yield A_result
+        B_result = ParserIterationResult(U8Set.none(), False)
+        c = yield helper(A_result, B_its, B_result, d)
 
         while A_its or B_its:
             A_result = process(c, A_its)
             B_result = process(c, B_its)
-            if A_result.is_complete:
-                B_it = B(d)
-                B_result |= next(B_it)
-                B_its.append(B_it)
-                A_result.is_complete = False
-            c = yield A_result | B_result
+            c = yield helper(A_result, B_its, B_result, d)
 
     return _seq2
 
