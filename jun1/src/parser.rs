@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::ops::{BitOr, BitAnd, BitOrAssign, BitAndAssign};
 use std::rc::{Rc, Weak};
 use crate::u8set::U8Set;
@@ -391,56 +392,35 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
 }
 
 #[derive(Clone)]
-struct ForwardRef<A>
-where
-    A: Combinator,
-{
-    combinator: Option<Weak<A>>,
+struct ForwardRef {
+    combinator: Option<Box<dyn Combinator<State = Box<dyn Any>>>>,
 }
 
-impl<A> ForwardRef<A>
-where
-    A: Combinator,
-{
+impl ForwardRef {
     fn new() -> Self {
         Self { combinator: None }
     }
 
-    fn set(&mut self, combinator: Rc<A>) {
-        self.combinator = Some(Rc::downgrade(&combinator));
+    fn set(&mut self, combinator: Box<dyn Combinator<State = Box<dyn Any>>>) {
+        self.combinator = Some(combinator);
     }
 }
 
-impl<A> Combinator for ForwardRef<A>
-where
-    A: Combinator,
-{
-    type State = A::State;
+impl Combinator for ForwardRef {
+    type State = Box<dyn Any>;
 
     fn initial_state(&self, data: &Data) -> Self::State {
-        self.combinator.as_ref().unwrap().upgrade().unwrap().initial_state(data)
+        self.combinator.as_ref().unwrap().initial_state(data)
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        self.combinator.as_ref().unwrap().upgrade().unwrap().next_state(state, c)
-    }
-}
-
-impl<A> Combinator for Rc<A>
-where
-    A: Combinator,
-{
-    type State = A::State;
-    fn initial_state(&self, data: &Data) -> Self::State {
-        self.as_ref().initial_state(data)
-    }
-    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        self.as_ref().next_state(state, c)
+        self.combinator.as_ref().unwrap().next_state(state, c)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
     use super::*;
 
     #[test]
@@ -550,7 +530,7 @@ mod tests {
         );
         let string = seq(eat_u8('"'), seq(repeat(string_char), eat_u8('"')));
 
-        let json_value = Rc::new(ForwardRef::new());
+        let mut json_value = Rc::new(RefCell::new(ForwardRef::new()));
 
         let json_array = seq(
                     eat_u8('['),
@@ -582,17 +562,15 @@ mod tests {
             ),
         );
 
-        json_value.set(
-            Rc::new(
+        json_value.borrow_mut().set(Box::new(
+            choice2(
+                choice2(string, number),
                 choice2(
-                    choice2(string, number),
-                    choice2(
-                        choice2(eat_string("true"), eat_string("false")),
-                        choice2(eat_string("null"), json_array.clone()), // Clone json_array
-                    ),
-                )
+                    choice2(eat_string("true"), eat_string("false")),
+                    choice2(eat_string("null"), json_array.clone()),
+                ),
             )
-        );
+        ));
 
         // Test cases
         let json_parser = seq(whitespace, json_value);
