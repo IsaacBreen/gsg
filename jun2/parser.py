@@ -69,7 +69,8 @@ def repeat1(A: Combinator) -> Combinator:
         its, c = [A(d)], None
         while its:
             A_result = process(c, its)
-            c = yield seq2_helper(A, d, A_result.copy(), its) | A_result
+            B_result = A_result.copy()
+            c = yield seq2_helper(A, d, A_result, its) | B_result
 
     return _repeat1
 
