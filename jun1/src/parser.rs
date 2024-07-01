@@ -392,6 +392,8 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+    use std::rc::Rc;
     use super::*;
 
     #[test]
@@ -500,6 +502,37 @@ mod tests {
         );
         let string = seq(eat_u8('"'), seq(repeat(string_char), eat_u8('"')));
 
+        #[derive(Clone)]
+        struct ForwardRef<A> {
+            a: Rc<RefCell<Option<A>>>
+        }
+
+        impl<A> ForwardRef<A> {
+            fn new() -> Self {
+                Self { a: Rc::new(RefCell::new(None)) }
+            }
+
+            fn set(&mut self, a: A) {
+                self.a.replace(Some(a));
+            }
+        }
+
+        impl<A> Combinator for ForwardRef<A>
+        where
+            A: Combinator,
+        {
+            type State = A::State;
+            fn initial_state(&self, _data: &Data) -> Self::State {
+                let a = self.a.borrow();
+                a.as_ref().unwrap().initial_state(&())
+            }
+            fn next_state(&self, _state: &mut Self::State, _c: Option<char>) -> ParserIterationResult {
+                ParserIterationResult::new(U8Set::none(), true)
+            }
+        }
+
+        let mut json_value = ForwardRef::new();
+
         let json_array = seq(
             eat_u8('['),
             seq(
@@ -530,12 +563,14 @@ mod tests {
             ),
         );
 
-        let json_value = choice2(
+        let json_value_final = choice2(
             choice2(string, number),
             choice2(
                 choice2(eat_string("true"), eat_string("false")),
                 choice2(eat_string("null"), choice2(json_array, json_object)),
             ));
+
+        json_value.set(json_value_final);
 
         // Test cases
         let json_parser = seq(whitespace.clone(), json_value.clone());
