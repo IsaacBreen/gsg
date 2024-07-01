@@ -82,7 +82,7 @@ impl U8Set {
         F: FnMut(u8) -> bool,
     {
         let mut result = Self::none();
-        for i in 0..256 {
+        for i in 0..=255 {
             if fn_(i) {
                 result.insert(i);
             }
@@ -234,14 +234,14 @@ trait Combinator: Clone {
 }
 
 #[derive(Clone)]
-struct ActiveCombinator<'a, C: Combinator> {
-    combinator: &'a C,
+struct ActiveCombinator<C: Combinator> {
+    combinator: C,
     data: Data,
     state: C::State,
 }
 
-impl<'a, C: Combinator> ActiveCombinator<'a, C> {
-    fn new(combinator: &'a C, data: Data) -> Self {
+impl<C: Combinator> ActiveCombinator<C> {
+    fn new(combinator: C, data: Data) -> Self {
         let state = combinator.initial_state(&data);
         Self {
             combinator,
@@ -259,16 +259,16 @@ impl<'a, C: Combinator> ActiveCombinator<'a, C> {
         C::State: Clone,
     {
         Self {
-            combinator: self.combinator,
+            combinator: self.combinator.clone(),
             data: self.data,
             state: self.combinator.clone_state(&self.state),
         }
     }
 }
 
-fn process<'a, C: Combinator>(
+fn process<C: Combinator>(
     c: Option<char>,
-    its: &mut Vec<ActiveCombinator<'a, C>>,
+    its: &mut Vec<ActiveCombinator<C>>,
 ) -> ParserIterationResult {
     let mut final_result = ParserIterationResult::new(U8Set::none(), false);
     let mut i = its.len();
@@ -283,11 +283,11 @@ fn process<'a, C: Combinator>(
     final_result
 }
 
-fn seq2_helper<'a, B: Combinator>(
-    b: &B,
+fn seq2_helper<B: Combinator>(
+    b: B,
     d: &Data,
     a_result: &mut ParserIterationResult,
-    b_its: &mut Vec<ActiveCombinator<'a, B>>,
+    b_its: &mut Vec<ActiveCombinator<B>>,
 ) {
     if a_result.is_complete {
         let b_it = ActiveCombinator::new(b, d.clone());
@@ -299,35 +299,35 @@ fn seq2_helper<'a, B: Combinator>(
 }
 
 #[derive(Clone)]
-struct Seq2<'a, A, B>
+struct Seq2<A, B>
 where
     A: Combinator,
     B: Combinator,
 {
-    a: &'a A,
-    b: &'a B,
+    a: A,
+    b: B,
 }
 
-impl<'a, A, B> Seq2<'a, A, B>
+impl<A, B> Seq2<A, B>
 where
     A: Combinator,
     B: Combinator,
 {
-    fn new(a: &'a A, b: &'a B) -> Self {
+    fn new(a: A, b: B) -> Self {
         Self { a, b }
     }
 }
 
-impl<'a, A, B> Combinator for Seq2<'a, A, B>
+impl<A, B> Combinator for Seq2<A, B>
 where
     A: Combinator,
     B: Combinator,
 {
-    type State = (Vec<ActiveCombinator<'a, A>>, Vec<ActiveCombinator<'a, B>>, Data);
+    type State = (Vec<ActiveCombinator<A>>, Vec<ActiveCombinator<B>>, Data);
 
     fn initial_state(&self, data: &Data) -> Self::State {
         (
-            vec![ActiveCombinator::new(self.a, data.clone())],
+            vec![ActiveCombinator::new(self.a.clone(), data.clone())],
             Vec::new(),
             data.clone(),
         )
@@ -337,7 +337,7 @@ where
         let (a_its, b_its, d) = state;
         let mut a_result = process(c, a_its);
         let b_result = process(c, b_its);
-        seq2_helper(self.b, d, &mut a_result, b_its);
+        seq2_helper(self.b.clone(), d, &mut a_result, b_its);
         a_result | b_result
     }
 
@@ -353,7 +353,7 @@ where
     }
 }
 
-fn seq2<'a, A, B>(a: &'a A, b: &'a B) -> Seq2<'a, A, B>
+fn seq2<A, B>(a: A, b: B) -> Seq2<A, B>
 where
     A: Combinator,
     B: Combinator,
@@ -362,14 +362,14 @@ where
 }
 
 // Box is used here to allow for recursive types
-fn seq<'a, A: Combinator + 'a, B: Combinator + 'a>(
-    a: &'a A,
-    b: &'a B
-) -> Seq2<'a, A, B>
+fn seq<A: Combinator, B: Combinator>(
+    a: A,
+    b: B
+) -> Seq2<A, B>
 where
-    A: Combinator + Clone + 'a,
+    A: Combinator + Clone,
     A::State: Clone,
-    B: Combinator + Clone + 'a,
+    B: Combinator + Clone,
     B::State: Clone,
 {
     Seq2::new(a, b)
@@ -377,24 +377,24 @@ where
 
 
 #[derive(Clone)]
-struct Repeat1<'a, A>(&'a A)
+struct Repeat1<A>(A)
 where
     A: Combinator;
 
-impl<'a, A> Combinator for Repeat1<'a, A>
+impl<A> Combinator for Repeat1<A>
 where
     A: Combinator,
 {
-    type State = (Vec<ActiveCombinator<'a, A>>, Data);
+    type State = (Vec<ActiveCombinator<A>>, Data);
 
     fn initial_state(&self, data: &Data) -> Self::State {
-        (vec![ActiveCombinator::new(self.0, data.clone())], data.clone())
+        (vec![ActiveCombinator::new(self.0.clone(), data.clone())], data.clone())
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
         let (a_its, d) = state;
         let mut a_result = process(c, a_its);
-        seq2_helper(self.0, d, &mut a_result.clone(), a_its);
+        seq2_helper(self.0.clone(), d, &mut a_result.clone(), a_its);
         a_result | process(c, a_its)
     }
 
@@ -409,7 +409,7 @@ where
     }
 }
 
-fn repeat1<'a, A>(a: &'a A) -> Repeat1<'a, A>
+fn repeat1<A>(a: A) -> Repeat1<A>
 where
     A: Combinator,
 {
@@ -417,26 +417,26 @@ where
 }
 
 #[derive(Clone)]
-struct Choice2<'a, A, B>
+struct Choice2<A, B>
 where
     A: Combinator,
     B: Combinator,
 {
-    a: &'a A,
-    b: &'a B
+    a: A,
+    b: B
 }
 
-impl<'a, A, B> Choice2<'a, A, B>
+impl<A, B> Choice2<A, B>
 where
     A: Combinator,
     B: Combinator,
 {
-    fn new(a: &'a A, b: &'a B) -> Self {
+    fn new(a: A, b: B) -> Self {
         Self { a, b }
     }
 }
 
-impl<'a, A, B> Combinator for Choice2<'a, A, B>
+impl<A, B> Combinator for Choice2<A, B>
 where
     A: Combinator,
     B: Combinator,
@@ -462,7 +462,7 @@ where
     }
 }
 
-fn choice2<'a, A: Combinator + 'a, B: Combinator + 'a>(a: &'a A, b: &'a B) -> Choice2<'a, A, B> {
+fn choice2<A: Combinator, B: Combinator>(a: A, b: B) -> Choice2<A, B> {
     Choice2::new(a, b)
 }
 
@@ -583,12 +583,12 @@ fn eps() -> Eps {
     Eps
 }
 
-fn opt<'a, A: Combinator + 'a>(a: &'a A) -> Choice2<'a, A, Eps> {
-    choice2(a, &eps())
+fn opt<A: Combinator>(a: A) -> Choice2<A, Eps> {
+    choice2(a, eps())
 }
 
-fn repeat<'a, A: Combinator + 'a>(a: &'a A) -> Choice2<'a, Repeat1<'a, A>, Eps> {
-    opt(&repeat1(a))
+fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
+    opt(repeat1(a))
 }
 
 #[cfg(test)]
@@ -597,7 +597,7 @@ mod tests {
 
     #[test]
     fn test_eat_u8() {
-        let mut it = ActiveCombinator::new(&eat_u8('a'), ());
+        let mut it = ActiveCombinator::new(eat_u8('a'), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result = it.send(Some('a'));
@@ -606,7 +606,7 @@ mod tests {
 
     #[test]
     fn test_seq() {
-        let mut it = ActiveCombinator::new(&seq(&eat_u8('a'), &eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(seq(eat_u8('a'), eat_u8('b')), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result1 = it.send(Some('a'));
@@ -617,7 +617,7 @@ mod tests {
 
     #[test]
     fn test_repeat1() {
-        let mut it = ActiveCombinator::new(&repeat1(&eat_u8('a')), ());
+        let mut it = ActiveCombinator::new(repeat1(eat_u8('a')), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result1 = it.send(Some('a'));
@@ -628,13 +628,13 @@ mod tests {
 
     #[test]
     fn test_choice() {
-        let mut it = ActiveCombinator::new(&choice2(&eat_u8('a'), &eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(choice2(eat_u8('a'), eat_u8('b')), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("ab"), false));
         let result1 = it.send(Some('a'));
         assert_eq!(result1, ParserIterationResult::new(U8Set::none(), true));
 
-        let mut it = ActiveCombinator::new(&choice2(&eat_u8('a'), &eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(choice2(eat_u8('a'), eat_u8('b')), ());
         it.send(None);
         let result2 = it.send(Some('b'));
         assert_eq!(result2, ParserIterationResult::new(U8Set::none(), true));
@@ -644,9 +644,9 @@ mod tests {
     fn test_seq_choice_seq() {
         // Matches "ac" or "abc"
         let mut it = ActiveCombinator::new(
-            &seq(
-                &choice2(&eat_u8('a'), &seq2(&eat_u8('a'), &eat_u8('b'))),
-                &eat_u8('c')
+            seq(
+                choice2(eat_u8('a'), seq2(eat_u8('a'), eat_u8('b'))),
+                eat_u8('c')
             ),
             (),
         );
