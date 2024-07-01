@@ -64,16 +64,14 @@ def seq(*args: Combinator) -> Combinator:
     return reduce(seq2, args)
 
 
-def repeat(A: Combinator) -> Combinator:
-    def _repeat(d: Data) -> Generator[ParserIterationResult, u8, None]:
+def repeat1(A: Combinator) -> Combinator:
+    def _repeat1(d: Data) -> Generator[ParserIterationResult, u8, None]:
         its, c = [A(d)], None
-        dummy_result = ParserIterationResult(U8Set.none(), True)
         while its:
-            result = process(c, its)
-            c = yield seq2_helper(A, d, result | dummy_result, its) | result | dummy_result
-            dummy_result.is_complete = False
+            A_result = process(c, its)
+            c = yield seq2_helper(A, d, A_result.copy(), its) | A_result
 
-    return _repeat
+    return _repeat1
 
 
 def choice(*parsers: Combinator) -> Combinator:
@@ -129,6 +127,9 @@ def eps() -> Combinator:
 def opt(A: Combinator) -> Combinator:
     return choice(A, eps())
 
+
+def repeat(A: Combinator) -> Combinator:
+    return opt(repeat1(A))
 
 def test_eat_u8():
     it = eat_u8("a")(None)
