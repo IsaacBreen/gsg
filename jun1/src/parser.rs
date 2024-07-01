@@ -236,8 +236,9 @@ where
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
         let (a_its, d) = state;
         let mut a_result = process(c, a_its);
-        seq2_helper(self.0.clone(), d, &mut a_result.clone(), a_its);
-        a_result | process(c, a_its)
+        let b_result = a_result.clone();
+        seq2_helper(self.0.clone(), d, &mut a_result, a_its);
+        a_result | b_result
     }
 
     fn clone_state(&self, state: &Self::State) -> Self::State

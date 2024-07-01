@@ -80,17 +80,6 @@ impl BitAnd for BitSet256 {
     }
 }
 
-impl BitXor for BitSet256 {
-    type Output = Self;
-
-    fn bitxor(self, other: Self) -> Self {
-        BitSet256 {
-            x: self.x ^ other.x,
-            y: self.y ^ other.y,
-        }
-    }
-}
-
 impl Not for BitSet256 {
     type Output = Self;
 
