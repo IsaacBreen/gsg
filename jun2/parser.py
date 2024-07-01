@@ -97,7 +97,7 @@ def repeat1(A: Combinator) -> Combinator:
 def choice(*parsers: Combinator) -> Combinator:
     def _choice(self: ActiveCombinator, data: Data, c: Optional[u8]) -> ParserIterationResult:
         if not hasattr(self, 'active_parsers'):
-            self.active_parsers: List[ActiveCombinator] = [parser(data) for parser in parsers]
+            self.active_parsers: List[ActiveCombinator] = [parser(self, data, c) for parser in parsers]
             self.first_result = reduce(lambda a, b: a | b, (p.send(None) for p in self.active_parsers))
             return self.first_result
 
