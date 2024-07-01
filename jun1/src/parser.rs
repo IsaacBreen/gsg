@@ -1,5 +1,5 @@
 use std::ops::{BitOr, BitAnd, BitOrAssign, BitAndAssign};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use crate::u8set::U8Set;
 
 #[derive(PartialEq, Debug)]
@@ -68,12 +68,6 @@ trait Combinator: Clone {
     type State: Clone;
     fn initial_state(&self, data: &Data) -> Self::State;
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult;
-    fn clone_state(&self, state: &Self::State) -> Self::State
-    where
-        Self::State: Clone,
-    {
-        state.clone()
-    }
 }
 
 #[derive(Clone)]
@@ -95,17 +89,6 @@ impl<C: Combinator> ActiveCombinator<C> {
 
     fn send(&mut self, c: Option<char>) -> ParserIterationResult {
         self.combinator.next_state(&mut self.state, c)
-    }
-
-    fn clone(&self) -> Self
-    where
-        C::State: Clone,
-    {
-        Self {
-            combinator: self.combinator.clone(),
-            data: self.data,
-            state: self.combinator.clone_state(&self.state),
-        }
     }
 }
 
@@ -183,17 +166,6 @@ where
         seq2_helper(self.b.clone(), d, &mut a_result, b_its);
         a_result | b_result
     }
-
-    fn clone_state(&self, state: &Self::State) -> Self::State
-    where
-        Self::State: Clone,
-    {
-        (
-            state.0.iter().map(|it| it.clone()).collect(),
-            state.1.iter().map(|it| it.clone()).collect(),
-            state.2.clone(),
-        )
-    }
 }
 
 fn seq2<A, B>(a: A, b: B) -> Seq2<A, B>
@@ -241,16 +213,6 @@ where
         seq2_helper(self.0.clone(), d, &mut a_result, a_its);
         a_result | b_result
     }
-
-    fn clone_state(&self, state: &Self::State) -> Self::State
-    where
-        Self::State: Clone,
-    {
-        (
-            state.0.iter().map(|it| it.clone()).collect(),
-            state.1.clone(),
-        )
-    }
 }
 
 fn repeat1<A>(a: A) -> Repeat1<A>
@@ -296,13 +258,6 @@ where
         let result_b = self.b.next_state(&mut state.1, c);
         result_a |= result_b;
         result_a
-    }
-
-    fn clone_state(&self, state: &Self::State) -> Self::State
-    where
-        Self::State: Clone,
-    {
-        (self.a.clone_state(&state.0), self.b.clone_state(&state.1))
     }
 }
 
@@ -440,7 +395,7 @@ struct ForwardRef<A>
 where
     A: Combinator,
 {
-    combinator: Option<Rc<A>>,
+    combinator: Option<Weak<A>>,
 }
 
 impl<A> ForwardRef<A>
@@ -452,7 +407,7 @@ where
     }
 
     fn set(&mut self, combinator: Rc<A>) {
-        self.combinator = Some(combinator);
+        self.combinator = Some(Rc::downgrade(&combinator));
     }
 }
 
@@ -463,18 +418,11 @@ where
     type State = A::State;
 
     fn initial_state(&self, data: &Data) -> Self::State {
-        self.combinator.as_ref().unwrap().initial_state(data)
+        self.combinator.as_ref().unwrap().upgrade().unwrap().initial_state(data)
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        self.combinator.as_ref().unwrap().next_state(state, c)
-    }
-
-    fn clone_state(&self, state: &Self::State) -> Self::State
-    where
-        Self::State: Clone,
-    {
-        self.combinator.as_ref().unwrap().clone_state(state)
+        self.combinator.as_ref().unwrap().upgrade().unwrap().next_state(state, c)
     }
 }
 
@@ -590,7 +538,7 @@ mod tests {
         );
         let string = seq(eat_u8('"'), seq(repeat(string_char), eat_u8('"')));
 
-        let mut json_value = ForwardRef::new();
+        let json_value = Rc::new(ForwardRef::new());
 
         let json_array = seq(
                     eat_u8('['),
@@ -623,14 +571,12 @@ mod tests {
         );
 
         json_value.set(
-            Rc::new(
+            choice2(
+                choice2(string, number),
                 choice2(
-                    choice2(string, number),
-                    choice2(
-                        choice2(eat_string("true"), eat_string("false")),
-                        choice2(eat_string("null"), json_array),
-                    ),
-                )
+                    choice2(eat_string("true"), eat_string("false")),
+                    choice2(eat_string("null"), json_array.clone()), // Clone json_array
+                ),
             )
         );
 
