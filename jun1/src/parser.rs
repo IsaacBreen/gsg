@@ -406,8 +406,8 @@ where
         Self { combinator: None }
     }
 
-    fn set(&mut self, combinator: Rc<A>) {
-        self.combinator = Some(Rc::downgrade(&combinator));
+    fn set(&mut self, combinator: Weak<A>) {
+        self.combinator = Some(combinator);
     }
 }
 
@@ -508,7 +508,6 @@ mod tests {
         assert_eq!(result3, ParserIterationResult::new(U8Set::none(), true));
     }
 
-
     #[test]
     fn test_json_parser() {
         // Helper combinators for JSON parsing
@@ -553,20 +552,20 @@ mod tests {
         let json_value = Rc::new(ForwardRef::new());
 
         let json_array = seq(
-                    eat_u8('['),
-                    seq(
-                        whitespace,
-                        seq(
-                            opt(seq(
-                                json_value,
-                                repeat(seq(seq(whitespace, eat_u8(',')), seq(whitespace, json_value))),
-                            )),
-                            seq(whitespace, eat_u8(']')),
-                        ),
-                    ),
+            eat_u8('['),
+            seq(
+                whitespace,
+                seq(
+                    opt(seq(
+                        json_value.clone(),
+                        repeat(seq(seq(whitespace, eat_u8(',')), seq(whitespace, json_value.clone()))),
+                    )),
+                    seq(whitespace, eat_u8(']')),
+                ),
+            ),
         );
 
-        let key_value_pair = seq(seq(whitespace, string), seq(whitespace, seq(eat_u8(':'), seq(whitespace, json_value))));
+        let key_value_pair = seq(seq(whitespace, string.clone()), seq(whitespace, seq(eat_u8(':'), seq(whitespace, json_value.clone()))));
 
         let json_object = seq(
             eat_u8('{'),
@@ -583,19 +582,19 @@ mod tests {
         );
 
         json_value.set(
-            Rc::new(
+            Rc::downgrade(&Rc::new(
                 choice2(
                     choice2(string, number),
                     choice2(
                         choice2(eat_string("true"), eat_string("false")),
-                        choice2(eat_string("null"), json_array.clone()), // Clone json_array
+                        choice2(eat_string("null"), choice2(json_array, json_object)),
                     ),
-                )
-            )
+                ),
+            ))
         );
 
         // Test cases
-        let json_parser = seq(whitespace, json_value);
+        let json_parser = seq(whitespace.clone(), json_value.clone());
 
         let test_cases = [
             "42",
@@ -609,7 +608,7 @@ mod tests {
         ];
 
         for json_string in test_cases {
-            let mut it = json_parser(&());
+            let mut it = ActiveCombinator::new(json_parser.clone(), ());
             let result = it.send(None);
             for char in json_string.chars() {
                 assert!(result.u8set.contains(char as u8), "Expected {} to be in {:?}", char, result.u8set);
