@@ -1,4 +1,4 @@
-use std::ops::{BitOr, BitAnd};
+use std::ops::{BitOr, BitAnd, BitOrAssign};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct BitSet {
@@ -179,7 +179,7 @@ where
     items.remove(0)
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct ParserIterationResult {
     u8set: U8Set,
     is_complete: bool,
@@ -205,6 +205,13 @@ impl BitOr for ParserIterationResult {
     }
 }
 
+impl BitOrAssign for ParserIterationResult {
+    fn bitor_assign(&mut self, other: Self) {
+        self.u8set.update(&other.u8set);
+        self.is_complete |= other.is_complete;
+    }
+}
+
 impl BitAnd for ParserIterationResult {
     type Output = Self;
 
@@ -216,28 +223,15 @@ impl BitAnd for ParserIterationResult {
     }
 }
 
-impl Clone for ParserIterationResult {
-    fn clone(&self) -> Self {
-        Self {
-            u8set: self.u8set.clone(),
-            is_complete: self.is_complete,
-        }
-    }
-}
-
 type Data = ();
 
-trait Combinator<State = ()> {
-    fn initial_state(&self, data: &Data) -> State;
-    fn next_state(&self, state: &mut State, c: Option<char>) -> ParserIterationResult;
-    fn clone_state(&self, state: &State) -> State
-    where
-        State: Clone,
-    {
-        state.clone()
-    }
+trait Combinator: Clone {
+    type State: Clone;
+    fn initial_state(&self, data: &Data) -> Self::State;
+    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult;
 }
 
+#[derive(Clone)]
 struct ActiveCombinator<'a, C: Combinator> {
     combinator: &'a C,
     data: Data,
@@ -256,17 +250,6 @@ impl<'a, C: Combinator> ActiveCombinator<'a, C> {
 
     fn send(&mut self, c: Option<char>) -> ParserIterationResult {
         self.combinator.next_state(&mut self.state, c)
-    }
-
-    fn clone(&self) -> Self
-    where
-        C::State: Clone,
-    {
-        Self {
-            combinator: self.combinator,
-            data: self.data.clone(),
-            state: self.combinator.clone_state(&self.state),
-        }
     }
 }
 
@@ -287,6 +270,12 @@ fn process<'a, C: Combinator>(
     final_result
 }
 
+impl BitOrAssign for U8Set {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.update(&rhs);
+    }
+}
+
 fn seq2_helper<'a, B: Combinator>(
     b: &B,
     d: &Data,
@@ -302,6 +291,7 @@ fn seq2_helper<'a, B: Combinator>(
     }
 }
 
+#[derive(Clone)]
 struct Seq2<'a, A, B>
 where
     A: Combinator,
@@ -343,17 +333,6 @@ where
         seq2_helper(self.b, d, &mut a_result, b_its);
         a_result | b_result
     }
-
-    fn clone_state(&self, state: &Self::State) -> Self::State
-    where
-        Self::State: Clone,
-    {
-        (
-            state.0.iter().map(|it| it.clone()).collect(),
-            state.1.iter().map(|it| it.clone()).collect(),
-            state.2.clone(),
-        )
-    }
 }
 
 fn seq2<'a, A, B>(a: &'a A, b: &'a B) -> Seq2<'a, A, B>
@@ -364,22 +343,7 @@ where
     Seq2::new(a, b)
 }
 
-fn seq<'a, C: Combinator>(combinators: &'a [C]) -> Box<dyn Combinator<State = (Box<dyn Combinator<State = C::State> + 'a>, C::State)> + 'a>
-where
-    C::State: Clone,
-{
-    match combinators.len() {
-        0 => panic!("seq() called with empty slice"),
-        1 => Box::new(combinators[0]),
-        _ => {
-            let (left, right) = combinators.split_at(combinators.len() / 2);
-            let left_combinator = seq(left);
-            let right_combinator = seq(right);
-            Box::new(seq2(&left_combinator, &right_combinator))
-        }
-    }
-}
-
+#[derive(Clone)]
 struct Repeat1<'a, A>(&'a A)
 where
     A: Combinator;
@@ -400,16 +364,6 @@ where
         seq2_helper(self.0, d, &mut a_result.clone(), a_its);
         a_result | process(c, a_its)
     }
-
-    fn clone_state(&self, state: &Self::State) -> Self::State
-    where
-        Self::State: Clone,
-    {
-        (
-            state.0.iter().map(|it| it.clone()).collect(),
-            state.1.clone(),
-        )
-    }
 }
 
 fn repeat1<'a, A>(a: &'a A) -> Repeat1<'a, A>
@@ -419,11 +373,14 @@ where
     Repeat1(a)
 }
 
-struct Choice<'a, C>
+#[derive(Clone)]
+struct Choice<'a, A, B>
 where
-    C: Combinator,
+    A: Combinator,
+    B: Combinator,
 {
-    parsers: &'a [C],
+    parsers: &'a [A],
+    combiner: B,
 }
 
 impl<'a, C> Choice<'a, C>
@@ -451,19 +408,12 @@ where
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
         process(c, state)
     }
-
-    fn clone_state(&self, state: &Self::State) -> Self::State
-    where
-        Self::State: Clone,
-    {
-        state.iter().map(|it| it.clone()).collect()
-    }
 }
 
-fn choice<'a, C: Combinator>(parsers: &'a [C]) -> Choice<'a, C> {
-    Choice::new(parsers)
-}
+fn choice<'a, A, B>(parsers: &'a [A]) -> Choice<'a, B, B>
 
+
+#[derive(Clone)]
 struct EatU8Matching<F>
 where
     F: Fn(u8) -> bool,
@@ -482,7 +432,7 @@ where
 
 impl<F> Combinator for EatU8Matching<F>
 where
-    F: Fn(u8) -> bool,
+    F: Fn(u8) -> bool + Clone,
 {
     type State = u8;
 
@@ -527,6 +477,7 @@ fn eat_u8_range_complement(start: char, end: char) -> EatU8Matching<impl Fn(u8) 
     eat_u8_matching(move |c: u8| !(start as u8..=end as u8).contains(&c))
 }
 
+#[derive(Clone)]
 struct EatString {
     value: String,
 }
@@ -566,9 +517,12 @@ fn eat_string(value: &str) -> EatString {
     EatString::new(value)
 }
 
+#[derive(Clone)]
 struct Eps;
 
 impl Combinator for Eps {
+    type State = ();
+
     fn initial_state(&self, _data: &Data) -> Self::State {}
     fn next_state(&self, _state: &mut Self::State, _c: Option<char>) -> ParserIterationResult {
         ParserIterationResult::new(U8Set::none(), true)
@@ -580,7 +534,7 @@ fn eps() -> Eps {
 }
 
 fn opt<'a, A: Combinator>(a: &'a A) -> Choice<'a, A> {
-    choice(&[a, &eps()])
+    choice(&[a, eps()])
 }
 
 fn repeat<'a, A: Combinator>(a: &'a A) -> Choice<'a, Repeat1<'a, A>> {
