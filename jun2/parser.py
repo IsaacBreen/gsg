@@ -18,6 +18,10 @@ class ParserIterationResult:
     def __and__(self, other):
         return ParserIterationResult(self.u8set & other.u8set, self.is_complete & other.is_complete)
 
+    def copy(self):
+        return ParserIterationResult(self.u8set, self.is_complete)
+
+
 type u8 = str
 type Data = Any
 type ActiveCombinator = Generator[ParserIterationResult, u8, None]
@@ -35,24 +39,42 @@ def process(c: Optional[u8], its: List[ActiveCombinator]) -> ParserIterationResu
     return final_result
 
 
+def seq2_helper(B: Combinator, d: Data, A_result: ParserIterationResult, B_its: List[ActiveCombinator]) -> ParserIterationResult:
+    if A_result.is_complete:
+        B_it = B(d)
+        B_its.append(B_it)
+        B_result = next(B_it)
+        A_result.is_complete = B_result.is_complete
+        A_result.u8set |= B_result.u8set
+    return A_result
+
+
 def seq2(A: Combinator, B: Combinator) -> Combinator:
     def _seq2(d: Data) -> Generator[ParserIterationResult, u8, None]:
         A_its, B_its, c = [A(d)], [], None
         while A_its or B_its:
             A_result = process(c, A_its)
             B_result = process(c, B_its)
-            if A_result.is_complete:
-                A_result.is_complete = False
-                B_it = B(d)
-                B_its.append(B_it)
-                B_result |= next(B_it)
-            c = yield A_result | B_result
+            c = yield seq2_helper(B, d, A_result, B_its) | B_result
 
     return _seq2
 
 
 def seq(*args: Combinator) -> Combinator:
     return reduce(seq2, args)
+
+
+def repeat(A: Combinator) -> Combinator:
+    def _repeat(d: Data) -> Generator[ParserIterationResult, u8, None]:
+        its, c = [], None
+        result = process(c, its)
+        result.is_complete = True
+        c = yield seq2_helper(A, d, result.copy(), its) | result
+        while its:
+            result = process(c, its)
+            c = yield seq2_helper(A, d, result.copy(), its) | result
+
+    return _repeat
 
 
 def choice(*parsers: Combinator) -> Combinator:
@@ -96,24 +118,6 @@ def eat_u8_range_complement(start: u8, is_complete: u8) -> Combinator:
 
 def eat_string(value: str) -> Combinator:
     return seq(*[eat_u8(c) for c in value])
-
-
-def repeat(A: Combinator) -> Combinator:
-    def _repeat(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        A_it = A(d)
-        result = next(A_it)
-        result.is_complete = True
-        c = yield result
-        its = [A_it]
-        while its:
-            result = process(c, its)
-            if result.is_complete:
-                A_it = A(d)
-                result |= next(A_it)
-                its.append(A_it)
-            c = yield result
-
-    return _repeat
 
 
 def eps() -> Combinator:
