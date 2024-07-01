@@ -132,6 +132,7 @@ def opt(A: Combinator) -> Combinator:
 def repeat(A: Combinator) -> Combinator:
     return opt(repeat1(A))
 
+
 def test_eat_u8():
     it = eat_u8("a")(None)
     next(it)
