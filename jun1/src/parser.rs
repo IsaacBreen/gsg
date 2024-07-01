@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
+use std::rc::Rc;
 
 use crate::u8set::U8Set;
 
@@ -390,10 +392,38 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
     opt(repeat1(a))
 }
 
+
+#[derive(Clone)]
+struct ForwardRef<A> {
+    a: Rc<RefCell<Option<A>>>,
+}
+
+impl<A> ForwardRef<A> {
+    fn new() -> Self {
+        Self { a: Rc::new(RefCell::new(None)) }
+    }
+
+    fn set(&mut self, a: A) {
+        self.a.replace(Some(a));
+    }
+}
+
+impl<A> Combinator for ForwardRef<A>
+where
+    A: Combinator,
+{
+    type State = A::State;
+    fn initial_state(&self, _data: &Data) -> Self::State {
+        let a = self.a.borrow();
+        a.as_ref().unwrap().initial_state(&())
+    }
+    fn next_state(&self, _state: &mut Self::State, _c: Option<char>) -> ParserIterationResult {
+        ParserIterationResult::new(U8Set::none(), true)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-    use std::rc::Rc;
     use super::*;
 
     #[test]
@@ -462,6 +492,14 @@ mod tests {
     }
 
     #[test]
+    fn test_forward_ref() {
+        // A = a A | b
+        let mut A = ForwardRef::new();
+        let A_final = choice2(seq(eat_u8('a'), A.clone()), eat_u8('b'));
+        A.set(A_final);
+    }
+
+    #[test]
     fn test_json_parser() {
         // Helper combinators for JSON parsing
         let whitespace = repeat(choice2(eat_u8(' '), choice2(eat_u8('\t'), choice2(eat_u8('\n'), eat_u8('\r')))));
@@ -501,35 +539,6 @@ mod tests {
             ),
         );
         let string = seq(eat_u8('"'), seq(repeat(string_char), eat_u8('"')));
-
-        #[derive(Clone)]
-        struct ForwardRef<A> {
-            a: Rc<RefCell<Option<A>>>
-        }
-
-        impl<A> ForwardRef<A> {
-            fn new() -> Self {
-                Self { a: Rc::new(RefCell::new(None)) }
-            }
-
-            fn set(&mut self, a: A) {
-                self.a.replace(Some(a));
-            }
-        }
-
-        impl<A> Combinator for ForwardRef<A>
-        where
-            A: Combinator,
-        {
-            type State = A::State;
-            fn initial_state(&self, _data: &Data) -> Self::State {
-                let a = self.a.borrow();
-                a.as_ref().unwrap().initial_state(&())
-            }
-            fn next_state(&self, _state: &mut Self::State, _c: Option<char>) -> ParserIterationResult {
-                ParserIterationResult::new(U8Set::none(), true)
-            }
-        }
 
         let mut json_value = ForwardRef::new();
 
