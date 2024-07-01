@@ -426,6 +426,18 @@ where
     }
 }
 
+impl<A> Combinator for Rc<A>
+where
+    A: Combinator,
+{
+    type State = A::State;
+    fn initial_state(&self, data: &Data) -> Self::State {
+        self.as_ref().initial_state(data)
+    }
+    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
+        self.as_ref().next_state(state, c)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -571,12 +583,14 @@ mod tests {
         );
 
         json_value.set(
-            choice2(
-                choice2(string, number),
+            Rc::new(
                 choice2(
-                    choice2(eat_string("true"), eat_string("false")),
-                    choice2(eat_string("null"), json_array.clone()), // Clone json_array
-                ),
+                    choice2(string, number),
+                    choice2(
+                        choice2(eat_string("true"), eat_string("false")),
+                        choice2(eat_string("null"), json_array.clone()), // Clone json_array
+                    ),
+                )
             )
         );
 
