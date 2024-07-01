@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import reduce
-from typing import Callable, Any, Optional, List, Union
+from typing import Callable, Any, Optional, List
 
 import pytest
 
@@ -30,63 +30,53 @@ Data = Any
 
 
 class ActiveCombinator:
-    def __init__(self, combinator: Combinator, data: Data):
+    def __init__(self, combinator: 'Combinator', data: Data):
         self.combinator = combinator
         self.data = data
-        self.result = None
+        self.is_complete = False
 
-    def start(self):
-        self.result = self.combinator(self.data)
-        return self.result
+    def send(self, c: Optional[u8]) -> ParserIterationResult:
+        return self.combinator(self, self.data, c)
 
-    def send(self, c: u8) -> ParserIterationResult:
-        return self.result.send(c)
+    def clone(self) -> 'ActiveCombinator':
+        return ActiveCombinator(self.combinator, self.data)
 
 
-Combinator = Callable[[Data], ActiveCombinator]
+Combinator = Callable[[ActiveCombinator, Data, Optional[u8]], ParserIterationResult]
 
 
 def process(c: Optional[u8], its: List[ActiveCombinator]) -> ParserIterationResult:
     final_result = ParserIterationResult(U8Set.none(), False)
     for i, it in reversed(list(enumerate(its))):
-        try:
-            result = it.send(c)
-            final_result |= result
-        except StopIteration:
+        result = it.send(c)
+        if result.is_complete:
             its.pop(i)
+        final_result |= result
     return final_result
 
 
-def seq2_helper(B: Combinator, d: Data, A_result: ParserIterationResult, B_its: List[ActiveCombinator]) -> ParserIterationResult:
+def seq2_helper(B: Combinator, d: Data, A_result: ParserIterationResult,
+                 B_its: List[ActiveCombinator]) -> ParserIterationResult:
     if A_result.is_complete:
         B_it = ActiveCombinator(B, d)
         B_its.append(B_it)
-        B_result = B_it.start()
+        B_result = B_it.send(None)
         A_result.is_complete = B_result.is_complete
         A_result.u8set |= B_result.u8set
     return A_result
 
 
 def seq2(A: Combinator, B: Combinator) -> Combinator:
-    def _seq2(d: Data) -> ActiveCombinator:
-        return Seq2Combinator(A, B, d)
+    def _seq2(self: ActiveCombinator, d: Data, c: Optional[u8]) -> ParserIterationResult:
+        if not hasattr(self, 'A_its'):
+            self.A_its: List[ActiveCombinator] = [ActiveCombinator(A, d)]
+            self.B_its: List[ActiveCombinator] = []
+
+        A_result = process(c, self.A_its)
+        B_result = process(c, self.B_its)
+        return seq2_helper(B, d, A_result, self.B_its) | B_result
+
     return _seq2
-
-
-class Seq2Combinator(ActiveCombinator):
-    def __init__(self, A: Combinator, B: Combinator, data: Data):
-        super().__init__(self.run, data)
-        self.A = A
-        self.B = B
-        self.A_its = [ActiveCombinator(A, data)]
-        self.B_its = []
-        self.c = None
-
-    def run(self, data: Data):
-        while self.A_its or self.B_its:
-            A_result = process(self.c, self.A_its)
-            B_result = process(self.c, self.B_its)
-            self.c = yield seq2_helper(self.B, data, A_result, self.B_its) | B_result
 
 
 def seq(*args: Combinator) -> Combinator:
@@ -94,57 +84,35 @@ def seq(*args: Combinator) -> Combinator:
 
 
 def repeat1(A: Combinator) -> Combinator:
-    def _repeat1(d: Data) -> ActiveCombinator:
-        return Repeat1Combinator(A, d)
+    def _repeat1(self: ActiveCombinator, d: Data, c: Optional[u8]) -> ParserIterationResult:
+        if not hasattr(self, 'A_its'):
+            self.A_its: List[ActiveCombinator] = [ActiveCombinator(A, d)]
+
+        A_result = process(c, self.A_its)
+        return seq2_helper(A, d, A_result.copy(), self.A_its) | A_result
+
     return _repeat1
 
 
-class Repeat1Combinator(ActiveCombinator):
-    def __init__(self, A: Combinator, data: Data):
-        super().__init__(self.run, data)
-        self.A = A
-        self.A_its = [ActiveCombinator(A, data)]
-        self.c = None
-
-    def run(self, data: Data):
-        while self.A_its:
-            A_result = process(self.c, self.A_its)
-            self.c = yield seq2_helper(self.A, data, A_result.copy(), self.A_its) | A_result
-
-
 def choice(*parsers: Combinator) -> Combinator:
-    def _choice(data: Data) -> ActiveCombinator:
-        return ChoiceCombinator(parsers, data)
+    def _choice(self: ActiveCombinator, data: Data, c: Optional[u8]) -> ParserIterationResult:
+        if not hasattr(self, 'active_parsers'):
+            self.active_parsers: List[ActiveCombinator] = [parser(data) for parser in parsers]
+            self.first_result = reduce(lambda a, b: a | b, (p.send(None) for p in self.active_parsers))
+            return self.first_result
+
+        return process(c, self.active_parsers)
+
     return _choice
 
 
-class ChoiceCombinator(ActiveCombinator):
-    def __init__(self, parsers: List[Combinator], data: Data):
-        super().__init__(self.run, data)
-        self.active_parsers = [ActiveCombinator(parser, data) for parser in parsers]
-        self.char = None
-
-    def run(self, data: Data):
-        self.char = yield reduce(lambda a, b: a | b, (parser.start() for parser in self.active_parsers))
-        while self.active_parsers:
-            self.char = yield process(self.char, self.active_parsers)
-
-
 def eat_u8_matching(fn: Callable[[int], bool]) -> Combinator:
-    def _eat_u8_matching(d: Data) -> ActiveCombinator:
-        return EatU8MatchingCombinator(fn, d)
+    def _eat_u8_matching(self: ActiveCombinator, d: Data, c: Optional[u8]) -> ParserIterationResult:
+        if c is None:
+            return ParserIterationResult(U8Set.from_match_fn(fn), False)
+        return ParserIterationResult(U8Set.none(), fn(ord(c)))
+
     return _eat_u8_matching
-
-
-class EatU8MatchingCombinator(ActiveCombinator):
-    def __init__(self, fn: Callable[[int], bool], data: Data):
-        super().__init__(self.run, data)
-        self.fn = fn
-        self.c = None
-
-    def run(self, data: Data):
-        self.c = yield ParserIterationResult(U8Set.from_match_fn(self.fn), False)
-        yield ParserIterationResult(U8Set.none(), self.fn(ord(self.c)))
 
 
 def eat_u8(value: u8) -> Combinator:
@@ -153,15 +121,15 @@ def eat_u8(value: u8) -> Combinator:
     return eat_u8_matching(match_fn)
 
 
-def eat_u8_range(start: u8, end: u8) -> Combinator:
+def eat_u8_range(start: u8, is_complete: u8) -> Combinator:
     def match_fn(c: int) -> bool:
-        return ord(start) <= c <= ord(end)
+        return ord(start) <= c <= ord(is_complete)
     return eat_u8_matching(match_fn)
 
 
-def eat_u8_range_complement(start: u8, end: u8) -> Combinator:
+def eat_u8_range_complement(start: u8, is_complete: u8) -> Combinator:
     def match_fn(c: int) -> bool:
-        return not ord(start) <= c <= ord(end)
+        return not ord(start) <= c <= ord(is_complete)
     return eat_u8_matching(match_fn)
 
 
@@ -170,14 +138,10 @@ def eat_string(value: str) -> Combinator:
 
 
 def eps() -> Combinator:
-    def _eps(d: Data) -> ActiveCombinator:
-        return EpsCombinator(d)
+    def _eps(self: ActiveCombinator, d: Data, c: Optional[u8]) -> ParserIterationResult:
+        return ParserIterationResult(U8Set.none(), True)
+
     return _eps
-
-
-class EpsCombinator(ActiveCombinator):
-    def run(self, data: Data):
-        yield ParserIterationResult(U8Set.none(), True)
 
 
 def opt(A: Combinator) -> Combinator:
@@ -189,15 +153,13 @@ def repeat(A: Combinator) -> Combinator:
 
 
 def test_eat_u8():
-    it = eat_u8("a")(None)
-    result = it.start()
+    it = ActiveCombinator(eat_u8("a"), None)
     result = it.send("a")
     assert result == ParserIterationResult(U8Set.none(), True)
 
 
 def test_seq():
-    it = seq(eat_u8("a"), eat_u8("b"))(None)
-    result = it.start()
+    it = ActiveCombinator(seq(eat_u8("a"), eat_u8("b")), None)
     result1 = it.send("a")
     assert result1 == ParserIterationResult(U8Set.from_chars("b"), False)
     result2 = it.send("b")
@@ -205,20 +167,18 @@ def test_seq():
 
 
 def test_choice():
-    it = choice(eat_u8("a"), eat_u8("b"))(None)
-    result = it.start()
+    it = ActiveCombinator(choice(eat_u8("a"), eat_u8("b")), None)
     result1 = it.send("a")
     assert result1 == ParserIterationResult(U8Set.none(), True)
-    it = choice(eat_u8("a"), eat_u8("b"))(None)
-    result = it.start()
+    it = ActiveCombinator(choice(eat_u8("a"), eat_u8("b")), None)
     result2 = it.send("b")
     assert result2 == ParserIterationResult(U8Set.none(), True)
 
 
 def test_seq_choice_seq():
     # Matches "ac" or "abc"
-    it = seq(choice(eat_u8("a"), seq(eat_u8("a"), eat_u8("b"))), eat_u8("c"))(None)
-    result0 = it.start()
+    it = ActiveCombinator(seq(choice(eat_u8("a"), seq(eat_u8("a"), eat_u8("b"))), eat_u8("c")), None)
+    result0 = it.send(None)
     assert result0 == ParserIterationResult(U8Set.from_chars("a"), False)
     result1 = it.send("a")
     assert result1 == ParserIterationResult(U8Set.from_chars("bc"), False)
@@ -247,7 +207,7 @@ string_char = choice(
 )
 string = seq(eat_u8("\""), repeat(string_char), eat_u8("\""))
 
-def json_value(d: Data) -> ActiveCombinator:
+def json_value(d: Data) -> Combinator:
     return choice(
         string,
         number,
@@ -256,9 +216,9 @@ def json_value(d: Data) -> ActiveCombinator:
         eat_string("null"),
         json_array,
         json_object
-    )(d)
+    )
 
-def json_array(d: Data) -> ActiveCombinator:
+def json_array(d: Data) -> Combinator:
     return seq(
         eat_u8("["),
         whitespace,
@@ -271,9 +231,9 @@ def json_array(d: Data) -> ActiveCombinator:
             eps()
         ),
         eat_u8("]")
-    )(d)
+    )
 
-def json_object(d: Data) -> ActiveCombinator:
+def json_object(d: Data) -> Combinator:
     return seq(
         eat_u8("{"),
         whitespace,
@@ -290,7 +250,7 @@ def json_object(d: Data) -> ActiveCombinator:
             eps()
         ),
         eat_u8("}")
-    )(d)
+    )
 
 # Test cases
 json_parser = seq(whitespace, json_value, whitespace)
@@ -299,16 +259,15 @@ json_parser = seq(whitespace, json_value, whitespace)
 def parse_json(json_string):
     try:
         # print(f"Parsing JSON string: {json_string}")
-        it = json_parser(None)
-        result = it.start()
+        it = ActiveCombinator(json_parser, None)
+        result = it.send(None)
         assert json_string[0] in result.u8set
         # print(json_string[0])
-        result = it.send(json_string[0])
         for char in json_string[1:]:
+            result = it.send(char)
             assert char in result.u8set
             # print(char)
             # print(result)
-            result = it.send(char)
         # print(result)
         return result.is_complete
     except (AssertionError, StopIteration):
