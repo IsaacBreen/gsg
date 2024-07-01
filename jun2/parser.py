@@ -99,7 +99,6 @@ def eat_u8(value: u8) -> Combinator:
     if isinstance(value, str):
         value = ord(value)
     def match_fn(c: int) -> bool:
-        assert isinstance(value, int)
         return c == value
     return eat_u8_matching(match_fn)
 
