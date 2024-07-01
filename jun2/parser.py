@@ -87,9 +87,14 @@ class Seq2(Combinator):
 
         if A_result.is_complete and not state['A_complete']:
             state['A_complete'] = True
-            state['B_its'].append(self.B(state['A_its'][0].data))
+            B_it = self.B(state['A_its'][0].data)
+            state['B_its'].append(B_it)
+            B_result = B_it.send(None)  # Initialize B
 
-        return A_result | B_result
+        return ParserIterationResult(
+            A_result.u8set | B_result.u8set,
+            A_result.is_complete and B_result.is_complete
+        )
 
     def clone_state(self, state):
         return {
@@ -144,7 +149,9 @@ class Choice(Combinator):
         }
 
     def next_state(self, state, c):
-        return process(c, state['active_parsers'])
+        result = process(c, state['active_parsers'])
+        is_complete = any(len(p.state) == 0 or p.state.get('stage', 0) == 2 for p in state['active_parsers'])
+        return ParserIterationResult(result.u8set, is_complete)
 
     def clone_state(self, state):
         return {
@@ -172,6 +179,9 @@ class EatU8Matching(Combinator):
             return ParserIterationResult(U8Set.none(), self.fn(ord(c)))
         else:
             return ParserIterationResult(U8Set.none(), True)
+
+    def clone_state(self, state):
+        return {'stage': state['stage']}
 
 
 def eat_u8_matching(fn: Callable[[int], bool]) -> Combinator:
@@ -242,23 +252,36 @@ def repeat(A: Combinator) -> Combinator:
 
 def test_eat_u8():
     it = eat_u8("a")(None)
-    it.send(None)
+    result0 = it.send(None)
+    assert result0 == ParserIterationResult(U8Set.from_chars("a"), False)
     result = it.send("a")
     assert result == ParserIterationResult(U8Set.none(), True)
 
 
 def test_seq():
     it = seq(eat_u8("a"), eat_u8("b"))(None)
-    it.send(None)
+    result0 = it.send(None)
+    assert result0 == ParserIterationResult(U8Set.from_chars("a"), False)
     result1 = it.send("a")
     assert result1 == ParserIterationResult(U8Set.from_chars("b"), False)
     result2 = it.send("b")
     assert result2 == ParserIterationResult(U8Set.none(), True)
 
 
+def test_repeat1():
+    it = repeat1(eat_u8("a"))(None)
+    result0 = it.send(None)
+    assert result0 == ParserIterationResult(U8Set.from_chars("a"), False)
+    result1 = it.send("a")
+    assert result1 == ParserIterationResult(U8Set.from_chars("a"), False)
+    result2 = it.send("a")
+    assert result2 == ParserIterationResult(U8Set.from_chars("a"), False)
+
+
 def test_choice():
     it = choice(eat_u8("a"), eat_u8("b"))(None)
-    it.send(None)
+    result0 = it.send(None)
+    assert result0 == ParserIterationResult(U8Set.from_chars("ab"), False)
     result1 = it.send("a")
     assert result1 == ParserIterationResult(U8Set.none(), True)
     it = choice(eat_u8("a"), eat_u8("b"))(None)
@@ -352,14 +375,13 @@ def parse_json(json_string):
     try:
         it = json_parser(None)
         result = it.send(None)
-        assert json_string[0] in result.u8set
-        result = it.send(json_string[0])
-        for char in json_string[1:]:
-            assert char in result.u8set
+        for char in json_string:
+            assert char in result.u8set, f"Expected {char} to be in {result.u8set}"
             result = it.send(char)
         return result.is_complete
-    except (AssertionError, StopIteration):
+    except AssertionError as e:
         print(f"Failed to parse JSON string: {json_string}")
+        print(f"Error: {e}")
         return False
 
 
