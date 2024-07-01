@@ -390,6 +390,32 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
     opt(repeat1(a))
 }
 
+// Define a wrapper struct for the recursive JsonValue
+#[derive(Clone)]
+struct JsonValue<A, B, C>(JsonCombinator<A, B, C>)
+where
+    A: Combinator,
+    B: Combinator,
+    C: Combinator;
+
+// Implement Combinator for JsonValue by delegating to the inner JsonCombinator
+impl<A, B, C> Combinator for JsonValue<A, B, C>
+where
+    A: Combinator,
+    B: Combinator,
+    C: Combinator,
+{
+    type State = <JsonCombinator<A, B, C> as Combinator>::State;
+
+    fn initial_state(&self, data: &Data) -> Self::State {
+        self.0.initial_state(data)
+    }
+
+    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
+        self.0.next_state(state, c)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
