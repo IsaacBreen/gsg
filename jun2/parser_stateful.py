@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Any, Optional, List, Generator
+from typing import Callable, Any, Optional, List, Protocol
 
 import pytest
 
@@ -43,7 +43,7 @@ class ActiveCombinator:
         return new_active
 
 
-class Combinator:
+class Combinator(Protocol):
     def __call__(self, data: Data) -> ActiveCombinator:
         return ActiveCombinator(self, data)
 
@@ -317,7 +317,7 @@ string_char = choice(
 )
 string = seq(eat_u8("\""), repeat(string_char), eat_u8("\""))
 
-def json_value(d: Data) -> Generator[ParserIterationResult, u8, None]:
+def json_value(d: Data) -> ActiveCombinator:
     return choice(
         string,
         number,
@@ -328,7 +328,7 @@ def json_value(d: Data) -> Generator[ParserIterationResult, u8, None]:
         json_object
     )(d)
 
-def json_array(d: Data) -> Generator[ParserIterationResult, u8, None]:
+def json_array(d: Data) -> ActiveCombinator:
     return seq(
         eat_u8("["),
         whitespace,
@@ -343,7 +343,7 @@ def json_array(d: Data) -> Generator[ParserIterationResult, u8, None]:
         eat_u8("]")
     )(d)
 
-def json_object(d: Data) -> Generator[ParserIterationResult, u8, None]:
+def json_object(d: Data) -> ActiveCombinator:
     return seq(
         eat_u8("{"),
         whitespace,
