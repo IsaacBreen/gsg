@@ -1,86 +1,492 @@
-use std::marker::PhantomData;
-use crate::u8set::U8Set;
+use std::ops::{BitOr, BitAnd};
 
-#[derive(Debug, Clone)]
-pub struct ParserIterationResult {
-    pub u8set: U8Set,
-    pub is_complete: bool,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct BitSet {
+    x: u32,
 }
 
-impl ParserIterationResult {
-    pub fn new(u8set: U8Set, is_complete: bool) -> Self {
-        Self { u8set, is_complete }
+impl BitSet {
+    fn is_set(&self, index: u8) -> bool {
+        (self.x & (1 << index)) != 0
+    }
+
+    fn set_bit(&mut self, index: u8) {
+        self.x |= 1 << index;
+    }
+
+    fn clear_bit(&mut self, index: u8) {
+        self.x &= !(1 << index);
     }
 }
 
-impl std::ops::BitOr for ParserIterationResult {
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct U8Set {
+    bitset: BitSet,
+}
+
+impl U8Set {
+    fn insert(&mut self, value: u8) -> bool {
+        if self.contains(value) {
+            return false;
+        }
+        self.bitset.set_bit(value);
+        true
+    }
+
+    fn remove(&mut self, value: u8) -> bool {
+        if !self.contains(value) {
+            return false;
+        }
+        self.bitset.clear_bit(value);
+        true
+    }
+
+    fn update(&mut self, other: &U8Set) {
+        self.bitset.x |= other.bitset.x;
+    }
+
+    fn contains(&self, value: u8) -> bool {
+        self.bitset.is_set(value)
+    }
+
+    fn len(&self) -> u32 {
+        self.bitset.x.count_ones()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.bitset.x == 0
+    }
+
+    fn clear(&mut self) {
+        self.bitset.x = 0;
+    }
+
+    fn all() -> Self {
+        Self { bitset: BitSet { x: u32::max_value() } }
+    }
+
+    fn none() -> Self {
+        Self { bitset: BitSet { x: 0 } }
+    }
+
+    fn from_chars(chars: &str) -> Self {
+        let mut result = Self::none();
+        for char in chars.chars() {
+            result.insert(char as u8);
+        }
+        result
+    }
+
+    fn from_match_fn<F>(mut fn_: F) -> Self
+    where
+        F: FnMut(u8) -> bool,
+    {
+        let mut result = Self::none();
+        for i in 0..256 {
+            if fn_(i) {
+                result.insert(i);
+            }
+        }
+        result
+    }
+}
+
+impl BitOr for U8Set {
     type Output = Self;
 
     fn bitor(self, other: Self) -> Self {
         Self {
-            u8set: &self.u8set | &other.u8set,
+            bitset: BitSet {
+                x: self.bitset.x | other.bitset.x,
+            },
+        }
+    }
+}
+
+impl BitAnd for U8Set {
+    type Output = Self;
+
+    fn bitand(self, other: Self) -> Self {
+        Self {
+            bitset: BitSet {
+                x: self.bitset.x & other.bitset.x,
+            },
+        }
+    }
+}
+
+impl IntoIterator for U8Set {
+    type Item = u8;
+    type IntoIter = U8SetIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        U8SetIterator {
+            set: self,
+            index: 0,
+        }
+    }
+}
+
+struct U8SetIterator {
+    set: U8Set,
+    index: u8,
+}
+
+impl Iterator for U8SetIterator {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.index < 255 {
+            self.index += 1;
+            if self.set.contains(self.index - 1) {
+                return Some(self.index - 1);
+            }
+        }
+        None
+    }
+}
+
+fn balanced_tree_reduce<T, F>(func: F, iterable: &[T], initial: Option<T>) -> T
+where
+    F: Fn(T, T) -> T,
+    T: Clone,
+{
+    let mut items: Vec<T> = iterable.to_vec();
+
+    if items.is_empty() {
+        if let Some(value) = initial {
+            return value;
+        } else {
+            panic!("balanced_tree_reduce() of empty sequence with no initial value");
+        }
+    }
+
+    if let Some(value) = initial {
+        items.insert(0, value);
+    }
+
+    while items.len() > 1 {
+        let mut new_items: Vec<T> = Vec::new();
+        for i in (0..items.len() - 1).step_by(2) {
+            new_items.push(func(items[i].clone(), items[i + 1].clone()));
+        }
+        if items.len() % 2 != 0 {
+            new_items.push(items.last().unwrap().clone());
+        }
+        items = new_items;
+    }
+
+    items.remove(0)
+}
+
+#[derive(Debug)]
+struct ParserIterationResult {
+    u8set: U8Set,
+    is_complete: bool,
+}
+
+impl ParserIterationResult {
+    fn new(u8set: U8Set, is_complete: bool) -> Self {
+        Self {
+            u8set,
+            is_complete,
+        }
+    }
+}
+
+impl BitOr for ParserIterationResult {
+    type Output = Self;
+
+    fn bitor(self, other: Self) -> Self {
+        Self {
+            u8set: self.u8set | other.u8set,
             is_complete: self.is_complete | other.is_complete,
         }
     }
 }
 
-impl std::ops::BitAnd for ParserIterationResult {
+impl BitAnd for ParserIterationResult {
     type Output = Self;
 
     fn bitand(self, other: Self) -> Self {
         Self {
-            u8set: &self.u8set & &other.u8set,
+            u8set: self.u8set & other.u8set,
             is_complete: self.is_complete & other.is_complete,
         }
     }
 }
 
-pub trait Combinator {
-    type State;
-
-    fn initial_state(&self) -> Self::State;
-    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult;
-    fn clone_state(&self, state: &Self::State) -> Self::State;
+impl Clone for ParserIterationResult {
+    fn clone(&self) -> Self {
+        Self {
+            u8set: self.u8set.clone(),
+            is_complete: self.is_complete,
+        }
+    }
 }
 
-pub struct ActiveCombinator<C: Combinator> {
-    combinator: C,
+type Data = ();
+
+trait Combinator<State = ()> {
+    fn initial_state(&self, data: &Data) -> State;
+    fn next_state(&self, state: &mut State, c: Option<char>) -> ParserIterationResult;
+    fn clone_state(&self, state: &State) -> State
+    where
+        State: Clone,
+    {
+        state.clone()
+    }
+}
+
+struct ActiveCombinator<'a, C: Combinator> {
+    combinator: &'a C,
+    data: Data,
     state: C::State,
 }
 
-impl<C: Combinator> ActiveCombinator<C> {
-    pub fn new(combinator: C) -> Self {
-        let state = combinator.initial_state();
-        Self { combinator, state }
+impl<'a, C: Combinator> ActiveCombinator<'a, C> {
+    fn new(combinator: &'a C, data: Data) -> Self {
+        let state = combinator.initial_state(&data);
+        Self {
+            combinator,
+            data,
+            state,
+        }
     }
 
-    pub fn send(&mut self, c: Option<char>) -> ParserIterationResult {
+    fn send(&mut self, c: Option<char>) -> ParserIterationResult {
         self.combinator.next_state(&mut self.state, c)
     }
 
-    pub fn clone(&self) -> Self {
+    fn clone(&self) -> Self
+    where
+        C::State: Clone,
+    {
         Self {
-            combinator: self.combinator.clone(),
+            combinator: self.combinator,
+            data: self.data.clone(),
             state: self.combinator.clone_state(&self.state),
         }
     }
 }
 
-#[derive(Clone)]
-pub struct EatU8Matching<F: Fn(u8) -> bool + Clone> {
-    f: F,
+fn process<'a, C: Combinator>(
+    c: Option<char>,
+    its: &mut Vec<ActiveCombinator<'a, C>>,
+) -> ParserIterationResult {
+    let mut final_result = ParserIterationResult::new(U8Set::none(), false);
+    let mut i = its.len();
+    while i > 0 {
+        i -= 1;
+        let result = its[i].send(c);
+        if result.is_complete && result.u8set.is_empty() {
+            its.remove(i);
+        }
+        final_result |= result;
+    }
+    final_result
 }
 
-impl<F: Fn(u8) -> bool + Clone> EatU8Matching<F> {
-    pub fn new(f: F) -> Self {
-        Self { f }
+fn seq2_helper<'a, B: Combinator>(
+    b: &B,
+    d: &Data,
+    a_result: &mut ParserIterationResult,
+    b_its: &mut Vec<ActiveCombinator<'a, B>>,
+) {
+    if a_result.is_complete {
+        let b_it = ActiveCombinator::new(b, d.clone());
+        b_its.push(b_it);
+        let b_result = b_its.last_mut().unwrap().send(None);
+        a_result.is_complete = b_result.is_complete;
+        a_result.u8set |= b_result.u8set;
     }
 }
 
-impl<F: Fn(u8) -> bool + Clone> Combinator for EatU8Matching<F> {
+struct Seq2<'a, A, B>
+where
+    A: Combinator,
+    B: Combinator,
+{
+    a: &'a A,
+    b: &'a B,
+}
+
+impl<'a, A, B> Seq2<'a, A, B>
+where
+    A: Combinator,
+    B: Combinator,
+{
+    fn new(a: &'a A, b: &'a B) -> Self {
+        Self { a, b }
+    }
+}
+
+impl<'a, A, B> Combinator for Seq2<'a, A, B>
+where
+    A: Combinator,
+    B: Combinator,
+{
+    type State = (Vec<ActiveCombinator<'a, A>>, Vec<ActiveCombinator<'a, B>>, Data);
+
+    fn initial_state(&self, data: &Data) -> Self::State {
+        (
+            vec![ActiveCombinator::new(self.a, data.clone())],
+            Vec::new(),
+            data.clone(),
+        )
+    }
+
+    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
+        let (a_its, b_its, d) = state;
+        let mut a_result = process(c, a_its);
+        let b_result = process(c, b_its);
+        seq2_helper(self.b, d, &mut a_result, b_its);
+        a_result | b_result
+    }
+
+    fn clone_state(&self, state: &Self::State) -> Self::State
+    where
+        Self::State: Clone,
+    {
+        (
+            state.0.iter().map(|it| it.clone()).collect(),
+            state.1.iter().map(|it| it.clone()).collect(),
+            state.2.clone(),
+        )
+    }
+}
+
+fn seq2<'a, A, B>(a: &'a A, b: &'a B) -> Seq2<'a, A, B>
+where
+    A: Combinator,
+    B: Combinator,
+{
+    Seq2::new(a, b)
+}
+
+fn seq<'a, C: Combinator>(combinators: &'a [C]) -> Box<dyn Combinator<State = (Box<dyn Combinator<State = C::State> + 'a>, C::State)> + 'a>
+where
+    C::State: Clone,
+{
+    match combinators.len() {
+        0 => panic!("seq() called with empty slice"),
+        1 => Box::new(combinators[0]),
+        _ => {
+            let (left, right) = combinators.split_at(combinators.len() / 2);
+            let left_combinator = seq(left);
+            let right_combinator = seq(right);
+            Box::new(seq2(&left_combinator, &right_combinator))
+        }
+    }
+}
+
+struct Repeat1<'a, A>(&'a A)
+where
+    A: Combinator;
+
+impl<'a, A> Combinator for Repeat1<'a, A>
+where
+    A: Combinator,
+{
+    type State = (Vec<ActiveCombinator<'a, A>>, Data);
+
+    fn initial_state(&self, data: &Data) -> Self::State {
+        (vec![ActiveCombinator::new(self.0, data.clone())], data.clone())
+    }
+
+    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
+        let (a_its, d) = state;
+        let mut a_result = process(c, a_its);
+        seq2_helper(self.0, d, &mut a_result.clone(), a_its);
+        a_result | process(c, a_its)
+    }
+
+    fn clone_state(&self, state: &Self::State) -> Self::State
+    where
+        Self::State: Clone,
+    {
+        (
+            state.0.iter().map(|it| it.clone()).collect(),
+            state.1.clone(),
+        )
+    }
+}
+
+fn repeat1<'a, A>(a: &'a A) -> Repeat1<'a, A>
+where
+    A: Combinator,
+{
+    Repeat1(a)
+}
+
+struct Choice<'a, C>
+where
+    C: Combinator,
+{
+    parsers: &'a [C],
+}
+
+impl<'a, C> Choice<'a, C>
+where
+    C: Combinator,
+{
+    fn new(parsers: &'a [C]) -> Self {
+        Self { parsers }
+    }
+}
+
+impl<'a, C> Combinator for Choice<'a, C>
+where
+    C: Combinator,
+{
+    type State = Vec<ActiveCombinator<'a, C>>;
+
+    fn initial_state(&self, data: &Data) -> Self::State {
+        self.parsers
+            .iter()
+            .map(|parser| ActiveCombinator::new(parser, data.clone()))
+            .collect()
+    }
+
+    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
+        process(c, state)
+    }
+
+    fn clone_state(&self, state: &Self::State) -> Self::State
+    where
+        Self::State: Clone,
+    {
+        state.iter().map(|it| it.clone()).collect()
+    }
+}
+
+fn choice<'a, C: Combinator>(parsers: &'a [C]) -> Choice<'a, C> {
+    Choice::new(parsers)
+}
+
+struct EatU8Matching<F>
+where
+    F: Fn(u8) -> bool,
+{
+    fn_: F,
+}
+
+impl<F> EatU8Matching<F>
+where
+    F: Fn(u8) -> bool,
+{
+    fn new(fn_: F) -> Self {
+        Self { fn_ }
+    }
+}
+
+impl<F> Combinator for EatU8Matching<F>
+where
+    F: Fn(u8) -> bool,
+{
     type State = u8;
 
-    fn initial_state(&self) -> Self::State {
+    fn initial_state(&self, _data: &Data) -> Self::State {
         0
     }
 
@@ -88,240 +494,165 @@ impl<F: Fn(u8) -> bool + Clone> Combinator for EatU8Matching<F> {
         match *state {
             0 => {
                 *state = 1;
-                ParserIterationResult::new(U8Set::from_match_fn(&self.f), false)
+                ParserIterationResult::new(U8Set::from_match_fn(&self.fn_), false)
             }
             1 => {
                 *state = 2;
                 ParserIterationResult::new(
                     U8Set::none(),
-                    c.map(|ch| (self.f)(ch as u8)).unwrap_or(false),
+                    c.map(|c| (self.fn_)(c as u8)).unwrap_or(false),
                 )
             }
             _ => ParserIterationResult::new(U8Set::none(), true),
         }
     }
-
-    fn clone_state(&self, state: &Self::State) -> Self::State {
-        *state
-    }
 }
 
-pub fn eat_u8_matching<F: Fn(u8) -> bool + Clone>(f: F) -> EatU8Matching<F> {
-    EatU8Matching::new(f)
+fn eat_u8_matching<F>(fn_: F) -> EatU8Matching<F>
+where
+    F: Fn(u8) -> bool,
+{
+    EatU8Matching::new(fn_)
 }
 
-pub fn eat_u8(value: char) -> impl Combinator {
-    eat_u8_matching(move |c| c == value as u8)
+fn eat_u8(value: char) -> EatU8Matching<impl Fn(u8) -> bool> {
+    eat_u8_matching(move |c: u8| c == value as u8)
 }
 
-pub fn eat_u8_range(start: char, end: char) -> impl Combinator {
-    eat_u8_matching(move |c| (start as u8 <= c) && (c <= end as u8))
+fn eat_u8_range(start: char, end: char) -> EatU8Matching<impl Fn(u8) -> bool> {
+    eat_u8_matching(move |c: u8| (start as u8..=end as u8).contains(&c))
 }
 
-pub fn eat_u8_range_complement(start: char, end: char) -> impl Combinator {
-    eat_u8_matching(move |c| (c < start as u8) || ((end as u8) < c))
+fn eat_u8_range_complement(start: char, end: char) -> EatU8Matching<impl Fn(u8) -> bool> {
+    eat_u8_matching(move |c: u8| !(start as u8..=end as u8).contains(&c))
 }
 
-#[derive(Clone)]
-pub struct EatString {
+struct EatString {
     value: String,
 }
 
 impl EatString {
-    pub fn new(value: String) -> Self {
-        Self { value }
+    fn new(value: &str) -> Self {
+        Self {
+            value: value.to_string(),
+        }
     }
 }
 
 impl Combinator for EatString {
     type State = usize;
 
-    fn initial_state(&self) -> Self::State {
+    fn initial_state(&self, _data: &Data) -> Self::State {
         0
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
         if *state < self.value.len() {
-            if let Some(ch) = c {
-                if ch == self.value.chars().nth(*state).unwrap() {
-                    *state += 1;
-                    let is_complete = *state == self.value.len();
-                    ParserIterationResult::new(U8Set::none(), is_complete)
-                } else {
-                    ParserIterationResult::new(U8Set::none(), true)
-                }
+            let expected = self.value.chars().nth(*state).unwrap();
+            if c.map_or(false, |c| c == expected) {
+                *state += 1;
+                let is_complete = *state == self.value.len();
+                ParserIterationResult::new(U8Set::none(), is_complete)
             } else {
-                ParserIterationResult::new(U8Set::from_chars(&self.value[*state..(*state + 1)]), false)
+                ParserIterationResult::new(U8Set::none(), true)
             }
         } else {
             ParserIterationResult::new(U8Set::none(), true)
         }
     }
-
-    fn clone_state(&self, state: &Self::State) -> Self::State {
-        *state
-    }
 }
 
-pub fn eat_string(value: &str) -> EatString {
-    EatString::new(value.to_string())
+fn eat_string(value: &str) -> EatString {
+    EatString::new(value)
 }
 
-#[derive(Clone)]
-pub struct Eps;
+struct Eps;
 
 impl Combinator for Eps {
-    type State = ();
-
-    fn initial_state(&self) -> Self::State {}
-
+    fn initial_state(&self, _data: &Data) -> Self::State {}
     fn next_state(&self, _state: &mut Self::State, _c: Option<char>) -> ParserIterationResult {
         ParserIterationResult::new(U8Set::none(), true)
     }
-
-    fn clone_state(&self, _state: &Self::State) -> Self::State {}
 }
 
-pub fn eps() -> Eps {
+fn eps() -> Eps {
     Eps
 }
 
-
-#[derive(Clone)]
-pub struct Seq2<A: Combinator, B: Combinator> {
-    a: A,
-    b: B,
+fn opt<'a, A: Combinator>(a: &'a A) -> Choice<'a, A> {
+    choice(&[a, &eps()])
 }
 
-impl<A: Combinator, B: Combinator> Seq2<A, B> {
-    pub fn new(a: A, b: B) -> Self {
-        Self { a, b }
-    }
+fn repeat<'a, A: Combinator>(a: &'a A) -> Choice<'a, Repeat1<'a, A>> {
+    opt(&repeat1(a))
 }
 
-impl<A: Combinator, B: Combinator> Combinator for Seq2<A, B> {
-    type State = (Vec<ActiveCombinator<A>>, Vec<ActiveCombinator<B>>);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    fn initial_state(&self) -> Self::State {
-        (vec![ActiveCombinator::new(self.a.clone())], vec![])
-    }
-
-    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        let (a_its, b_its) = state;
-        let mut a_result = process(c, a_its);
-        let b_result = process(c, b_its);
-
-        if a_result.is_complete {
-            let b_it = ActiveCombinator::new(self.b.clone());
-            b_its.push(b_it);
-            let new_b_result = b_its.last_mut().unwrap().send(None);
-            a_result.is_complete = new_b_result.is_complete;
-            a_result.u8set = &a_result.u8set | &new_b_result.u8set;
-        }
-
-        a_result | b_result
+    #[test]
+    fn test_eat_u8() {
+        let mut it = ActiveCombinator::new(&eat_u8('a'), ());
+        let result0 = it.send(None);
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
+        let result = it.send(Some('a'));
+        assert_eq!(result, ParserIterationResult::new(U8Set::none(), true));
     }
 
-    fn clone_state(&self, state: &Self::State) -> Self::State {
-        (
-            state.0.iter().map(|it| it.clone()).collect(),
-            state.1.iter().map(|it| it.clone()).collect(),
-        )
-    }
-}
-
-pub fn seq2<A: Combinator, B: Combinator>(a: A, b: B) -> Seq2<A, B> {
-    Seq2::new(a, b)
-}
-
-#[derive(Clone)]
-pub struct Repeat1<A: Combinator> {
-    a: A,
-}
-
-impl<A: Combinator> Repeat1<A> {
-    pub fn new(a: A) -> Self {
-        Self { a }
-    }
-}
-
-impl<A: Combinator> Combinator for Repeat1<A> {
-    type State = Vec<ActiveCombinator<A>>;
-
-    fn initial_state(&self) -> Self::State {
-        vec![ActiveCombinator::new(self.a.clone())]
+    #[test]
+    fn test_seq() {
+        let mut it = ActiveCombinator::new(&seq(&[eat_u8('a'), eat_u8('b')]), ());
+        let result0 = it.send(None);
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
+        let result1 = it.send(Some('a'));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("b"), false));
+        let result2 = it.send(Some('b'));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::none(), true));
     }
 
-    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        let mut a_result = process(c, state);
-        if a_result.is_complete {
-            let mut new_it = ActiveCombinator::new(self.a.clone());
-            let new_result = new_it.send(None);
-            state.push(new_it);
-            a_result.is_complete = new_result.is_complete;
-            a_result.u8set = &a_result.u8set | &new_result.u8set;
-        }
-        a_result
+    #[test]
+    fn test_repeat1() {
+        let mut it = ActiveCombinator::new(&repeat1(&eat_u8('a')), ());
+        let result0 = it.send(None);
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
+        let result1 = it.send(Some('a'));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("a"), true));
+        let result2 = it.send(Some('a'));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("a"), true));
     }
 
-    fn clone_state(&self, state: &Self::State) -> Self::State {
-        state.iter().map(|it| it.clone()).collect()
-    }
-}
+    #[test]
+    fn test_choice() {
+        let mut it = ActiveCombinator::new(&choice(&[eat_u8('a'), eat_u8('b')]), ());
+        let result0 = it.send(None);
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("ab"), false));
+        let result1 = it.send(Some('a'));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::none(), true));
 
-pub fn repeat1<A: Combinator>(a: A) -> Repeat1<A> {
-    Repeat1::new(a)
-}
-
-#[derive(Clone)]
-pub struct Choice<C: Combinator> {
-    parsers: Vec<C>,
-}
-
-impl<C: Combinator> Choice<C> {
-    pub fn new(parsers: Vec<C>) -> Self {
-        Self { parsers }
-    }
-}
-
-impl<C: Combinator> Combinator for Choice<C> {
-    type State = Vec<ActiveCombinator<C>>;
-
-    fn initial_state(&self) -> Self::State {
-        self.parsers.iter().map(|p| ActiveCombinator::new(p.clone())).collect()
+        let mut it = ActiveCombinator::new(&choice(&[eat_u8('a'), eat_u8('b')]), ());
+        it.send(None);
+        let result2 = it.send(Some('b'));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::none(), true));
     }
 
-    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        process(c, state)
+    #[test]
+    fn test_seq_choice_seq() {
+        // Matches "ac" or "abc"
+        let mut it = ActiveCombinator::new(
+            &seq(&[
+                choice(&[eat_u8('a'), seq(&[eat_u8('a'), eat_u8('b')])]),
+                eat_u8('c'),
+            ]),
+            (),
+        );
+        let result0 = it.send(None);
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
+        let result1 = it.send(Some('a'));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("bc"), false));
+        let result2 = it.send(Some('b'));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("c"), false));
+        let result3 = it.send(Some('c'));
+        assert_eq!(result3, ParserIterationResult::new(U8Set::none(), true));
     }
-
-    fn clone_state(&self, state: &Self::State) -> Self::State {
-        state.iter().map(|it| it.clone()).collect()
-    }
-}
-
-pub fn choice<C: Combinator>(parsers: Vec<C>) -> Choice<C> {
-    Choice::new(parsers)
-}
-
-fn process<C: Combinator>(c: Option<char>, its: &mut Vec<ActiveCombinator<C>>) -> ParserIterationResult {
-    let mut final_result = ParserIterationResult::new(U8Set::none(), false);
-    its.retain_mut(|it| {
-        let result = it.send(c);
-        final_result = final_result | result.clone();
-        !(result.is_complete && result.u8set.is_empty())
-    });
-    final_result
-}
-
-pub fn seq<C: Combinator>(parsers: Vec<C>) -> impl Combinator {
-    parsers.into_iter().reduce(|a, b| Box::new(seq2(a, b)) as Box<dyn Combinator<State=()>>).unwrap()
-}
-
-pub fn opt<C: Combinator>(a: C) -> impl Combinator {
-    choice(vec![a, eps()])
-}
-
-pub fn repeat<C: Combinator>(a: C) -> impl Combinator {
-    opt(repeat1(a))
 }
