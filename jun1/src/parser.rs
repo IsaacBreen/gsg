@@ -1,4 +1,5 @@
 use std::ops::{BitOr, BitAnd, BitOrAssign, BitAndAssign};
+use std::rc::Rc;
 use crate::u8set::U8Set;
 
 #[derive(PartialEq, Debug)]
@@ -434,6 +435,50 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
     opt(repeat1(a))
 }
 
+#[derive(Clone)]
+struct ForwardRef<A>
+where
+    A: Combinator,
+{
+    combinator: Option<Rc<A>>,
+}
+
+impl<A> ForwardRef<A>
+where
+    A: Combinator,
+{
+    fn new() -> Self {
+        Self { combinator: None }
+    }
+
+    fn set(&mut self, combinator: Rc<A>) {
+        self.combinator = Some(combinator);
+    }
+}
+
+impl<A> Combinator for ForwardRef<A>
+where
+    A: Combinator,
+{
+    type State = A::State;
+
+    fn initial_state(&self, data: &Data) -> Self::State {
+        self.combinator.as_ref().unwrap().initial_state(data)
+    }
+
+    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
+        self.combinator.as_ref().unwrap().next_state(state, c)
+    }
+
+    fn clone_state(&self, state: &Self::State) -> Self::State
+    where
+        Self::State: Clone,
+    {
+        self.combinator.as_ref().unwrap().clone_state(state)
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -501,5 +546,116 @@ mod tests {
         assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("c"), false));
         let result3 = it.send(Some('c'));
         assert_eq!(result3, ParserIterationResult::new(U8Set::none(), true));
+    }
+
+
+    #[test]
+    fn test_json_parser() {
+        // Helper combinators for JSON parsing
+        let whitespace = repeat(choice2(eat_u8(' '), choice2(eat_u8('\t'), choice2(eat_u8('\n'), eat_u8('\r')))));
+        let digit = eat_u8_range('0', '9');
+        let digits = repeat(digit);
+        let integer = seq(opt(choice2(eat_u8('-'), eat_u8('+'))), digits);
+        let fraction = seq(eat_u8('.'), digits);
+        let exponent = seq(choice2(eat_u8('e'), eat_u8('E')), seq(choice2(choice2(eat_u8('+'), eat_u8('-')), eps()), digits));
+        let number = seq(integer, seq(opt(fraction), opt(exponent)));
+
+        let string_char = choice2(
+            eat_u8_range_complement('"', '"'),
+            seq(
+                eat_u8('\\'),
+                choice2(
+                    choice2(
+                        choice2(
+                            choice2(eat_u8('"'), eat_u8('\\')),
+                            choice2(eat_u8('/'), eat_u8('b')),
+                        ),
+                        choice2(eat_u8('f'), eat_u8('n')),
+                    ),
+                    choice2(
+                        choice2(eat_u8('r'), eat_u8('t')),
+                        seq(
+                            eat_u8('u'),
+                            seq(
+                                eat_u8_range('0', '9'),
+                                seq(
+                                    eat_u8_range('0', '9'),
+                                    seq(eat_u8_range('0', '9'), eat_u8_range('0', '9')),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        let string = seq(eat_u8('"'), seq(repeat(string_char), eat_u8('"')));
+
+        let mut json_value = ForwardRef::new();
+
+        let json_array = seq(
+                    eat_u8('['),
+                    seq(
+                        whitespace,
+                        seq(
+                            opt(seq(
+                                json_value,
+                                repeat(seq(seq(whitespace, eat_u8(',')), seq(whitespace, json_value))),
+                            )),
+                            seq(whitespace, eat_u8(']')),
+                        ),
+                    ),
+        );
+
+        let key_value_pair = seq(seq(whitespace, string), seq(whitespace, seq(eat_u8(':'), seq(whitespace, json_value))));
+
+        let json_object = seq(
+            eat_u8('{'),
+            seq(
+                whitespace,
+                seq(
+                    opt(seq(
+                        key_value_pair,
+                        repeat(seq(seq(whitespace, eat_u8(',')), key_value_pair)),
+                    )),
+                    seq(whitespace, eat_u8('}')),
+                ),
+            ),
+        );
+
+        json_value.set(
+            Rc::new(
+                choice2(
+                    choice2(string, number),
+                    choice2(
+                        choice2(eat_string("true"), eat_string("false")),
+                        choice2(eat_string("null"), json_array),
+                    ),
+                )
+            )
+        );
+
+        // Test cases
+        let json_parser = seq(whitespace, json_value);
+
+        let test_cases = [
+            "42",
+            r#"{"key": "value"}"#,
+            "[1, 2, 3]",
+            r#"{"nested": {"array": [1, 2, 3], "object": {"a": true, "b": false}}}"#,
+            r#""Hello, world!""#,
+            "null",
+            "true",
+            "false",
+        ];
+
+        for json_string in test_cases {
+            let mut it = json_parser(&());
+            let result = it.send(None);
+            for char in json_string.chars() {
+                assert!(result.u8set.contains(char as u8), "Expected {} to be in {:?}", char, result.u8set);
+                let result = it.send(Some(char));
+                assert!(result.is_complete, "Failed to parse JSON string: {}", json_string);
+            }
+        }
     }
 }
