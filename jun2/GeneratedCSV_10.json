@@ -1,0 +1,424 @@
+{
+  "result": [
+    {
+      "status": "active",
+      "name": {
+        "first": "Carlotta",
+        "middle": "Rowan",
+        "last": "Rutherford"
+      },
+      "username": "Carlotta-Rutherford",
+      "password": "gG9PT6jLLRPmq6N",
+      "emails": [
+        "Lessie2@example.com",
+        "Amir.Lehner69@gmail.com"
+      ],
+      "phoneNumber": "1-475-886-3775 x091",
+      "location": {
+        "street": "7020 Gutmann Parkway",
+        "city": "Fort Demond",
+        "state": "South Dakota",
+        "country": "Ecuador",
+        "zip": "68086-6394",
+        "coordinates": {
+          "latitude": 11.9599,
+          "longitude": -85.8913
+        }
+      },
+      "website": "https://questionable-cookie.biz/",
+      "domain": "neglected-mileage.name",
+      "job": {
+        "title": "Central Optimization Facilitator",
+        "descriptor": "Legacy",
+        "area": "Security",
+        "type": "Liaison",
+        "company": "Veum Inc"
+      },
+      "creditCard": {
+        "number": "5316-9913-0345-6923",
+        "cvv": "007",
+        "issuer": "discover"
+      },
+      "uuid": "97605eaf-9e18-4800-aa5d-e6c67cfe369d",
+      "objectId": "668218ddb5c46d4e877fa432"
+    },
+    {
+      "status": "active",
+      "name": {
+        "first": "Sonia",
+        "middle": "Rory",
+        "last": "Schuster-Goldner"
+      },
+      "username": "Sonia-Schuster-Goldner",
+      "password": "cqk_GUW6VMf4EHX",
+      "emails": [
+        "Pablo.Herman1@gmail.com",
+        "Charlene82@gmail.com"
+      ],
+      "phoneNumber": "718.247.3194 x36174",
+      "location": {
+        "street": "70413 Zulauf Place",
+        "city": "Coconut Creek",
+        "state": "Alaska",
+        "country": "Cyprus",
+        "zip": "16821-9755",
+        "coordinates": {
+          "latitude": -20.345,
+          "longitude": 94.2822
+        }
+      },
+      "website": "https://obvious-vampire.biz/",
+      "domain": "muffled-book.net",
+      "job": {
+        "title": "National Factors Designer",
+        "descriptor": "National",
+        "area": "Identity",
+        "type": "Orchestrator",
+        "company": "Langworth - Wolf"
+      },
+      "creditCard": {
+        "number": "6759-1588-8777-3816",
+        "cvv": "219",
+        "issuer": "mastercard"
+      },
+      "uuid": "be895898-81ef-48c3-9565-14ad51a336b0",
+      "objectId": "668218ddb5c46d4e877fa433"
+    },
+    {
+      "status": "active",
+      "name": {
+        "first": "Alfred",
+        "middle": "James",
+        "last": "Schaden"
+      },
+      "username": "Alfred-Schaden",
+      "password": "gK3ziDut_nKpygR",
+      "emails": [
+        "Janet94@gmail.com",
+        "Cristina38@gmail.com"
+      ],
+      "phoneNumber": "959-310-6932 x79011",
+      "location": {
+        "street": "9065 Noe Union",
+        "city": "Kaitlynboro",
+        "state": "Texas",
+        "country": "Estonia",
+        "zip": "99061-1793",
+        "coordinates": {
+          "latitude": -13.47,
+          "longitude": 72.03
+        }
+      },
+      "website": "https://smoggy-constellation.com",
+      "domain": "phony-item.name",
+      "job": {
+        "title": "Legacy Markets Executive",
+        "descriptor": "Direct",
+        "area": "Research",
+        "type": "Consultant",
+        "company": "Raynor Inc"
+      },
+      "creditCard": {
+        "number": "4450-4440-6408-6801",
+        "cvv": "902",
+        "issuer": "diners_club"
+      },
+      "uuid": "66d63dc9-b977-40d1-9974-b87cd13816c3",
+      "objectId": "668218ddb5c46d4e877fa434"
+    },
+    {
+      "status": "active",
+      "name": {
+        "first": "Pearline",
+        "middle": "Ryan",
+        "last": "Barton"
+      },
+      "username": "Pearline-Barton",
+      "password": "KvDEF6_XdQL1J98",
+      "emails": [
+        "Beryl22@example.com",
+        "Sallie.Mraz@example.com"
+      ],
+      "phoneNumber": "(881) 870-9737",
+      "location": {
+        "street": "912 Hansen Bridge",
+        "city": "Freemancester",
+        "state": "Rhode Island",
+        "country": "Democratic People's Republic of Korea",
+        "zip": "61976-6616",
+        "coordinates": {
+          "latitude": -51.2426,
+          "longitude": -88.5974
+        }
+      },
+      "website": "https://authorized-businessman.net",
+      "domain": "meager-optimisation.biz",
+      "job": {
+        "title": "Internal Web Supervisor",
+        "descriptor": "Principal",
+        "area": "Data",
+        "type": "Strategist",
+        "company": "Conroy, Rohan and Kshlerin"
+      },
+      "creditCard": {
+        "number": "3586-2741-4101-1145",
+        "cvv": "596",
+        "issuer": "maestro"
+      },
+      "uuid": "a9abb4b1-fd69-4a11-a6aa-240a025bf29b",
+      "objectId": "668218ddb5c46d4e877fa435"
+    },
+    {
+      "status": "active",
+      "name": {
+        "first": "Annie",
+        "middle": "Reign",
+        "last": "Schmidt"
+      },
+      "username": "Annie-Schmidt",
+      "password": "XiM6scm3hryVUkc",
+      "emails": [
+        "Theo_Stroman30@gmail.com",
+        "Alisha80@gmail.com"
+      ],
+      "phoneNumber": "952-699-7557",
+      "location": {
+        "street": "10573 Zieme Rapid",
+        "city": "Framiside",
+        "state": "Oregon",
+        "country": "Serbia",
+        "zip": "83610-8699",
+        "coordinates": {
+          "latitude": -43.3577,
+          "longitude": 130.0242
+        }
+      },
+      "website": "https://playful-flight.org/",
+      "domain": "heavenly-extremist.net",
+      "job": {
+        "title": "Product Metrics Facilitator",
+        "descriptor": "Internal",
+        "area": "Group",
+        "type": "Strategist",
+        "company": "Zulauf - Renner"
+      },
+      "creditCard": {
+        "number": "6011-9085-6342-5113",
+        "cvv": "019",
+        "issuer": "american_express"
+      },
+      "uuid": "91d87f67-a308-4fc6-af86-8b4f8e27bee3",
+      "objectId": "668218ddb5c46d4e877fa436"
+    },
+    {
+      "status": "disabled",
+      "name": {
+        "first": "Aron",
+        "middle": "Angel",
+        "last": "Upton"
+      },
+      "username": "Aron-Upton",
+      "password": "XturAfrjRjA1kEY",
+      "emails": [
+        "Rhianna.Gusikowski51@example.com",
+        "Kaitlyn.Kuphal16@example.com"
+      ],
+      "phoneNumber": "830.432.7853 x273",
+      "location": {
+        "street": "69073 Kira Island",
+        "city": "Durganton",
+        "state": "Alabama",
+        "country": "Sweden",
+        "zip": "53615-8829",
+        "coordinates": {
+          "latitude": -60.8892,
+          "longitude": -118.2244
+        }
+      },
+      "website": "https://threadbare-sailboat.info/",
+      "domain": "brief-confirmation.com",
+      "job": {
+        "title": "Investor Creative Engineer",
+        "descriptor": "Forward",
+        "area": "Interactions",
+        "type": "Assistant",
+        "company": "Hilll, Collier and Oberbrunner"
+      },
+      "creditCard": {
+        "number": "3552-1387-0817-9464",
+        "cvv": "308",
+        "issuer": "visa"
+      },
+      "uuid": "c6fea4e5-0aa1-41bc-938e-221b200b9b31",
+      "objectId": "668218ddb5c46d4e877fa437"
+    },
+    {
+      "status": "disabled",
+      "name": {
+        "first": "Alyson",
+        "middle": "Kyle",
+        "last": "Auer"
+      },
+      "username": "Alyson-Auer",
+      "password": "kdC6SoMhlPP0NUG",
+      "emails": [
+        "Quinn10@example.com",
+        "Juana62@example.com"
+      ],
+      "phoneNumber": "993.541.4608 x669",
+      "location": {
+        "street": "68186 Jerrod Falls",
+        "city": "South Francesland",
+        "state": "Nevada",
+        "country": "Solomon Islands",
+        "zip": "90257-4597",
+        "coordinates": {
+          "latitude": -81.6234,
+          "longitude": 20.0574
+        }
+      },
+      "website": "https://pretty-parameter.org/",
+      "domain": "wet-dude.net",
+      "job": {
+        "title": "Legacy Interactions Supervisor",
+        "descriptor": "Central",
+        "area": "Paradigm",
+        "type": "Architect",
+        "company": "Smitham and Sons"
+      },
+      "creditCard": {
+        "number": "3528-9259-5413-7118",
+        "cvv": "668",
+        "issuer": "maestro"
+      },
+      "uuid": "00f51b04-ac3c-4b2c-862b-4617d30f89f9",
+      "objectId": "668218ddb5c46d4e877fa438"
+    },
+    {
+      "status": "disabled",
+      "name": {
+        "first": "Katlynn",
+        "middle": "River",
+        "last": "Marks"
+      },
+      "username": "Katlynn-Marks",
+      "password": "SQ_ZureM5oszwVT",
+      "emails": [
+        "Clyde.Davis@gmail.com",
+        "Ronaldo.Ortiz3@gmail.com"
+      ],
+      "phoneNumber": "(446) 308-9267 x528",
+      "location": {
+        "street": "3156 Clay Spring",
+        "city": "North Palma",
+        "state": "South Carolina",
+        "country": "China",
+        "zip": "51099",
+        "coordinates": {
+          "latitude": -2.7826,
+          "longitude": -127.9367
+        }
+      },
+      "website": "https://negligible-hacksaw.info/",
+      "domain": "sane-personality.net",
+      "job": {
+        "title": "International Accounts Strategist",
+        "descriptor": "District",
+        "area": "Accountability",
+        "type": "Specialist",
+        "company": "Stiedemann, Reilly and Pfeffer"
+      },
+      "creditCard": {
+        "number": "3417-902593-03026",
+        "cvv": "267",
+        "issuer": "jcb"
+      },
+      "uuid": "cd1068cc-45b8-4318-b5ce-d51da5ca6927",
+      "objectId": "668218ddb5c46d4e877fa439"
+    },
+    {
+      "status": "active",
+      "name": {
+        "first": "Quentin",
+        "middle": "Shawn",
+        "last": "Gusikowski"
+      },
+      "username": "Quentin-Gusikowski",
+      "password": "yvJeCgaxCErVTAI",
+      "emails": [
+        "Jeremie64@gmail.com",
+        "Deborah.Heidenreich46@example.com"
+      ],
+      "phoneNumber": "(855) 722-8633 x23951",
+      "location": {
+        "street": "6347 Roxane Ranch",
+        "city": "New Joshua",
+        "state": "Massachusetts",
+        "country": "Bermuda",
+        "zip": "97156",
+        "coordinates": {
+          "latitude": 55.5463,
+          "longitude": 10.0514
+        }
+      },
+      "website": "https://unfit-cap.net/",
+      "domain": "united-phenomenon.net",
+      "job": {
+        "title": "Product Intranet Liaison",
+        "descriptor": "Internal",
+        "area": "Solutions",
+        "type": "Administrator",
+        "company": "Towne LLC"
+      },
+      "creditCard": {
+        "number": "4134-4915-4882-2446",
+        "cvv": "830",
+        "issuer": "mastercard"
+      },
+      "uuid": "ee27c121-0d83-4ea5-bf2c-ff3ec242583a",
+      "objectId": "668218ddb5c46d4e877fa43a"
+    },
+    {
+      "status": "disabled",
+      "name": {
+        "first": "Gerda",
+        "middle": "Bowie",
+        "last": "Schamberger"
+      },
+      "username": "Gerda-Schamberger",
+      "password": "jCPtpPiChAtXkhs",
+      "emails": [
+        "Wilburn_Heathcote6@example.com",
+        "Tony95@example.com"
+      ],
+      "phoneNumber": "1-639-923-7197 x1743",
+      "location": {
+        "street": "579 Brain Tunnel",
+        "city": "Larkinland",
+        "state": "Ohio",
+        "country": "Bonaire, Sint Eustatius and Saba",
+        "zip": "52443",
+        "coordinates": {
+          "latitude": -68.9508,
+          "longitude": -92.7511
+        }
+      },
+      "website": "https://thunderous-tailbud.name/",
+      "domain": "unfinished-servitude.net",
+      "job": {
+        "title": "Product Integration Orchestrator",
+        "descriptor": "Dynamic",
+        "area": "Response",
+        "type": "Developer",
+        "company": "Wisoky, Russel and O'Kon"
+      },
+      "creditCard": {
+        "number": "4663-4941-7170-5499",
+        "cvv": "796",
+        "issuer": "visa"
+      },
+      "uuid": "0399abc9-0cb8-4570-9c57-15ea86ac77b2",
+      "objectId": "668218ddb5c46d4e877fa43b"
+    }
+  ]
+}

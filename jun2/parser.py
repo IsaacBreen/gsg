@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from functools import reduce
 from typing import Callable, Dict, Any, Generator, Type
 
+import pytest
+
 from u8set import U8Set
 
 
@@ -177,103 +179,114 @@ def test_seq_choice_seq():
     assert result3 == ParserIterationResult(U8Set.none(), True)
 
 
-def test_json():
-    # Helper combinators for JSON parsing
-    whitespace = repeat(choice(eat_u8(" "), eat_u8("\t"), eat_u8("\n"), eat_u8("\r")))
-    digit = eat_u8_range("0", "9")
-    digits = repeat(digit)
-    integer = seq(opt(choice(eat_u8("-"), eat_u8("+"))), digits)
-    fraction = seq(eat_u8("."), digits)
-    exponent = seq(choice(eat_u8("e"), eat_u8("E")), choice(eat_u8("+"), eat_u8("-"), eps()), digits)
-    number = seq(integer, choice(fraction, eps()), choice(exponent, eps()))
+# Helper combinators for JSON parsing
+whitespace = repeat(choice(eat_u8(" "), eat_u8("\t"), eat_u8("\n"), eat_u8("\r")))
+digit = eat_u8_range("0", "9")
+digits = repeat(digit)
+integer = seq(opt(choice(eat_u8("-"), eat_u8("+"))), digits)
+fraction = seq(eat_u8("."), digits)
+exponent = seq(choice(eat_u8("e"), eat_u8("E")), choice(eat_u8("+"), eat_u8("-"), eps()), digits)
+number = seq(integer, choice(fraction, eps()), choice(exponent, eps()))
 
-    string_char = choice(
-        eat_u8_range_complement("\"", "\""),
-        seq(eat_u8("\\"), choice(
-            eat_u8("\""), eat_u8("\\"), eat_u8("/"), eat_u8("b"),
-            eat_u8("f"), eat_u8("n"), eat_u8("r"), eat_u8("t"),
-            seq(eat_u8("u"), eat_u8_range("0", "9"), eat_u8_range("0", "9"), eat_u8_range("0", "9"), eat_u8_range("0", "9"))
-        ))
-    )
-    string = seq(eat_u8("\""), repeat(string_char), eat_u8("\""))
+string_char = choice(
+    eat_u8_range_complement("\"", "\""),
+    seq(eat_u8("\\"), choice(
+        eat_u8("\""), eat_u8("\\"), eat_u8("/"), eat_u8("b"),
+        eat_u8("f"), eat_u8("n"), eat_u8("r"), eat_u8("t"),
+        seq(eat_u8("u"), eat_u8_range("0", "9"), eat_u8_range("0", "9"), eat_u8_range("0", "9"), eat_u8_range("0", "9"))
+    ))
+)
+string = seq(eat_u8("\""), repeat(string_char), eat_u8("\""))
 
-    def json_value(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        return choice(
-            string,
-            number,
-            eat_string("true"),
-            eat_string("false"),
-            eat_string("null"),
-            json_array,
-            json_object
-        )(d)
+def json_value(d: Data) -> Generator[ParserIterationResult, u8, None]:
+    return choice(
+        string,
+        number,
+        eat_string("true"),
+        eat_string("false"),
+        eat_string("null"),
+        json_array,
+        json_object
+    )(d)
 
-    def json_array(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        return seq(
-            eat_u8("["),
-            whitespace,
-            choice(
-                seq(
-                    json_value,
-                    repeat(seq(whitespace, eat_u8(","), whitespace, json_value)),
-                    whitespace
-                ),
-                eps()
+def json_array(d: Data) -> Generator[ParserIterationResult, u8, None]:
+    return seq(
+        eat_u8("["),
+        whitespace,
+        choice(
+            seq(
+                json_value,
+                repeat(seq(whitespace, eat_u8(","), whitespace, json_value)),
+                whitespace
             ),
-            eat_u8("]")
-        )(d)
+            eps()
+        ),
+        eat_u8("]")
+    )(d)
 
-    def json_object(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        return seq(
-            eat_u8("{"),
-            whitespace,
-            choice(
-                seq(
-                    string,
-                    whitespace,
-                    eat_u8(":"),
-                    whitespace,
-                    json_value,
-                    repeat(seq(whitespace, eat_u8(","), whitespace, string, whitespace, eat_u8(":"), whitespace, json_value)),
-                    whitespace
-                ),
-                eps()
+def json_object(d: Data) -> Generator[ParserIterationResult, u8, None]:
+    return seq(
+        eat_u8("{"),
+        whitespace,
+        choice(
+            seq(
+                string,
+                whitespace,
+                eat_u8(":"),
+                whitespace,
+                json_value,
+                repeat(seq(whitespace, eat_u8(","), whitespace, string, whitespace, eat_u8(":"), whitespace, json_value)),
+                whitespace
             ),
-            eat_u8("}")
-        )(d)
+            eps()
+        ),
+        eat_u8("}")
+    )(d)
 
-    # Test cases
-    json_parser = seq(whitespace, json_value, whitespace)
+# Test cases
+json_parser = seq(whitespace, json_value, whitespace)
 
-    def parse_json(json_string):
-        try:
-            print(f"Parsing JSON string: {json_string}")
-            it = json_parser(None)
-            result = next(it)
-            assert json_string[0] in result.u8set
-            print(json_string[0])
-            result = it.send(json_string[0])
-            for char in json_string[1:]:
-                assert char in result.u8set
-                print(char)
-                print(result)
-                result = it.send(char)
-            print(result)
-            return result.is_complete
-        except (AssertionError, StopIteration) as e:
-            print(f"Failed to parse JSON string: {json_string}")
-            return False
 
-    assert parse_json('42')
-    assert parse_json('{"key": "value"}')
-    assert parse_json('[1, 2, 3]')
-    assert parse_json('{"nested": {"array": [1, 2, 3], "object": {"a": true, "b": false}}}')
-    assert parse_json('"Hello, world!"')
-    assert parse_json('null')
-    assert parse_json('true')
-    assert parse_json('false')
-    assert not parse_json('{"unclosed": "object"')
-    assert not parse_json('[1, 2, 3')
-    assert not parse_json('{"invalid": "json",}')
+def parse_json(json_string):
+    try:
+        # print(f"Parsing JSON string: {json_string}")
+        it = json_parser(None)
+        result = next(it)
+        assert json_string[0] in result.u8set
+        # print(json_string[0])
+        result = it.send(json_string[0])
+        for char in json_string[1:]:
+            assert char in result.u8set
+            # print(char)
+            # print(result)
+            result = it.send(char)
+        # print(result)
+        return result.is_complete
+    except (AssertionError, StopIteration) as e:
+        print(f"Failed to parse JSON string: {json_string}")
+        return False
 
-    print("All JSON tests passed successfully!")
+
+@pytest.mark.parametrize("json_string", [
+    '42',
+    '{"key": "value"}',
+    '[1, 2, 3]',
+    '{"nested": {"array": [1, 2, 3], "object": {"a": true, "b": false}}}',
+    '"Hello, world!"',
+    'null',
+    'true',
+    'false',
+    open("GeneratedCSV_10.json").read(),
+    open("GeneratedCSV_20.json").read(),
+])
+def test_json_valid(json_string):
+    assert parse_json(json_string)
+
+
+@pytest.mark.parametrize("json_string", [
+    '{"unclosed": "object"',
+    '[1, 2, 3',
+    '{"invalid": "json",',
+])
+def test_json_invalid(json_string):
+    assert not parse_json(json_string)
