@@ -278,9 +278,13 @@ def test_json_valid(json_string):
 @pytest.mark.parametrize("json_string", [
     open("GeneratedCSV_10.json").read(),
     open("GeneratedCSV_20.json").read(),
+    open("GeneratedCSV_100.json").read(),
+    open("GeneratedCSV_200.json").read(),
 ], ids=[
     "10 lines",
     "20 lines",
+    "100 lines",
+    "200 lines",
 ])
 def test_json_valid_long(json_string):
     assert parse_json(json_string)
