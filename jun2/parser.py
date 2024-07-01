@@ -69,6 +69,16 @@ def process(c: Optional[u8], its: List[ActiveCombinator]) -> ParserIterationResu
     return final_result
 
 
+def seq2_helper(B: Combinator, d: Data, A_result: ParserIterationResult, B_its: List[ActiveCombinator]) -> ParserIterationResult:
+    if A_result.is_complete:
+        B_it = B(d)
+        B_its.append(B_it)
+        B_result = B_it.send(None)
+        A_result.is_complete = B_result.is_complete
+        A_result.u8set |= B_result.u8set
+    return A_result
+
+
 class Seq2(Combinator):
     def __init__(self, A: Combinator, B: Combinator):
         self.A = A
@@ -78,29 +88,38 @@ class Seq2(Combinator):
         return {
             'A_its': [self.A(data)],
             'B_its': [],
-            'A_complete': False,
+            'data': data,
         }
 
     def next_state(self, state, c):
+        # A_result = process(c, state['A_its'])
+        # B_result = process(c, state['B_its'])
+        #
+        # if A_result.is_complete and not state['A_complete']:
+        #     state['A_complete'] = True
+        #     B_it = self.B(state['A_its'][0].data)
+        #     state['B_its'].append(B_it)
+        #     B_result = B_it.send(None)  # Initialize B
+        #
+        # return ParserIterationResult(
+        #     A_result.u8set | B_result.u8set,
+        #     A_result.is_complete and B_result.is_complete
+        # )
+
+        # A_its, B_its, c = [A(d)], [], None
+        # while A_its or B_its:
+        #     A_result = process(c, A_its)
+        #     B_result = process(c, B_its)
+        #     c = yield seq2_helper(B, d, A_result, B_its) | B_result
+
         A_result = process(c, state['A_its'])
         B_result = process(c, state['B_its'])
-
-        if A_result.is_complete and not state['A_complete']:
-            state['A_complete'] = True
-            B_it = self.B(state['A_its'][0].data)
-            state['B_its'].append(B_it)
-            B_result = B_it.send(None)  # Initialize B
-
-        return ParserIterationResult(
-            A_result.u8set | B_result.u8set,
-            A_result.is_complete and B_result.is_complete
-        )
+        return seq2_helper(self.B, state['data'], A_result, state['B_its']) | B_result
 
     def clone_state(self, state):
         return {
             'A_its': [it.clone() for it in state['A_its']],
             'B_its': [it.clone() for it in state['B_its']],
-            'A_complete': state['A_complete'],
         }
 
 
