@@ -119,7 +119,7 @@ pub fn eat_u8_range(start: char, end: char) -> impl Combinator {
 }
 
 pub fn eat_u8_range_complement(start: char, end: char) -> impl Combinator {
-    eat_u8_matching(move |c| (c < start as u8) || (end as u8 < c))
+    eat_u8_matching(move |c| (c < start as u8) || ((end as u8) < c))
 }
 
 #[derive(Clone)]
@@ -315,7 +315,7 @@ fn process<C: Combinator>(c: Option<char>, its: &mut Vec<ActiveCombinator<C>>) -
 }
 
 pub fn seq<C: Combinator>(parsers: Vec<C>) -> impl Combinator {
-    parsers.into_iter().reduce(|a, b| Box::new(seq2(a, b)) as Box<dyn Combinator>).unwrap()
+    parsers.into_iter().reduce(|a, b| Box::new(seq2(a, b)) as Box<dyn Combinator<State=()>>).unwrap()
 }
 
 pub fn opt<C: Combinator>(a: C) -> impl Combinator {
@@ -325,4 +325,3 @@ pub fn opt<C: Combinator>(a: C) -> impl Combinator {
 pub fn repeat<C: Combinator>(a: C) -> impl Combinator {
     opt(repeat1(a))
 }
-
