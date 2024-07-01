@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import reduce
-from typing import Callable, Dict, Any, Generator, Type, Optional, List
+from typing import Callable, Any, Generator, Optional, List
 
 import pytest
 
@@ -35,7 +35,7 @@ def process(c: Optional[u8], its: List[ActiveCombinator]) -> ParserIterationResu
     return final_result
 
 
-def seq2_helper(B, d, A_result, B_result, B_its):
+def seq2_helper(B: Combinator, d: Data, A_result: ParserIterationResult, B_result: ParserIterationResult, B_its: List[ActiveCombinator]) -> ParserIterationResult:
     if A_result.is_complete:
         B_it = B(d)
         B_result |= next(B_it)
@@ -255,7 +255,7 @@ def parse_json(json_string):
             result = it.send(char)
         # print(result)
         return result.is_complete
-    except (AssertionError, StopIteration) as e:
+    except (AssertionError, StopIteration):
         print(f"Failed to parse JSON string: {json_string}")
         return False
 
