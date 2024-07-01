@@ -390,32 +390,6 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
     opt(repeat1(a))
 }
 
-// Define a wrapper struct for the recursive JsonValue
-#[derive(Clone)]
-struct JsonValue<A, B, C>(JsonCombinator<A, B, C>)
-where
-    A: Combinator,
-    B: Combinator,
-    C: Combinator;
-
-// Implement Combinator for JsonValue by delegating to the inner JsonCombinator
-impl<A, B, C> Combinator for JsonValue<A, B, C>
-where
-    A: Combinator,
-    B: Combinator,
-    C: Combinator,
-{
-    type State = <JsonCombinator<A, B, C> as Combinator>::State;
-
-    fn initial_state(&self, data: &Data) -> Self::State {
-        self.0.initial_state(data)
-    }
-
-    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        self.0.next_state(state, c)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -491,8 +465,8 @@ mod tests {
         let whitespace = repeat(choice2(eat_u8(' '), choice2(eat_u8('\t'), choice2(eat_u8('\n'), eat_u8('\r')))));
         let digit = eat_u8_range('0', '9');
         let digits = repeat(digit);
-        let integer = seq(opt(choice2(eat_u8('-'), eat_u8('+'))), digits);
-        let fraction = seq(eat_u8('.'), digits);
+        let integer = seq(opt(choice2(eat_u8('-'), eat_u8('+'))), digits.clone());
+        let fraction = seq(eat_u8('.'), digits.clone());
         let exponent = seq(choice2(eat_u8('e'), eat_u8('E')), seq(choice2(choice2(eat_u8('+'), eat_u8('-')), eps()), digits));
         let number = seq(integer, seq(opt(fraction), opt(exponent)));
 
@@ -529,29 +503,29 @@ mod tests {
         let json_array = seq(
             eat_u8('['),
             seq(
-                whitespace,
+                whitespace.clone(),
                 seq(
                     opt(seq(
                         json_value.clone(),
-                        repeat(seq(seq(whitespace, eat_u8(',')), seq(whitespace, json_value.clone()))),
+                        repeat(seq(seq(whitespace.clone(), eat_u8(',')), seq(whitespace.clone(), json_value.clone()))),
                     )),
-                    seq(whitespace, eat_u8(']')),
+                    seq(whitespace.clone(), eat_u8(']')),
                 ),
             ),
         );
 
-        let key_value_pair = seq(seq(whitespace, string.clone()), seq(whitespace, seq(eat_u8(':'), seq(whitespace, json_value.clone()))));
+        let key_value_pair = seq(seq(whitespace.clone(), string.clone()), seq(whitespace.clone(), seq(eat_u8(':'), seq(whitespace.clone(), json_value.clone()))));
 
         let json_object = seq(
             eat_u8('{'),
             seq(
-                whitespace,
+                whitespace.clone(),
                 seq(
                     opt(seq(
-                        key_value_pair,
-                        repeat(seq(seq(whitespace, eat_u8(',')), key_value_pair)),
+                        key_value_pair.clone(),
+                        repeat(seq(seq(whitespace.clone(), eat_u8(',')), key_value_pair)),
                     )),
-                    seq(whitespace, eat_u8('}')),
+                    seq(whitespace.clone(), eat_u8('}')),
                 ),
             ),
         );
