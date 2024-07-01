@@ -73,7 +73,7 @@ class U8Set:
         return result
 
     @classmethod
-    def from_test(cls, fn: Callable[[int], bool]) -> 'U8Set':
+    def from_match_fn(cls, fn: Callable[[int], bool]) -> 'U8Set':
         result = cls.none()
         for i in range(256):
             if fn(i):

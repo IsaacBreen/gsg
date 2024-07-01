@@ -1,3 +1,4 @@
+import functools
 from dataclasses import dataclass
 from functools import reduce
 from typing import Callable, Any, Generator, Optional, List
@@ -86,28 +87,29 @@ def choice(*parsers: Combinator) -> Combinator:
     return _choice
 
 
-def eat_u8(value: u8) -> Combinator:
-    def _eat_u8(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        c = yield ParserIterationResult(U8Set.from_test(lambda c: c == ord(value)), False)
-        yield ParserIterationResult(U8Set.none(), c == value)
+def eat_u8_matching(fn: Callable[[int], bool]) -> Combinator:
+    def _eat_u8_matching(d: Data) -> Generator[ParserIterationResult, u8, None]:
+        c = yield ParserIterationResult(U8Set.from_match_fn(fn), False)
+        yield ParserIterationResult(U8Set.none(), fn(ord(c)))
 
-    return _eat_u8
+    return _eat_u8_matching
+
+
+def eat_u8(value: u8) -> Combinator:
+    if isinstance(value, str):
+        value = ord(value)
+    def match_fn(c: int) -> bool:
+        assert isinstance(value, int)
+        return c == value
+    return eat_u8_matching(match_fn)
 
 
 def eat_u8_range(start: u8, is_complete: u8) -> Combinator:
-    def _eat_u8_range(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        c = yield ParserIterationResult(U8Set.from_test(lambda c: ord(start) <= c <= ord(is_complete)), False)
-        yield ParserIterationResult(U8Set.none(), start <= c <= is_complete)
-
-    return _eat_u8_range
+    return eat_u8_matching(lambda c: ord(start) <= c <= ord(is_complete))
 
 
 def eat_u8_range_complement(start: u8, is_complete: u8) -> Combinator:
-    def _eat_u8_range_complement(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        c = yield ParserIterationResult(U8Set.from_test(lambda c: not ord(start) <= c <= ord(is_complete)), False)
-        yield ParserIterationResult(U8Set.none(), not start <= c <= is_complete)
-
-    return _eat_u8_range_complement
+    return eat_u8_matching(lambda c: not ord(start) <= c <= ord(is_complete))
 
 
 def eat_string(value: str) -> Combinator:
