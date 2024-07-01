@@ -391,51 +391,43 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
 }
 
 #[derive(Clone)]
-struct ForwardRef<A>
-where
-    A: Combinator,
-{
-    combinator: Option<Weak<A>>,
+struct ForwardRef<A: Combinator> {
+    combinator: Weak<dyn Combinator<State = A::State>>,
 }
 
-impl<A> ForwardRef<A>
-where
-    A: Combinator,
-{
+impl<A: Combinator> ForwardRef<A> {
     fn new() -> Self {
-        Self { combinator: None }
+        Self {
+            combinator: Weak::new(),
+        }
     }
 
-    fn set(&mut self, combinator: Weak<A>) {
-        self.combinator = Some(combinator);
-    }
-}
-
-impl<A> Combinator for ForwardRef<A>
-where
-    A: Combinator,
-{
-    type State = A::State;
-
-    fn initial_state(&self, data: &Data) -> Self::State {
-        self.combinator.as_ref().unwrap().upgrade().unwrap().initial_state(data)
-    }
-
-    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        self.combinator.as_ref().unwrap().upgrade().unwrap().next_state(state, c)
+    fn set(&mut self, combinator: Weak<dyn Combinator<State = A::State>>) {
+        self.combinator = combinator;
     }
 }
 
-impl<A> Combinator for Rc<A>
-where
-    A: Combinator,
-{
+impl<A: Combinator> Combinator for ForwardRef<A> {
     type State = A::State;
+
     fn initial_state(&self, data: &Data) -> Self::State {
-        self.as_ref().initial_state(data)
+        self.combinator.upgrade().unwrap().initial_state(data)
     }
+
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        self.as_ref().next_state(state, c)
+        self.combinator.upgrade().unwrap().next_state(state, c)
+    }
+}
+
+impl<T: Combinator> Combinator for Rc<T> {
+    type State = T::State;
+
+    fn initial_state(&self, data: &Data) -> Self::State {
+        (**self).initial_state(data)
+    }
+
+    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
+        (**self).next_state(state, c)
     }
 }
 
@@ -549,7 +541,7 @@ mod tests {
         );
         let string = seq(eat_u8('"'), seq(repeat(string_char), eat_u8('"')));
 
-        let json_value = Rc::new(ForwardRef::new());
+        let json_value: Rc<dyn Combinator<State = _>> = Rc::new(ForwardRef::new());
 
         let json_array = seq(
             eat_u8('['),
@@ -581,8 +573,8 @@ mod tests {
             ),
         );
 
-        json_value.set(
-            Rc::downgrade(&Rc::new(
+        if let Some(forward_ref) = Rc::get_mut(json_value.clone().downcast_mut::<ForwardRef<_>>().unwrap()) {
+            forward_ref.set(Rc::downgrade(&Rc::new(
                 choice2(
                     choice2(string, number),
                     choice2(
@@ -590,8 +582,8 @@ mod tests {
                         choice2(eat_string("null"), choice2(json_array, json_object)),
                     ),
                 ),
-            ))
-        );
+            ) as Rc<dyn Combinator<State = _>>));
+        }
 
         // Test cases
         let json_parser = seq(whitespace.clone(), json_value.clone());
