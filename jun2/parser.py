@@ -1,4 +1,5 @@
-import functools
+from __future__ import annotations
+
 from dataclasses import dataclass
 from functools import reduce
 from typing import Callable, Any, Generator, Optional, List
@@ -24,10 +25,10 @@ class ParserIterationResult:
         return ParserIterationResult(self.u8set, self.is_complete)
 
 
-type u8 = str
-type Data = Any
-type ActiveCombinator = Generator[ParserIterationResult, u8, None]
-type Combinator = Callable[[Data], ActiveCombinator]
+u8 = str
+Data = Any
+ActiveCombinator = Generator[ParserIterationResult, u8, None]
+Combinator = Callable[[Data], ActiveCombinator]
 
 
 def process(c: Optional[u8], its: List[ActiveCombinator]) -> ParserIterationResult:
@@ -269,10 +270,19 @@ def parse_json(json_string):
     'null',
     'true',
     'false',
-    open("GeneratedCSV_10.json").read(),
-    open("GeneratedCSV_20.json").read(),
 ])
 def test_json_valid(json_string):
+    assert parse_json(json_string)
+
+
+@pytest.mark.parametrize("json_string", [
+    open("GeneratedCSV_10.json").read(),
+    open("GeneratedCSV_20.json").read(),
+], ids=[
+    "10 lines",
+    "20 lines",
+])
+def test_json_valid_long(json_string):
     assert parse_json(json_string)
 
 
