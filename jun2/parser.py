@@ -67,11 +67,11 @@ def seq(*args: Combinator) -> Combinator:
 
 def repeat1(A: Combinator) -> Combinator:
     def _repeat1(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        its, c = [A(d)], None
-        while its:
-            A_result = process(c, its)
+        A_its, c = [A(d)], None
+        while A_its:
+            A_result = process(c, A_its)
             B_result = A_result.copy()
-            c = yield seq2_helper(A, d, A_result, its) | B_result
+            c = yield seq2_helper(A, d, A_result, A_its) | B_result
 
     return _repeat1
 
