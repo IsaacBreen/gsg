@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import reduce
-from typing import Callable, Dict, Any, Generator, Type
+from typing import Callable, Dict, Any, Generator, Type, Optional, List
 
 import pytest
 
@@ -18,13 +18,13 @@ class ParserIterationResult:
     def __and__(self, other):
         return ParserIterationResult(self.u8set & other.u8set, self.is_complete & other.is_complete)
 
-
 type u8 = str
 type Data = Any
-type Combinator = Callable[[Data], Generator[ParserIterationResult, u8, None]]
+type ActiveCombinator = Generator[ParserIterationResult, u8, None]
+type Combinator = Callable[[Data], ActiveCombinator]
 
 
-def process(c, its):
+def process(c: Optional[u8], its: List[ActiveCombinator]) -> ParserIterationResult:
     final_result = ParserIterationResult(U8Set.none(), False)
     for i, it in reversed(list(enumerate(its))):
         try:
@@ -35,28 +35,23 @@ def process(c, its):
     return final_result
 
 
+def seq2_helper(B, d, A_result, B_result, B_its):
+    if A_result.is_complete:
+        B_it = B(d)
+        B_result |= next(B_it)
+        B_its.append(B_it)
+        A_result.is_complete = False
+        A_result |= B_result
+    return A_result | B_result
+
+
 def seq2(A: Combinator, B: Combinator) -> Combinator:
-    def helper(A_result, B_its, B_result, d):
-        if A_result.is_complete:
-            B_it = B(d)
-            B_result |= next(B_it)
-            B_its.append(B_it)
-            A_result.is_complete = False
-            A_result |= B_result
-        return A_result | B_result
-
     def _seq2(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        A_it = A(d)
-        A_result = next(A_it)
-        A_its = [A_it]
-        B_its = []
-        B_result = ParserIterationResult(U8Set.none(), False)
-        c = yield helper(A_result, B_its, B_result, d)
-
+        A_its, B_its, c = [A(d)], [], None
         while A_its or B_its:
             A_result = process(c, A_its)
             B_result = process(c, B_its)
-            c = yield helper(A_result, B_its, B_result, d)
+            c = yield seq2_helper(B, d, A_result, B_result, B_its)
 
     return _seq2
 
