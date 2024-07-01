@@ -1,5 +1,6 @@
 use std::ops::{BitOr, BitAnd};
 
+#[derive(Clone)]
 struct BitSet {
     x: u32,
 }
