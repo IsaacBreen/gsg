@@ -66,13 +66,12 @@ def seq(*args: Combinator) -> Combinator:
 
 def repeat(A: Combinator) -> Combinator:
     def _repeat(d: Data) -> Generator[ParserIterationResult, u8, None]:
-        its, c = [], None
-        result = process(c, its)
-        result.is_complete = True
-        c = yield seq2_helper(A, d, result.copy(), its) | result
+        its, c = [A(d)], None
+        dummy_result = ParserIterationResult(U8Set.none(), True)
         while its:
             result = process(c, its)
-            c = yield seq2_helper(A, d, result.copy(), its) | result
+            c = yield seq2_helper(A, d, result | dummy_result, its) | result | dummy_result
+            dummy_result.is_complete = False
 
     return _repeat
 
