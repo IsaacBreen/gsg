@@ -77,10 +77,10 @@ def seq2_helper(B: Combinator, d: Data, A_result: ParserIterationResult, B_its: 
     return A_result
 
 
+@dataclass
 class Seq2(Combinator):
-    def __init__(self, A: Combinator, B: Combinator):
-        self.A = A
-        self.B = B
+    A: Combinator
+    B: Combinator
 
     def initial_state(self, data: Data):
         return {
@@ -110,9 +110,9 @@ def seq(*args: Combinator) -> Combinator:
     return balanced_tree_reduce(seq2, args)
 
 
+@dataclass
 class Repeat1(Combinator):
-    def __init__(self, A: Combinator):
-        self.A = A
+    A: Combinator
 
     def initial_state(self, data: Data):
         return {
@@ -135,9 +135,9 @@ def repeat1(A: Combinator) -> Combinator:
     return Repeat1(A)
 
 
+@dataclass
 class Choice(Combinator):
-    def __init__(self, *parsers: Combinator):
-        self.parsers = parsers
+    parsers: List[Combinator]
 
     def initial_state(self, data: Data):
         return {
@@ -154,12 +154,12 @@ class Choice(Combinator):
 
 
 def choice(*parsers: Combinator) -> Combinator:
-    return Choice(*parsers)
+    return Choice(list(parsers))
 
 
+@dataclass
 class EatU8Matching(Combinator):
-    def __init__(self, fn: Callable[[int], bool]):
-        self.fn = fn
+    fn: Callable[[int], bool]
 
     def initial_state(self, data: Data):
         return {'stage': 0}
@@ -200,9 +200,9 @@ def eat_u8_range_complement(start: u8, end: u8) -> Combinator:
     return eat_u8_matching(match_fn)
 
 
+@dataclass
 class EatString(Combinator):
-    def __init__(self, value: str):
-        self.value = value
+    value: str
 
     def initial_state(self, data: Data):
         return {'index': 0}
@@ -224,6 +224,7 @@ def eat_string(value: str) -> Combinator:
     return EatString(value)
 
 
+@dataclass
 class Eps(Combinator):
     def initial_state(self, data: Data):
         return {}
