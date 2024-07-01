@@ -4,6 +4,7 @@ from typing import Callable, Any, Generator, Optional, List
 
 import pytest
 
+from balanced_tree_reduce import balanced_tree_reduce
 from u8set import U8Set
 
 
@@ -61,7 +62,7 @@ def seq2(A: Combinator, B: Combinator) -> Combinator:
 
 
 def seq(*args: Combinator) -> Combinator:
-    return reduce(seq2, args)
+    return balanced_tree_reduce(seq2, args)
 
 
 def repeat1(A: Combinator) -> Combinator:
