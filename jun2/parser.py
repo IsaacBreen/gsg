@@ -96,11 +96,7 @@ def eat_u8_matching(fn: Callable[[int], bool]) -> Combinator:
 
 
 def eat_u8(value: u8) -> Combinator:
-    if isinstance(value, str):
-        value = ord(value)
-    def match_fn(c: int) -> bool:
-        return c == value
-    return eat_u8_matching(match_fn)
+    return eat_u8_matching(lambda c: c == ord(value))
 
 
 def eat_u8_range(start: u8, is_complete: u8) -> Combinator:
