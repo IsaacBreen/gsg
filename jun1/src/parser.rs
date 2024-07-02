@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::marker::PhantomData;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 
@@ -72,22 +71,25 @@ trait Combinator: Clone {
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult;
 }
 
-trait StateTrait: Any + Clone {}
-
 #[derive(Clone)]
-struct ActiveCombinator(Box<dyn Combinator<State = Box<dyn StateTrait>>>);
+struct ActiveCombinator {
+    combinator: CombinatorType,
+    data: Data,
+    state: CombinatorState,
+}
 
 impl ActiveCombinator {
-    fn new(combinator: Box<dyn Combinator<State = Box<dyn StateTrait>>>, data: Data) -> Self {
+    fn new(combinator: CombinatorType, data: Data) -> Self {
         let state = combinator.initial_state(&data);
-        Self(Box::new(combinator))
+        Self {
+            combinator,
+            data,
+            state,
+        }
     }
 
     fn send(&mut self, c: Option<char>) -> ParserIterationResult {
-        self.0.next_state(
-            self.0.initial_state(&()).downcast_mut::<Box<dyn std::any::Any>>().unwrap(),
-            c,
-        )
+        self.combinator.next_state(&mut self.state, c)
     }
 }
 
@@ -109,13 +111,13 @@ fn process(
 }
 
 fn seq2_helper(
-    b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+    combinator: CombinatorType,
     d: &Data,
     a_result: &mut ParserIterationResult,
     b_its: &mut Vec<ActiveCombinator>,
 ) {
     if a_result.is_complete {
-        let b_it = ActiveCombinator::new(b, d.clone());
+        let b_it = ActiveCombinator::new(combinator, d.clone());
         b_its.push(b_it);
         let b_result = b_its.last_mut().unwrap().send(None);
         a_result.is_complete = b_result.is_complete;
@@ -124,14 +126,74 @@ fn seq2_helper(
 }
 
 #[derive(Clone)]
-struct Seq2(Box<dyn Combinator<State = Box<dyn StateTrait>>>, Box<dyn Combinator<State = Box<dyn StateTrait>>>);
+enum CombinatorType {
+    Choice2(Choice2),
+    EatString(EatString),
+    EatU8Matching(EatU8Matching),
+    Eps(Eps),
+    Repeat1(Box<CombinatorType>),
+    Seq2(Seq2),
+}
+
+#[derive(Clone)]
+enum CombinatorState {
+    Choice2((Choice2State, Choice2State)),
+    EatString(usize),
+    EatU8Matching(u8),
+    Eps(()),
+    Repeat1((Vec<ActiveCombinator>, Data)),
+    Seq2((Vec<ActiveCombinator>, Vec<ActiveCombinator>, Data)),
+}
+
+impl Combinator for CombinatorType {
+    type State = CombinatorState;
+
+    fn initial_state(&self, data: &Data) -> Self::State {
+        match self {
+            CombinatorType::Choice2(c) => CombinatorState::Choice2(c.initial_state(data)),
+            CombinatorType::EatString(c) => CombinatorState::EatString(c.initial_state(data)),
+            CombinatorType::EatU8Matching(c) => {
+                CombinatorState::EatU8Matching(c.initial_state(data))
+            }
+            CombinatorType::Eps(c) => CombinatorState::Eps(c.initial_state(data)),
+            CombinatorType::Repeat1(c) => {
+                CombinatorState::Repeat1(c.initial_state(data))
+            }
+            CombinatorType::Seq2(c) => CombinatorState::Seq2(c.initial_state(data)),
+        }
+    }
+
+    fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
+        match (self, state) {
+            (CombinatorType::Choice2(c), CombinatorState::Choice2(s)) => {
+                c.next_state(s, c)
+            }
+            (CombinatorType::EatString(c), CombinatorState::EatString(s)) => {
+                c.next_state(s, c)
+            }
+            (
+                CombinatorType::EatU8Matching(c),
+                CombinatorState::EatU8Matching(s),
+            ) => c.next_state(s, c),
+            (CombinatorType::Eps(c), CombinatorState::Eps(s)) => c.next_state(s, c),
+            (CombinatorType::Repeat1(c), CombinatorState::Repeat1(s)) => {
+                c.next_state(s, c)
+            }
+            (CombinatorType::Seq2(c), CombinatorState::Seq2(s)) => c.next_state(s, c),
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct Seq2 {
+    a: CombinatorType,
+    b: CombinatorType,
+}
 
 impl Seq2 {
-    fn new(
-        a: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
-        b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
-    ) -> Self {
-        Self(a, b)
+    fn new(a: CombinatorType, b: CombinatorType) -> Self {
+        Self { a, b }
     }
 }
 
@@ -140,7 +202,7 @@ impl Combinator for Seq2 {
 
     fn initial_state(&self, data: &Data) -> Self::State {
         (
-            vec![ActiveCombinator::new(self.0.clone(), data.clone())],
+            vec![ActiveCombinator::new(self.a.clone(), data.clone())],
             Vec::new(),
             data.clone(),
         )
@@ -150,34 +212,35 @@ impl Combinator for Seq2 {
         let (a_its, b_its, d) = state;
         let mut a_result = process(c, a_its);
         let b_result = process(c, b_its);
-        seq2_helper(self.1.clone(), d, &mut a_result, b_its);
+        seq2_helper(self.b.clone(), d, &mut a_result, b_its);
         a_result | b_result
     }
 }
 
-fn seq2(
-    a: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
-    b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
-) -> Seq2 {
-    Seq2::new(a, b)
+fn seq2(a: CombinatorType, b: CombinatorType) -> CombinatorType {
+    CombinatorType::Seq2(Seq2::new(a, b))
 }
 
+// Box is used here to allow for recursive types
 fn seq(
-    a: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
-    b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
-) -> Seq2 {
-    Seq2::new(a, b)
+    a: CombinatorType,
+    b: CombinatorType
+) -> CombinatorType {
+    seq2(a, b)
 }
 
 
 #[derive(Clone)]
-struct Repeat1(Box<dyn Combinator<State = Box<dyn StateTrait>>>);
+struct Repeat1(CombinatorType);
 
 impl Combinator for Repeat1 {
     type State = (Vec<ActiveCombinator>, Data);
 
     fn initial_state(&self, data: &Data) -> Self::State {
-        (vec![ActiveCombinator::new(self.0.clone(), data.clone())], data.clone())
+        (
+            vec![ActiveCombinator::new(self.0.clone(), data.clone())],
+            data.clone(),
+        )
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
@@ -189,52 +252,50 @@ impl Combinator for Repeat1 {
     }
 }
 
-fn repeat1(a: Box<dyn Combinator<State = Box<dyn StateTrait>>>) -> Repeat1 {
-    Repeat1(a)
+fn repeat1(a: CombinatorType) -> CombinatorType {
+    CombinatorType::Repeat1(Box::new(a))
 }
 
 #[derive(Clone)]
-struct Choice2(Box<dyn Combinator<State = Box<dyn StateTrait>>>, Box<dyn Combinator<State = Box<dyn StateTrait>>>);
+struct Choice2 {
+    a: CombinatorType,
+    b: CombinatorType,
+}
+
+#[derive(Clone)]
+struct Choice2State(CombinatorState, CombinatorState);
 
 impl Choice2 {
-    fn new(
-        a: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
-        b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
-    ) -> Self {
-        Self(a, b)
+    fn new(a: CombinatorType, b: CombinatorType) -> Self {
+        Self { a, b }
     }
 }
 
 impl Combinator for Choice2 {
-    type State = (Box<dyn StateTrait>, Box<dyn StateTrait>);
+    type State = (CombinatorState, CombinatorState);
 
     fn initial_state(&self, data: &Data) -> Self::State {
-        (self.0.initial_state(&data), self.1.initial_state(&data))
+        (self.a.initial_state(&data), self.b.initial_state(&data))
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        let mut result_a = self.0.next_state(state.0.downcast_mut().unwrap(), c);
-        let result_b = self.1.next_state(state.1.downcast_mut().unwrap(), c);
+        let mut result_a = self.a.next_state(&mut state.0, c);
+        let result_b = self.b.next_state(&mut state.1, c);
         result_a |= result_b;
         result_a
     }
 }
 
-fn choice2(
-    a: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
-    b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
-) -> Choice2 {
-    Choice2::new(a, b)
+fn choice2(a: CombinatorType, b: CombinatorType) -> CombinatorType {
+    CombinatorType::Choice2(Choice2::new(a, b))
 }
 
 #[derive(Clone)]
-struct EatU8Matching
-{
+struct EatU8Matching {
     u8set: U8Set,
 }
 
-impl EatU8Matching
-{
+impl EatU8Matching {
     fn new<F>(fn_: F) -> Self
     where
         F: Fn(u8) -> bool,
@@ -245,8 +306,7 @@ impl EatU8Matching
     }
 }
 
-impl Combinator for EatU8Matching
-{
+impl Combinator for EatU8Matching {
     type State = u8;
 
     fn initial_state(&self, _data: &Data) -> Self::State {
@@ -262,7 +322,8 @@ impl Combinator for EatU8Matching
             1 => {
                 *state = 2;
                 ParserIterationResult::new(
-                    U8Set::none(), c.map(|c| self.u8set.contains(c as u8)).unwrap_or(false),
+                    U8Set::none(),
+                    c.map(|c| self.u8set.contains(c as u8)).unwrap_or(false),
                 )
             }
             _ => ParserIterationResult::new(U8Set::none(), true),
@@ -270,22 +331,22 @@ impl Combinator for EatU8Matching
     }
 }
 
-fn eat_u8_matching<F>(fn_: F) -> Box<dyn Combinator<State = Box<dyn StateTrait>>>
+fn eat_u8_matching<F>(fn_: F) -> CombinatorType
 where
-    F: Fn(u8) -> bool + 'static,
+    F: Fn(u8) -> bool,
 {
-    Box::new(EatU8Matching::new(fn_))
+    CombinatorType::EatU8Matching(EatU8Matching::new(fn_))
 }
 
-fn eat_u8(value: char) -> Box<dyn Combinator<State = Box<dyn StateTrait>>> {
+fn eat_u8(value: char) -> CombinatorType {
     eat_u8_matching(move |c: u8| c == value as u8)
 }
 
-fn eat_u8_range(start: char, end: char) -> Box<dyn Combinator<State = Box<dyn StateTrait>>> {
+fn eat_u8_range(start: char, end: char) -> CombinatorType {
     eat_u8_matching(move |c: u8| (start as u8..=end as u8).contains(&c))
 }
 
-fn eat_u8_range_complement(start: char, end: char) -> Box<dyn Combinator<State = Box<dyn StateTrait>>> {
+fn eat_u8_range_complement(start: char, end: char) -> CombinatorType {
     eat_u8_matching(move |c: u8| !(start as u8..=end as u8).contains(&c))
 }
 
@@ -325,8 +386,8 @@ impl Combinator for EatString {
     }
 }
 
-fn eat_string(value: &str) -> Box<dyn Combinator<State = Box<dyn StateTrait>>> {
-    Box::new(EatString::new(value))
+fn eat_string(value: &str) -> CombinatorType {
+    CombinatorType::EatString(EatString::new(value))
 }
 
 #[derive(Clone)]
@@ -340,15 +401,15 @@ impl Combinator for Eps {
     }
 }
 
-fn eps() -> Box<dyn Combinator<State = Box<dyn StateTrait>>> {
-    Box::new(Eps)
+fn eps() -> CombinatorType {
+    CombinatorType::Eps(Eps)
 }
 
-fn opt(a: Box<dyn Combinator<State = Box<dyn StateTrait>>>) -> Choice2 {
+fn opt(a: CombinatorType) -> CombinatorType {
     choice2(a, eps())
 }
 
-fn repeat(a: Box<dyn Combinator<State = Box<dyn StateTrait>>>) -> Choice2 {
+fn repeat(a: CombinatorType) -> CombinatorType {
     opt(repeat1(a))
 }
 
@@ -424,9 +485,10 @@ mod tests {
 
     #[test]
     fn test_nested_brackets() {
-        let a =  |a: Box<dyn Combinator<State = Box<dyn StateTrait>>>| {
+        let a = |a: CombinatorType| {
             choice2(seq(eat_u8('['), seq(a, eat_u8(']'))), eat_u8('a'))
         };
-        let _ = a(Box::new(a(Box::new(Eps))));
+        let a = a(a(a(eps())));
+        let mut it = ActiveCombinator::new(a, ());
     }
 }
