@@ -571,5 +571,22 @@ mod json_parser {
         for json_string in invalid_json_strings {
             assert!(!parse_json(json_string), "Incorrectly parsed invalid JSON string: {}", json_string);
         }
+
+        let filenames = [
+            "GeneratedCSV_10.json",
+            "GeneratedCSV_20.json",
+            // "GeneratedCSV_100.json",
+            // "GeneratedCSV_200.json",
+        ];
+
+        // Print execution times for each parser
+        for filename in filenames {
+            let json_string = std::fs::read_to_string(format!("static/{}", filename)).unwrap();
+            let start = std::time::Instant::now();
+            let result = parse_json(&json_string);
+            let end = std::time::Instant::now();
+            println!("{}: {}", filename, end.duration_since(start).as_millis());
+            assert!(result, "Failed to parse JSON string: {}", json_string);
+        }
     }
 }
