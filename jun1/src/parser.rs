@@ -1,5 +1,5 @@
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
-
+use std::rc::Rc;
 use crate::u8set::U8Set;
 
 #[derive(PartialEq, Debug)]
@@ -66,6 +66,7 @@ type Data = ();
 
 #[derive(Clone)]
 enum Combinator {
+    Call(Rc<dyn Fn() -> Combinator>),
     Choice2(Box<Combinator>, Box<Combinator>),
     EatString(String),
     EatU8Matching(U8Set),
@@ -76,6 +77,7 @@ enum Combinator {
 
 #[derive(Clone)]
 enum CombinatorState {
+    Call(Option<Box<CombinatorState>>),
     Choice2(Box<CombinatorState>, Box<CombinatorState>),
     EatString(usize),
     EatU8Matching(u8),
@@ -87,6 +89,7 @@ enum CombinatorState {
 impl Combinator {
     fn initial_state(&self, data: &Data) -> CombinatorState {
         match self {
+            Combinator::Call(_) => CombinatorState::Call(None),
             Combinator::Choice2(a, b) => CombinatorState::Choice2(
                 Box::new(a.initial_state(data)),
                 Box::new(b.initial_state(data)),
@@ -104,6 +107,10 @@ impl Combinator {
 
     fn next_state(&self, state: &mut CombinatorState, c: Option<char>) -> ParserIterationResult {
         match (self, state) {
+            (Combinator::Call(f), CombinatorState::Call(inner_state)) => {
+                let inner_state = inner_state.as_mut().unwrap();
+                f().next_state(inner_state, c)
+            }
             (Combinator::Choice2(a, b), CombinatorState::Choice2(state_a, state_b)) => {
                 let mut result_a = a.next_state(state_a, c);
                 let result_b = b.next_state(state_b, c);
@@ -265,6 +272,13 @@ fn repeat(a: Combinator) -> Combinator {
     opt(repeat1(a))
 }
 
+fn call<F>(f: F) -> Combinator
+where
+    F: Fn() -> Combinator + 'static,
+{
+    Combinator::Call(Rc::new(f))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -343,6 +357,8 @@ mod tests {
                 eat_u8('a')
             )
         }
-        let _A = nested_brackets();
+        let mut it = ActiveCombinator::new(nested_brackets(), ());
+        let result0 = it.send(None);
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("[a"), false));
     }
 }
