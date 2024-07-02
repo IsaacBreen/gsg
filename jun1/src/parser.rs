@@ -67,7 +67,7 @@ type Data = ();
 #[derive(Clone)]
 enum Combinator {
     Call(Rc<dyn Fn() -> Combinator>),
-    Choice2(Box<Combinator>, Box<Combinator>),
+    Choice(Vec<Combinator>),
     EatString(String),
     EatU8Matching(U8Set),
     Eps,
@@ -78,7 +78,7 @@ enum Combinator {
 #[derive(Clone)]
 enum CombinatorState {
     Call(Option<Box<CombinatorState>>),
-    Choice2(Vec<ActiveCombinator>),
+    Choice(Vec<ActiveCombinator>),
     EatString(usize),
     EatU8Matching(u8),
     Eps,
@@ -90,9 +90,7 @@ impl Combinator {
     fn initial_state(&self, data: &Data) -> CombinatorState {
         match self {
             Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(data)))),
-            Combinator::Choice2(a, b) => CombinatorState::Choice2(
-                vec![ActiveCombinator::new((**a).clone(), data.clone()), ActiveCombinator::new((**b).clone(), data.clone())],
-            ),
+            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| ActiveCombinator::new(a.clone(), data.clone())).collect()),
             Combinator::EatString(_) => CombinatorState::EatString(0),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
             Combinator::Eps => CombinatorState::Eps,
@@ -110,8 +108,8 @@ impl Combinator {
                 let inner_state = inner_state.as_mut().unwrap();
                 f().next_state(inner_state, c)
             }
-            (Combinator::Choice2(a, b), CombinatorState::Choice2(states)) => {
-                process(c, states)
+            (Combinator::Choice(a), CombinatorState::Choice(its)) => {
+                process(c, its)
             }
             (Combinator::EatString(value), CombinatorState::EatString(index)) => {
                 if *index > value.len() {
@@ -228,7 +226,11 @@ fn repeat1(a: Combinator) -> Combinator {
 }
 
 fn choice2(a: Combinator, b: Combinator) -> Combinator {
-    Combinator::Choice2(Box::new(a), Box::new(b))
+    Combinator::Choice(vec![a, b])
+}
+
+fn choice(combinators: Vec<Combinator>) -> Combinator {
+    Combinator::Choice(combinators)
 }
 
 fn eat_u8_matching<F>(fn_: F) -> Combinator
