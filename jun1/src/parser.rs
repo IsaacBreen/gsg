@@ -582,20 +582,23 @@ mod json_parser {
             opt(seq!(
                 json_value,
                 repeat(seq!(whitespace, eat_u8(','), whitespace, json_value)),
+                whitespace,
             )),
-            whitespace, eat_u8(']'),
+            eat_u8(']'),
         );
 
-        let key_value_pair = seq!(whitespace, string, whitespace, eat_u8(':'), whitespace, json_value);
+        let key_value_pair = seq!(string, whitespace, eat_u8(':'), whitespace, json_value);
 
         let json_object = seq!(
             eat_u8('{'),
             whitespace,
             opt(seq!(
                 key_value_pair,
-                repeat(seq!(whitespace, eat_u8(','), key_value_pair)),
+                whitespace,
+                repeat(seq!(eat_u8(','), whitespace, key_value_pair)),
+                whitespace,
             )),
-            whitespace, eat_u8('}'),
+            eat_u8('}'),
         );
 
         json_value.set(
