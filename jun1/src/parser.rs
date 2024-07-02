@@ -180,7 +180,7 @@ impl Combinator {
                     return ParserIterationResult::new(U8Set::none(), *index == value.len());
                 }
                 let u8set = U8Set::from_chars(&value[*index..=*index]);
-                let is_complete = c.map(|ch| ch == value.chars().nth(*index).unwrap()).unwrap_or(false);
+                let is_complete = c.map(|ch| ch == value[*index..].chars().next().unwrap()).unwrap_or(false);
                 *index += 1;
                 ParserIterationResult::new(u8set, is_complete)
             }
