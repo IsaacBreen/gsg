@@ -1,26 +1,27 @@
+use std::ptr::NonNull;
+
 #[derive(Clone)]
 struct ForwardRef<A> {
-    inner: Option<A>,
+    inner: Option<NonNull<A>>,
 }
 
 impl<A> ForwardRef<A> {
     fn new() -> Self {
-        Self {
-            inner: None,
-        }
+        Self { inner: None }
     }
 
     fn set(&mut self, value: A) {
-        self.inner = Some(value);
+        let boxed = Box::new(value);
+        self.inner = Some(NonNull::from(Box::leak(boxed)));
     }
 
     fn get(&self) -> &A {
-        self.inner.as_ref().unwrap()
+        unsafe { self.inner.unwrap().as_ref() }
     }
 }
 
 struct Container<A> {
-    a: A,
+    a: ForwardRef<A>,
 }
 
 #[cfg(test)]
@@ -29,8 +30,8 @@ mod tests {
 
     #[test]
     fn test_forward_ref() {
-        let mut A = ForwardRef::new();
-        let A_final = Container { a: A.clone() };
-        A.set(A_final);
+        let mut a = ForwardRef::new();
+        let a_final = Container { a: a.clone() };
+        a.set(a_final);
     }
 }
