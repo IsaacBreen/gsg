@@ -78,7 +78,7 @@ enum Combinator {
 #[derive(Clone)]
 enum CombinatorState {
     Call(Option<Box<CombinatorState>>),
-    Choice2(Box<CombinatorState>, Box<CombinatorState>),
+    Choice2(Vec<ActiveCombinator>),
     EatString(usize),
     EatU8Matching(u8),
     Eps,
@@ -89,10 +89,9 @@ enum CombinatorState {
 impl Combinator {
     fn initial_state(&self, data: &Data) -> CombinatorState {
         match self {
-            Combinator::Call(_) => CombinatorState::Call(None),
+            Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(data)))),
             Combinator::Choice2(a, b) => CombinatorState::Choice2(
-                Box::new(a.initial_state(data)),
-                Box::new(b.initial_state(data)),
+                vec![ActiveCombinator::new((**a).clone(), data.clone()), ActiveCombinator::new((**b).clone(), data.clone())],
             ),
             Combinator::EatString(_) => CombinatorState::EatString(0),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
@@ -111,25 +110,20 @@ impl Combinator {
                 let inner_state = inner_state.as_mut().unwrap();
                 f().next_state(inner_state, c)
             }
-            (Combinator::Choice2(a, b), CombinatorState::Choice2(state_a, state_b)) => {
-                let mut result_a = a.next_state(state_a, c);
-                let result_b = b.next_state(state_b, c);
-                result_a |= result_b;
-                result_a
+            (Combinator::Choice2(a, b), CombinatorState::Choice2(states)) => {
+                process(c, states)
             }
             (Combinator::EatString(value), CombinatorState::EatString(index)) => {
-                if *index < value.len() {
-                    let expected = value.chars().nth(*index).unwrap();
-                    if c.map_or(false, |c| c == expected) {
-                        *index += 1;
-                        let is_complete = *index == value.len();
-                        ParserIterationResult::new(U8Set::none(), is_complete)
-                    } else {
-                        ParserIterationResult::new(U8Set::none(), true)
-                    }
-                } else {
-                    ParserIterationResult::new(U8Set::none(), true)
+                if *index > value.len() {
+                    panic!("EatString: index out of bounds");
                 }
+                let mut u8set = U8Set::none();
+                if *index < value.len() {
+                    u8set.insert(value.chars().nth(*index).unwrap() as u8);
+                }
+                let is_complete = *index == value.len() && c.map(|c| c == value.chars().nth(*index - 1).unwrap()).unwrap_or(false);
+                *index += 1;
+                ParserIterationResult::new(u8set, is_complete)
             }
             (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state)) => {
                 match *state {
@@ -144,7 +138,7 @@ impl Combinator {
                             c.map(|c| u8set.contains(c as u8)).unwrap_or(false),
                         )
                     }
-                    _ => ParserIterationResult::new(U8Set::none(), true),
+                    _ => panic!("EatU8Matching: state out of bounds"),
                 }
             }
             (Combinator::Eps, CombinatorState::Eps) => {
@@ -198,7 +192,7 @@ fn process(
     while i > 0 {
         i -= 1;
         let result = its[i].send(c);
-        if result.is_complete && result.u8set.is_empty() {
+        if result.u8set.is_empty() {
             its.remove(i);
         }
         final_result |= result;
@@ -294,6 +288,19 @@ mod tests {
     }
 
     #[test]
+    fn test_eat_string() {
+        let mut it = ActiveCombinator::new(eat_string("abc"), ());
+        let result0 = it.send(None);
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
+        let result1 = it.send(Some('a'));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("b"), false));
+        let result2 = it.send(Some('b'));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("c"), false));
+        let result3 = it.send(Some('c'));
+        assert_eq!(result3, ParserIterationResult::new(U8Set::none(), true));
+    }
+
+    #[test]
     fn test_seq() {
         let mut it = ActiveCombinator::new(seq(eat_u8('a'), eat_u8('b')), ());
         let result0 = it.send(None);
@@ -360,5 +367,11 @@ mod tests {
         let mut it = ActiveCombinator::new(nested_brackets(), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("[a"), false));
+        let result1 = it.send(Some('['));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("[a"), false));
+        let result2 = it.send(Some('a'));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("]"), false));
+        let result3 = it.send(Some(']'));
+        assert_eq!(result3, ParserIterationResult::new(U8Set::none(), true));
     }
 }

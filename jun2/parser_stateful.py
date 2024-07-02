@@ -209,14 +209,10 @@ class EatString(Combinator):
     def next_state(self, state, c):
         if state['index'] > len(self.value):
             raise ValueError("Invalid state")
-        if state['index'] == len(self.value):
-            u8set = U8Set.none()
-        else:
-            u8set = U8Set.from_chars(self.value[state['index']])
+        u8set = U8Set.none()
         if state['index'] < len(self.value):
-            is_complete = False
-        else:
-            is_complete = c == self.value[state['index'] - 1]
+            u8set.insert(ord(self.value[state['index']]))
+        is_complete = state['index'] == len(self.value) and c == self.value[state['index'] - 1]
         state['index'] += 1
         return ParserIterationResult(u8set, is_complete)
 
