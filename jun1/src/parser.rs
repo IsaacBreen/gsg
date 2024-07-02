@@ -1,9 +1,10 @@
 use std::cell::RefCell;
+use std::fmt::Debug;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
 use crate::u8set::U8Set;
 
-#[derive(PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 struct ParserIterationResult {
     u8set: U8Set,
     is_complete: bool,
@@ -51,17 +52,6 @@ impl BitAndAssign for ParserIterationResult {
     }
 }
 
-impl Clone for ParserIterationResult {
-    fn clone(&self) -> Self {
-        Self {
-            u8set: self.u8set.clone(),
-            is_complete: self.is_complete,
-        }
-    }
-}
-
-type Data = ();
-
 #[derive(Clone)]
 enum Combinator {
     Call(Rc<dyn Fn() -> Combinator>),
@@ -74,35 +64,51 @@ enum Combinator {
     Seq(Rc<[Combinator]>),
 }
 
+impl Debug for Combinator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Combinator::Call(_) => write!(f, "Call"),
+            Combinator::Choice(a) => write!(f, "Choice({:?})", a),
+            Combinator::EatString(value) => write!(f, "EatString({:?})", value),
+            Combinator::EatU8Matching(u8set) => write!(f, "EatU8Matching({:?})", u8set),
+            Combinator::Eps => write!(f, "Eps"),
+            Combinator::ForwardRef(c) => write!(f, "ForwardRef({:?})", c),
+            Combinator::Repeat1(a) => write!(f, "Repeat1({:?})", a),
+            Combinator::Seq(a) => write!(f, "Seq({:?})", a),
+        }
+    }
+}
+
+#[derive(Debug)]
 enum CombinatorState {
     Call(Option<Box<CombinatorState>>),
-    Choice(Vec<ActiveCombinator>),
+    Choice(Vec<CombinatorState>),
     EatString(usize),
     EatU8Matching(u8),
     Eps,
     ForwardRef(Box<CombinatorState>),
-    Repeat1(Vec<ActiveCombinator>),
-    Seq(Vec<Vec<ActiveCombinator>>),
+    Repeat1(Vec<CombinatorState>),
+    Seq(Vec<Vec<CombinatorState>>),
 }
 
 impl Combinator {
-    fn initial_state(&self, data: &Data) -> CombinatorState {
+    fn initial_state(&self) -> CombinatorState {
         match self {
-            Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(data)))),
-            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| ActiveCombinator::new(a.clone(), data.clone())).collect()),
+            Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state()))),
+            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| a.initial_state()).collect()),
             Combinator::EatString(_) => CombinatorState::EatString(0),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
             Combinator::Eps => CombinatorState::Eps,
             Combinator::ForwardRef(c) => {
                 match c.as_ref().borrow().as_ref() {
-                    Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state(data))),
+                    Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state())),
                     None => panic!("ForwardRef not set"),
                 }
             }
-            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![ActiveCombinator::new((**a).clone(), data.clone())]),
+            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![a.initial_state()]),
             Combinator::Seq(a) => {
                 let mut its = Vec::with_capacity(a.len());
-                its.push(vec![ActiveCombinator::new(a[0].clone(), data.clone())]);
+                its.push(vec![a[0].initial_state()]);
                 for _ in 1..a.len() {
                     its.push(Vec::new());
                 }
@@ -118,7 +124,7 @@ impl Combinator {
                 f().next_state(inner_state, c)
             }
             (Combinator::Choice(a), CombinatorState::Choice(its)) => {
-                process(c, its)
+                    process(a.as_ref(), c, its)
             }
             (Combinator::EatString(value), CombinatorState::EatString(index)) => {
                 if *index > value.len() {
@@ -163,21 +169,21 @@ impl Combinator {
                 }
             }
             (Combinator::Repeat1(a), CombinatorState::Repeat1(a_its)) => {
-                let mut a_result = process(c, a_its);
+                let mut a_result = process(&[a.as_ref()], c, a_its);
                 let b_result = a_result.clone();
-                seq2_helper((**a).clone(), &(), &mut a_result, a_its);
+                seq2_helper(a, &mut a_result, a_its);
                 a_result | b_result
             }
             (Combinator::Seq(a), CombinatorState::Seq(its)) => {
-                let mut a_result = process(c, &mut its[0]);
+                let mut a_result = process(&[&a[0]], c, &mut its[0]);
                 for i in 1..its.len() {
-                    let b_result = process(c, &mut its[i]);
-                    seq2_helper(a[i].clone(), &(), &mut a_result, &mut its[i]);
+                    let b_result = process(&[&a[i]], c, &mut its[i]);
+                    seq2_helper(&a[i], &mut a_result, &mut its[i]);
                     a_result |= b_result
                 }
                 a_result
             }
-            _ => panic!("Mismatched combinator and state types"),
+            (_self, _state) => panic!("Mismatched combinator and state types: {:?} vs {:?}", _self, _state),
         }
     }
 
@@ -192,33 +198,12 @@ impl Combinator {
     }
 }
 
-struct ActiveCombinator {
-    combinator: Combinator,
-    data: Data,
-    state: CombinatorState,
-}
-
-impl ActiveCombinator {
-    fn new(combinator: Combinator, data: Data) -> Self {
-        let state = combinator.initial_state(&data);
-        Self {
-            combinator,
-            data,
-            state,
-        }
-    }
-
-    fn send(&mut self, c: Option<char>) -> ParserIterationResult {
-        self.combinator.next_state(&mut self.state, c)
-    }
-}
-
-fn process(c: Option<char>, its: &mut Vec<ActiveCombinator>) -> ParserIterationResult {
+fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorState>) -> ParserIterationResult {
     let mut final_result = ParserIterationResult::new(U8Set::none(), false);
     let mut i = its.len();
     while i > 0 {
         i -= 1;
-        let result = its[i].send(c);
+        let result = combinator.next_state(&mut its[i], c);
         if result.u8set.is_empty() {
             its.swap_remove(i);
         }
@@ -228,15 +213,14 @@ fn process(c: Option<char>, its: &mut Vec<ActiveCombinator>) -> ParserIterationR
 }
 
 fn seq2_helper(
-    b: Combinator,
-    d: &Data,
+    b: &Combinator,
     a_result: &mut ParserIterationResult,
-    b_its: &mut Vec<ActiveCombinator>,
+    b_its: &mut Vec<CombinatorState>,
 ) {
     if a_result.is_complete {
-        let b_it = ActiveCombinator::new(b, d.clone());
+        let b_it = b.initial_state();
         b_its.push(b_it);
-        let b_result = b_its.last_mut().unwrap().send(None);
+        let b_result = b.next_state(b_its.last_mut().unwrap(), None);
         a_result.is_complete = b_result.is_complete;
         a_result.u8set |= b_result.u8set;
     }
@@ -316,26 +300,33 @@ fn forward_ref() -> Combinator {
 }
 
 macro_rules! seq {
-    ($a:expr) => {
-        $a
-    };
-    ($a:expr, $($b:expr),+ $(,)?) => {
-        seq(vec![$a, seq!($($b),+)])
-    };
+    ($($a:expr),+ $(,)?) => {
+        seq(vec![$($a.clone()),+])
+    }
 }
 
 macro_rules! choice {
-    ($a:expr) => {
-        $a
-    };
-    ($a:expr, $($b:expr),+ $(,)?) => {
-        choice(vec![$a, choice!($($b),+)])
-    };
+    ($($a:expr),+ $(,)?) => {
+        choice(vec![$($a.clone()),+])
+    }
 }
 
-impl From<&Combinator> for Combinator {
-    fn from(c: &Combinator) -> Self {
-        c.clone()
+struct ActiveCombinator {
+    combinator: Combinator,
+    state: CombinatorState,
+}
+
+impl ActiveCombinator {
+    fn new(combinator: Combinator) -> Self {
+        let state = combinator.initial_state();
+        Self {
+            combinator,
+            state,
+        }
+    }
+
+    fn send(&mut self, c: Option<char>) -> ParserIterationResult {
+        self.combinator.next_state(&mut self.state, c)
     }
 }
 
@@ -346,7 +337,7 @@ mod tests {
     // Test cases remain the same, just update the combinator creation syntax
     #[test]
     fn test_eat_u8() {
-        let mut it = ActiveCombinator::new(eat_u8('a'), ());
+        let mut it = ActiveCombinator::new(eat_u8('a').clone());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result = it.send(Some('a'));
@@ -355,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_eat_string() {
-        let mut it = ActiveCombinator::new(eat_string("abc"), ());
+        let mut it = ActiveCombinator::new(eat_string("abc").clone());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result1 = it.send(Some('a'));
@@ -368,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_seq() {
-        let mut it = ActiveCombinator::new(seq!(eat_u8('a'), eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(seq!(eat_u8('a'), eat_u8('b')).clone());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result1 = it.send(Some('a'));
@@ -379,7 +370,7 @@ mod tests {
 
     #[test]
     fn test_repeat1() {
-        let mut it = ActiveCombinator::new(repeat1(eat_u8('a')), ());
+        let mut it = ActiveCombinator::new(repeat1(eat_u8('a')));
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result1 = it.send(Some('a'));
@@ -390,13 +381,13 @@ mod tests {
 
     #[test]
     fn test_choice() {
-        let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')));
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("ab"), false));
         let result1 = it.send(Some('a'));
         assert_eq!(result1, ParserIterationResult::new(U8Set::none(), true));
 
-        let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')));
         it.send(None);
         let result2 = it.send(Some('b'));
         assert_eq!(result2, ParserIterationResult::new(U8Set::none(), true));
@@ -410,7 +401,6 @@ mod tests {
                 choice!(eat_u8('a'), seq!(eat_u8('a'), eat_u8('b'))),
                 eat_u8('c')
             ),
-            (),
         );
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
@@ -430,7 +420,7 @@ mod tests {
                 eat_u8('a')
             )
         }
-        let mut it = ActiveCombinator::new(nested_brackets(), ());
+        let mut it = ActiveCombinator::new(nested_brackets());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("[a"), false));
         let result1 = it.send(Some('['));
@@ -452,8 +442,8 @@ mod json_parser {
         let whitespace = repeat(choice!(eat_u8(' '), choice!(eat_u8('\t'), choice!(eat_u8('\n'), eat_u8('\r')))));
         let digit = eat_u8_range('0', '9');
         let digits = repeat(digit);
-        let integer = seq!(opt(choice!(eat_u8('-'), eat_u8('+'))), digits.clone());
-        let fraction = seq!(eat_u8('.'), digits.clone());
+        let integer = seq!(opt(choice!(eat_u8('-'), eat_u8('+'))), digits);
+        let fraction = seq!(eat_u8('.'), digits);
         let exponent = seq!(choice!(eat_u8('e'), eat_u8('E')), seq!(choice!(choice!(eat_u8('+'), eat_u8('-')), eps()), digits));
         let number = seq!(integer, seq!(opt(fraction), opt(exponent)));
 
@@ -492,29 +482,29 @@ mod json_parser {
         let json_array = seq!(
             eat_u8('['),
             seq!(
-                whitespace.clone(),
+                whitespace,
                 seq!(
                     opt(seq!(
-                        json_value.clone(),
-                        repeat(seq!(seq!(whitespace.clone(), eat_u8(',')), seq!(whitespace.clone(), json_value.clone()))),
+                        json_value,
+                        repeat(seq!(seq!(whitespace, eat_u8(',')), seq!(whitespace, json_value))),
                     )),
-                    seq!(whitespace.clone(), eat_u8(']')),
+                    seq!(whitespace, eat_u8(']')),
                 ),
             ),
         );
 
-        let key_value_pair = seq!(seq!(whitespace.clone(), string.clone()), seq!(whitespace.clone(), seq!(eat_u8(':'), seq!(whitespace.clone(), json_value.clone()))));
+        let key_value_pair = seq!(seq!(whitespace, string), seq!(whitespace, seq!(eat_u8(':'), seq!(whitespace, json_value))));
 
         let json_object = seq!(
             eat_u8('{'),
             seq!(
-                whitespace.clone(),
+                whitespace,
                 seq!(
                     opt(seq!(
-                        key_value_pair.clone(),
-                        repeat(seq!(seq!(whitespace.clone(), eat_u8(',')), key_value_pair)),
+                        key_value_pair,
+                        repeat(seq!(seq!(whitespace, eat_u8(',')), key_value_pair)),
                     )),
-                    seq!(whitespace.clone(), eat_u8('}')),
+                    seq!(whitespace, eat_u8('}')),
                 ),
             ),
         );
@@ -530,7 +520,7 @@ mod json_parser {
         );
 
         // Test cases
-        let json_parser = seq!(whitespace.clone(), json_value);
+        let json_parser = seq!(whitespace, json_value);
 
         let test_cases = [
             "null",
@@ -544,7 +534,7 @@ mod json_parser {
         ];
 
         let parse_json = |json_string: &str| -> bool {
-            let mut it = ActiveCombinator::new(json_parser.clone(), ());
+            let mut it = ActiveCombinator::new(json_parser.clone());
             let mut result = it.send(None);
             for i in 0..json_string.len() {
                 let char = json_string.chars().nth(i).unwrap();
