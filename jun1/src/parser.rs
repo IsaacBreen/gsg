@@ -204,7 +204,7 @@ impl Combinator {
 }
 
 fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorState>) -> ParserIterationResult {
-    if its.len() > 10 {
+    if its.len() > 100 {
         // Warn if there are too many states
         eprintln!("Warning: too many states");
     }
@@ -226,7 +226,7 @@ fn seq2_helper(
     a_result: &mut ParserIterationResult,
     b_its: &mut Vec<CombinatorState>,
 ) {
-    if b_its.len() > 10 {
+    if b_its.len() > 100 {
         // Warn if there are too many states
         eprintln!("Warning: too many states");
     }
@@ -571,9 +571,9 @@ mod json_parser {
         }
 
         let filenames: Vec<&str> = vec![
-            // "GeneratedCSV_mini.json",
-            // "GeneratedCSV_1.json",
-            // "GeneratedCSV_2.json",
+            "GeneratedCSV_mini.json",
+            "GeneratedCSV_1.json",
+            "GeneratedCSV_2.json",
             // "GeneratedCSV_10.json",
             // "GeneratedCSV_20.json",
             // "GeneratedCSV_100.json",
