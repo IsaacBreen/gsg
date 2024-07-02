@@ -11,10 +11,7 @@ struct ParserIterationResult {
 
 impl ParserIterationResult {
     fn new(u8set: U8Set, is_complete: bool) -> Self {
-        Self {
-            u8set,
-            is_complete,
-        }
+        Self { u8set, is_complete }
     }
 }
 
@@ -65,19 +62,32 @@ impl Clone for ParserIterationResult {
 
 type Data = ();
 
-#[derive(Clone)]
 enum Combinator {
     Call(Rc<dyn Fn() -> Combinator>),
-    Choice(Vec<Combinator>),
-    EatString(String),
+    Choice(Rc<[Combinator]>),
+    EatString(&'static str),
     EatU8Matching(U8Set),
     Eps,
     ForwardRef(Rc<RefCell<Option<Combinator>>>),
     Repeat1(Box<Combinator>),
-    Seq(Vec<Combinator>),
+    Seq(Rc<[Combinator]>),
 }
 
-#[derive(Clone)]
+impl Clone for Combinator {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Call(f) => Self::Call(Rc::clone(f)),
+            Self::Choice(c) => Self::Choice(Rc::clone(c)),
+            Self::EatString(s) => Self::EatString(s),
+            Self::EatU8Matching(u) => Self::EatU8Matching(u.clone()),
+            Self::Eps => Self::Eps,
+            Self::ForwardRef(r) => Self::ForwardRef(Rc::clone(r)),
+            Self::Repeat1(r) => Self::Repeat1(r.clone()),
+            Self::Seq(s) => Self::Seq(Rc::clone(s)),
+        }
+    }
+}
+
 enum CombinatorState {
     Call(Option<Box<CombinatorState>>),
     Choice(Vec<ActiveCombinator>),
@@ -105,9 +115,9 @@ impl Combinator {
             }
             Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![ActiveCombinator::new((**a).clone(), data.clone())]),
             Combinator::Seq(a) => {
-                let mut its = Vec::new();
+                let mut its = Vec::with_capacity(a.len());
                 its.push(vec![ActiveCombinator::new(a[0].clone(), data.clone())]);
-                for i in 1..a.len() {
+                for _ in 1..a.len() {
                     its.push(Vec::new());
                 }
                 CombinatorState::Seq(its)
@@ -185,7 +195,6 @@ impl Combinator {
         }
     }
 
-    // This function sets the inner combinator for ForwardRef
     fn set(&mut self, combinator: Combinator) {
         match self {
             Combinator::ForwardRef(inner) => {
@@ -197,7 +206,6 @@ impl Combinator {
     }
 }
 
-#[derive(Clone)]
 struct ActiveCombinator {
     combinator: Combinator,
     data: Data,
@@ -219,17 +227,14 @@ impl ActiveCombinator {
     }
 }
 
-fn process(
-    c: Option<char>,
-    its: &mut Vec<ActiveCombinator>,
-) -> ParserIterationResult {
+fn process(c: Option<char>, its: &mut Vec<ActiveCombinator>) -> ParserIterationResult {
     let mut final_result = ParserIterationResult::new(U8Set::none(), false);
     let mut i = its.len();
     while i > 0 {
         i -= 1;
         let result = its[i].send(c);
         if result.u8set.is_empty() {
-            its.remove(i);
+            its.swap_remove(i);
         }
         final_result |= result;
     }
@@ -251,8 +256,11 @@ fn seq2_helper(
     }
 }
 
-fn seq(combinators: Vec<Combinator>) -> Combinator {
-    Combinator::Seq(combinators)
+fn seq<Combinators>(combinators: Combinators) -> Combinator
+where
+    Combinators: Into<Rc<[Combinator]>>,
+{
+    Combinator::Seq(combinators.into())
 }
 
 fn repeat1<C>(a: C) -> Combinator
@@ -262,8 +270,11 @@ where
     Combinator::Repeat1(Box::new(a.into()))
 }
 
-fn choice(combinators: Vec<Combinator>) -> Combinator {
-    Combinator::Choice(combinators)
+fn choice<Combinators>(combinators: Combinators) -> Combinator
+where
+    Combinators: Into<Rc<[Combinator]>>,
+{
+    Combinator::Choice(combinators.into())
 }
 
 fn eat_u8_matching<F>(fn_: F) -> Combinator
@@ -285,8 +296,8 @@ fn eat_u8_range_complement(start: char, end: char) -> Combinator {
     eat_u8_matching(move |c: u8| !(start as u8..=end as u8).contains(&c))
 }
 
-fn eat_string(value: &str) -> Combinator {
-    Combinator::EatString(value.to_string())
+fn eat_string(value: &'static str) -> Combinator {
+    Combinator::EatString(value)
 }
 
 fn eps() -> Combinator {
@@ -314,7 +325,6 @@ where
     Combinator::Call(Rc::new(f))
 }
 
-// This function creates a new ForwardRef combinator
 fn forward_ref() -> Combinator {
     Combinator::ForwardRef(Rc::new(RefCell::new(None)))
 }
@@ -337,9 +347,9 @@ macro_rules! choice {
     };
 }
 
-impl Into<Combinator> for &Combinator {
-    fn into(self) -> Combinator {
-        self.clone()
+impl From<&Combinator> for Combinator {
+    fn from(c: &Combinator) -> Self {
+        c.clone()
     }
 }
 
