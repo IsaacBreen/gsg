@@ -1,7 +1,4 @@
-use std::cell::RefCell;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
-use std::pin::Pin;
-use std::rc::Rc;
 
 use crate::u8set::U8Set;
 
@@ -394,10 +391,10 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
 }
 
 
-#[derive(Clone)]
-struct ForwardRef<A> {
-    //...
-}
+// #[derive(Clone)]
+// struct ForwardRef<A> {
+//     inner: Rc<RefCell<Option<A>>>,
+// }
 
 #[cfg(test)]
 mod tests {
@@ -469,12 +466,12 @@ mod tests {
     }
 
 
-    #[test]
-    fn test_forward_ref() {
-        let mut A = forward_ref();
-        let A_final = choice2(seq(eat_u8('a'), A.clone()), eat_u8('b'));
-        A.as_mut().set(A_final);
-    }
+    // #[test]
+    // fn test_forward_ref() {
+    //     let mut A = forward_ref();
+    //     let A_final = choice2(seq(eat_u8('a'), A.clone()), eat_u8('b'));
+    //     A.as_mut().set(A_final);
+    // }
 }
 
 // #[cfg(test)]
