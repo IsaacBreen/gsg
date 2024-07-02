@@ -585,7 +585,7 @@ mod json_parser {
 
         // Test with a string of 'a's
         println!("Testing with a string of 'a's of length 100 and length 200");
-        for i in vec![1_000, 2_000, 1_000, 2_000] {
+        for i in vec![1_000, 10_000, 100_000] {
             let json_string = std::iter::repeat('a').take(i).collect::<String>();
             let json_string = format!(r#"{{"a": "{}"}}"#, json_string);
             let start = std::time::Instant::now();
