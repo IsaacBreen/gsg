@@ -339,7 +339,7 @@ mod tests {
     fn test_nested_brackets() {
         fn nested_brackets() -> Combinator {
             choice2(
-                seq(eat_u8('['), seq(*Box::new(nested_brackets()), eat_u8(']'))),
+                seq(eat_u8('['), seq(call(nested_brackets), eat_u8(']'))),
                 eat_u8('a')
             )
         }
