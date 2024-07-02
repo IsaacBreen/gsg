@@ -132,14 +132,11 @@ impl Combinator {
                 final_result
             }
             (Combinator::EatString(value), CombinatorState::EatString(index)) => {
-                if *index > value.len() {
-                    panic!("EatString: index out of bounds");
+                if *index >= value.len() {
+                    return ParserIterationResult::new(U8Set::none(), *index == value.len());
                 }
-                let mut u8set = U8Set::none();
-                if *index < value.len() {
-                    u8set.insert(value[*index..].chars().next().unwrap() as u8);
-                }
-                let is_complete = *index == value.len() && c.map(|c| c == value[*index - 1..].chars().next().unwrap()).unwrap_or(false);
+                let u8set = U8Set::from_chars(&value[*index..=*index]);
+                let is_complete = c.map(|ch| ch == value.chars().nth(*index).unwrap()).unwrap_or(false);
                 *index += 1;
                 ParserIterationResult::new(u8set, is_complete)
             }
@@ -165,7 +162,6 @@ impl Combinator {
             (Combinator::ForwardRef(inner), CombinatorState::ForwardRef(inner_state)) => {
                 match inner.as_ref().borrow().as_ref() {
                     Some(combinator) => {
-                        let inner_state = inner_state.as_mut();
                         combinator.next_state(inner_state, c)
                     }
                     None => {
