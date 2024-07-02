@@ -137,9 +137,9 @@ impl Combinator {
                 }
                 let mut u8set = U8Set::none();
                 if *index < value.len() {
-                    u8set.insert(value.chars().nth(*index).unwrap() as u8);
+                    u8set.insert(value[*index..].chars().next().unwrap() as u8);
                 }
-                let is_complete = *index == value.len() && c.map(|c| c == value.chars().nth(*index - 1).unwrap()).unwrap_or(false);
+                let is_complete = *index == value.len() && c.map(|c| c == value[*index - 1..].chars().next().unwrap()).unwrap_or(false);
                 *index += 1;
                 ParserIterationResult::new(u8set, is_complete)
             }
