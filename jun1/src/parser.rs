@@ -82,7 +82,7 @@ impl Debug for Combinator {
 #[derive(Debug)]
 enum CombinatorState {
     Call(Option<Box<CombinatorState>>),
-    Choice(Vec<CombinatorState>),
+    Choice(Vec<Vec<CombinatorState>>),
     EatString(usize),
     EatU8Matching(u8),
     Eps,
@@ -95,7 +95,7 @@ impl Combinator {
     fn initial_state(&self) -> CombinatorState {
         match self {
             Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state()))),
-            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| a.initial_state()).collect()),
+            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state()]).collect()),
             Combinator::EatString(_) => CombinatorState::EatString(0),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
             Combinator::Eps => CombinatorState::Eps,
@@ -123,8 +123,13 @@ impl Combinator {
                 let inner_state = inner_state.as_mut().unwrap();
                 f().next_state(inner_state, c)
             }
-            (Combinator::Choice(a), CombinatorState::Choice(its)) => {
-                    process(a.as_ref(), c, its)
+            (Combinator::Choice(combinators), CombinatorState::Choice(its)) => {
+                let mut final_result = ParserIterationResult::new(U8Set::none(), false);
+                for (combinator, its) in combinators.iter().zip(its.iter_mut()) {
+                    let result = process(combinator, c, its);
+                    final_result |= result;
+                }
+                final_result
             }
             (Combinator::EatString(value), CombinatorState::EatString(index)) => {
                 if *index > value.len() {
@@ -169,15 +174,15 @@ impl Combinator {
                 }
             }
             (Combinator::Repeat1(a), CombinatorState::Repeat1(a_its)) => {
-                let mut a_result = process(&[a.as_ref()], c, a_its);
+                let mut a_result = process(a.as_ref(), c, a_its);
                 let b_result = a_result.clone();
                 seq2_helper(a, &mut a_result, a_its);
                 a_result | b_result
             }
             (Combinator::Seq(a), CombinatorState::Seq(its)) => {
-                let mut a_result = process(&[&a[0]], c, &mut its[0]);
+                let mut a_result = process(&a[0], c, &mut its[0]);
                 for i in 1..its.len() {
-                    let b_result = process(&[&a[i]], c, &mut its[i]);
+                    let b_result = process(&a[i], c, &mut its[i]);
                     seq2_helper(&a[i], &mut a_result, &mut its[i]);
                     a_result |= b_result
                 }
