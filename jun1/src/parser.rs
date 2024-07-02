@@ -304,15 +304,6 @@ fn forward_ref() -> Combinator {
     Combinator::ForwardRef(Rc::new(RefCell::new(None)))
 }
 
-fn ref_combinator<C>(a: C) -> Combinator
-where
-    C: Into<Combinator>,
-{
-    let mut r = forward_ref();
-    r.set(a.into());
-    r
-}
-
 macro_rules! seq {
     ($($a:expr),+ $(,)?) => {
         seq(vec![$($a.clone()),+])
@@ -574,8 +565,8 @@ mod json_parser {
 
         let filenames: Vec<&str> = vec![
             // "GeneratedCSV_mini.json",
-            // "GeneratedCSV_1.json",
-            // "GeneratedCSV_2.json",
+            "GeneratedCSV_1.json",
+            "GeneratedCSV_2.json",
             // "GeneratedCSV_10.json",
             // "GeneratedCSV_20.json",
             // "GeneratedCSV_100.json",
@@ -594,7 +585,7 @@ mod json_parser {
 
         // Test with a string of 'a's
         println!("Testing with a string of 'a's of length 100 and length 200");
-        for i in vec![1_000, 10_000] {
+        for i in vec![1_000, 2_000, 1_000, 2_000] {
             let json_string = std::iter::repeat('a').take(i).collect::<String>();
             let json_string = format!(r#"{{"a": "{}"}}"#, json_string);
             let start = std::time::Instant::now();
