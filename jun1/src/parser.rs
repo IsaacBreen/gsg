@@ -72,7 +72,7 @@ enum Combinator {
     EatU8Matching(U8Set),
     Eps,
     Repeat1(Box<Combinator>),
-    Seq2(Box<Combinator>, Box<Combinator>),
+    Seq(Vec<Combinator>),
 }
 
 #[derive(Clone)]
@@ -83,7 +83,7 @@ enum CombinatorState {
     EatU8Matching(u8),
     Eps,
     Repeat1(Vec<ActiveCombinator>),
-    Seq2(Vec<ActiveCombinator>, Vec<ActiveCombinator>),
+    Seq(Vec<Vec<ActiveCombinator>>),
 }
 
 impl Combinator {
@@ -95,10 +95,14 @@ impl Combinator {
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
             Combinator::Eps => CombinatorState::Eps,
             Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![ActiveCombinator::new((**a).clone(), data.clone())]),
-            Combinator::Seq2(a, b) => CombinatorState::Seq2(
-                vec![ActiveCombinator::new((**a).clone(), data.clone())],
-                Vec::new(),
-            ),
+            Combinator::Seq(a) => {
+                let mut its = Vec::new();
+                its.push(vec![ActiveCombinator::new(a[0].clone(), data.clone())]);
+                for i in 1..a.len() {
+                    its.push(Vec::new());
+                }
+                CombinatorState::Seq(its)
+            }
         }
     }
 
@@ -148,11 +152,14 @@ impl Combinator {
                 seq2_helper((**a).clone(), &(), &mut a_result, a_its);
                 a_result | b_result
             }
-            (Combinator::Seq2(a, b), CombinatorState::Seq2(a_its, b_its)) => {
-                let mut a_result = process(c, a_its);
-                let b_result = process(c, b_its);
-                seq2_helper((**b).clone(), &(), &mut a_result, b_its);
-                a_result | b_result
+            (Combinator::Seq(a), CombinatorState::Seq(its)) => {
+                let mut a_result = process(c, &mut its[0]);
+                for i in 1..its.len() {
+                    let b_result = process(c, &mut its[i]);
+                    seq2_helper(a[i].clone(), &(), &mut a_result, &mut its[i]);
+                    a_result |= b_result
+                }
+                a_result
             }
             _ => panic!("Mismatched combinator and state types"),
         }
@@ -214,11 +221,11 @@ fn seq2_helper(
 }
 
 fn seq2(a: Combinator, b: Combinator) -> Combinator {
-    Combinator::Seq2(Box::new(a), Box::new(b))
+    Combinator::Seq(vec![a, b])
 }
 
-fn seq(a: Combinator, b: Combinator) -> Combinator {
-    seq2(a, b)
+fn seq(combinators: Vec<Combinator>) -> Combinator {
+    Combinator::Seq(combinators)
 }
 
 fn repeat1(a: Combinator) -> Combinator {
@@ -304,7 +311,7 @@ mod tests {
 
     #[test]
     fn test_seq() {
-        let mut it = ActiveCombinator::new(seq(eat_u8('a'), eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(seq2(eat_u8('a'), eat_u8('b')), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result1 = it.send(Some('a'));
@@ -342,7 +349,7 @@ mod tests {
     fn test_seq_choice_seq() {
         // Matches "ac" or "abc"
         let mut it = ActiveCombinator::new(
-            seq(
+            seq2(
                 choice2(eat_u8('a'), seq2(eat_u8('a'), eat_u8('b'))),
                 eat_u8('c')
             ),
@@ -362,7 +369,7 @@ mod tests {
     fn test_nested_brackets() {
         fn nested_brackets() -> Combinator {
             choice2(
-                seq(eat_u8('['), seq(call(nested_brackets), eat_u8(']'))),
+                seq2(eat_u8('['), seq2(call(nested_brackets), eat_u8(']'))),
                 eat_u8('a')
             )
         }
