@@ -577,25 +577,20 @@ mod json_parser {
             seq!(
                 eat_u8('\\'),
                 choice!(
-                    choice!(
-                        choice!(
-                            choice!(eat_u8('"'), eat_u8('\\')),
-                            choice!(eat_u8('/'), eat_u8('b')),
-                        ),
-                        choice!(eat_u8('f'), eat_u8('n')),
-                    ),
-                    choice!(
-                        choice!(eat_u8('r'), eat_u8('t')),
-                        seq!(
-                            eat_u8('u'),
-                            seq!(
-                                eat_u8_range('0', '9'),
-                                seq!(
-                                    eat_u8_range('0', '9'),
-                                    seq!(eat_u8_range('0', '9'), eat_u8_range('0', '9')),
-                                ),
-                            ),
-                        ),
+                    eat_u8('"'),
+                    eat_u8('\\'),
+                    eat_u8('/'),
+                    eat_u8('b'),
+                    eat_u8('f'),
+                    eat_u8('n'),
+                    eat_u8('r'),
+                    eat_u8('t'),
+                    seq!(
+                        eat_u8('u'),
+                        eat_u8_range('0', '9'),
+                        eat_u8_range('0', '9'),
+                        eat_u8_range('0', '9'),
+                        eat_u8_range('0', '9'),
                     ),
                 ),
             ),
