@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
 use crate::u8set::U8Set;
@@ -71,7 +72,7 @@ enum Combinator {
     EatString(String),
     EatU8Matching(U8Set),
     Eps,
-    ForwardRef(Option<Rc<Combinator>>),
+    ForwardRef(Rc<RefCell<Option<Combinator>>>),
     Repeat1(Box<Combinator>),
     Seq(Vec<Combinator>),
 }
@@ -83,7 +84,7 @@ enum CombinatorState {
     EatString(usize),
     EatU8Matching(u8),
     Eps,
-    ForwardRef(Option<Box<CombinatorState>>),
+    ForwardRef(Box<CombinatorState>),
     Repeat1(Vec<ActiveCombinator>),
     Seq(Vec<Vec<ActiveCombinator>>),
 }
@@ -96,7 +97,12 @@ impl Combinator {
             Combinator::EatString(_) => CombinatorState::EatString(0),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
             Combinator::Eps => CombinatorState::Eps,
-            Combinator::ForwardRef(c) => CombinatorState::ForwardRef(c.as_ref().map(|c| Box::new(c.initial_state(data)))),
+            Combinator::ForwardRef(c) => {
+                match c.as_ref().borrow().as_ref() {
+                    Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state(data))),
+                    None => panic!("ForwardRef not set"),
+                }
+            }
             Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![ActiveCombinator::new((**a).clone(), data.clone())]),
             Combinator::Seq(a) => {
                 let mut its = Vec::new();
@@ -149,12 +155,16 @@ impl Combinator {
             (Combinator::Eps, CombinatorState::Eps) => {
                 ParserIterationResult::new(U8Set::none(), true)
             }
-            (Combinator::ForwardRef(Some(combinator)), CombinatorState::ForwardRef(Some(inner_state))) => {
-                let inner_state = inner_state.as_mut();
-                combinator.next_state(inner_state, c)
-            }
-            (Combinator::ForwardRef(None), CombinatorState::ForwardRef(_)) => {
-                panic!("Forward reference not set before use");
+            (Combinator::ForwardRef(inner), CombinatorState::ForwardRef(inner_state)) => {
+                match inner.as_ref().borrow().as_ref() {
+                    Some(combinator) => {
+                        let inner_state = inner_state.as_mut();
+                        combinator.next_state(inner_state, c)
+                    }
+                    None => {
+                        panic!("Forward reference not set before use");
+                    }
+                }
             }
             (Combinator::Repeat1(a), CombinatorState::Repeat1(a_its)) => {
                 let mut a_result = process(c, a_its);
@@ -178,8 +188,9 @@ impl Combinator {
     // This function sets the inner combinator for ForwardRef
     fn set(&mut self, combinator: Combinator) {
         match self {
-            Combinator::ForwardRef(ref mut inner) => {
-                *inner = Some(Rc::new(combinator));
+            Combinator::ForwardRef(inner) => {
+                let option: &mut Option<Combinator> = &mut inner.as_ref().borrow_mut();
+                option.replace(combinator);
             }
             _ => panic!("Combinator is not a ForwardRef"),
         }
@@ -309,7 +320,7 @@ where
 
 // This function creates a new ForwardRef combinator
 fn forward_ref() -> Combinator {
-    Combinator::ForwardRef(None)
+    Combinator::ForwardRef(Rc::new(RefCell::new(None)))
 }
 
 macro_rules! seq {
@@ -530,24 +541,39 @@ mod json_parser {
         let json_parser = seq!(whitespace.clone(), json_value);
 
         let test_cases = [
+            "null",
+            "true",
+            "false",
             "42",
             r#"{"key": "value"}"#,
             "[1, 2, 3]",
             r#"{"nested": {"array": [1, 2, 3], "object": {"a": true, "b": false}}}"#,
             r#""Hello, world!""#,
-            "null",
-            "true",
-            "false",
         ];
 
-        for json_string in test_cases {
+        let parse_json = |json_string: &str| -> bool {
             let mut it = ActiveCombinator::new(json_parser.clone(), ());
-            let result = it.send(None);
-            for char in json_string.chars() {
+            let mut result = it.send(None);
+            for i in 0..json_string.len() {
+                let char = json_string.chars().nth(i).unwrap();
                 assert!(result.u8set.contains(char as u8), "Expected {} to be in {:?}", char, result.u8set);
-                let result = it.send(Some(char));
-                assert!(result.is_complete, "Failed to parse JSON string: {}", json_string);
+                result = it.send(Some(char));
             }
+            result.is_complete
+        };
+
+        for json_string in test_cases {
+            assert!(parse_json(json_string), "Failed to parse JSON string: {}", json_string);
+        }
+
+        let invalid_json_strings = [
+            r#"{"unclosed": "object""#,
+            "[1, 2, 3",
+            r#"{"invalid": "json","#,
+        ];
+
+        for json_string in invalid_json_strings {
+            assert!(!parse_json(json_string), "Incorrectly parsed invalid JSON string: {}", json_string);
         }
     }
 }
