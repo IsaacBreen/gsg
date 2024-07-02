@@ -220,20 +220,15 @@ fn seq2_helper(
     }
 }
 
-fn seq2(a: Combinator, b: Combinator) -> Combinator {
-    Combinator::Seq(vec![a, b])
-}
-
 fn seq(combinators: Vec<Combinator>) -> Combinator {
     Combinator::Seq(combinators)
 }
 
-fn repeat1(a: Combinator) -> Combinator {
-    Combinator::Repeat1(Box::new(a))
-}
-
-fn choice2(a: Combinator, b: Combinator) -> Combinator {
-    Combinator::Choice(vec![a, b])
+fn repeat1<C>(a: C) -> Combinator
+where
+    C: Into<Combinator>,
+{
+    Combinator::Repeat1(Box::new(a.into()))
 }
 
 fn choice(combinators: Vec<Combinator>) -> Combinator {
@@ -267,11 +262,21 @@ fn eps() -> Combinator {
     Combinator::Eps
 }
 
-fn opt(a: Combinator) -> Combinator {
-    choice2(a, eps())
+// fn opt(a: Combinator) -> Combinator {
+//     choice(vec![a, eps()])
+// }
+
+fn opt<C>(a: C) -> Combinator
+where
+    C: Into<Combinator>,
+{
+    choice(vec![a.into(), eps()])
 }
 
-fn repeat(a: Combinator) -> Combinator {
+fn repeat<C>(a: C) -> Combinator
+where
+    C: Into<Combinator>,
+{
     opt(repeat1(a))
 }
 
@@ -280,6 +285,24 @@ where
     F: Fn() -> Combinator + 'static,
 {
     Combinator::Call(Rc::new(f))
+}
+
+macro_rules! seq {
+    ($a:expr) => {
+        $a
+    };
+    ($a:expr, $($b:expr),+) => {
+        seq(vec![$a, seq!($($b),+)])
+    };
+}
+
+macro_rules! choice {
+    ($a:expr) => {
+        $a
+    };
+    ($a:expr, $($b:expr),+) => {
+        choice(vec![$a, choice!($($b),+)])
+    };
 }
 
 #[cfg(test)]
@@ -311,7 +334,7 @@ mod tests {
 
     #[test]
     fn test_seq() {
-        let mut it = ActiveCombinator::new(seq2(eat_u8('a'), eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(seq!(eat_u8('a'), eat_u8('b')), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result1 = it.send(Some('a'));
@@ -333,13 +356,13 @@ mod tests {
 
     #[test]
     fn test_choice() {
-        let mut it = ActiveCombinator::new(choice2(eat_u8('a'), eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("ab"), false));
         let result1 = it.send(Some('a'));
         assert_eq!(result1, ParserIterationResult::new(U8Set::none(), true));
 
-        let mut it = ActiveCombinator::new(choice2(eat_u8('a'), eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')), ());
         it.send(None);
         let result2 = it.send(Some('b'));
         assert_eq!(result2, ParserIterationResult::new(U8Set::none(), true));
@@ -349,8 +372,8 @@ mod tests {
     fn test_seq_choice_seq() {
         // Matches "ac" or "abc"
         let mut it = ActiveCombinator::new(
-            seq2(
-                choice2(eat_u8('a'), seq2(eat_u8('a'), eat_u8('b'))),
+            seq!(
+                choice!(eat_u8('a'), seq!(eat_u8('a'), eat_u8('b'))),
                 eat_u8('c')
             ),
             (),
@@ -368,8 +391,8 @@ mod tests {
     #[test]
     fn test_nested_brackets() {
         fn nested_brackets() -> Combinator {
-            choice2(
-                seq2(eat_u8('['), seq2(call(nested_brackets), eat_u8(']'))),
+            choice!(
+                seq!(eat_u8('['), seq!(call(nested_brackets), eat_u8(']'))),
                 eat_u8('a')
             )
         }
