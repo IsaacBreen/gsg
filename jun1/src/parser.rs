@@ -564,57 +564,47 @@ mod json_parser {
     #[test]
     fn test_json_parser() {
         // Helper combinators for JSON parsing
-        let whitespace = repeat(choice!(eat_u8(' '), choice!(eat_u8('\t'), choice!(eat_u8('\n'), eat_u8('\r')))));
+        let whitespace = repeat(choice!(eat_u8(' '), eat_u8('\t'), eat_u8('\n'), eat_u8('\r')));
         let digit = eat_u8_range('0', '9');
         let digits = repeat(digit);
         let integer = seq!(opt(choice!(eat_u8('-'), eat_u8('+'))), digits);
         let fraction = seq!(eat_u8('.'), digits);
-        let exponent = seq!(choice!(eat_u8('e'), eat_u8('E')), seq!(choice!(choice!(eat_u8('+'), eat_u8('-')), eps()), digits));
-        let number = seq!(integer, seq!(opt(fraction), opt(exponent)));
+        let exponent = seq!(choice!(eat_u8('e'), eat_u8('E')), seq!(choice!(eat_u8('+'), eat_u8('-')), digits));
+        let number = seq!(integer, opt(fraction), opt(exponent));
 
         let string_char = eat_u8_range_complement('"', '"');
-        let string = seq!(eat_u8('"'), seq!(repeat(string_char), eat_u8('"')));
+        let string = seq!(eat_u8('"'), repeat(string_char), eat_u8('"'));
 
         let mut json_value = forward_ref();
 
         let json_array = seq!(
             eat_u8('['),
-            seq!(
-                whitespace,
-                seq!(
-                    opt(seq!(
-                        json_value,
-                        repeat(seq!(seq!(whitespace, eat_u8(',')), seq!(whitespace, json_value))),
-                    )),
-                    seq!(whitespace, eat_u8(']')),
-                ),
-            ),
+            whitespace,
+            opt(seq!(
+                json_value,
+                repeat(seq!(whitespace, eat_u8(','), whitespace, json_value)),
+            )),
+            whitespace, eat_u8(']'),
         );
 
-        let key_value_pair = seq!(seq!(whitespace, string), seq!(whitespace, seq!(eat_u8(':'), seq!(whitespace, json_value))));
+        let key_value_pair = seq!(whitespace, string, whitespace, eat_u8(':'), whitespace, json_value);
 
         let json_object = seq!(
             eat_u8('{'),
-            seq!(
-                whitespace,
-                seq!(
-                    opt(seq!(
-                        key_value_pair,
-                        repeat(seq!(seq!(whitespace, eat_u8(',')), key_value_pair)),
-                    )),
-                    seq!(whitespace, eat_u8('}')),
-                ),
-            ),
+            whitespace,
+            opt(seq!(
+                key_value_pair,
+                repeat(seq!(whitespace, eat_u8(','), key_value_pair)),
+            )),
+            whitespace, eat_u8('}'),
         );
 
         json_value.set(
             choice!(
-                choice!(string, number),
-                choice!(
-                    choice!(eat_string("true"), eat_string("false")),
-                    choice!(eat_string("null"), choice!(json_array, json_object)),
-                ),
-            ),
+                string, number,
+                eat_string("true"), eat_string("false"),
+                eat_string("null"), json_array, json_object,
+            )
         );
 
         // Test cases
