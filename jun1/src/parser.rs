@@ -387,13 +387,22 @@ fn simplify_combinator(combinator: Combinator, seen_refs: &mut HashSet<*const Op
             let choices: Vec<_> = choices.into_iter().map(|choice| simplify_combinator(choice.clone(), seen_refs)).collect();
 
             // Combine any EatU8Matching combinators
+            // Expand any choice combinators
             let mut eat_u8s = U8Set::none();
             let mut non_eat_u8s = Vec::new();
             for choice in &choices {
-                if let Combinator::EatU8Matching(u8set) = choice {
-                    eat_u8s |= u8set.clone();
-                } else {
-                    non_eat_u8s.push(choice.clone());
+                match choice {
+                    Combinator::EatU8Matching(u8set) => {
+                        eat_u8s |= u8set.clone();
+                    }
+                    Combinator::Choice(choices) => {
+                        for choice in choices.into_iter() {
+                            non_eat_u8s.push(choice.clone());
+                        }
+                    }
+                    _ => {
+                        non_eat_u8s.push(choice.clone());
+                    }
                 }
             }
             let mut new_choices = Vec::with_capacity(non_eat_u8s.len() + 1);
@@ -404,7 +413,30 @@ fn simplify_combinator(combinator: Combinator, seen_refs: &mut HashSet<*const Op
             Combinator::Choice(new_choices.into())
         }
         Combinator::Seq(seq) => {
-            Combinator::Seq(seq.into_iter().map(|combinator| simplify_combinator(combinator.clone(), seen_refs)).collect())
+            // Simplify each sequent
+            let seq: Vec<_> = seq.into_iter().map(|sequent| simplify_combinator(sequent.clone(), seen_refs)).collect();
+
+            // Expand any sequence combinators
+            let mut eat_u8s = U8Set::none();
+            let mut non_eat_u8s = Vec::new();
+            for sequent in &seq {
+                match sequent {
+                    Combinator::Seq(seq) => {
+                        for sequent in seq.into_iter() {
+                            non_eat_u8s.push(sequent.clone());
+                        }
+                    }
+                    _ => {
+                        non_eat_u8s.push(sequent.clone());
+                    }
+                }
+            }
+            let mut new_seq = Vec::with_capacity(non_eat_u8s.len() + 1);
+            if !eat_u8s.is_empty() {
+                new_seq.push(Combinator::EatU8Matching(eat_u8s));
+            }
+            new_seq.extend(non_eat_u8s);
+            Combinator::Seq(new_seq.into())
         }
         Combinator::Repeat1(inner) => {
             Combinator::Repeat1(Box::new(simplify_combinator(*inner, seen_refs)))
