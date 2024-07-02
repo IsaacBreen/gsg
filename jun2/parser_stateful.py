@@ -61,7 +61,7 @@ def process(c: Optional[u8], its: List[ActiveCombinator]) -> ParserIterationResu
     final_result = ParserIterationResult(U8Set.none(), False)
     for i in reversed(range(len(its))):
         result = its[i].send(c)
-        if result.is_complete and result.u8set.is_empty():
+        if result.u8set.is_empty():
             its.pop(i)
         final_result |= result
     return final_result
@@ -171,7 +171,7 @@ class EatU8Matching(Combinator):
             state['stage'] = 2
             return ParserIterationResult(U8Set.none(), self.fn(ord(c)))
         else:
-            return ParserIterationResult(U8Set.none(), True)
+            raise ValueError("Invalid state")
 
     def clone_state(self, state):
         return {'stage': state['stage']}
@@ -207,16 +207,19 @@ class EatString(Combinator):
         return {'index': 0}
 
     def next_state(self, state, c):
-        if state['index'] < len(self.value):
-            expected = self.value[state['index']]
-            if c == expected:
-                state['index'] += 1
-                is_complete = state['index'] == len(self.value)
-                return ParserIterationResult(U8Set.none(), is_complete)
+        if state['index'] <= len(self.value):
+            if state['index'] == len(self.value):
+                u8set = U8Set.none()
             else:
-                return ParserIterationResult(U8Set.none(), True)
+                u8set = U8Set.from_chars(self.value[state['index']])
+            if state['index'] < len(self.value):
+                is_complete = False
+            else:
+                is_complete = c == self.value[state['index'] - 1]
+            state['index'] += 1
+            return ParserIterationResult(u8set, is_complete)
         else:
-            return ParserIterationResult(U8Set.none(), True)
+            raise ValueError("Invalid state")
 
 
 def eat_string(value: str) -> Combinator:
@@ -244,6 +247,32 @@ def repeat(A: Combinator) -> Combinator:
     return opt(repeat1(A))
 
 
+@dataclass
+class ForwardRef(Combinator):
+    inner: Optional[Combinator]
+
+    def initial_state(self, data: Data):
+        assert self.inner is not None
+        return self.inner.initial_state(data)
+
+    def next_state(self, state, c):
+        assert self.inner is not None
+        return self.inner.next_state(state, c)
+
+    def clone_state(self, state):
+        assert self.inner is not None
+        return self.inner.clone_state(state)
+
+    def set_inner(self, inner: Combinator):
+        assert self.inner is None
+        self.inner = inner
+        return self
+
+
+def forward_ref() -> ForwardRef:
+    return ForwardRef(None)
+
+
 def test_eat_u8():
     it = eat_u8("a")(None)
     result0 = it.send(None)
@@ -251,6 +280,17 @@ def test_eat_u8():
     result = it.send("a")
     assert result == ParserIterationResult(U8Set.none(), True)
 
+
+def test_eat_string():
+    it = eat_string("abc")(None)
+    result0 = it.send(None)
+    assert result0 == ParserIterationResult(U8Set.from_chars("a"), False)
+    result1 = it.send("a")
+    assert result1 == ParserIterationResult(U8Set.from_chars("b"), False)
+    result2 = it.send("b")
+    assert result2 == ParserIterationResult(U8Set.from_chars("c"), False)
+    result3 = it.send("c")
+    assert result3 == ParserIterationResult(U8Set.none(), True)
 
 def test_seq():
     it = seq(eat_u8("a"), eat_u8("b"))(None)
@@ -294,6 +334,22 @@ def test_seq_choice_seq():
     result2 = it.send("b")
     assert result2 == ParserIterationResult(U8Set.from_chars("c"), False)
     result3 = it.send("c")
+    assert result3 == ParserIterationResult(U8Set.none(), True)
+
+
+def test_nested_brackets():
+    A = A_ref = forward_ref()
+    A = choice(seq(eat_u8("["), A, eat_u8("]")), eat_u8("a"))
+    A_ref.set_inner(A)
+
+    it = A(None)
+    result0 = it.send(None)
+    assert result0 == ParserIterationResult(U8Set.from_chars("[a"), False)
+    result1 = it.send("[")
+    assert result1 == ParserIterationResult(U8Set.from_chars("[a"), False)
+    result2 = it.send("a")
+    assert result2 == ParserIterationResult(U8Set.from_chars("]"), False)
+    result3 = it.send("]")
     assert result3 == ParserIterationResult(U8Set.none(), True)
 
 
