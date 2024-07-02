@@ -71,6 +71,7 @@ enum Combinator {
     EatString(String),
     EatU8Matching(U8Set),
     Eps,
+    ForwardRef(Option<Rc<Combinator>>),
     Repeat1(Box<Combinator>),
     Seq(Vec<Combinator>),
 }
@@ -82,6 +83,7 @@ enum CombinatorState {
     EatString(usize),
     EatU8Matching(u8),
     Eps,
+    ForwardRef(Option<Box<CombinatorState>>),
     Repeat1(Vec<ActiveCombinator>),
     Seq(Vec<Vec<ActiveCombinator>>),
 }
@@ -94,6 +96,7 @@ impl Combinator {
             Combinator::EatString(_) => CombinatorState::EatString(0),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
             Combinator::Eps => CombinatorState::Eps,
+            Combinator::ForwardRef(c) => CombinatorState::ForwardRef(c.as_ref().map(|c| Box::new(c.initial_state(data)))),
             Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![ActiveCombinator::new((**a).clone(), data.clone())]),
             Combinator::Seq(a) => {
                 let mut its = Vec::new();
@@ -146,6 +149,13 @@ impl Combinator {
             (Combinator::Eps, CombinatorState::Eps) => {
                 ParserIterationResult::new(U8Set::none(), true)
             }
+            (Combinator::ForwardRef(Some(combinator)), CombinatorState::ForwardRef(Some(inner_state))) => {
+                let inner_state = inner_state.as_mut();
+                combinator.next_state(inner_state, c)
+            }
+            (Combinator::ForwardRef(None), CombinatorState::ForwardRef(_)) => {
+                panic!("Forward reference not set before use");
+            }
             (Combinator::Repeat1(a), CombinatorState::Repeat1(a_its)) => {
                 let mut a_result = process(c, a_its);
                 let b_result = a_result.clone();
@@ -162,6 +172,16 @@ impl Combinator {
                 a_result
             }
             _ => panic!("Mismatched combinator and state types"),
+        }
+    }
+
+    // This function sets the inner combinator for ForwardRef
+    fn set(&mut self, combinator: Combinator) {
+        match self {
+            Combinator::ForwardRef(ref mut inner) => {
+                *inner = Some(Rc::new(combinator));
+            }
+            _ => panic!("Combinator is not a ForwardRef"),
         }
     }
 }
@@ -285,6 +305,11 @@ where
     F: Fn() -> Combinator + 'static,
 {
     Combinator::Call(Rc::new(f))
+}
+
+// This function creates a new ForwardRef combinator
+fn forward_ref() -> Combinator {
+    Combinator::ForwardRef(None)
 }
 
 macro_rules! seq {
@@ -414,7 +439,6 @@ mod tests {
     }
 }
 
-
 #[cfg(test)]
 mod json_parser {
     use super::*;
@@ -460,6 +484,8 @@ mod json_parser {
         );
         let string = seq!(eat_u8('"'), seq!(repeat(string_char), eat_u8('"')));
 
+        let mut json_value = forward_ref();
+
         let json_array = seq!(
             eat_u8('['),
             seq!(
@@ -490,17 +516,18 @@ mod json_parser {
             ),
         );
 
-        let json_value_final = choice!(
-            choice!(string, number),
+        json_value.set(
             choice!(
-                choice!(eat_string("true"), eat_string("false")),
-                choice!(eat_string("null"), choice!(json_array, json_object)),
-            ));
-
-        json_value.set(json_value_final);
+                choice!(string, number),
+                choice!(
+                    choice!(eat_string("true"), eat_string("false")),
+                    choice!(eat_string("null"), choice!(json_array, json_object)),
+                ),
+            ),
+        );
 
         // Test cases
-        let json_parser = seq!(whitespace.clone(), json_value.clone());
+        let json_parser = seq!(whitespace.clone(), json_value);
 
         let test_cases = [
             "42",
