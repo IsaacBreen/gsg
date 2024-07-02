@@ -305,6 +305,12 @@ macro_rules! choice {
     };
 }
 
+impl Into<Combinator> for &Combinator {
+    fn into(self) -> Combinator {
+        self.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
