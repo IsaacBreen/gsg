@@ -1,5 +1,7 @@
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
 use crate::u8set::U8Set;
@@ -62,6 +64,48 @@ enum Combinator {
     ForwardRef(Rc<RefCell<Option<Combinator>>>),
     Repeat1(Box<Combinator>),
     Seq(Rc<[Combinator]>),
+}
+
+
+impl PartialEq for Combinator {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Combinator::Call(a), Combinator::Call(b)) => Rc::ptr_eq(a, b),
+            (Combinator::Choice(a), Combinator::Choice(b)) => Rc::ptr_eq(a, b),
+            (Combinator::EatString(a), Combinator::EatString(b)) => a == b,
+            (Combinator::EatU8Matching(a), Combinator::EatU8Matching(b)) => a == b,
+            (Combinator::Eps, Combinator::Eps) => true,
+            (Combinator::ForwardRef(a), Combinator::ForwardRef(b)) => Rc::ptr_eq(a, b),
+            (Combinator::Repeat1(a), Combinator::Repeat1(b)) => *a == *b,
+            (Combinator::Seq(a), Combinator::Seq(b)) => Rc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Combinator {}
+
+impl Hash for Combinator {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Combinator::Call(a) => {
+                // Hash the function pointer, not the Rc
+                let a = Rc::as_ptr(a);
+                a.hash(state);
+            }
+            Combinator::Choice(a) => a.hash(state),
+            Combinator::EatString(a) => a.hash(state),
+            Combinator::EatU8Matching(a) => a.hash(state),
+            Combinator::Eps => std::mem::discriminant(self).hash(state),
+            Combinator::ForwardRef(a) => {
+                // Hash the RefCell, not the Rc
+                let a = Rc::as_ptr(a);
+                a.hash(state);
+            }
+            Combinator::Repeat1(a) => a.hash(state),
+            Combinator::Seq(a) => a.hash(state),
+        }
+    }
 }
 
 impl Debug for Combinator {
@@ -336,6 +380,49 @@ impl ActiveCombinator {
     }
 }
 
+fn simplify_combinator(combinator: Combinator, seen_refs: &mut HashSet<*const Option<Combinator>>) -> Combinator {
+    match combinator {
+        Combinator::Choice(choices) => {
+            // Simplify each choice
+            let choices: Vec<_> = choices.into_iter().map(|choice| simplify_combinator(choice.clone(), seen_refs)).collect();
+
+            // Combine any EatU8Matching combinators
+            let mut eat_u8s = U8Set::none();
+            let mut non_eat_u8s = Vec::new();
+            for choice in &choices {
+                if let Combinator::EatU8Matching(u8set) = choice {
+                    eat_u8s |= u8set.clone();
+                } else {
+                    non_eat_u8s.push(choice.clone());
+                }
+            }
+            let mut new_choices = Vec::with_capacity(non_eat_u8s.len() + 1);
+            if !eat_u8s.is_empty() {
+                new_choices.push(Combinator::EatU8Matching(eat_u8s));
+            }
+            new_choices.extend(non_eat_u8s);
+            Combinator::Choice(new_choices.into())
+        }
+        Combinator::Seq(seq) => {
+            Combinator::Seq(seq.into_iter().map(|combinator| simplify_combinator(combinator.clone(), seen_refs)).collect())
+        }
+        Combinator::Repeat1(inner) => {
+            Combinator::Repeat1(Box::new(simplify_combinator(*inner, seen_refs)))
+        }
+        Combinator::ForwardRef(ref inner) => {
+            if seen_refs.contains(&(inner.as_ptr() as *const Option<Combinator>)) {
+                return combinator;
+            }
+            seen_refs.insert(inner.as_ptr() as *const Option<Combinator>);
+            Combinator::ForwardRef(Rc::new(std::cell::RefCell::new(
+                inner.borrow().as_ref().map(|c| simplify_combinator(c.clone(), seen_refs))
+            )))
+        }
+        // Other combinator types remain unchanged
+        _ => combinator,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -527,6 +614,7 @@ mod json_parser {
 
         // Test cases
         let json_parser = seq!(whitespace, json_value);
+        let json_parser = simplify_combinator(json_parser, &mut HashSet::new());
 
         let test_cases = [
             "null",
