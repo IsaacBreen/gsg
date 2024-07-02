@@ -1,0 +1,46 @@
+{
+  "result": [
+    {
+      "status": "active",
+      "name": {
+        "first": "Carlotta",
+        "middle": "Rowan",
+        "last": "Rutherford"
+      },
+      "username": "Carlotta-Rutherford",
+      "password": "gG9PT6jLLRPmq6N",
+      "emails": [
+        "Lessie2@example.com",
+        "Amir.Lehner69@gmail.com"
+      ],
+      "phoneNumber": "1-475-886-3775 x091",
+      "location": {
+        "street": "7020 Gutmann Parkway",
+        "city": "Fort Demond",
+        "state": "South Dakota",
+        "country": "Ecuador",
+        "zip": "68086-6394",
+        "coordinates": {
+          "latitude": 11.9599,
+          "longitude": -85.8913
+        }
+      },
+      "website": "https://questionable-cookie.biz/",
+      "domain": "neglected-mileage.name",
+      "job": {
+        "title": "Central Optimization Facilitator",
+        "descriptor": "Legacy",
+        "area": "Security",
+        "type": "Liaison",
+        "company": "Veum Inc"
+      },
+      "creditCard": {
+        "number": "5316-9913-0345-6923",
+        "cvv": "007",
+        "issuer": "discover"
+      },
+      "uuid": "97605eaf-9e18-4800-aa5d-e6c67cfe369d",
+      "objectId": "668218ddb5c46d4e877fa432"
+    }
+  ]
+}
