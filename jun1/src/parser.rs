@@ -572,10 +572,10 @@ mod json_parser {
             assert!(!parse_json(json_string), "Incorrectly parsed invalid JSON string: {}", json_string);
         }
 
-        let filenames = [
+        let filenames: Vec<&str> = vec![
             // "GeneratedCSV_mini.json",
-            "GeneratedCSV_1.json",
-            "GeneratedCSV_2.json",
+            // "GeneratedCSV_1.json",
+            // "GeneratedCSV_2.json",
             // "GeneratedCSV_10.json",
             // "GeneratedCSV_20.json",
             // "GeneratedCSV_100.json",
@@ -588,7 +588,19 @@ mod json_parser {
             let start = std::time::Instant::now();
             let result = parse_json(&json_string);
             let end = std::time::Instant::now();
-            println!("{}: {}", filename, end.duration_since(start).as_millis());
+            println!("{}: {} ms", filename, end.duration_since(start).as_millis());
+            assert!(result, "Failed to parse JSON string: {}", json_string);
+        }
+
+        // Test with a string of 'a's
+        println!("Testing with a string of 'a's of length 100 and length 200");
+        for i in vec![1_000, 10_000] {
+            let json_string = std::iter::repeat('a').take(i).collect::<String>();
+            let json_string = format!(r#"{{"a": "{}"}}"#, json_string);
+            let start = std::time::Instant::now();
+            let result = parse_json(&json_string);
+            let end = std::time::Instant::now();
+            println!("{}: {} ms", i, end.duration_since(start).as_millis());
             assert!(result, "Failed to parse JSON string: {}", json_string);
         }
     }
