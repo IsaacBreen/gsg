@@ -3,7 +3,7 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
 use crate::u8set::U8Set;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(PartialEq, Debug)]
 struct ParserIterationResult {
     u8set: U8Set,
     is_complete: bool,
@@ -51,35 +51,45 @@ impl BitAndAssign for ParserIterationResult {
     }
 }
 
+impl Clone for ParserIterationResult {
+    fn clone(&self) -> Self {
+        Self {
+            u8set: self.u8set.clone(),
+            is_complete: self.is_complete,
+        }
+    }
+}
+
 type Data = ();
 
+#[derive(Clone)]
 enum Combinator {
-    Call(Rc<dyn Fn() -> Rc<Combinator>>),
-    Choice(Rc<[Rc<Combinator>]>),
+    Call(Rc<dyn Fn() -> Combinator>),
+    Choice(Rc<[Combinator]>),
     EatString(&'static str),
     EatU8Matching(U8Set),
     Eps,
-    ForwardRef(Rc<RefCell<Option<Rc<Combinator>>>>),
-    Repeat1(Rc<Combinator>),
-    Seq(Rc<[Rc<Combinator>]>),
+    ForwardRef(Rc<RefCell<Option<Combinator>>>),
+    Repeat1(Box<Combinator>),
+    Seq(Rc<[Combinator]>),
 }
 
-enum CombinatorState<'a> {
-    Call(Option<Box<CombinatorState<'a>>>),
-    Choice(Vec<ActiveCombinator<'a>>),
+enum CombinatorState {
+    Call(Option<Box<CombinatorState>>),
+    Choice(Vec<ActiveCombinator>),
     EatString(usize),
     EatU8Matching(u8),
     Eps,
-    ForwardRef(Box<CombinatorState<'a>>),
-    Repeat1(Vec<ActiveCombinator<'a>>),
-    Seq(Vec<Vec<ActiveCombinator<'a>>>),
+    ForwardRef(Box<CombinatorState>),
+    Repeat1(Vec<ActiveCombinator>),
+    Seq(Vec<Vec<ActiveCombinator>>),
 }
 
 impl Combinator {
     fn initial_state(&self, data: &Data) -> CombinatorState {
         match self {
             Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(data)))),
-            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| ActiveCombinator::new(a, *data)).collect()),
+            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| ActiveCombinator::new(a.clone(), data.clone())).collect()),
             Combinator::EatString(_) => CombinatorState::EatString(0),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
             Combinator::Eps => CombinatorState::Eps,
@@ -89,10 +99,10 @@ impl Combinator {
                     None => panic!("ForwardRef not set"),
                 }
             }
-            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![ActiveCombinator::new(a, *data)]),
+            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![ActiveCombinator::new((**a).clone(), data.clone())]),
             Combinator::Seq(a) => {
                 let mut its = Vec::with_capacity(a.len());
-                its.push(vec![ActiveCombinator::new(&a[0], *data)]);
+                its.push(vec![ActiveCombinator::new(a[0].clone(), data.clone())]);
                 for _ in 1..a.len() {
                     its.push(Vec::new());
                 }
@@ -155,14 +165,14 @@ impl Combinator {
             (Combinator::Repeat1(a), CombinatorState::Repeat1(a_its)) => {
                 let mut a_result = process(c, a_its);
                 let b_result = a_result.clone();
-                seq2_helper(a, &(), &mut a_result, a_its);
+                seq2_helper((**a).clone(), &(), &mut a_result, a_its);
                 a_result | b_result
             }
             (Combinator::Seq(a), CombinatorState::Seq(its)) => {
                 let mut a_result = process(c, &mut its[0]);
                 for i in 1..its.len() {
                     let b_result = process(c, &mut its[i]);
-                    seq2_helper(&a[i], &(), &mut a_result, &mut its[i]);
+                    seq2_helper(a[i].clone(), &(), &mut a_result, &mut its[i]);
                     a_result |= b_result
                 }
                 a_result
@@ -171,10 +181,10 @@ impl Combinator {
         }
     }
 
-    fn set(&mut self, combinator: Rc<Combinator>) {
+    fn set(&mut self, combinator: Combinator) {
         match self {
             Combinator::ForwardRef(inner) => {
-                let option: &mut Option<Rc<Combinator>> = &mut inner.as_ref().borrow_mut();
+                let option: &mut Option<Combinator> = &mut inner.as_ref().borrow_mut();
                 option.replace(combinator);
             }
             _ => panic!("Combinator is not a ForwardRef"),
@@ -182,14 +192,14 @@ impl Combinator {
     }
 }
 
-struct ActiveCombinator<'a> {
-    combinator: &'a Rc<Combinator>,
+struct ActiveCombinator {
+    combinator: Combinator,
     data: Data,
-    state: CombinatorState<'a>,
+    state: CombinatorState,
 }
 
-impl<'a> ActiveCombinator<'a> {
-    fn new(combinator: &'a Rc<Combinator>, data: Data) -> Self {
+impl ActiveCombinator {
+    fn new(combinator: Combinator, data: Data) -> Self {
         let state = combinator.initial_state(&data);
         Self {
             combinator,
@@ -218,7 +228,7 @@ fn process(c: Option<char>, its: &mut Vec<ActiveCombinator>) -> ParserIterationR
 }
 
 fn seq2_helper(
-    b: &Rc<Combinator>,
+    b: Combinator,
     d: &Data,
     a_result: &mut ParserIterationResult,
     b_its: &mut Vec<ActiveCombinator>,
@@ -232,77 +242,77 @@ fn seq2_helper(
     }
 }
 
-fn seq<Combinators>(combinators: Combinators) -> Rc<Combinator>
+fn seq<Combinators>(combinators: Combinators) -> Combinator
 where
-    Combinators: Into<Rc<[Rc<Combinator>]>>,
+    Combinators: Into<Rc<[Combinator]>>,
 {
-    Rc::new(Combinator::Seq(combinators.into()))
+    Combinator::Seq(combinators.into())
 }
 
-fn repeat1<C>(a: C) -> Rc<Combinator>
+fn repeat1<C>(a: C) -> Combinator
 where
-    C: Into<Rc<Combinator>>,
+    C: Into<Combinator>,
 {
-    Rc::new(Combinator::Repeat1(a.into()))
+    Combinator::Repeat1(Box::new(a.into()))
 }
 
-fn choice<Combinators>(combinators: Combinators) -> Rc<Combinator>
+fn choice<Combinators>(combinators: Combinators) -> Combinator
 where
-    Combinators: Into<Rc<[Rc<Combinator>]>>,
+    Combinators: Into<Rc<[Combinator]>>,
 {
-    Rc::new(Combinator::Choice(combinators.into()))
+    Combinator::Choice(combinators.into())
 }
 
-fn eat_u8_matching<F>(fn_: F) -> Rc<Combinator>
+fn eat_u8_matching<F>(fn_: F) -> Combinator
 where
     F: Fn(u8) -> bool,
 {
-    Rc::new(Combinator::EatU8Matching(U8Set::from_match_fn(&fn_)))
+    Combinator::EatU8Matching(U8Set::from_match_fn(&fn_))
 }
 
-fn eat_u8(value: char) -> Rc<Combinator> {
+fn eat_u8(value: char) -> Combinator {
     eat_u8_matching(move |c: u8| c == value as u8)
 }
 
-fn eat_u8_range(start: char, end: char) -> Rc<Combinator> {
+fn eat_u8_range(start: char, end: char) -> Combinator {
     eat_u8_matching(move |c: u8| (start as u8..=end as u8).contains(&c))
 }
 
-fn eat_u8_range_complement(start: char, end: char) -> Rc<Combinator> {
+fn eat_u8_range_complement(start: char, end: char) -> Combinator {
     eat_u8_matching(move |c: u8| !(start as u8..=end as u8).contains(&c))
 }
 
-fn eat_string(value: &'static str) -> Rc<Combinator> {
-    Rc::new(Combinator::EatString(value))
+fn eat_string(value: &'static str) -> Combinator {
+    Combinator::EatString(value)
 }
 
-fn eps() -> Rc<Combinator> {
-    Rc::new(Combinator::Eps)
+fn eps() -> Combinator {
+    Combinator::Eps
 }
 
-fn opt<C>(a: C) -> Rc<Combinator>
+fn opt<C>(a: C) -> Combinator
 where
-    C: Into<Rc<Combinator>>,
+    C: Into<Combinator>,
 {
     choice(vec![a.into(), eps()])
 }
 
-fn repeat<C>(a: C) -> Rc<Combinator>
+fn repeat<C>(a: C) -> Combinator
 where
-    C: Into<Rc<Combinator>>,
+    C: Into<Combinator>,
 {
     opt(repeat1(a))
 }
 
-fn call<F>(f: F) -> Rc<Combinator>
+fn call<F>(f: F) -> Combinator
 where
-    F: Fn() -> Rc<Combinator> + 'static,
+    F: Fn() -> Combinator + 'static,
 {
-    Rc::new(Combinator::Call(Rc::new(f)))
+    Combinator::Call(Rc::new(f))
 }
 
-fn forward_ref() -> Rc<Combinator> {
-    Rc::new(Combinator::ForwardRef(Rc::new(RefCell::new(None))))
+fn forward_ref() -> Combinator {
+    Combinator::ForwardRef(Rc::new(RefCell::new(None)))
 }
 
 macro_rules! seq {
@@ -310,7 +320,7 @@ macro_rules! seq {
         $a
     };
     ($a:expr, $($b:expr),+ $(,)?) => {
-        seq(vec![Rc::clone(&$a), seq!($($b),+)])
+        seq(vec![$a, seq!($($b),+)])
     };
 }
 
@@ -319,8 +329,14 @@ macro_rules! choice {
         $a
     };
     ($a:expr, $($b:expr),+ $(,)?) => {
-        choice(vec![Rc::clone(&$a), choice!($($b),+)])
+        choice(vec![$a, choice!($($b),+)])
     };
+}
+
+impl From<&Combinator> for Combinator {
+    fn from(c: &Combinator) -> Self {
+        c.clone()
+    }
 }
 
 #[cfg(test)]
@@ -330,7 +346,7 @@ mod tests {
     // Test cases remain the same, just update the combinator creation syntax
     #[test]
     fn test_eat_u8() {
-        let mut it = ActiveCombinator::new(&eat_u8('a'), ());
+        let mut it = ActiveCombinator::new(eat_u8('a'), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result = it.send(Some('a'));
@@ -339,7 +355,7 @@ mod tests {
 
     #[test]
     fn test_eat_string() {
-        let mut it = ActiveCombinator::new(&eat_string("abc"), ());
+        let mut it = ActiveCombinator::new(eat_string("abc"), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result1 = it.send(Some('a'));
@@ -352,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_seq() {
-        let mut it = ActiveCombinator::new(&seq!(eat_u8('a'), eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(seq!(eat_u8('a'), eat_u8('b')), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result1 = it.send(Some('a'));
@@ -363,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_repeat1() {
-        let mut it = ActiveCombinator::new(&repeat1(eat_u8('a')), ());
+        let mut it = ActiveCombinator::new(repeat1(eat_u8('a')), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false));
         let result1 = it.send(Some('a'));
@@ -374,13 +390,13 @@ mod tests {
 
     #[test]
     fn test_choice() {
-        let mut it = ActiveCombinator::new(&choice!(eat_u8('a'), eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("ab"), false));
         let result1 = it.send(Some('a'));
         assert_eq!(result1, ParserIterationResult::new(U8Set::none(), true));
 
-        let mut it = ActiveCombinator::new(&choice!(eat_u8('a'), eat_u8('b')), ());
+        let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')), ());
         it.send(None);
         let result2 = it.send(Some('b'));
         assert_eq!(result2, ParserIterationResult::new(U8Set::none(), true));
@@ -390,7 +406,7 @@ mod tests {
     fn test_seq_choice_seq() {
         // Matches "ac" or "abc"
         let mut it = ActiveCombinator::new(
-            &seq!(
+            seq!(
                 choice!(eat_u8('a'), seq!(eat_u8('a'), eat_u8('b'))),
                 eat_u8('c')
             ),
@@ -408,14 +424,13 @@ mod tests {
 
     #[test]
     fn test_nested_brackets() {
-        fn nested_brackets() -> Rc<Combinator> {
+        fn nested_brackets() -> Combinator {
             choice!(
                 seq!(eat_u8('['), seq!(call(nested_brackets), eat_u8(']'))),
                 eat_u8('a')
             )
         }
-        let combinator = Rc::new(nested_brackets());
-        let mut it = ActiveCombinator::new(&combinator, ());
+        let mut it = ActiveCombinator::new(nested_brackets(), ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("[a"), false));
         let result1 = it.send(Some('['));
@@ -437,8 +452,8 @@ mod json_parser {
         let whitespace = repeat(choice!(eat_u8(' '), choice!(eat_u8('\t'), choice!(eat_u8('\n'), eat_u8('\r')))));
         let digit = eat_u8_range('0', '9');
         let digits = repeat(digit);
-        let integer = seq!(opt(choice!(eat_u8('-'), eat_u8('+'))), digits);
-        let fraction = seq!(eat_u8('.'), digits);
+        let integer = seq!(opt(choice!(eat_u8('-'), eat_u8('+'))), digits.clone());
+        let fraction = seq!(eat_u8('.'), digits.clone());
         let exponent = seq!(choice!(eat_u8('e'), eat_u8('E')), seq!(choice!(choice!(eat_u8('+'), eat_u8('-')), eps()), digits));
         let number = seq!(integer, seq!(opt(fraction), opt(exponent)));
 
@@ -477,29 +492,29 @@ mod json_parser {
         let json_array = seq!(
             eat_u8('['),
             seq!(
-                whitespace,
+                whitespace.clone(),
                 seq!(
                     opt(seq!(
-                        json_value,
-                        repeat(seq!(seq!(whitespace, eat_u8(',')), seq!(whitespace, json_value))),
+                        json_value.clone(),
+                        repeat(seq!(seq!(whitespace.clone(), eat_u8(',')), seq!(whitespace.clone(), json_value.clone()))),
                     )),
-                    seq!(whitespace, eat_u8(']')),
+                    seq!(whitespace.clone(), eat_u8(']')),
                 ),
             ),
         );
 
-        let key_value_pair = seq!(seq!(whitespace, string), seq!(whitespace, seq!(eat_u8(':'), seq!(whitespace, json_value))));
+        let key_value_pair = seq!(seq!(whitespace.clone(), string.clone()), seq!(whitespace.clone(), seq!(eat_u8(':'), seq!(whitespace.clone(), json_value.clone()))));
 
         let json_object = seq!(
             eat_u8('{'),
             seq!(
-                whitespace,
+                whitespace.clone(),
                 seq!(
                     opt(seq!(
-                        key_value_pair,
-                        repeat(seq!(seq!(whitespace, eat_u8(',')), key_value_pair)),
+                        key_value_pair.clone(),
+                        repeat(seq!(seq!(whitespace.clone(), eat_u8(',')), key_value_pair)),
                     )),
-                    seq!(whitespace, eat_u8('}')),
+                    seq!(whitespace.clone(), eat_u8('}')),
                 ),
             ),
         );
@@ -515,7 +530,7 @@ mod json_parser {
         );
 
         // Test cases
-        let json_parser = seq!(whitespace, json_value);
+        let json_parser = seq!(whitespace.clone(), json_value);
 
         let test_cases = [
             "null",
@@ -529,7 +544,7 @@ mod json_parser {
         ];
 
         let parse_json = |json_string: &str| -> bool {
-            let mut it = ActiveCombinator::new(&json_parser, ());
+            let mut it = ActiveCombinator::new(json_parser.clone(), ());
             let mut result = it.send(None);
             for i in 0..json_string.len() {
                 let char = json_string.chars().nth(i).unwrap();
