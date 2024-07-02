@@ -209,15 +209,12 @@ fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorSta
         eprintln!("Warning: there are {} states (process)", its.len());
     }
     let mut final_result = ParserIterationResult::new(U8Set::none(), false);
-    let mut i = its.len();
-    while i > 0 {
-        i -= 1;
-        let result = combinator.next_state(&mut its[i], c);
-        if result.u8set.is_empty() {
-            its.swap_remove(i);
-        }
+    its.retain_mut(|it| {
+        let result = combinator.next_state(it, c);
+        let is_empty = result.u8set.is_empty();
         final_result |= result;
-    }
+        !is_empty
+    });
     final_result
 }
 
