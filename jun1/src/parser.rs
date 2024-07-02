@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 
 use crate::u8set::U8Set;
@@ -390,12 +391,6 @@ fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
     opt(repeat1(a))
 }
 
-
-// #[derive(Clone)]
-// struct ForwardRef<A> {
-//     inner: Rc<RefCell<Option<A>>>,
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -466,122 +461,8 @@ mod tests {
     }
 
 
-    // #[test]
-    // fn test_forward_ref() {
-    //     let mut A = forward_ref();
-    //     let A_final = choice2(seq(eat_u8('a'), A.clone()), eat_u8('b'));
-    //     A.as_mut().set(A_final);
-    // }
+    #[test]
+    fn test_nested_brackets() {
+        let A = choice2(seq(eat_u8('['), seq(A.clone(), eat_u8(']'))), eat_u8('a'));
+    }
 }
-
-// #[cfg(test)]
-// mod json_parser {
-//     use super::*;
-//
-//     #[test]
-//     fn test_json_parser() {
-//         // Helper combinators for JSON parsing
-//         let whitespace = repeat(choice2(eat_u8(' '), choice2(eat_u8('\t'), choice2(eat_u8('\n'), eat_u8('\r')))));
-//         let digit = eat_u8_range('0', '9');
-//         let digits = repeat(digit);
-//         let integer = seq(opt(choice2(eat_u8('-'), eat_u8('+'))), digits.clone());
-//         let fraction = seq(eat_u8('.'), digits.clone());
-//         let exponent = seq(choice2(eat_u8('e'), eat_u8('E')), seq(choice2(choice2(eat_u8('+'), eat_u8('-')), eps()), digits));
-//         let number = seq(integer, seq(opt(fraction), opt(exponent)));
-//
-//         let string_char = choice2(
-//             eat_u8_range_complement('"', '"'),
-//             seq(
-//                 eat_u8('\\'),
-//                 choice2(
-//                     choice2(
-//                         choice2(
-//                             choice2(eat_u8('"'), eat_u8('\\')),
-//                             choice2(eat_u8('/'), eat_u8('b')),
-//                         ),
-//                         choice2(eat_u8('f'), eat_u8('n')),
-//                     ),
-//                     choice2(
-//                         choice2(eat_u8('r'), eat_u8('t')),
-//                         seq(
-//                             eat_u8('u'),
-//                             seq(
-//                                 eat_u8_range('0', '9'),
-//                                 seq(
-//                                     eat_u8_range('0', '9'),
-//                                     seq(eat_u8_range('0', '9'), eat_u8_range('0', '9')),
-//                                 ),
-//                             ),
-//                         ),
-//                     ),
-//                 ),
-//             ),
-//         );
-//         let string = seq(eat_u8('"'), seq(repeat(string_char), eat_u8('"')));
-//
-//         let mut json_value = ForwardRef::new();
-//
-//         let json_array = seq(
-//             eat_u8('['),
-//             seq(
-//                 whitespace.clone(),
-//                 seq(
-//                     opt(seq(
-//                         json_value.clone(),
-//                         repeat(seq(seq(whitespace.clone(), eat_u8(',')), seq(whitespace.clone(), json_value.clone()))),
-//                     )),
-//                     seq(whitespace.clone(), eat_u8(']')),
-//                 ),
-//             ),
-//         );
-//
-//         let key_value_pair = seq(seq(whitespace.clone(), string.clone()), seq(whitespace.clone(), seq(eat_u8(':'), seq(whitespace.clone(), json_value.clone()))));
-//
-//         let json_object = seq(
-//             eat_u8('{'),
-//             seq(
-//                 whitespace.clone(),
-//                 seq(
-//                     opt(seq(
-//                         key_value_pair.clone(),
-//                         repeat(seq(seq(whitespace.clone(), eat_u8(',')), key_value_pair)),
-//                     )),
-//                     seq(whitespace.clone(), eat_u8('}')),
-//                 ),
-//             ),
-//         );
-//
-//         let json_value_final = choice2(
-//             choice2(string, number),
-//             choice2(
-//                 choice2(eat_string("true"), eat_string("false")),
-//                 choice2(eat_string("null"), choice2(json_array, json_object)),
-//             ));
-//
-//         json_value.set(json_value_final);
-//
-//         // Test cases
-//         let json_parser = seq(whitespace.clone(), json_value.clone());
-//
-//         let test_cases = [
-//             "42",
-//             r#"{"key": "value"}"#,
-//             "[1, 2, 3]",
-//             r#"{"nested": {"array": [1, 2, 3], "object": {"a": true, "b": false}}}"#,
-//             r#""Hello, world!""#,
-//             "null",
-//             "true",
-//             "false",
-//         ];
-//
-//         for json_string in test_cases {
-//             let mut it = ActiveCombinator::new(json_parser.clone(), ());
-//             let result = it.send(None);
-//             for char in json_string.chars() {
-//                 assert!(result.u8set.contains(char as u8), "Expected {} to be in {:?}", char, result.u8set);
-//                 let result = it.send(Some(char));
-//                 assert!(result.is_complete, "Failed to parse JSON string: {}", json_string);
-//             }
-//         }
-//     }
-// }
