@@ -207,19 +207,18 @@ class EatString(Combinator):
         return {'index': 0}
 
     def next_state(self, state, c):
-        if state['index'] <= len(self.value):
-            if state['index'] == len(self.value):
-                u8set = U8Set.none()
-            else:
-                u8set = U8Set.from_chars(self.value[state['index']])
-            if state['index'] < len(self.value):
-                is_complete = False
-            else:
-                is_complete = c == self.value[state['index'] - 1]
-            state['index'] += 1
-            return ParserIterationResult(u8set, is_complete)
-        else:
+        if state['index'] > len(self.value):
             raise ValueError("Invalid state")
+        if state['index'] == len(self.value):
+            u8set = U8Set.none()
+        else:
+            u8set = U8Set.from_chars(self.value[state['index']])
+        if state['index'] < len(self.value):
+            is_complete = False
+        else:
+            is_complete = c == self.value[state['index'] - 1]
+        state['index'] += 1
+        return ParserIterationResult(u8set, is_complete)
 
 
 def eat_string(value: str) -> Combinator:
