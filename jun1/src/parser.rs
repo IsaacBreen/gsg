@@ -126,6 +126,9 @@ impl Combinator {
             (Combinator::Choice(combinators), CombinatorState::Choice(its)) => {
                 let mut final_result = ParserIterationResult::new(U8Set::none(), false);
                 for (combinator, its) in combinators.iter().zip(its.iter_mut()) {
+                    if its.is_empty() {
+                        continue;
+                    }
                     let result = process(combinator, c, its);
                     final_result |= result;
                 }
@@ -181,9 +184,9 @@ impl Combinator {
             }
             (Combinator::Seq(a), CombinatorState::Seq(its)) => {
                 let mut a_result = process(&a[0], c, &mut its[0]);
-                for i in 1..its.len() {
-                    let b_result = process(&a[i], c, &mut its[i]);
-                    seq2_helper(&a[i], &mut a_result, &mut its[i]);
+                for (combinator, its) in a.iter().zip(its.iter_mut()).skip(1) {
+                    let b_result = process(combinator, c, its);
+                    seq2_helper(combinator, &mut a_result, its);
                     a_result |= b_result
                 }
                 a_result
