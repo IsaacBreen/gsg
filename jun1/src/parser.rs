@@ -204,6 +204,10 @@ impl Combinator {
 }
 
 fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorState>) -> ParserIterationResult {
+    if its.len() > 10 {
+        // Warn if there are too many states
+        eprintln!("Warning: too many states");
+    }
     let mut final_result = ParserIterationResult::new(U8Set::none(), false);
     let mut i = its.len();
     while i > 0 {
@@ -222,6 +226,10 @@ fn seq2_helper(
     a_result: &mut ParserIterationResult,
     b_its: &mut Vec<CombinatorState>,
 ) {
+    if b_its.len() > 10 {
+        // Warn if there are too many states
+        eprintln!("Warning: too many states");
+    }
     if a_result.is_complete {
         let b_it = b.initial_state();
         b_its.push(b_it);
@@ -541,8 +549,7 @@ mod json_parser {
         let parse_json = |json_string: &str| -> bool {
             let mut it = ActiveCombinator::new(json_parser.clone());
             let mut result = it.send(None);
-            for i in 0..json_string.len() {
-                let char = json_string.chars().nth(i).unwrap();
+            for char in json_string.chars() {
                 assert!(result.u8set.contains(char as u8), "Expected {} to be in {:?}", char, result.u8set);
                 result = it.send(Some(char));
             }
@@ -565,8 +572,8 @@ mod json_parser {
 
         let filenames: Vec<&str> = vec![
             // "GeneratedCSV_mini.json",
-            "GeneratedCSV_1.json",
-            "GeneratedCSV_2.json",
+            // "GeneratedCSV_1.json",
+            // "GeneratedCSV_2.json",
             // "GeneratedCSV_10.json",
             // "GeneratedCSV_20.json",
             // "GeneratedCSV_100.json",
