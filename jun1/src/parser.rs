@@ -54,25 +54,25 @@ impl BitAndAssign for ParserIterationResult {
 type Data = ();
 
 enum Combinator {
-    Call(Rc<dyn Fn() -> Combinator>),
-    Choice(Rc<[Combinator]>),
+    Call(Rc<dyn Fn() -> Rc<Combinator>>),
+    Choice(Rc<[Rc<Combinator>]>),
     EatString(&'static str),
     EatU8Matching(U8Set),
     Eps,
-    ForwardRef(Rc<RefCell<Option<Combinator>>>),
+    ForwardRef(Rc<RefCell<Option<Rc<Combinator>>>>),
     Repeat1(Rc<Combinator>),
-    Seq(Rc<[Combinator]>),
+    Seq(Rc<[Rc<Combinator>]>),
 }
 
-enum CombinatorState {
-    Call(Option<Box<CombinatorState>>),
-    Choice(Vec<ActiveCombinator>),
+enum CombinatorState<'a> {
+    Call(Option<Box<CombinatorState<'a>>>),
+    Choice(Vec<ActiveCombinator<'a>>),
     EatString(usize),
     EatU8Matching(u8),
     Eps,
-    ForwardRef(Box<CombinatorState>),
-    Repeat1(Vec<ActiveCombinator>),
-    Seq(Vec<Vec<ActiveCombinator>>),
+    ForwardRef(Box<CombinatorState<'a>>),
+    Repeat1(Vec<ActiveCombinator<'a>>),
+    Seq(Vec<Vec<ActiveCombinator<'a>>>),
 }
 
 impl Combinator {
@@ -89,7 +89,7 @@ impl Combinator {
                     None => panic!("ForwardRef not set"),
                 }
             }
-            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![ActiveCombinator::new(a.as_ref(), *data)]),
+            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![ActiveCombinator::new(a, *data)]),
             Combinator::Seq(a) => {
                 let mut its = Vec::with_capacity(a.len());
                 its.push(vec![ActiveCombinator::new(&a[0], *data)]);
@@ -171,10 +171,10 @@ impl Combinator {
         }
     }
 
-    fn set(&mut self, combinator: Combinator) {
+    fn set(&mut self, combinator: Rc<Combinator>) {
         match self {
             Combinator::ForwardRef(inner) => {
-                let option: &mut Option<Combinator> = &mut inner.as_ref().borrow_mut();
+                let option: &mut Option<Rc<Combinator>> = &mut inner.as_ref().borrow_mut();
                 option.replace(combinator);
             }
             _ => panic!("Combinator is not a ForwardRef"),
@@ -182,14 +182,14 @@ impl Combinator {
     }
 }
 
-struct ActiveCombinator {
-    combinator: &'static Combinator,
+struct ActiveCombinator<'a> {
+    combinator: &'a Rc<Combinator>,
     data: Data,
-    state: CombinatorState,
+    state: CombinatorState<'a>,
 }
 
-impl ActiveCombinator {
-    fn new(combinator: &'static Combinator, data: Data) -> Self {
+impl<'a> ActiveCombinator<'a> {
+    fn new(combinator: &'a Rc<Combinator>, data: Data) -> Self {
         let state = combinator.initial_state(&data);
         Self {
             combinator,
@@ -218,7 +218,7 @@ fn process(c: Option<char>, its: &mut Vec<ActiveCombinator>) -> ParserIterationR
 }
 
 fn seq2_helper(
-    b: &'static Combinator,
+    b: &Rc<Combinator>,
     d: &Data,
     a_result: &mut ParserIterationResult,
     b_its: &mut Vec<ActiveCombinator>,
@@ -232,71 +232,77 @@ fn seq2_helper(
     }
 }
 
-fn seq<Combinators>(combinators: Combinators) -> Combinator
+fn seq<Combinators>(combinators: Combinators) -> Rc<Combinator>
 where
-    Combinators: Into<Rc<[Combinator]>>,
+    Combinators: Into<Rc<[Rc<Combinator>]>>,
 {
-    Combinator::Seq(combinators.into())
+    Rc::new(Combinator::Seq(combinators.into()))
 }
 
-fn repeat1<C>(a: C) -> Combinator where C: Into<Combinator> {
-    Combinator::Repeat1(Rc::new(a.into()))
-}
-
-fn choice<Combinators>(combinators: Combinators) -> Combinator
+fn repeat1<C>(a: C) -> Rc<Combinator>
 where
-    Combinators: Into<Rc<[Combinator]>>,
+    C: Into<Rc<Combinator>>,
 {
-    Combinator::Choice(combinators.into())
+    Rc::new(Combinator::Repeat1(a.into()))
 }
 
-fn eat_u8_matching<F>(fn_: F) -> Combinator
+fn choice<Combinators>(combinators: Combinators) -> Rc<Combinator>
+where
+    Combinators: Into<Rc<[Rc<Combinator>]>>,
+{
+    Rc::new(Combinator::Choice(combinators.into()))
+}
+
+fn eat_u8_matching<F>(fn_: F) -> Rc<Combinator>
 where
     F: Fn(u8) -> bool,
 {
-    Combinator::EatU8Matching(U8Set::from_match_fn(&fn_))
+    Rc::new(Combinator::EatU8Matching(U8Set::from_match_fn(&fn_)))
 }
 
-fn eat_u8(value: char) -> Combinator {
+fn eat_u8(value: char) -> Rc<Combinator> {
     eat_u8_matching(move |c: u8| c == value as u8)
 }
 
-fn eat_u8_range(start: char, end: char) -> Combinator {
+fn eat_u8_range(start: char, end: char) -> Rc<Combinator> {
     eat_u8_matching(move |c: u8| (start as u8..=end as u8).contains(&c))
 }
 
-fn eat_u8_range_complement(start: char, end: char) -> Combinator {
+fn eat_u8_range_complement(start: char, end: char) -> Rc<Combinator> {
     eat_u8_matching(move |c: u8| !(start as u8..=end as u8).contains(&c))
 }
 
-fn eat_string(value: &'static str) -> Combinator {
-    Combinator::EatString(value)
+fn eat_string(value: &'static str) -> Rc<Combinator> {
+    Rc::new(Combinator::EatString(value))
 }
 
-fn eps() -> Combinator {
-    Combinator::Eps
+fn eps() -> Rc<Combinator> {
+    Rc::new(Combinator::Eps)
 }
 
-fn opt<C>(a: C) -> Combinator
+fn opt<C>(a: C) -> Rc<Combinator>
 where
-    C: Into<Combinator>,
+    C: Into<Rc<Combinator>>,
 {
     choice(vec![a.into(), eps()])
 }
 
-fn repeat<C>(a: C) -> Combinator where C: Into<Combinator> {
-    opt(repeat1(a.into()))
-}
-
-fn call<F>(f: F) -> Combinator
+fn repeat<C>(a: C) -> Rc<Combinator>
 where
-    F: Fn() -> Combinator + 'static,
+    C: Into<Rc<Combinator>>,
 {
-    Combinator::Call(Rc::new(f))
+    opt(repeat1(a))
 }
 
-fn forward_ref() -> Combinator {
-    Combinator::ForwardRef(Rc::new(RefCell::new(None)))
+fn call<F>(f: F) -> Rc<Combinator>
+where
+    F: Fn() -> Rc<Combinator> + 'static,
+{
+    Rc::new(Combinator::Call(Rc::new(f)))
+}
+
+fn forward_ref() -> Rc<Combinator> {
+    Rc::new(Combinator::ForwardRef(Rc::new(RefCell::new(None))))
 }
 
 macro_rules! seq {
@@ -304,7 +310,7 @@ macro_rules! seq {
         $a
     };
     ($a:expr, $($b:expr),+ $(,)?) => {
-        seq(vec![$a, seq!($($b),+)])
+        seq(vec![Rc::clone(&$a), seq!($($b),+)])
     };
 }
 
@@ -313,7 +319,7 @@ macro_rules! choice {
         $a
     };
     ($a:expr, $($b:expr),+ $(,)?) => {
-        choice(vec![$a, choice!($($b),+)])
+        choice(vec![Rc::clone(&$a), choice!($($b),+)])
     };
 }
 
@@ -402,13 +408,14 @@ mod tests {
 
     #[test]
     fn test_nested_brackets() {
-        fn nested_brackets() -> Combinator {
+        fn nested_brackets() -> Rc<Combinator> {
             choice!(
                 seq!(eat_u8('['), seq!(call(nested_brackets), eat_u8(']'))),
                 eat_u8('a')
             )
         }
-        let mut it = ActiveCombinator::new(&nested_brackets(), ());
+        let combinator = Rc::new(nested_brackets());
+        let mut it = ActiveCombinator::new(&combinator, ());
         let result0 = it.send(None);
         assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("[a"), false));
         let result1 = it.send(Some('['));
