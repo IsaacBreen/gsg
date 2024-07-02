@@ -62,6 +62,7 @@ impl Clone for ParserIterationResult {
 
 type Data = ();
 
+#[derive(Clone)]
 enum Combinator {
     Call(Rc<dyn Fn() -> Combinator>),
     Choice(Rc<[Combinator]>),
@@ -71,21 +72,6 @@ enum Combinator {
     ForwardRef(Rc<RefCell<Option<Combinator>>>),
     Repeat1(Box<Combinator>),
     Seq(Rc<[Combinator]>),
-}
-
-impl Clone for Combinator {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Call(f) => Self::Call(Rc::clone(f)),
-            Self::Choice(c) => Self::Choice(Rc::clone(c)),
-            Self::EatString(s) => Self::EatString(s),
-            Self::EatU8Matching(u) => Self::EatU8Matching(u.clone()),
-            Self::Eps => Self::Eps,
-            Self::ForwardRef(r) => Self::ForwardRef(Rc::clone(r)),
-            Self::Repeat1(r) => Self::Repeat1(r.clone()),
-            Self::Seq(s) => Self::Seq(Rc::clone(s)),
-        }
-    }
 }
 
 enum CombinatorState {
@@ -583,10 +569,10 @@ mod json_parser {
         }
 
         let filenames: Vec<&str> = vec![
-            // "GeneratedCSV_mini.json",
-            // "GeneratedCSV_1.json",
-            // "GeneratedCSV_2.json",
-            "GeneratedCSV_10.json",
+            "GeneratedCSV_mini.json",
+            "GeneratedCSV_1.json",
+            "GeneratedCSV_2.json",
+            // "GeneratedCSV_10.json",
             // "GeneratedCSV_20.json",
             // "GeneratedCSV_100.json",
             // "GeneratedCSV_200.json",
