@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::marker::PhantomData;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 
@@ -71,31 +72,28 @@ trait Combinator: Clone {
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult;
 }
 
-#[derive(Clone)]
-struct ActiveCombinator<C: Combinator> {
-    combinator: C,
-    data: Data,
-    state: C::State,
-}
+trait StateTrait: Any + Clone {}
 
-impl<C: Combinator> ActiveCombinator<C> {
-    fn new(combinator: C, data: Data) -> Self {
+#[derive(Clone)]
+struct ActiveCombinator(Box<dyn Combinator<State = Box<dyn StateTrait>>>);
+
+impl ActiveCombinator {
+    fn new(combinator: Box<dyn Combinator<State = Box<dyn StateTrait>>>, data: Data) -> Self {
         let state = combinator.initial_state(&data);
-        Self {
-            combinator,
-            data,
-            state,
-        }
+        Self(Box::new(combinator))
     }
 
     fn send(&mut self, c: Option<char>) -> ParserIterationResult {
-        self.combinator.next_state(&mut self.state, c)
+        self.0.next_state(
+            self.0.initial_state(&()).downcast_mut::<Box<dyn std::any::Any>>().unwrap(),
+            c,
+        )
     }
 }
 
-fn process<C: Combinator>(
+fn process(
     c: Option<char>,
-    its: &mut Vec<ActiveCombinator<C>>,
+    its: &mut Vec<ActiveCombinator>,
 ) -> ParserIterationResult {
     let mut final_result = ParserIterationResult::new(U8Set::none(), false);
     let mut i = its.len();
@@ -110,11 +108,11 @@ fn process<C: Combinator>(
     final_result
 }
 
-fn seq2_helper<B: Combinator>(
-    b: B,
+fn seq2_helper(
+    b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
     d: &Data,
     a_result: &mut ParserIterationResult,
-    b_its: &mut Vec<ActiveCombinator<B>>,
+    b_its: &mut Vec<ActiveCombinator>,
 ) {
     if a_result.is_complete {
         let b_it = ActiveCombinator::new(b, d.clone());
@@ -126,35 +124,23 @@ fn seq2_helper<B: Combinator>(
 }
 
 #[derive(Clone)]
-struct Seq2<A, B>
-where
-    A: Combinator,
-    B: Combinator,
-{
-    a: A,
-    b: B,
-}
+struct Seq2(Box<dyn Combinator<State = Box<dyn StateTrait>>>, Box<dyn Combinator<State = Box<dyn StateTrait>>>);
 
-impl<A, B> Seq2<A, B>
-where
-    A: Combinator,
-    B: Combinator,
-{
-    fn new(a: A, b: B) -> Self {
-        Self { a, b }
+impl Seq2 {
+    fn new(
+        a: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+        b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+    ) -> Self {
+        Self(a, b)
     }
 }
 
-impl<A, B> Combinator for Seq2<A, B>
-where
-    A: Combinator,
-    B: Combinator,
-{
-    type State = (Vec<ActiveCombinator<A>>, Vec<ActiveCombinator<B>>, Data);
+impl Combinator for Seq2 {
+    type State = (Vec<ActiveCombinator>, Vec<ActiveCombinator>, Data);
 
     fn initial_state(&self, data: &Data) -> Self::State {
         (
-            vec![ActiveCombinator::new(self.a.clone(), data.clone())],
+            vec![ActiveCombinator::new(self.0.clone(), data.clone())],
             Vec::new(),
             data.clone(),
         )
@@ -164,44 +150,31 @@ where
         let (a_its, b_its, d) = state;
         let mut a_result = process(c, a_its);
         let b_result = process(c, b_its);
-        seq2_helper(self.b.clone(), d, &mut a_result, b_its);
+        seq2_helper(self.1.clone(), d, &mut a_result, b_its);
         a_result | b_result
     }
 }
 
-fn seq2<A, B>(a: A, b: B) -> Seq2<A, B>
-where
-    A: Combinator,
-    B: Combinator,
-{
+fn seq2(
+    a: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+    b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+) -> Seq2 {
     Seq2::new(a, b)
 }
 
-// Box is used here to allow for recursive types
-fn seq<A: Combinator, B: Combinator>(
-    a: A,
-    b: B
-) -> Seq2<A, B>
-where
-    A: Combinator + Clone,
-    A::State: Clone,
-    B: Combinator + Clone,
-    B::State: Clone,
-{
+fn seq(
+    a: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+    b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+) -> Seq2 {
     Seq2::new(a, b)
 }
 
 
 #[derive(Clone)]
-struct Repeat1<A>(A)
-where
-    A: Combinator;
+struct Repeat1(Box<dyn Combinator<State = Box<dyn StateTrait>>>);
 
-impl<A> Combinator for Repeat1<A>
-where
-    A: Combinator,
-{
-    type State = (Vec<ActiveCombinator<A>>, Data);
+impl Combinator for Repeat1 {
+    type State = (Vec<ActiveCombinator>, Data);
 
     fn initial_state(&self, data: &Data) -> Self::State {
         (vec![ActiveCombinator::new(self.0.clone(), data.clone())], data.clone())
@@ -216,53 +189,41 @@ where
     }
 }
 
-fn repeat1<A>(a: A) -> Repeat1<A>
-where
-    A: Combinator,
-{
+fn repeat1(a: Box<dyn Combinator<State = Box<dyn StateTrait>>>) -> Repeat1 {
     Repeat1(a)
 }
 
 #[derive(Clone)]
-struct Choice2<A, B>
-where
-    A: Combinator,
-    B: Combinator,
-{
-    a: A,
-    b: B
-}
+struct Choice2(Box<dyn Combinator<State = Box<dyn StateTrait>>>, Box<dyn Combinator<State = Box<dyn StateTrait>>>);
 
-impl<A, B> Choice2<A, B>
-where
-    A: Combinator,
-    B: Combinator,
-{
-    fn new(a: A, b: B) -> Self {
-        Self { a, b }
+impl Choice2 {
+    fn new(
+        a: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+        b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+    ) -> Self {
+        Self(a, b)
     }
 }
 
-impl<A, B> Combinator for Choice2<A, B>
-where
-    A: Combinator,
-    B: Combinator,
-{
-    type State = (A::State, B::State);
+impl Combinator for Choice2 {
+    type State = (Box<dyn StateTrait>, Box<dyn StateTrait>);
 
     fn initial_state(&self, data: &Data) -> Self::State {
-        (self.a.initial_state(&data), self.b.initial_state(&data))
+        (self.0.initial_state(&data), self.1.initial_state(&data))
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>) -> ParserIterationResult {
-        let mut result_a = self.a.next_state(&mut state.0, c);
-        let result_b = self.b.next_state(&mut state.1, c);
+        let mut result_a = self.0.next_state(state.0.downcast_mut().unwrap(), c);
+        let result_b = self.1.next_state(state.1.downcast_mut().unwrap(), c);
         result_a |= result_b;
         result_a
     }
 }
 
-fn choice2<A: Combinator, B: Combinator>(a: A, b: B) -> Choice2<A, B> {
+fn choice2(
+    a: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+    b: Box<dyn Combinator<State = Box<dyn StateTrait>>>,
+) -> Choice2 {
     Choice2::new(a, b)
 }
 
@@ -309,22 +270,22 @@ impl Combinator for EatU8Matching
     }
 }
 
-fn eat_u8_matching<F>(fn_: F) -> EatU8Matching
+fn eat_u8_matching<F>(fn_: F) -> Box<dyn Combinator<State = Box<dyn StateTrait>>>
 where
-    F: Fn(u8) -> bool,
+    F: Fn(u8) -> bool + 'static,
 {
-    EatU8Matching::new(fn_)
+    Box::new(EatU8Matching::new(fn_))
 }
 
-fn eat_u8(value: char) -> EatU8Matching {
+fn eat_u8(value: char) -> Box<dyn Combinator<State = Box<dyn StateTrait>>> {
     eat_u8_matching(move |c: u8| c == value as u8)
 }
 
-fn eat_u8_range(start: char, end: char) -> EatU8Matching {
+fn eat_u8_range(start: char, end: char) -> Box<dyn Combinator<State = Box<dyn StateTrait>>> {
     eat_u8_matching(move |c: u8| (start as u8..=end as u8).contains(&c))
 }
 
-fn eat_u8_range_complement(start: char, end: char) -> EatU8Matching {
+fn eat_u8_range_complement(start: char, end: char) -> Box<dyn Combinator<State = Box<dyn StateTrait>>> {
     eat_u8_matching(move |c: u8| !(start as u8..=end as u8).contains(&c))
 }
 
@@ -364,8 +325,8 @@ impl Combinator for EatString {
     }
 }
 
-fn eat_string(value: &str) -> EatString {
-    EatString::new(value)
+fn eat_string(value: &str) -> Box<dyn Combinator<State = Box<dyn StateTrait>>> {
+    Box::new(EatString::new(value))
 }
 
 #[derive(Clone)]
@@ -379,15 +340,15 @@ impl Combinator for Eps {
     }
 }
 
-fn eps() -> Eps {
-    Eps
+fn eps() -> Box<dyn Combinator<State = Box<dyn StateTrait>>> {
+    Box::new(Eps)
 }
 
-fn opt<A: Combinator>(a: A) -> Choice2<A, Eps> {
+fn opt(a: Box<dyn Combinator<State = Box<dyn StateTrait>>>) -> Choice2 {
     choice2(a, eps())
 }
 
-fn repeat<A: Combinator>(a: A) -> Choice2<Repeat1<A>, Eps> {
+fn repeat(a: Box<dyn Combinator<State = Box<dyn StateTrait>>>) -> Choice2 {
     opt(repeat1(a))
 }
 
@@ -463,6 +424,9 @@ mod tests {
 
     #[test]
     fn test_nested_brackets() {
-        let A = choice2(seq(eat_u8('['), seq(A.clone(), eat_u8(']'))), eat_u8('a'));
+        let a =  |a: Box<dyn Combinator<State = Box<dyn StateTrait>>>| {
+            choice2(seq(eat_u8('['), seq(a, eat_u8(']'))), eat_u8('a'))
+        };
+        let _ = a(Box::new(a(Box::new(Eps))));
     }
 }
