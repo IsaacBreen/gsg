@@ -90,7 +90,6 @@ class Seq2(Combinator):
         }
 
     def next_state(self, state, c):
-
         A_result = process(c, state['A_its'])
         B_result = process(c, state['B_its'])
         return seq2_helper(self.B, state['data'], A_result, state['B_its']) | B_result
