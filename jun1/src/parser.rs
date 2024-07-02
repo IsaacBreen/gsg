@@ -573,6 +573,7 @@ mod json_parser {
         }
 
         let filenames = [
+            "GeneratedCSV_mini.json",
             "GeneratedCSV_1.json",
             // "GeneratedCSV_2.json",
             // "GeneratedCSV_10.json",
