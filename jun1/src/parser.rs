@@ -293,10 +293,6 @@ fn eps() -> Combinator {
     Combinator::Eps
 }
 
-// fn opt(a: Combinator) -> Combinator {
-//     choice(vec![a, eps()])
-// }
-
 fn opt<C>(a: C) -> Combinator
 where
     C: Into<Combinator>,
