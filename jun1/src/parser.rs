@@ -206,7 +206,7 @@ impl Combinator {
 fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorState>) -> ParserIterationResult {
     if its.len() > 100 {
         // Warn if there are too many states
-        eprintln!("Warning: too many states");
+        eprintln!("Warning: there are {} states (process)", its.len());
     }
     let mut final_result = ParserIterationResult::new(U8Set::none(), false);
     let mut i = its.len();
@@ -228,7 +228,7 @@ fn seq2_helper(
 ) {
     if b_its.len() > 100 {
         // Warn if there are too many states
-        eprintln!("Warning: too many states");
+        eprintln!("Warning: there are {} states (seq2_helper)", b_its.len());
     }
     if a_result.is_complete {
         let b_it = b.initial_state();
