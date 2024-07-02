@@ -170,8 +170,7 @@ impl Combinator {
             (Combinator::Choice(combinators), CombinatorState::Choice(its)) => {
                 let mut final_result = ParserIterationResult::new(U8Set::none(), false);
                 for (combinator, its) in combinators.iter().zip(its.iter_mut()) {
-                    let result = process(combinator, c, its);
-                    final_result |= result;
+                    final_result |= process(combinator, c, its);
                 }
                 final_result
             }
