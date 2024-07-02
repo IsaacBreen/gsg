@@ -586,7 +586,7 @@ mod json_parser {
             // "GeneratedCSV_mini.json",
             // "GeneratedCSV_1.json",
             // "GeneratedCSV_2.json",
-            // "GeneratedCSV_10.json",
+            "GeneratedCSV_10.json",
             // "GeneratedCSV_20.json",
             // "GeneratedCSV_100.json",
             // "GeneratedCSV_200.json",
