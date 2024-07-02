@@ -572,29 +572,7 @@ mod json_parser {
         let exponent = seq!(choice!(eat_u8('e'), eat_u8('E')), seq!(choice!(choice!(eat_u8('+'), eat_u8('-')), eps()), digits));
         let number = seq!(integer, seq!(opt(fraction), opt(exponent)));
 
-        let string_char = choice!(
-            eat_u8_range_complement('"', '"'),
-            seq!(
-                eat_u8('\\'),
-                choice!(
-                    eat_u8('"'),
-                    eat_u8('\\'),
-                    eat_u8('/'),
-                    eat_u8('b'),
-                    eat_u8('f'),
-                    eat_u8('n'),
-                    eat_u8('r'),
-                    eat_u8('t'),
-                    seq!(
-                        eat_u8('u'),
-                        eat_u8_range('0', '9'),
-                        eat_u8_range('0', '9'),
-                        eat_u8_range('0', '9'),
-                        eat_u8_range('0', '9'),
-                    ),
-                ),
-            ),
-        );
+        let string_char = eat_u8_range_complement('"', '"');
         let string = seq!(eat_u8('"'), seq!(repeat(string_char), eat_u8('"')));
 
         let mut json_value = forward_ref();
