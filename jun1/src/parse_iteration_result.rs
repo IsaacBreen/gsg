@@ -59,7 +59,6 @@ impl ParserIterationResult {
         };
         Self {
             u8set: self.u8set | other.u8set,
-            // signals: self.signals | other.signals,
             signals: other.signals,
             node,
             id_complete,
@@ -70,12 +69,6 @@ impl ParserIterationResult {
         *self = self.clone().forward(other);
     }
 }
-
-// impl BitOrAssign for ParserIterationResult {
-//     fn bitor_assign(&mut self, other: Self) {
-//         *self = self.clone() | other;
-//     }
-// }
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum SignalAtom {
