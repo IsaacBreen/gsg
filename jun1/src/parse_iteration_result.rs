@@ -44,8 +44,15 @@ impl BitOrAssign for ParserIterationResult {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum Signal {
-    None,
+pub enum SignalAtom {
+    usize(usize),
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct Signal {
+    origin_id: usize,
+    id: usize,
+    pub atom: Vec<SignalAtom>,
 }
 
 #[derive(Clone, PartialEq, Debug, Default)]
@@ -53,11 +60,17 @@ pub struct Signals {
     signals: Vec<Signal>,
 }
 
-impl BitOr for Signal {
-    type Output = Signals;
+impl Signal {
+    pub fn push(&mut self, signal_atom: SignalAtom) {
+        self.atom.push(signal_atom);
+    }
+}
 
-    fn bitor(self, other: Self) -> Signals {
-        Signals { signals: vec![self, other] }
+impl Signals {
+    pub fn push(&mut self, signal_atom: SignalAtom) {
+        for signal in self.signals.iter_mut() {
+            signal.push(signal_atom.clone());
+        }
     }
 }
 
