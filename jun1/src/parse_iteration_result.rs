@@ -9,8 +9,8 @@ pub struct ParserIterationResult {
 }
 
 impl ParserIterationResult {
-    pub fn new(u8set: U8Set, is_complete: bool) -> Self {
-        Self { u8set, is_complete, signals: Default::default() }
+    pub fn new(u8set: U8Set, is_complete: bool, signals: Signals) -> Self {
+        Self { u8set, is_complete, signals }
     }
 
     pub fn u8set(&self) -> &U8Set {
@@ -29,7 +29,8 @@ impl BitOr for ParserIterationResult {
         Self {
             u8set: self.u8set | other.u8set,
             is_complete: self.is_complete | other.is_complete,
-            signals: self.signals | other.signals,
+            // signals: self.signals | other.signals,
+            signals: other.signals,
         }
     }
 }
@@ -39,16 +40,6 @@ impl BitOrAssign for ParserIterationResult {
         self.u8set |= other.u8set;
         self.is_complete |= other.is_complete;
         self.signals |= other.signals;
-    }
-}
-
-impl BitOr for &ParserIterationResult {
-    type Output = ParserIterationResult;
-
-    fn bitor(self, other: Self) -> ParserIterationResult {
-        let mut result = ParserIterationResult::new(self.u8set.clone(), self.is_complete);
-        result.signals |= other.signals.clone();
-        result
     }
 }
 
