@@ -1,4 +1,5 @@
 use std::ops::{BitOr, BitOrAssign};
+use crate::gss::GSSNode;
 use crate::u8set::U8Set;
 
 #[derive(Clone, PartialEq, Debug)]
@@ -6,11 +7,12 @@ pub struct ParserIterationResult {
     u8set: U8Set,
     pub is_complete: bool,
     signals: Signals,
+    pub node: Option<GSSNode<()>>,
 }
 
 impl ParserIterationResult {
     pub fn new(u8set: U8Set, is_complete: bool, signals: Signals) -> Self {
-        Self { u8set, is_complete, signals }
+        Self { u8set, is_complete, signals, node: None }
     }
 
     pub fn u8set(&self) -> &U8Set {
@@ -26,20 +28,28 @@ impl BitOr for ParserIterationResult {
     type Output = Self;
 
     fn bitor(self, other: Self) -> Self {
+        let node = match (self.node, other.node) {
+            (None, None) => None,
+            (Some(node), None) => Some(node),
+            (None, Some(node)) => Some(node),
+            (Some(mut node), Some(other_node)) => {
+                node.merge(other_node);
+                Some(node)
+            }
+        };
         Self {
             u8set: self.u8set | other.u8set,
             is_complete: self.is_complete | other.is_complete,
             // signals: self.signals | other.signals,
             signals: other.signals,
+            node
         }
     }
 }
 
 impl BitOrAssign for ParserIterationResult {
     fn bitor_assign(&mut self, other: Self) {
-        self.u8set |= other.u8set;
-        self.is_complete |= other.is_complete;
-        self.signals |= other.signals;
+        *self = self.clone() | other;
     }
 }
 

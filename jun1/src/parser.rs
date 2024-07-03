@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
+use crate::gss::GSSNode;
 use crate::parse_iteration_result::{ParserIterationResult, Signals};
 use crate::u8set::U8Set;
 
@@ -95,23 +96,23 @@ struct WrappedCombinatorState {
 }
 
 impl Combinator {
-    fn initial_state(&self) -> CombinatorState {
+    fn initial_state(&self, node: Option<&GSSNode<()>>) -> CombinatorState {
         match self {
-            Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state()))),
-            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state()]).collect()),
+            Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(node)))),
+            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state(node)]).collect()),
             Combinator::EatString(_) => CombinatorState::EatString(0),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
             Combinator::Eps => CombinatorState::Eps,
             Combinator::ForwardRef(c) => {
                 match c.as_ref().borrow().as_ref() {
-                    Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state())),
+                    Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state(node))),
                     None => panic!("ForwardRef not set"),
                 }
             }
-            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![a.initial_state()]),
+            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![a.initial_state(node)]),
             Combinator::Seq(a) => {
                 let mut its = Vec::with_capacity(a.len());
-                its.push(vec![a[0].initial_state()]);
+                its.push(vec![a[0].initial_state(node)]);
                 for _ in 1..a.len() {
                     its.push(Vec::new());
                 }
@@ -253,7 +254,7 @@ fn seq2_helper(
         eprintln!("Warning: there are {} states (seq2_helper)", b_its.len());
     }
     if a_result.is_complete {
-        let mut b_it = b.initial_state();
+        let mut b_it = b.initial_state(a_result.node.as_ref());
         let b_result = b.next_state(&mut b_it, None);
         b_its.push(b_it);
         a_result.is_complete = false;
@@ -353,7 +354,7 @@ struct ActiveCombinator {
 
 impl ActiveCombinator {
     fn new(combinator: Combinator) -> Self {
-        let state = combinator.initial_state();
+        let state = combinator.initial_state(None);
         Self {
             combinator,
             state,
