@@ -127,46 +127,41 @@ impl Combinator {
                 f().next_state(inner_state, c)
             }
             (Combinator::Choice(combinators), CombinatorState::Choice(its)) => {
-                let mut final_result = ParserIterationResult::new(U8Set::none(), Signals::default());
+                let mut final_result = ParserIterationResult::new(U8Set::none(), false, Signals::default());
                 for (combinator, its) in combinators.iter().zip(its.iter_mut()) {
                     final_result |= process(combinator, c, its);
                 }
                 final_result
             }
             (Combinator::EatString(value), CombinatorState::EatString(index, signals)) => {
-                if *index > value.len() {
-                    panic!("EatString: index out of bounds");
+                if *index >= value.len() {
+                    return ParserIterationResult::new(U8Set::none(), *index == value.len(), Default::default());
                 }
-                let u8set = if *index == value.len() {
-                    U8Set::none()
-                } else {
-                    U8Set::from_chars(&value[*index..=*index])
-                };
+                let u8set = U8Set::from_chars(&value[*index..=*index]);
                 let is_complete = *index == value.len() && c.map(|ch| ch == value[*index..].chars().next().unwrap()).unwrap_or(false);
                 *index += 1;
                 let signals = if is_complete { signals.take().unwrap() } else { Default::default() };
-                ParserIterationResult::new(u8set, signals)
+                ParserIterationResult::new(u8set, is_complete, signals)
             }
             (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state, signals)) => {
                 match *state {
                     0 => {
                         *state = 1;
-                        ParserIterationResult::new(u8set.clone(), Default::default())
+                        ParserIterationResult::new(u8set.clone(), false, Default::default())
                     }
                     1 => {
                         *state = 2;
                         ParserIterationResult::new(
                             U8Set::none(),
-                            // c.map(|c| u8set.contains(c as u8)).unwrap_or(false),
-                            // signals.take().unwrap(),
-                            c.map(|c| u8set.contains(c as u8).then(|| signals.take().unwrap())).flatten().unwrap_or(Default::default()),
+                            c.map(|c| u8set.contains(c as u8)).unwrap_or(false),
+                            signals.take().unwrap(),
                         )
                     }
                     _ => panic!("EatU8Matching: state out of bounds"),
                 }
             }
             (Combinator::Eps, CombinatorState::Eps(signals)) => {
-                ParserIterationResult::new(U8Set::none(), signals.take().unwrap())
+                ParserIterationResult::new(U8Set::none(), true, signals.take().unwrap())
             }
             (Combinator::ForwardRef(inner), CombinatorState::ForwardRef(inner_state)) => {
                 match inner.as_ref().borrow().as_ref() {
@@ -239,7 +234,7 @@ where C: GetCombinatorState {
         // Warn if there are too many states
         eprintln!("Warning: there are {} states (process)", its.len());
     }
-    let mut final_result = ParserIterationResult::new(U8Set::none(), Default::default());
+    let mut final_result = ParserIterationResult::new(U8Set::none(), false, Default::default());
     its.retain_mut(|it| {
         let result = combinator.next_state(it.get_combinator_state_mut(), c);
         let is_empty = result.u8set().is_empty();
@@ -258,11 +253,11 @@ fn seq2_helper(
         // Warn if there are too many states
         eprintln!("Warning: there are {} states (seq2_helper)", b_its.len());
     }
-    if a_result.is_complete() {
+    if a_result.is_complete {
         let mut b_it = b.initial_state(a_result.signals().clone());
         let b_result = b.next_state(&mut b_it, None);
         b_its.push(b_it);
-        // a_result.is_complete() = false;
+        a_result.is_complete = false;
         BitOrAssign::bitor_assign(a_result, b_result);
     }
 }
@@ -455,58 +450,58 @@ mod tests {
     fn test_eat_u8() {
         let mut it = ActiveCombinator::new(eat_u8('a').clone());
         let result0 = it.send(None);
-        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), Default::default()));
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false, Default::default()));
         let result = it.send(Some('a'));
-        assert_eq!(result, ParserIterationResult::new(U8Set::none(), Default::default()));
+        assert_eq!(result, ParserIterationResult::new(U8Set::none(), true, Default::default()));
     }
 
     #[test]
     fn test_eat_string() {
         let mut it = ActiveCombinator::new(eat_string("abc").clone());
         let result0 = it.send(None);
-        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), Default::default()));
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false, Default::default()));
         let result1 = it.send(Some('a'));
-        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("b"), Default::default()));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("b"), false, Default::default()));
         let result2 = it.send(Some('b'));
-        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("c"), Default::default()));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("c"), false, Default::default()));
         let result3 = it.send(Some('c'));
-        assert_eq!(result3, ParserIterationResult::new(U8Set::none(), Default::default()));
+        assert_eq!(result3, ParserIterationResult::new(U8Set::none(), true, Default::default()));
     }
 
     #[test]
     fn test_seq() {
         let mut it = ActiveCombinator::new(seq!(eat_u8('a'), eat_u8('b')).clone());
         let result0 = it.send(None);
-        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), Default::default()));
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false, Default::default()));
         let result1 = it.send(Some('a'));
-        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("b"), Default::default()));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("b"), false, Default::default()));
         let result2 = it.send(Some('b'));
-        assert_eq!(result2, ParserIterationResult::new(U8Set::none(), Signals::success()));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::none(), true, Default::default()));
     }
 
     #[test]
     fn test_repeat1() {
         let mut it = ActiveCombinator::new(repeat1(eat_u8('a')));
         let result0 = it.send(None);
-        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), Default::default()));
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false, Default::default()));
         let result1 = it.send(Some('a'));
-        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("a"), Signals::success()));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("a"), true, Default::default()));
         let result2 = it.send(Some('a'));
-        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("a"), Signals::success()));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("a"), true, Default::default()));
     }
 
     #[test]
     fn test_choice() {
         let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')));
         let result0 = it.send(None);
-        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("ab"), Default::default()));
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("ab"), false, Default::default()));
         let result1 = it.send(Some('a'));
-        assert_eq!(result1, ParserIterationResult::new(U8Set::none(), Signals::success()));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::none(), true, Default::default()));
 
         let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')));
         it.send(None);
         let result2 = it.send(Some('b'));
-        assert_eq!(result2, ParserIterationResult::new(U8Set::none(), Signals::success()));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::none(), true, Default::default()));
     }
 
     #[test]
@@ -519,13 +514,13 @@ mod tests {
             ),
         );
         let result0 = it.send(None);
-        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), Default::default()));
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("a"), false, Default::default()));
         let result1 = it.send(Some('a'));
-        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("bc"), Default::default()));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("bc"), false, Default::default()));
         let result2 = it.send(Some('b'));
-        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("c"), Default::default()));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("c"), false, Default::default()));
         let result3 = it.send(Some('c'));
-        assert_eq!(result3, ParserIterationResult::new(U8Set::none(), Signals::success()));
+        assert_eq!(result3, ParserIterationResult::new(U8Set::none(), true, Default::default()));
     }
 
     #[test]
@@ -538,13 +533,13 @@ mod tests {
         }
         let mut it = ActiveCombinator::new(nested_brackets());
         let result0 = it.send(None);
-        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("[a"), Default::default()));
+        assert_eq!(result0, ParserIterationResult::new(U8Set::from_chars("[a"), false, Default::default()));
         let result1 = it.send(Some('['));
-        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("[a"), Default::default()));
+        assert_eq!(result1, ParserIterationResult::new(U8Set::from_chars("[a"), false, Default::default()));
         let result2 = it.send(Some('a'));
-        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("]"), Default::default()));
+        assert_eq!(result2, ParserIterationResult::new(U8Set::from_chars("]"), false, Default::default()));
         let result3 = it.send(Some(']'));
-        assert_eq!(result3, ParserIterationResult::new(U8Set::none(), Signals::success()));
+        assert_eq!(result3, ParserIterationResult::new(U8Set::none(), true, Default::default()));
     }
 }
 
@@ -623,7 +618,7 @@ mod json_parser {
                 assert!(result.u8set().contains(char as u8), "Expected {} to be in {:?}", char, result.u8set());
                 result = it.send(Some(char));
             }
-            result.is_complete()
+            result.is_complete
         };
 
         for json_string in test_cases {
