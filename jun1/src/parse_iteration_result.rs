@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-use std::ops::{BitOr, BitOrAssign};
+use std::collections::{HashMap, HashSet};
+use std::ops::{BitAnd, BitOr, BitOrAssign};
 use crate::gss::GSSNode;
 use crate::u8set::U8Set;
 
@@ -34,16 +34,7 @@ impl ParserIterationResult {
 //
 //     fn bitor(self, mut other: Self) -> Self {
 impl ParserIterationResult {
-    pub fn forward(self, mut other: Self) -> Self {
-        let node = match (self.node, other.node) {
-            (None, None) => None,
-            (Some(node), None) => Some(node),
-            (None, Some(node)) => Some(node),
-            (Some(mut node), Some(other_node)) => {
-                node.merge(other_node);
-                Some(node)
-            }
-        };
+    pub fn merge(self, mut other: Self) -> Self {
         let id_complete = match (self.id_complete, other.id_complete) {
             (None, None) => None,
             (Some(id_complete), None) => Some(id_complete),
@@ -57,15 +48,31 @@ impl ParserIterationResult {
                 Some(other_id_complete)
             }
         };
+        // Merge the signal sets
+        let signals = self.signals | other.signals;
         Self {
             u8set: self.u8set | other.u8set,
-            signals: other.signals,
-            node,
+            signals,
+            node: None,
             id_complete,
         }
     }
 
-    pub(crate) fn forward_assign(&mut self, other: Self) {
+    pub fn merge_assign(&mut self, other: Self) {
+        *self = self.clone().merge(other);
+    }
+
+    pub fn forward(self, other: Self) -> Self {
+        let signals = self.signals & other.signals;
+        Self {
+            u8set: self.u8set | other.u8set,
+            signals,
+            node: None,
+            id_complete: other.id_complete,
+        }
+    }
+
+    pub fn forward_assign(&mut self, other: Self) {
         *self = self.clone().forward(other);
     }
 }
@@ -109,5 +116,28 @@ impl BitOr for Signals {
 impl BitOrAssign for Signals {
     fn bitor_assign(&mut self, other: Self) {
         self.signals.extend(other.signals);
+    }
+}
+
+impl BitAnd for Signals {
+    type Output = Signals;
+
+    fn bitand(self, other: Self) -> Signals {
+        let ids = self.signals.keys().chain(other.signals.keys()).cloned().collect::<HashSet<_>>();
+        let mut signals = Signals::default();
+        for id in ids.iter() {
+            if self.signals.contains_key(id) && other.signals.contains_key(id) {
+                let mut signal: Signal = self.signals[id].clone();
+                signal.atoms.extend(other.signals[id].atoms.iter().cloned());
+                signals.signals.insert(*id, signal);
+            } else if self.signals.contains_key(id) {
+                signals.signals.insert(*id, self.signals[id].clone());
+            } else if other.signals.contains_key(id) {
+                signals.signals.insert(*id, other.signals[id].clone());
+            }
+        }
+        signals.merges.extend(self.merges.iter());
+        signals.merges.extend(other.merges.iter());
+        signals
     }
 }

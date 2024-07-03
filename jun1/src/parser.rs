@@ -130,7 +130,7 @@ impl Combinator {
             (Combinator::Choice(combinators), CombinatorState::Choice(its)) => {
                 let mut final_result = ParserIterationResult::new(U8Set::none(), None, Signals::default());
                 for (combinator, its) in combinators.iter().zip(its.iter_mut()) {
-                    final_result.forward_assign(process(combinator, c, its, signal_id));
+                    final_result.merge_assign(process(combinator, c, its, signal_id));
                 }
                 final_result
             }
@@ -178,15 +178,14 @@ impl Combinator {
             (Combinator::Repeat1(a), CombinatorState::Repeat1(a_its)) => {
                 let mut a_result = process(a.as_ref(), c, a_its, signal_id);
                 let b_result = a_result.clone();
-                seq2_helper(a, &mut a_result, a_its, signal_id);
-                a_result.forward(b_result)
+                seq2_helper(a, &mut a_result, b_result, a_its, signal_id);
+                a_result
             }
             (Combinator::Seq(a), CombinatorState::Seq(its)) => {
                 let mut a_result = process(&a[0], c, &mut its[0], signal_id);
                 for (combinator, its) in a.iter().zip(its.iter_mut()).skip(1) {
                     let b_result = process(combinator, c, its, signal_id);
-                    seq2_helper(combinator, &mut a_result, its, signal_id);
-                    a_result.forward_assign(b_result);
+                    seq2_helper(combinator, &mut a_result, b_result, its, signal_id);
                 }
                 a_result
             }
@@ -240,7 +239,7 @@ where C: GetCombinatorState {
     its.retain_mut(|it| {
         let result = combinator.next_state(it.get_combinator_state_mut(), c, signal_id);
         let is_empty = result.u8set().is_empty();
-        final_result.forward_assign(result);
+        final_result.merge_assign(result);
         !is_empty
     });
     final_result
@@ -249,6 +248,7 @@ where C: GetCombinatorState {
 fn seq2_helper(
     b: &Combinator,
     a_result: &mut ParserIterationResult,
+    b_result: ParserIterationResult,
     b_its: &mut Vec<CombinatorState>,
     signal_id: &mut usize,
 ) {
@@ -260,9 +260,9 @@ fn seq2_helper(
         let mut b_it = b.initial_state(a_result.node.as_ref(), signal_id);
         let b_result = b.next_state(&mut b_it, None, signal_id);
         b_its.push(b_it);
-        a_result.id_complete = None;
         a_result.forward_assign(b_result);
     }
+    a_result.merge_assign(b_result);
 }
 
 fn seq<Combinators>(combinators: Combinators) -> Combinator
