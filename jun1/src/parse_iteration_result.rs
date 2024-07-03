@@ -29,10 +29,12 @@ impl ParserIterationResult {
     }
 }
 
-impl BitOr for ParserIterationResult {
-    type Output = Self;
-
-    fn bitor(self, mut other: Self) -> Self {
+// impl BitOr for ParserIterationResult {
+//     type Output = Self;
+//
+//     fn bitor(self, mut other: Self) -> Self {
+impl ParserIterationResult {
+    pub fn forward(self, mut other: Self) -> Self {
         let node = match (self.node, other.node) {
             (None, None) => None,
             (Some(node), None) => Some(node),
@@ -63,13 +65,17 @@ impl BitOr for ParserIterationResult {
             id_complete,
         }
     }
-}
 
-impl BitOrAssign for ParserIterationResult {
-    fn bitor_assign(&mut self, other: Self) {
-        *self = self.clone() | other;
+    pub(crate) fn forward_assign(&mut self, other: Self) {
+        *self = self.clone().forward(other);
     }
 }
+
+// impl BitOrAssign for ParserIterationResult {
+//     fn bitor_assign(&mut self, other: Self) {
+//         *self = self.clone() | other;
+//     }
+// }
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum SignalAtom {

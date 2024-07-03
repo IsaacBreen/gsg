@@ -130,7 +130,8 @@ impl Combinator {
             (Combinator::Choice(combinators), CombinatorState::Choice(its)) => {
                 let mut final_result = ParserIterationResult::new(U8Set::none(), None, Signals::default());
                 for (combinator, its) in combinators.iter().zip(its.iter_mut()) {
-                    final_result |= process(combinator, c, its, signal_id);
+                    // final_result |= process(combinator, c, its, signal_id);
+                    final_result.forward_assign(process(combinator, c, its, signal_id));
                 }
                 final_result
             }
@@ -179,14 +180,16 @@ impl Combinator {
                 let mut a_result = process(a.as_ref(), c, a_its, signal_id);
                 let b_result = a_result.clone();
                 seq2_helper(a, &mut a_result, a_its, signal_id);
-                a_result | b_result
+                // a_result | b_result
+                a_result.forward(b_result)
             }
             (Combinator::Seq(a), CombinatorState::Seq(its)) => {
                 let mut a_result = process(&a[0], c, &mut its[0], signal_id);
                 for (combinator, its) in a.iter().zip(its.iter_mut()).skip(1) {
                     let b_result = process(combinator, c, its, signal_id);
                     seq2_helper(combinator, &mut a_result, its, signal_id);
-                    a_result |= b_result
+                    // a_result |= b_result
+                    a_result.forward_assign(b_result);
                 }
                 a_result
             }
@@ -240,7 +243,8 @@ where C: GetCombinatorState {
     its.retain_mut(|it| {
         let result = combinator.next_state(it.get_combinator_state_mut(), c, signal_id);
         let is_empty = result.u8set().is_empty();
-        final_result |= result;
+        // final_result |= result;
+        final_result.forward_assign(result);
         !is_empty
     });
     final_result
@@ -261,7 +265,8 @@ fn seq2_helper(
         let b_result = b.next_state(&mut b_it, None, signal_id);
         b_its.push(b_it);
         a_result.id_complete = None;
-        BitOrAssign::bitor_assign(a_result, b_result);
+        // BitOrAssign::bitor_assign(a_result, b_result);
+        a_result.forward_assign(b_result);
     }
 }
 
