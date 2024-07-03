@@ -3,7 +3,7 @@ use crate::u8set::U8Set;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct ParserIterationResult {
-    pub u8set: U8Set,
+    u8set: U8Set,
     pub is_complete: bool,
     signals: Signals
 }
