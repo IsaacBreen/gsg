@@ -5,7 +5,7 @@ use crate::u8set::U8Set;
 pub struct ParserIterationResult {
     u8set: U8Set,
     pub is_complete: bool,
-    signals: Signals
+    signals: Signals,
 }
 
 impl ParserIterationResult {
