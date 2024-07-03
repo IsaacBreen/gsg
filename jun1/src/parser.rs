@@ -10,11 +10,12 @@ use crate::u8set::U8Set;
 struct ParserIterationResult {
     u8set: U8Set,
     is_complete: bool,
+    signals: Signals
 }
 
 impl ParserIterationResult {
     fn new(u8set: U8Set, is_complete: bool) -> Self {
-        Self { u8set, is_complete }
+        Self { u8set, is_complete, signals: Default::default() }
     }
 }
 
@@ -25,6 +26,7 @@ impl BitOr for ParserIterationResult {
         Self {
             u8set: self.u8set | other.u8set,
             is_complete: self.is_complete | other.is_complete,
+            signals: self.signals | other.signals,
         }
     }
 }
@@ -33,24 +35,41 @@ impl BitOrAssign for ParserIterationResult {
     fn bitor_assign(&mut self, other: Self) {
         self.u8set |= other.u8set;
         self.is_complete |= other.is_complete;
+        self.signals |= other.signals;
     }
 }
 
-impl BitAnd for ParserIterationResult {
-    type Output = Self;
+#[derive(Clone, PartialEq, Debug)]
+enum Signal {
+    None,
+}
 
-    fn bitand(self, other: Self) -> Self {
-        Self {
-            u8set: self.u8set & other.u8set,
-            is_complete: self.is_complete & other.is_complete,
-        }
+#[derive(Clone, PartialEq, Debug, Default)]
+struct Signals {
+    signals: Vec<Signal>,
+}
+
+impl BitOr for Signal {
+    type Output = Signals;
+
+    fn bitor(self, other: Self) -> Signals {
+        Signals { signals: vec![self, other] }
     }
 }
 
-impl BitAndAssign for ParserIterationResult {
-    fn bitand_assign(&mut self, other: Self) {
-        self.u8set &= other.u8set;
-        self.is_complete &= other.is_complete;
+impl BitOr for Signals {
+    type Output = Signals;
+
+    fn bitor(self, other: Self) -> Signals {
+        let mut signals = self.signals;
+        signals.extend(other.signals);
+        Signals { signals }
+    }
+}
+
+impl BitOrAssign for Signals {
+    fn bitor_assign(&mut self, other: Self) {
+        *self = self.clone() | other;
     }
 }
 
