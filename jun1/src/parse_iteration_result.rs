@@ -48,11 +48,11 @@ pub enum SignalAtom {
     usize(usize),
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Signal {
     origin_id: usize,
     id: usize,
-    pub atom: Vec<SignalAtom>,
+    pub atoms: Vec<SignalAtom>,
 }
 
 #[derive(Clone, PartialEq, Debug, Default)]
@@ -62,7 +62,17 @@ pub struct Signals {
 
 impl Signal {
     pub fn push(&mut self, signal_atom: SignalAtom) {
-        self.atom.push(signal_atom);
+        self.atoms.push(signal_atom);
+    }
+}
+
+impl Clone for Signal {
+    fn clone(&self) -> Self {
+        Self {
+            origin_id: self.origin_id,
+            id: self.id,
+            atoms: self.atoms.clone(),
+        }
     }
 }
 
