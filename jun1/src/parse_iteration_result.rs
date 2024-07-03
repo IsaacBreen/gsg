@@ -53,12 +53,12 @@ impl BitOr for &ParserIterationResult {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-enum Signal {
+pub enum Signal {
     None,
 }
 
 #[derive(Clone, PartialEq, Debug, Default)]
-struct Signals {
+pub struct Signals {
     signals: Vec<Signal>,
 }
 
