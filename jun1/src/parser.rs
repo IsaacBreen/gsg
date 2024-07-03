@@ -4,74 +4,8 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
+use crate::parse_iteration_result::ParserIterationResult;
 use crate::u8set::U8Set;
-
-#[derive(Clone, PartialEq, Debug)]
-struct ParserIterationResult {
-    u8set: U8Set,
-    is_complete: bool,
-    signals: Signals
-}
-
-impl ParserIterationResult {
-    fn new(u8set: U8Set, is_complete: bool) -> Self {
-        Self { u8set, is_complete, signals: Default::default() }
-    }
-}
-
-impl BitOr for ParserIterationResult {
-    type Output = Self;
-
-    fn bitor(self, other: Self) -> Self {
-        Self {
-            u8set: self.u8set | other.u8set,
-            is_complete: self.is_complete | other.is_complete,
-            signals: self.signals | other.signals,
-        }
-    }
-}
-
-impl BitOrAssign for ParserIterationResult {
-    fn bitor_assign(&mut self, other: Self) {
-        self.u8set |= other.u8set;
-        self.is_complete |= other.is_complete;
-        self.signals |= other.signals;
-    }
-}
-
-#[derive(Clone, PartialEq, Debug)]
-enum Signal {
-    None,
-}
-
-#[derive(Clone, PartialEq, Debug, Default)]
-struct Signals {
-    signals: Vec<Signal>,
-}
-
-impl BitOr for Signal {
-    type Output = Signals;
-
-    fn bitor(self, other: Self) -> Signals {
-        Signals { signals: vec![self, other] }
-    }
-}
-
-impl BitOr for Signals {
-    type Output = Signals;
-
-    fn bitor(self, other: Self) -> Signals {
-        let mut signals = self.signals;
-        signals.extend(other.signals);
-        Signals { signals }
-    }
-}
-
-impl BitOrAssign for Signals {
-    fn bitor_assign(&mut self, other: Self) {
-        *self = self.clone() | other;
-    }
-}
 
 #[derive(Clone)]
 enum Combinator {
@@ -269,7 +203,7 @@ fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorSta
     let mut final_result = ParserIterationResult::new(U8Set::none(), false);
     its.retain_mut(|it| {
         let result = combinator.next_state(it, c);
-        let is_empty = result.u8set.is_empty();
+        let is_empty = result.u8set().is_empty();
         final_result |= result;
         !is_empty
     });
@@ -289,8 +223,8 @@ fn seq2_helper(
         let b_it = b.initial_state();
         b_its.push(b_it);
         let b_result = b.next_state(b_its.last_mut().unwrap(), None);
-        a_result.is_complete = b_result.is_complete;
-        a_result.u8set |= b_result.u8set;
+        a_result.is_complete = false;
+        BitOrAssign::bitor_assign(a_result, b_result);
     }
 }
 
@@ -647,7 +581,7 @@ mod json_parser {
             let mut it = ActiveCombinator::new(json_parser.clone());
             let mut result = it.send(None);
             for char in json_string.chars() {
-                assert!(result.u8set.contains(char as u8), "Expected {} to be in {:?}", char, result.u8set);
+                assert!(result.u8set().contains(char as u8), "Expected {} to be in {:?}", char, result.u8set());
                 result = it.send(Some(char));
             }
             result.is_complete
