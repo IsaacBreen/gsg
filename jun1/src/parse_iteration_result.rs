@@ -29,10 +29,6 @@ impl ParserIterationResult {
     }
 }
 
-// impl BitOr for ParserIterationResult {
-//     type Output = Self;
-//
-//     fn bitor(self, mut other: Self) -> Self {
 impl ParserIterationResult {
     pub fn merge(self, mut other: Self) -> Self {
         let id_complete = match (self.id_complete, other.id_complete) {
