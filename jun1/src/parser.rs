@@ -80,9 +80,9 @@ impl Debug for Combinator {
 enum CombinatorState {
     Call(Option<Box<CombinatorState>>),
     Choice(Vec<Vec<CombinatorState>>),
-    EatString(usize, Option<Signals>),
-    EatU8Matching(u8, Option<Signals>),
-    Eps(Option<Signals>),
+    EatString(usize),
+    EatU8Matching(u8),
+    Eps,
     ForwardRef(Box<CombinatorState>),
     Repeat1(Vec<CombinatorState>),
     Seq(Vec<Vec<CombinatorState>>),
@@ -99,9 +99,9 @@ impl Combinator {
         match self {
             Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(signals)))),
             Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state(signals.clone())]).collect()),
-            Combinator::EatString(_) => CombinatorState::EatString(0, Some(signals)),
-            Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0, Some(signals)),
-            Combinator::Eps => CombinatorState::Eps(Some(signals)),
+            Combinator::EatString(_) => CombinatorState::EatString(0),
+            Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
+            Combinator::Eps => CombinatorState::Eps,
             Combinator::ForwardRef(c) => {
                 match c.as_ref().borrow().as_ref() {
                     Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state(signals))),
@@ -133,17 +133,16 @@ impl Combinator {
                 }
                 final_result
             }
-            (Combinator::EatString(value), CombinatorState::EatString(index, signals)) => {
+            (Combinator::EatString(value), CombinatorState::EatString(index)) => {
                 if *index >= value.len() {
                     return ParserIterationResult::new(U8Set::none(), *index == value.len(), Default::default());
                 }
                 let u8set = U8Set::from_chars(&value[*index..=*index]);
                 let is_complete = *index == value.len() && c.map(|ch| ch == value[*index..].chars().next().unwrap()).unwrap_or(false);
                 *index += 1;
-                let signals = if is_complete { signals.take().unwrap() } else { Default::default() };
-                ParserIterationResult::new(u8set, is_complete, signals)
+                ParserIterationResult::new(u8set, is_complete, Default::default())
             }
-            (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state, signals)) => {
+            (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state)) => {
                 match *state {
                     0 => {
                         *state = 1;
@@ -154,14 +153,14 @@ impl Combinator {
                         ParserIterationResult::new(
                             U8Set::none(),
                             c.map(|c| u8set.contains(c as u8)).unwrap_or(false),
-                            signals.take().unwrap(),
+                            Default::default(),
                         )
                     }
                     _ => panic!("EatU8Matching: state out of bounds"),
                 }
             }
-            (Combinator::Eps, CombinatorState::Eps(signals)) => {
-                ParserIterationResult::new(U8Set::none(), true, signals.take().unwrap())
+            (Combinator::Eps, CombinatorState::Eps) => {
+                ParserIterationResult::new(U8Set::none(), true, Default::default())
             }
             (Combinator::ForwardRef(inner), CombinatorState::ForwardRef(inner_state)) => {
                 match inner.as_ref().borrow().as_ref() {
