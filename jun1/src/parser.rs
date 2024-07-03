@@ -79,20 +79,26 @@ impl Debug for Combinator {
 #[derive(Debug)]
 enum CombinatorState {
     Call(Option<Box<CombinatorState>>),
-    Choice(Vec<Vec<CombinatorState>>),
+    Choice(Vec<Vec<WrappedCombinatorState>>),
     EatString(usize),
     EatU8Matching(u8),
     Eps,
     ForwardRef(Box<CombinatorState>),
-    Repeat1(Vec<CombinatorState>),
-    Seq(Vec<Vec<CombinatorState>>),
+    Repeat1(Vec<WrappedCombinatorState>),
+    Seq(Vec<Vec<WrappedCombinatorState>>),
+}
+
+#[derive(Debug)]
+struct WrappedCombinatorState {
+    state: CombinatorState,
 }
 
 impl Combinator {
     fn initial_state(&self) -> CombinatorState {
         match self {
             Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state()))),
-            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state()]).collect()),
+            // Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state()]).collect()),
+            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![WrappedCombinatorState { state: a.initial_state() }]).collect()),
             Combinator::EatString(_) => CombinatorState::EatString(0),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0),
             Combinator::Eps => CombinatorState::Eps,
@@ -102,10 +108,12 @@ impl Combinator {
                     None => panic!("ForwardRef not set"),
                 }
             }
-            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![a.initial_state()]),
+            // Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![a.initial_state()]),
+            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![WrappedCombinatorState { state: a.initial_state() }]),
             Combinator::Seq(a) => {
                 let mut its = Vec::with_capacity(a.len());
-                its.push(vec![a[0].initial_state()]);
+                // its.push(vec![a[0].initial_state()]);
+                its.push(vec![WrappedCombinatorState { state: a[0].initial_state() }]);
                 for _ in 1..a.len() {
                     its.push(Vec::new());
                 }
@@ -195,14 +203,14 @@ impl Combinator {
     }
 }
 
-fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorState>) -> ParserIterationResult {
+fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<WrappedCombinatorState>) -> ParserIterationResult {
     if its.len() > 100 {
         // Warn if there are too many states
         eprintln!("Warning: there are {} states (process)", its.len());
     }
     let mut final_result = ParserIterationResult::new(U8Set::none(), false);
     its.retain_mut(|it| {
-        let result = combinator.next_state(it, c);
+        let result = combinator.next_state(&mut it.state, c);
         let is_empty = result.u8set().is_empty();
         final_result |= result;
         !is_empty
@@ -213,7 +221,7 @@ fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorSta
 fn seq2_helper(
     b: &Combinator,
     a_result: &mut ParserIterationResult,
-    b_its: &mut Vec<CombinatorState>,
+    b_its: &mut Vec<WrappedCombinatorState>,
 ) {
     if b_its.len() > 100 {
         // Warn if there are too many states
@@ -221,8 +229,8 @@ fn seq2_helper(
     }
     if a_result.is_complete {
         let b_it = b.initial_state();
-        b_its.push(b_it);
-        let b_result = b.next_state(b_its.last_mut().unwrap(), None);
+        b_its.push(WrappedCombinatorState { state: b_it });
+        let b_result = b.next_state(&mut b_its.last_mut().unwrap().state, None);
         a_result.is_complete = false;
         BitOrAssign::bitor_assign(a_result, b_result);
     }
