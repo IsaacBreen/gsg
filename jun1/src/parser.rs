@@ -963,6 +963,26 @@ mod tests {
         let result3 = it.send(Some('d'));
         assert_matches!(result3, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
     }
+
+    #[test]
+    fn test_names2() {
+        let mut it0 = ActiveCombinator::new_with_names(
+    choice!(
+                seq!(add_to_frame_stack(eat_string("a")), in_frame_stack(eat_string("a")), eat_string("b")),
+                seq!(eat_string("a"), in_frame_stack(eat_string("a")), eat_string("c")),
+            ),
+            vec![],
+        );
+        let mut it = it0.clone();
+        let result0 = it.send(None);
+        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        let result1 = it.send(Some('a'));
+        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        let result2 = it.send(Some('a'));
+        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("b"));
+        let result3 = it.send(Some('b'));
+        assert_matches!(result3, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+    }
 }
 
 #[cfg(test)]

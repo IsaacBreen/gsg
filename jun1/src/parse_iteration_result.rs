@@ -307,8 +307,7 @@ impl Frame {
     }
 
     pub fn next_u8_given_excludes(&self, name: &[u8]) -> (U8Set, bool) {
-        let (contains_set, contains_complete) = self.next_u8_given_contains(name);
-        (!contains_set, !contains_complete)
+        todo!()
     }
 
     pub fn push_name(&mut self, name: &[u8]) {
