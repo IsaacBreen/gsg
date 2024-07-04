@@ -236,18 +236,40 @@ impl BitOr for Signals2 {
 #[derive(Clone, PartialEq, Debug)]
 pub struct FrameStack {
     frames: Vec<Frame>,
+    tree: HashMap<usize, FrameNode>,
+    root_id: usize,
+    next_id: usize,
 }
 
 impl Default for FrameStack {
     fn default() -> Self {
-        Self { frames: vec![Frame::default()] }
+        let root_frame = Frame::default();
+        let root_id = 0;
+        let mut tree = HashMap::new();
+        tree.insert(root_id, FrameNode {
+            frame: root_frame,
+            parent_ids: Vec::new(),
+            child_ids: Vec::new(),
+        });
+        Self {
+            frames: vec![Frame::default()],
+            tree,
+            root_id,
+            next_id: 1,
+        }
     }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+struct FrameNode {
+    frame: Frame,
+    parent_ids: Vec<usize>,
+    child_ids: Vec<usize>,
 }
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Frame {
     pos: HashSet<String>,
-    neg: HashSet<String>,
 }
 
 impl Frame {
@@ -256,7 +278,7 @@ impl Frame {
     }
 
     pub fn excludes_prefix(&self, name_prefix: &str) -> bool {
-        !self.contains_prefix(name_prefix) || self.neg.iter().any(|name| name.starts_with(name_prefix))
+        !self.contains_prefix(name_prefix)
     }
 
     pub fn contains(&self, name: &str) -> bool {
@@ -264,7 +286,7 @@ impl Frame {
     }
 
     pub fn excludes(&self, name: &str) -> bool {
-        !self.contains(name) || self.neg.contains(name)
+        !self.contains(name)
     }
 
     pub fn next_u8_given_contains(&self, name: &[u8]) -> (U8Set, bool) {
@@ -285,7 +307,8 @@ impl Frame {
     }
 
     pub fn next_u8_given_excludes(&self, name: &[u8]) -> (U8Set, bool) {
-        todo!()
+        let (contains_set, contains_complete) = self.next_u8_given_contains(name);
+        (!contains_set, !contains_complete)
     }
 
     pub fn push_name(&mut self, name: &[u8]) {
@@ -307,7 +330,7 @@ impl FrameStack {
     }
 
     pub fn excludes_prefix(&self, name_prefix: &str) -> bool {
-        !self.contains_prefix(name_prefix) || self.frames.iter().any(|frame| frame.excludes_prefix(name_prefix))
+        !self.contains_prefix(name_prefix)
     }
 
     pub fn contains(&self, name: &str) -> bool {
@@ -315,7 +338,7 @@ impl FrameStack {
     }
 
     pub fn excludes(&self, name: &str) -> bool {
-        !self.contains(name) || self.frames.iter().any(|frame| frame.excludes(name))
+        !self.contains(name)
     }
 
     pub fn next_u8_given_contains(&self, name: &[u8]) -> (U8Set, bool) {
@@ -330,11 +353,33 @@ impl FrameStack {
     }
 
     pub fn next_u8_given_excludes(&self, name: &[u8]) -> (U8Set, bool) {
-        todo!()
+        let mut result_set = U8Set::all();
+        let mut is_complete = true;
+
+        for frame in self.frames.iter().rev() {
+            let (frame_set, frame_complete) = frame.next_u8_given_excludes(name);
+            result_set &= frame_set;
+            is_complete &= frame_complete;
+        }
+
+        (result_set, is_complete)
     }
 
     pub fn push_empty_frame(&mut self) {
-        self.frames.push(Frame::default());
+        let new_frame = Frame::default();
+        let new_id = self.next_id;
+        self.next_id += 1;
+
+        let parent_id = *self.tree.keys().max().unwrap();
+        self.tree.get_mut(&parent_id).unwrap().child_ids.push(new_id);
+
+        self.tree.insert(new_id, FrameNode {
+            frame: new_frame.clone(),
+            parent_ids: vec![parent_id],
+            child_ids: Vec::new(),
+        });
+
+        self.frames.push(new_frame);
     }
 
     pub fn push_name(&mut self, name: &[u8]) {
@@ -349,14 +394,46 @@ impl FrameStack {
         self.frames.pop();
     }
 
+    pub fn filter(&mut self, predicate: impl Fn(&Frame) -> bool) {
+        let mut to_remove = Vec::new();
+        let mut to_keep = Vec::new();
+
+        for (id, node) in self.tree.iter() {
+            if predicate(&node.frame) {
+                to_keep.push(*id);
+            } else {
+                to_remove.push(*id);
+            }
+        }
+
+        for id in to_remove {
+            if let Some(node) = self.tree.remove(&id) {
+                for parent_id in node.parent_ids {
+                    if let Some(parent) = self.tree.get_mut(&parent_id) {
+                        parent.child_ids.retain(|&child_id| child_id != id);
+                    }
+                }
+                for child_id in node.child_ids {
+                    if let Some(child) = self.tree.get_mut(&child_id) {
+                        child.parent_ids.retain(|&parent_id| parent_id != id);
+                    }
+                }
+            }
+        }
+
+        self.frames = to_keep.into_iter()
+            .filter_map(|id| self.tree.get(&id).map(|node| node.frame.clone()))
+            .collect();
+    }
+
     pub fn filter_contains(&mut self, name: &[u8]) {
-        // remove frames that don't contain the name
-        todo!()
+        let name = std::str::from_utf8(name).unwrap();
+        self.filter(|frame| frame.contains(name));
     }
 
     pub fn filter_excludes(&mut self, name: &[u8]) {
-        // remove frames that do contain the name
-        todo!()
+        let name = std::str::from_utf8(name).unwrap();
+        self.filter(|frame| !frame.contains(name));
     }
 }
 
@@ -364,7 +441,7 @@ impl BitOr for Frame {
     type Output = Frame;
 
     fn bitor(self, other: Self) -> Frame {
-        Frame { pos: self.pos.union(&other.pos).cloned().collect(), neg: self.neg.union(&other.neg).cloned().collect() }
+        Frame { pos: self.pos.union(&other.pos).cloned().collect() }
     }
 }
 
@@ -372,14 +449,32 @@ impl BitOr for FrameStack {
     type Output = FrameStack;
 
     fn bitor(self, other: Self) -> FrameStack {
-        // All except the last frames should be the same
-        assert_eq!(self.frames.len(), other.frames.len());
-        for (frame1, frame2) in self.frames.iter().zip(other.frames.iter()).rev().skip(1) {
-            assert_eq!(frame1, frame2);
+        // Merge the trees
+        let mut new_tree = self.tree.clone();
+        let mut id_map = HashMap::new();
+
+        for (old_id, node) in other.tree {
+            let new_id = self.next_id + old_id;
+            id_map.insert(old_id, new_id);
+
+            let mut new_node = node.clone();
+            new_node.parent_ids = new_node.parent_ids.iter().map(|&id| id_map[&id]).collect();
+            new_node.child_ids = new_node.child_ids.iter().map(|&id| id_map[&id]).collect();
+
+            new_tree.insert(new_id, new_node);
         }
-        let mut frames = self.frames.clone();
-        let last_frame = frames.last_mut().unwrap();
-        *last_frame = last_frame.clone() | other.frames.last().unwrap().clone();
-        FrameStack { frames }
+
+        // Merge the frames
+        let new_frames = self.frames.iter()
+            .zip(other.frames.iter())
+            .map(|(f1, f2)| f1.clone() | f2.clone())
+            .collect();
+
+        FrameStack {
+            frames: new_frames,
+            tree: new_tree,
+            root_id: self.root_id,
+            next_id: self.next_id + other.next_id,
+        }
     }
 }
