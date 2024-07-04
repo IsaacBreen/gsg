@@ -9,8 +9,8 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
-use crate::gss::GSSNode;
-use crate::parse_iteration_result::{Frame, FrameStack, ParserIterationResult, SignalAtom, Signals2};
+
+use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 use crate::u8set::U8Set;
 
 #[derive(Clone)]
@@ -23,7 +23,6 @@ enum Combinator {
     ForwardRef(Rc<RefCell<Option<Combinator>>>),
     Repeat1(Box<Combinator>),
     Seq(Rc<[Combinator]>),
-    SignalWrap(SignalAtom, SignalAtom, Box<Combinator>),
     WithFrameStack(Box<Combinator>),
     InFrameStack(Box<Combinator>),
     NotInFrameStack(Box<Combinator>),
@@ -43,12 +42,11 @@ impl PartialEq for Combinator {
             (Combinator::ForwardRef(a), Combinator::ForwardRef(b)) => Rc::ptr_eq(a, b),
             (Combinator::Repeat1(a), Combinator::Repeat1(b)) => *a == *b,
             (Combinator::Seq(a), Combinator::Seq(b)) => Rc::ptr_eq(a, b),
-            (Combinator::SignalWrap(_, _, _), Combinator::SignalWrap(_, _, _)) => self == other,
             (Combinator::InFrameStack(a), Combinator::InFrameStack(b)) => *a == *b,
             (Combinator::NotInFrameStack(a), Combinator::NotInFrameStack(b)) => *a == *b,
             (Combinator::AddToFrameStack(a), Combinator::AddToFrameStack(b)) => *a == *b,
             (Combinator::RemoveFromFrameStack(a), Combinator::RemoveFromFrameStack(b)) => *a == *b,
-            f => panic!("Combinator::PartialEq not implemented for {:?} and {:?}", self, other),
+            _ => panic!("Combinator::PartialEq not implemented for {:?} and {:?}", self, other),
         }
     }
 }
@@ -74,11 +72,6 @@ impl Hash for Combinator {
             }
             Combinator::Repeat1(a) => a.hash(state),
             Combinator::Seq(a) => a.hash(state),
-            Combinator::SignalWrap(start_signal_atom, end_signal_atom, a) => {
-                start_signal_atom.hash(state);
-                end_signal_atom.hash(state);
-                a.hash(state);
-            }
             Combinator::WithFrameStack(a) => a.hash(state),
             Combinator::InFrameStack(a) => a.hash(state),
             Combinator::NotInFrameStack(a) => a.hash(state),
@@ -99,7 +92,6 @@ impl Debug for Combinator {
             Combinator::ForwardRef(c) => write!(f, "ForwardRef({:?})", c),
             Combinator::Repeat1(a) => write!(f, "Repeat1({:?})", a),
             Combinator::Seq(a) => write!(f, "Seq({:?})", a),
-            Combinator::SignalWrap(signal_atom, end_signal_atom, a) => write!(f, "EmitSignal({:?}, {:?}, {:?})", signal_atom, end_signal_atom, a),
             Combinator::WithFrameStack(a) => write!(f, "WithFrameStack({:?})", a),
             Combinator::InFrameStack(a) => write!(f, "InFrameStack({:?})", a),
             Combinator::NotInFrameStack(a) => write!(f, "NotInFrameStack({:?})", a),
@@ -119,7 +111,6 @@ enum CombinatorState {
     ForwardRef(Box<CombinatorState>),
     Repeat1(Vec<CombinatorState>),
     Seq(Vec<Vec<CombinatorState>>),
-    SignalWrap(usize, bool, Box<CombinatorState>),
     WithFrameStack(Box<CombinatorState>),
     InFrameStack(Box<CombinatorState>, Vec<u8>),
     NotInFrameStack(Box<CombinatorState>, Vec<u8>),
@@ -150,7 +141,6 @@ impl Combinator {
                 }
                 CombinatorState::Seq(its)
             }
-            Combinator::SignalWrap(start_signal_atom, end_signal_atom, a) => CombinatorState::SignalWrap({ *signal_id += 1; *signal_id }, false, Box::new(a.initial_state(signal_id, frame_stack))),
             Combinator::WithFrameStack(a) => {
                 frame_stack.push_empty_frame();
                 a.initial_state(signal_id, frame_stack)
@@ -175,7 +165,7 @@ impl Combinator {
                 }
                 final_result
             }
-            (Combinator::EatString(value), CombinatorState::EatString(index, signal_id, frame_stack)) => {
+            (Combinator::EatString(value), CombinatorState::EatString(index, _, frame_stack)) => {
                 if *index > value.len() {
                     return ParserIterationResult::new(U8Set::none(), false, frame_stack.clone());
                 }
@@ -187,7 +177,7 @@ impl Combinator {
                 *index += 1;
                 ParserIterationResult::new(u8set, false, frame_stack.clone())
             }
-            (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state, signal_id, frame_stack)) => {
+            (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state, _, frame_stack)) => {
                 match *state {
                     0 => {
                         *state = 1;
@@ -206,7 +196,7 @@ impl Combinator {
                     _ => panic!("EatU8Matching: state out of bounds"),
                 }
             }
-            (Combinator::Eps, CombinatorState::Eps(signal_id, frame_stack)) => {
+            (Combinator::Eps, CombinatorState::Eps(_, frame_stack)) => {
                 let mut result = ParserIterationResult::new(U8Set::none(), true, frame_stack.clone());
                 result
             }
@@ -233,19 +223,6 @@ impl Combinator {
                     seq2_helper(combinator, &mut a_result, b_result, its, signal_id);
                 }
                 a_result
-            }
-            (Combinator::SignalWrap(start_signal_atom, end_signal_atom, a), CombinatorState::SignalWrap(start_signal_id, ref mut stage, state)) => {
-                let mut result = a.next_state(state, c, signal_id);
-                if result.is_complete && !*stage {
-                    let new_signal_id = { *signal_id += 1; *signal_id };
-                }
-                if !*stage {
-                    let new_signal_id = { *signal_id += 1; *signal_id };
-                    let active_signal_ids = state.get_active_signal_ids();
-                    state.set_active_signal_ids(new_signal_id);
-                    *stage = true;
-                }
-                result
             }
             (Combinator::WithFrameStack(a), CombinatorState::WithFrameStack(a_state)) => {
                 let mut result = a.next_state(a_state, c, signal_id);
@@ -366,9 +343,6 @@ impl<'a> Iterator for StateIter<'a> {
             CombinatorState::ForwardRef(inner_state) => {
                 self.stack.push(inner_state);
             }
-            CombinatorState::SignalWrap(_, _, inner_state) => {
-                self.stack.push(inner_state);
-            }
             CombinatorState::WithFrameStack(inner_state) => {
                 self.stack.push(inner_state);
             }
@@ -446,9 +420,6 @@ impl<'a> Iterator for StateIterMut<'a> {
                 }
             }
             CombinatorState::ForwardRef(inner_state) => {
-                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
-            }
-            CombinatorState::SignalWrap(_, _, inner_state) => {
                 self.stack.push(inner_state.as_mut() as *mut CombinatorState);
             }
             CombinatorState::WithFrameStack(inner_state) => {
@@ -607,10 +578,6 @@ fn forward_ref() -> Combinator {
     Combinator::ForwardRef(Rc::new(RefCell::new(None)))
 }
 
-fn signal_wrap(signal_type_id: usize, a: Combinator) -> Combinator {
-    Combinator::SignalWrap(SignalAtom::Start(signal_type_id), SignalAtom::End(signal_type_id), Box::new(a))
-}
-
 fn in_frame_stack(a: Combinator) -> Combinator {
     Combinator::InFrameStack(Box::new(a))
 }
@@ -748,6 +715,7 @@ fn simplify_combinator(combinator: Combinator, seen_refs: &mut HashSet<*const Op
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
+
     use super::*;
 
     // Test cases remain the same, just update the combinator creation syntax

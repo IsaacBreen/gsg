@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
-use std::ops::{BitAnd, BitOr, BitOrAssign};
-use crate::gss::GSSNode;
+use std::ops::{BitAnd, BitOr};
+
 use crate::u8set::U8Set;
 
 #[derive(Clone, PartialEq, Debug)]
