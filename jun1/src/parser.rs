@@ -1,5 +1,12 @@
 // TODO:
-//  - Remove WrappedCombinatorState
+//  - remove WrappedCombinatorState
+//  - remove Signals, replace it with Signals2
+//  - make id_complete a boolean, call it is_complete
+//  - remove Signals, replace it with Signals2
+//  - remove node from ParserIterationResult
+//  - replace stage in SignalWrap with a boolean
+//  - rename signal_id to something else to distinguish it from signal_type_id (what is it?)
+//  - rename signal_type_id to something more suitable (what is it?)
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -7,7 +14,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
 use crate::gss::GSSNode;
-use crate::parse_iteration_result::{ParserIterationResult, Signals};
+use crate::parse_iteration_result::{ParserIterationResult, SignalAtom, Signals};
 use crate::u8set::U8Set;
 
 #[derive(Clone)]
@@ -20,6 +27,7 @@ enum Combinator {
     ForwardRef(Rc<RefCell<Option<Combinator>>>),
     Repeat1(Box<Combinator>),
     Seq(Rc<[Combinator]>),
+    SignalWrap(SignalAtom, SignalAtom, Box<Combinator>),
 }
 
 
@@ -34,6 +42,7 @@ impl PartialEq for Combinator {
             (Combinator::ForwardRef(a), Combinator::ForwardRef(b)) => Rc::ptr_eq(a, b),
             (Combinator::Repeat1(a), Combinator::Repeat1(b)) => *a == *b,
             (Combinator::Seq(a), Combinator::Seq(b)) => Rc::ptr_eq(a, b),
+            (Combinator::SignalWrap(_, _, _), Combinator::SignalWrap(_, _, _)) => self == other,
             _ => false,
         }
     }
@@ -60,6 +69,11 @@ impl Hash for Combinator {
             }
             Combinator::Repeat1(a) => a.hash(state),
             Combinator::Seq(a) => a.hash(state),
+            Combinator::SignalWrap(start_signal_atom, end_signal_atom, a) => {
+                start_signal_atom.hash(state);
+                end_signal_atom.hash(state);
+                a.hash(state);
+            }
         }
     }
 }
@@ -75,6 +89,7 @@ impl Debug for Combinator {
             Combinator::ForwardRef(c) => write!(f, "ForwardRef({:?})", c),
             Combinator::Repeat1(a) => write!(f, "Repeat1({:?})", a),
             Combinator::Seq(a) => write!(f, "Seq({:?})", a),
+            Combinator::SignalWrap(signal_atom, end_signal_atom, a) => write!(f, "EmitSignal({:?}, {:?}, {:?})", signal_atom, end_signal_atom, a),
         }
     }
 }
@@ -89,6 +104,7 @@ enum CombinatorState {
     ForwardRef(Box<CombinatorState>),
     Repeat1(Vec<CombinatorState>),
     Seq(Vec<Vec<CombinatorState>>),
+    SignalWrap(usize, usize, Box<CombinatorState>),
 }
 
 #[derive(Debug)]
@@ -120,6 +136,7 @@ impl Combinator {
                 }
                 CombinatorState::Seq(its)
             }
+            Combinator::SignalWrap(start_signal_atom, end_signal_atom, a) => CombinatorState::SignalWrap({ *signal_id += 1; *signal_id }, 0, Box::new(a.initial_state(node, signal_id))),
         }
     }
 
@@ -141,7 +158,9 @@ impl Combinator {
                     return ParserIterationResult::new(U8Set::none(), None, Default::default());
                 }
                 if *index == value.len() {
-                    return ParserIterationResult::new(U8Set::none(), Some(*signal_id), Default::default());
+                    let mut result = ParserIterationResult::new(U8Set::none(), Some(*signal_id), Default::default());
+                    result.signals2.add_finished(*signal_id);
+                    return result;
                 }
                 let u8set = U8Set::from_chars(&value[*index..=*index]);
                 *index += 1;
@@ -155,17 +174,24 @@ impl Combinator {
                     }
                     1 => {
                         *state = 2;
-                        ParserIterationResult::new(
+                        let finished = c.map(|c| u8set.contains(c as u8)).unwrap_or(false);
+                        let mut result = ParserIterationResult::new(
                             U8Set::none(),
-                            c.map(|c| u8set.contains(c as u8).then(|| *signal_id)).flatten(),
+                            finished.then_some(*signal_id),
                             Default::default(),
-                        )
+                        );
+                        if finished {
+                            result.signals2.add_finished(*signal_id);
+                        }
+                        result
                     }
                     _ => panic!("EatU8Matching: state out of bounds"),
                 }
             }
             (Combinator::Eps, CombinatorState::Eps(signal_id)) => {
-                ParserIterationResult::new(U8Set::none(), Some(*signal_id), Default::default())
+                let mut result = ParserIterationResult::new(U8Set::none(), Some(*signal_id), Default::default());
+                result.signals2.add_finished(*signal_id);
+                result
             }
             (Combinator::ForwardRef(inner), CombinatorState::ForwardRef(inner_state)) => {
                 match inner.as_ref().borrow().as_ref() {
@@ -191,6 +217,21 @@ impl Combinator {
                 }
                 a_result
             }
+            (Combinator::SignalWrap(start_signal_atom, end_signal_atom, a), CombinatorState::SignalWrap(start_signal_id, stage, state)) => {
+                let mut result = a.next_state(state, c, signal_id);
+                if result.is_complete() {
+                    let new_signal_id = { *signal_id += 1; *signal_id };
+                    result.signals2.push_to_finished(new_signal_id, end_signal_atom.clone());
+                }
+                if *stage == 0 {
+                    let new_signal_id = { *signal_id += 1; *signal_id };
+                    let active_signal_ids = state.get_active_signal_ids();
+                    result.signals2.push_to_many(active_signal_ids, new_signal_id, start_signal_atom.clone());
+                    state.set_active_signal_ids(new_signal_id);
+                    *stage += 1;
+                }
+                result
+            }
             (_self, _state) => panic!("Mismatched combinator and state types: {:?} vs {:?}", _self, _state),
         }
     }
@@ -202,6 +243,160 @@ impl Combinator {
                 option.replace(combinator);
             }
             _ => panic!("Combinator is not a ForwardRef"),
+        }
+    }
+}
+
+impl CombinatorState {
+    fn state_iter(&self) -> StateIter {
+        StateIter::new(self)
+    }
+}
+
+struct StateIter<'a> {
+    stack: Vec<&'a CombinatorState>,
+}
+
+impl<'a> StateIter<'a> {
+    fn new(state: &'a CombinatorState) -> Self {
+        Self {
+            stack: vec![state],
+        }
+    }
+}
+
+impl<'a> Iterator for StateIter<'a> {
+    type Item = &'a CombinatorState;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let state = self.stack.pop()?;
+        match state {
+            CombinatorState::Call(inner_state) => {
+                if let Some(inner_state) = inner_state {
+                    self.stack.push(inner_state);
+                }
+            }
+            CombinatorState::Choice(states) => {
+                for sub_states in states.iter() {
+                    for state in sub_states.iter() {
+                        self.stack.push(state);
+                    }
+                }
+            }
+            CombinatorState::Repeat1(states) => {
+                for state in states.iter() {
+                    self.stack.push(state);
+                }
+            }
+            CombinatorState::Seq(states) => {
+                for sub_states in states.iter() {
+                    for state in sub_states.iter() {
+                        self.stack.push(state);
+                    };
+                }
+            }
+            CombinatorState::ForwardRef(inner_state) => {
+                self.stack.push(inner_state);
+            }
+            CombinatorState::SignalWrap(_, _, inner_state) => {
+                self.stack.push(inner_state);
+            }
+            CombinatorState::EatString(..) | CombinatorState::EatU8Matching(..) | CombinatorState::Eps(..) => {}
+        }
+        Some(state)
+    }
+}
+
+impl CombinatorState {
+    fn state_iter_mut(&mut self) -> StateIterMut {
+        StateIterMut::new(self)
+    }
+}
+
+struct StateIterMut<'a> {
+    stack: Vec<*mut CombinatorState>,
+    _phantom: std::marker::PhantomData<&'a mut CombinatorState>,
+}
+
+impl<'a> StateIterMut<'a> {
+    fn new(state: &'a mut CombinatorState) -> Self {
+        Self {
+            stack: vec![state as *mut CombinatorState],
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a> Iterator for StateIterMut<'a> {
+    type Item = &'a mut CombinatorState;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let state_ptr = self.stack.pop()?;
+
+        // SAFETY: We know this pointer is valid because it came from a &mut reference,
+        // and we're careful not to create overlapping mutable references.
+        let state = unsafe { &mut *state_ptr };
+
+        match state {
+            CombinatorState::Call(inner_state) => {
+                if let Some(inner_state) = inner_state {
+                    self.stack.push(inner_state.as_mut() as *mut CombinatorState);
+                }
+            }
+            CombinatorState::Choice(states) => {
+                for sub_states in states.iter_mut().rev() {
+                    for state in sub_states.iter_mut().rev() {
+                        self.stack.push(state as *mut CombinatorState);
+                    }
+                }
+            }
+            CombinatorState::Repeat1(states) => {
+                for state in states.iter_mut().rev() {
+                    self.stack.push(state as *mut CombinatorState);
+                }
+            }
+            CombinatorState::Seq(states) => {
+                for sub_states in states.iter_mut().rev() {
+                    for state in sub_states.iter_mut().rev() {
+                        self.stack.push(state as *mut CombinatorState);
+                    }
+                }
+            }
+            CombinatorState::ForwardRef(inner_state) => {
+                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
+            }
+            CombinatorState::SignalWrap(_, _, inner_state) => {
+                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
+            }
+            CombinatorState::EatString(..) | CombinatorState::EatU8Matching(..) | CombinatorState::Eps(..) => {}
+        }
+
+        Some(state)
+    }
+}
+
+impl CombinatorState {
+    fn get_active_signal_ids(&self) -> Vec<usize> {
+        let mut result = Vec::new();
+        for state in self.state_iter() {
+            match state {
+                CombinatorState::EatU8Matching(_, signal_id) => result.push(*signal_id),
+                CombinatorState::EatString(_, signal_id) => result.push(*signal_id),
+                CombinatorState::Eps(signal_id) => result.push(*signal_id),
+                _ => ()
+            }
+        }
+        result
+    }
+
+    fn set_active_signal_ids(&mut self, signal_id: usize) {
+        for state in self.state_iter_mut() {
+            match state {
+                CombinatorState::EatU8Matching(_, ref mut id) => *id = signal_id,
+                CombinatorState::EatString(_, ref mut id) => *id = signal_id,
+                CombinatorState::Eps(ref mut id) => *id = signal_id,
+                _ => ()
+            }
         }
     }
 }
@@ -338,6 +533,10 @@ where
 
 fn forward_ref() -> Combinator {
     Combinator::ForwardRef(Rc::new(RefCell::new(None)))
+}
+
+fn signal_wrap(signal_type_id: usize, a: Combinator) -> Combinator {
+    Combinator::SignalWrap(SignalAtom::Start(signal_type_id), SignalAtom::End(signal_type_id), Box::new(a))
 }
 
 macro_rules! seq {
@@ -549,6 +748,35 @@ mod tests {
         assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("]"));
         let result3 = it.send(Some(']'));
         assert_matches!(result3, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+    }
+
+    #[test]
+    fn test_signal_wrap()
+    {
+        let signal_type_id = 0;
+        let mut it = ActiveCombinator::new(seq!(
+            eat_u8('a'),
+            signal_wrap(signal_type_id, eat_string("bcd")),
+            eat_u8('e')
+        ));
+        let result0 = it.send(None);
+        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        assert!(result0.signals2.is_empty());
+        let result1 = it.send(Some('a'));
+        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("b"));
+        assert!(!result1.signals2.is_empty());
+        let result2 = it.send(Some('b'));
+        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("c"));
+        assert!(result2.signals2.is_empty());
+        let result3 = it.send(Some('c'));
+        assert_matches!(result3, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("d"));
+        assert!(result3.signals2.is_empty());
+        let result4 = it.send(Some('d'));
+        assert_matches!(result4, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("e"));
+        assert!(!result4.signals2.is_empty());
+        let result5 = it.send(Some('e'));
+        assert_matches!(result5, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert!(result5.signals2.is_empty());
     }
 }
 
