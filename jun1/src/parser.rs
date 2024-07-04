@@ -105,9 +105,9 @@ impl Debug for Combinator {
 enum CombinatorState {
     Call(Option<Box<CombinatorState>>),
     Choice(Vec<Vec<CombinatorState>>),
-    EatString(usize, usize, FrameStack),
-    EatU8Matching(u8, usize, FrameStack),
-    Eps(usize, FrameStack),
+    EatString(usize, FrameStack),
+    EatU8Matching(u8, FrameStack),
+    Eps(FrameStack),
     ForwardRef(Box<CombinatorState>),
     Repeat1(Vec<CombinatorState>),
     Seq(Vec<Vec<CombinatorState>>),
@@ -123,9 +123,9 @@ impl Combinator {
         match self {
             Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(signal_id, frame_stack)))),
             Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state(signal_id, frame_stack.clone())]).collect()),
-            Combinator::EatString(_) => CombinatorState::EatString(0, { *signal_id += 1; *signal_id }, frame_stack),
-            Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0, { *signal_id += 1; *signal_id }, frame_stack),
-            Combinator::Eps => CombinatorState::Eps({ *signal_id += 1; *signal_id }, frame_stack),
+            Combinator::EatString(_) => CombinatorState::EatString(0, frame_stack),
+            Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0, frame_stack),
+            Combinator::Eps => CombinatorState::Eps(frame_stack),
             Combinator::ForwardRef(c) => {
                 match c.as_ref().borrow().as_ref() {
                     Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state(signal_id, frame_stack))),
@@ -165,7 +165,7 @@ impl Combinator {
                 }
                 final_result
             }
-            (Combinator::EatString(value), CombinatorState::EatString(index, _, frame_stack)) => {
+            (Combinator::EatString(value), CombinatorState::EatString(index, frame_stack)) => {
                 if *index > value.len() {
                     return ParserIterationResult::new(U8Set::none(), false, frame_stack.clone());
                 }
@@ -177,7 +177,7 @@ impl Combinator {
                 *index += 1;
                 ParserIterationResult::new(u8set, false, frame_stack.clone())
             }
-            (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state, _, frame_stack)) => {
+            (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state, frame_stack)) => {
                 match *state {
                     0 => {
                         *state = 1;
@@ -196,7 +196,7 @@ impl Combinator {
                     _ => panic!("EatU8Matching: state out of bounds"),
                 }
             }
-            (Combinator::Eps, CombinatorState::Eps(_, frame_stack)) => {
+            (Combinator::Eps, CombinatorState::Eps(frame_stack)) => {
                 let mut result = ParserIterationResult::new(U8Set::none(), true, frame_stack.clone());
                 result
             }
@@ -441,32 +441,6 @@ impl<'a> Iterator for StateIterMut<'a> {
         }
 
         Some(state)
-    }
-}
-
-impl CombinatorState {
-    fn get_active_signal_ids(&self) -> Vec<usize> {
-        let mut result = Vec::new();
-        for state in self.state_iter() {
-            match state {
-                CombinatorState::EatU8Matching(_, signal_id, _) => result.push(*signal_id),
-                CombinatorState::EatString(_, signal_id, _) => result.push(*signal_id),
-                CombinatorState::Eps(signal_id, _) => result.push(*signal_id),
-                _ => ()
-            }
-        }
-        result
-    }
-
-    fn set_active_signal_ids(&mut self, signal_id: usize) {
-        for state in self.state_iter_mut() {
-            match state {
-                CombinatorState::EatU8Matching(_, ref mut id, _) => *id = signal_id,
-                CombinatorState::EatString(_, ref mut id, _) => *id = signal_id,
-                CombinatorState::Eps(ref mut id, _) => *id = signal_id,
-                _ => ()
-            }
-        }
     }
 }
 
