@@ -7,6 +7,16 @@ pub struct U8Set {
 }
 
 impl U8Set {
+    pub(crate) fn from_char(p0: char) -> U8Set {
+        U8Set::from_chars(&p0.to_string())
+    }
+
+    pub(crate) fn from_range(start: u8, end: u8) -> U8Set {
+        U8Set::from_match_fn(move |i| start <= i && i <= end)
+    }
+}
+
+impl U8Set {
     pub fn insert(&mut self, value: u8) -> bool {
         if self.contains(value) {
             false
