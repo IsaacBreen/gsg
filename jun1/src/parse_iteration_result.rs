@@ -14,8 +14,8 @@ pub struct ParserIterationResult {
 }
 
 impl ParserIterationResult {
-    pub fn new(u8set: U8Set, id_complete: Option<usize>, signals: Signals) -> Self {
-        Self { u8set, id_complete, signals, node: None, signals2: Default::default(), frame_stack: Default::default() }
+    pub fn new(u8set: U8Set, id_complete: Option<usize>, signals: Signals, frame_stack: FrameStack) -> Self {
+        Self { u8set, id_complete, signals, node: None, signals2: Default::default(), frame_stack }
     }
 
     pub fn u8set(&self) -> &U8Set {
