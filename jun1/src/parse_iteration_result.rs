@@ -6,28 +6,18 @@ use crate::u8set::U8Set;
 #[derive(Clone, PartialEq, Debug)]
 pub struct ParserIterationResult {
     pub u8set: U8Set,
-    pub id_complete: Option<usize>,
-    pub signals: Signals,
-    pub node: Option<GSSNode<()>>,
+    pub is_complete: bool,
     pub signals2: Signals2,
     pub frame_stack: FrameStack,
 }
 
 impl ParserIterationResult {
-    pub fn new(u8set: U8Set, id_complete: Option<usize>, signals: Signals, frame_stack: FrameStack) -> Self {
-        Self { u8set, id_complete, signals, node: None, signals2: Default::default(), frame_stack }
+    pub fn new(u8set: U8Set, is_complete: bool, signals2: Signals2, frame_stack: FrameStack) -> Self {
+        Self { u8set, is_complete, signals2, frame_stack }
     }
 
     pub fn u8set(&self) -> &U8Set {
         &self.u8set
-    }
-
-    pub fn is_complete(&self) -> bool {
-        self.id_complete.is_some()
-    }
-
-    pub fn signals(&self) -> &Signals {
-        &self.signals
     }
 
     pub fn signals2(&self) -> &Signals2 {
@@ -36,26 +26,12 @@ impl ParserIterationResult {
 }
 
 impl ParserIterationResult {
-    pub fn merge(self, mut other: Self) -> Self {
-        let id_complete = match (self.id_complete, other.id_complete) {
-            (None, None) => None,
-            (Some(id_complete), None) => Some(id_complete),
-            (None, Some(id_complete)) => Some(id_complete),
-            (Some(id_complete), Some(other_id_complete)) if id_complete == other_id_complete => {
-                Some(id_complete)
-            }
-            (Some(id_complete), Some(other_id_complete)) => {
-                // Merge
-                other.signals.merges.insert(id_complete, other_id_complete);
-                Some(other_id_complete)
-            }
-        };
+    pub fn merge(mut self, other: Self) -> Self {
+        self.is_complete = self.is_complete || other.is_complete;
         // Merge the signal sets
         Self {
             u8set: self.u8set | other.u8set,
-            signals: self.signals | other.signals,
-            node: None,
-            id_complete,
+            is_complete: self.is_complete,
             signals2: self.signals2 | other.signals2,
             frame_stack: self.frame_stack | other.frame_stack,
         }
@@ -66,12 +42,9 @@ impl ParserIterationResult {
     }
 
     pub fn forward(self, other: Self) -> Self {
-        let signals = self.signals & other.signals;
         Self {
             u8set: self.u8set | other.u8set,
-            signals,
-            node: None,
-            id_complete: other.id_complete,
+            is_complete: other.is_complete,
             signals2: self.signals2 | other.signals2,
             frame_stack: other.frame_stack,
         }
@@ -86,66 +59,6 @@ impl ParserIterationResult {
 pub enum SignalAtom {
     Start(usize),
     End(usize),
-}
-
-#[derive(Clone, PartialEq, Debug)]
-pub struct Signal {
-    pub atoms: Vec<SignalAtom>,
-}
-
-#[derive(Clone, PartialEq, Debug, Default)]
-pub struct Signals {
-    signals: HashMap<usize, Signal>,
-    merges: HashMap<usize, usize>,
-}
-
-impl Signal {
-    pub fn push(&mut self, signal_atom: SignalAtom) {
-        self.atoms.push(signal_atom);
-    }
-}
-
-impl Signals {
-    pub fn push(&mut self, signal_atom: SignalAtom) {
-        self.signals.entry(self.signals.len()).or_insert_with(|| Signal { atoms: Vec::new() }).push(signal_atom);
-    }
-}
-
-impl BitOr for Signals {
-    type Output = Signals;
-
-    fn bitor(self, other: Self) -> Signals {
-        Signals { signals: self.signals.into_iter().chain(other.signals).collect(), merges: self.merges.into_iter().chain(other.merges).collect() }
-    }
-}
-
-impl BitOrAssign for Signals {
-    fn bitor_assign(&mut self, other: Self) {
-        self.signals.extend(other.signals);
-    }
-}
-
-impl BitAnd for Signals {
-    type Output = Signals;
-
-    fn bitand(self, other: Self) -> Signals {
-        let ids = self.signals.keys().chain(other.signals.keys()).cloned().collect::<HashSet<_>>();
-        let mut signals = Signals::default();
-        for id in ids.iter() {
-            if self.signals.contains_key(id) && other.signals.contains_key(id) {
-                let mut signal: Signal = self.signals[id].clone();
-                signal.atoms.extend(other.signals[id].atoms.iter().cloned());
-                signals.signals.insert(*id, signal);
-            } else if self.signals.contains_key(id) {
-                signals.signals.insert(*id, self.signals[id].clone());
-            } else if other.signals.contains_key(id) {
-                signals.signals.insert(*id, other.signals[id].clone());
-            }
-        }
-        signals.merges.extend(self.merges.iter());
-        signals.merges.extend(other.merges.iter());
-        signals
-    }
 }
 
 #[derive(Clone, PartialEq, Debug, Default)]

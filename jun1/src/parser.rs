@@ -11,6 +11,7 @@
 //  - there are some usages of &str and String in the code. Replace them with u8s (i.e. bytes).
 //  - wrap FrameStack and signal_id up into a strict and attach that to the terminal combinator states (i.e. EatString, EatU8Matching, Eps) instead of attaching each of those items separately.
 //  - remove signals entirely
+//  - wrap FrameStack and signal_id up into a struct and attach that to the terminal combinator states (i.e. EatString, EatU8Matching, Eps) instead of attaching each of those items separately.
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -18,7 +19,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
 use crate::gss::GSSNode;
-use crate::parse_iteration_result::{FrameStack, ParserIterationResult, SignalAtom, Signals};
+use crate::parse_iteration_result::{Frame, FrameStack, ParserIterationResult, SignalAtom, Signals2};
 use crate::u8set::U8Set;
 
 #[derive(Clone)]
@@ -127,7 +128,7 @@ enum CombinatorState {
     ForwardRef(Box<CombinatorState>),
     Repeat1(Vec<CombinatorState>),
     Seq(Vec<Vec<CombinatorState>>),
-    SignalWrap(usize, usize, Box<CombinatorState>),
+    SignalWrap(usize, bool, Box<CombinatorState>),
     WithFrameStack(Box<CombinatorState>),
     InFrameStack(Box<CombinatorState>, Vec<u8>),
     NotInFrameStack(Box<CombinatorState>, Vec<u8>),
@@ -135,44 +136,38 @@ enum CombinatorState {
     RemoveFromFrameStack(Box<CombinatorState>, Vec<u8>),
 }
 
-#[derive(Debug)]
-struct WrappedCombinatorState {
-    state: CombinatorState,
-    signals: Signals,
-}
-
 impl Combinator {
-    fn initial_state(&self, node: Option<&GSSNode<()>>, signal_id: &mut usize, mut frame_stack: FrameStack) -> CombinatorState {
+    fn initial_state(&self, signal_id: &mut usize, mut frame_stack: FrameStack) -> CombinatorState {
         match self {
-            Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(node, signal_id, frame_stack)))),
-            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state(node, signal_id, frame_stack.clone())]).collect()),
+            Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(signal_id, frame_stack)))),
+            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state(signal_id, frame_stack.clone())]).collect()),
             Combinator::EatString(_) => CombinatorState::EatString(0, { *signal_id += 1; *signal_id }, frame_stack),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0, { *signal_id += 1; *signal_id }, frame_stack),
             Combinator::Eps => CombinatorState::Eps({ *signal_id += 1; *signal_id }, frame_stack),
             Combinator::ForwardRef(c) => {
                 match c.as_ref().borrow().as_ref() {
-                    Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state(node, signal_id, frame_stack))),
+                    Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state(signal_id, frame_stack))),
                     None => panic!("ForwardRef not set"),
                 }
             }
-            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![a.initial_state(node, signal_id, frame_stack)]),
+            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![a.initial_state(signal_id, frame_stack)]),
             Combinator::Seq(a) => {
                 let mut its = Vec::with_capacity(a.len());
-                its.push(vec![a[0].initial_state(node, signal_id, frame_stack)]);
+                its.push(vec![a[0].initial_state(signal_id, frame_stack)]);
                 for _ in 1..a.len() {
                     its.push(Vec::new());
                 }
                 CombinatorState::Seq(its)
             }
-            Combinator::SignalWrap(start_signal_atom, end_signal_atom, a) => CombinatorState::SignalWrap({ *signal_id += 1; *signal_id }, 0, Box::new(a.initial_state(node, signal_id, frame_stack))),
+            Combinator::SignalWrap(start_signal_atom, end_signal_atom, a) => CombinatorState::SignalWrap({ *signal_id += 1; *signal_id }, false, Box::new(a.initial_state(signal_id, frame_stack))),
             Combinator::WithFrameStack(a) => {
                 frame_stack.push_empty_frame();
-                a.initial_state(node, signal_id, frame_stack)
+                a.initial_state(signal_id, frame_stack)
             }
-            Combinator::InFrameStack(a) => CombinatorState::InFrameStack(Box::new(a.initial_state(node, signal_id, frame_stack)), Vec::new()),
-            Combinator::NotInFrameStack(a) => CombinatorState::NotInFrameStack(Box::new(a.initial_state(node, signal_id, frame_stack)), Vec::new()),
-            Combinator::AddToFrameStack(a) => CombinatorState::AddToFrameStack(Box::new(a.initial_state(node, signal_id, frame_stack)), Vec::new()),
-            Combinator::RemoveFromFrameStack(a) => CombinatorState::RemoveFromFrameStack(Box::new(a.initial_state(node, signal_id, frame_stack)), Vec::new()),
+            Combinator::InFrameStack(a) => CombinatorState::InFrameStack(Box::new(a.initial_state(signal_id, frame_stack)), Vec::new()),
+            Combinator::NotInFrameStack(a) => CombinatorState::NotInFrameStack(Box::new(a.initial_state(signal_id, frame_stack)), Vec::new()),
+            Combinator::AddToFrameStack(a) => CombinatorState::AddToFrameStack(Box::new(a.initial_state(signal_id, frame_stack)), Vec::new()),
+            Combinator::RemoveFromFrameStack(a) => CombinatorState::RemoveFromFrameStack(Box::new(a.initial_state(signal_id, frame_stack)), Vec::new()),
         }
     }
 
@@ -183,7 +178,7 @@ impl Combinator {
                 f().next_state(inner_state, c, signal_id)
             }
             (Combinator::Choice(combinators), CombinatorState::Choice(its)) => {
-                let mut final_result = ParserIterationResult::new(U8Set::none(), None, Signals::default(), FrameStack::default());
+                let mut final_result = ParserIterationResult::new(U8Set::none(), false, Signals2::default(), FrameStack::default());
                 for (combinator, its) in combinators.iter().zip(its.iter_mut()) {
                     final_result.merge_assign(process(combinator, c, its, signal_id));
                 }
@@ -191,33 +186,33 @@ impl Combinator {
             }
             (Combinator::EatString(value), CombinatorState::EatString(index, signal_id, frame_stack)) => {
                 if *index > value.len() {
-                    return ParserIterationResult::new(U8Set::none(), None, Default::default(), frame_stack.clone());
+                    return ParserIterationResult::new(U8Set::none(), false, Signals2::default(), frame_stack.clone());
                 }
                 if *index == value.len() {
-                    let mut result = ParserIterationResult::new(U8Set::none(), Some(*signal_id), Default::default(), frame_stack.clone());
+                    let mut result = ParserIterationResult::new(U8Set::none(), true, Signals2::default(), frame_stack.clone());
                     result.signals2.add_finished(*signal_id);
                     return result;
                 }
                 let u8set = U8Set::from_chars(&value[*index..=*index]);
                 *index += 1;
-                ParserIterationResult::new(u8set, None, Default::default(), frame_stack.clone())
+                ParserIterationResult::new(u8set, false, Signals2::default(), frame_stack.clone())
             }
             (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state, signal_id, frame_stack)) => {
                 match *state {
                     0 => {
                         *state = 1;
-                        ParserIterationResult::new(u8set.clone(), None, Default::default(), frame_stack.clone())
+                        ParserIterationResult::new(u8set.clone(), false, Signals2::default(), frame_stack.clone())
                     }
                     1 => {
                         *state = 2;
-                        let finished = c.map(|c| u8set.contains(c as u8)).unwrap_or(false);
+                        let is_complete = c.map(|c| u8set.contains(c as u8)).unwrap_or(false);
                         let mut result = ParserIterationResult::new(
                             U8Set::none(),
-                            finished.then_some(*signal_id),
-                            Default::default(),
+                            is_complete,
+                            Signals2::default(),
                             frame_stack.clone(),
                         );
-                        if finished {
+                        if is_complete {
                             result.signals2.add_finished(*signal_id);
                         }
                         result
@@ -226,7 +221,7 @@ impl Combinator {
                 }
             }
             (Combinator::Eps, CombinatorState::Eps(signal_id, frame_stack)) => {
-                let mut result = ParserIterationResult::new(U8Set::none(), Some(*signal_id), Default::default(), frame_stack.clone());
+                let mut result = ParserIterationResult::new(U8Set::none(), true, Signals2::default(), frame_stack.clone());
                 result.signals2.add_finished(*signal_id);
                 result
             }
@@ -254,18 +249,18 @@ impl Combinator {
                 }
                 a_result
             }
-            (Combinator::SignalWrap(start_signal_atom, end_signal_atom, a), CombinatorState::SignalWrap(start_signal_id, stage, state)) => {
+            (Combinator::SignalWrap(start_signal_atom, end_signal_atom, a), CombinatorState::SignalWrap(start_signal_id, ref mut stage, state)) => {
                 let mut result = a.next_state(state, c, signal_id);
-                if result.is_complete() {
+                if result.is_complete && !*stage {
                     let new_signal_id = { *signal_id += 1; *signal_id };
                     result.signals2.push_to_finished(new_signal_id, end_signal_atom.clone());
                 }
-                if *stage == 0 {
+                if !*stage {
                     let new_signal_id = { *signal_id += 1; *signal_id };
                     let active_signal_ids = state.get_active_signal_ids();
                     result.signals2.push_to_many(active_signal_ids, new_signal_id, start_signal_atom.clone());
                     state.set_active_signal_ids(new_signal_id);
-                    *stage += 1;
+                    *stage = true;
                 }
                 result
             }
@@ -280,10 +275,10 @@ impl Combinator {
                 }
                 let mut result = a.next_state(a_state, c, signal_id);
                 let (u8set, is_complete) = result.frame_stack.next_u8_given_contains(&name);
-                if result.is_complete() && !is_complete {
-                    result.id_complete = None;
+                if result.is_complete && !is_complete {
+                    result.is_complete = false;
                     result.signals2.clear_finished();
-                } else if result.is_complete() && is_complete {
+                } else if result.is_complete && is_complete {
                     result.frame_stack.filter_contains(&name);
                 }
                 result.u8set &= u8set;
@@ -292,23 +287,24 @@ impl Combinator {
             (Combinator::NotInFrameStack(a), CombinatorState::NotInFrameStack(a_state, ref mut name)) => {
                 let mut result = a.next_state(a_state, c, signal_id);
                 let (u8set, is_complete) = result.frame_stack.next_u8_given_excludes(&name);
-                if result.is_complete() && !is_complete {
-                    result.id_complete = None;
+                if result.is_complete && !is_complete {
+                    result.is_complete = false;
                     result.signals2.clear_finished();
-                } else if result.is_complete() && is_complete {
+                } else if result.is_complete && is_complete {
                     result.frame_stack.filter_excludes(&name);
                 }
                 if let Some(c) = c {
                     name.push(c.try_into().unwrap());
                 }
                 result.u8set &= u8set;
-                result            }
+                result
+            }
             (Combinator::AddToFrameStack(a), CombinatorState::AddToFrameStack(a_state, ref mut name)) => {
                 let mut result = a.next_state(a_state, c, signal_id);
                 if let Some(c) = c {
                     name.push(c.try_into().unwrap());
                 }
-                if result.is_complete() {
+                if result.is_complete {
                     result.frame_stack.push_name(&name);
                 }
                 result
@@ -318,7 +314,7 @@ impl Combinator {
                 if let Some(c) = c {
                     name.push(c.try_into().unwrap());
                 }
-                if result.is_complete() {
+                if result.is_complete {
                     result.frame_stack.pop_name(&name);
                 }
                 result
@@ -522,40 +518,14 @@ impl CombinatorState {
     }
 }
 
-trait GetCombinatorState {
-    fn get_combinator_state(&self) -> &CombinatorState;
-    fn get_combinator_state_mut(&mut self) -> &mut CombinatorState;
-}
-
-impl GetCombinatorState for WrappedCombinatorState {
-    fn get_combinator_state(&self) -> &CombinatorState {
-        &self.state
-    }
-
-    fn get_combinator_state_mut(&mut self) -> &mut CombinatorState {
-        &mut self.state
-    }
-}
-
-impl GetCombinatorState for CombinatorState {
-    fn get_combinator_state(&self) -> &CombinatorState {
-        self
-    }
-
-    fn get_combinator_state_mut(&mut self) -> &mut CombinatorState {
-        self
-    }
-}
-
-fn process<C>(combinator: &Combinator, c: Option<char>, its: &mut Vec<C>, signal_id: &mut usize) -> ParserIterationResult
-where C: GetCombinatorState {
+fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorState>, signal_id: &mut usize) -> ParserIterationResult {
     if its.len() > 100 {
         // Warn if there are too many states
         eprintln!("Warning: there are {} states (process)", its.len());
     }
-    let mut final_result = ParserIterationResult::new(U8Set::none(), None, Default::default(), FrameStack::default());
+    let mut final_result = ParserIterationResult::new(U8Set::none(), false, Signals2::default(), FrameStack::default());
     its.retain_mut(|it| {
-        let result = combinator.next_state(it.get_combinator_state_mut(), c, signal_id);
+        let result = combinator.next_state(it, c, signal_id);
         let is_empty = result.u8set().is_empty();
         final_result.merge_assign(result);
         !is_empty
@@ -574,8 +544,8 @@ fn seq2_helper(
         // Warn if there are too many states
         eprintln!("Warning: there are {} states (seq2_helper)", b_its.len());
     }
-    if a_result.id_complete.is_some() {
-        let mut b_it = b.initial_state(a_result.node.as_ref(), signal_id, a_result.frame_stack.clone());
+    if a_result.is_complete {
+        let mut b_it = b.initial_state(signal_id, a_result.frame_stack.clone());
         let b_result = b.next_state(&mut b_it, None, signal_id);
         b_its.push(b_it);
         a_result.forward_assign(b_result);
@@ -698,7 +668,7 @@ struct ActiveCombinator {
 impl ActiveCombinator {
     fn new(combinator: Combinator) -> Self {
         let mut signal_id = 0;
-        let state = combinator.initial_state(None, &mut signal_id, FrameStack::default());
+        let state = combinator.initial_state(&mut signal_id, FrameStack::default());
         Self {
             combinator,
             state,
@@ -712,7 +682,7 @@ impl ActiveCombinator {
         for name in names {
             frame_stack.push_name(name.as_bytes());
         }
-        let state = combinator.initial_state(None, &mut signal_id, frame_stack);
+        let state = combinator.initial_state(&mut signal_id, frame_stack);
         Self {
             combinator,
             state,
@@ -749,7 +719,7 @@ fn simplify_combinator(combinator: Combinator, seen_refs: &mut HashSet<*const Op
                         non_eat_u8s.push(choice.clone());
                     }
                 }
-            }
+           }
             let mut new_choices = Vec::with_capacity(non_eat_u8s.len() + 1);
             if !eat_u8s.is_empty() {
                 new_choices.push(Combinator::EatU8Matching(eat_u8s));
@@ -762,25 +732,19 @@ fn simplify_combinator(combinator: Combinator, seen_refs: &mut HashSet<*const Op
             let seq: Vec<_> = seq.into_iter().map(|sequent| simplify_combinator(sequent.clone(), seen_refs)).collect();
 
             // Expand any sequence combinators
-            let mut eat_u8s = U8Set::none();
-            let mut non_eat_u8s = Vec::new();
+            let mut new_seq = Vec::new();
             for sequent in &seq {
                 match sequent {
                     Combinator::Seq(seq) => {
                         for sequent in seq.into_iter() {
-                            non_eat_u8s.push(sequent.clone());
+                            new_seq.push(sequent.clone());
                         }
                     }
                     _ => {
-                        non_eat_u8s.push(sequent.clone());
+                        new_seq.push(sequent.clone());
                     }
                 }
             }
-            let mut new_seq = Vec::with_capacity(non_eat_u8s.len() + 1);
-            if !eat_u8s.is_empty() {
-                new_seq.push(Combinator::EatU8Matching(eat_u8s));
-            }
-            new_seq.extend(non_eat_u8s);
             Combinator::Seq(new_seq.into())
         }
         Combinator::Repeat1(inner) => {
@@ -810,58 +774,58 @@ mod tests {
     fn test_eat_u8() {
         let mut it = ActiveCombinator::new(eat_u8('a').clone());
         let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
         let result = it.send(Some('a'));
-        assert_matches!(result, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert_matches!(result, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
     }
 
     #[test]
     fn test_eat_string() {
         let mut it = ActiveCombinator::new(eat_string("abc").clone());
         let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
         let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("b"));
+        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("b"));
         let result2 = it.send(Some('b'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("c"));
+        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("c"));
         let result3 = it.send(Some('c'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
     }
 
     #[test]
     fn test_seq() {
         let mut it = ActiveCombinator::new(seq!(eat_u8('a'), eat_u8('b')).clone());
         let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
         let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("b"));
+        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("b"));
         let result2 = it.send(Some('b'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
     }
 
     #[test]
     fn test_repeat1() {
         let mut it = ActiveCombinator::new(repeat1(eat_u8('a')));
         let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
         let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set == &U8Set::from_chars("a"));
+        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set == &U8Set::from_chars("a"));
         let result2 = it.send(Some('a'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set == &U8Set::from_chars("a"));
+        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set == &U8Set::from_chars("a"));
     }
 
     #[test]
     fn test_choice() {
         let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')));
         let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("ab"));
+        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("ab"));
         let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
 
         let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')));
         it.send(None);
         let result2 = it.send(Some('b'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
     }
 
     #[test]
@@ -874,13 +838,13 @@ mod tests {
             ),
         );
         let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
         let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("bc"));
+        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("bc"));
         let result2 = it.send(Some('b'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("c"));
+        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("c"));
         let result3 = it.send(Some('c'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
     }
 
     #[test]
@@ -893,13 +857,13 @@ mod tests {
         }
         let mut it = ActiveCombinator::new(nested_brackets());
         let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("[a"));
+        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("[a"));
         let result1 = it.send(Some('['));
-        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("[a"));
+        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("[a"));
         let result2 = it.send(Some('a'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("]"));
+        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("]"));
         let result3 = it.send(Some(']'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
     }
 
     #[test]
@@ -912,26 +876,26 @@ mod tests {
             eat_u8('e')
         ));
         let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
         assert!(result0.signals2.is_empty());
         let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("b"));
+        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("b"));
         assert!(!result1.signals2.is_empty());
         // There should be a SignalAtom::Start(signal_type_id) signal
         assert!(result1.signals2.signals.iter().any(|(_, (_, signal_atom))| matches!(signal_atom, SignalAtom::Start(signal_type_id))));
         let result2 = it.send(Some('b'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("c"));
+        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("c"));
         assert!(result2.signals2.is_empty());
         let result3 = it.send(Some('c'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("d"));
+        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("d"));
         assert!(result3.signals2.is_empty());
         let result4 = it.send(Some('d'));
-        assert_matches!(result4, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("e"));
+        assert_matches!(result4, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("e"));
         assert!(!result4.signals2.is_empty());
         // There should be a SignalAtom::End(signal_type_id) signal
         assert!(result4.signals2.signals.iter().any(|(_, (_, signal_atom))| matches!(signal_atom, SignalAtom::End(signal_type_id))));
         let result5 = it.send(Some('e'));
-        assert_matches!(result5, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert_matches!(result5, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
         assert!(result5.signals2.is_empty());
     }
 
@@ -950,17 +914,17 @@ mod tests {
         );
         let mut it = it0.clone();
         let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("c"));
+        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("c"));
         let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set.is_empty());
+        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set.is_empty());
 
         let mut it = it0.clone();
         let result1 = it.send(None);
-        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("c"));
+        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("c"));
         let result2 = it.send(Some('c'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("d"));
+        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("d"));
         let result3 = it.send(Some('d'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
     }
 
     #[test]
@@ -974,13 +938,13 @@ mod tests {
         );
         let mut it = it0.clone();
         let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
         let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("a"));
+        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
         let result2 = it.send(Some('a'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("b"));
+        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("b"));
         let result3 = it.send(Some('b'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
+        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
     }
 }
 
@@ -1059,7 +1023,7 @@ mod json_parser {
                 assert!(result.u8set().contains(char as u8), "Expected {} to be in {:?}", char, result.u8set());
                 result = it.send(Some(char));
             }
-            result.is_complete()
+            result.is_complete
         };
 
         for json_string in test_cases {
@@ -1081,7 +1045,7 @@ mod json_parser {
             // "GeneratedCSV_1.json",
             // "GeneratedCSV_2.json",
             // "GeneratedCSV_10.json",
-            // "GeneratedCSV_20.json",
+            "GeneratedCSV_20.json",
             // "GeneratedCSV_100.json",
             // "GeneratedCSV_200.json",
         ];
