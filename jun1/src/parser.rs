@@ -10,7 +10,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
 
-use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
+use crate::parse_iteration_result::{Frame, FrameStack, ParserIterationResult};
 use crate::u8set::U8Set;
 
 #[derive(Clone)]
@@ -23,7 +23,8 @@ enum Combinator {
     ForwardRef(Rc<RefCell<Option<Combinator>>>),
     Repeat1(Box<Combinator>),
     Seq(Rc<[Combinator]>),
-    WithFrameStack(Box<Combinator>),
+    WithNewFrame(Box<Combinator>),
+    WithExistingFrame(Frame, Box<Combinator>),
     InFrameStack(Box<Combinator>),
     NotInFrameStack(Box<Combinator>),
     AddToFrameStack(Box<Combinator>),
@@ -72,7 +73,8 @@ impl Hash for Combinator {
             }
             Combinator::Repeat1(a) => a.hash(state),
             Combinator::Seq(a) => a.hash(state),
-            Combinator::WithFrameStack(a) => a.hash(state),
+            Combinator::WithNewFrame(a) => a.hash(state),
+            Combinator::WithExistingFrame(a, _) => a.hash(state),
             Combinator::InFrameStack(a) => a.hash(state),
             Combinator::NotInFrameStack(a) => a.hash(state),
             Combinator::AddToFrameStack(a) => a.hash(state),
@@ -92,7 +94,8 @@ impl Debug for Combinator {
             Combinator::ForwardRef(c) => write!(f, "ForwardRef({:?})", c),
             Combinator::Repeat1(a) => write!(f, "Repeat1({:?})", a),
             Combinator::Seq(a) => write!(f, "Seq({:?})", a),
-            Combinator::WithFrameStack(a) => write!(f, "WithFrameStack({:?})", a),
+            Combinator::WithNewFrame(a) => write!(f, "WithNewFrame({:?})", a),
+            Combinator::WithExistingFrame(a, _) => write!(f, "WithExistingFrame({:?})", a),
             Combinator::InFrameStack(a) => write!(f, "InFrameStack({:?})", a),
             Combinator::NotInFrameStack(a) => write!(f, "NotInFrameStack({:?})", a),
             Combinator::AddToFrameStack(a) => write!(f, "AddToFrameStack({:?})", a),
@@ -111,7 +114,8 @@ enum CombinatorState {
     ForwardRef(Box<CombinatorState>),
     Repeat1(Vec<CombinatorState>),
     Seq(Vec<Vec<CombinatorState>>),
-    WithFrameStack(Box<CombinatorState>),
+    WithNewFrame(Box<CombinatorState>),
+    WithExistingFrame(Box<CombinatorState>, Vec<u8>),
     InFrameStack(Box<CombinatorState>, Vec<u8>),
     NotInFrameStack(Box<CombinatorState>, Vec<u8>),
     AddToFrameStack(Box<CombinatorState>, Vec<u8>),
@@ -141,8 +145,12 @@ impl Combinator {
                 }
                 CombinatorState::Seq(its)
             }
-            Combinator::WithFrameStack(a) => {
+            Combinator::WithNewFrame(a) => {
                 frame_stack.push_empty_frame();
+                a.initial_state(signal_id, frame_stack)
+            }
+            Combinator::WithExistingFrame(existing_frame, a) => {
+                frame_stack.push_frame(existing_frame.clone());
                 a.initial_state(signal_id, frame_stack)
             }
             Combinator::InFrameStack(a) => CombinatorState::InFrameStack(Box::new(a.initial_state(signal_id, frame_stack)), Vec::new()),
@@ -224,7 +232,7 @@ impl Combinator {
                 }
                 a_result
             }
-            (Combinator::WithFrameStack(a), CombinatorState::WithFrameStack(a_state)) => {
+            (Combinator::WithNewFrame(a), CombinatorState::WithNewFrame(a_state)) => {
                 let mut result = a.next_state(a_state, c, signal_id);
                 result.frame_stack.pop();
                 result
@@ -343,7 +351,10 @@ impl<'a> Iterator for StateIter<'a> {
             CombinatorState::ForwardRef(inner_state) => {
                 self.stack.push(inner_state);
             }
-            CombinatorState::WithFrameStack(inner_state) => {
+            CombinatorState::WithNewFrame(inner_state) => {
+                self.stack.push(inner_state);
+            }
+            CombinatorState::WithExistingFrame(inner_state, _) => {
                 self.stack.push(inner_state);
             }
             CombinatorState::InFrameStack(inner_state, _) => {
@@ -422,7 +433,10 @@ impl<'a> Iterator for StateIterMut<'a> {
             CombinatorState::ForwardRef(inner_state) => {
                 self.stack.push(inner_state.as_mut() as *mut CombinatorState);
             }
-            CombinatorState::WithFrameStack(inner_state) => {
+            CombinatorState::WithNewFrame(inner_state) => {
+                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
+            }
+            CombinatorState::WithExistingFrame(inner_state, _) => {
                 self.stack.push(inner_state.as_mut() as *mut CombinatorState);
             }
             CombinatorState::InFrameStack(inner_state, _) => {

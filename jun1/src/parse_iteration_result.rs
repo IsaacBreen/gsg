@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::ops::{BitAnd, BitOr};
 
 use crate::u8set::U8Set;
@@ -173,7 +174,7 @@ struct FrameNode {
     child_ids: Vec<usize>,
 }
 
-#[derive(Clone, PartialEq, Debug, Default)]
+#[derive(Clone, PartialEq, Debug, Default, Eq)]
 pub struct Frame {
     pos: HashSet<String>,
 }
@@ -270,8 +271,7 @@ impl FrameStack {
         (result_set, is_complete)
     }
 
-    pub fn push_empty_frame(&mut self) {
-        let new_frame = Frame::default();
+    pub fn push_frame(&mut self, new_frame: Frame) {
         let new_id = self.next_id;
         self.next_id += 1;
 
@@ -285,6 +285,10 @@ impl FrameStack {
         });
 
         self.frames.push(new_frame);
+    }
+
+    pub fn push_empty_frame(&mut self) {
+        self.push_frame(Frame::default());
     }
 
     pub fn push_name(&mut self, name: &[u8]) {
@@ -381,5 +385,11 @@ impl BitOr for FrameStack {
             root_id: self.root_id,
             next_id: self.next_id + other.next_id,
         }
+    }
+}
+
+impl Hash for Frame {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.pos.iter().for_each(|name| name.hash(state));
     }
 }
