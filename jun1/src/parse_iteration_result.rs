@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ops::{BitAnd, BitOr, BitOrAssign};
 use crate::gss::GSSNode;
 use crate::u8set::U8Set;
@@ -6,56 +6,26 @@ use crate::u8set::U8Set;
 #[derive(Clone, PartialEq, Debug)]
 pub struct ParserIterationResult {
     pub u8set: U8Set,
-    pub id_complete: Option<usize>,
+    pub is_complete: bool,
     pub signals: Signals,
     pub node: Option<GSSNode<()>>,
-    pub signals2: Signals2,
 }
 
 impl ParserIterationResult {
-    pub fn new(u8set: U8Set, id_complete: Option<usize>, signals: Signals) -> Self {
-        Self { u8set, id_complete, signals, node: None, signals2: Default::default() }
-    }
-
-    pub fn u8set(&self) -> &U8Set {
-        &self.u8set
-    }
-
-    pub fn is_complete(&self) -> bool {
-        self.id_complete.is_some()
-    }
-
-    pub fn signals(&self) -> &Signals {
-        &self.signals
-    }
-
-    pub fn signals2(&self) -> &Signals2 {
-        &self.signals2
+    pub fn new(u8set: U8Set, is_complete: Option<usize>) -> Self {
+        Self { u8set, is_complete: is_complete.is_some(), signals: Default::default(), node: None }
     }
 }
 
 impl ParserIterationResult {
     pub fn merge(self, mut other: Self) -> Self {
-        let id_complete = match (self.id_complete, other.id_complete) {
-            (None, None) => None,
-            (Some(id_complete), None) => Some(id_complete),
-            (None, Some(id_complete)) => Some(id_complete),
-            (Some(id_complete), Some(other_id_complete)) if id_complete == other_id_complete => {
-                Some(id_complete)
-            }
-            (Some(id_complete), Some(other_id_complete)) => {
-                // Merge
-                other.signals.merges.insert(id_complete, other_id_complete);
-                Some(other_id_complete)
-            }
-        };
+        let is_complete = self.is_complete || other.is_complete;
         // Merge the signal sets
         Self {
             u8set: self.u8set | other.u8set,
             signals: self.signals | other.signals,
             node: None,
-            id_complete,
-            signals2: self.signals2 | other.signals2,
+            is_complete,
         }
     }
 
@@ -69,8 +39,7 @@ impl ParserIterationResult {
             u8set: self.u8set | other.u8set,
             signals,
             node: None,
-            id_complete: other.id_complete,
-            signals2: self.signals2 | other.signals2,
+            is_complete: other.is_complete,
         }
     }
 
@@ -92,19 +61,41 @@ pub struct Signal {
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Signals {
-    signals: HashMap<usize, Signal>,
-    merges: HashMap<usize, usize>,
+    // state id -> signal
+    pub(crate) signals: HashMap<usize, Signal>,
+    // state id -> next state id
+    pub(crate) next_state_ids: HashMap<usize, usize>,
+    active_state_id: Option<usize>,
 }
 
 impl Signal {
-    pub fn push(&mut self, signal_atom: SignalAtom) {
+    pub fn push(&mut self, state_id: usize, signal_atom: SignalAtom) {
         self.atoms.push(signal_atom);
     }
 }
 
 impl Signals {
-    pub fn push(&mut self, signal_atom: SignalAtom) {
-        self.signals.entry(self.signals.len()).or_insert_with(|| Signal { atoms: Vec::new() }).push(signal_atom);
+    pub fn push(&mut self, state_id: usize, signal_atom: SignalAtom) {
+        self.signals.entry(state_id).or_insert_with(|| Signal { atoms: Vec::new() }).push(state_id, signal_atom);
+    }
+
+    pub fn start_new_signal_group(&mut self) {
+        self.active_state_id = Some(self.signals.len());
+    }
+
+    pub fn set_active_state_id(&mut self, state_id: usize) {
+        self.active_state_id = Some(state_id);
+    }
+
+    pub fn add_finished(&mut self, state_id: usize) {
+        if let Some(active_state_id) = self.active_state_id {
+            self.next_state_ids.insert(active_state_id, state_id);
+        }
+        self.active_state_id = None;
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.signals.is_empty()
     }
 }
 
@@ -112,7 +103,7 @@ impl BitOr for Signals {
     type Output = Signals;
 
     fn bitor(self, other: Self) -> Signals {
-        Signals { signals: self.signals.into_iter().chain(other.signals).collect(), merges: self.merges.into_iter().chain(other.merges).collect() }
+        Signals { signals: self.signals.into_iter().chain(other.signals).collect(), next_state_ids: Default::default(), active_state_id: None }
     }
 }
 
@@ -126,94 +117,14 @@ impl BitAnd for Signals {
     type Output = Signals;
 
     fn bitand(self, other: Self) -> Signals {
-        let ids = self.signals.keys().chain(other.signals.keys()).cloned().collect::<HashSet<_>>();
+        let ids = self.signals.keys().chain(other.signals.keys()).cloned().collect::<Vec<_>>();
         let mut signals = Signals::default();
         for id in ids.iter() {
             if self.signals.contains_key(id) && other.signals.contains_key(id) {
                 let mut signal: Signal = self.signals[id].clone();
                 signal.atoms.extend(other.signals[id].atoms.iter().cloned());
                 signals.signals.insert(*id, signal);
-            } else if self.signals.contains_key(id) {
-                signals.signals.insert(*id, self.signals[id].clone());
-            } else if other.signals.contains_key(id) {
-                signals.signals.insert(*id, other.signals[id].clone());
             }
-        }
-        signals.merges.extend(self.merges.iter());
-        signals.merges.extend(other.merges.iter());
-        signals
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Default)]
-pub struct Signals2 {
-    // prev id -> (next id, signal atom)
-    pub(crate) signals: HashMap<usize, (usize, SignalAtom)>,
-    finished_signal_ids: Vec<usize>,
-}
-
-impl Signals2 {
-    pub fn new() -> Self {
-        Self { signals: HashMap::new(), finished_signal_ids: Vec::new() }
-    }
-
-    pub fn push(&mut self, old_id: usize, new_id: usize, signal_atom: SignalAtom) {
-        self.signals.insert(old_id, (new_id, signal_atom));
-    }
-
-    pub fn push_to_many(&mut self, old_ids: Vec<usize>, new_id: usize, signal_atom: SignalAtom) {
-        for old_id in old_ids.iter() {
-            self.signals.insert(*old_id, (new_id, signal_atom.clone()));
-        }
-    }
-
-    pub fn push_to_finished(&mut self, new_id: usize, signal_atom: SignalAtom) {
-        self.push_to_many(self.finished_signal_ids.clone(), new_id, signal_atom);
-        self.finished_signal_ids = vec![new_id];
-    }
-
-    pub fn add_finished(&mut self, id: usize) {
-        self.finished_signal_ids.push(id);
-    }
-
-    pub fn merge(&mut self, other: Self) {
-        for (old_id, (new_id, signal_atom)) in other.signals {
-            assert!(!self.signals.contains_key(&old_id));
-            self.signals.insert(old_id, (new_id, signal_atom));
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.signals.is_empty()
-    }
-}
-
-impl BitAnd for Signals2 {
-    type Output = Signals2;
-
-    fn bitand(self, other: Self) -> Signals2 {
-        let mut signals = Signals2::new();
-        for (old_id, (new_id, signal_atom)) in self.signals {
-            if let Some((other_new_id, other_signal_atom)) = other.signals.get(&old_id) {
-                assert_eq!(new_id, *other_new_id);
-                signals.push(old_id, new_id, signal_atom.clone());
-                signals.push(old_id, new_id, other_signal_atom.clone());
-            }
-        }
-        signals
-    }
-}
-
-impl BitOr for Signals2 {
-    type Output = Signals2;
-
-    fn bitor(self, other: Self) -> Signals2 {
-        let mut signals = Signals2::new();
-        for (old_id, (new_id, signal_atom)) in self.signals {
-            signals.push(old_id, new_id, signal_atom);
-        }
-        for (old_id, (new_id, signal_atom)) in other.signals {
-            signals.push(old_id, new_id, signal_atom);
         }
         signals
     }
