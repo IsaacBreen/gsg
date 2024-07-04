@@ -7,21 +7,16 @@ use crate::u8set::U8Set;
 pub struct ParserIterationResult {
     pub u8set: U8Set,
     pub is_complete: bool,
-    pub signals2: Signals2,
     pub frame_stack: FrameStack,
 }
 
 impl ParserIterationResult {
-    pub fn new(u8set: U8Set, is_complete: bool, signals2: Signals2, frame_stack: FrameStack) -> Self {
-        Self { u8set, is_complete, signals2, frame_stack }
+    pub fn new(u8set: U8Set, is_complete: bool, frame_stack: FrameStack) -> Self {
+        Self { u8set, is_complete, frame_stack }
     }
 
     pub fn u8set(&self) -> &U8Set {
         &self.u8set
-    }
-
-    pub fn signals2(&self) -> &Signals2 {
-        &self.signals2
     }
 }
 
@@ -32,7 +27,6 @@ impl ParserIterationResult {
         Self {
             u8set: self.u8set | other.u8set,
             is_complete: self.is_complete,
-            signals2: self.signals2 | other.signals2,
             frame_stack: self.frame_stack | other.frame_stack,
         }
     }
@@ -45,7 +39,6 @@ impl ParserIterationResult {
         Self {
             u8set: self.u8set | other.u8set,
             is_complete: other.is_complete,
-            signals2: self.signals2 | other.signals2,
             frame_stack: other.frame_stack,
         }
     }

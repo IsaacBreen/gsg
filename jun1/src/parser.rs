@@ -169,7 +169,7 @@ impl Combinator {
                 f().next_state(inner_state, c, signal_id)
             }
             (Combinator::Choice(combinators), CombinatorState::Choice(its)) => {
-                let mut final_result = ParserIterationResult::new(U8Set::none(), false, Signals2::default(), FrameStack::default());
+                let mut final_result = ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
                 for (combinator, its) in combinators.iter().zip(its.iter_mut()) {
                     final_result.merge_assign(process(combinator, c, its, signal_id));
                 }
@@ -177,22 +177,21 @@ impl Combinator {
             }
             (Combinator::EatString(value), CombinatorState::EatString(index, signal_id, frame_stack)) => {
                 if *index > value.len() {
-                    return ParserIterationResult::new(U8Set::none(), false, Signals2::default(), frame_stack.clone());
+                    return ParserIterationResult::new(U8Set::none(), false, frame_stack.clone());
                 }
                 if *index == value.len() {
-                    let mut result = ParserIterationResult::new(U8Set::none(), true, Signals2::default(), frame_stack.clone());
-                    result.signals2.add_finished(*signal_id);
+                    let mut result = ParserIterationResult::new(U8Set::none(), true, frame_stack.clone());
                     return result;
                 }
                 let u8set = U8Set::from_chars(&value[*index..=*index]);
                 *index += 1;
-                ParserIterationResult::new(u8set, false, Signals2::default(), frame_stack.clone())
+                ParserIterationResult::new(u8set, false, frame_stack.clone())
             }
             (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state, signal_id, frame_stack)) => {
                 match *state {
                     0 => {
                         *state = 1;
-                        ParserIterationResult::new(u8set.clone(), false, Signals2::default(), frame_stack.clone())
+                        ParserIterationResult::new(u8set.clone(), false, frame_stack.clone())
                     }
                     1 => {
                         *state = 2;
@@ -200,20 +199,15 @@ impl Combinator {
                         let mut result = ParserIterationResult::new(
                             U8Set::none(),
                             is_complete,
-                            Signals2::default(),
                             frame_stack.clone(),
                         );
-                        if is_complete {
-                            result.signals2.add_finished(*signal_id);
-                        }
                         result
                     }
                     _ => panic!("EatU8Matching: state out of bounds"),
                 }
             }
             (Combinator::Eps, CombinatorState::Eps(signal_id, frame_stack)) => {
-                let mut result = ParserIterationResult::new(U8Set::none(), true, Signals2::default(), frame_stack.clone());
-                result.signals2.add_finished(*signal_id);
+                let mut result = ParserIterationResult::new(U8Set::none(), true, frame_stack.clone());
                 result
             }
             (Combinator::ForwardRef(inner), CombinatorState::ForwardRef(inner_state)) => {
@@ -244,12 +238,10 @@ impl Combinator {
                 let mut result = a.next_state(state, c, signal_id);
                 if result.is_complete && !*stage {
                     let new_signal_id = { *signal_id += 1; *signal_id };
-                    result.signals2.push_to_finished(new_signal_id, end_signal_atom.clone());
                 }
                 if !*stage {
                     let new_signal_id = { *signal_id += 1; *signal_id };
                     let active_signal_ids = state.get_active_signal_ids();
-                    result.signals2.push_to_many(active_signal_ids, new_signal_id, start_signal_atom.clone());
                     state.set_active_signal_ids(new_signal_id);
                     *stage = true;
                 }
@@ -268,7 +260,6 @@ impl Combinator {
                 let (u8set, is_complete) = result.frame_stack.next_u8_given_contains(&name);
                 if result.is_complete && !is_complete {
                     result.is_complete = false;
-                    result.signals2.clear_finished();
                 } else if result.is_complete && is_complete {
                     result.frame_stack.filter_contains(&name);
                 }
@@ -280,7 +271,6 @@ impl Combinator {
                 let (u8set, is_complete) = result.frame_stack.next_u8_given_excludes(&name);
                 if result.is_complete && !is_complete {
                     result.is_complete = false;
-                    result.signals2.clear_finished();
                 } else if result.is_complete && is_complete {
                     result.frame_stack.filter_excludes(&name);
                 }
@@ -514,7 +504,7 @@ fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorSta
         // Warn if there are too many states
         eprintln!("Warning: there are {} states (process)", its.len());
     }
-    let mut final_result = ParserIterationResult::new(U8Set::none(), false, Signals2::default(), FrameStack::default());
+    let mut final_result = ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
     its.retain_mut(|it| {
         let result = combinator.next_state(it, c, signal_id);
         let is_empty = result.u8set().is_empty();
