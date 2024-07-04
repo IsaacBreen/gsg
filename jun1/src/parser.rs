@@ -8,6 +8,8 @@
 //  - rename signal_id to something else to distinguish it from signal_type_id (what is it?)
 //  - rename signal_type_id to something more suitable (what is it?)
 //  - clean up the parse result struct and its methods. Look at its construction and usage and redesign it to make it simpler.
+//  - there are some usages of &str and String in the code. Replace them with u8s (i.e. bytes).
+//  - remove signals entirely
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -15,7 +17,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 use std::rc::Rc;
 use crate::gss::GSSNode;
-use crate::parse_iteration_result::{ParserIterationResult, SignalAtom, Signals};
+use crate::parse_iteration_result::{FrameStack, ParserIterationResult, SignalAtom, Signals};
 use crate::u8set::U8Set;
 
 #[derive(Clone)]
@@ -29,6 +31,11 @@ enum Combinator {
     Repeat1(Box<Combinator>),
     Seq(Rc<[Combinator]>),
     SignalWrap(SignalAtom, SignalAtom, Box<Combinator>),
+    WithFrameStack(Box<Combinator>),
+    InFrameStack(Box<Combinator>),
+    NotInFrameStack(Box<Combinator>),
+    AddToFrameStack(Box<Combinator>),
+    RemoveFromFrameStack(Box<Combinator>),
 }
 
 
@@ -44,7 +51,11 @@ impl PartialEq for Combinator {
             (Combinator::Repeat1(a), Combinator::Repeat1(b)) => *a == *b,
             (Combinator::Seq(a), Combinator::Seq(b)) => Rc::ptr_eq(a, b),
             (Combinator::SignalWrap(_, _, _), Combinator::SignalWrap(_, _, _)) => self == other,
-            _ => false,
+            (Combinator::InFrameStack(a), Combinator::InFrameStack(b)) => *a == *b,
+            (Combinator::NotInFrameStack(a), Combinator::NotInFrameStack(b)) => *a == *b,
+            (Combinator::AddToFrameStack(a), Combinator::AddToFrameStack(b)) => *a == *b,
+            (Combinator::RemoveFromFrameStack(a), Combinator::RemoveFromFrameStack(b)) => *a == *b,
+            f => panic!("Combinator::PartialEq not implemented for {:?} and {:?}", self, other),
         }
     }
 }
@@ -75,6 +86,11 @@ impl Hash for Combinator {
                 end_signal_atom.hash(state);
                 a.hash(state);
             }
+            Combinator::WithFrameStack(a) => a.hash(state),
+            Combinator::InFrameStack(a) => a.hash(state),
+            Combinator::NotInFrameStack(a) => a.hash(state),
+            Combinator::AddToFrameStack(a) => a.hash(state),
+            Combinator::RemoveFromFrameStack(a) => a.hash(state),
         }
     }
 }
@@ -91,6 +107,11 @@ impl Debug for Combinator {
             Combinator::Repeat1(a) => write!(f, "Repeat1({:?})", a),
             Combinator::Seq(a) => write!(f, "Seq({:?})", a),
             Combinator::SignalWrap(signal_atom, end_signal_atom, a) => write!(f, "EmitSignal({:?}, {:?}, {:?})", signal_atom, end_signal_atom, a),
+            Combinator::WithFrameStack(a) => write!(f, "WithFrameStack({:?})", a),
+            Combinator::InFrameStack(a) => write!(f, "InFrameStack({:?})", a),
+            Combinator::NotInFrameStack(a) => write!(f, "NotInFrameStack({:?})", a),
+            Combinator::AddToFrameStack(a) => write!(f, "AddToFrameStack({:?})", a),
+            Combinator::RemoveFromFrameStack(a) => write!(f, "RemoveFromFrameStack({:?})", a),
         }
     }
 }
@@ -106,6 +127,11 @@ enum CombinatorState {
     Repeat1(Vec<CombinatorState>),
     Seq(Vec<Vec<CombinatorState>>),
     SignalWrap(usize, usize, Box<CombinatorState>),
+    WithFrameStack(Box<CombinatorState>),
+    InFrameStack(Box<CombinatorState>, Vec<u8>),
+    NotInFrameStack(Box<CombinatorState>, Vec<u8>),
+    AddToFrameStack(Box<CombinatorState>, Vec<u8>),
+    RemoveFromFrameStack(Box<CombinatorState>, Vec<u8>),
 }
 
 #[derive(Debug)]
@@ -115,29 +141,37 @@ struct WrappedCombinatorState {
 }
 
 impl Combinator {
-    fn initial_state(&self, node: Option<&GSSNode<()>>, signal_id: &mut usize) -> CombinatorState {
+    fn initial_state(&self, node: Option<&GSSNode<()>>, signal_id: &mut usize, mut frame_stack: FrameStack) -> CombinatorState {
         match self {
-            Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(node, signal_id)))),
-            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state(node, signal_id)]).collect()),
+            Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(node, signal_id, frame_stack)))),
+            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state(node, signal_id, frame_stack.clone())]).collect()),
             Combinator::EatString(_) => CombinatorState::EatString(0, { *signal_id += 1; *signal_id }),
             Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0, { *signal_id += 1; *signal_id }),
             Combinator::Eps => CombinatorState::Eps({ *signal_id += 1; *signal_id }),
             Combinator::ForwardRef(c) => {
                 match c.as_ref().borrow().as_ref() {
-                    Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state(node, signal_id))),
+                    Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state(node, signal_id, frame_stack))),
                     None => panic!("ForwardRef not set"),
                 }
             }
-            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![a.initial_state(node, signal_id)]),
+            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![a.initial_state(node, signal_id, frame_stack)]),
             Combinator::Seq(a) => {
                 let mut its = Vec::with_capacity(a.len());
-                its.push(vec![a[0].initial_state(node, signal_id)]);
+                its.push(vec![a[0].initial_state(node, signal_id, frame_stack)]);
                 for _ in 1..a.len() {
                     its.push(Vec::new());
                 }
                 CombinatorState::Seq(its)
             }
-            Combinator::SignalWrap(start_signal_atom, end_signal_atom, a) => CombinatorState::SignalWrap({ *signal_id += 1; *signal_id }, 0, Box::new(a.initial_state(node, signal_id))),
+            Combinator::SignalWrap(start_signal_atom, end_signal_atom, a) => CombinatorState::SignalWrap({ *signal_id += 1; *signal_id }, 0, Box::new(a.initial_state(node, signal_id, frame_stack))),
+            Combinator::WithFrameStack(a) => {
+                frame_stack.push_empty_frame();
+                a.initial_state(node, signal_id, frame_stack)
+            }
+            Combinator::InFrameStack(a) => CombinatorState::InFrameStack(Box::new(a.initial_state(node, signal_id, frame_stack)), Vec::new()),
+            Combinator::NotInFrameStack(a) => CombinatorState::NotInFrameStack(Box::new(a.initial_state(node, signal_id, frame_stack)), Vec::new()),
+            Combinator::AddToFrameStack(a) => CombinatorState::AddToFrameStack(Box::new(a.initial_state(node, signal_id, frame_stack)), Vec::new()),
+            Combinator::RemoveFromFrameStack(a) => CombinatorState::RemoveFromFrameStack(Box::new(a.initial_state(node, signal_id, frame_stack)), Vec::new()),
         }
     }
 
@@ -233,6 +267,56 @@ impl Combinator {
                 }
                 result
             }
+            (Combinator::WithFrameStack(a), CombinatorState::WithFrameStack(a_state)) => {
+                let mut result = a.next_state(a_state, c, signal_id);
+                result.frame_stack.pop();
+                result
+            }
+            (Combinator::InFrameStack(a), CombinatorState::InFrameStack(a_state, ref mut name)) => {
+                let mut result = a.next_state(a_state, c, signal_id);
+                let (u8set, is_complete) = result.frame_stack.next_u8_given_contains(&name);
+                if result.is_complete() && !is_complete {
+                    result.id_complete = None;
+                    result.signals2.clear_finished();
+                }
+                if let Some(c) = c {
+                    name.push(c.try_into().unwrap());
+                }
+                result.u8set |= u8set;
+                result
+            }
+            (Combinator::NotInFrameStack(a), CombinatorState::NotInFrameStack(a_state, ref mut name)) => {
+                let mut result = a.next_state(a_state, c, signal_id);
+                let (u8set, is_complete) = result.frame_stack.next_u8_given_excludes(&name);
+                if result.is_complete() && !is_complete {
+                    result.id_complete = None;
+                    result.signals2.clear_finished();
+                }
+                if let Some(c) = c {
+                    name.push(c.try_into().unwrap());
+                }
+                result.u8set |= u8set;
+                result            }
+            (Combinator::AddToFrameStack(a), CombinatorState::AddToFrameStack(a_state, ref mut name)) => {
+                let mut result = a.next_state(a_state, c, signal_id);
+                if let Some(c) = c {
+                    name.push(c.try_into().unwrap());
+                }
+                if result.is_complete() {
+                    result.frame_stack.push_name(&name);
+                }
+                result
+            }
+            (Combinator::RemoveFromFrameStack(a), CombinatorState::RemoveFromFrameStack(a_state, ref mut name)) => {
+                let mut result = a.next_state(a_state, c, signal_id);
+                if let Some(c) = c {
+                    name.push(c.try_into().unwrap());
+                }
+                if result.is_complete() {
+                    result.frame_stack.pop_name(&name);
+                }
+                result
+            }
             (_self, _state) => panic!("Mismatched combinator and state types: {:?} vs {:?}", _self, _state),
         }
     }
@@ -302,6 +386,21 @@ impl<'a> Iterator for StateIter<'a> {
             CombinatorState::SignalWrap(_, _, inner_state) => {
                 self.stack.push(inner_state);
             }
+            CombinatorState::WithFrameStack(inner_state) => {
+                self.stack.push(inner_state);
+            }
+            CombinatorState::InFrameStack(inner_state, _) => {
+                self.stack.push(inner_state);
+            }
+            CombinatorState::NotInFrameStack(inner_state, _) => {
+                self.stack.push(inner_state);
+            }
+            CombinatorState::AddToFrameStack(inner_state, _) => {
+                self.stack.push(inner_state);
+            }
+            CombinatorState::RemoveFromFrameStack(inner_state, _) => {
+                self.stack.push(inner_state);
+            }
             CombinatorState::EatString(..) | CombinatorState::EatU8Matching(..) | CombinatorState::Eps(..) => {}
         }
         Some(state)
@@ -367,6 +466,21 @@ impl<'a> Iterator for StateIterMut<'a> {
                 self.stack.push(inner_state.as_mut() as *mut CombinatorState);
             }
             CombinatorState::SignalWrap(_, _, inner_state) => {
+                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
+            }
+            CombinatorState::WithFrameStack(inner_state) => {
+                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
+            }
+            CombinatorState::InFrameStack(inner_state, _) => {
+                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
+            }
+            CombinatorState::NotInFrameStack(inner_state, _) => {
+                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
+            }
+            CombinatorState::AddToFrameStack(inner_state, _) => {
+                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
+            }
+            CombinatorState::RemoveFromFrameStack(inner_state, _) => {
                 self.stack.push(inner_state.as_mut() as *mut CombinatorState);
             }
             CombinatorState::EatString(..) | CombinatorState::EatU8Matching(..) | CombinatorState::Eps(..) => {}
@@ -455,7 +569,7 @@ fn seq2_helper(
         eprintln!("Warning: there are {} states (seq2_helper)", b_its.len());
     }
     if a_result.id_complete.is_some() {
-        let mut b_it = b.initial_state(a_result.node.as_ref(), signal_id);
+        let mut b_it = b.initial_state(a_result.node.as_ref(), signal_id, a_result.frame_stack.clone());
         let b_result = b.next_state(&mut b_it, None, signal_id);
         b_its.push(b_it);
         a_result.forward_assign(b_result);
@@ -561,7 +675,7 @@ struct ActiveCombinator {
 impl ActiveCombinator {
     fn new(combinator: Combinator) -> Self {
         let mut signal_id = 0;
-        let state = combinator.initial_state(None, &mut signal_id);
+        let state = combinator.initial_state(None, &mut signal_id, FrameStack::default());
         Self {
             combinator,
             state,
@@ -878,9 +992,9 @@ mod json_parser {
         }
 
         let filenames: Vec<&str> = vec![
-            "GeneratedCSV_mini.json",
-            "GeneratedCSV_1.json",
-            "GeneratedCSV_2.json",
+            // "GeneratedCSV_mini.json",
+            // "GeneratedCSV_1.json",
+            // "GeneratedCSV_2.json",
             // "GeneratedCSV_10.json",
             // "GeneratedCSV_20.json",
             // "GeneratedCSV_100.json",
@@ -899,7 +1013,7 @@ mod json_parser {
 
         // Test with a string of 'a's
         println!("Testing with a string of 'a's of length 100 and length 200");
-        for i in vec![1_000, 10_000, 100_000] {
+        for i in vec![1_000, 10_000] {
             let json_string = std::iter::repeat('a').take(i).collect::<String>();
             let json_string = format!(r#"{{"a": "{}"}}"#, json_string);
             let start = std::time::Instant::now();

@@ -10,11 +10,12 @@ pub struct ParserIterationResult {
     pub signals: Signals,
     pub node: Option<GSSNode<()>>,
     pub signals2: Signals2,
+    pub frame_stack: FrameStack,
 }
 
 impl ParserIterationResult {
     pub fn new(u8set: U8Set, id_complete: Option<usize>, signals: Signals) -> Self {
-        Self { u8set, id_complete, signals, node: None, signals2: Default::default() }
+        Self { u8set, id_complete, signals, node: None, signals2: Default::default(), frame_stack: Default::default() }
     }
 
     pub fn u8set(&self) -> &U8Set {
@@ -56,6 +57,7 @@ impl ParserIterationResult {
             node: None,
             id_complete,
             signals2: self.signals2 | other.signals2,
+            frame_stack: self.frame_stack | other.frame_stack,
         }
     }
 
@@ -71,6 +73,7 @@ impl ParserIterationResult {
             node: None,
             id_complete: other.id_complete,
             signals2: self.signals2 | other.signals2,
+            frame_stack: other.frame_stack,
         }
     }
 
@@ -176,6 +179,10 @@ impl Signals2 {
         self.finished_signal_ids.push(id);
     }
 
+    pub fn clear_finished(&mut self) {
+        self.finished_signal_ids.clear();
+    }
+
     pub fn merge(&mut self, other: Self) {
         for (old_id, (new_id, signal_atom)) in other.signals {
             assert!(!self.signals.contains_key(&old_id));
@@ -216,5 +223,146 @@ impl BitOr for Signals2 {
             signals.push(old_id, new_id, signal_atom);
         }
         signals
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct FrameStack {
+    frames: Vec<Frame>,
+}
+
+impl Default for FrameStack {
+    fn default() -> Self {
+        Self { frames: vec![Frame::default()] }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Default)]
+pub struct Frame {
+    pos: HashSet<String>,
+    neg: HashSet<String>,
+}
+
+impl Frame {
+    pub fn contains_prefix(&self, name_prefix: &str) -> bool {
+        self.pos.iter().any(|name| name.starts_with(name_prefix))
+    }
+
+    pub fn excludes_prefix(&self, name_prefix: &str) -> bool {
+        !self.contains_prefix(name_prefix) || self.neg.iter().any(|name| name.starts_with(name_prefix))
+    }
+
+    pub fn contains(&self, name: &str) -> bool {
+        self.pos.contains(name)
+    }
+
+    pub fn excludes(&self, name: &str) -> bool {
+        !self.contains(name) || self.neg.contains(name)
+    }
+
+    pub fn next_u8_given_contains(&self, name: &[u8]) -> (U8Set, bool) {
+        let mut u8set = U8Set::none();
+        let mut is_complete = false;
+        for existing_name in self.pos.iter() {
+            let existing_name = existing_name.as_bytes();
+            if name.len() <= existing_name.len() && existing_name[..name.len()] == *name {
+                let next = existing_name[name.len()..].iter().copied().next();
+                if let Some(next) = next {
+                    u8set.insert(next);
+                } else {
+                    is_complete = true;
+                }
+            }
+        }
+        (u8set, is_complete)
+    }
+
+    pub fn next_u8_given_excludes(&self, name: &[u8]) -> (U8Set, bool) {
+        todo!()
+    }
+
+    pub fn push_name(&mut self, name: &[u8]) {
+        let name: &str = std::str::from_utf8(name).unwrap();
+        assert!(!self.contains(&name));
+        self.pos.insert(name.to_string());
+    }
+
+    pub fn pop_name(&mut self, name: &[u8]) {
+        let name: &str = std::str::from_utf8(name).unwrap();
+        assert!(self.contains(&name));
+        self.pos.remove(&name.to_string());
+    }
+}
+
+impl FrameStack {
+    pub fn contains_prefix(&self, name_prefix: &str) -> bool {
+        self.frames.iter().any(|frame| frame.contains_prefix(name_prefix))
+    }
+
+    pub fn excludes_prefix(&self, name_prefix: &str) -> bool {
+        !self.contains_prefix(name_prefix) || self.frames.iter().any(|frame| frame.excludes_prefix(name_prefix))
+    }
+
+    pub fn contains(&self, name: &str) -> bool {
+        self.frames.iter().any(|frame| frame.contains(name))
+    }
+
+    pub fn excludes(&self, name: &str) -> bool {
+        !self.contains(name) || self.frames.iter().any(|frame| frame.excludes(name))
+    }
+
+    pub fn next_u8_given_contains(&self, name: &[u8]) -> (U8Set, bool) {
+        let mut u8set = U8Set::none();
+        let mut is_complete = false;
+        for frame in self.frames.iter().rev() {
+            let (frame_u8set, frame_is_complete) = frame.next_u8_given_contains(name);
+            u8set |= frame_u8set;
+            is_complete |= frame_is_complete;
+        }
+        (u8set, is_complete)
+    }
+
+    pub fn next_u8_given_excludes(&self, name: &[u8]) -> (U8Set, bool) {
+        todo!()
+    }
+
+    pub fn push_empty_frame(&mut self) {
+        self.frames.push(Frame::default());
+    }
+
+    pub fn push_name(&mut self, name: &[u8]) {
+        self.frames.last_mut().unwrap().push_name(name);
+    }
+
+    pub fn pop_name(&mut self, name: &[u8]) {
+        self.frames.last_mut().unwrap().pop_name(name);
+    }
+
+    pub fn pop(&mut self) {
+        self.frames.pop();
+    }
+}
+
+impl BitOr for Frame {
+    type Output = Frame;
+
+    fn bitor(self, other: Self) -> Frame {
+        Frame { pos: self.pos.union(&other.pos).cloned().collect(), neg: self.neg.union(&other.neg).cloned().collect() }
+    }
+}
+
+impl BitOr for FrameStack {
+    type Output = FrameStack;
+
+    fn bitor(self, other: Self) -> FrameStack {
+        // All except the last frames should be the same
+        assert_eq!(self.frames.len(), other.frames.len());
+        for (frame1, frame2) in self.frames.iter().zip(other.frames.iter()).rev().skip(1) {
+            assert_eq!(frame1, frame2);
+        }
+        let mut frames = self.frames.clone();
+        let last_frame = frames.last_mut().unwrap();
+        *last_frame = last_frame.clone() | other.frames.last().unwrap().clone();
+        FrameStack { frames }
     }
 }
