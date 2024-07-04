@@ -148,7 +148,7 @@ impl BitAnd for Signals {
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Signals2 {
     // prev id -> (next id, signal atom)
-    signals: HashMap<usize, (usize, SignalAtom)>,
+    pub(crate) signals: HashMap<usize, (usize, SignalAtom)>,
     finished_signal_ids: Vec<usize>,
 }
 

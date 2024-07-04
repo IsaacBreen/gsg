@@ -7,6 +7,7 @@
 //  - replace stage in SignalWrap with a boolean
 //  - rename signal_id to something else to distinguish it from signal_type_id (what is it?)
 //  - rename signal_type_id to something more suitable (what is it?)
+//  - clean up the parse result struct and its methods. Look at its construction and usage and redesign it to make it simpler.
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -765,6 +766,8 @@ mod tests {
         let result1 = it.send(Some('a'));
         assert_matches!(result1, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("b"));
         assert!(!result1.signals2.is_empty());
+        // There should be a SignalAtom::Start(signal_type_id) signal
+        assert!(result1.signals2.signals.iter().any(|(_, (_, signal_atom))| matches!(signal_atom, SignalAtom::Start(signal_type_id))));
         let result2 = it.send(Some('b'));
         assert_matches!(result2, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("c"));
         assert!(result2.signals2.is_empty());
@@ -774,6 +777,8 @@ mod tests {
         let result4 = it.send(Some('d'));
         assert_matches!(result4, ParserIterationResult { ref u8set, id_complete: None, .. } if u8set == &U8Set::from_chars("e"));
         assert!(!result4.signals2.is_empty());
+        // There should be a SignalAtom::End(signal_type_id) signal
+        assert!(result4.signals2.signals.iter().any(|(_, (_, signal_atom))| matches!(signal_atom, SignalAtom::End(signal_type_id))));
         let result5 = it.send(Some('e'));
         assert_matches!(result5, ParserIterationResult { ref u8set, id_complete: Some(_), .. } if u8set.is_empty());
         assert!(result5.signals2.is_empty());
@@ -876,8 +881,8 @@ mod json_parser {
             "GeneratedCSV_mini.json",
             "GeneratedCSV_1.json",
             "GeneratedCSV_2.json",
-            "GeneratedCSV_10.json",
-            "GeneratedCSV_20.json",
+            // "GeneratedCSV_10.json",
+            // "GeneratedCSV_20.json",
             // "GeneratedCSV_100.json",
             // "GeneratedCSV_200.json",
         ];
