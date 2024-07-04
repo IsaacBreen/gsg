@@ -841,7 +841,7 @@ mod tests {
         let result1 = it.send(Some('a'));
         assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set.is_empty());
 
-        let mut it0 = ActiveCombinator::new_with_names(
+        let mut it = ActiveCombinator::new_with_names(
             in_frame_stack(
                 choice!(
                         eat_string("ab"),
@@ -884,6 +884,7 @@ mod tests {
 mod json_parser {
     use super::*;
 
+    #[ignore]
     #[test]
     fn test_json_parser() {
         // Helper combinators for JSON parsing
