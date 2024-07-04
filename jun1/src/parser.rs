@@ -9,7 +9,7 @@
 //  - rename signal_type_id to something more suitable (what is it?)
 //  - clean up the parse result struct and its methods. Look at its construction and usage and redesign it to make it simpler.
 //  - there are some usages of &str and String in the code. Replace them with u8s (i.e. bytes).
-//  - wrap FrameStack and signal_id up into a strict and attach that to the terminal combinator states (i.e. EatString, EatU8Matching, Eps) instead of attaching each of those items separately
+//  - wrap FrameStack and signal_id up into a strict and attach that to the terminal combinator states (i.e. EatString, EatU8Matching, Eps) instead of attaching each of those items separately.
 //  - remove signals entirely
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -283,6 +283,8 @@ impl Combinator {
                 if result.is_complete() && !is_complete {
                     result.id_complete = None;
                     result.signals2.clear_finished();
+                } else if result.is_complete() && is_complete {
+                    result.frame_stack.filter_contains(&name);
                 }
                 dbg!(&result.u8set, &u8set);
                 result.u8set &= u8set;
@@ -294,6 +296,8 @@ impl Combinator {
                 if result.is_complete() && !is_complete {
                     result.id_complete = None;
                     result.signals2.clear_finished();
+                } else if result.is_complete() && is_complete {
+                    result.frame_stack.filter_excludes(&name);
                 }
                 if let Some(c) = c {
                     name.push(c.try_into().unwrap());

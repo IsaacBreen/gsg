@@ -226,6 +226,13 @@ impl BitOr for Signals2 {
     }
 }
 
+// TODO:
+//  - create a tree of frames rather than a vector. Each frame is a node. A frame can have multiple parents and multiple children.
+//  - for filtering, traverse the tree and paint nodes that pass the filter green. Then paint any node
+//    that is connected to a red node (parent, child, grandparent, grandchild etc.) blue.
+//    Remove any unpainted nodes from the tree.
+//  - remove the neg set altogether
+//  - fix any affected methods, including the excludes methods.
 #[derive(Clone, PartialEq, Debug)]
 pub struct FrameStack {
     frames: Vec<Frame>,
@@ -340,6 +347,16 @@ impl FrameStack {
 
     pub fn pop(&mut self) {
         self.frames.pop();
+    }
+
+    pub fn filter_contains(&mut self, name: &[u8]) {
+        // remove frames that don't contain the name
+        todo!()
+    }
+
+    pub fn filter_excludes(&mut self, name: &[u8]) {
+        // remove frames that do contain the name
+        todo!()
     }
 }
 
