@@ -45,10 +45,9 @@ impl ParserIterationResult {
             }
         };
         // Merge the signal sets
-        let signals = self.signals | other.signals;
         Self {
             u8set: self.u8set | other.u8set,
-            signals,
+            signals: self.signals | other.signals,
             node: None,
             id_complete,
         }

@@ -1,3 +1,5 @@
+// TODO:
+//  - Remove WrappedCombinatorState
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::Debug;
