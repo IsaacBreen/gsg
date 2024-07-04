@@ -683,6 +683,20 @@ impl ActiveCombinator {
         }
     }
 
+    fn new_with_names(combinator: Combinator, names: Vec<String>) -> Self {
+        let mut signal_id = 0;
+        let mut frame_stack = FrameStack::default();
+        for name in names {
+            frame_stack.push_name(name.as_bytes());
+        }
+        let state = combinator.initial_state(None, &mut signal_id, frame_stack);
+        Self {
+            combinator,
+            state,
+            signal_id,
+        }
+    }
+
     fn send(&mut self, c: Option<char>) -> ParserIterationResult {
         self.combinator.next_state(&mut self.state, c, &mut self.signal_id)
     }
