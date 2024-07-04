@@ -1,16 +1,7 @@
 // TODO:
-//  - remove WrappedCombinatorState
-//  - remove Signals, replace it with Signals2
 //  - make id_complete a boolean, call it is_complete
-//  - remove Signals, replace it with Signals2
-//  - remove node from ParserIterationResult
-//  - replace stage in SignalWrap with a boolean
-//  - rename signal_id to something else to distinguish it from signal_type_id (what is it?)
-//  - rename signal_type_id to something more suitable (what is it?)
 //  - clean up the parse result struct and its methods. Look at its construction and usage and redesign it to make it simpler.
 //  - there are some usages of &str and String in the code. Replace them with u8s (i.e. bytes).
-//  - wrap FrameStack and signal_id up into a strict and attach that to the terminal combinator states (i.e. EatString, EatU8Matching, Eps) instead of attaching each of those items separately.
-//  - remove signals entirely
 //  - wrap FrameStack and signal_id up into a struct and attach that to the terminal combinator states (i.e. EatString, EatU8Matching, Eps) instead of attaching each of those items separately.
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -864,39 +855,6 @@ mod tests {
         assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("]"));
         let result3 = it.send(Some(']'));
         assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-    }
-
-    #[test]
-    fn test_signal_wrap()
-    {
-        let signal_type_id = 0;
-        let mut it = ActiveCombinator::new(seq!(
-            eat_u8('a'),
-            signal_wrap(signal_type_id, eat_string("bcd")),
-            eat_u8('e')
-        ));
-        let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
-        assert!(result0.signals2.is_empty());
-        let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("b"));
-        assert!(!result1.signals2.is_empty());
-        // There should be a SignalAtom::Start(signal_type_id) signal
-        assert!(result1.signals2.signals.iter().any(|(_, (_, signal_atom))| matches!(signal_atom, SignalAtom::Start(signal_type_id))));
-        let result2 = it.send(Some('b'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("c"));
-        assert!(result2.signals2.is_empty());
-        let result3 = it.send(Some('c'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("d"));
-        assert!(result3.signals2.is_empty());
-        let result4 = it.send(Some('d'));
-        assert_matches!(result4, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("e"));
-        assert!(!result4.signals2.is_empty());
-        // There should be a SignalAtom::End(signal_type_id) signal
-        assert!(result4.signals2.signals.iter().any(|(_, (_, signal_atom))| matches!(signal_atom, SignalAtom::End(signal_type_id))));
-        let result5 = it.send(Some('e'));
-        assert_matches!(result5, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-        assert!(result5.signals2.is_empty());
     }
 
     #[test]
