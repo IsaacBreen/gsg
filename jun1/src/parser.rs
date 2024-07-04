@@ -286,7 +286,6 @@ impl Combinator {
                 } else if result.is_complete() && is_complete {
                     result.frame_stack.filter_contains(&name);
                 }
-                dbg!(&result.u8set, &u8set);
                 result.u8set &= u8set;
                 result
             }
