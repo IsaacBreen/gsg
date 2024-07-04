@@ -43,13 +43,10 @@ where
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<CallState>() {
-            let inner_combinator = (self.0)();
-            let inner_state = state.inner_state.as_mut().unwrap();
-            inner_combinator.next_state(inner_state.as_mut(), c, signal_id)
-        } else {
-            panic!("Invalid state type");
-        }
+        let state = state.as_any_mut().downcast_mut::<CallState>().expect("Invalid state type");
+        let inner_combinator = (self.0)();
+        let inner_state = state.inner_state.as_mut().unwrap();
+        inner_combinator.next_state(inner_state.as_mut(), c, signal_id)
     }
 }
 
@@ -66,16 +63,13 @@ impl Combinator for Choice {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<ChoiceState>() {
-            let mut final_result =
-                ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
-            for (combinator, its) in self.0.iter().zip(state.its.iter_mut()) {
-                final_result.merge_assign(process(combinator, c, its, signal_id));
-            }
-            final_result
-        } else {
-            panic!("Invalid state type");
+        let state = state.as_any_mut().downcast_mut::<ChoiceState>().expect("Invalid state type");
+        let mut final_result =
+            ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
+        for (combinator, its) in self.0.iter().zip(state.its.iter_mut()) {
+            final_result.merge_assign(process(combinator, c, its, signal_id));
         }
+        final_result
     }
 }
 
@@ -88,21 +82,18 @@ impl Combinator for EatString {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, _c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<EatStringState>() {
-            if state.index > self.0.len() {
-                return ParserIterationResult::new(U8Set::none(), false, state.frame_stack.clone());
-            }
-            if state.index == self.0.len() {
-                let mut result =
-                    ParserIterationResult::new(U8Set::none(), true, state.frame_stack.clone());
-                return result;
-            }
-            let u8set = U8Set::from_chars(&self.0[state.index..=state.index]);
-            state.index += 1;
-            ParserIterationResult::new(u8set, false, state.frame_stack.clone())
-        } else {
-            panic!("Invalid state type");
+        let state = state.as_any_mut().downcast_mut::<EatStringState>().expect("Invalid state type");
+        if state.index > self.0.len() {
+            return ParserIterationResult::new(U8Set::none(), false, state.frame_stack.clone());
         }
+        if state.index == self.0.len() {
+            let mut result =
+                ParserIterationResult::new(U8Set::none(), true, state.frame_stack.clone());
+            return result;
+        }
+        let u8set = U8Set::from_chars(&self.0[state.index..=state.index]);
+        state.index += 1;
+        ParserIterationResult::new(u8set, false, state.frame_stack.clone())
     }
 }
 
@@ -120,26 +111,23 @@ impl Combinator for EatU8Matching {
         c: Option<char>,
         _signal_id: &mut usize,
     ) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<EatU8MatchingState>() {
-            match state.state {
-                0 => {
-                    state.state = 1;
-                    ParserIterationResult::new(self.0.clone(), false, state.frame_stack.clone())
-                }
-                1 => {
-                    state.state = 2;
-                    let is_complete = c.map(|c| self.0.contains(c as u8)).unwrap_or(false);
-                    let mut result = ParserIterationResult::new(
-                        U8Set::none(),
-                        is_complete,
-                        state.frame_stack.clone(),
-                    );
-                    result
-                }
-                _ => panic!("EatU8Matching: state out of bounds"),
+        let state = state.as_any_mut().downcast_mut::<EatU8MatchingState>().expect("Invalid state type");
+        match state.state {
+            0 => {
+                state.state = 1;
+                ParserIterationResult::new(self.0.clone(), false, state.frame_stack.clone())
             }
-        } else {
-            panic!("Invalid state type");
+            1 => {
+                state.state = 2;
+                let is_complete = c.map(|c| self.0.contains(c as u8)).unwrap_or(false);
+                let mut result = ParserIterationResult::new(
+                    U8Set::none(),
+                    is_complete,
+                    state.frame_stack.clone(),
+                );
+                result
+            }
+            _ => panic!("EatU8Matching: state out of bounds"),
         }
     }
 }
@@ -150,12 +138,9 @@ impl Combinator for Eps {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, _c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<EpsState>() {
-            let mut result = ParserIterationResult::new(U8Set::none(), true, state.frame_stack.clone());
-            result
-        } else {
-            panic!("Invalid state type");
-        }
+        let state = state.as_any_mut().downcast_mut::<EpsState>().expect("Invalid state type");
+        let mut result = ParserIterationResult::new(U8Set::none(), true, state.frame_stack.clone());
+        result
     }
 }
 
@@ -169,16 +154,13 @@ impl Combinator for ForwardRef {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<ForwardRefState>() {
-            match state.inner_state.as_mut() {
-                Some(inner_state) => match self.0.borrow().as_ref() {
-                    Some(combinator) => combinator.next_state(inner_state.as_mut(), c, signal_id),
-                    None => panic!("Forward reference not set before use"),
-                },
+        let state = state.as_any_mut().downcast_mut::<ForwardRefState>().expect("Invalid state type");
+        match state.inner_state.as_mut() {
+            Some(inner_state) => match self.0.borrow().as_ref() {
+                Some(combinator) => combinator.next_state(inner_state.as_mut(), c, signal_id),
                 None => panic!("Forward reference not set before use"),
-            }
-        } else {
-            panic!("Invalid state type");
+            },
+            None => panic!("Forward reference not set before use"),
         }
     }
 }
@@ -191,14 +173,11 @@ impl Combinator for Repeat1 {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<Repeat1State>() {
-            let mut a_result = process(&self.0, c, &mut state.a_its, signal_id);
-            let b_result = a_result.clone();
-            seq2_helper(&self.0, &mut a_result, b_result, &mut state.a_its, signal_id);
-            a_result
-        } else {
-            panic!("Invalid state type");
-        }
+        let state = state.as_any_mut().downcast_mut::<Repeat1State>().expect("Invalid state type");
+        let mut a_result = process(&self.0, c, &mut state.a_its, signal_id);
+        let b_result = a_result.clone();
+        seq2_helper(&self.0, &mut a_result, b_result, &mut state.a_its, signal_id);
+        a_result
     }
 }
 
@@ -213,16 +192,13 @@ impl Combinator for Seq {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<SeqState>() {
-            let mut a_result = process(&self.0[0], c, &mut state.its[0], signal_id);
-            for (combinator, its) in self.0.iter().zip(state.its.iter_mut()).skip(1) {
-                let b_result = process(combinator, c, its, signal_id);
-                seq2_helper(combinator, &mut a_result, b_result, its, signal_id);
-            }
-            a_result
-        } else {
-            panic!("Invalid state type");
+        let state = state.as_any_mut().downcast_mut::<SeqState>().expect("Invalid state type");
+        let mut a_result = process(&self.0[0], c, &mut state.its[0], signal_id);
+        for (combinator, its) in self.0.iter().zip(state.its.iter_mut()).skip(1) {
+            let b_result = process(combinator, c, its, signal_id);
+            seq2_helper(combinator, &mut a_result, b_result, its, signal_id);
         }
+        a_result
     }
 }
 
@@ -234,13 +210,10 @@ impl Combinator for WithNewFrame {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<WithNewFrameState>() {
-            let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
-            result.frame_stack.pop();
-            result
-        } else {
-            panic!("Invalid state type");
-        }
+        let state = state.as_any_mut().downcast_mut::<WithNewFrameState>().expect("Invalid state type");
+        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        result.frame_stack.pop();
+        result
     }
 }
 
@@ -257,14 +230,11 @@ impl Combinator for WithExistingFrame {
         c: Option<char>,
         signal_id: &mut usize,
     ) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<WithExistingFrameState>() {
-            let mut result = self.1.next_state(state.a_state.as_mut(), c, signal_id);
-            result.frame_stack.pop();
-            result.frame_stack.push_frame(self.0.clone());
-            result
-        } else {
-            panic!("Invalid state type");
-        }
+        let state = state.as_any_mut().downcast_mut::<WithExistingFrameState>().expect("Invalid state type");
+        let mut result = self.1.next_state(state.a_state.as_mut(), c, signal_id);
+        result.frame_stack.pop();
+        result.frame_stack.push_frame(self.0.clone());
+        result
     }
 }
 
@@ -278,25 +248,22 @@ impl Combinator for InFrameStack {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<InFrameStackState>() {
-            if let Some(c) = c {
-                state.name.push(c as u8);
-            }
-            let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
-            let (u8set, is_complete) =
-                result.frame_stack.next_u8_given_contains(state.name.as_slice());
-            if result.is_complete && !is_complete {
-                result.is_complete = false;
-            } else if result.is_complete && is_complete {
-                result
-                    .frame_stack
-                    .filter_contains(state.name.as_slice());
-            }
-            result.u8set &= u8set;
-            result
-        } else {
-            panic!("Invalid state type");
+        let state = state.as_any_mut().downcast_mut::<InFrameStackState>().expect("Invalid state type");
+        if let Some(c) = c {
+            state.name.push(c as u8);
         }
+        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let (u8set, is_complete) =
+            result.frame_stack.next_u8_given_contains(state.name.as_slice());
+        if result.is_complete && !is_complete {
+            result.is_complete = false;
+        } else if result.is_complete && is_complete {
+            result
+                .frame_stack
+                .filter_contains(state.name.as_slice());
+        }
+        result.u8set &= u8set;
+        result
     }
 }
 
@@ -310,25 +277,22 @@ impl Combinator for NotInFrameStack {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<NotInFrameStackState>() {
-            if let Some(c) = c {
-                state.name.push(c as u8);
-            }
-            let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
-            let (u8set, is_complete) =
-                result.frame_stack.next_u8_given_excludes(state.name.as_slice());
-            if result.is_complete && !is_complete {
-                result.is_complete = false;
-            } else if result.is_complete && is_complete {
-                result
-                    .frame_stack
-                    .filter_excludes(state.name.as_slice());
-            }
-            result.u8set &= u8set;
-            result
-        } else {
-            panic!("Invalid state type");
+        let state = state.as_any_mut().downcast_mut::<NotInFrameStackState>().expect("Invalid state type");
+        if let Some(c) = c {
+            state.name.push(c as u8);
         }
+        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let (u8set, is_complete) =
+            result.frame_stack.next_u8_given_excludes(state.name.as_slice());
+        if result.is_complete && !is_complete {
+            result.is_complete = false;
+        } else if result.is_complete && is_complete {
+            result
+                .frame_stack
+                .filter_excludes(state.name.as_slice());
+        }
+        result.u8set &= u8set;
+        result
     }
 }
 
@@ -342,18 +306,15 @@ impl Combinator for AddToFrameStack {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<AddToFrameStackState>() {
-            if let Some(c) = c {
-                state.name.push(c as u8);
-            }
-            let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
-            if result.is_complete {
-                result.frame_stack.push_name(state.name.as_slice());
-            }
-            result
-        } else {
-            panic!("Invalid state type");
+        let state = state.as_any_mut().downcast_mut::<AddToFrameStackState>().expect("Invalid state type");
+        if let Some(c) = c {
+            state.name.push(c as u8);
         }
+        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        if result.is_complete {
+            result.frame_stack.push_name(state.name.as_slice());
+        }
+        result
     }
 }
 
@@ -367,18 +328,15 @@ impl Combinator for RemoveFromFrameStack {
     }
 
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        if let Some(state) = state.as_any_mut().downcast_mut::<RemoveFromFrameStackState>() {
-            if let Some(c) = c {
-                state.name.push(c as u8);
-            }
-            let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
-            if result.is_complete {
-                result.frame_stack.pop_name(state.name.as_slice());
-            }
-            result
-        } else {
-            panic!("Invalid state type");
+        let state = state.as_any_mut().downcast_mut::<RemoveFromFrameStackState>().expect("Invalid state type");
+        if let Some(c) = c {
+            state.name.push(c as u8);
         }
+        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        if result.is_complete {
+            result.frame_stack.pop_name(state.name.as_slice());
+        }
+        result
     }
 }
 
