@@ -1,8 +1,3 @@
-// TODO:
-//  - make id_complete a boolean, call it is_complete
-//  - clean up the parse result struct and its methods. Look at its construction and usage and redesign it to make it simpler.
-//  - there are some usages of &str and String in the code. Replace them with u8s (i.e. bytes).
-//  - wrap FrameStack and signal_id up into a struct and attach that to the terminal combinator states (i.e. EatString, EatU8Matching, Eps) instead of attaching each of those items separately.
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -13,605 +8,808 @@ use std::rc::Rc;
 use crate::parse_iteration_result::{Frame, FrameStack, ParserIterationResult};
 use crate::u8set::U8Set;
 
+// Trait for all combinators
+trait Combinator: Clone + PartialEq + Eq + Hash + Debug {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState>;
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult;
+}
+
+// Trait for all combinator states
+trait CombinatorState: Debug {
+    fn as_any(&self) -> &dyn std::any::Any;
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
+}
+
+// Macro to simplify combinator state implementation
+macro_rules! impl_combinator_state {
+    ($state_type:ty) => {
+        impl CombinatorState for $state_type {
+            fn as_any(&self) -> &dyn std::any::Any { self }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+        }
+    };
+}
+
+// Call Combinator
 #[derive(Clone)]
-enum Combinator {
-    Call(Rc<dyn Fn() -> Combinator>),
-    Choice(Rc<[Combinator]>),
-    EatString(&'static str),
-    EatU8Matching(U8Set),
-    Eps,
-    ForwardRef(Rc<RefCell<Option<Combinator>>>),
-    Repeat1(Box<Combinator>),
-    Seq(Rc<[Combinator]>),
-    WithNewFrame(Box<Combinator>),
-    WithExistingFrame(Frame, Box<Combinator>),
-    InFrameStack(Box<Combinator>),
-    NotInFrameStack(Box<Combinator>),
-    AddToFrameStack(Box<Combinator>),
-    RemoveFromFrameStack(Box<Combinator>),
-}
+struct Call<F: Fn() -> Box<dyn Combinator> + 'static>(Rc<F>);
 
-
-impl PartialEq for Combinator {
+impl<F: Fn() -> Box<dyn Combinator> + 'static> PartialEq for Call<F> {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Combinator::Call(a), Combinator::Call(b)) => Rc::ptr_eq(a, b),
-            (Combinator::Choice(a), Combinator::Choice(b)) => Rc::ptr_eq(a, b),
-            (Combinator::EatString(a), Combinator::EatString(b)) => a == b,
-            (Combinator::EatU8Matching(a), Combinator::EatU8Matching(b)) => a == b,
-            (Combinator::Eps, Combinator::Eps) => true,
-            (Combinator::ForwardRef(a), Combinator::ForwardRef(b)) => Rc::ptr_eq(a, b),
-            (Combinator::Repeat1(a), Combinator::Repeat1(b)) => *a == *b,
-            (Combinator::Seq(a), Combinator::Seq(b)) => Rc::ptr_eq(a, b),
-            (Combinator::WithNewFrame(a), Combinator::WithNewFrame(b)) => *a == *b,
-            (Combinator::WithExistingFrame(a, _), Combinator::WithExistingFrame(b, _)) => *a == *b,
-            (Combinator::InFrameStack(a), Combinator::InFrameStack(b)) => *a == *b,
-            (Combinator::NotInFrameStack(a), Combinator::NotInFrameStack(b)) => *a == *b,
-            (Combinator::AddToFrameStack(a), Combinator::AddToFrameStack(b)) => *a == *b,
-            (Combinator::RemoveFromFrameStack(a), Combinator::RemoveFromFrameStack(b)) => *a == *b,
-            _ => panic!("Combinator::PartialEq not implemented for {:?} and {:?}", self, other),
-        }
+        Rc::ptr_eq(&self.0, &other.0)
     }
 }
 
-impl Eq for Combinator {}
+impl<F: Fn() -> Box<dyn Combinator> + 'static> Eq for Call<F> {}
 
-impl Hash for Combinator {
+impl<F: Fn() -> Box<dyn Combinator> + 'static> Hash for Call<F> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Combinator::Call(a) => {
-                // Hash the function pointer, not the Rc
-                let a = Rc::as_ptr(a);
-                a.hash(state);
-            }
-            Combinator::Choice(a) => a.hash(state),
-            Combinator::EatString(a) => a.hash(state),
-            Combinator::EatU8Matching(a) => a.hash(state),
-            Combinator::Eps => std::mem::discriminant(self).hash(state),
-            Combinator::ForwardRef(a) => {
-                // Hash the RefCell, not the Rc
-                let a = Rc::as_ptr(a);
-                a.hash(state);
-            }
-            Combinator::Repeat1(a) => a.hash(state),
-            Combinator::Seq(a) => a.hash(state),
-            Combinator::WithNewFrame(a) => a.hash(state),
-            Combinator::WithExistingFrame(a, _) => a.hash(state),
-            Combinator::InFrameStack(a) => a.hash(state),
-            Combinator::NotInFrameStack(a) => a.hash(state),
-            Combinator::AddToFrameStack(a) => a.hash(state),
-            Combinator::RemoveFromFrameStack(a) => a.hash(state),
-        }
+        // Hash the function pointer, not the Rc
+        let ptr = Rc::as_ptr(&self.0);
+        ptr.hash(state);
     }
 }
 
-impl Debug for Combinator {
+impl<F: Fn() -> Box<dyn Combinator> + 'static> Debug for Call<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Combinator::Call(_) => write!(f, "Call"),
-            Combinator::Choice(a) => write!(f, "Choice({:?})", a),
-            Combinator::EatString(value) => write!(f, "EatString({:?})", value),
-            Combinator::EatU8Matching(u8set) => write!(f, "EatU8Matching({:?})", u8set),
-            Combinator::Eps => write!(f, "Eps"),
-            Combinator::ForwardRef(c) => write!(f, "ForwardRef({:?})", c),
-            Combinator::Repeat1(a) => write!(f, "Repeat1({:?})", a),
-            Combinator::Seq(a) => write!(f, "Seq({:?})", a),
-            Combinator::WithNewFrame(a) => write!(f, "WithNewFrame({:?})", a),
-            Combinator::WithExistingFrame(a, _) => write!(f, "WithExistingFrame({:?})", a),
-            Combinator::InFrameStack(a) => write!(f, "InFrameStack({:?})", a),
-            Combinator::NotInFrameStack(a) => write!(f, "NotInFrameStack({:?})", a),
-            Combinator::AddToFrameStack(a) => write!(f, "AddToFrameStack({:?})", a),
-            Combinator::RemoveFromFrameStack(a) => write!(f, "RemoveFromFrameStack({:?})", a),
-        }
+        write!(f, "Call")
     }
 }
 
 #[derive(Clone, Debug)]
-enum CombinatorState {
-    Call(Option<Box<CombinatorState>>),
-    Choice(Vec<Vec<CombinatorState>>),
-    EatString(usize, FrameStack),
-    EatU8Matching(u8, FrameStack),
-    Eps(FrameStack),
-    ForwardRef(Box<CombinatorState>),
-    Repeat1(Vec<CombinatorState>),
-    Seq(Vec<Vec<CombinatorState>>),
-    WithNewFrame(Box<CombinatorState>),
-    WithExistingFrame(Box<CombinatorState>),
-    InFrameStack(Box<CombinatorState>, Vec<u8>),
-    NotInFrameStack(Box<CombinatorState>, Vec<u8>),
-    AddToFrameStack(Box<CombinatorState>, Vec<u8>),
-    RemoveFromFrameStack(Box<CombinatorState>, Vec<u8>),
+struct CallState {
+    inner_state: Box<dyn CombinatorState>,
 }
 
-impl Combinator {
-    fn initial_state(&self, signal_id: &mut usize, mut frame_stack: FrameStack) -> CombinatorState {
-        match self {
-            Combinator::Call(f) => CombinatorState::Call(Some(Box::new(f().initial_state(signal_id, frame_stack)))),
-            Combinator::Choice(a) => CombinatorState::Choice(a.iter().map(|a| vec![a.initial_state(signal_id, frame_stack.clone())]).collect()),
-            Combinator::EatString(_) => CombinatorState::EatString(0, frame_stack),
-            Combinator::EatU8Matching(_) => CombinatorState::EatU8Matching(0, frame_stack),
-            Combinator::Eps => CombinatorState::Eps(frame_stack),
-            Combinator::ForwardRef(c) => {
-                match c.as_ref().borrow().as_ref() {
-                    Some(c) => CombinatorState::ForwardRef(Box::new(c.initial_state(signal_id, frame_stack))),
-                    None => panic!("ForwardRef not set"),
-                }
-            }
-            Combinator::Repeat1(a) => CombinatorState::Repeat1(vec![a.initial_state(signal_id, frame_stack)]),
-            Combinator::Seq(a) => {
-                let mut its = Vec::with_capacity(a.len());
-                its.push(vec![a[0].initial_state(signal_id, frame_stack)]);
-                for _ in 1..a.len() {
-                    its.push(Vec::new());
-                }
-                CombinatorState::Seq(its)
-            }
-            Combinator::WithNewFrame(a) => {
-                frame_stack.push_empty_frame();
-                a.initial_state(signal_id, frame_stack)
-            }
-            Combinator::WithExistingFrame(existing_frame, a) => {
-                frame_stack.push_frame(existing_frame.clone());
-                a.initial_state(signal_id, frame_stack)
-            }
-            Combinator::InFrameStack(a) => CombinatorState::InFrameStack(Box::new(a.initial_state(signal_id, frame_stack)), Vec::new()),
-            Combinator::NotInFrameStack(a) => CombinatorState::NotInFrameStack(Box::new(a.initial_state(signal_id, frame_stack)), Vec::new()),
-            Combinator::AddToFrameStack(a) => CombinatorState::AddToFrameStack(Box::new(a.initial_state(signal_id, frame_stack)), Vec::new()),
-            Combinator::RemoveFromFrameStack(a) => CombinatorState::RemoveFromFrameStack(Box::new(a.initial_state(signal_id, frame_stack)), Vec::new()),
-        }
+impl_combinator_state!(CallState);
+
+impl<F: Fn() -> Box<dyn Combinator> + 'static> Combinator for Call<F> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        let inner_combinator = (self.0)();
+        Box::new(CallState {
+            inner_state: inner_combinator.initial_state(signal_id, frame_stack),
+        })
     }
 
-    fn next_state(&self, state: &mut CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        match (self, state) {
-            (Combinator::Call(f), CombinatorState::Call(inner_state)) => {
-                let inner_state = inner_state.as_mut().unwrap();
-                f().next_state(inner_state, c, signal_id)
-            }
-            (Combinator::Choice(combinators), CombinatorState::Choice(its)) => {
-                let mut final_result = ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
-                for (combinator, its) in combinators.iter().zip(its.iter_mut()) {
-                    final_result.merge_assign(process(combinator, c, its, signal_id));
-                }
-                final_result
-            }
-            (Combinator::EatString(value), CombinatorState::EatString(index, frame_stack)) => {
-                if *index > value.len() {
-                    return ParserIterationResult::new(U8Set::none(), false, frame_stack.clone());
-                }
-                if *index == value.len() {
-                    let mut result = ParserIterationResult::new(U8Set::none(), true, frame_stack.clone());
-                    return result;
-                }
-                let u8set = U8Set::from_chars(&value[*index..=*index]);
-                *index += 1;
-                ParserIterationResult::new(u8set, false, frame_stack.clone())
-            }
-            (Combinator::EatU8Matching(u8set), CombinatorState::EatU8Matching(state, frame_stack)) => {
-                match *state {
-                    0 => {
-                        *state = 1;
-                        ParserIterationResult::new(u8set.clone(), false, frame_stack.clone())
-                    }
-                    1 => {
-                        *state = 2;
-                        let is_complete = c.map(|c| u8set.contains(c as u8)).unwrap_or(false);
-                        let mut result = ParserIterationResult::new(
-                            U8Set::none(),
-                            is_complete,
-                            frame_stack.clone(),
-                        );
-                        result
-                    }
-                    _ => panic!("EatU8Matching: state out of bounds"),
-                }
-            }
-            (Combinator::Eps, CombinatorState::Eps(frame_stack)) => {
-                let mut result = ParserIterationResult::new(U8Set::none(), true, frame_stack.clone());
-                result
-            }
-            (Combinator::ForwardRef(inner), CombinatorState::ForwardRef(inner_state)) => {
-                match inner.as_ref().borrow().as_ref() {
-                    Some(combinator) => {
-                        combinator.next_state(inner_state, c, signal_id)
-                    }
-                    None => {
-                        panic!("Forward reference not set before use");
-                    }
-                }
-            }
-            (Combinator::Repeat1(a), CombinatorState::Repeat1(a_its)) => {
-                let mut a_result = process(a.as_ref(), c, a_its, signal_id);
-                let b_result = a_result.clone();
-                seq2_helper(a, &mut a_result, b_result, a_its, signal_id);
-                a_result
-            }
-            (Combinator::Seq(a), CombinatorState::Seq(its)) => {
-                let mut a_result = process(&a[0], c, &mut its[0], signal_id);
-                for (combinator, its) in a.iter().zip(its.iter_mut()).skip(1) {
-                    let b_result = process(combinator, c, its, signal_id);
-                    seq2_helper(combinator, &mut a_result, b_result, its, signal_id);
-                }
-                a_result
-            }
-            (Combinator::WithNewFrame(a), CombinatorState::WithNewFrame(a_state)) => {
-                let mut result = a.next_state(a_state, c, signal_id);
-                result.frame_stack.pop();
-                result
-            }
-            (Combinator::WithExistingFrame(frame, a), CombinatorState::WithExistingFrame(a_state)) => {
-                let mut result = a.next_state(a_state, c, signal_id);
-                result.frame_stack.pop();
-                result.frame_stack.push_frame(frame.clone());
-                result
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<CallState>().unwrap();
+        (self.0)().next_state(&mut *state.inner_state, c, signal_id)
+    }
+}
 
-            }
-            (Combinator::InFrameStack(a), CombinatorState::InFrameStack(a_state, ref mut name)) => {
-                if let Some(c) = c {
-                    name.push(c.try_into().unwrap());
-                }
-                let mut result = a.next_state(a_state, c, signal_id);
-                let (u8set, is_complete) = result.frame_stack.next_u8_given_contains(&name);
-                if result.is_complete && !is_complete {
-                    result.is_complete = false;
-                } else if result.is_complete && is_complete {
-                    result.frame_stack.filter_contains(&name);
-                }
-                result.u8set &= u8set;
-                result
-            }
-            (Combinator::NotInFrameStack(a), CombinatorState::NotInFrameStack(a_state, ref mut name)) => {
-                let mut result = a.next_state(a_state, c, signal_id);
-                let (u8set, is_complete) = result.frame_stack.next_u8_given_excludes(&name);
-                if result.is_complete && !is_complete {
-                    result.is_complete = false;
-                } else if result.is_complete && is_complete {
-                    result.frame_stack.filter_excludes(&name);
-                }
-                if let Some(c) = c {
-                    name.push(c.try_into().unwrap());
-                }
-                result.u8set &= u8set;
-                result
-            }
-            (Combinator::AddToFrameStack(a), CombinatorState::AddToFrameStack(a_state, ref mut name)) => {
-                let mut result = a.next_state(a_state, c, signal_id);
-                if let Some(c) = c {
-                    name.push(c.try_into().unwrap());
-                }
-                if result.is_complete {
-                    result.frame_stack.push_name(&name);
-                }
-                result
-            }
-            (Combinator::RemoveFromFrameStack(a), CombinatorState::RemoveFromFrameStack(a_state, ref mut name)) => {
-                let mut result = a.next_state(a_state, c, signal_id);
-                if let Some(c) = c {
-                    name.push(c.try_into().unwrap());
-                }
-                if result.is_complete {
-                    result.frame_stack.pop_name(&name);
-                }
-                result
-            }
-            (_self, _state) => panic!("Mismatched combinator and state types: {:?} vs {:?}", _self, _state),
-        }
+// Choice Combinator
+#[derive(Clone)]
+struct Choice(Rc<Vec<Box<dyn Combinator>>>);
+
+impl PartialEq for Choice {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for Choice {}
+
+impl Hash for Choice {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl Debug for Choice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Choice({:?})", self.0)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct ChoiceState {
+    inner_states: Vec<Vec<Box<dyn CombinatorState>>>,
+}
+
+impl_combinator_state!(ChoiceState);
+
+impl Combinator for Choice {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(ChoiceState {
+            inner_states: self.0.iter().map(|c| vec![c.initial_state(signal_id, frame_stack.clone())]).collect(),
+        })
     }
 
-    fn set(&mut self, combinator: Combinator) {
-        match self {
-            Combinator::ForwardRef(inner) => {
-                let option: &mut Option<Combinator> = &mut inner.as_ref().borrow_mut();
-                option.replace(combinator);
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<ChoiceState>().unwrap();
+        let mut final_result = ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
+        for (combinator, its) in self.0.iter().zip(state.inner_states.iter_mut()) {
+            final_result.merge_assign(process(combinator, c, its, signal_id));
+        }
+        final_result
+    }
+}
+
+// EatString Combinator
+#[derive(Clone)]
+struct EatString(&'static str);
+
+impl PartialEq for EatString {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl Eq for EatString {}
+
+impl Hash for EatString {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl Debug for EatString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EatString({:?})", self.0)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct EatStringState {
+    index: usize,
+    frame_stack: FrameStack,
+}
+
+impl_combinator_state!(EatStringState);
+
+impl Combinator for EatString {
+    fn initial_state(&self, _signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(EatStringState { index: 0, frame_stack })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, _c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<EatStringState>().unwrap();
+        if state.index > self.0.len() {
+            return ParserIterationResult::new(U8Set::none(), false, state.frame_stack.clone());
+        }
+        if state.index == self.0.len() {
+            return ParserIterationResult::new(U8Set::none(), true, state.frame_stack.clone());
+        }
+        let u8set = U8Set::from_chars(&self.0[state.index..=state.index]);
+        state.index += 1;
+        ParserIterationResult::new(u8set, false, state.frame_stack.clone())
+    }
+}
+
+// EatU8Matching Combinator
+#[derive(Clone)]
+struct EatU8Matching(U8Set);
+
+impl PartialEq for EatU8Matching {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl Eq for EatU8Matching {}
+
+impl Hash for EatU8Matching {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl Debug for EatU8Matching {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EatU8Matching({:?})", self.0)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct EatU8MatchingState {
+    state: u8,
+    frame_stack: FrameStack,
+}
+
+impl_combinator_state!(EatU8MatchingState);
+
+impl Combinator for EatU8Matching {
+    fn initial_state(&self, _signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(EatU8MatchingState { state: 0, frame_stack })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<EatU8MatchingState>().unwrap();
+        match state.state {
+            0 => {
+                state.state = 1;
+                ParserIterationResult::new(self.0.clone(), false, state.frame_stack.clone())
             }
-            _ => panic!("Combinator is not a ForwardRef"),
+            1 => {
+                state.state = 2;
+                let is_complete = c.map(|c| self.0.contains(c as u8)).unwrap_or(false);
+                ParserIterationResult::new(U8Set::none(), is_complete, state.frame_stack.clone())
+            }
+            _ => panic!("EatU8Matching: state out of bounds"),
         }
     }
 }
 
-impl CombinatorState {
-    fn state_iter(&self) -> StateIter {
-        StateIter::new(self)
+// Eps Combinator
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct Eps;
+
+#[derive(Clone, Debug)]
+struct EpsState {
+    frame_stack: FrameStack,
+}
+
+impl_combinator_state!(EpsState);
+
+impl Combinator for Eps {
+    fn initial_state(&self, _signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(EpsState { frame_stack })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, _c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<EpsState>().unwrap();
+        ParserIterationResult::new(U8Set::none(), true, state.frame_stack.clone())
     }
 }
 
-struct StateIter<'a> {
-    stack: Vec<&'a CombinatorState>,
+// ForwardRef Combinator
+#[derive(Clone)]
+struct ForwardRef(Rc<RefCell<Option<Box<dyn Combinator>>>>);
+
+impl PartialEq for ForwardRef {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
 }
 
-impl<'a> StateIter<'a> {
-    fn new(state: &'a CombinatorState) -> Self {
-        Self {
-            stack: vec![state],
+impl Eq for ForwardRef {}
+
+impl Hash for ForwardRef {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Hash the RefCell, not the Rc
+        let ptr = Rc::as_ptr(&self.0);
+        ptr.hash(state);
+    }
+}
+
+impl Debug for ForwardRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ForwardRef({:?})", self.0)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct ForwardRefState {
+    inner_state: Option<Box<dyn CombinatorState>>,
+}
+
+impl_combinator_state!(ForwardRefState);
+
+impl Combinator for ForwardRef {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        let inner_state = self.0.borrow().as_ref().map(|c| c.initial_state(signal_id, frame_stack));
+        Box::new(ForwardRefState { inner_state })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<ForwardRefState>().unwrap();
+        match state.inner_state {
+            Some(ref mut inner_state) => self.0.borrow().as_ref().unwrap().next_state(inner_state, c, signal_id),
+            None => panic!("Forward reference not set before use"),
         }
     }
 }
 
-impl<'a> Iterator for StateIter<'a> {
-    type Item = &'a CombinatorState;
+// Repeat1 Combinator
+#[derive(Clone)]
+struct Repeat1(Box<dyn Combinator>);
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let state = self.stack.pop()?;
-        match state {
-            CombinatorState::Call(inner_state) => {
-                if let Some(inner_state) = inner_state {
-                    self.stack.push(inner_state);
-                }
-            }
-            CombinatorState::Choice(states) => {
-                for sub_states in states.iter() {
-                    for state in sub_states.iter() {
-                        self.stack.push(state);
-                    }
-                }
-            }
-            CombinatorState::Repeat1(states) => {
-                for state in states.iter() {
-                    self.stack.push(state);
-                }
-            }
-            CombinatorState::Seq(states) => {
-                for sub_states in states.iter() {
-                    for state in sub_states.iter() {
-                        self.stack.push(state);
-                    };
-                }
-            }
-            CombinatorState::ForwardRef(inner_state) => {
-                self.stack.push(inner_state);
-            }
-            CombinatorState::WithNewFrame(inner_state) => {
-                self.stack.push(inner_state);
-            }
-            CombinatorState::WithExistingFrame(inner_state) => {
-                self.stack.push(inner_state);
-            }
-            CombinatorState::InFrameStack(inner_state, _) => {
-                self.stack.push(inner_state);
-            }
-            CombinatorState::NotInFrameStack(inner_state, _) => {
-                self.stack.push(inner_state);
-            }
-            CombinatorState::AddToFrameStack(inner_state, _) => {
-                self.stack.push(inner_state);
-            }
-            CombinatorState::RemoveFromFrameStack(inner_state, _) => {
-                self.stack.push(inner_state);
-            }
-            CombinatorState::EatString(..) | CombinatorState::EatU8Matching(..) | CombinatorState::Eps(..) => {}
+impl PartialEq for Repeat1 {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
+impl Eq for Repeat1 {}
+
+impl Hash for Repeat1 {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl Debug for Repeat1 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Repeat1({:?})", self.0)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct Repeat1State {
+    inner_states: Vec<Box<dyn CombinatorState>>,
+}
+
+impl_combinator_state!(Repeat1State);
+
+impl Combinator for Repeat1 {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(Repeat1State {
+            inner_states: vec![self.0.initial_state(signal_id, frame_stack)],
+        })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<Repeat1State>().unwrap();
+        let mut a_result = process(&self.0, c, &mut state.inner_states, signal_id);
+        let b_result = a_result.clone();
+        seq2_helper(&self.0, &mut a_result, b_result, &mut state.inner_states, signal_id);
+        a_result
+    }
+}
+
+// Seq Combinator
+#[derive(Clone)]
+struct Seq(Rc<Vec<Box<dyn Combinator>>>);
+
+impl PartialEq for Seq {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for Seq {}
+
+impl Hash for Seq {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl Debug for Seq {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Seq({:?})", self.0)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct SeqState {
+    inner_states: Vec<Vec<Box<dyn CombinatorState>>>,
+}
+
+impl_combinator_state!(SeqState);
+
+impl Combinator for Seq {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        let mut inner_states = Vec::with_capacity(self.0.len());
+        inner_states.push(vec![self.0[0].initial_state(signal_id, frame_stack)]);
+        for _ in 1..self.0.len() {
+            inner_states.push(Vec::new());
         }
-        Some(state)
+        Box::new(SeqState { inner_states })
     }
-}
 
-impl CombinatorState {
-    fn state_iter_mut(&mut self) -> StateIterMut {
-        StateIterMut::new(self)
-    }
-}
-
-struct StateIterMut<'a> {
-    stack: Vec<*mut CombinatorState>,
-    _phantom: std::marker::PhantomData<&'a mut CombinatorState>,
-}
-
-impl<'a> StateIterMut<'a> {
-    fn new(state: &'a mut CombinatorState) -> Self {
-        Self {
-            stack: vec![state as *mut CombinatorState],
-            _phantom: std::marker::PhantomData,
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<SeqState>().unwrap();
+        let mut a_result = process(&self.0[0], c, &mut state.inner_states[0], signal_id);
+        for (combinator, its) in self.0.iter().zip(state.inner_states.iter_mut()).skip(1) {
+            let b_result = process(combinator, c, its, signal_id);
+            seq2_helper(combinator, &mut a_result, b_result, its, signal_id);
         }
+        a_result
     }
 }
 
-impl<'a> Iterator for StateIterMut<'a> {
-    type Item = &'a mut CombinatorState;
+// WithNewFrame Combinator
+#[derive(Clone)]
+struct WithNewFrame(Box<dyn Combinator>);
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let state_ptr = self.stack.pop()?;
+impl PartialEq for WithNewFrame {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
 
-        // SAFETY: We know this pointer is valid because it came from a &mut reference,
-        // and we're careful not to create overlapping mutable references.
-        let state = unsafe { &mut *state_ptr };
+impl Eq for WithNewFrame {}
 
-        match state {
-            CombinatorState::Call(inner_state) => {
-                if let Some(inner_state) = inner_state {
-                    self.stack.push(inner_state.as_mut() as *mut CombinatorState);
-                }
-            }
-            CombinatorState::Choice(states) => {
-                for sub_states in states.iter_mut().rev() {
-                    for state in sub_states.iter_mut().rev() {
-                        self.stack.push(state as *mut CombinatorState);
-                    }
-                }
-            }
-            CombinatorState::Repeat1(states) => {
-                for state in states.iter_mut().rev() {
-                    self.stack.push(state as *mut CombinatorState);
-                }
-            }
-            CombinatorState::Seq(states) => {
-                for sub_states in states.iter_mut().rev() {
-                    for state in sub_states.iter_mut().rev() {
-                        self.stack.push(state as *mut CombinatorState);
-                    }
-                }
-            }
-            CombinatorState::ForwardRef(inner_state) => {
-                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
-            }
-            CombinatorState::WithNewFrame(inner_state) => {
-                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
-            }
-            CombinatorState::WithExistingFrame(inner_state) => {
-                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
-            }
-            CombinatorState::InFrameStack(inner_state, _) => {
-                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
-            }
-            CombinatorState::NotInFrameStack(inner_state, _) => {
-                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
-            }
-            CombinatorState::AddToFrameStack(inner_state, _) => {
-                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
-            }
-            CombinatorState::RemoveFromFrameStack(inner_state, _) => {
-                self.stack.push(inner_state.as_mut() as *mut CombinatorState);
-            }
-            CombinatorState::EatString(..) | CombinatorState::EatU8Matching(..) | CombinatorState::Eps(..) => {}
+impl Hash for WithNewFrame {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl Debug for WithNewFrame {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "WithNewFrame({:?})", self.0)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct WithNewFrameState {
+    inner_state: Box<dyn CombinatorState>,
+}
+
+impl_combinator_state!(WithNewFrameState);
+
+impl Combinator for WithNewFrame {
+    fn initial_state(&self, signal_id: &mut usize, mut frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        frame_stack.push_empty_frame();
+        Box::new(WithNewFrameState {
+            inner_state: self.0.initial_state(signal_id, frame_stack),
+        })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<WithNewFrameState>().unwrap();
+        let mut result = self.0.next_state(&mut *state.inner_state, c, signal_id);
+        result.frame_stack.pop();
+        result
+    }
+}
+
+// WithExistingFrame Combinator
+#[derive(Clone)]
+struct WithExistingFrame(Frame, Box<dyn Combinator>);
+
+impl PartialEq for WithExistingFrame {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0 && self.1.eq(&other.1)
+    }
+}
+
+impl Eq for WithExistingFrame {}
+
+impl Hash for WithExistingFrame {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+        self.1.hash(state);
+    }
+}
+
+impl Debug for WithExistingFrame {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "WithExistingFrame({:?}, {:?})", self.0, self.1)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct WithExistingFrameState {
+    inner_state: Box<dyn CombinatorState>,
+}
+
+impl_combinator_state!(WithExistingFrameState);
+
+impl Combinator for WithExistingFrame {
+    fn initial_state(&self, signal_id: &mut usize, mut frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        frame_stack.push_frame(self.0.clone());
+        Box::new(WithExistingFrameState {
+            inner_state: self.1.initial_state(signal_id, frame_stack),
+        })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<WithExistingFrameState>().unwrap();
+        let mut result = self.1.next_state(&mut *state.inner_state, c, signal_id);
+        result.frame_stack.pop();
+        result.frame_stack.push_frame(self.0.clone());
+        result
+    }
+}
+
+// InFrameStack Combinator
+#[derive(Clone)]
+struct InFrameStack(Box<dyn Combinator>);
+
+impl PartialEq for InFrameStack {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
+impl Eq for InFrameStack {}
+
+impl Hash for InFrameStack {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl Debug for InFrameStack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "InFrameStack({:?})", self.0)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct InFrameStackState {
+    inner_state: Box<dyn CombinatorState>,
+    name: Vec<u8>,
+}
+
+impl_combinator_state!(InFrameStackState);
+
+impl Combinator for InFrameStack {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(InFrameStackState {
+            inner_state: self.0.initial_state(signal_id, frame_stack),
+            name: Vec::new(),
+        })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<InFrameStackState>().unwrap();
+        if let Some(c) = c {
+            state.name.push(c.try_into().unwrap());
         }
-
-        Some(state)
+        let mut result = self.0.next_state(&mut *state.inner_state, c, signal_id);
+        let (u8set, is_complete) = result.frame_stack.next_u8_given_contains(&state.name);
+        if result.is_complete && !is_complete {
+            result.is_complete = false;
+        } else if result.is_complete && is_complete {
+            result.frame_stack.filter_contains(&state.name);
+        }
+        result.u8set &= u8set;
+        result
     }
 }
 
-fn process(combinator: &Combinator, c: Option<char>, its: &mut Vec<CombinatorState>, signal_id: &mut usize) -> ParserIterationResult {
-    if its.len() > 100 {
-        // Warn if there are too many states
-        eprintln!("Warning: there are {} states (process)", its.len());
+// NotInFrameStack Combinator
+#[derive(Clone)]
+struct NotInFrameStack(Box<dyn Combinator>);
+
+impl PartialEq for NotInFrameStack {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
     }
-    let mut final_result = ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
-    its.retain_mut(|it| {
-        let result = combinator.next_state(it, c, signal_id);
-        let is_empty = result.u8set().is_empty();
-        final_result.merge_assign(result);
-        !is_empty
-    });
-    final_result
 }
 
-fn seq2_helper(
-    b: &Combinator,
-    a_result: &mut ParserIterationResult,
-    b_result: ParserIterationResult,
-    b_its: &mut Vec<CombinatorState>,
-    signal_id: &mut usize,
-) {
-    if b_its.len() > 100 {
-        // Warn if there are too many states
-        eprintln!("Warning: there are {} states (seq2_helper)", b_its.len());
+impl Eq for NotInFrameStack {}
+
+impl Hash for NotInFrameStack {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
     }
-    if a_result.is_complete {
-        let mut b_it = b.initial_state(signal_id, a_result.frame_stack.clone());
-        let b_result = b.next_state(&mut b_it, None, signal_id);
-        b_its.push(b_it);
-        a_result.forward_assign(b_result);
+}
+
+impl Debug for NotInFrameStack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "NotInFrameStack({:?})", self.0)
     }
-    a_result.merge_assign(b_result);
 }
 
-fn seq<Combinators>(combinators: Combinators) -> Combinator
-where
-    Combinators: Into<Rc<[Combinator]>>,
-{
-    Combinator::Seq(combinators.into())
+#[derive(Clone, Debug)]
+struct NotInFrameStackState {
+    inner_state: Box<dyn CombinatorState>,
+    name: Vec<u8>,
 }
 
-fn repeat1<C>(a: C) -> Combinator
-where
-    C: Into<Combinator>,
-{
-    Combinator::Repeat1(Box::new(a.into()))
+impl_combinator_state!(NotInFrameStackState);
+
+impl Combinator for NotInFrameStack {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(NotInFrameStackState {
+            inner_state: self.0.initial_state(signal_id, frame_stack),
+            name: Vec::new(),
+        })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<NotInFrameStackState>().unwrap();
+        let mut result = self.0.next_state(&mut *state.inner_state, c, signal_id);
+        let (u8set, is_complete) = result.frame_stack.next_u8_given_excludes(&state.name);
+        if result.is_complete && !is_complete {
+            result.is_complete = false;
+        } else if result.is_complete && is_complete {
+            result.frame_stack.filter_excludes(&state.name);
+        }
+        if let Some(c) = c {
+            state.name.push(c.try_into().unwrap());
+        }
+        result.u8set &= u8set;
+        result
+    }
 }
 
-fn choice<Combinators>(combinators: Combinators) -> Combinator
-where
-    Combinators: Into<Rc<[Combinator]>>,
-{
-    Combinator::Choice(combinators.into())
+// AddToFrameStack Combinator
+#[derive(Clone)]
+struct AddToFrameStack(Box<dyn Combinator>);
+
+impl PartialEq for AddToFrameStack {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
 }
 
-fn eat_u8_matching<F>(fn_: F) -> Combinator
-where
-    F: Fn(u8) -> bool,
-{
-    Combinator::EatU8Matching(U8Set::from_match_fn(&fn_))
+impl Eq for AddToFrameStack {}
+
+impl Hash for AddToFrameStack {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
 }
 
-fn eat_u8(value: char) -> Combinator {
+impl Debug for AddToFrameStack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AddToFrameStack({:?})", self.0)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct AddToFrameStackState {
+    inner_state: Box<dyn CombinatorState>,
+    name: Vec<u8>,
+}
+
+impl_combinator_state!(AddToFrameStackState);
+
+impl Combinator for AddToFrameStack {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(AddToFrameStackState {
+            inner_state: self.0.initial_state(signal_id, frame_stack),
+            name: Vec::new(),
+        })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<AddToFrameStackState>().unwrap();
+        let mut result = self.0.next_state(&mut *state.inner_state, c, signal_id);
+        if let Some(c) = c {
+            state.name.push(c.try_into().unwrap());
+        }
+        if result.is_complete {
+            result.frame_stack.push_name(&state.name);
+        }
+        result
+    }
+}
+
+// RemoveFromFrameStack Combinator
+#[derive(Clone)]
+struct RemoveFromFrameStack(Box<dyn Combinator>);
+
+impl PartialEq for RemoveFromFrameStack {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
+impl Eq for RemoveFromFrameStack {}
+
+impl Hash for RemoveFromFrameStack {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl Debug for RemoveFromFrameStack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RemoveFromFrameStack({:?})", self.0)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct RemoveFromFrameStackState {
+    inner_state: Box<dyn CombinatorState>,
+    name: Vec<u8>,
+}
+
+impl_combinator_state!(RemoveFromFrameStackState);
+
+impl Combinator for RemoveFromFrameStack {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(RemoveFromFrameStackState {
+            inner_state: self.0.initial_state(signal_id, frame_stack),
+            name: Vec::new(),
+        })
+    }
+
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<RemoveFromFrameStackState>().unwrap();
+        let mut result = self.0.next_state(&mut *state.inner_state, c, signal_id);
+        if let Some(c) = c {
+            state.name.push(c.try_into().unwrap());
+        }
+        if result.is_complete {
+            result.frame_stack.pop_name(&state.name);
+        }
+        result
+    }
+}
+
+// Helper functions to create combinators
+fn call<F: Fn() -> Box<dyn Combinator> + 'static>(f: F) -> Box<dyn Combinator> {
+    Box::new(Call(Rc::new(f)))
+}
+
+fn seq(combinators: Vec<Box<dyn Combinator>>) -> Box<dyn Combinator> {
+    Box::new(Seq(Rc::new(combinators)))
+}
+
+fn repeat1(a: Box<dyn Combinator>) -> Box<dyn Combinator> {
+    Box::new(Repeat1(a))
+}
+
+fn choice(combinators: Vec<Box<dyn Combinator>>) -> Box<dyn Combinator> {
+    Box::new(Choice(Rc::new(combinators)))
+}
+
+fn eat_u8_matching<F: Fn(u8) -> bool + 'static>(fn_: F) -> Box<dyn Combinator> {
+    Box::new(EatU8Matching(U8Set::from_match_fn(&fn_)))
+}
+
+fn eat_u8(value: char) -> Box<dyn Combinator> {
     eat_u8_matching(move |c: u8| c == value as u8)
 }
 
-fn eat_u8_range(start: char, end: char) -> Combinator {
+fn eat_u8_range(start: char, end: char) -> Box<dyn Combinator> {
     eat_u8_matching(move |c: u8| (start as u8..=end as u8).contains(&c))
 }
 
-fn eat_u8_range_complement(start: char, end: char) -> Combinator {
+fn eat_u8_range_complement(start: char, end: char) -> Box<dyn Combinator> {
     eat_u8_matching(move |c: u8| !(start as u8..=end as u8).contains(&c))
 }
 
-fn eat_string(value: &'static str) -> Combinator {
-    Combinator::EatString(value)
+fn eat_string(value: &'static str) -> Box<dyn Combinator> {
+    Box::new(EatString(value))
 }
 
-fn eps() -> Combinator {
-    Combinator::Eps
+fn eps() -> Box<dyn Combinator> {
+    Box::new(Eps)
 }
 
-fn opt<C>(a: C) -> Combinator
-where
-    C: Into<Combinator>,
-{
-    choice(vec![a.into(), eps()])
+fn opt(a: Box<dyn Combinator>) -> Box<dyn Combinator> {
+    choice(vec![a, eps()])
 }
 
-fn repeat<C>(a: C) -> Combinator
-where
-    C: Into<Combinator>,
-{
+fn repeat(a: Box<dyn Combinator>) -> Box<dyn Combinator> {
     opt(repeat1(a))
 }
 
-fn call<F>(f: F) -> Combinator
-where
-    F: Fn() -> Combinator + 'static,
-{
-    Combinator::Call(Rc::new(f))
+fn forward_ref() -> Box<dyn Combinator> {
+    Box::new(ForwardRef(Rc::new(RefCell::new(None))))
 }
 
-fn forward_ref() -> Combinator {
-    Combinator::ForwardRef(Rc::new(RefCell::new(None)))
+fn in_frame_stack(a: Box<dyn Combinator>) -> Box<dyn Combinator> {
+    Box::new(InFrameStack(a))
 }
 
-fn in_frame_stack(a: Combinator) -> Combinator {
-    Combinator::InFrameStack(Box::new(a))
+fn not_in_frame_stack(a: Box<dyn Combinator>) -> Box<dyn Combinator> {
+    Box::new(NotInFrameStack(a))
 }
 
-fn not_in_frame_stack(a: Combinator) -> Combinator {
-    Combinator::NotInFrameStack(Box::new(a))
+fn add_to_frame_stack(a: Box<dyn Combinator>) -> Box<dyn Combinator> {
+    Box::new(AddToFrameStack(a))
 }
 
-fn add_to_frame_stack(a: Combinator) -> Combinator {
-    Combinator::AddToFrameStack(Box::new(a))
+fn remove_from_frame_stack(a: Box<dyn Combinator>) -> Box<dyn Combinator> {
+    Box::new(RemoveFromFrameStack(a))
 }
 
-fn remove_from_frame_stack(a: Combinator) -> Combinator {
-    Combinator::RemoveFromFrameStack(Box::new(a))
-}
-
+// Macros for easier combinator creation
 macro_rules! seq {
     ($($a:expr),+ $(,)?) => {
-        seq(vec![$($a.clone()),+])
+        seq(vec![$($a),+])
     }
 }
 
 macro_rules! choice {
     ($($a:expr),+ $(,)?) => {
-        choice(vec![$($a.clone()),+])
+        choice(vec![$($a),+])
     }
 }
 
+// State iteration and processing functions remain similar, adapted for trait objects
+// ...
+
+// ActiveCombinator struct
 #[derive(Clone)]
 struct ActiveCombinator {
-    combinator: Combinator,
-    state: CombinatorState,
+    combinator: Box<dyn Combinator>,
+    state: Box<dyn CombinatorState>,
     signal_id: usize,
 }
 
 impl ActiveCombinator {
-    fn new(combinator: Combinator) -> Self {
+    fn new(combinator: Box<dyn Combinator>) -> Self {
         let mut signal_id = 0;
         let state = combinator.initial_state(&mut signal_id, FrameStack::default());
         Self {
@@ -621,7 +819,7 @@ impl ActiveCombinator {
         }
     }
 
-    fn new_with_names(combinator: Combinator, names: Vec<String>) -> Self {
+    fn new_with_names(combinator: Box<dyn Combinator>, names: Vec<String>) -> Self {
         let mut signal_id = 0;
         let mut frame_stack = FrameStack::default();
         for name in names {
@@ -636,353 +834,6 @@ impl ActiveCombinator {
     }
 
     fn send(&mut self, c: Option<char>) -> ParserIterationResult {
-        self.combinator.next_state(&mut self.state, c, &mut self.signal_id)
-    }
-}
-
-fn simplify_combinator(combinator: Combinator, seen_refs: &mut HashSet<*const Option<Combinator>>) -> Combinator {
-    match combinator {
-        Combinator::Choice(choices) => {
-            // Simplify each choice
-            let choices: Vec<_> = choices.into_iter().map(|choice| simplify_combinator(choice.clone(), seen_refs)).collect();
-
-            // Combine any EatU8Matching combinators
-            // Expand any choice combinators
-            let mut eat_u8s = U8Set::none();
-            let mut non_eat_u8s = Vec::new();
-            for choice in &choices {
-                match choice {
-                    Combinator::EatU8Matching(u8set) => {
-                        eat_u8s |= u8set.clone();
-                    }
-                    Combinator::Choice(choices) => {
-                        for choice in choices.into_iter() {
-                            non_eat_u8s.push(choice.clone());
-                        }
-                    }
-                    _ => {
-                        non_eat_u8s.push(choice.clone());
-                    }
-                }
-           }
-            let mut new_choices = Vec::with_capacity(non_eat_u8s.len() + 1);
-            if !eat_u8s.is_empty() {
-                new_choices.push(Combinator::EatU8Matching(eat_u8s));
-            }
-            new_choices.extend(non_eat_u8s);
-            Combinator::Choice(new_choices.into())
-        }
-        Combinator::Seq(seq) => {
-            // Simplify each sequent
-            let seq: Vec<_> = seq.into_iter().map(|sequent| simplify_combinator(sequent.clone(), seen_refs)).collect();
-
-            // Expand any sequence combinators
-            let mut new_seq = Vec::new();
-            for sequent in &seq {
-                match sequent {
-                    Combinator::Seq(seq) => {
-                        for sequent in seq.into_iter() {
-                            new_seq.push(sequent.clone());
-                        }
-                    }
-                    _ => {
-                        new_seq.push(sequent.clone());
-                    }
-                }
-            }
-            Combinator::Seq(new_seq.into())
-        }
-        Combinator::Repeat1(inner) => {
-            Combinator::Repeat1(Box::new(simplify_combinator(*inner, seen_refs)))
-        }
-        Combinator::ForwardRef(ref inner) => {
-            if seen_refs.contains(&(inner.as_ptr() as *const Option<Combinator>)) {
-                return combinator;
-            }
-            seen_refs.insert(inner.as_ptr() as *const Option<Combinator>);
-            Combinator::ForwardRef(Rc::new(std::cell::RefCell::new(
-                inner.borrow().as_ref().map(|c| simplify_combinator(c.clone(), seen_refs))
-            )))
-        }
-        // Other combinator types remain unchanged
-        _ => combinator,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::assert_matches::assert_matches;
-
-    use super::*;
-
-    // Test cases remain the same, just update the combinator creation syntax
-    #[test]
-    fn test_eat_u8() {
-        let mut it = ActiveCombinator::new(eat_u8('a').clone());
-        let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
-        let result = it.send(Some('a'));
-        assert_matches!(result, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-    }
-
-    #[test]
-    fn test_eat_string() {
-        let mut it = ActiveCombinator::new(eat_string("abc").clone());
-        let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
-        let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("b"));
-        let result2 = it.send(Some('b'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("c"));
-        let result3 = it.send(Some('c'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-    }
-
-    #[test]
-    fn test_seq() {
-        let mut it = ActiveCombinator::new(seq!(eat_u8('a'), eat_u8('b')).clone());
-        let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
-        let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("b"));
-        let result2 = it.send(Some('b'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-    }
-
-    #[test]
-    fn test_repeat1() {
-        let mut it = ActiveCombinator::new(repeat1(eat_u8('a')));
-        let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
-        let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set == &U8Set::from_chars("a"));
-        let result2 = it.send(Some('a'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set == &U8Set::from_chars("a"));
-    }
-
-    #[test]
-    fn test_choice() {
-        let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')));
-        let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("ab"));
-        let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-
-        let mut it = ActiveCombinator::new(choice!(eat_u8('a'), eat_u8('b')));
-        it.send(None);
-        let result2 = it.send(Some('b'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-    }
-
-    #[test]
-    fn test_seq_choice_seq() {
-        // Matches "ac" or "abc"
-        let mut it = ActiveCombinator::new(
-            seq!(
-                choice!(eat_u8('a'), seq!(eat_u8('a'), eat_u8('b'))),
-                eat_u8('c')
-            ),
-        );
-        let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
-        let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("bc"));
-        let result2 = it.send(Some('b'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("c"));
-        let result3 = it.send(Some('c'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-    }
-
-    #[test]
-    fn test_nested_brackets() {
-        fn nested_brackets() -> Combinator {
-            choice!(
-                seq!(eat_u8('['), seq!(call(nested_brackets), eat_u8(']'))),
-                eat_u8('a')
-            )
-        }
-        let mut it = ActiveCombinator::new(nested_brackets());
-        let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("[a"));
-        let result1 = it.send(Some('['));
-        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("[a"));
-        let result2 = it.send(Some('a'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("]"));
-        let result3 = it.send(Some(']'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-    }
-
-    #[test]
-    fn test_names() {
-        let mut it0 = ActiveCombinator::new_with_names(
-            in_frame_stack(
-                choice!(
-                        eat_string("ab"),
-                        eat_string("c"),
-                        eat_string("cd"),
-                        eat_string("ce"),
-                    ),
-            ),
-            vec!["cd".to_string()],
-        );
-        let mut it = it0.clone();
-        let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("c"));
-        let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set.is_empty());
-
-        let mut it = it0.clone();
-        let result1 = it.send(None);
-        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("c"));
-        let result2 = it.send(Some('c'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("d"));
-        let result3 = it.send(Some('d'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-    }
-
-    #[test]
-    fn test_names2() {
-        let mut it0 = ActiveCombinator::new_with_names(
-    choice!(
-                seq!(add_to_frame_stack(eat_string("a")), in_frame_stack(eat_string("a")), eat_string("b")),
-                seq!(eat_string("a"), in_frame_stack(eat_string("a")), eat_string("c")),
-            ),
-            vec![],
-        );
-        let mut it = it0.clone();
-        let result0 = it.send(None);
-        assert_matches!(result0, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
-        let result1 = it.send(Some('a'));
-        assert_matches!(result1, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("a"));
-        let result2 = it.send(Some('a'));
-        assert_matches!(result2, ParserIterationResult { ref u8set, is_complete: false, .. } if u8set == &U8Set::from_chars("b"));
-        let result3 = it.send(Some('b'));
-        assert_matches!(result3, ParserIterationResult { ref u8set, is_complete: true, .. } if u8set.is_empty());
-    }
-}
-
-#[cfg(test)]
-mod json_parser {
-    use super::*;
-
-    #[test]
-    fn test_json_parser() {
-        // Helper combinators for JSON parsing
-        let whitespace = repeat(choice!(eat_u8(' '), eat_u8('\t'), eat_u8('\n'), eat_u8('\r')));
-        let digit = eat_u8_range('0', '9');
-        let digits = repeat(digit);
-        let integer = seq!(opt(choice!(eat_u8('-'), eat_u8('+'))), digits);
-        let fraction = seq!(eat_u8('.'), digits);
-        let exponent = seq!(choice!(eat_u8('e'), eat_u8('E')), seq!(choice!(eat_u8('+'), eat_u8('-')), digits));
-        let number = seq!(integer, opt(fraction), opt(exponent));
-
-        let string_char = eat_u8_range_complement('"', '"');
-        let string = seq!(eat_u8('"'), repeat(string_char), eat_u8('"'));
-
-        let mut json_value = forward_ref();
-
-        let json_array = seq!(
-            eat_u8('['),
-            whitespace,
-            opt(seq!(
-                json_value,
-                repeat(seq!(whitespace, eat_u8(','), whitespace, json_value)),
-                whitespace,
-            )),
-            eat_u8(']'),
-        );
-
-        let key_value_pair = seq!(string, whitespace, eat_u8(':'), whitespace, json_value);
-
-        let json_object = seq!(
-            eat_u8('{'),
-            whitespace,
-            opt(seq!(
-                key_value_pair,
-                whitespace,
-                repeat(seq!(eat_u8(','), whitespace, key_value_pair)),
-                whitespace,
-            )),
-            eat_u8('}'),
-        );
-
-        json_value.set(
-            choice!(
-                string, number,
-                eat_string("true"), eat_string("false"),
-                eat_string("null"), json_array, json_object,
-            )
-        );
-
-        // Test cases
-        let json_parser = seq!(whitespace, json_value);
-        let json_parser = simplify_combinator(json_parser, &mut HashSet::new());
-
-        let test_cases = [
-            "null",
-            "true",
-            "false",
-            "42",
-            r#""Hello, world!""#,
-            r#"{"key": "value"}"#,
-            "[1, 2, 3]",
-            r#"{"nested": {"array": [1, 2, 3], "object": {"a": true, "b": false}}}"#,
-        ];
-
-        let parse_json = |json_string: &str| -> bool {
-            let mut it = ActiveCombinator::new(json_parser.clone());
-            let mut result = it.send(None);
-            for char in json_string.chars() {
-                assert!(result.u8set().contains(char as u8), "Expected {} to be in {:?}", char, result.u8set());
-                result = it.send(Some(char));
-            }
-            result.is_complete
-        };
-
-        for json_string in test_cases {
-            assert!(parse_json(json_string), "Failed to parse JSON string: {}", json_string);
-        }
-
-        let invalid_json_strings = [
-            r#"{"unclosed": "object""#,
-            "[1, 2, 3",
-            r#"{"invalid": "json","#,
-        ];
-
-        for json_string in invalid_json_strings {
-            assert!(!parse_json(json_string), "Incorrectly parsed invalid JSON string: {}", json_string);
-        }
-
-        let filenames: Vec<&str> = vec![
-            // "GeneratedCSV_mini.json",
-            // "GeneratedCSV_1.json",
-            // "GeneratedCSV_2.json",
-            // "GeneratedCSV_10.json",
-            // "GeneratedCSV_20.json",
-            // "GeneratedCSV_100.json",
-            // "GeneratedCSV_200.json",
-        ];
-
-        // Print execution times for each parser
-        for filename in filenames {
-            let json_string = std::fs::read_to_string(format!("static/{}", filename)).unwrap();
-            let start = std::time::Instant::now();
-            let result = parse_json(&json_string);
-            let end = std::time::Instant::now();
-            println!("{}: {} ms", filename, end.duration_since(start).as_millis());
-            assert!(result, "Failed to parse JSON string: {}", json_string);
-        }
-
-        // Test with a string of 'a's
-        println!("Testing with a string of 'a's of length 100 and length 200");
-        for i in vec![1_000, 10_000] {
-            let json_string = std::iter::repeat('a').take(i).collect::<String>();
-            let json_string = format!(r#"{{"a": "{}"}}"#, json_string);
-            let start = std::time::Instant::now();
-            let result = parse_json(&json_string);
-            let end = std::time::Instant::now();
-            println!("{}: {} ms", i, end.duration_since(start).as_millis());
-            assert!(result, "Failed to parse JSON string: {}", json_string);
-        }
+        self.combinator.next_state(&mut *self.state, c, &mut self.signal_id)
     }
 }
