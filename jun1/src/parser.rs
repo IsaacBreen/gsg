@@ -923,10 +923,10 @@ mod json_parser {
             "true",
             "false",
             "42",
+            r#""Hello, world!""#,
             r#"{"key": "value"}"#,
             "[1, 2, 3]",
             r#"{"nested": {"array": [1, 2, 3], "object": {"a": true, "b": false}}}"#,
-            r#""Hello, world!""#,
         ];
 
         let parse_json = |json_string: &str| -> bool {

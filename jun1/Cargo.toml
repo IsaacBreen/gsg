@@ -7,4 +7,4 @@ edition = "2021"
 
 # Run tests with optimizations
 [profile.dev]
-#opt-level = 3
+opt-level = 1
