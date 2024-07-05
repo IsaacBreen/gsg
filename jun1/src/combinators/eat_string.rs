@@ -6,16 +6,16 @@ use crate::u8set::U8Set;
 pub struct EatString(pub &'static str);
 
 impl Combinator for EatString {
-    type State = EatStringState;
+    type State = Box<dyn CombinatorState>;
 
-    fn initial_state(&self, _signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
-        EatStringState {
+    fn initial_state(&self, _signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(EatStringState {
             index: 0,
             frame_stack,
-        }
+        })
     }
 
-    fn next_state(&self, state: &mut Self::State, _c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut dyn CombinatorState, _c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<EatStringState>().expect("Invalid state type");
         if state.index > self.0.len() {
             return ParserIterationResult::new(U8Set::none(), false, state.frame_stack.clone());

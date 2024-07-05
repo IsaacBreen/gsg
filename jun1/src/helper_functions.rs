@@ -9,93 +9,99 @@ use crate::u8set::U8Set;
 
 // Include all helper functions and macros
 
-pub fn seq<I, C>(combinators: I) -> Rc<Seq<C>>
+pub fn seq<I>(combinators: I) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>>
 where
-    I: IntoIterator<Item = C>,
-    C: Combinator,
+    I: IntoIterator<Item = Rc<dyn Combinator<State = Box<dyn CombinatorState>>>>,
 {
-    Rc::new(Seq(Rc::from_iter(combinators)))
+    Rc::new(Seq(Rc::from(combinators.into_iter().collect::<Vec<_>>())))
 }
 
-pub fn repeat1<C: Combinator>(a: C) -> Rc<Repeat1<C>> {
+pub fn repeat1(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     Rc::new(Repeat1(a))
 }
 
-pub fn choice<I, C>(combinators: I) -> Rc<Choice<C>>
+pub fn choice<I>(combinators: I) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>>
 where
-    I: IntoIterator<Item = C>,
+    I: IntoIterator<Item = Rc<dyn Combinator<State = Box<dyn CombinatorState>>>>,
 {
-    Rc::new(Choice(Rc::from_iter(combinators)))
+    Rc::new(Choice(Rc::from(combinators.into_iter().collect::<Vec<_>>())))
 }
 
-pub fn eat_u8_matching(u8set: U8Set) -> Rc<EatU8Matching> {
+pub fn eat_u8_matching(u8set: U8Set) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     Rc::new(EatU8Matching(u8set))
 }
 
-pub fn eat_u8(value: char) -> Rc<EatU8Matching> {
+pub fn eat_u8(value: char) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     eat_u8_matching(U8Set::from_char(value))
 }
 
-pub fn eat_u8_range(start: char, end: char) -> Rc<EatU8Matching> {
+pub fn eat_u8_range(start: char, end: char) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     eat_u8_matching(U8Set::from_range(start as u8, end as u8))
 }
 
-pub fn eat_string(value: &'static str) -> Rc<EatString> {
+pub fn eat_string(value: &'static str) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     Rc::new(EatString(value))
 }
 
-pub fn eps() -> Eps {
-    Eps
+pub fn eps() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    Rc::new(Eps)
 }
 
-pub fn repeat<C: Combinator>(a: C) -> Rc<dyn Combinator<State = dyn CombinatorState>> {
+pub fn opt(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    choice(vec![a, eps()])
+}
+
+pub fn repeat(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     opt(repeat1(a))
 }
 
-pub fn call<F, C>(f: F) -> Rc<Call<F, C, C::State>>
+pub fn call<F>(f: &'static F) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>>
 where
-    F: Fn() -> Rc<C> + 'static,
-    C: Combinator,
+    F: Fn() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> + 'static + ?Sized,
 {
-    Rc::new(Call(f))
+    Rc::new(Call(Rc::new(f)))
 }
 
-pub fn forward_ref<C: Combinator>() -> Rc<ForwardRef<C>> {
+pub fn forward_ref() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     Rc::new(ForwardRef(Rc::new(RefCell::new(None))))
 }
 
-pub fn in_frame_stack<C: Combinator>(a: C) -> Rc<InFrameStack<C>> {
-    Rc::new(InFrameStack(Rc::new(a)))
+pub fn in_frame_stack(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    Rc::new(InFrameStack(a))
 }
 
-pub fn not_in_frame_stack<C: Combinator>(a: C) -> Rc<NotInFrameStack<C>> {
-    Rc::new(NotInFrameStack(Rc::new(a)))
+pub fn not_in_frame_stack(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    Rc::new(NotInFrameStack(a))
 }
 
-pub fn add_to_frame_stack<C: Combinator>(a: C) -> Rc<AddToFrameStack<C>> {
-    Rc::new(AddToFrameStack(Rc::new(a)))
+pub fn add_to_frame_stack(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    Rc::new(AddToFrameStack(a))
 }
 
-pub fn remove_from_frame_stack<C: Combinator>(a: C) -> Rc<RemoveFromFrameStack<C>> {
-    Rc::new(RemoveFromFrameStack(Rc::new(a)))
+pub fn remove_from_frame_stack(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    Rc::new(RemoveFromFrameStack(a))
 }
 
-pub fn process<C, State>(
-    combinator: &C,
+pub fn eat_u8_range_complement(start: char, end: char) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    choice(vec![
+        eat_u8_range(0 as char, start as char),
+        eat_u8_range(end, 255 as char),
+    ])
+}
+
+pub fn process(
+    combinator: &Rc<dyn Combinator<State = Box<dyn CombinatorState>>>,
     c: Option<char>,
-    its: &mut Vec<State>,
+    its: &mut Vec<Box<dyn CombinatorState>>,
     signal_id: &mut usize,
-) -> ParserIterationResult
-where
-    C: Combinator<State = State>,
-{
+) -> ParserIterationResult {
     if its.len() > 100 {
         // Warn if there are too many states
         eprintln!("Warning: there are {} states (process)", its.len());
     }
     let mut final_result = ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
     its.retain_mut(|it| {
-        let result = combinator.next_state(it, c, signal_id);
+        let result = combinator.next_state(it.as_mut(), c, signal_id);
         let is_empty = result.u8set().is_empty();
         final_result.merge_assign(result);
         !is_empty
@@ -103,11 +109,11 @@ where
     final_result
 }
 
-pub fn seq2_helper<C: Combinator<State = State>, State>(
-    b: &C,
+pub fn seq2_helper(
+    b: &Rc<dyn Combinator<State = Box<dyn CombinatorState>>>,
     a_result: &mut ParserIterationResult,
     b_result: ParserIterationResult,
-    b_its: &mut Vec<State>,
+    b_its: &mut Vec<Box<dyn CombinatorState>>,
     signal_id: &mut usize,
 ) {
     if b_its.len() > 100 {
@@ -116,7 +122,7 @@ pub fn seq2_helper<C: Combinator<State = State>, State>(
     }
     if a_result.is_complete {
         let mut b_it = b.initial_state(signal_id, a_result.frame_stack.clone());
-        let b_result = b.next_state(&mut b_it, None, signal_id);
+        let b_result = b.next_state(b_it.as_mut(), None, signal_id);
         b_its.push(b_it);
         a_result.forward_assign(b_result);
     }
@@ -126,24 +132,13 @@ pub fn seq2_helper<C: Combinator<State = State>, State>(
 #[macro_export]
 macro_rules! seq {
     ($($a:expr),+ $(,)?) => {
-        seq(vec![$($a.into()),+])
+        seq(vec![$($a),+])
     }
 }
 
 #[macro_export]
 macro_rules! choice {
     ($($a:expr),+ $(,)?) => {
-        choice(vec![$($a.into()),+])
+        choice(vec![$($a),+])
     }
-}
-
-pub fn opt<C: Combinator>(a: C) -> Rc<Choice<dyn CombinatorState>> {
-    choice!(a, eps())
-}
-
-pub fn eat_u8_range_complement(start: char, end: char) -> Rc<EatU8Matching> {
-    choice!(
-        eat_u8_range(0 as char, start as char),
-        eat_u8_range(end, 255 as char),
-    )
 }

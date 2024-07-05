@@ -4,18 +4,19 @@ use crate::helper_functions::{process, seq2_helper};
 use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 
-pub struct Repeat1<C>(pub C);
+pub struct Repeat1(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
 
-impl<C, State> Combinator for Repeat1<C> where C: Combinator<State = State> {
-    type State = Repeat1State<State>;
+impl Combinator for Repeat1 {
+    type State = Box<dyn CombinatorState>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
-        Repeat1State {
-            a_its: vec![self.0.initial_state(signal_id, frame_stack.clone())],
-        }
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+        Box::new(Repeat1State {
+            a_its: vec![self.0.initial_state(signal_id, frame_stack)],
+        })
     }
 
-    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let state = state.as_any_mut().downcast_mut::<Repeat1State>().expect("Invalid state type");
         let mut a_result = process(&self.0, c, &mut state.a_its, signal_id);
         let b_result = a_result.clone();
         seq2_helper(&self.0, &mut a_result, b_result, &mut state.a_its, signal_id);
@@ -23,11 +24,11 @@ impl<C, State> Combinator for Repeat1<C> where C: Combinator<State = State> {
     }
 }
 
-pub struct Repeat1State<State> {
-    pub a_its: Vec<State>,
+pub struct Repeat1State {
+    pub a_its: Vec<Box<dyn CombinatorState>>,
 }
 
-impl<State> CombinatorState for Repeat1State<State> {
+impl CombinatorState for Repeat1State {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
