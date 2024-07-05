@@ -8,17 +8,14 @@ pub struct ForwardRef<C>(pub Rc<RefCell<Option<C>>>);
 
 impl<C> Combinator for ForwardRef<C>
 where
-    C: Combinator,
-    C::State: 'static,
+    C: Combinator<State = Box<dyn CombinatorState>> + 'static,
 {
-    type State = ForwardRefState<C::State>;
+    type State = Box<ForwardRefState<Box<dyn CombinatorState>>>;
 
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
-        let inner_state = match self.0.borrow().as_ref() {
-            Some(c) => Some(c.initial_state(signal_id, frame_stack)),
-            None => panic!("ForwardRef not set"),
-        };
-        ForwardRefState { inner_state }
+        Box::new(ForwardRefState {
+            inner_state: self.0.borrow().as_ref().map(|c| c.initial_state(signal_id, frame_stack)),
+        })
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {

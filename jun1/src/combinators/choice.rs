@@ -8,19 +8,18 @@ pub struct Choice<C>(pub Vec<C>);
 
 impl<C> Combinator for Choice<C>
 where
-    C: Combinator,
-    C::State: 'static,
+    C: Combinator<State = Box<dyn CombinatorState>> + 'static,
 {
-    type State = ChoiceState<C::State>;
+    type State = Box<ChoiceState<Box<dyn CombinatorState>>>;
 
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
-        ChoiceState {
+        Box::new(ChoiceState {
             its: self
                 .0
                 .iter()
                 .map(|combinator| vec![combinator.initial_state(signal_id, frame_stack.clone())])
                 .collect(),
-        }
+        })
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {

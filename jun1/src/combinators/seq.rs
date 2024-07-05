@@ -7,10 +7,9 @@ pub struct Seq<C>(pub Vec<C>);
 
 impl<C> Combinator for Seq<C>
 where
-    C: Combinator,
-    C::State: 'static,
+    C: Combinator<State = Box<dyn CombinatorState>> + 'static,
 {
-    type State = SeqState<C::State>;
+    type State = SeqState<Box<dyn CombinatorState>>;
 
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let mut its = Vec::with_capacity(self.0.len());

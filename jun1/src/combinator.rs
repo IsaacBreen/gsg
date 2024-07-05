@@ -3,17 +3,17 @@ use crate::state::CombinatorState;
 use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 
 pub trait Combinator {
-    type State;
+    type State: CombinatorState;
 
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State;
     fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult;
 }
 
-impl<C, State> Combinator for Rc<C>
+impl<C> Combinator for Rc<C>
 where
-    C: Combinator<State = State> + ?Sized,
+    C: Combinator + ?Sized,
 {
-    type State = State;
+    type State = C::State;
 
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         (**self).initial_state(signal_id, frame_stack)
@@ -24,11 +24,11 @@ where
     }
 }
 
-impl<C, State> Combinator for Box<C>
+impl<C> Combinator for Box<C>
 where
-    C: Combinator<State = State>,
+    C: Combinator,
 {
-    type State = State;
+    type State = C::State;
 
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         (**self).initial_state(signal_id, frame_stack)
