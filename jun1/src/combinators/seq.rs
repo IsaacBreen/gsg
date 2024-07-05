@@ -4,9 +4,11 @@ use crate::helper_functions::{process, seq2_helper};
 use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 
-pub struct Seq(pub Rc<[Rc<dyn Combinator>]>);
+pub struct Seq(pub Rc<[Rc<dyn Combinator<State = Box<dyn CombinatorState>>>]>);
 
 impl Combinator for Seq {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         let mut its = Vec::with_capacity(self.0.len());
         its.push(vec![self.0[0].initial_state(signal_id, frame_stack)]);

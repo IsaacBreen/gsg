@@ -6,6 +6,8 @@ use crate::u8set::U8Set;
 pub struct EatString(pub &'static str);
 
 impl Combinator for EatString {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, _signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         Box::new(EatStringState {
             index: 0,

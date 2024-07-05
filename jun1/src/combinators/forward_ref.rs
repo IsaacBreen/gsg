@@ -4,9 +4,11 @@ use crate::combinator::Combinator;
 use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 
-pub struct ForwardRef(pub Rc<RefCell<Option<Rc<dyn Combinator>>>>);
+pub struct ForwardRef(pub Rc<RefCell<Option<Rc<dyn Combinator<State = Box<dyn CombinatorState>>>>>>);
 
 impl Combinator for ForwardRef {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         let inner_state = match self.0.borrow().as_ref() {
             Some(c) => Some(c.initial_state(signal_id, frame_stack)),

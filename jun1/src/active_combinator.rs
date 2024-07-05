@@ -4,13 +4,13 @@ use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 
 pub struct ActiveCombinator {
-    combinator: Rc<dyn Combinator>,
+    combinator: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>,
     state: Box<dyn CombinatorState>,
     signal_id: usize,
 }
 
 impl ActiveCombinator {
-    pub fn new(combinator: Rc<dyn Combinator>) -> Self {
+    pub fn new(combinator: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Self {
         let mut signal_id = 0;
         let state = combinator.initial_state(&mut signal_id, FrameStack::default());
         Self {
@@ -20,7 +20,7 @@ impl ActiveCombinator {
         }
     }
 
-    pub fn new_with_names(combinator: Rc<dyn Combinator>, names: Vec<String>) -> Self {
+    pub fn new_with_names(combinator: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>, names: Vec<String>) -> Self {
         let mut signal_id = 0;
         let mut frame_stack = FrameStack::default();
         for name in names {

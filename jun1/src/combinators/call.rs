@@ -3,12 +3,14 @@ use crate::combinator::Combinator;
 use crate::state::CombinatorState;
 use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 
-pub struct Call<F: Fn() -> Rc<dyn Combinator> + 'static + ?Sized>(pub Rc<F>);
+pub struct Call<F: Fn() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> + 'static + ?Sized>(pub Rc<F>);
 
 impl<F> Combinator for Call<F>
 where
-    F: Fn() -> Rc<dyn Combinator> + 'static + ?Sized,
+    F: Fn() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> + 'static + ?Sized,
 {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         let inner_combinator = (self.0)();
         Box::new(CallState {

@@ -6,6 +6,8 @@ use crate::U8Set;
 pub struct Eps;
 
 impl Combinator for Eps {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, _signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         Box::new(EpsState { frame_stack })
     }

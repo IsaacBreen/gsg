@@ -5,9 +5,11 @@ use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 use crate::U8Set;
 
-pub struct Choice(pub Rc<[Rc<dyn Combinator>]>);
+pub struct Choice(pub Rc<[Rc<dyn Combinator<State = Box<dyn CombinatorState>>>]>);
 
 impl Combinator for Choice {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         Box::new(ChoiceState {
             its: self

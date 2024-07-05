@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod json_parser {
     use std::rc::Rc;
-    use crate::{ActiveCombinator, choice, eat_string, eat_u8, eat_u8_range, eat_u8_range_complement, in_frame_stack, opt, repeat, seq, add_to_frame_stack, Combinator, forward_ref, U8Set};
+    use crate::{ActiveCombinator, choice, eat_string, eat_u8, eat_u8_range, eat_u8_range_complement, in_frame_stack, opt, repeat, seq, add_to_frame_stack, Combinator, forward_ref, U8Set, CombinatorState};
 
     #[ignore]
     #[test]
@@ -18,7 +18,7 @@ mod json_parser {
         let string_char = eat_u8_range_complement('"', '"');
         let string = seq!(eat_u8('"'), repeat(string_char), eat_u8('"'));
 
-        let json_value: Rc<dyn Combinator> = forward_ref();
+        let json_value: Rc<dyn Combinator<State = Box<dyn CombinatorState>>> = forward_ref();
 
         let json_array = Rc::new(seq!(
             eat_u8('['),

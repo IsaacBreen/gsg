@@ -3,11 +3,15 @@ use crate::state::CombinatorState;
 use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 
 pub trait Combinator {
+    type State;
+
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState>;
     fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult;
 }
 
-impl Combinator for Rc<dyn Combinator> {
+impl Combinator for Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         (**self).initial_state(signal_id, frame_stack)
     }

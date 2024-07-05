@@ -6,6 +6,8 @@ use crate::u8set::U8Set;
 pub struct EatU8Matching(pub U8Set);
 
 impl Combinator for EatU8Matching {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, _signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         Box::new(EatU8MatchingState {
             state: 0,

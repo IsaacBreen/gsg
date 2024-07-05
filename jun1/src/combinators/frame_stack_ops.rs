@@ -3,14 +3,16 @@ use crate::combinator::Combinator;
 use crate::parse_iteration_result::{Frame, FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 
-pub struct WithNewFrame(pub Rc<dyn Combinator>);
-pub struct WithExistingFrame(pub Frame, pub Rc<dyn Combinator>);
-pub struct InFrameStack(pub Rc<dyn Combinator>);
-pub struct NotInFrameStack(pub Rc<dyn Combinator>);
-pub struct AddToFrameStack(pub Rc<dyn Combinator>);
-pub struct RemoveFromFrameStack(pub Rc<dyn Combinator>);
+pub struct WithNewFrame(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
+pub struct WithExistingFrame(pub Frame, pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
+pub struct InFrameStack(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
+pub struct NotInFrameStack(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
+pub struct AddToFrameStack(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
+pub struct RemoveFromFrameStack(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
 
 impl Combinator for WithNewFrame {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, mut frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         frame_stack.push_empty_frame();
         let a_state = self.0.initial_state(signal_id, frame_stack);
@@ -26,6 +28,8 @@ impl Combinator for WithNewFrame {
 }
 
 impl Combinator for WithExistingFrame {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, mut frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         frame_stack.push_frame(self.0.clone());
         let a_state = self.1.initial_state(signal_id, frame_stack);
@@ -47,6 +51,8 @@ impl Combinator for WithExistingFrame {
 }
 
 impl Combinator for InFrameStack {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         let a_state = self.0.initial_state(signal_id, frame_stack);
         Box::new(InFrameStackState {
@@ -76,6 +82,8 @@ impl Combinator for InFrameStack {
 }
 
 impl Combinator for NotInFrameStack {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         let a_state = self.0.initial_state(signal_id, frame_stack);
         Box::new(NotInFrameStackState {
@@ -105,6 +113,8 @@ impl Combinator for NotInFrameStack {
 }
 
 impl Combinator for AddToFrameStack {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         let a_state = self.0.initial_state(signal_id, frame_stack);
         Box::new(AddToFrameStackState {
@@ -127,6 +137,8 @@ impl Combinator for AddToFrameStack {
 }
 
 impl Combinator for RemoveFromFrameStack {
+    type State = Box<dyn CombinatorState>;
+
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
         let a_state = self.0.initial_state(signal_id, frame_stack);
         Box::new(RemoveFromFrameStackState {
