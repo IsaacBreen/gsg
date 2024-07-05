@@ -9,23 +9,24 @@ use crate::u8set::U8Set;
 
 // Include all helper functions and macros
 
-pub fn seq<C, State, I>(combinators: I) -> Rc<Seq<C>>
+pub fn seq2<A, B, StateA, StateB>(a: A, b: B) -> Rc<Seq2<A, B>>
 where
-    C: Combinator<State = State>,
-    I: IntoIterator<Item = C>,
+    A: Combinator<State = StateA>,
+    B: Combinator<State = StateB>,
 {
-    Rc::new(Seq(combinators.into_iter().collect::<Vec<_>>()))
+    Rc::new(Seq2(a, b))
 }
 
-pub fn repeat1(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
-    Rc::new(Repeat1(a))
+pub fn repeat1<State>(a: Rc<dyn Combinator<State = State>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    Rc::new(Repeat1(a as Rc<dyn Combinator<State = Box<dyn CombinatorState>>>))
 }
 
-pub fn choice<I>(combinators: I) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>>
+pub fn choice2<A, B, StateA, StateB>(a: A, b: B) -> Rc<Choice2<A, B>>
 where
-    I: IntoIterator<Item = Rc<dyn Combinator<State = Box<dyn CombinatorState>>>>,
+    A: Combinator<State = StateA>,
+    B: Combinator<State = StateB>,
 {
-    Rc::new(Choice(Rc::from(combinators.into_iter().collect::<Vec<_>>())))
+    Rc::new(Choice2(a, b))
 }
 
 pub fn eat_u8_matching(u8set: U8Set) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
@@ -44,15 +45,18 @@ pub fn eat_string(value: &'static str) -> Rc<dyn Combinator<State = Box<dyn Comb
     Rc::new(EatString(value))
 }
 
-pub fn eps() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
-    Rc::new(Eps)
+pub fn eps() -> Eps {
+    Eps
 }
 
-pub fn opt(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
-    choice(vec![a, eps()])
+pub fn opt<C, State>(a: C) -> Rc<Choice2<C, Eps>>
+where
+    C: Combinator<State = State>,
+{
+    choice2(a, eps())
 }
 
-pub fn repeat(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+pub fn repeat<State>(a: Rc<dyn Combinator<State = State>>) -> Rc<Choice2<Rc<dyn Combinator<State=Box<dyn CombinatorState>>>, Eps>> {
     opt(repeat1(a))
 }
 
@@ -60,11 +64,11 @@ pub fn forward_ref() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     Rc::new(ForwardRef(Rc::new(RefCell::new(None))))
 }
 
-pub fn eat_u8_range_complement(start: char, end: char) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
-    choice(vec![
-        eat_u8_range(0 as char, start as char),
+pub fn eat_u8_range_complement(start: char, end: char) -> Rc<Choice2<Rc<dyn Combinator<State=Box<dyn CombinatorState>>>, Rc<dyn Combinator<State=Box<dyn CombinatorState>>>>> {
+    choice2(
+        eat_u8_range(0 as char, start),
         eat_u8_range(end, 255 as char),
-    ])
+    )
 }
 
 pub fn process<C: Combinator<State = State> + ?Sized, State>(
@@ -108,15 +112,37 @@ pub fn seq2_helper<C: Combinator<State = State> + ?Sized, State>(
 }
 
 #[macro_export]
+macro_rules! _seq {
+    ($a:expr) => {
+        $a
+    };
+
+    ($a:expr, $($b:expr),+ $(,)?) => {
+        $crate::Seq2($a, $crate::_seq!($($b),+))
+    };
+}
+
+#[macro_export]
+macro_rules! _choice {
+    ($a:expr) => {
+        $a
+    };
+
+    ($a:expr, $($b:expr),+ $(,)?) => {
+        $crate::Choice2($a, $crate::_choice!($($b),+))
+    };
+}
+
+#[macro_export]
 macro_rules! seq {
     ($($a:expr),+ $(,)?) => {
-        seq(vec![$($a),+])
-    }
+        Rc::new($crate::_seq!($($a),+))
+    };
 }
 
 #[macro_export]
 macro_rules! choice {
     ($($a:expr),+ $(,)?) => {
-        choice(vec![$($a),+])
-    }
+        Rc::new($crate::_choice!($($a),+))
+    };
 }
