@@ -7,12 +7,18 @@ pub struct U8Set {
 }
 
 impl U8Set {
-    pub(crate) fn from_char(p0: char) -> U8Set {
-        U8Set::from_chars(&p0.to_string())
+    pub(crate) fn from_u8(p0: u8) -> U8Set {
+        let mut result = U8Set::none();
+        result.insert(p0);
+        result
     }
 
-    pub(crate) fn from_range(start: u8, end: u8) -> U8Set {
+    pub(crate) fn from_u8_range(start: u8, end: u8) -> U8Set {
         U8Set::from_match_fn(move |i| start <= i && i <= end)
+    }
+
+    pub(crate) fn from_char(p0: char) -> U8Set {
+        U8Set::from_chars(&p0.to_string())
     }
 }
 
@@ -66,6 +72,14 @@ impl U8Set {
     pub fn from_chars(chars: &str) -> Self {
         let mut result = Self::none();
         for c in chars.chars() {
+            result.insert(c as u8);
+        }
+        result
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        let mut result = Self::none();
+        for c in s.chars() {
             result.insert(c as u8);
         }
         result

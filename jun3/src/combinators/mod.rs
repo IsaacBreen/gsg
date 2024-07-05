@@ -5,6 +5,7 @@ mod eps;
 mod forward_ref;
 mod repeat1;
 mod seq;
+mod helpers;
 
 pub use choice::*;
 pub use eat_string::*;
@@ -13,3 +14,4 @@ pub use eps::*;
 pub use forward_ref::*;
 pub use repeat1::*;
 pub use seq::*;
+pub use helpers::*;

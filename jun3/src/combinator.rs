@@ -1,6 +1,6 @@
 use crate::{FrameStack, ParseResult};
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct ParseData {
     pub(crate) frame_stack: FrameStack,
 }
