@@ -1,39 +1,42 @@
-use crate::{Combinator, CombinatorState, FrameStack, ParserIterationResult, process, seq2_helper, U8Set};
+use crate::combinator::Combinator;
+use crate::helper_functions::{process, seq2_helper};
+use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
+use crate::state::CombinatorState;
 
-pub struct Seq2<A, B>(pub A, pub B);
+pub struct Seq<C>(pub Vec<C>);
 
-impl<A, B, StateA, StateB> Combinator for Seq2<A, B>
+impl<C, State> Combinator for Seq<C>
 where
-    A: Combinator<State = StateA>,
-    B: Combinator<State = StateB>,
+    C: Combinator<State = State>,
 {
-    type State = (Option<StateA>, Vec<StateB>);
+    type State = SeqState<State>;
 
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
-        (Some(self.0.initial_state(signal_id, frame_stack.clone())), Vec::new())
+        let mut its = Vec::with_capacity(self.0.len());
+        its.push(vec![self.0[0].initial_state(signal_id, frame_stack)]);
+        for _ in 1..self.0.len() {
+            its.push(Vec::new());
+        }
+        SeqState { its }
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        let (a_state, ref mut b_states) = state;
-        let (a_combinator, b_combinator) = (&self.0, &self.1);
-        if let Some(a_state) = a_state {
-            let mut a_result = a_combinator.next_state(a_state, c, signal_id);
-            if a_result.u8set().is_empty() {
-                state.0 = None;
-            }
-            let b_result = process(b_combinator, c, b_states, signal_id);
-            seq2_helper(b_combinator, &mut a_result, b_result, b_states, signal_id);
-            a_result
-        } else {
-            process(b_combinator, c, b_states, signal_id)
+        let mut a_result = process(&self.0[0], c, &mut state.its[0], signal_id);
+        for (combinator, its) in self.0.iter().zip(state.its.iter_mut()).skip(1) {
+            let b_result = process(combinator, c, its, signal_id);
+            seq2_helper(combinator, &mut a_result, b_result, its, signal_id);
         }
+        a_result
     }
 }
 
-impl<A, B> CombinatorState for (Option<A>, Vec<B>)
+pub struct SeqState<State> {
+    pub its: Vec<Vec<State>>,
+}
+
+impl<C, State> CombinatorState for SeqState<C>
 where
-    A: CombinatorState,
-    B: CombinatorState,
+    C: Combinator<State = State> + 'static,
 {
     fn as_any(&self) -> &dyn std::any::Any {
         self
