@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::ops::{BitAnd, BitOr};
+use std::ops::BitOr;
 
 use crate::u8set::U8Set;
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct ParserIterationResult {
+pub struct ParseResult {
     pub u8set: U8Set,
     pub is_complete: bool,
     pub frame_stack: FrameStack,
 }
 
-impl ParserIterationResult {
+impl ParseResult {
     pub fn new(u8set: U8Set, is_complete: bool, frame_stack: FrameStack) -> Self {
         Self { u8set, is_complete, frame_stack }
     }
@@ -21,7 +21,7 @@ impl ParserIterationResult {
     }
 }
 
-impl ParserIterationResult {
+impl ParseResult {
     pub fn merge(mut self, other: Self) -> Self {
         self.is_complete = self.is_complete || other.is_complete;
         // Merge the signal sets
@@ -56,13 +56,13 @@ pub enum SignalAtom {
 }
 
 #[derive(Clone, PartialEq, Debug, Default)]
-pub struct Signals2 {
+pub struct Signals {
     // prev id -> (next id, signal atom)
     pub(crate) signals: HashMap<usize, (usize, SignalAtom)>,
     finished_signal_ids: Vec<usize>,
 }
 
-impl Signals2 {
+impl Signals {
     pub fn new() -> Self {
         Self { signals: HashMap::new(), finished_signal_ids: Vec::new() }
     }
@@ -102,44 +102,6 @@ impl Signals2 {
     }
 }
 
-impl BitAnd for Signals2 {
-    type Output = Signals2;
-
-    fn bitand(self, other: Self) -> Signals2 {
-        let mut signals = Signals2::new();
-        for (old_id, (new_id, signal_atom)) in self.signals {
-            if let Some((other_new_id, other_signal_atom)) = other.signals.get(&old_id) {
-                assert_eq!(new_id, *other_new_id);
-                signals.push(old_id, new_id, signal_atom.clone());
-                signals.push(old_id, new_id, other_signal_atom.clone());
-            }
-        }
-        signals
-    }
-}
-
-impl BitOr for Signals2 {
-    type Output = Signals2;
-
-    fn bitor(self, other: Self) -> Signals2 {
-        let mut signals = Signals2::new();
-        for (old_id, (new_id, signal_atom)) in self.signals {
-            signals.push(old_id, new_id, signal_atom);
-        }
-        for (old_id, (new_id, signal_atom)) in other.signals {
-            signals.push(old_id, new_id, signal_atom);
-        }
-        signals
-    }
-}
-
-// TODO:
-//  - create a tree of frames rather than a vector. Each frame is a node. A frame can have multiple parents and multiple children.
-//  - for filtering, traverse the tree and paint nodes that pass the filter green. Then paint any node
-//    that is connected to a red node (parent, child, grandparent, grandchild etc.) blue.
-//    Remove any unpainted nodes from the tree.
-//  - remove the neg set altogether
-//  - fix any affected methods, including the excludes methods.
 #[derive(Clone, PartialEq, Debug)]
 pub struct FrameStack {
     frames: Vec<Frame>,
