@@ -1,41 +1,43 @@
-use std::rc::Rc;
 use crate::combinator::Combinator;
 use crate::helper_functions::process;
 use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 use crate::U8Set;
 
-pub struct Choice(pub Rc<[Rc<dyn Combinator<State = Box<dyn CombinatorState>>>]>);
+pub struct Choice<C: ?Sized>(pub Vec<Box<C>>);
 
-impl Combinator for Choice {
-    type State = Box<dyn CombinatorState>;
+impl<C> Combinator for Choice<C>
+where
+    C: Combinator,
+    C::State: 'static,
+{
+    type State = ChoiceState<C::State>;
 
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
-        Box::new(ChoiceState {
+        ChoiceState {
             its: self
                 .0
                 .iter()
                 .map(|combinator| vec![combinator.initial_state(signal_id, frame_stack.clone())])
                 .collect(),
-        })
+        }
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        let state = state.as_any_mut().downcast_mut::<ChoiceState>().expect("Invalid state type");
         let mut final_result =
             ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
         for (combinator, its) in self.0.iter().zip(state.its.iter_mut()) {
-            final_result.merge_assign(process(combinator.as_ref(), c, its, signal_id));
+            final_result.merge_assign(process(combinator, c, its, signal_id));
         }
         final_result
     }
 }
 
-pub struct ChoiceState {
-    pub its: Vec<Vec<Box<dyn CombinatorState>>>,
+pub struct ChoiceState<State> {
+    pub its: Vec<Vec<State>>,
 }
 
-impl CombinatorState for ChoiceState {
+impl<State: CombinatorState + 'static> CombinatorState for ChoiceState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
