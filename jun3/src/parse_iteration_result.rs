@@ -1,19 +1,18 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::ops::BitOr;
-
+use crate::ParseData;
 use crate::u8set::U8Set;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct ParseResult {
     pub u8set: U8Set,
-    pub is_complete: bool,
-    pub frame_stack: FrameStack,
+    pub parse_data: Option<ParseData>,
 }
 
 impl ParseResult {
-    pub fn new(u8set: U8Set, is_complete: bool, frame_stack: FrameStack) -> Self {
-        Self { u8set, is_complete, frame_stack }
+    pub fn new(u8set: U8Set, parse_data: Option<ParseData>) -> Self {
+        Self { u8set, parse_data }
     }
 
     pub fn u8set(&self) -> &U8Set {
@@ -23,12 +22,14 @@ impl ParseResult {
 
 impl ParseResult {
     pub fn merge(mut self, other: Self) -> Self {
-        self.is_complete = self.is_complete || other.is_complete;
-        // Merge the signal sets
+        let merged_data = match (self.parse_data, other.parse_data) {
+            (Some(data1), Some(data2)) => Some(data1.merge(data2)),
+            (data, None) | (None, data) => data,
+        };
+
         Self {
             u8set: self.u8set | other.u8set,
-            is_complete: self.is_complete,
-            frame_stack: self.frame_stack | other.frame_stack,
+            parse_data: merged_data,
         }
     }
 
@@ -39,8 +40,7 @@ impl ParseResult {
     pub fn forward(self, other: Self) -> Self {
         Self {
             u8set: self.u8set | other.u8set,
-            is_complete: other.is_complete,
-            frame_stack: other.frame_stack,
+            parse_data: other.parse_data,
         }
     }
 
