@@ -5,11 +5,11 @@ use crate::state::CombinatorState;
 
 pub struct Seq<C>(pub Vec<C>);
 
-impl<C> Combinator for Seq<C>
+impl<C, State> Combinator for Seq<C>
 where
-    C: Combinator<State = Box<dyn CombinatorState>> + 'static,
+    C: Combinator<State = State>,
 {
-    type State = SeqState<Box<dyn CombinatorState>>;
+    type State = SeqState<State>;
 
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let mut its = Vec::with_capacity(self.0.len());
@@ -34,7 +34,10 @@ pub struct SeqState<State> {
     pub its: Vec<Vec<State>>,
 }
 
-impl<State: CombinatorState + 'static> CombinatorState for SeqState<State> {
+impl<C, State> CombinatorState for SeqState<C>
+where
+    C: Combinator<State = State> + 'static,
+{
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
