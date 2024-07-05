@@ -21,12 +21,11 @@ pub fn repeat1<C: Combinator>(a: C) -> Rc<Repeat1<C>> {
     Rc::new(Repeat1(a))
 }
 
-pub fn choice<C, I>(combinators: I) -> Rc<Choice<C>>
+pub fn choice<C>(combinators: Vec<C>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>>
 where
-    C: Combinator,
-    I: IntoIterator<Item = C>,
+    C: Combinator<State = Box<dyn CombinatorState>> + 'static,
 {
-    Rc::new(Choice(combinators.into_iter().collect::<Vec<_>>()))
+    Rc::new(Choice(combinators))
 }
 
 pub fn eat_u8_matching(u8set: U8Set) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
