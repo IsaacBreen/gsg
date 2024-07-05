@@ -60,22 +60,6 @@ pub fn forward_ref() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     Rc::new(ForwardRef(Rc::new(RefCell::new(None))))
 }
 
-pub fn in_frame_stack(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
-    Rc::new(InFrameStack(a))
-}
-
-pub fn not_in_frame_stack(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
-    Rc::new(NotInFrameStack(a))
-}
-
-pub fn add_to_frame_stack(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
-    Rc::new(AddToFrameStack(a))
-}
-
-pub fn remove_from_frame_stack(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
-    Rc::new(RemoveFromFrameStack(a))
-}
-
 pub fn eat_u8_range_complement(start: char, end: char) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     choice(vec![
         eat_u8_range(0 as char, start as char),

@@ -5,7 +5,6 @@ mod eps;
 mod forward_ref;
 mod repeat1;
 mod seq;
-mod frame_stack_ops;
 
 pub use choice::*;
 pub use eat_string::*;
@@ -14,4 +13,3 @@ pub use eps::*;
 pub use forward_ref::*;
 pub use repeat1::*;
 pub use seq::*;
-pub use frame_stack_ops::*;
