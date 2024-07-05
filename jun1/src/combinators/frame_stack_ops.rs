@@ -3,70 +3,67 @@ use crate::combinator::Combinator;
 use crate::parse_iteration_result::{Frame, FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 
-pub struct WithNewFrame(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
-pub struct WithExistingFrame(pub Frame, pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
-pub struct InFrameStack(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
-pub struct NotInFrameStack(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
-pub struct AddToFrameStack(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
-pub struct RemoveFromFrameStack(pub Rc<dyn Combinator<State = Box<dyn CombinatorState>>>);
+pub struct WithNewFrame<C>(pub Rc<C>);
+pub struct WithExistingFrame<C>(pub Frame, pub Rc<C>);
+pub struct InFrameStack<C>(pub Rc<C>);
+pub struct NotInFrameStack<C>(pub Rc<C>);
+pub struct AddToFrameStack<C>(pub Rc<C>);
+pub struct RemoveFromFrameStack<C>(pub Rc<C>);
 
-impl Combinator for WithNewFrame {
-    type State = Box<dyn CombinatorState>;
+impl<C, State> Combinator for WithNewFrame<C> where C: Combinator<State = State> {
+    type State = WithNewFrameState<State>;
 
-    fn initial_state(&self, signal_id: &mut usize, mut frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, mut frame_stack: FrameStack) -> Self::State {
         frame_stack.push_empty_frame();
         let a_state = self.0.initial_state(signal_id, frame_stack);
-        Box::new(WithNewFrameState { a_state })
+        WithNewFrameState { a_state }
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        let state = state.as_any_mut().downcast_mut::<WithNewFrameState>().expect("Invalid state type");
-        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+        let mut result = self.0.next_state(Box::new(state.a_state).as_mut(), c, signal_id);
         result.frame_stack.pop();
         result
     }
 }
 
-impl Combinator for WithExistingFrame {
-    type State = Box<dyn CombinatorState>;
+impl<C, State> Combinator for WithExistingFrame<C> where C: Combinator<State = State> {
+    type State = WithExistingFrameState<State>;
 
-    fn initial_state(&self, signal_id: &mut usize, mut frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, mut frame_stack: FrameStack) -> Self::State {
         frame_stack.push_frame(self.0.clone());
         let a_state = self.1.initial_state(signal_id, frame_stack);
-        Box::new(WithExistingFrameState { a_state })
+        WithExistingFrameState { a_state }
     }
 
     fn next_state(
         &self,
-        state: &mut dyn CombinatorState,
+        state: &mut Self::State,
         c: Option<char>,
         signal_id: &mut usize,
     ) -> ParserIterationResult {
-        let state = state.as_any_mut().downcast_mut::<WithExistingFrameState>().expect("Invalid state type");
-        let mut result = self.1.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.1.next_state(Box::new(state.a_state).as_mut(), c, signal_id);
         result.frame_stack.pop();
         result.frame_stack.push_frame(self.0.clone());
         result
     }
 }
 
-impl Combinator for InFrameStack {
-    type State = Box<dyn CombinatorState>;
+impl<C, State> Combinator for InFrameStack<C> where C: Combinator<State = State> {
+    type State = InFrameStackState<State>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let a_state = self.0.initial_state(signal_id, frame_stack);
-        Box::new(InFrameStackState {
+        InFrameStackState {
             a_state,
             name: Vec::new(),
-        })
+        }
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        let state = state.as_any_mut().downcast_mut::<InFrameStackState>().expect("Invalid state type");
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         if let Some(c) = c {
             state.name.push(c as u8);
         }
-        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.0.next_state(Box::new(state.a_state).as_mut(), c, signal_id);
         let (u8set, is_complete) =
             result.frame_stack.next_u8_given_contains(state.name.as_slice());
         if result.is_complete && !is_complete {
@@ -81,23 +78,22 @@ impl Combinator for InFrameStack {
     }
 }
 
-impl Combinator for NotInFrameStack {
-    type State = Box<dyn CombinatorState>;
+impl<C, State> Combinator for NotInFrameStack<C> where C: Combinator<State = State> {
+    type State = NotInFrameStackState<State>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let a_state = self.0.initial_state(signal_id, frame_stack);
-        Box::new(NotInFrameStackState {
+        NotInFrameStackState {
             a_state,
             name: Vec::new(),
-        })
+        }
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        let state = state.as_any_mut().downcast_mut::<NotInFrameStackState>().expect("Invalid state type");
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         if let Some(c) = c {
             state.name.push(c as u8);
         }
-        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.0.next_state(Box::new(state.a_state).as_mut(), c, signal_id);
         let (u8set, is_complete) =
             result.frame_stack.next_u8_given_excludes(state.name.as_slice());
         if result.is_complete && !is_complete {
@@ -112,23 +108,22 @@ impl Combinator for NotInFrameStack {
     }
 }
 
-impl Combinator for AddToFrameStack {
-    type State = Box<dyn CombinatorState>;
+impl<C, State> Combinator for AddToFrameStack<C> where C: Combinator<State = State> {
+    type State = AddToFrameStackState<State>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let a_state = self.0.initial_state(signal_id, frame_stack);
-        Box::new(AddToFrameStackState {
+        AddToFrameStackState {
             a_state,
             name: Vec::new(),
-        })
+        }
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        let state = state.as_any_mut().downcast_mut::<AddToFrameStackState>().expect("Invalid state type");
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         if let Some(c) = c {
             state.name.push(c as u8);
         }
-        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.0.next_state(Box::new(state.a_state).as_mut(), c, signal_id);
         if result.is_complete {
             result.frame_stack.push_name(state.name.as_slice());
         }
@@ -136,23 +131,22 @@ impl Combinator for AddToFrameStack {
     }
 }
 
-impl Combinator for RemoveFromFrameStack {
-    type State = Box<dyn CombinatorState>;
+impl<C, State> Combinator for RemoveFromFrameStack<C> where C: Combinator<State = State> {
+    type State = RemoveFromFrameStackState<State>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let a_state = self.0.initial_state(signal_id, frame_stack);
-        Box::new(RemoveFromFrameStackState {
+        RemoveFromFrameStackState {
             a_state,
             name: Vec::new(),
-        })
+        }
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        let state = state.as_any_mut().downcast_mut::<RemoveFromFrameStackState>().expect("Invalid state type");
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         if let Some(c) = c {
             state.name.push(c as u8);
         }
-        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.0.next_state(Box::new(state.a_state).as_mut(), c, signal_id);
         if result.is_complete {
             result.frame_stack.pop_name(state.name.as_slice());
         }
@@ -160,10 +154,10 @@ impl Combinator for RemoveFromFrameStack {
     }
 }
 
-pub struct WithNewFrameState {
-    pub a_state: Box<dyn CombinatorState>,
+pub struct WithNewFrameState<State> {
+    pub a_state: State,
 }
-impl CombinatorState for WithNewFrameState {
+impl<State> CombinatorState for WithNewFrameState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -172,10 +166,10 @@ impl CombinatorState for WithNewFrameState {
         self
     }
 }
-pub struct WithExistingFrameState {
-    pub a_state: Box<dyn CombinatorState>,
+pub struct WithExistingFrameState<State> {
+    pub a_state: State,
 }
-impl CombinatorState for WithExistingFrameState {
+impl<State> CombinatorState for WithExistingFrameState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -184,11 +178,11 @@ impl CombinatorState for WithExistingFrameState {
         self
     }
 }
-pub struct InFrameStackState {
-    pub a_state: Box<dyn CombinatorState>,
+pub struct InFrameStackState<State> {
+    pub a_state: State,
     pub name: Vec<u8>,
 }
-impl CombinatorState for InFrameStackState {
+impl<State> CombinatorState for InFrameStackState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -197,11 +191,11 @@ impl CombinatorState for InFrameStackState {
         self
     }
 }
-pub struct NotInFrameStackState {
-    pub a_state: Box<dyn CombinatorState>,
+pub struct NotInFrameStackState<State> {
+    pub a_state: State,
     pub name: Vec<u8>,
 }
-impl CombinatorState for NotInFrameStackState {
+impl<State> CombinatorState for NotInFrameStackState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -210,11 +204,11 @@ impl CombinatorState for NotInFrameStackState {
         self
     }
 }
-pub struct AddToFrameStackState {
-    pub a_state: Box<dyn CombinatorState>,
+pub struct AddToFrameStackState<State> {
+    pub a_state: State,
     pub name: Vec<u8>,
 }
-impl CombinatorState for AddToFrameStackState {
+impl<State> CombinatorState for AddToFrameStackState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -223,11 +217,11 @@ impl CombinatorState for AddToFrameStackState {
         self
     }
 }
-pub struct RemoveFromFrameStackState {
-    pub a_state: Box<dyn CombinatorState>,
+pub struct RemoveFromFrameStackState<State> {
+    pub a_state: State,
     pub name: Vec<u8>,
 }
-impl CombinatorState for RemoveFromFrameStackState {
+impl<State> CombinatorState for RemoveFromFrameStackState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

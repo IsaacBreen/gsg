@@ -5,12 +5,12 @@ use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 use crate::U8Set;
 
-pub struct Choice(pub Rc<[Rc<dyn Combinator<State = Box<dyn CombinatorState>>>]>);
+pub struct Choice<State>(pub Rc<[State]>);
 
-impl Combinator for Choice {
-    type State = Box<dyn CombinatorState>;
+impl<C, State> Combinator for Choice<C> where C: Combinator<State = State> {
+    type State = Box<ChoiceState<State>>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         Box::new(ChoiceState {
             its: self
                 .0
@@ -20,8 +20,7 @@ impl Combinator for Choice {
         })
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        let state = state.as_any_mut().downcast_mut::<ChoiceState>().expect("Invalid state type");
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         let mut final_result =
             ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
         for (combinator, its) in self.0.iter().zip(state.its.iter_mut()) {
@@ -31,11 +30,11 @@ impl Combinator for Choice {
     }
 }
 
-pub struct ChoiceState {
-    pub its: Vec<Vec<Box<dyn CombinatorState>>>,
+pub struct ChoiceState<State> {
+    pub its: Vec<Vec<State>>,
 }
 
-impl CombinatorState for ChoiceState {
+impl<State> CombinatorState for ChoiceState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
