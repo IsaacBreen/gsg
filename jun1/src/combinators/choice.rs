@@ -37,7 +37,7 @@ pub struct ChoiceState<State> {
     pub its: Vec<Vec<State>>,
 }
 
-impl<State: CombinatorState> CombinatorState for ChoiceState<State> {
+impl<State: CombinatorState + 'static> CombinatorState for ChoiceState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

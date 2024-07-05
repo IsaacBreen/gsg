@@ -30,7 +30,7 @@ pub struct Repeat1State<State> {
     pub a_its: Vec<State>,
 }
 
-impl<State: CombinatorState> CombinatorState for Repeat1State<State> {
+impl<State: CombinatorState + 'static> CombinatorState for Repeat1State<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
