@@ -7,18 +7,22 @@ pub struct Repeat1<C>(pub C);
 
 impl<C> Combinator for Repeat1<C>
 where
-    C: Combinator<State = Box<dyn CombinatorState>> + 'static,
+    C: Combinator,
+    C::State: 'static,
 {
-    type State = Box<Repeat1State<Box<dyn CombinatorState>>>;
+    type State = Repeat1State<C::State>;
 
     fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
-        Box::new(Repeat1State {
+        Repeat1State {
             a_its: vec![self.0.initial_state(signal_id, frame_stack)],
-        })
+        }
     }
 
     fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
-        process(&self.0, c, &mut state.a_its, signal_id)
+        let mut a_result = process(&self.0, c, &mut state.a_its, signal_id);
+        let b_result = a_result.clone();
+        seq2_helper(&self.0, &mut a_result, b_result, &mut state.a_its, signal_id);
+        a_result
     }
 }
 
