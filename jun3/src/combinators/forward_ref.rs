@@ -1,40 +1,42 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::{Combinator, ParseData, Parser, ParseResult, U8Set};
 
-pub struct ForwardRef<A> {
-    a: Option<A>,
+pub struct ForwardRef {
+    a: Option<Rc<RefCell<dyn Combinator<Parser = Box<dyn Parser>>>>>,
 }
 
-pub struct ForwardRefParser<ParserA> {
-    a: ParserA,
+pub struct ForwardRefParser {
+    a: Rc<RefCell<dyn Parser>>,
 }
 
-impl<A, ParserA> Combinator for ForwardRef<A>
-where
-    A: Combinator<Parser = ParserA>,
-    ParserA: Parser,
-{
-    type Parser = ForwardRefParser<ParserA>;
+impl Combinator for ForwardRef {
+    type Parser = ForwardRefParser;
 
     fn parser(&self, parse_data: ParseData) -> Self::Parser {
-        ForwardRefParser {
-            a: self.a.as_ref().expect("ForwardRef::parser called before parser").parser(parse_data),
-        }
+        let a = self.a.as_ref().expect("ForwardRef::parser called before parser");
+        let parser = a.borrow().parser(parse_data);
+        ForwardRefParser { a: Rc::new(RefCell::new(parser)) }
     }
 }
 
-impl<ParserA> Parser for ForwardRefParser<ParserA>
-where
-    ParserA: Parser,
-{
+
+impl Parser for ForwardRefParser {
     fn result(&self) -> ParseResult {
-        self.a.result()
+        self.a.borrow().result()
     }
 
     fn step(&mut self, c: u8) {
-        self.a.step(c);
+        self.a.borrow_mut().step(c);
     }
 }
 
-pub fn forward_ref<A>() -> ForwardRef<A> {
+pub fn forward_ref() -> ForwardRef {
     ForwardRef { a: None }
+}
+
+impl ForwardRef {
+    pub fn set(&mut self, a: Rc<RefCell<dyn Combinator<Parser = Box<dyn Parser>>>>) {
+        self.a = Some(a);
+    }
 }

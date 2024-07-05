@@ -6,6 +6,7 @@ mod forward_ref;
 mod repeat1;
 mod seq;
 mod helpers;
+mod external_impls;
 
 pub use choice::*;
 pub use eat_string::*;
