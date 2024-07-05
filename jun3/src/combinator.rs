@@ -21,7 +21,6 @@ pub trait Parser {
     fn step(&mut self, c: u8);
 }
 
-// Implement the Parser trait for Box<dyn Parser>
 impl Parser for Box<dyn Parser> {
     fn result(&self) -> ParseResult {
         (**self).result()

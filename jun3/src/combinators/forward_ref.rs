@@ -8,9 +8,7 @@ impl Combinator for ForwardRef {
     type Parser = Box<dyn Parser>;
 
     fn parser(&self, parse_data: ParseData) -> Self::Parser {
-        let a = self.a.as_ref().expect("ForwardRef::parser called before parser").as_ref();
-        let parser = a.parser(parse_data);
-        parser
+        self.a.as_ref().expect("ForwardRef::parser called before parser").as_ref().parser(parse_data)
     }
 }
 
