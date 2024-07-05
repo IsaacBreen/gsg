@@ -17,16 +17,20 @@ where
     Rc::new(Seq(combinators.into_iter().collect::<Vec<_>>()))
 }
 
-pub fn repeat1<C: Combinator>(a: C) -> Rc<Repeat1<C>> {
-    Rc::new(Repeat1(a))
-}
-
-pub fn choice<C, I>(combinators: I) -> Rc<Choice<C>>
+pub fn choice<C, I>(combinators: I) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>>
 where
-    C: Combinator,
-    I: IntoIterator<Item = C>,
+    C: Combinator<State = Box<dyn CombinatorState>> + 'static,
+    I: IntoIterator<Item = Rc<C>>,
 {
     Rc::new(Choice(combinators.into_iter().collect::<Vec<_>>()))
+}
+
+pub fn opt(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    choice(vec![a, eps()])
+}
+
+pub fn repeat1<C: Combinator<State = Box<dyn CombinatorState>> + 'static>(a: Rc<C>) -> Rc<Repeat1<C>> {
+    Rc::new(Repeat1(a))
 }
 
 pub fn eat_u8_matching(u8set: U8Set) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
@@ -47,10 +51,6 @@ pub fn eat_string(value: &'static str) -> Rc<dyn Combinator<State = Box<dyn Comb
 
 pub fn eps() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     Rc::new(Eps)
-}
-
-pub fn opt(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
-    choice(vec![a, eps()])
 }
 
 pub fn repeat(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
