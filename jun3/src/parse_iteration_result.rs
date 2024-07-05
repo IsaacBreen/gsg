@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::ops::BitOr;
+
 use crate::ParseData;
 use crate::u8set::U8Set;
 

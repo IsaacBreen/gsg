@@ -1,32 +1,16 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use crate::{Combinator, ParseData, Parser, ParseResult, U8Set};
+use crate::{Combinator, ParseData, Parser};
 
 pub struct ForwardRef {
     a: Option<Box<dyn Combinator<Parser=Box<dyn Parser>>>>,
 }
 
-pub struct ForwardRefParser {
-    a: Box<dyn Parser>,
-}
-
 impl Combinator for ForwardRef {
-    type Parser = ForwardRefParser;
+    type Parser = Box<dyn Parser>;
 
     fn parser(&self, parse_data: ParseData) -> Self::Parser {
         let a = self.a.as_ref().expect("ForwardRef::parser called before parser").as_ref();
-        ForwardRefParser { a: a.parser(parse_data) }
-    }
-}
-
-
-impl Parser for ForwardRefParser {
-    fn result(&self) -> ParseResult {
-        self.a.result()
-    }
-
-    fn step(&mut self, c: u8) {
-        self.a.step(c);
+        let parser = a.parser(parse_data);
+        parser
     }
 }
 
