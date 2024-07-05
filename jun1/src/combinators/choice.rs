@@ -10,7 +10,7 @@ pub struct Choice(pub Rc<[Rc<dyn Combinator<State = Box<dyn CombinatorState>>>]>
 impl Combinator for Choice {
     type State = Box<dyn CombinatorState>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         Box::new(ChoiceState {
             its: self
                 .0
@@ -20,12 +20,12 @@ impl Combinator for Choice {
         })
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<ChoiceState>().expect("Invalid state type");
         let mut final_result =
             ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
         for (combinator, its) in self.0.iter().zip(state.its.iter_mut()) {
-            final_result.merge_assign(process(combinator, c, its, signal_id));
+            final_result.merge_assign(process(combinator.as_ref(), c, its, signal_id));
         }
         final_result
     }

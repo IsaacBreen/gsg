@@ -17,7 +17,7 @@ impl Combinator for EatU8Matching {
 
     fn next_state(
         &self,
-        state: &mut dyn CombinatorState,
+        state: &mut Self::State,
         c: Option<char>,
         _signal_id: &mut usize,
     ) -> ParserIterationResult {

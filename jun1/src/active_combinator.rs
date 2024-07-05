@@ -3,14 +3,17 @@ use crate::combinator::Combinator;
 use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 
-pub struct ActiveCombinator {
-    combinator: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>,
-    state: Box<dyn CombinatorState>,
+pub struct ActiveCombinator<C, State> {
+    combinator: C,
+    state: State,
     signal_id: usize,
 }
 
-impl ActiveCombinator {
-    pub fn new(combinator: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Self {
+impl<C, State> ActiveCombinator<C, State>
+where
+    C: Combinator<State = State>,
+{
+    pub fn new(combinator: C) -> Self {
         let mut signal_id = 0;
         let state = combinator.initial_state(&mut signal_id, FrameStack::default());
         Self {
@@ -20,7 +23,7 @@ impl ActiveCombinator {
         }
     }
 
-    pub fn new_with_names(combinator: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>, names: Vec<String>) -> Self {
+    pub fn new_with_names(combinator: C, names: Vec<String>) -> Self {
         let mut signal_id = 0;
         let mut frame_stack = FrameStack::default();
         for name in names {
@@ -36,6 +39,6 @@ impl ActiveCombinator {
 
     pub fn send(&mut self, c: Option<char>) -> ParserIterationResult {
         self.combinator
-            .next_state(&mut *self.state, c, &mut self.signal_id)
+            .next_state(&mut self.state, c, &mut self.signal_id)
     }
 }

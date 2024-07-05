@@ -19,9 +19,9 @@ impl Combinator for WithNewFrame {
         Box::new(WithNewFrameState { a_state })
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<WithNewFrameState>().expect("Invalid state type");
-        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.0.next_state(&mut state.a_state, c, signal_id);
         result.frame_stack.pop();
         result
     }
@@ -38,12 +38,12 @@ impl Combinator for WithExistingFrame {
 
     fn next_state(
         &self,
-        state: &mut dyn CombinatorState,
+        state: &mut Self::State,
         c: Option<char>,
         signal_id: &mut usize,
     ) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<WithExistingFrameState>().expect("Invalid state type");
-        let mut result = self.1.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.1.next_state(&mut state.a_state, c, signal_id);
         result.frame_stack.pop();
         result.frame_stack.push_frame(self.0.clone());
         result
@@ -53,7 +53,7 @@ impl Combinator for WithExistingFrame {
 impl Combinator for InFrameStack {
     type State = Box<dyn CombinatorState>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let a_state = self.0.initial_state(signal_id, frame_stack);
         Box::new(InFrameStackState {
             a_state,
@@ -61,12 +61,12 @@ impl Combinator for InFrameStack {
         })
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<InFrameStackState>().expect("Invalid state type");
         if let Some(c) = c {
             state.name.push(c as u8);
         }
-        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.0.next_state(&mut state.a_state, c, signal_id);
         let (u8set, is_complete) =
             result.frame_stack.next_u8_given_contains(state.name.as_slice());
         if result.is_complete && !is_complete {
@@ -84,7 +84,7 @@ impl Combinator for InFrameStack {
 impl Combinator for NotInFrameStack {
     type State = Box<dyn CombinatorState>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let a_state = self.0.initial_state(signal_id, frame_stack);
         Box::new(NotInFrameStackState {
             a_state,
@@ -92,12 +92,12 @@ impl Combinator for NotInFrameStack {
         })
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<NotInFrameStackState>().expect("Invalid state type");
         if let Some(c) = c {
             state.name.push(c as u8);
         }
-        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.0.next_state(&mut state.a_state, c, signal_id);
         let (u8set, is_complete) =
             result.frame_stack.next_u8_given_excludes(state.name.as_slice());
         if result.is_complete && !is_complete {
@@ -115,7 +115,7 @@ impl Combinator for NotInFrameStack {
 impl Combinator for AddToFrameStack {
     type State = Box<dyn CombinatorState>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let a_state = self.0.initial_state(signal_id, frame_stack);
         Box::new(AddToFrameStackState {
             a_state,
@@ -123,12 +123,12 @@ impl Combinator for AddToFrameStack {
         })
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<AddToFrameStackState>().expect("Invalid state type");
         if let Some(c) = c {
             state.name.push(c as u8);
         }
-        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.0.next_state(&mut state.a_state, c, signal_id);
         if result.is_complete {
             result.frame_stack.push_name(state.name.as_slice());
         }
@@ -139,7 +139,7 @@ impl Combinator for AddToFrameStack {
 impl Combinator for RemoveFromFrameStack {
     type State = Box<dyn CombinatorState>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let a_state = self.0.initial_state(signal_id, frame_stack);
         Box::new(RemoveFromFrameStackState {
             a_state,
@@ -147,12 +147,12 @@ impl Combinator for RemoveFromFrameStack {
         })
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<RemoveFromFrameStackState>().expect("Invalid state type");
         if let Some(c) = c {
             state.name.push(c as u8);
         }
-        let mut result = self.0.next_state(state.a_state.as_mut(), c, signal_id);
+        let mut result = self.0.next_state(&mut state.a_state, c, signal_id);
         if result.is_complete {
             result.frame_stack.pop_name(state.name.as_slice());
         }

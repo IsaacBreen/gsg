@@ -15,7 +15,7 @@ impl Combinator for EatString {
         })
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, _c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut Self::State, _c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<EatStringState>().expect("Invalid state type");
         if state.index > self.0.len() {
             return ParserIterationResult::new(U8Set::none(), false, state.frame_stack.clone());

@@ -11,18 +11,18 @@ where
 {
     type State = Box<dyn CombinatorState>;
 
-    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Box<dyn CombinatorState> {
+    fn initial_state(&self, signal_id: &mut usize, frame_stack: FrameStack) -> Self::State {
         let inner_combinator = (self.0)();
         Box::new(CallState {
             inner_state: Some(inner_combinator.initial_state(signal_id, frame_stack)),
         })
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut Self::State, c: Option<char>, signal_id: &mut usize) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<CallState>().expect("Invalid state type");
         let inner_combinator = (self.0)();
         let inner_state = state.inner_state.as_mut().unwrap();
-        inner_combinator.next_state(inner_state.as_mut(), c, signal_id)
+        inner_combinator.next_state(inner_state, c, signal_id)
     }
 }
 

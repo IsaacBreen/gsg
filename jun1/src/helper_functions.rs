@@ -9,11 +9,12 @@ use crate::u8set::U8Set;
 
 // Include all helper functions and macros
 
-pub fn seq<I>(combinators: I) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>>
+pub fn seq<C, State, I>(combinators: I) -> Rc<Seq<C>>
 where
-    I: IntoIterator<Item = Rc<dyn Combinator<State = Box<dyn CombinatorState>>>>,
+    C: Combinator<State = State>,
+    I: IntoIterator<Item = C>,
 {
-    Rc::new(Seq(Rc::from(combinators.into_iter().collect::<Vec<_>>())))
+    Rc::new(Seq(combinators.into_iter().collect::<Vec<_>>()))
 }
 
 pub fn repeat1(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
@@ -89,10 +90,10 @@ pub fn eat_u8_range_complement(start: char, end: char) -> Rc<dyn Combinator<Stat
     ])
 }
 
-pub fn process(
-    combinator: &Rc<dyn Combinator<State = Box<dyn CombinatorState>>>,
+pub fn process<C: Combinator<State = State> + ?Sized, State>(
+    combinator: &C,
     c: Option<char>,
-    its: &mut Vec<Box<dyn CombinatorState>>,
+    its: &mut Vec<State>,
     signal_id: &mut usize,
 ) -> ParserIterationResult {
     if its.len() > 100 {
@@ -101,7 +102,7 @@ pub fn process(
     }
     let mut final_result = ParserIterationResult::new(U8Set::none(), false, FrameStack::default());
     its.retain_mut(|it| {
-        let result = combinator.next_state(it.as_mut(), c, signal_id);
+        let result = combinator.next_state(it, c, signal_id);
         let is_empty = result.u8set().is_empty();
         final_result.merge_assign(result);
         !is_empty
@@ -109,11 +110,11 @@ pub fn process(
     final_result
 }
 
-pub fn seq2_helper(
-    b: &Rc<dyn Combinator<State = Box<dyn CombinatorState>>>,
+pub fn seq2_helper<C: Combinator<State = State> + ?Sized, State>(
+    b: &C,
     a_result: &mut ParserIterationResult,
     b_result: ParserIterationResult,
-    b_its: &mut Vec<Box<dyn CombinatorState>>,
+    b_its: &mut Vec<State>,
     signal_id: &mut usize,
 ) {
     if b_its.len() > 100 {
@@ -122,7 +123,7 @@ pub fn seq2_helper(
     }
     if a_result.is_complete {
         let mut b_it = b.initial_state(signal_id, a_result.frame_stack.clone());
-        let b_result = b.next_state(b_it.as_mut(), None, signal_id);
+        let b_result = b.next_state(&mut b_it, None, signal_id);
         b_its.push(b_it);
         a_result.forward_assign(b_result);
     }

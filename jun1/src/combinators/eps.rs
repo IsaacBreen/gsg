@@ -12,7 +12,7 @@ impl Combinator for Eps {
         Box::new(EpsState { frame_stack })
     }
 
-    fn next_state(&self, state: &mut dyn CombinatorState, _c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
+    fn next_state(&self, state: &mut Self::State, _c: Option<char>, _signal_id: &mut usize) -> ParserIterationResult {
         let state = state.as_any_mut().downcast_mut::<EpsState>().expect("Invalid state type");
         let mut result = ParserIterationResult::new(U8Set::none(), true, state.frame_stack.clone());
         result
