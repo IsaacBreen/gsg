@@ -18,7 +18,7 @@ pub fn forward_ref() -> ForwardRef {
     ForwardRef { a: None, }
 }
 
-impl ForwardRef{
+impl ForwardRef {
     pub fn set(&mut self, a: Box<dyn Combinator<Parser=Box<dyn Parser>>>) {
         self.a = Some(a);
     }
