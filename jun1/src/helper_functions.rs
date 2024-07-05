@@ -56,13 +56,6 @@ pub fn repeat(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn
     opt(repeat1(a))
 }
 
-pub fn call<F>(f: &'static F) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>>
-where
-    F: Fn() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> + 'static + ?Sized,
-{
-    Rc::new(Call(Rc::new(f)))
-}
-
 pub fn forward_ref() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     Rc::new(ForwardRef(Rc::new(RefCell::new(None))))
 }
