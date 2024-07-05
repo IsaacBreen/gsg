@@ -4,7 +4,7 @@ use crate::parse_iteration_result::{FrameStack, ParserIterationResult};
 use crate::state::CombinatorState;
 use crate::U8Set;
 
-pub struct Choice<C: ?Sized>(pub Vec<Box<C>>);
+pub struct Choice<C>(pub Vec<C>);
 
 impl<C> Combinator for Choice<C>
 where
@@ -37,7 +37,7 @@ pub struct ChoiceState<State> {
     pub its: Vec<Vec<State>>,
 }
 
-impl<State: CombinatorState + 'static> CombinatorState for ChoiceState<State> {
+impl<State: CombinatorState> CombinatorState for ChoiceState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

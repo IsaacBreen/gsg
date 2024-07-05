@@ -17,20 +17,16 @@ where
     Rc::new(Seq(combinators.into_iter().collect::<Vec<_>>()))
 }
 
-pub fn repeat1<C>(a: C) -> Rc<Repeat1<C>>
-where
-    C: Combinator + 'static,
-    C::State: 'static,
-{
+pub fn repeat1<C: Combinator>(a: C) -> Rc<Repeat1<C>> {
     Rc::new(Repeat1(a))
 }
 
 pub fn choice<C, I>(combinators: I) -> Rc<Choice<C>>
 where
-    C: Combinator + 'static,
+    C: Combinator,
     I: IntoIterator<Item = C>,
 {
-    Rc::new(Choice(combinators.into_iter().map(|c| Box::new(c)).collect::<Vec<_>>()))
+    Rc::new(Choice(combinators.into_iter().collect::<Vec<_>>()))
 }
 
 pub fn eat_u8_matching(u8set: U8Set) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
@@ -53,40 +49,26 @@ pub fn eps() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     Rc::new(Eps)
 }
 
-pub fn opt<C>(a: C) -> Rc<Choice<dyn Combinator<State = Box<dyn CombinatorState>>>>
-where
-    C: Combinator + 'static,
-{
-    choice(vec![a as Box<dyn Combinator<State = Box<dyn CombinatorState>>>, Box::new(Eps)])
+pub fn opt(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
+    choice(vec![a, eps()])
 }
 
-pub fn repeat<C>(a: C) -> Rc<Choice<C>>
-where
-    C: Combinator + 'static,
-{
+pub fn repeat(a: Rc<dyn Combinator<State = Box<dyn CombinatorState>>>) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     opt(repeat1(a))
 }
 
-pub fn forward_ref<C>() -> Rc<ForwardRef<C>>
-where
-    C: Combinator + 'static,
-{
+pub fn forward_ref() -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     Rc::new(ForwardRef(Rc::new(RefCell::new(None))))
 }
 
-pub fn eat_u8_range_complement(start: char, end: char) -> Rc<Choice<dyn Combinator<State = Box<dyn CombinatorState>>>> {
+pub fn eat_u8_range_complement(start: char, end: char) -> Rc<dyn Combinator<State = Box<dyn CombinatorState>>> {
     choice(vec![
         eat_u8_range(0 as char, start as char),
         eat_u8_range(end, 255 as char),
     ])
 }
 
-pub fn process<C: Combinator>(
-    combinator: &C,
-    c: Option<char>,
-    its: &mut Vec<C::State>,
-    signal_id: &mut usize,
-) -> ParserIterationResult {
+pub fn process<C: Combinator>(combinator: &C, c: Option<char>, its: &mut Vec<C::State>, signal_id: &mut usize) -> ParserIterationResult {
     if its.len() > 100 {
         // Warn if there are too many states
         eprintln!("Warning: there are {} states (process)", its.len());
@@ -101,13 +83,7 @@ pub fn process<C: Combinator>(
     final_result
 }
 
-pub fn seq2_helper<C: Combinator>(
-    b: &C,
-    a_result: &mut ParserIterationResult,
-    b_result: ParserIterationResult,
-    b_its: &mut Vec<C::State>,
-    signal_id: &mut usize,
-) {
+pub fn seq2_helper<C: Combinator>(b: &C, a_result: &mut ParserIterationResult, b_result: ParserIterationResult, b_its: &mut Vec<C::State>, signal_id: &mut usize) {
     if b_its.len() > 100 {
         // Warn if there are too many states
         eprintln!("Warning: there are {} states (seq2_helper)", b_its.len());

@@ -35,7 +35,7 @@ pub struct SeqState<State> {
     pub its: Vec<Vec<State>>,
 }
 
-impl<State: CombinatorState + 'static> CombinatorState for SeqState<State> {
+impl<State: CombinatorState> CombinatorState for SeqState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

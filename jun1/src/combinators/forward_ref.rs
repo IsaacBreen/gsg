@@ -36,7 +36,7 @@ pub struct ForwardRefState<State> {
     pub inner_state: Option<State>,
 }
 
-impl<State: CombinatorState + 'static> CombinatorState for ForwardRefState<State> {
+impl<State: CombinatorState> CombinatorState for ForwardRefState<State> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
