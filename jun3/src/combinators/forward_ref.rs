@@ -1,7 +1,9 @@
+use std::rc::Rc;
 use crate::{Combinator, ParseData, Parser};
 
+#[derive(Clone)]
 pub struct ForwardRef {
-    a: Option<Box<dyn Combinator<Parser=Box<dyn Parser>>>>,
+    a: Option<Rc<dyn Combinator<Parser=Box<dyn Parser>>>>,
 }
 
 impl Combinator for ForwardRef {
@@ -17,7 +19,7 @@ pub fn forward_ref() -> ForwardRef {
 }
 
 impl ForwardRef {
-    pub fn set(&mut self, a: Box<dyn Combinator<Parser=Box<dyn Parser>>>) {
-        self.a = Some(a);
+    pub fn set<A: Combinator>(&mut self, a: A) {
+        self.a = Some(Rc::new(a));
     }
 }
