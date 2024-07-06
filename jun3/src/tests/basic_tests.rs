@@ -86,8 +86,7 @@ mod tests {
     #[test]
     fn test_forward_ref() {
         let mut A = forward_ref();
-        let a_expr = choice!(seq!(eat_chars("a"), A.clone()), eat_chars("b"));
-        A.set(a_expr);
+        A.set(choice!(seq!(eat_chars("a"), A.clone()), eat_chars("b")));
         let combinator = A.clone();
         let mut parser = combinator.parser(ParseData::default());
         assert_eq!(parser.result(), ParseResult::new(U8Set::from_chars("ab"), None));
