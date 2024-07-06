@@ -44,7 +44,7 @@ impl Parser for EatStringParser {
                 ParseResult::new(U8Set::from_u8(self.string[self.pos]), None)
             }
         } else {
-            ParseResult::empty()
+            ParseResult::default()
         }
     }
 }

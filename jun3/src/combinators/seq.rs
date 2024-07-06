@@ -33,7 +33,7 @@ where
 
         (Seq2Parser {
             b: self.b.clone(),
-            parser_a: if result.u8set.is_empty() { None } else { Some(parser_a) },
+            parser_a: result.u8set.is_empty().then(|| parser_a),
             parsers_b,
         }, result)
     }
@@ -46,7 +46,7 @@ where
     ParserB: Parser,
 {
     fn step(&mut self, c: u8) -> ParseResult {
-        let mut results_b = ParseResult::empty();
+        let mut results_b = ParseResult::default();
 
         self.parsers_b.retain_mut(|parser_b| {
             let result_b = parser_b.step(c);
@@ -66,7 +66,7 @@ where
             }
             result_a
         } else {
-            ParseResult::empty()
+            ParseResult::default()
         };
 
         result_a.forward(results_b)

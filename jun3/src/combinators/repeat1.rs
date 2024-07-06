@@ -32,7 +32,7 @@ where
     ParserA: Parser,
 {
     fn step(&mut self, c: u8) -> ParseResult {
-        let mut final_result = ParseResult::empty();
+        let mut final_result = ParseResult::default();
 
         self.parsers.retain_mut(|parser| {
             let result = parser.step(c);

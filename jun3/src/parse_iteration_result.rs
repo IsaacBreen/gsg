@@ -16,10 +16,6 @@ impl ParseResult {
         Self { u8set, parse_data }
     }
 
-    pub fn empty() -> Self {
-        Self::default()
-    }
-
     pub fn u8set(&self) -> &U8Set {
         &self.u8set
     }
@@ -32,7 +28,7 @@ impl Default for ParseResult {
 }
 
 impl ParseResult {
-    pub fn merge(mut self, other: Self) -> Self {
+    pub fn merge(self, other: Self) -> Self {
         let merged_data = match (self.parse_data, other.parse_data) {
             (Some(data1), Some(data2)) => Some(data1.merge(data2)),
             (data, None) | (None, data) => data,
