@@ -21,15 +21,17 @@ where
     type Parser = Seq2Parser<B, ParserA, ParserB>;
 
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        let (parser_a, result_a) = self.a.parser(parse_data.clone());
+        let (parser_a, mut result) = self.a.parser(parse_data.clone());
         let mut parsers_b = Vec::new();
-        let mut result = result_a;
-        if let Some(ref new_parse_data) = result.parse_data {
+
+        if let Some(new_parse_data) = &result.parse_data {
             let (parser_b, result_b) = self.b.parser(new_parse_data.clone());
             parsers_b.push(parser_b);
             result.forward_assign(result_b);
         }
+
         let parser_a = if result.u8set.is_empty() { None } else { Some(parser_a) };
+
         (Seq2Parser {
             b: self.b.clone(),
             parser_a,
@@ -46,11 +48,13 @@ where
 {
     fn step(&mut self, c: u8) -> ParseResult {
         let mut results_b = ParseResult::empty();
+
         self.parsers_b.retain_mut(|parser_b| {
             let result_b = parser_b.step(c);
             results_b.merge_assign(result_b);
             !results_b.u8set.is_empty()
         });
+
         let result_a = if let Some(parser_a) = &mut self.parser_a {
             let result_a = parser_a.step(c);
             if result_a.u8set.is_empty() {
@@ -65,12 +69,12 @@ where
         } else {
             ParseResult::empty()
         };
+
         result_a.forward(results_b)
     }
 }
 
-pub fn seq2<A, B>(a: A, b: B) -> Seq2<A, B>
-{
+pub fn seq2<A, B>(a: A, b: B) -> Seq2<A, B> {
     Seq2 { a, b }
 }
 

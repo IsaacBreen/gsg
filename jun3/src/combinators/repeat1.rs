@@ -33,21 +33,23 @@ where
 {
     fn step(&mut self, c: u8) -> ParseResult {
         let mut final_result = ParseResult::empty();
+
         self.parsers.retain_mut(|parser| {
-            let mut result = parser.step(c);
+            let result = parser.step(c);
             final_result.merge_assign(result.clone());
             !result.u8set.is_empty()
         });
+
         if let Some(new_parse_data) = &final_result.parse_data {
             let (parser, result) = self.a.parser(new_parse_data.clone());
             self.parsers.push(parser);
             final_result.merge_assign(result);
         }
+
         final_result
     }
 }
 
-pub fn repeat1<A>(a: A) -> Repeat1<A>
-{
+pub fn repeat1<A>(a: A) -> Repeat1<A> {
     Repeat1 { a }
 }

@@ -26,12 +26,14 @@ where
             a: Some(a),
             b: Some(b),
         };
+
         if result_a.u8set.is_empty() {
             parser.a = None;
         }
         if result_b.u8set.is_empty() {
             parser.b = None;
         }
+
         (parser, result_a.merge(result_b))
     }
 }
@@ -43,12 +45,14 @@ where
 {
     fn step(&mut self, c: u8) -> ParseResult {
         let mut result = ParseResult::empty();
+
         if let Some(a) = &mut self.a {
             result = a.step(c);
             if result.u8set.is_empty() {
                 self.a = None;
             }
         }
+
         if let Some(b) = &mut self.b {
             let result_b = b.step(c);
             if result_b.u8set.is_empty() {
@@ -56,12 +60,12 @@ where
             }
             result = result.merge(result_b);
         }
+
         result
     }
 }
 
-pub fn choice2<A, B>(a: A, b: B) -> Choice2<A, B>
-{
+pub fn choice2<A, B>(a: A, b: B) -> Choice2<A, B> {
     Choice2 { a, b }
 }
 
