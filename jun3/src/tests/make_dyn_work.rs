@@ -11,22 +11,6 @@ trait Trait {
     fn get_assoc(&self) -> &Self::Assoc;
 }
 
-// Define some dummy types
-struct FooAssoc;
-struct Foo;
-
-impl AssocTrait for FooAssoc {
-    fn foo(&self, n: usize) -> usize {
-        n
-    }
-}
-impl Trait for Foo {
-    type Assoc = FooAssoc;
-    fn get_assoc(&self) -> &Self::Assoc {
-        &FooAssoc
-    }
-}
-
 // Forward references are useful for recursive definitions.
 #[derive(Clone)]
 struct ForwardRef {
@@ -51,27 +35,34 @@ impl Trait for ForwardRef {
     }
 }
 
-// Pair could contain anything, including user-defined types. We cannot hardcode it.
-struct Pair<A, B> {
-    a: A,
-    b: B,
+struct Subtract1<T> {
+    inner: T,
 }
-struct PairAssoc<AAssoc, BAssoc> {
-    a: AAssoc,
-    b: BAssoc,
+struct Subtract1Assoc<T> {
+    inner: T,
 }
 
-impl<A: Trait<Assoc = AAssoc>, B: Trait<Assoc = BAssoc>, AAssoc: AssocTrait, BAssoc: AssocTrait> Pair<A, B> {
-    fn get_assoc(&self) -> PairAssoc<&AAssoc, &BAssoc> {
-        PairAssoc { a: self.a.get_assoc(), b: self.b.get_assoc() }
+impl<T: Trait<Assoc = Assoc>, Assoc: AssocTrait> Trait for Subtract1<T> {
+    type Assoc = Subtract1Assoc<Assoc>;
+    fn get_assoc(&self) -> &Self::Assoc {
+        &Subtract1Assoc { inner: self.inner.get_assoc() }
+    }
+}
+
+impl<Assoc: AssocTrait> AssocTrait for Subtract1Assoc<Assoc> {
+    fn foo(&self, n: usize) -> usize {
+        if n == 0 {
+            0
+        } else {
+            self.inner.foo(n - 1)
+        }
     }
 }
 
 fn main() {
     let mut forward_ref = ForwardRef::new();
-    let a = Foo;
-    let b = forward_ref.clone();
-    let pair = Pair { a, b };
-    let assoc = pair.get_assoc();
-    assoc.foo();
+    let subtract_1 = Subtract1 { inner: forward_ref.clone() };
+    forward_ref.set(subtract_1);
+    let assoc = forward_ref.get_assoc();
+    println!("{}", assoc.foo(10));
 }
