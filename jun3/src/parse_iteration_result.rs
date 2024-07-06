@@ -33,7 +33,6 @@ impl ParseResult {
             (Some(data1), Some(data2)) => Some(data1.merge(data2)),
             (data, None) | (None, data) => data,
         };
-
         Self {
             u8set: self.u8set | other.u8set,
             parse_data: merged_data,

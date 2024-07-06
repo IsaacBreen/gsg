@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::{Combinator, ParseData, Parser, ParseResult};
-
+use crate::{Combinator, Parser, ParseResult};
+use crate::parse_data::ParseData;
 #[derive(Clone)]
 pub struct ForwardRef {
     a: Rc<RefCell<Option<Rc<dyn Combinator<Parser = Box<dyn Parser>>>>>>,  

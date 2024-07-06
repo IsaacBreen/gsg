@@ -1,4 +1,5 @@
-use crate::{Combinator, ParseData, Parser, ParseResult, U8Set};
+use crate::{Combinator, Parser, ParseResult, U8Set};
+use crate::parse_data::ParseData;
 
 #[derive(Clone)]
 pub struct EatU8 {

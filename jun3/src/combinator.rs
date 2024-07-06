@@ -1,15 +1,5 @@
-use crate::{FrameStack, ParseResult};
-
-#[derive(Clone, PartialEq, Debug, Default)]
-pub struct ParseData {
-    pub(crate) frame_stack: FrameStack,
-}
-
-impl ParseData {
-    pub fn merge(&self, other: Self) -> Self {
-        Self { frame_stack: self.frame_stack.clone() | other.frame_stack }
-    }
-}
+use crate::ParseData;
+use crate::ParseResult;
 
 pub trait Combinator where Self: 'static {
     type Parser: Parser;

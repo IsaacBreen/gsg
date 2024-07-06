@@ -1,4 +1,5 @@
-use crate::{Combinator, Eps, eps, ParseData, Parser, ParseResult};
+use crate::{Combinator, Eps, eps, Parser, ParseResult};
+use crate::parse_data::ParseData;
 
 pub struct Choice2<A, B> {
     a: A,
