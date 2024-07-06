@@ -19,11 +19,13 @@ where
 {
     type Parser = Choice2Parser<ParserA, ParserB>;
 
-    fn parser(&self, parse_data: ParseData) -> Self::Parser {
-        Choice2Parser {
-            a: Some(self.a.parser(parse_data.clone())),
-            b: Some(self.b.parser(parse_data)),
-        }
+    fn parser(&self, parse_data: ParseData) -> (ParseResult, Self::Parser) {
+        let (result_a, parser_a) = self.a.parser(parse_data.clone());
+        let (result_b, parser_b) = self.b.parser(parse_data);
+        (result_a.merge(result_b), Choice2Parser {
+            a: Some(parser_a),
+            b: Some(parser_b),
+        })
     }
 }
 
@@ -32,32 +34,18 @@ where
     ParserA: Parser,
     ParserB: Parser,
 {
-    fn result(&self) -> ParseResult {
-        match self {
-            Choice2Parser { a, b } => match (a, b) {
-                (Some(a), Some(b)) => a.result().merge(b.result()),
-                (Some(a), None) => a.result(),
-                (None, Some(b)) => b.result(),
-                (None, None) => ParseResult::new(U8Set::none(), None),
-            },
-        }
-    }
-
-    fn step(&mut self, c: u8) {
-        if let Some(a) = &mut self.a {
-            if a.result().u8set.is_empty() {
-                self.a = None;
-            } else {
-                a.step(c);
-            }
-        }
-        if let Some(b) = &mut self.b {
-            if b.result().u8set.is_empty() {
-                self.b = None;
-            } else {
-                b.step(c);
-            }
-        }
+    fn step(self, c: u8) -> (ParseResult, Self::Parser) {
+        let (result_a, a) = if let Some(parser_a) = self.a {
+            parser_a.step(c)
+        } else {
+            (ParseResult::new(U8Set::none(), None), None)
+        };
+        let (result_b, b) = if let Some(parser_b) = self.b {
+            parser_b.step(c)
+        } else {
+            (ParseResult::new(U8Set::none(), None), None)
+        };
+        (result_a.merge(result_b), Choice2Parser { a, b })
     }
 }
 

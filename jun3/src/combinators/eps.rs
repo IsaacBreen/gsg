@@ -10,23 +10,21 @@ pub enum EpsParser {
 impl Combinator for Eps {
     type Parser = EpsParser;
 
-    fn parser(&self, parse_data: ParseData) -> Self::Parser {
-        EpsParser::Start(parse_data)
+    fn parser(&self, parse_data: ParseData) -> (ParseResult, Self::Parser) {
+        (
+            ParseResult::new(U8Set::none(), Some(parse_data.clone())),
+            EpsParser::Start(parse_data)
+        )
     }
 }
 
-
 impl Parser for EpsParser {
-    fn result(&self) -> ParseResult {
+    fn step(self, _c: u8) -> (ParseResult, Self::Parser) {
         match self {
-            EpsParser::Start(parse_data) => ParseResult::new(U8Set::none(), Some(parse_data.clone())),
-            EpsParser::Done => panic!("EpsParser::Done"),
-        }
-    }
-
-    fn step(&mut self, c: u8) {
-        *self = match self {
-            EpsParser::Start(_) => EpsParser::Done,
+            EpsParser::Start(parse_data) => (
+                ParseResult::new(U8Set::none(), Some(parse_data.clone())),
+                EpsParser::Done
+            ),
             EpsParser::Done => panic!("EpsParser::Done"),
         }
     }
