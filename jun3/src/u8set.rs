@@ -1,4 +1,5 @@
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
+
 use crate::bitset256::BitSet256;
 
 #[derive(Clone, PartialEq, Eq, Hash)]

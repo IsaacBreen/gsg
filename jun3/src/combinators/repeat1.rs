@@ -1,4 +1,4 @@
-use crate::{Combinator, ParseData, Parser, ParseResult, U8Set};
+use crate::{Combinator, ParseData, Parser, ParseResult};
 
 #[derive(Clone)]
 pub struct Repeat1<A> {

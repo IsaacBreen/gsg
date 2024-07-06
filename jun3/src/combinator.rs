@@ -1,4 +1,3 @@
-use std::any::Any;
 use crate::{FrameStack, ParseResult};
 
 #[derive(Clone, PartialEq, Debug, Default)]
