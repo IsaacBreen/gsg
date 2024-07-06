@@ -37,7 +37,7 @@ where
 {
     fn step(&mut self, c: u8) -> ParseResult {
         fn helper<A: Parser>(maybe_parser: &mut Option<A>, c: u8) -> ParseResult {
-            if let Some(parser) = maybe_parser {
+            if let Some(parser) = maybe_parser.as_mut() {
                 let result = parser.step(c);
                 if result.u8set.is_empty() {
                     *maybe_parser = None;
