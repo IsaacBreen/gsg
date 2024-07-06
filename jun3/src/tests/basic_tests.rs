@@ -84,8 +84,7 @@ mod tests {
     fn test_frame_stack_ops() {
         let mut frame_stack = FrameStack::default();
         frame_stack.push_name(b"a");
-        let mut parse_data = ParseData::new();
-        parse_data.insert("frame_stack".to_string(), frame_stack.clone());
+        let parse_data = ParseData::new(frame_stack.clone());
         let combinator = frame_stack_contains(eat_chars("a"));
         let (mut parser, result0) = combinator.parser(parse_data.clone());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));

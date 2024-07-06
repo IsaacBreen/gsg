@@ -30,7 +30,7 @@ impl Default for ParseResult {
 impl ParseResult {
     pub fn merge(self, other: Self) -> Self {
         let merged_data = match (self.parse_data, other.parse_data) {
-            (Some(data1), Some(data2)) => Some(data1.merge(&data2)),
+            (Some(data1), Some(data2)) => Some(data1.merge(data2)),
             (data, None) | (None, data) => data,
         };
         Self {
@@ -57,7 +57,7 @@ impl ParseResult {
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct FrameStack {
-    pub(crate) frames: Vec<Frame>,
+    frames: Vec<Frame>,
     tree: HashMap<usize, FrameNode>,
     root_id: usize,
     next_id: usize,
