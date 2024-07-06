@@ -1,13 +1,15 @@
 use std::ops::Not;
+use std::rc::Rc;
+
 use crate::{Combinator, ParseData, Parser, ParseResult};
 
 pub struct Seq2<A, B> {
     a: A,
-    b: B,
+    b: Rc<B>,
 }
 
 pub struct Seq2Parser<B, ParserA, ParserB> {
-    b: B,
+    b: Rc<B>,
     parser_a: Option<ParserA>,
     parsers_b: Vec<ParserB>,
 }
@@ -15,7 +17,7 @@ pub struct Seq2Parser<B, ParserA, ParserB> {
 impl<A, B, ParserA, ParserB> Combinator for Seq2<A, B>
 where
     A: Combinator<Parser = ParserA>,
-    B: Combinator<Parser = ParserB> + Clone,
+    B: Combinator<Parser = ParserB>,
     ParserA: Parser,
     ParserB: Parser,
 {
@@ -33,7 +35,7 @@ where
             .collect();
 
         (Seq2Parser {
-            b: self.b.clone(),
+            b: Rc::clone(&self.b),
             parser_a: result.u8set.is_empty().not().then(|| parser_a),
             parsers_b,
         }, result)
@@ -75,7 +77,7 @@ where
 }
 
 pub fn seq2<A, B>(a: A, b: B) -> Seq2<A, B> {
-    Seq2 { a, b }
+    Seq2 { a, b: Rc::new(b) }
 }
 
 #[macro_export]

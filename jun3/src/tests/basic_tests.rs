@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, FrameStack, opt, ParseData, ParseResult, repeat1, seq, U8Set};
+    use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, FrameStack, opt, ParseData, ParseResult, push_to_frame, repeat1, seq, U8Set};
     use crate::combinator::*;
 
     #[test]
@@ -93,5 +93,16 @@ mod tests {
         let combinator = frame_stack_contains(eat_chars("b"));
         let (mut parser, result0) = combinator.parser(parse_data);
         assert_eq!(result0, ParseResult::new(U8Set::none(), None));
+    }
+
+    #[test]
+    fn test_frame_stack_push() {
+        let mut frame_stack = FrameStack::default();
+        let parse_data = ParseData::new(frame_stack.clone());
+        let combinator = seq!(eat_chars("a"), push_to_frame(choice!(eat_chars("b"), eat_chars("a"))));
+        let (mut parser, result0) = combinator.parser(parse_data.clone());
+        assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
+        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), None));
+        assert_eq!(parser.step('b' as u8), ParseResult::default());
     }
 }
