@@ -81,7 +81,7 @@ mod tests {
     }
 
     #[test]
-    fn test_frame_stack_ops() {
+    fn test_frame_stack_contains() {
         let mut frame_stack = FrameStack::default();
         frame_stack.push_name(b"a");
         let parse_data = ParseData::new(frame_stack.clone());

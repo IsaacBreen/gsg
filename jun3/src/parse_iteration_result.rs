@@ -146,23 +146,23 @@ impl Frame {
 }
 
 impl FrameStack {
-    pub fn contains_prefix(&self, name_prefix: &str) -> bool {
+    pub fn contains_prefix_str(&self, name_prefix: &str) -> bool {
         self.frames.iter().any(|frame| frame.contains_prefix(name_prefix))
     }
 
-    pub fn excludes_prefix(&self, name_prefix: &str) -> bool {
-        !self.contains_prefix(name_prefix)
+    pub fn excludes_prefix_str(&self, name_prefix: &str) -> bool {
+        !self.contains_prefix_str(name_prefix)
     }
 
-    pub fn contains(&self, name: &str) -> bool {
+    pub fn contains_str(&self, name: &str) -> bool {
         self.frames.iter().any(|frame| frame.contains(name))
     }
 
-    pub fn excludes(&self, name: &str) -> bool {
-        !self.contains(name)
+    pub fn excludes_str(&self, name: &str) -> bool {
+        !self.contains_str(name)
     }
 
-    pub fn next_u8_given_contains(&self, name: &[u8]) -> (U8Set, bool) {
+    pub fn next_u8_given_contains_u8slice(&self, name: &[u8]) -> (U8Set, bool) {
         let mut u8set = U8Set::none();
         let mut is_complete = false;
         for frame in self.frames.iter().rev() {
@@ -173,7 +173,7 @@ impl FrameStack {
         (u8set, is_complete)
     }
 
-    pub fn next_u8_given_excludes(&self, name: &[u8]) -> (U8Set, bool) {
+    pub fn next_u8_given_excludes_slice(&self, name: &[u8]) -> (U8Set, bool) {
         let mut result_set = U8Set::all();
         let mut is_complete = true;
 
@@ -184,6 +184,18 @@ impl FrameStack {
         }
 
         (result_set, is_complete)
+    }
+
+    pub fn contains_prefix_u8vec(&self, name_prefix: Vec<u8>) -> bool {
+        self.contains_prefix_str(std::str::from_utf8(&name_prefix).unwrap())
+    }
+
+    pub fn excludes_prefix_u8vec(&self, name_prefix: &[u8]) -> bool {
+        self.excludes_prefix_str(std::str::from_utf8(name_prefix).unwrap())
+    }
+
+    pub fn contains_u8vec(&self, name: &[u8]) -> bool {
+        self.contains_str(std::str::from_utf8(name).unwrap())
     }
 
     pub fn push_frame(&mut self, new_frame: Frame) {
