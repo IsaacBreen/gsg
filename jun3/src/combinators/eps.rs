@@ -17,8 +17,8 @@ impl Combinator for Eps {
 
 
 impl Parser for EpsParser {
-    fn step(&mut self, c: u8) -> ParseResult {
-        ParseResult::new(U8Set::none(), self.parse_data.take())
+    fn step(&mut self, c: u8) -> Result<ParseResult, String> {
+        Ok(ParseResult::new(U8Set::none(), self.parse_data.take()))
     }
 }
 

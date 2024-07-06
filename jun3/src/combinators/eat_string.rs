@@ -32,19 +32,19 @@ impl Combinator for EatString {
 }
 
 impl Parser for EatStringParser {
-    fn step(&mut self, c: u8) -> ParseResult {
+    fn step(&mut self, c: u8) -> Result<ParseResult, String> {
         if self.pos == self.string.len() {
-            return ParseResult::new(U8Set::none(), Some(self.parse_data.clone()));
+            return Ok(ParseResult::new(U8Set::none(), Some(self.parse_data.clone())));
         }
         if self.string[self.pos] == c {
             self.pos += 1;
             if self.pos == self.string.len() {
-                ParseResult::new(U8Set::none(), Some(self.parse_data.clone()))
+                Ok(ParseResult::new(U8Set::none(), Some(self.parse_data.clone())))
             } else {
-                ParseResult::new(U8Set::from_u8(self.string[self.pos]), None)
+                Ok(ParseResult::new(U8Set::from_u8(self.string[self.pos]), None))
             }
         } else {
-            ParseResult::default()
+            Ok(ParseResult::default())
         }
     }
 }

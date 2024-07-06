@@ -1,4 +1,5 @@
 use crate::{FrameStack, ParseResult};
+use std::fmt::Debug;
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct ParseData {
@@ -17,11 +18,11 @@ pub trait Combinator where Self: 'static {
 }
 
 pub trait Parser {
-    fn step(&mut self, c: u8) -> ParseResult;
+    fn step(&mut self, c: u8) -> Result<ParseResult, String>;
 }
 
 impl Parser for Box<dyn Parser> {
-    fn step(&mut self, c: u8) -> ParseResult {
+    fn step(&mut self, c: u8) -> Result<ParseResult, String> {
         (**self).step(c)
     }
 }

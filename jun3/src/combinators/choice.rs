@@ -35,23 +35,23 @@ where
     ParserA: Parser,
     ParserB: Parser,
 {
-    fn step(&mut self, c: u8) -> ParseResult {
-        fn helper<A: Parser>(maybe_parser: &mut Option<A>, c: u8) -> ParseResult {
+    fn step(&mut self, c: u8) -> Result<ParseResult, String> {
+        fn helper<A: Parser>(maybe_parser: &mut Option<A>, c: u8) -> Result<ParseResult, String> {
             if let Some(parser) = maybe_parser {
-                let result = parser.step(c);
+                let result = parser.step(c)?;
                 if result.u8set.is_empty() {
                     *maybe_parser = None;
                 }
-                result
+                Ok(result)
             } else {
-                ParseResult::default()
+                Ok(ParseResult::default())
             }
         }
 
-        let result_a = helper(&mut self.a, c);
-        let result_b = helper(&mut self.b, c);
+        let result_a = helper(&mut self.a, c)?;
+        let result_b = helper(&mut self.b, c)?;
 
-        result_a.merge(result_b)
+        Ok(result_a.merge(result_b))
     }
 }
 

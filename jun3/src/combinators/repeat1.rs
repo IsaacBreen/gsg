@@ -31,11 +31,11 @@ where
     A: Combinator<Parser = ParserA>,
     ParserA: Parser,
 {
-    fn step(&mut self, c: u8) -> ParseResult {
+    fn step(&mut self, c: u8) -> Result<ParseResult, String> {
         let mut final_result = ParseResult::default();
 
         self.parsers.retain_mut(|parser| {
-            let result = parser.step(c);
+            let result = parser.step(c).unwrap();
             final_result.merge_assign(result.clone());
             !result.u8set.is_empty()
         });
@@ -46,7 +46,7 @@ where
             final_result.merge_assign(result);
         }
 
-        final_result
+        Ok(final_result)
     }
 }
 
