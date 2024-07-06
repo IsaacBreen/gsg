@@ -16,6 +16,10 @@ impl ParseResult {
         Self { u8set, parse_data }
     }
 
+    pub fn empty() -> Self {
+        Self::new(U8Set::none(), None)
+    }
+
     pub fn u8set(&self) -> &U8Set {
         &self.u8set
     }

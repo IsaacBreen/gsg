@@ -1,4 +1,4 @@
-pub use choice::*;
+pub use choice::*; 
 pub use eat_string::*;
 pub use eat_u8_matching::*;
 pub use eps::*;
@@ -16,4 +16,3 @@ mod repeat1;
 mod seq;
 mod helpers;
 mod external_impls;
-

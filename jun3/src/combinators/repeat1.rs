@@ -8,6 +8,7 @@ pub struct Repeat1<A> {
 pub struct Repeat1Parser<A, ParserA> {
     a: A,
     parsers: Vec<ParserA>,
+    result: ParseResult,
 }
 
 impl<A, ParserA> Combinator for Repeat1<A>
@@ -17,11 +18,13 @@ where
 {
     type Parser = Repeat1Parser<A, ParserA>;
 
-    fn _parser(&self, parse_data: ParseData) -> Self::Parser {
-        Repeat1Parser {
+    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        let (parser, result) = self.a.parser(parse_data.clone());
+        (Repeat1Parser {
             a: self.a.clone(),
-            parsers: vec![self.a._parser(parse_data)],
-        }
+            parsers: vec![parser],
+            result: result.clone(),
+        }, result)
     }
 }
 
@@ -30,23 +33,17 @@ where
     A: Combinator<Parser = ParserA>,
     ParserA: Parser,
 {
-    fn _result(&self) -> ParseResult {
-        let mut result = self.parsers[0]._result();
-        for parser in &self.parsers[1..] {
-            result = result.merge(parser._result());
-        }
-        result
-    }
-
-    fn _step(&mut self, c: u8) {
-        self.parsers.retain(|parser| !parser._result().u8set.is_empty());
+    fn step(&mut self, c: u8) -> ParseResult {
+        self.parsers.retain(|parser| !self.result.u8set.is_empty());
         for parser in &mut self.parsers {
-            parser._step(c)
+            self.result = parser.step(c);
         }
-        let any_done = self.parsers.iter().any(|parser| parser._result().parse_data.is_some());
-        if any_done {
-            self.parsers.push(self.a._parser(ParseData::default()));
+        if self.result.parse_data.is_some() {
+            let (parser, result) = self.a.parser(ParseData::default());
+            self.parsers.push(parser);
+            self.result = self.result.clone().merge(result);
         }
+        self.result.clone()
     }
 }
 

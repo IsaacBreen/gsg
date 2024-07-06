@@ -15,36 +15,41 @@ pub enum EatU8Parser {
 impl Combinator for EatU8 {
     type Parser = EatU8Parser;
 
-    fn _parser(&self, parse_data: ParseData) -> Self::Parser {
-        EatU8Parser::Predict {
+    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        (EatU8Parser::Predict {
             mask: self.mask.clone(),
             parse_data,
-        }
+        }, ParseResult::new(self.mask.clone(), None))
     }
 }
 
 impl Parser for EatU8Parser {
-    fn _result(&self) -> ParseResult {
-        match self {
-            EatU8Parser::Predict { mask, parse_data } => ParseResult::new(mask.clone(), None),
-            EatU8Parser::Match { parse_data } => ParseResult::new(U8Set::none(), Some(parse_data.clone())),
-            EatU8Parser::Mismatch => ParseResult::new(U8Set::none(), None),
-            EatU8Parser::Done => panic!("EatU8Parser::Done"),
-        }
-    }
-
-    fn _step(&mut self, c: u8) {
-        *self = match self {
+    fn step(&mut self, c: u8) -> ParseResult {
+        let mut new_self: Option<Self> = None;
+        let result = match self {
             EatU8Parser::Predict { mask, parse_data } => {
                 if mask.contains(c) {
-                    EatU8Parser::Match { parse_data: parse_data.clone() }
+                    new_self = Some( EatU8Parser::Match { parse_data: parse_data.clone() });
+                    ParseResult::new(U8Set::none(), Some(parse_data.clone()))
                 } else {
-                    EatU8Parser::Mismatch
+                    new_self = Some( EatU8Parser::Mismatch);
+                    ParseResult::empty()
                 }
             }
-            EatU8Parser::Match { .. } | EatU8Parser::Mismatch => EatU8Parser::Done,
-            EatU8Parser::Done => EatU8Parser::Done,
+            EatU8Parser::Match { parse_data } => {
+                new_self = Some( EatU8Parser::Done);
+                ParseResult::new(U8Set::none(), Some(parse_data.clone()))
+            }
+            EatU8Parser::Mismatch => {
+                new_self = Some( EatU8Parser::Done);
+                ParseResult::empty()
+            }
+            EatU8Parser::Done => panic!("EatU8Parser::Done"),
+        };
+        if let Some(new_self) = new_self {
+            *self = new_self;
         }
+        result
     }
 }
 

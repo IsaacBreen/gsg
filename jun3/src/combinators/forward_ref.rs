@@ -1,18 +1,18 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::{Combinator, ParseData, Parser};
+use crate::{Combinator, ParseData, Parser, ParseResult};
 
 #[derive(Clone)]
 pub struct ForwardRef {
-    a: Rc<RefCell<Option<Rc<dyn Combinator<Parser = Box<dyn Parser>>>>>>,
+    a: Rc<RefCell<Option<Rc<dyn Combinator<Parser = Box<dyn Parser>>>>>>,  
 }
 
 impl Combinator for ForwardRef {
     type Parser = Box<dyn Parser>;
 
-    fn _parser(&self, parse_data: ParseData) -> Self::Parser {
-        self.a.borrow().as_ref().expect("ForwardRef::parser called before parser")._parser(parse_data)
+    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        self.a.borrow().as_ref().expect("ForwardRef::parser called before parser").parser(parse_data)
     }
 }
 
@@ -36,7 +36,8 @@ where
 {
     type Parser = Box<dyn Parser>;
 
-    fn _parser(&self, parse_data: ParseData) -> Self::Parser {
-        Box::new(self.0._parser(parse_data))
+    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        let (parser, result) = self.0.parser(parse_data);
+        (Box::new(parser), result)
     }
 }
