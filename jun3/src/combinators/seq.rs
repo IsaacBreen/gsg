@@ -9,7 +9,6 @@ pub struct Seq2Parser<B, ParserA, ParserB> {
     b: B,
     parser_a: Option<ParserA>,
     parsers_b: Vec<ParserB>,
-    result: ParseResult,
 }
 
 impl<A, B, ParserA, ParserB> Combinator for Seq2<A, B>
@@ -28,14 +27,13 @@ where
         if let Some(ref new_parse_data) = result.parse_data {
             let (parser_b, result_b) = self.b.parser(new_parse_data.clone());
             parsers_b.push(parser_b);
-            result = result.forward(result_b);
+            result.forward_assign(result_b);
         }
         let parser_a = if result.u8set.is_empty() { None } else { Some(parser_a) };
         (Seq2Parser {
             b: self.b.clone(),
             parser_a,
             parsers_b,
-            result: result.clone(),
         }, result)
     }
 }
@@ -47,23 +45,27 @@ where
     ParserB: Parser,
 {
     fn step(&mut self, c: u8) -> ParseResult {
-        self.parsers_b.retain(|parser_b| !self.result.u8set.is_empty());
-        self.result = ParseResult::empty();
-        for parser_b in &mut self.parsers_b {
-            self.result = self.result.clone().merge(parser_b.step(c));
-        }
-        if let Some(parser_a) = &mut self.parser_a {
-            self.result = parser_a.step(c);
-            if self.result.u8set.is_empty() {
+        let mut results_b = ParseResult::empty();
+        self.parsers_b.retain_mut(|parser_b| {
+            let result_b = parser_b.step(c);
+            results_b.merge_assign(result_b);
+            !results_b.u8set.is_empty()
+        });
+        let result_a = if let Some(parser_a) = &mut self.parser_a {
+            let result_a = parser_a.step(c);
+            if result_a.u8set.is_empty() {
                 self.parser_a = None;
             }
-            if let Some(new_parse_data) = self.result.parse_data.clone() {
+            if let Some(new_parse_data) = result_a.parse_data.clone() {
                 let (parser_b, result_b) = self.b.parser(new_parse_data);
                 self.parsers_b.push(parser_b);
-                self.result = self.result.clone().forward(result_b);
+                results_b.forward_assign(result_b);
             }
-        }
-        self.result.clone()
+            result_a
+        } else {
+            ParseResult::empty()
+        };
+        result_a.forward(results_b)
     }
 }
 
