@@ -1,4 +1,5 @@
 use std::ops::Not;
+
 use crate::{Combinator, ParseData, Parser, ParseResult};
 
 pub struct Seq2<A, B> {

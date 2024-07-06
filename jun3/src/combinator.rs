@@ -1,5 +1,6 @@
-use crate::{FrameStack, ParseResult};
 use std::fmt::Debug;
+
+use crate::{FrameStack, ParseResult};
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct ParseData {

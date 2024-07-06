@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{choice, eat_chars, eat_string, forward_ref, opt, ParseResult, repeat1, seq, U8Set};
-    use crate::combinator::*; 
+    use crate::combinator::*;
 
     #[test]
     fn test_eat_u8() {
