@@ -17,6 +17,12 @@ impl AssocTrait for Box<dyn AssocTrait> {
         (**self).foo(n)
     }
 }
+impl Trait for Rc<dyn Trait<Assoc=Box<dyn AssocTrait>>> {
+    type Assoc = Box<dyn AssocTrait>;
+    fn get_assoc(&self) -> Self::Assoc {
+        (**self).get_assoc()
+    }
+}
 
 struct Wrapper<T>(T);
 
@@ -26,7 +32,6 @@ where
     A: AssocTrait + 'static,
 {
     type Assoc = Box<dyn AssocTrait>;
-
     fn get_assoc(&self) -> Self::Assoc {
         Box::new(self.0.get_assoc())
     }
@@ -35,7 +40,7 @@ where
 // Forward references are useful for recursive definitions.
 #[derive(Clone)]
 struct ForwardRef {
-    inner: Rc<RefCell<Option<Box<dyn Trait<Assoc = Box<dyn AssocTrait>>>>>>,
+    inner: Rc<RefCell<Option<Rc<dyn Trait<Assoc = Box<dyn AssocTrait>>>>>>,
 }
 
 impl ForwardRef {
@@ -49,21 +54,44 @@ impl ForwardRef {
         T: Trait<Assoc=A> + 'static,
         A: AssocTrait + 'static,
     {
-        let boxed: Box<dyn Trait<Assoc=Box<dyn AssocTrait>>> = Box::new(Wrapper(inner));
+        let boxed: Rc<dyn Trait<Assoc=Box<dyn AssocTrait>>> = Rc::new(Wrapper(inner));
         *self.inner.borrow_mut() = Some(boxed);
+    }
+}
+
+// New wrapper to defer the call to get_assoc
+struct DeferredAssoc<T: Trait> {
+    inner: Rc<RefCell<Option<T::Assoc>>>,
+    trait_obj: T,
+}
+
+impl<T: Trait> AssocTrait for DeferredAssoc<T>
+where
+    T::Assoc: AssocTrait,
+{
+    fn foo(&self, n: usize) -> usize {
+        let mut inner = self.inner.borrow_mut();
+        if inner.is_none() {
+            *inner = Some(self.trait_obj.get_assoc());
+        }
+        inner.as_ref().unwrap().foo(n)
     }
 }
 
 impl Trait for ForwardRef {
     type Assoc = Box<dyn AssocTrait>;
     fn get_assoc(&self) -> Self::Assoc {
-        self.inner.borrow().as_ref().unwrap().get_assoc()
+        Box::new(DeferredAssoc {
+            inner: Rc::new(RefCell::new(None)),
+            trait_obj: <Option<Rc<dyn Trait<Assoc = Box<dyn AssocTrait>>>> as Clone>::clone(&self.inner.borrow()).unwrap().clone(),
+        })
     }
 }
 
 struct Subtract1<T> {
     inner: T,
 }
+
 struct Subtract1Assoc<T> {
     inner: T,
 }
