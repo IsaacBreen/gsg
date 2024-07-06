@@ -19,7 +19,7 @@ pub fn forward_ref() -> ForwardRef {
 }
 
 impl ForwardRef {
-    pub fn set<A: Combinator<Parser = Box<dyn Parser>> + 'static>(&mut self, a: A) {
+    pub fn set<A: Combinator<Parser = P> + 'static, P: Parser + 'static>(&mut self, a: A) {
         self.a = Some(Rc::new(a));
     }
 }
