@@ -70,14 +70,18 @@ where
 {
     type Parser = FrameStackContainsParser<ParserA>;
 
-    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
+    fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        let frame_stack = parse_data.frame_stack.take().unwrap();
         let (parser, mut result) = self.a.parser(parse_data.clone());
-        let (u8set, is_complete) = parse_data.frame_stack.as_ref().unwrap().next_u8_given_contains_u8slice(&[]);
+        let (u8set, is_complete) = frame_stack.next_u8_given_contains_u8slice(&[]);
         result.u8set = result.u8set & u8set;
         if result.parse_data.is_some() && !is_complete {
             result.parse_data = None;
         }
-        (FrameStackContainsParser { parser, frame_stack: parse_data.frame_stack.unwrap(), values: Vec::new() }, result)
+        if let Some(parse_data) = &mut result.parse_data {
+            parse_data.frame_stack = Some(frame_stack.clone());
+        }
+        (FrameStackContainsParser { parser, frame_stack, values: Vec::new() }, result)
     }
 }
 
@@ -88,8 +92,11 @@ where
 {
     type Parser = PushToFrameParser<ParserA>;
 
-    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        todo!()
+    fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        let frame_stack = parse_data.frame_stack.take().unwrap();
+        let (parser, result) = self.a.parser(parse_data.clone());
+        assert!(result.parse_data.is_none());
+        (PushToFrameParser { parser, frame_stack, values: Vec::new() }, result)
     }
 }
 
@@ -101,7 +108,9 @@ where
     type Parser = PopFromFrameParser<ParserA>;
 
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        todo!()
+        let (parser, result) = self.a.parser(parse_data.clone());
+        assert!(result.parse_data.is_none());
+        (PopFromFrameParser { parser, frame_stack: parse_data.frame_stack.unwrap(), values: Vec::new() }, result)
     }
 }
 
@@ -131,6 +140,9 @@ where
         if result.parse_data.is_some() && !is_complete {
             result.parse_data = None;
         }
+        if let Some(parse_data) = &mut result.parse_data {
+            parse_data.frame_stack = Some(self.frame_stack.clone());
+        }
         result
     }
 }
@@ -140,7 +152,14 @@ where
     ParserA: Parser,
 {
     fn step(&mut self, c: u8) -> ParseResult {
-        todo!()
+        self.values.push(c);
+        let mut result = self.parser.step(c);
+        if result.parse_data.is_some() {
+            let mut frame_stack = self.frame_stack.clone();
+            frame_stack.push_name(&self.values);
+            result.parse_data.as_mut().unwrap().frame_stack = Some(frame_stack);
+        }
+        result
     }
 }
 
@@ -149,7 +168,10 @@ where
     ParserA: Parser,
 {
     fn step(&mut self, c: u8) -> ParseResult {
-        todo!()
+        self.values.push(c);
+        let result = self.parser.step(c);
+        self.frame_stack.pop_name(&self.values);
+        result
     }
 }
 

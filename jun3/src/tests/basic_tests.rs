@@ -99,7 +99,7 @@ mod tests {
     fn test_frame_stack_push() {
         let mut frame_stack = FrameStack::default();
         let parse_data = ParseData::new(frame_stack.clone());
-        let combinator = seq!(eat_chars("a"), push_to_frame(choice!(eat_chars("b"), eat_chars("a"))));
+        let combinator = seq!(push_to_frame(eat_chars("a")), frame_stack_contains(choice!(eat_chars("b"), eat_chars("a"))));
         let (mut parser, result0) = combinator.parser(parse_data.clone());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
         assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), None));
