@@ -13,15 +13,19 @@ impl ParseData {
 
 pub trait Combinator where Self: 'static {
     type Parser: Parser;
-    fn parser(&self, parse_data: ParseData) -> (ParseResult, Self::Parser);
+    fn parser(&self, parse_data: ParseData) -> Self::Parser;
 }
 
 pub trait Parser {
-    fn step(self, c: u8) -> (ParseResult, Self::Parser);
+    fn result(&self) -> ParseResult;
+    fn step(&mut self, c: u8);
 }
 
 impl Parser for Box<dyn Parser> {
-    fn step(self, c: u8) -> (ParseResult, Self::Parser) {
+    fn result(&self) -> ParseResult {
+        (**self).result()
+    }
+    fn step(&mut self, c: u8) {
         (**self).step(c)
     }
 }

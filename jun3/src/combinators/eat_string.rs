@@ -15,50 +15,38 @@ pub enum EatStringParser {
 impl Combinator for EatString {
     type Parser = EatStringParser;
 
-    fn parser(&self, parse_data: ParseData) -> (ParseResult, Self::Parser) {
-        (
-            ParseResult::new(U8Set::from_u8(self.string[0]), None),
-            EatStringParser::Predict {
-                string: self.string.clone(),
-                pos: 0,
-                parse_data,
-            }
-        )
+    fn parser(&self, parse_data: ParseData) -> Self::Parser {
+        EatStringParser::Predict {
+            string: self.string.clone(),
+            pos: 0,
+            parse_data,
+        }
     }
 }
 
 impl Parser for EatStringParser {
-    fn step(self, c: u8) -> (ParseResult, Self::Parser) {
+    fn result(&self) -> ParseResult {
         match self {
-            EatStringParser::Predict { string, mut pos, parse_data } => {
-                if string[pos] == c {
-                    pos += 1;
-                    if pos == string.len() {
-                        (
-                            ParseResult::new(U8Set::none(), Some(parse_data.clone())),
-                            EatStringParser::Match { parse_data }
-                        )
-                    } else {
-                        (
-                            ParseResult::new(U8Set::from_u8(string[pos]), None),
-                            EatStringParser::Predict { string, pos, parse_data }
-                        )
+            EatStringParser::Predict { string, pos, .. } => ParseResult::new(U8Set::from_u8(string[*pos]), None),
+            EatStringParser::Match { parse_data } => ParseResult::new(U8Set::none(), Some(parse_data.clone())),
+            EatStringParser::Mismatch => ParseResult::new(U8Set::none(), None),
+            EatStringParser::Done => panic!("EatStringParser::Done"),
+        }
+    }
+
+    fn step(&mut self, c: u8) {
+        match self {
+            EatStringParser::Predict { string, pos, parse_data } => {
+                if string[*pos] == c {
+                    *pos += 1;
+                    if *pos == string.len() {
+                        *self = EatStringParser::Match { parse_data: parse_data.clone() };
                     }
                 } else {
-                    (
-                        ParseResult::new(U8Set::none(), None),
-                        EatStringParser::Mismatch
-                    )
+                    *self = EatStringParser::Mismatch;
                 }
             }
-            EatStringParser::Match { parse_data } => (
-                ParseResult::new(U8Set::none(), Some(parse_data.clone())),
-                EatStringParser::Done
-            ),
-            EatStringParser::Mismatch => (
-                ParseResult::new(U8Set::none(), None),
-                EatStringParser::Done
-            ),
+            EatStringParser::Match { .. } | EatStringParser::Mismatch => *self = EatStringParser::Done,
             EatStringParser::Done => panic!("EatStringParser::Done"),
         }
     }
