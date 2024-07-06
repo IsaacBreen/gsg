@@ -20,12 +20,12 @@ where
 {
     type Parser = Seq2Parser<B, ParserA, ParserB>;
 
-    fn parser(&self, parse_data: ParseData) -> Self::Parser {
-        let mut parser_a = self.a.parser(parse_data.clone());
+    fn _parser(&self, parse_data: ParseData) -> Self::Parser {
+        let mut parser_a = self.a._parser(parse_data.clone());
         let mut parsers_b = Vec::new();
-        let result_a = parser_a.result();
+        let result_a = parser_a._result();
         if let Some(new_parse_data) = result_a.parse_data {
-            parsers_b.push(self.b.parser(new_parse_data));
+            parsers_b.push(self.b._parser(new_parse_data));
         }
         let parser_a = if result_a.u8set.is_empty() { None } else { Some(parser_a) };
         Seq2Parser {
@@ -42,32 +42,32 @@ where
     ParserA: Parser,
     ParserB: Parser,
 {
-    fn result(&self) -> ParseResult {
+    fn _result(&self) -> ParseResult {
         let mut result = match self.parser_a {
             Some(ref parser_a) => {
-                let mut result = parser_a.result();
+                let mut result = parser_a._result();
                 result.parse_data = None;
                 result
             }
             None => ParseResult::new(U8Set::none(), None),
         };
         for parser_b in &self.parsers_b {
-            result = result.merge(parser_b.result());
+            result = result.merge(parser_b._result());
         }
         result
     }
 
-    fn step(&mut self, c: u8) {
-        self.parsers_b.retain(|parser_b| !parser_b.result().u8set.is_empty());
+    fn _step(&mut self, c: u8) {
+        self.parsers_b.retain(|parser_b| !parser_b._result().u8set.is_empty());
         for parser_b in &mut self.parsers_b {
-            parser_b.step(c);
+            parser_b._step(c);
         }
         if let Some(ref mut parser_a) = self.parser_a {
-            parser_a.step(c);
-            if let Some(new_parse_data) = parser_a.result().parse_data {
-                self.parsers_b.push(self.b.parser(new_parse_data));
+            parser_a._step(c);
+            if let Some(new_parse_data) = parser_a._result().parse_data {
+                self.parsers_b.push(self.b._parser(new_parse_data));
             }
-            if parser_a.result().u8set.is_empty() {
+            if parser_a._result().u8set.is_empty() {
                 self.parser_a = None;
             }
         }

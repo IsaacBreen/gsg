@@ -15,7 +15,7 @@ pub enum EatU8Parser {
 impl Combinator for EatU8 {
     type Parser = EatU8Parser;
 
-    fn parser(&self, parse_data: ParseData) -> Self::Parser {
+    fn _parser(&self, parse_data: ParseData) -> Self::Parser {
         EatU8Parser::Predict {
             mask: self.mask.clone(),
             parse_data,
@@ -24,7 +24,7 @@ impl Combinator for EatU8 {
 }
 
 impl Parser for EatU8Parser {
-    fn result(&self) -> ParseResult {
+    fn _result(&self) -> ParseResult {
         match self {
             EatU8Parser::Predict { mask, parse_data } => ParseResult::new(mask.clone(), None),
             EatU8Parser::Match { parse_data } => ParseResult::new(U8Set::none(), Some(parse_data.clone())),
@@ -33,7 +33,7 @@ impl Parser for EatU8Parser {
         }
     }
 
-    fn step(&mut self, c: u8) {
+    fn _step(&mut self, c: u8) {
         *self = match self {
             EatU8Parser::Predict { mask, parse_data } => {
                 if mask.contains(c) {

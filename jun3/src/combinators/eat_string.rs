@@ -15,7 +15,7 @@ pub enum EatStringParser {
 impl Combinator for EatString {
     type Parser = EatStringParser;
 
-    fn parser(&self, parse_data: ParseData) -> Self::Parser {
+    fn _parser(&self, parse_data: ParseData) -> Self::Parser {
         EatStringParser::Predict {
             string: self.string.clone(),
             pos: 0,
@@ -25,7 +25,7 @@ impl Combinator for EatString {
 }
 
 impl Parser for EatStringParser {
-    fn result(&self) -> ParseResult {
+    fn _result(&self) -> ParseResult {
         match self {
             EatStringParser::Predict { string, pos, .. } => ParseResult::new(U8Set::from_u8(string[*pos]), None),
             EatStringParser::Match { parse_data } => ParseResult::new(U8Set::none(), Some(parse_data.clone())),
@@ -34,7 +34,7 @@ impl Parser for EatStringParser {
         }
     }
 
-    fn step(&mut self, c: u8) {
+    fn _step(&mut self, c: u8) {
         match self {
             EatStringParser::Predict { string, pos, parse_data } => {
                 if string[*pos] == c {
