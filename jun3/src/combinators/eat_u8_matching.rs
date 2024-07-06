@@ -22,9 +22,9 @@ impl Combinator for EatU8 {
 }
 
 impl Parser for Option<EatU8Parser> {
-    fn step(&mut self, c: u8) -> Result<ParseResult, String> {
+    fn step(&mut self, c: u8) -> ParseResult {
         let EatU8Parser { mask, parse_data } = self.take().expect("EatU8Parser::exhausted");
-        Ok(ParseResult::new(U8Set::none(), mask.contains(c).then(|| parse_data.clone())))
+        ParseResult::new(U8Set::none(), mask.contains(c).then(|| parse_data.clone()))
     }
 }
 
