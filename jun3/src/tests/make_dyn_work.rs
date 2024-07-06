@@ -7,7 +7,7 @@ trait AssocTrait {
 }
 
 trait Trait {
-    type Assoc: AssocTrait + ?Sized;
+    type Assoc: AssocTrait;
     fn get_assoc(&self) -> &Self::Assoc;
 }
 
@@ -23,10 +23,7 @@ impl ForwardRef {
     }
 
     // Fill the inner field with the value.
-    fn set<T>(&self, value: T)
-    where
-        T: Trait<Assoc = dyn AssocTrait> + 'static,
-    {
+    fn set<T: Trait<Assoc = Assoc>, Assoc: AssocTrait>(&self, value: T) {
         *self.inner.borrow_mut() = Some(Box::new(value));
     }
 }
@@ -41,27 +38,18 @@ impl Trait for ForwardRef {
 struct Subtract1<T> {
     inner: T,
 }
-
-struct Subtract1Assoc<T: ?Sized> {
+struct Subtract1Assoc<T> {
     inner: T,
 }
 
-impl<T> Trait for Subtract1<T>
-where
-    T: Trait<Assoc = dyn AssocTrait>,
-{
-    type Assoc = Subtract1Assoc<T::Assoc>;
+impl<T: Trait<Assoc = Assoc>, Assoc: AssocTrait> Trait for Subtract1<T> {
+    type Assoc = Subtract1Assoc<Assoc>;
     fn get_assoc(&self) -> &Self::Assoc {
-        let inner_assoc: &T::Assoc = self.inner.get_assoc();
-        // We need to box the inner Assoc to handle the dynamically sized type
-        Box::leak(Box::new(Subtract1Assoc { inner: Box::new(inner_assoc) }))
+        &Subtract1Assoc { inner: self.inner.get_assoc() }
     }
 }
 
-impl<Assoc> AssocTrait for Subtract1Assoc<Assoc>
-where
-    Assoc: AssocTrait + ?Sized,
-{
+impl<Assoc: AssocTrait> AssocTrait for Subtract1Assoc<Assoc> {
     fn foo(&self, n: usize) -> usize {
         if n == 0 {
             0
@@ -72,7 +60,7 @@ where
 }
 
 fn main() {
-    let forward_ref = ForwardRef::new();
+    let mut forward_ref = ForwardRef::new();
     let subtract_1 = Subtract1 { inner: forward_ref.clone() };
     forward_ref.set(subtract_1);
     let assoc = forward_ref.get_assoc();
