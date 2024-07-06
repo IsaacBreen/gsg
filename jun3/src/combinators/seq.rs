@@ -1,3 +1,4 @@
+use std::ops::Not;
 use crate::{Combinator, ParseData, Parser, ParseResult};
 
 pub struct Seq2<A, B> {
@@ -33,7 +34,7 @@ where
 
         (Seq2Parser {
             b: self.b.clone(),
-            parser_a: result.u8set.is_empty().then(|| parser_a),
+            parser_a: result.u8set.is_empty().not().then(|| parser_a),
             parsers_b,
         }, result)
     }
