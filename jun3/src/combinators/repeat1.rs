@@ -8,7 +8,6 @@ pub struct Repeat1<A> {
 pub struct Repeat1Parser<A, ParserA> {
     a: A,
     parsers: Vec<ParserA>,
-    result: ParseResult,
 }
 
 impl<A, ParserA> Combinator for Repeat1<A>
@@ -23,7 +22,6 @@ where
         (Repeat1Parser {
             a: self.a.clone(),
             parsers: vec![parser],
-            result: result.clone(),
         }, result)
     }
 }
@@ -34,16 +32,18 @@ where
     ParserA: Parser,
 {
     fn step(&mut self, c: u8) -> ParseResult {
-        self.parsers.retain(|parser| !self.result.u8set.is_empty());
-        for parser in &mut self.parsers {
-            self.result = parser.step(c);
-        }
-        if self.result.parse_data.is_some() {
-            let (parser, result) = self.a.parser(ParseData::default());
+        let mut final_result = ParseResult::empty();
+        self.parsers.retain_mut(|parser| {
+            let mut result = parser.step(c);
+            final_result.merge_assign(result.clone());
+            !result.u8set.is_empty()
+        });
+        if let Some(new_parse_data) = &final_result.parse_data {
+            let (parser, result) = self.a.parser(new_parse_data.clone());
             self.parsers.push(parser);
-            self.result = self.result.clone().merge(result);
+            final_result.merge_assign(result);
         }
-        self.result.clone()
+        final_result
     }
 }
 
