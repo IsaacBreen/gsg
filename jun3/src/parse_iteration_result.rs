@@ -57,7 +57,7 @@ impl ParseResult {
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct FrameStack {
-    frames: Vec<Frame>,
+    pub(crate) frames: Vec<Frame>,
     tree: HashMap<usize, FrameNode>,
     root_id: usize,
     next_id: usize,
