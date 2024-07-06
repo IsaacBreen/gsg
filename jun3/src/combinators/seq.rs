@@ -1,4 +1,4 @@
-use crate::{Combinator, ParseData, Parser, ParseResult, U8Set};
+use crate::{Combinator, ParseData, Parser, ParseResult};
 
 pub struct Seq2<A, B> {
     a: A,
@@ -22,19 +22,18 @@ where
 
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
         let (parser_a, mut result) = self.a.parser(parse_data.clone());
-        let mut parsers_b = Vec::new();
-
-        if let Some(new_parse_data) = &result.parse_data {
-            let (parser_b, result_b) = self.b.parser(new_parse_data.clone());
-            parsers_b.push(parser_b);
-            result.forward_assign(result_b);
-        }
-
-        let parser_a = if result.u8set.is_empty() { None } else { Some(parser_a) };
+        let parsers_b = result.parse_data.clone()
+            .map(|pd| self.b.parser(pd))
+            .map(|(parser_b, result_b)| {
+                result.forward_assign(result_b);
+                parser_b
+            })
+            .into_iter()
+            .collect();
 
         (Seq2Parser {
             b: self.b.clone(),
-            parser_a,
+            parser_a: if result.u8set.is_empty() { None } else { Some(parser_a) },
             parsers_b,
         }, result)
     }

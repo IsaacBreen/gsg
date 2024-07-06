@@ -17,11 +17,17 @@ impl ParseResult {
     }
 
     pub fn empty() -> Self {
-        Self::new(U8Set::none(), None)
+        Self::default()
     }
 
     pub fn u8set(&self) -> &U8Set {
         &self.u8set
+    }
+}
+
+impl Default for ParseResult {
+    fn default() -> Self {
+        Self::new(U8Set::none(), None)
     }
 }
 

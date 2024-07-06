@@ -18,7 +18,7 @@ where
     type Parser = Repeat1Parser<A, ParserA>;
 
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        let (parser, result) = self.a.parser(parse_data.clone());
+        let (parser, result) = self.a.parser(parse_data);
         (Repeat1Parser {
             a: self.a.clone(),
             parsers: vec![parser],

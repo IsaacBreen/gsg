@@ -1,4 +1,4 @@
-use crate::{Combinator, Eps, eps, ParseData, Parser, ParseResult, U8Set};
+use crate::{Combinator, Eps, eps, ParseData, Parser, ParseResult};
 
 pub struct Choice2<A, B> {
     a: A,
@@ -22,19 +22,11 @@ where
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
         let (a, result_a) = self.a.parser(parse_data.clone());
         let (b, result_b) = self.b.parser(parse_data);
-        let mut parser = Choice2Parser {
-            a: Some(a),
-            b: Some(b),
-        };
 
-        if result_a.u8set.is_empty() {
-            parser.a = None;
-        }
-        if result_b.u8set.is_empty() {
-            parser.b = None;
-        }
-
-        (parser, result_a.merge(result_b))
+        (Choice2Parser {
+            a: (!result_a.u8set.is_empty()).then_some(a),
+            b: (!result_b.u8set.is_empty()).then_some(b),
+        }, result_a.merge(result_b))
     }
 }
 
@@ -44,24 +36,23 @@ where
     ParserB: Parser,
 {
     fn step(&mut self, c: u8) -> ParseResult {
-        let mut result = ParseResult::empty();
-
-        if let Some(a) = &mut self.a {
-            result = a.step(c);
-            if result.u8set.is_empty() {
-                self.a = None;
+        fn helper<A: Parser>(maybe_parser: &mut Option<A>, c: u8) -> ParseResult {
+            let mut result_b;
+            if let Some(parser) = maybe_parser {
+                result_b = parser.step(c);
+                if result_b.u8set.is_empty() {
+                    *maybe_parser = None;
+                }
+            } else {
+                result_b = ParseResult::empty();
             }
-        }
+            result_b
+        };
 
-        if let Some(b) = &mut self.b {
-            let result_b = b.step(c);
-            if result_b.u8set.is_empty() {
-                self.b = None;
-            }
-            result = result.merge(result_b);
-        }
+        let result_a = helper(&mut self.a, c);
+        let result_b = helper(&mut self.b, c);
 
-        result
+        result_a.merge(result_b)
     }
 }
 
