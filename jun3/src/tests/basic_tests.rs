@@ -10,7 +10,7 @@ mod tests {
         let combinator = eat_chars("a");
         let (mut parser, result0) = combinator.parser(ParseData::default());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        assert_eq!(parser.step('a' as u8).unwrap(), ParseResult::new(U8Set::none(), Some(ParseData::default())));
     }
 
     #[test]
@@ -18,9 +18,9 @@ mod tests {
         let combinator = eat_string("abc");
         let (mut parser, result0) = combinator.parser(ParseData::default());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("b"), None));
-        assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars("c"), None));
-        assert_eq!(parser.step('c' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        assert_eq!(parser.step('a' as u8).unwrap(), ParseResult::new(U8Set::from_chars("b"), None));
+        assert_eq!(parser.step('b' as u8).unwrap(), ParseResult::new(U8Set::from_chars("c"), None));
+        assert_eq!(parser.step('c' as u8).unwrap(), ParseResult::new(U8Set::none(), Some(ParseData::default())));
     }
 
     #[test]
@@ -28,8 +28,8 @@ mod tests {
         let combinator = seq!(eat_chars("a"), eat_chars("b"));
         let (mut parser, result0) = combinator.parser(ParseData::default());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("b"), None));
-        assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        assert_eq!(parser.step('a' as u8).unwrap(), ParseResult::new(U8Set::from_chars("b"), None));
+        assert_eq!(parser.step('b' as u8).unwrap(), ParseResult::new(U8Set::none(), Some(ParseData::default())));
     }
 
     #[test]
@@ -37,8 +37,8 @@ mod tests {
         let combinator = repeat1(eat_chars("a"));
         let (mut parser, result0) = combinator.parser(ParseData::default());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), Some(ParseData::default())));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), Some(ParseData::default())));
+        assert_eq!(parser.step('a' as u8).unwrap(), ParseResult::new(U8Set::from_chars("a"), Some(ParseData::default())));
+        assert_eq!(parser.step('a' as u8).unwrap(), ParseResult::new(U8Set::from_chars("a"), Some(ParseData::default())));
     }
 
     #[test]
@@ -46,7 +46,7 @@ mod tests {
         let combinator = choice!(eat_chars("a"), eat_chars("b"));
         let (mut parser, result0) = combinator.parser(ParseData::default());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("ab"), None));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars(""), Some(ParseData::default())));
+        assert_eq!(parser.step('a' as u8).unwrap(), ParseResult::new(U8Set::from_chars(""), Some(ParseData::default())));
     }
 
     #[test]
@@ -54,9 +54,9 @@ mod tests {
         let combinator = seq!(choice!(eat_chars("a"), seq!(eat_chars("a"), eat_chars("b"))), eat_chars("c"));
         let (mut parser, result0) = combinator.parser(ParseData::default());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("bc"), None));
-        assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars("c"), None));
-        assert_eq!(parser.step('c' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        assert_eq!(parser.step('a' as u8).unwrap(), ParseResult::new(U8Set::from_chars("bc"), None));
+        assert_eq!(parser.step('b' as u8).unwrap(), ParseResult::new(U8Set::from_chars("c"), None));
+        assert_eq!(parser.step('c' as u8).unwrap(), ParseResult::new(U8Set::none(), Some(ParseData::default())));
     }
 
     #[test]
@@ -64,8 +64,8 @@ mod tests {
         let combinator = seq!(opt(eat_chars("a")), eat_chars("b"));
         let (mut parser, result0) = combinator.parser(ParseData::default());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("ab"), None));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("b"), None));
-        assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        assert_eq!(parser.step('a' as u8).unwrap(), ParseResult::new(U8Set::from_chars("b"), None));
+        assert_eq!(parser.step('b' as u8).unwrap(), ParseResult::new(U8Set::none(), Some(ParseData::default())));
     }
 
     #[test]
@@ -75,8 +75,8 @@ mod tests {
         let combinator = A.clone();
         let (mut parser, result0) = combinator.parser(ParseData::default());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("ab"), None));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("ab"), None));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("ab"), None));
-        assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        assert_eq!(parser.step('a' as u8).unwrap(), ParseResult::new(U8Set::from_chars("ab"), None));
+        assert_eq!(parser.step('a' as u8).unwrap(), ParseResult::new(U8Set::from_chars("ab"), None));
+        assert_eq!(parser.step('b' as u8).unwrap(), ParseResult::new(U8Set::none(), Some(ParseData::default())));
     }
 }

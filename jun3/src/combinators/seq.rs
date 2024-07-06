@@ -1,3 +1,5 @@
+use std::ops::Not;
+
 use crate::{Combinator, ParseData, Parser, ParseResult};
 
 pub struct Seq2<A, B> {
@@ -33,7 +35,7 @@ where
 
         (Seq2Parser {
             b: self.b.clone(),
-            parser_a: result.u8set.is_empty().then(|| parser_a),
+            parser_a: result.u8set.is_empty().not().then(|| parser_a),
             parsers_b,
         }, result)
     }
@@ -45,17 +47,17 @@ where
     ParserA: Parser,
     ParserB: Parser,
 {
-    fn step(&mut self, c: u8) -> ParseResult {
+    fn step(&mut self, c: u8) -> Result<ParseResult, String> {
         let mut results_b = ParseResult::default();
 
         self.parsers_b.retain_mut(|parser_b| {
-            let result_b = parser_b.step(c);
+            let result_b = parser_b.step(c).unwrap();
             results_b.merge_assign(result_b);
             !results_b.u8set.is_empty()
         });
 
         let result_a = if let Some(parser_a) = &mut self.parser_a {
-            let result_a = parser_a.step(c);
+            let result_a = parser_a.step(c).unwrap();
             if result_a.u8set.is_empty() {
                 self.parser_a = None;
             }
@@ -69,7 +71,7 @@ where
             ParseResult::default()
         };
 
-        result_a.forward(results_b)
+        Ok(result_a.forward(results_b))
     }
 }
 
