@@ -1,4 +1,4 @@
-use crate::{Combinator, ParseData, Parser, ParseResult, U8Set};
+use crate::{Combinator, Eps, eps, ParseData, Parser, ParseResult, U8Set};
 
 pub struct Choice2<A, B> {
     a: A,
@@ -73,4 +73,11 @@ macro_rules! choice {
     ($a:expr, $b:expr, $($rest:expr),+) => {
         $crate::combinators::choice2($a, $crate::combinators::choice2($b, $($rest),+))
     };
+}
+
+pub fn opt<A>(a: A) -> Choice2<A, Eps>
+where
+    A: Combinator,
+{
+    choice2(a, eps())
 }
