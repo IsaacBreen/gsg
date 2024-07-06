@@ -1,3 +1,4 @@
+use std::any::Any;
 use crate::{FrameStack, ParseResult};
 
 #[derive(Clone, PartialEq, Debug, Default)]
@@ -11,7 +12,7 @@ impl ParseData {
     }
 }
 
-pub trait Combinator {
+pub trait Combinator where Self: 'static {
     type Parser: Parser;
     fn parser(&self, parse_data: ParseData) -> Self::Parser;
 }

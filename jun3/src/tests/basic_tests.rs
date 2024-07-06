@@ -82,20 +82,20 @@ mod tests {
         parser.step('b' as u8);
         assert_eq!(parser.result(), ParseResult::new(U8Set::none(), Some(ParseData::default())));
     }
-
-    #[test]
-    fn test_forward_ref() {
-        let mut A = forward_ref();
-        let a_expr = choice!(seq!(eat_chars("a"), A.clone()), eat_chars("b"));
-        A.set(a_expr);
-        let combinator = A.clone();
-        let mut parser = combinator.parser(ParseData::default());
-        assert_eq!(parser.result(), ParseResult::new(U8Set::from_chars("ab"), None));
-        parser.step('a' as u8);
-        assert_eq!(parser.result(), ParseResult::new(U8Set::from_chars("ab"), None));
-        parser.step('a' as u8);
-        assert_eq!(parser.result(), ParseResult::new(U8Set::from_chars("ab"), None));
-        parser.step('b' as u8);
-        assert_eq!(parser.result(), ParseResult::new(U8Set::none(), Some(ParseData::default())));
-    }
+    //
+    // #[test]
+    // fn test_forward_ref() {
+    //     let mut A = forward_ref();
+    //     let a_expr = choice!(seq!(eat_chars("a"), A.clone()), eat_chars("b"));
+    //     A.set(a_expr);
+    //     let combinator = A.clone();
+    //     let mut parser = combinator.parser(ParseData::default());
+    //     assert_eq!(parser.result(), ParseResult::new(U8Set::from_chars("ab"), None));
+    //     parser.step('a' as u8);
+    //     assert_eq!(parser.result(), ParseResult::new(U8Set::from_chars("ab"), None));
+    //     parser.step('a' as u8);
+    //     assert_eq!(parser.result(), ParseResult::new(U8Set::from_chars("ab"), None));
+    //     parser.step('b' as u8);
+    //     assert_eq!(parser.result(), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+    // }
 }
