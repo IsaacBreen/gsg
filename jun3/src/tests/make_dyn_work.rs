@@ -18,6 +18,20 @@ impl AssocTrait for Box<dyn AssocTrait> {
     }
 }
 
+struct Wrapper<T>(T);
+
+impl<T, A> Trait for Wrapper<T>
+where
+    T: Trait<Assoc = A>,
+    A: AssocTrait + 'static,
+{
+    type Assoc = Box<dyn AssocTrait>;
+
+    fn get_assoc(&self) -> Self::Assoc {
+        Box::new(self.0.get_assoc())
+    }
+}
+
 // Forward references are useful for recursive definitions.
 #[derive(Clone)]
 struct ForwardRef {
@@ -30,8 +44,13 @@ impl ForwardRef {
     }
 
     // Fill the inner field with the value.
-    fn set<T: Trait<Assoc = Assoc>, Assoc: AssocTrait>(&self, inner: T) {
-        todo!()
+    fn set<T, A>(&self, inner: T)
+    where
+        T: Trait<Assoc=A> + 'static,
+        A: AssocTrait + 'static,
+    {
+        let boxed: Box<dyn Trait<Assoc=Box<dyn AssocTrait>>> = Box::new(Wrapper(inner));
+        *self.inner.borrow_mut() = Some(boxed);
     }
 }
 
@@ -49,8 +68,11 @@ struct Subtract1Assoc<T> {
     inner: T,
 }
 
-impl<T: Trait<Assoc = Assoc>, Assoc: AssocTrait + 'static> Trait for Subtract1<T> {
-    type Assoc = Subtract1Assoc<Assoc>;
+impl<T: Trait> Trait for Subtract1<T>
+where
+    T::Assoc: AssocTrait + 'static,
+{
+    type Assoc = Subtract1Assoc<T::Assoc>;
     fn get_assoc(&self) -> Self::Assoc {
         Subtract1Assoc { inner: self.inner.get_assoc() }
     }
@@ -66,8 +88,9 @@ impl<Assoc: AssocTrait> AssocTrait for Subtract1Assoc<Assoc> {
     }
 }
 
-fn main() {
-    let mut forward_ref = ForwardRef::new();
+#[test]
+fn test() {
+    let forward_ref = ForwardRef::new();
     let subtract_1 = Subtract1 { inner: forward_ref.clone() };
     forward_ref.set(subtract_1);
     let assoc = forward_ref.get_assoc();
