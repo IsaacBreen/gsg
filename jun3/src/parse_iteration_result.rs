@@ -56,59 +56,6 @@ impl ParseResult {
     }
 }
 
-#[derive(Clone, PartialEq, Debug, Eq, Hash)]
-pub enum SignalAtom {
-    Start(usize),
-    End(usize),
-}
-
-#[derive(Clone, PartialEq, Debug, Default)]
-pub struct Signals {
-    // prev id -> (next id, signal atom)
-    pub(crate) signals: HashMap<usize, (usize, SignalAtom)>,
-    finished_signal_ids: Vec<usize>,
-}
-
-impl Signals {
-    pub fn new() -> Self {
-        Self { signals: HashMap::new(), finished_signal_ids: Vec::new() }
-    }
-
-    pub fn push(&mut self, old_id: usize, new_id: usize, signal_atom: SignalAtom) {
-        self.signals.insert(old_id, (new_id, signal_atom));
-    }
-
-    pub fn push_to_many(&mut self, old_ids: Vec<usize>, new_id: usize, signal_atom: SignalAtom) {
-        for old_id in old_ids.iter() {
-            self.signals.insert(*old_id, (new_id, signal_atom.clone()));
-        }
-    }
-
-    pub fn push_to_finished(&mut self, new_id: usize, signal_atom: SignalAtom) {
-        self.push_to_many(self.finished_signal_ids.clone(), new_id, signal_atom);
-        self.finished_signal_ids = vec![new_id];
-    }
-
-    pub fn add_finished(&mut self, id: usize) {
-        self.finished_signal_ids.push(id);
-    }
-
-    pub fn clear_finished(&mut self) {
-        self.finished_signal_ids.clear();
-    }
-
-    pub fn merge(&mut self, other: Self) {
-        for (old_id, (new_id, signal_atom)) in other.signals {
-            assert!(!self.signals.contains_key(&old_id));
-            self.signals.insert(old_id, (new_id, signal_atom));
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.signals.is_empty()
-    }
-}
-
 #[derive(Clone, PartialEq, Debug)]
 pub struct FrameStack {
     frames: Vec<Frame>,
