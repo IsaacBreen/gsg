@@ -4,38 +4,28 @@ pub struct WithNewFrame<A> {
     a: A,
 }
 
-pub struct FrameStackContains<A> {
-    a: A,
-}
-
-pub struct PushToFrame<A> {
-    a: A,
-}
-
-pub struct PopFromFrame<A> {
-    a: A,
-}
-
 pub struct WithNewFrameParser<ParserA> {
     parser: ParserA,
 }
 
-pub struct FrameStackContainsParser<ParserA> {
-    parser: ParserA,
-    frame_stack: FrameStack,
-    values: Vec<u8>,
+
+#[derive(Clone, Copy)]
+pub enum FrameOperationType {
+    Contains,
+    Push,
+    Pop,
 }
 
-pub struct PushToFrameParser<ParserA> {
-    parser: ParserA,
-    frame_stack: FrameStack,
-    values: Vec<u8>,
+pub struct FrameOperation<A> {
+    a: A,
+    operation: FrameOperationType,
 }
 
-pub struct PopFromFrameParser<ParserA> {
+pub struct FrameOperationParser<ParserA> {
     parser: ParserA,
     frame_stack: FrameStack,
     values: Vec<u8>,
+    operation: FrameOperationType,
 }
 
 fn try_pop_frame(result: &mut ParseResult) {
@@ -74,151 +64,87 @@ where
     }
 }
 
-impl<ParserA> FrameStackContainsParser<ParserA> {
-    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
-        let (u8set, is_complete) = self.frame_stack.next_u8_given_contains_u8slice(self.values.clone().as_slice());
-        result.u8set = result.u8set & u8set;
-        if result.parse_data.is_some() && !is_complete {
-            result.parse_data = None;
-        }
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = self.frame_stack.clone();
-            parse_data.frame_stack = Some(frame_stack);
-        }
-        result
-    }
-}
-
-impl<ParserA> PushToFrameParser<ParserA> {
-    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = self.frame_stack.clone();
-            frame_stack.push_name(&self.values);
-            parse_data.frame_stack = Some(frame_stack);
-        }
-        result
-    }
-}
-
-impl<ParserA> PopFromFrameParser<ParserA> {
-    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
-        if !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
-            result = ParseResult::default();
-        }
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = self.frame_stack.clone();
-            frame_stack.pop_name(&self.values);
-            parse_data.frame_stack = Some(frame_stack);
-        }
-        result
-    }
-}
-
-impl<A, ParserA> Combinator for FrameStackContains<A>
+impl<A, ParserA> Combinator for FrameOperation<A>
 where
     A: Combinator<Parser = ParserA>,
     ParserA: Parser,
 {
-    type Parser = FrameStackContainsParser<ParserA>;
+    type Parser = FrameOperationParser<ParserA>;
 
     fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
         let frame_stack = parse_data.frame_stack.take().unwrap();
-        let (a_parser, mut result) = self.a.parser(parse_data.clone());
-        let mut parser = FrameStackContainsParser { parser: a_parser, frame_stack, values: Vec::new() };
-
+        let (parser, mut result) = self.a.parser(parse_data);
+        let mut parser = FrameOperationParser {
+            parser,
+            frame_stack,
+            values: Vec::new(),
+            operation: self.operation,
+        };
         result = parser.helper(result);
         (parser, result)
     }
 }
 
-impl<ParserA> Parser for FrameStackContainsParser<ParserA>
+impl<ParserA> FrameOperationParser<ParserA> {
+    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
+        match self.operation {
+            FrameOperationType::Contains => {
+                let (u8set, is_complete) = self.frame_stack.next_u8_given_contains_u8slice(self.values.clone().as_slice());
+                result.u8set = result.u8set & u8set;
+                if result.parse_data.is_some() && !is_complete {
+                    result.parse_data = None;
+                }
+                if let Some(parse_data) = &mut result.parse_data {
+                    let mut frame_stack = self.frame_stack.clone();
+                    parse_data.frame_stack = Some(frame_stack);
+                }
+            }
+            FrameOperationType::Push => {
+                if let Some(parse_data) = &mut result.parse_data {
+                    let mut frame_stack = self.frame_stack.clone();
+                    frame_stack.push_name(&self.values);
+                    parse_data.frame_stack = Some(frame_stack);
+                }
+            }
+            FrameOperationType::Pop => {
+                if !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
+                    result = ParseResult::default();
+                }
+                if let Some(parse_data) = &mut result.parse_data {
+                    let mut frame_stack = self.frame_stack.clone();
+                    frame_stack.pop_name(&self.values);
+                    parse_data.frame_stack = Some(frame_stack);
+                }
+            }
+        }
+        result
+    }
+}
+
+impl<ParserA> Parser for FrameOperationParser<ParserA>
 where
     ParserA: Parser,
 {
     fn step(&mut self, c: u8) -> ParseResult {
         self.values.push(c);
         let mut result = self.parser.step(c);
-        if !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
-            result = ParseResult::default();
-        }
-
         result = self.helper(result);
         result
     }
-}
-
-impl<A, ParserA> Combinator for PushToFrame<A>
-where
-    A: Combinator<Parser = ParserA>,
-    ParserA: Parser,
-{
-    type Parser = PushToFrameParser<ParserA>;
-
-    fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        let frame_stack = parse_data.frame_stack.take().unwrap();
-        let (a_parser, mut result) = self.a.parser(parse_data.clone());
-        let mut parser = PushToFrameParser { parser: a_parser, frame_stack, values: Vec::new() };
-
-        result = parser.helper(result);
-        (parser, result)
-    }
-}
-
-impl<ParserA> Parser for PushToFrameParser<ParserA>
-where
-    ParserA: Parser,
-{
-    fn step(&mut self, c: u8) -> ParseResult {
-        self.values.push(c);
-        let mut result = self.parser.step(c);
-
-        result = self.helper(result);
-        result
-    }
-}
-
-impl<A, ParserA> Combinator for PopFromFrame<A>
-where
-    A: Combinator<Parser = ParserA>,
-    ParserA: Parser,
-{
-    type Parser = PopFromFrameParser<ParserA>;
-
-    fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        let frame_stack = parse_data.frame_stack.take().unwrap();
-        let (a_parser, mut result) = self.a.parser(parse_data.clone());
-        let mut parser = PopFromFrameParser { parser: a_parser, frame_stack, values: Vec::new() };
-
-        result = parser.helper(result);
-        (parser, result)
-    }
-}
-
-impl<ParserA> Parser for PopFromFrameParser<ParserA>
-where
-    ParserA: Parser,
-{
-    fn step(&mut self, c: u8) -> ParseResult {
-        self.values.push(c);
-        let mut result = self.parser.step(c);
-
-        result = self.helper(result);
-        result
-    }
-}
-
-pub fn frame_stack_contains<A>(a: A) -> FrameStackContains<A> {
-    FrameStackContains { a }
 }
 
 pub fn with_new_frame<A>(a: A) -> WithNewFrame<A> {
     WithNewFrame { a }
 }
 
-pub fn push_to_frame<A>(a: A) -> PushToFrame<A> {
-    PushToFrame { a }
+pub fn frame_stack_contains<A>(a: A) -> FrameOperation<A> {
+    FrameOperation { a, operation: FrameOperationType::Contains }
 }
 
-pub fn pop_from_frame<A>(a: A) -> PopFromFrame<A> {
-    PopFromFrame { a }
+pub fn push_to_frame<A>(a: A) -> FrameOperation<A> {
+    FrameOperation { a, operation: FrameOperationType::Push }
+}
+
+pub fn pop_from_frame<A>(a: A) -> FrameOperation<A> {
+    FrameOperation { a, operation: FrameOperationType::Pop }
 }
