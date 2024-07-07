@@ -1,13 +1,15 @@
 use crate::frame_stack::FrameStack;
+use crate::indent::{IndentTracker, IndentTrackers};
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct ParseData {
     pub(crate) frame_stack: Option<FrameStack>,
+    pub(crate) indent_tracker: Option<IndentTrackers>,
 }
 
 impl ParseData {
     pub fn new(frame_stack: FrameStack) -> Self {
-        Self { frame_stack: Some(frame_stack) }
+        Self { frame_stack: Some(frame_stack), indent_tracker: Some(IndentTrackers::default()) }
     }
 
     pub fn merge(&self, other: Self) -> Self {
@@ -16,6 +18,6 @@ impl ParseData {
             (None, None) => None,
             _ => panic!()
         };
-        Self { frame_stack }
+        Self { frame_stack, indent_tracker: None }
     }
 }
