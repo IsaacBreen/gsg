@@ -64,6 +64,17 @@ where
     }
 }
 
+impl<ParserA> Parser for WithNewFrameParser<ParserA>
+where
+    ParserA: Parser,
+{
+    fn step(&mut self, c: u8) -> ParseResult {
+        let mut result = self.parser.step(c);
+        try_pop_frame(&mut result);
+        result
+    }
+}
+
 impl<A, ParserA> Combinator for FrameStackContains<A>
 where
     A: Combinator<Parser = ParserA>,
@@ -83,55 +94,6 @@ where
             parse_data.frame_stack = Some(frame_stack.clone());
         }
         (FrameStackContainsParser { parser, frame_stack, values: Vec::new() }, result)
-    }
-}
-
-impl<A, ParserA> Combinator for PushToFrame<A>
-where
-    A: Combinator<Parser = ParserA>,
-    ParserA: Parser,
-{
-    type Parser = PushToFrameParser<ParserA>;
-
-    fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        let frame_stack = parse_data.frame_stack.take().unwrap();
-        let (parser, mut result) = self.a.parser(parse_data.clone());
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = frame_stack.clone();
-            frame_stack.push_name(&[]);
-            parse_data.frame_stack = Some(frame_stack);
-        }
-        (PushToFrameParser { parser, frame_stack, values: Vec::new() }, result)
-    }
-}
-
-impl<A, ParserA> Combinator for PopFromFrame<A>
-where
-    A: Combinator<Parser = ParserA>,
-    ParserA: Parser,
-{
-    type Parser = PopFromFrameParser<ParserA>;
-
-    fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        let frame_stack = parse_data.frame_stack.take().unwrap();
-        let (parser, mut result) = self.a.parser(parse_data.clone());
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = frame_stack.clone();
-            frame_stack.pop_name(&[]);
-            parse_data.frame_stack = Some(frame_stack);
-        }
-        (PopFromFrameParser { parser, frame_stack, values: Vec::new() }, result)
-    }
-}
-
-impl<ParserA> Parser for WithNewFrameParser<ParserA>
-where
-    ParserA: Parser,
-{
-    fn step(&mut self, c: u8) -> ParseResult {
-        let mut result = self.parser.step(c);
-        try_pop_frame(&mut result);
-        result
     }
 }
 
@@ -158,6 +120,25 @@ where
     }
 }
 
+impl<A, ParserA> Combinator for PushToFrame<A>
+where
+    A: Combinator<Parser = ParserA>,
+    ParserA: Parser,
+{
+    type Parser = PushToFrameParser<ParserA>;
+
+    fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        let frame_stack = parse_data.frame_stack.take().unwrap();
+        let (parser, mut result) = self.a.parser(parse_data.clone());
+        if let Some(parse_data) = &mut result.parse_data {
+            let mut frame_stack = frame_stack.clone();
+            frame_stack.push_name(&[]);
+            parse_data.frame_stack = Some(frame_stack);
+        }
+        (PushToFrameParser { parser, frame_stack, values: Vec::new() }, result)
+    }
+}
+
 impl<ParserA> Parser for PushToFrameParser<ParserA>
 where
     ParserA: Parser,
@@ -171,6 +152,25 @@ where
             parse_data.frame_stack = Some(frame_stack);
         }
         result
+    }
+}
+
+impl<A, ParserA> Combinator for PopFromFrame<A>
+where
+    A: Combinator<Parser = ParserA>,
+    ParserA: Parser,
+{
+    type Parser = PopFromFrameParser<ParserA>;
+
+    fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        let frame_stack = parse_data.frame_stack.take().unwrap();
+        let (parser, mut result) = self.a.parser(parse_data.clone());
+        if let Some(parse_data) = &mut result.parse_data {
+            let mut frame_stack = frame_stack.clone();
+            frame_stack.pop_name(&[]);
+            parse_data.frame_stack = Some(frame_stack);
+        }
+        (PopFromFrameParser { parser, frame_stack, values: Vec::new() }, result)
     }
 }
 
