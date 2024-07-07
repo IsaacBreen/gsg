@@ -83,16 +83,23 @@ where
 
     fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
         let frame_stack = parse_data.frame_stack.take().unwrap();
-        let (parser, mut result) = self.a.parser(parse_data.clone());
-        let (u8set, is_complete) = frame_stack.next_u8_given_contains_u8slice(&[]);
-        result.u8set = result.u8set & u8set;
-        if result.parse_data.is_some() && !is_complete {
-            result.parse_data = None;
+        let (a_parser, mut result) = self.a.parser(parse_data.clone());
+        let mut parser = FrameStackContainsParser { parser: a_parser, frame_stack, values: Vec::new() };
+
+        fn helper<ParserA>(parser: &mut FrameStackContainsParser<ParserA>, mut result: ParseResult) -> ParseResult {
+            let (u8set, is_complete) = parser.frame_stack.next_u8_given_contains_u8slice(&[]);
+            result.u8set = result.u8set & u8set;
+            if result.parse_data.is_some() && !is_complete {
+                result.parse_data = None;
+            }
+            if let Some(parse_data) = &mut result.parse_data {
+                parse_data.frame_stack = Some(parser.frame_stack.clone());
+            }
+            result
         }
-        if let Some(parse_data) = &mut result.parse_data {
-            parse_data.frame_stack = Some(frame_stack.clone());
-        }
-        (FrameStackContainsParser { parser, frame_stack, values: Vec::new() }, result)
+
+        result = helper(&mut parser, result);
+        (parser, result)
     }
 }
 
@@ -106,14 +113,20 @@ where
         if !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
             result = ParseResult::default();
         }
-        let (u8set, is_complete) = self.frame_stack.next_u8_given_contains_u8slice(self.values.clone().as_slice());
-        result.u8set = result.u8set & u8set;
-        if result.parse_data.is_some() && !is_complete {
-            result.parse_data = None;
+
+        fn helper<ParserA>(parser: &mut FrameStackContainsParser<ParserA>, mut result: ParseResult) -> ParseResult {
+            let (u8set, is_complete) = parser.frame_stack.next_u8_given_contains_u8slice(parser.values.clone().as_slice());
+            result.u8set = result.u8set & u8set;
+            if result.parse_data.is_some() && !is_complete {
+                result.parse_data = None;
+            }
+            if let Some(parse_data) = &mut result.parse_data {
+                parse_data.frame_stack = Some(parser.frame_stack.clone());
+            }
+            result
         }
-        if let Some(parse_data) = &mut result.parse_data {
-            parse_data.frame_stack = Some(self.frame_stack.clone());
-        }
+
+        result = helper(self, result);
         result
     }
 }
@@ -127,13 +140,20 @@ where
 
     fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
         let frame_stack = parse_data.frame_stack.take().unwrap();
-        let (parser, mut result) = self.a.parser(parse_data.clone());
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = frame_stack.clone();
-            frame_stack.push_name(&[]);
-            parse_data.frame_stack = Some(frame_stack);
+        let (a_parser, mut result) = self.a.parser(parse_data.clone());
+        let mut parser = PushToFrameParser { parser: a_parser, frame_stack, values: Vec::new() };
+
+        fn helper<ParserA>(parser: &mut PushToFrameParser<ParserA>, mut result: ParseResult) -> ParseResult {
+            if let Some(parse_data) = &mut result.parse_data {
+                let mut frame_stack = parser.frame_stack.clone();
+                frame_stack.push_name(&[]);
+                parse_data.frame_stack = Some(frame_stack);
+            }
+            result
         }
-        (PushToFrameParser { parser, frame_stack, values: Vec::new() }, result)
+
+        result = helper(&mut parser, result);
+        (parser, result)
     }
 }
 
@@ -144,11 +164,17 @@ where
     fn step(&mut self, c: u8) -> ParseResult {
         self.values.push(c);
         let mut result = self.parser.step(c);
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = self.frame_stack.clone();
-            frame_stack.push_name(&self.values);
-            parse_data.frame_stack = Some(frame_stack);
+
+        fn helper<ParserA>(parser: &mut PushToFrameParser<ParserA>, mut result: ParseResult) -> ParseResult {
+            if let Some(parse_data) = &mut result.parse_data {
+                let mut frame_stack = parser.frame_stack.clone();
+                frame_stack.push_name(&parser.values);
+                parse_data.frame_stack = Some(frame_stack);
+            }
+            result
         }
+
+        result = helper(self, result);
         result
     }
 }
@@ -162,13 +188,23 @@ where
 
     fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
         let frame_stack = parse_data.frame_stack.take().unwrap();
-        let (parser, mut result) = self.a.parser(parse_data.clone());
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = frame_stack.clone();
-            frame_stack.pop_name(&[]);
-            parse_data.frame_stack = Some(frame_stack);
+        let (a_parser, mut result) = self.a.parser(parse_data.clone());
+        let mut parser = PopFromFrameParser { parser: a_parser, frame_stack, values: Vec::new() };
+
+        fn helper<ParserA>(parser: &mut PopFromFrameParser<ParserA>, mut result: ParseResult) -> ParseResult {
+            if !parser.frame_stack.contains_prefix_u8vec(parser.values.clone()) {
+                result = ParseResult::default();
+            }
+            if let Some(parse_data) = &mut result.parse_data {
+                let mut frame_stack = parser.frame_stack.clone();
+                frame_stack.pop_name(&[]);
+                parse_data.frame_stack = Some(frame_stack);
+            }
+            result
         }
-        (PopFromFrameParser { parser, frame_stack, values: Vec::new() }, result)
+
+        result = helper(&mut parser, result);
+        (parser, result)
     }
 }
 
@@ -179,14 +215,20 @@ where
     fn step(&mut self, c: u8) -> ParseResult {
         self.values.push(c);
         let mut result = self.parser.step(c);
-        if !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
-            result = ParseResult::default();
+
+        fn helper<ParserA>(parser: &mut PopFromFrameParser<ParserA>, mut result: ParseResult) -> ParseResult {
+            if !parser.frame_stack.contains_prefix_u8vec(parser.values.clone()) {
+                result = ParseResult::default();
+            }
+            if let Some(parse_data) = &mut result.parse_data {
+                let mut frame_stack = parser.frame_stack.clone();
+                frame_stack.pop_name(&parser.values);
+                parse_data.frame_stack = Some(frame_stack);
+            }
+            result
         }
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = self.frame_stack.clone();
-            frame_stack.pop_name(&self.values);
-            parse_data.frame_stack = Some(frame_stack);
-        }
+
+        result = helper(self, result);
         result
     }
 }
