@@ -83,6 +83,17 @@ where
     }
 }
 
+impl<ParserA> Parser for FrameOperationParser<ParserA>
+where
+    ParserA: Parser,
+{
+    fn step(&mut self, c: u8) -> ParseResult {
+        self.values.push(c);
+        let result = self.parser.step(c);
+        self.helper(result)
+    }
+}
+
 impl<ParserA> FrameOperationParser<ParserA> {
     fn helper(&mut self, mut result: ParseResult) -> ParseResult {
         if matches!(self.operation, FrameOperationType::Contains | FrameOperationType::Pop) && !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
@@ -105,17 +116,6 @@ impl<ParserA> FrameOperationParser<ParserA> {
             parse_data.frame_stack = Some(frame_stack);
         }
         result
-    }
-}
-
-impl<ParserA> Parser for FrameOperationParser<ParserA>
-where
-    ParserA: Parser,
-{
-    fn step(&mut self, c: u8) -> ParseResult {
-        self.values.push(c);
-        let result = self.parser.step(c);
-        self.helper(result)
     }
 }
 
