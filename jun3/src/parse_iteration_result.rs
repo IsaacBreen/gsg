@@ -69,12 +69,12 @@ impl Default for FrameStack {
         let root_id = 0;
         let mut tree = HashMap::new();
         tree.insert(root_id, FrameNode {
-            frame: root_frame,
+            frame: root_frame.clone(),
             parent_ids: Vec::new(),
             child_ids: Vec::new(),
         });
         Self {
-            frames: vec![Frame::default()],
+            frames: vec![root_frame],
             tree,
             root_id,
             next_id: 1,
@@ -141,7 +141,7 @@ impl Frame {
     pub fn pop_name(&mut self, name: &[u8]) {
         let name: &str = std::str::from_utf8(name).unwrap();
         assert!(self.contains(&name));
-        self.pos.remove(&name.to_string());
+        self.pos.remove(name);
     }
 }
 
@@ -187,7 +187,7 @@ impl FrameStack {
     }
 
     pub fn contains_prefix_u8vec(&self, name_prefix: &[u8]) -> bool {
-        self.contains_prefix_str(std::str::from_utf8(&name_prefix).unwrap())
+        self.contains_prefix_str(std::str::from_utf8(name_prefix).unwrap())
     }
 
     pub fn excludes_prefix_u8vec(&self, name_prefix: &[u8]) -> bool {
@@ -202,7 +202,7 @@ impl FrameStack {
         let new_id = self.next_id;
         self.next_id += 1;
 
-        let parent_id = *self.tree.keys().max().unwrap();
+        let parent_id = self.frames.len() - 1;
         self.tree.get_mut(&parent_id).unwrap().child_ids.push(new_id);
 
         self.tree.insert(new_id, FrameNode {
@@ -227,14 +227,23 @@ impl FrameStack {
     }
 
     pub fn pop(&mut self) {
-        self.frames.pop();
+        if let Some(last_frame) = self.frames.pop() {
+            let frame_id = self.frames.len();
+            self.tree.remove(&frame_id);
+
+            if let Some(parent_id) = self.tree.get(&frame_id).and_then(|node| node.parent_ids.first().cloned()) {
+                if let Some(parent_node) = self.tree.get_mut(&parent_id) {
+                    parent_node.child_ids.retain(|&id| id != frame_id);
+                }
+            }
+        }
     }
 
     pub fn filter(&mut self, predicate: impl Fn(&Frame) -> bool) {
         let mut to_remove = Vec::new();
         let mut to_keep = Vec::new();
 
-        for (id, node) in self.tree.iter() {
+        for (id, node) in &self.tree {
             if predicate(&node.frame) {
                 to_keep.push(*id);
             } else {
@@ -285,7 +294,6 @@ impl BitOr for FrameStack {
     type Output = FrameStack;
 
     fn bitor(self, other: Self) -> FrameStack {
-        // Merge the trees
         let mut new_tree = self.tree.clone();
         let mut id_map = HashMap::new();
 
@@ -300,7 +308,6 @@ impl BitOr for FrameStack {
             new_tree.insert(new_id, new_node);
         }
 
-        // Merge the frames
         let new_frames = self.frames.iter()
             .zip(other.frames.iter())
             .map(|(f1, f2)| f1.clone() | f2.clone())

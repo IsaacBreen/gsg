@@ -2,6 +2,7 @@
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
     use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, FrameStack, opt, ParseData, ParseResult, push_to_frame, repeat1, seq, U8Set, with_new_frame};
     use crate::combinator::*;
     use crate::pop_from_frame;
@@ -158,6 +159,6 @@ mod tests {
         assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars(";"), None));
         assert_eq!(parser.step(';' as u8), ParseResult::new(U8Set::from_chars("a"), None));
         assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("}"), None));
-        assert_eq!(parser.step('}' as u8), ParseResult::new(U8Set::none(), Some(parse_data.clone())));
+        assert_matches!(parser.step('}' as u8), ParseResult { u8set, parse_data: Some(_) } if u8set == U8Set::none());
     }
 }
