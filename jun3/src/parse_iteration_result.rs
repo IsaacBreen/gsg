@@ -186,7 +186,7 @@ impl FrameStack {
         (result_set, is_complete)
     }
 
-    pub fn contains_prefix_u8vec(&self, name_prefix: Vec<u8>) -> bool {
+    pub fn contains_prefix_u8vec(&self, name_prefix: &[u8]) -> bool {
         self.contains_prefix_str(std::str::from_utf8(&name_prefix).unwrap())
     }
 

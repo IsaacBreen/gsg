@@ -96,11 +96,11 @@ where
 
 impl<ParserA> FrameOperationParser<ParserA> {
     fn helper(&mut self, mut result: ParseResult) -> ParseResult {
-        if matches!(self.operation, FrameOperationType::Contains | FrameOperationType::Pop) && !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
+        if matches!(self.operation, FrameOperationType::Contains | FrameOperationType::Pop) && !self.frame_stack.contains_prefix_u8vec(self.values.as_slice()) {
             result = ParseResult::default();
         }
         if matches!(self.operation, FrameOperationType::Contains) {
-            let (u8set, is_complete) = self.frame_stack.next_u8_given_contains_u8slice(self.values.clone().as_slice());
+            let (u8set, is_complete) = self.frame_stack.next_u8_given_contains_u8slice(self.values.as_slice());
             result.u8set = result.u8set & u8set;
             if result.parse_data.is_some() && !is_complete {
                 result.parse_data = None;
