@@ -113,8 +113,7 @@ where
             result.parse_data = None;
         }
         if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = self.frame_stack.clone();
-            parse_data.frame_stack = Some(frame_stack);
+            parse_data.frame_stack = Some(self.frame_stack.clone());
         }
         result
     }
