@@ -114,9 +114,8 @@ where
 {
     fn step(&mut self, c: u8) -> ParseResult {
         self.values.push(c);
-        let mut result = self.parser.step(c);
-        result = self.helper(result);
-        result
+        let result = self.parser.step(c);
+        self.helper(result)
     }
 }
 
