@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, FrameStack, opt, ParseData, ParseResult, push_to_frame, repeat1, seq, U8Set};
+    use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, FrameStack, opt, ParseData, ParseResult, push_to_frame, repeat1, seq, U8Set, with_new_frame};
     use crate::combinator::*;
     use crate::pop_from_frame;
 
@@ -135,5 +135,29 @@ mod tests {
         // 3. the pop_from_frame parser pops the "a" from the frame stack.
         assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), None));
         // 4. eat_chars("a") says the next character is "a", but the frame stack is empty, so it doesn't allow anything, and parsing fails.
+    }
+
+    #[test]
+    fn test_frame_stack_push_empty_frame() {
+        let mut frame_stack = FrameStack::default();
+        let parse_data = ParseData::new(frame_stack.clone());
+        // Simulate declaring a new scope with curly braces, defining a variable, and then using it.
+        let combinator = seq!(
+            eat_chars("{"),
+            with_new_frame(seq!(
+                    push_to_frame(eat_chars("a")), eat_chars("="), eat_chars("b"), eat_chars(";"),
+                    frame_stack_contains(eat_chars("a")),
+            )),
+            eat_chars("}")
+        );
+        let (mut parser, result0) = combinator.parser(parse_data.clone());
+        assert_eq!(result0, ParseResult::new(U8Set::from_chars("{"), None));
+        assert_eq!(parser.step('{' as u8), ParseResult::new(U8Set::from_chars("a"), None));
+        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("="), None));
+        assert_eq!(parser.step('=' as u8), ParseResult::new(U8Set::from_chars("b"), None));
+        assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars(";"), None));
+        assert_eq!(parser.step(';' as u8), ParseResult::new(U8Set::from_chars("a"), None));
+        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("}"), None));
+        assert_eq!(parser.step('}' as u8), ParseResult::new(U8Set::none(), Some(parse_data.clone())));
     }
 }
