@@ -5,7 +5,7 @@ pub trait Combinator where Self: 'static {
     type Parser: Parser;
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult);
     fn to_dyn_box(self) -> Box<dyn Combinator<Parser=Box<dyn Parser>>> where Self: Sized {
-        Box::new(Wrapper(self))
+        Box::new(DynWrapper(self))
     }
 }
 
@@ -19,9 +19,9 @@ impl Parser for Box<dyn Parser> {
     }
 }
 
-struct Wrapper<T>(T);
+struct DynWrapper<T>(T);
 
-impl<T, P> Combinator for Wrapper<T>
+impl<T, P> Combinator for DynWrapper<T>
 where
     T: Combinator<Parser = P>,
     P: Parser + 'static,
