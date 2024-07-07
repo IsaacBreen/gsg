@@ -1,4 +1,4 @@
-use crate::FrameStack;
+use crate::frame_stack::FrameStack;
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct ParseData {

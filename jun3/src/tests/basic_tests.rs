@@ -2,9 +2,9 @@
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
-    use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, FrameStack, opt, ParseData, ParseResult, push_to_frame, repeat1, seq, U8Set, with_new_frame};
+    use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, opt, ParseData, ParseResult, push_to_frame, repeat1, seq, U8Set, with_new_frame};
     use crate::combinator::*;
+    use crate::frame_stack::FrameStack;
     use crate::pop_from_frame;
 
     #[test]

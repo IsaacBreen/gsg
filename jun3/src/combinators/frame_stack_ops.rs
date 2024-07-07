@@ -1,4 +1,5 @@
-use crate::{Combinator, FrameStack, ParseData, Parser, ParseResult};
+use crate::{Combinator, ParseData, Parser, ParseResult};
+use crate::frame_stack::FrameStack;
 
 pub struct WithNewFrame<A> {
     a: A,
