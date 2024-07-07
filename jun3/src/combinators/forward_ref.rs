@@ -23,26 +23,6 @@ pub fn forward_ref() -> ForwardRef {
 
 impl ForwardRef {
     pub fn set<A: Combinator<Parser = P> + 'static, P: Parser + 'static>(&mut self, a: A) {
-        let boxed = to_dyn_box(a);
-        *self.a.borrow_mut() = Some(boxed.into());
+        *self.a.borrow_mut() = Some(a.to_dyn_box().into());
     }
-}
-
-struct Wrapper<T>(T);
-
-impl<T, P> Combinator for Wrapper<T>
-where
-    T: Combinator<Parser = P>,
-    P: Parser + 'static,
-{
-    type Parser = Box<dyn Parser>;
-
-    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        let (parser, result) = self.0.parser(parse_data);
-        (Box::new(parser), result)
-    }
-}
-
-fn to_dyn_box<A: Combinator<Parser = P>, P: Parser + 'static>(a: A) -> Box<dyn Combinator<Parser=Box<dyn Parser>>> {
-    Box::new(Wrapper(a))
 }
