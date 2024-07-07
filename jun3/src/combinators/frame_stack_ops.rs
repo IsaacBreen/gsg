@@ -82,7 +82,33 @@ impl<ParserA> FrameStackContainsParser<ParserA> {
             result.parse_data = None;
         }
         if let Some(parse_data) = &mut result.parse_data {
-            parse_data.frame_stack = Some(self.frame_stack.clone());
+            let mut frame_stack = self.frame_stack.clone();
+            parse_data.frame_stack = Some(frame_stack);
+        }
+        result
+    }
+}
+
+impl<ParserA> PushToFrameParser<ParserA> {
+    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
+        if let Some(parse_data) = &mut result.parse_data {
+            let mut frame_stack = self.frame_stack.clone();
+            frame_stack.push_name(&self.values);
+            parse_data.frame_stack = Some(frame_stack);
+        }
+        result
+    }
+}
+
+impl<ParserA> PopFromFrameParser<ParserA> {
+    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
+        if !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
+            result = ParseResult::default();
+        }
+        if let Some(parse_data) = &mut result.parse_data {
+            let mut frame_stack = self.frame_stack.clone();
+            frame_stack.pop_name(&self.values);
+            parse_data.frame_stack = Some(frame_stack);
         }
         result
     }
@@ -121,17 +147,6 @@ where
     }
 }
 
-impl<ParserA> PushToFrameParser<ParserA> {
-    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = self.frame_stack.clone();
-            frame_stack.push_name(&self.values);
-            parse_data.frame_stack = Some(frame_stack);
-        }
-        result
-    }
-}
-
 impl<A, ParserA> Combinator for PushToFrame<A>
 where
     A: Combinator<Parser = ParserA>,
@@ -158,20 +173,6 @@ where
         let mut result = self.parser.step(c);
 
         result = self.helper(result);
-        result
-    }
-}
-
-impl<ParserA> PopFromFrameParser<ParserA> {
-    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
-        if !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
-            result = ParseResult::default();
-        }
-        if let Some(parse_data) = &mut result.parse_data {
-            let mut frame_stack = self.frame_stack.clone();
-            frame_stack.pop_name(&self.values);
-            parse_data.frame_stack = Some(frame_stack);
-        }
         result
     }
 }
