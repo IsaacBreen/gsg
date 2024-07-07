@@ -149,7 +149,8 @@ mod tests {
                     push_to_frame(eat_chars("a")), eat_chars("="), eat_chars("b"), eat_chars(";"),
                     frame_stack_contains(eat_chars("a")),
             )),
-            eat_chars("}")
+            eat_chars("}"),
+            frame_stack_contains(eat_chars("a")),
         );
         let (mut parser, result0) = combinator.parser(parse_data.clone());
         assert_eq!(result0, ParseResult::new(U8Set::from_chars("{"), None));
@@ -159,6 +160,7 @@ mod tests {
         assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars(";"), None));
         assert_eq!(parser.step(';' as u8), ParseResult::new(U8Set::from_chars("a"), None));
         assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("}"), None));
-        assert_matches!(parser.step('}' as u8), ParseResult { u8set, parse_data: Some(_) } if u8set == U8Set::none());
+        assert_eq!(parser.step('}' as u8), ParseResult::new(U8Set::none(), None));
+        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), None));
     }
 }
