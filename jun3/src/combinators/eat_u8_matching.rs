@@ -17,7 +17,7 @@ impl Combinator for EatU8 {
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
         (Some(EatU8Parser {
             mask: self.mask.clone(),
-            parse_data: parse_data,
+            parse_data,
         }), ParseResult::new(self.mask.clone(), None))
     }
 }
