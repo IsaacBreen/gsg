@@ -82,10 +82,10 @@ pub fn seq2<A, B>(a: A, b: B) -> Seq2<A, B> {
 
 #[macro_export]
 macro_rules! seq {
-    ($a:expr, $b:expr) => {
-        $crate::combinators::seq2($a, $b)
+    ($a:expr $(,)?) => {
+        $a
     };
-    ($a:expr, $b:expr, $($rest:expr),+) => {
-        $crate::combinators::seq2($a, $crate::combinators::seq2($b, $($rest),+))
+    ($a:expr, $($rest:expr),+ $(,)?) => {
+        $crate::combinators::seq2($a, $crate::seq!($($rest),+))
     };
 }

@@ -1,4 +1,4 @@
-use crate::{Combinator, FrameStack, ParseData, Parser, ParseResult};
+use crate::{Combinator, FrameStack, ParseData, Parser, ParseResult, U8Set};
 
 pub struct WithNewFrame<A> {
     a: A,
@@ -10,6 +10,7 @@ pub struct FrameStackContains<A> {
 
 pub struct PushToFrame<A> {
     a: A,
+    overwrite: bool,
 }
 
 pub struct PopFromFrame<A> {
@@ -94,8 +95,12 @@ where
 
     fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
         let frame_stack = parse_data.frame_stack.take().unwrap();
-        let (parser, result) = self.a.parser(parse_data.clone());
-        assert!(result.parse_data.is_none());
+        let (parser, mut result) = self.a.parser(parse_data.clone());
+        if let Some(parse_data) = &mut result.parse_data {
+            let mut frame_stack = frame_stack.clone();
+            frame_stack.push_name(&[]);
+            parse_data.frame_stack = Some(frame_stack);
+        }
         (PushToFrameParser { parser, frame_stack, values: Vec::new() }, result)
     }
 }
@@ -107,10 +112,15 @@ where
 {
     type Parser = PopFromFrameParser<ParserA>;
 
-    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        let (parser, result) = self.a.parser(parse_data.clone());
-        assert!(result.parse_data.is_none());
-        (PopFromFrameParser { parser, frame_stack: parse_data.frame_stack.unwrap(), values: Vec::new() }, result)
+    fn parser(&self, mut parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        let frame_stack = parse_data.frame_stack.take().unwrap();
+        let (parser, mut result) = self.a.parser(parse_data.clone());
+        if let Some(parse_data) = &mut result.parse_data {
+            let mut frame_stack = frame_stack.clone();
+            frame_stack.pop_name(&[]);
+            parse_data.frame_stack = Some(frame_stack);
+        }
+        (PopFromFrameParser { parser, frame_stack, values: Vec::new() }, result)
     }
 }
 
@@ -141,7 +151,8 @@ where
             result.parse_data = None;
         }
         if let Some(parse_data) = &mut result.parse_data {
-            parse_data.frame_stack = Some(self.frame_stack.clone());
+            let mut frame_stack = self.frame_stack.clone();
+            parse_data.frame_stack = Some(frame_stack);
         }
         result
     }
@@ -154,10 +165,10 @@ where
     fn step(&mut self, c: u8) -> ParseResult {
         self.values.push(c);
         let mut result = self.parser.step(c);
-        if result.parse_data.is_some() {
+        if let Some(parse_data) = &mut result.parse_data {
             let mut frame_stack = self.frame_stack.clone();
             frame_stack.push_name(&self.values);
-            result.parse_data.as_mut().unwrap().frame_stack = Some(frame_stack);
+            parse_data.frame_stack = Some(frame_stack);
         }
         result
     }
@@ -169,8 +180,15 @@ where
 {
     fn step(&mut self, c: u8) -> ParseResult {
         self.values.push(c);
-        let result = self.parser.step(c);
-        self.frame_stack.pop_name(&self.values);
+        let mut result = self.parser.step(c);
+        if !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
+            result = ParseResult::default();
+        }
+        if let Some(parse_data) = &mut result.parse_data {
+            let mut frame_stack = self.frame_stack.clone();
+            frame_stack.pop_name(&self.values);
+            parse_data.frame_stack = Some(frame_stack);
+        }
         result
     }
 }
@@ -184,7 +202,11 @@ pub fn with_new_frame<A>(a: A) -> WithNewFrame<A> {
 }
 
 pub fn push_to_frame<A>(a: A) -> PushToFrame<A> {
-    PushToFrame { a }
+    PushToFrame { a, overwrite: false }
+}
+
+pub fn push_to_frame_overwrite<A>(a: A) -> PushToFrame<A> {
+    PushToFrame { a, overwrite: true }
 }
 
 pub fn pop_from_frame<A>(a: A) -> PopFromFrame<A> {
