@@ -23,6 +23,6 @@ pub fn forward_ref() -> ForwardRef {
 
 impl ForwardRef {
     pub fn set<A: Combinator<Parser = P> + 'static, P: Parser + 'static>(&mut self, a: A) {
-        *self.a.borrow_mut() = Some(a.to_dyn_box().into());
+        *self.a.borrow_mut() = Some(a.into_boxed().into());
     }
 }

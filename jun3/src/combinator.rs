@@ -4,7 +4,7 @@ use crate::ParseResult;
 pub trait Combinator where Self: 'static {
     type Parser: Parser;
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult);
-    fn to_dyn_box(self) -> Box<dyn Combinator<Parser=Box<dyn Parser>>> where Self: Sized {
+    fn into_boxed(self) -> Box<dyn Combinator<Parser=Box<dyn Parser>>> where Self: Sized {
         Box::new(DynWrapper(self))
     }
 }
@@ -40,7 +40,7 @@ where
     P: Parser + 'static
 {
     fn from(a: A) -> Self {
-        a.to_dyn_box()
+        a.into_boxed()
     }
 
 }
