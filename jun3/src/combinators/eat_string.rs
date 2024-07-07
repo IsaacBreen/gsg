@@ -16,19 +16,16 @@ impl Combinator for EatString {
     type Parser = EatStringParser;
 
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        if self.string.is_empty() {
-            (EatStringParser {
-                string: self.string.clone(),
-                pos: 0,
-                parse_data: parse_data.clone(),
-            }, ParseResult::new(U8Set::none(), Some(parse_data)))
+        let result = if self.string.is_empty() {
+            ParseResult::new(U8Set::none(), Some(parse_data.clone()))
         } else {
-            (EatStringParser {
-                string: self.string.clone(),
-                pos: 0,
-                parse_data,
-            }, ParseResult::new(U8Set::from_u8(self.string[0]), None))
-        }
+            ParseResult::new(U8Set::from_u8(self.string[0]), None)
+        };
+        (EatStringParser {
+            string: self.string.clone(),
+            pos: 0,
+            parse_data,
+        }, result)
     }
 }
 
