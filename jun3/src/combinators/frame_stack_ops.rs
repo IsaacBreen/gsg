@@ -28,12 +28,13 @@ pub struct FrameOperationParser<ParserA> {
     operation: FrameOperationType,
 }
 
-fn try_pop_frame(result: &mut ParseResult) {
+fn try_pop_frame(mut result: ParseResult) -> ParseResult {
     if let Some(parse_data) = &mut result.parse_data {
         if let Some(frame_stack) = &mut parse_data.frame_stack {
             frame_stack.pop();
         }
     }
+    result
 }
 
 impl<A, ParserA> Combinator for WithNewFrame<A>
@@ -47,9 +48,8 @@ where
         if let Some(frame_stack) = &mut parse_data.frame_stack {
             frame_stack.push_empty_frame();
         }
-        let (parser, mut result) = self.a.parser(parse_data);
-        try_pop_frame(&mut result);
-        (WithNewFrameParser { parser }, result)
+        let (parser, result) = self.a.parser(parse_data);
+        (WithNewFrameParser { parser }, try_pop_frame(result))
     }
 }
 
@@ -58,9 +58,7 @@ where
     ParserA: Parser,
 {
     fn step(&mut self, c: u8) -> ParseResult {
-        let mut result = self.parser.step(c);
-        try_pop_frame(&mut result);
-        result
+        try_pop_frame(self.parser.step(c))
     }
 }
 
