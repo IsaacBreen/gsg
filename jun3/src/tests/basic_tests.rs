@@ -2,9 +2,9 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::pop_from_frame;
-use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, FrameStack, opt, ParseData, ParseResult, push_to_frame, repeat1, seq, U8Set};
+    use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, FrameStack, opt, ParseData, ParseResult, push_to_frame, repeat1, seq, U8Set};
     use crate::combinator::*;
+    use crate::pop_from_frame;
 
     #[test]
     fn test_eat_u8() {

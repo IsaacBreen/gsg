@@ -1,4 +1,4 @@
-use crate::{Combinator, FrameStack, ParseData, Parser, ParseResult, U8Set};
+use crate::{Combinator, FrameStack, ParseData, Parser, ParseResult};
 
 pub struct WithNewFrame<A> {
     a: A,
