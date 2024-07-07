@@ -10,7 +10,6 @@ pub struct FrameStackContains<A> {
 
 pub struct PushToFrame<A> {
     a: A,
-    overwrite: bool,
 }
 
 pub struct PopFromFrame<A> {
@@ -201,11 +200,7 @@ pub fn with_new_frame<A>(a: A) -> WithNewFrame<A> {
 }
 
 pub fn push_to_frame<A>(a: A) -> PushToFrame<A> {
-    PushToFrame { a, overwrite: false }
-}
-
-pub fn push_to_frame_overwrite<A>(a: A) -> PushToFrame<A> {
-    PushToFrame { a, overwrite: true }
+    PushToFrame { a }
 }
 
 pub fn pop_from_frame<A>(a: A) -> PopFromFrame<A> {
