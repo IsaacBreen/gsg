@@ -269,9 +269,3 @@ impl BitOr for FrameStack {
         }
     }
 }
-
-impl Hash for Frame {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.pos.iter().for_each(|name| name.hash(state));
-    }
-}
