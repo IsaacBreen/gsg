@@ -9,35 +9,33 @@ pub struct EatString {
 pub struct EatStringParser {
     string: Vec<u8>,
     pos: usize,
-    parse_data: ParseData,
+    maybe_parse_data: Option<ParseData>,
 }
 
 impl Combinator for EatString {
     type Parser = EatStringParser;
 
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        let mut maybe_parse_data = Some(parse_data);
         let result = if self.string.is_empty() {
-            ParseResult::new(U8Set::none(), Some(parse_data.clone()))
+            ParseResult::new(U8Set::none(), maybe_parse_data.take())
         } else {
             ParseResult::new(U8Set::from_u8(self.string[0]), None)
         };
         (EatStringParser {
             string: self.string.clone(),
             pos: 0,
-            parse_data,
+            maybe_parse_data,
         }, result)
     }
 }
 
 impl Parser for EatStringParser {
     fn step(&mut self, c: u8) -> ParseResult {
-        if self.pos == self.string.len() {
-            return ParseResult::new(U8Set::none(), Some(self.parse_data.clone()));
-        }
-        if self.string[self.pos] == c {
+        if *self.string.get(self.pos).expect("EatStringParser::exhausted") == c {
             self.pos += 1;
             if self.pos == self.string.len() {
-                ParseResult::new(U8Set::none(), Some(self.parse_data.clone()))
+                ParseResult::new(U8Set::none(), self.maybe_parse_data.take())
             } else {
                 ParseResult::new(U8Set::from_u8(self.string[self.pos]), None)
             }
