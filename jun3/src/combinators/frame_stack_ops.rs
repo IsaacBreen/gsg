@@ -94,28 +94,22 @@ impl<ParserA> FrameOperationParser<ParserA> {
                 if result.parse_data.is_some() && !is_complete {
                     result.parse_data = None;
                 }
-                if let Some(parse_data) = &mut result.parse_data {
-                    let mut frame_stack = self.frame_stack.clone();
-                    parse_data.frame_stack = Some(frame_stack);
-                }
             }
-            FrameOperationType::Push => {
-                if let Some(parse_data) = &mut result.parse_data {
-                    let mut frame_stack = self.frame_stack.clone();
-                    frame_stack.push_name(&self.values);
-                    parse_data.frame_stack = Some(frame_stack);
-                }
-            }
+            FrameOperationType::Push => {}
             FrameOperationType::Pop => {
                 if !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
                     result = ParseResult::default();
                 }
-                if let Some(parse_data) = &mut result.parse_data {
-                    let mut frame_stack = self.frame_stack.clone();
-                    frame_stack.pop_name(&self.values);
-                    parse_data.frame_stack = Some(frame_stack);
-                }
             }
+        }
+        if let Some(parse_data) = &mut result.parse_data {
+            let mut frame_stack = self.frame_stack.clone();
+            match self.operation {
+                FrameOperationType::Contains => {}
+                FrameOperationType::Push => { frame_stack.push_name(&self.values); }
+                FrameOperationType::Pop => { frame_stack.pop_name(&self.values); }
+            }
+            parse_data.frame_stack = Some(frame_stack);
         }
         result
     }
