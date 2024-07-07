@@ -74,6 +74,20 @@ where
     }
 }
 
+impl<ParserA> FrameStackContainsParser<ParserA> {
+    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
+        let (u8set, is_complete) = self.frame_stack.next_u8_given_contains_u8slice(self.values.clone().as_slice());
+        result.u8set = result.u8set & u8set;
+        if result.parse_data.is_some() && !is_complete {
+            result.parse_data = None;
+        }
+        if let Some(parse_data) = &mut result.parse_data {
+            parse_data.frame_stack = Some(self.frame_stack.clone());
+        }
+        result
+    }
+}
+
 impl<A, ParserA> Combinator for FrameStackContains<A>
 where
     A: Combinator<Parser = ParserA>,
@@ -86,19 +100,7 @@ where
         let (a_parser, mut result) = self.a.parser(parse_data.clone());
         let mut parser = FrameStackContainsParser { parser: a_parser, frame_stack, values: Vec::new() };
 
-        fn helper<ParserA>(parser: &mut FrameStackContainsParser<ParserA>, mut result: ParseResult) -> ParseResult {
-            let (u8set, is_complete) = parser.frame_stack.next_u8_given_contains_u8slice(&[]);
-            result.u8set = result.u8set & u8set;
-            if result.parse_data.is_some() && !is_complete {
-                result.parse_data = None;
-            }
-            if let Some(parse_data) = &mut result.parse_data {
-                parse_data.frame_stack = Some(parser.frame_stack.clone());
-            }
-            result
-        }
-
-        result = helper(&mut parser, result);
+        result = parser.helper(result);
         (parser, result)
     }
 }
@@ -114,19 +116,18 @@ where
             result = ParseResult::default();
         }
 
-        fn helper<ParserA>(parser: &mut FrameStackContainsParser<ParserA>, mut result: ParseResult) -> ParseResult {
-            let (u8set, is_complete) = parser.frame_stack.next_u8_given_contains_u8slice(parser.values.clone().as_slice());
-            result.u8set = result.u8set & u8set;
-            if result.parse_data.is_some() && !is_complete {
-                result.parse_data = None;
-            }
-            if let Some(parse_data) = &mut result.parse_data {
-                parse_data.frame_stack = Some(parser.frame_stack.clone());
-            }
-            result
-        }
+        result = self.helper(result);
+        result
+    }
+}
 
-        result = helper(self, result);
+impl<ParserA> PushToFrameParser<ParserA> {
+    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
+        if let Some(parse_data) = &mut result.parse_data {
+            let mut frame_stack = self.frame_stack.clone();
+            frame_stack.push_name(&self.values);
+            parse_data.frame_stack = Some(frame_stack);
+        }
         result
     }
 }
@@ -143,16 +144,7 @@ where
         let (a_parser, mut result) = self.a.parser(parse_data.clone());
         let mut parser = PushToFrameParser { parser: a_parser, frame_stack, values: Vec::new() };
 
-        fn helper<ParserA>(parser: &mut PushToFrameParser<ParserA>, mut result: ParseResult) -> ParseResult {
-            if let Some(parse_data) = &mut result.parse_data {
-                let mut frame_stack = parser.frame_stack.clone();
-                frame_stack.push_name(&[]);
-                parse_data.frame_stack = Some(frame_stack);
-            }
-            result
-        }
-
-        result = helper(&mut parser, result);
+        result = parser.helper(result);
         (parser, result)
     }
 }
@@ -165,16 +157,21 @@ where
         self.values.push(c);
         let mut result = self.parser.step(c);
 
-        fn helper<ParserA>(parser: &mut PushToFrameParser<ParserA>, mut result: ParseResult) -> ParseResult {
-            if let Some(parse_data) = &mut result.parse_data {
-                let mut frame_stack = parser.frame_stack.clone();
-                frame_stack.push_name(&parser.values);
-                parse_data.frame_stack = Some(frame_stack);
-            }
-            result
-        }
+        result = self.helper(result);
+        result
+    }
+}
 
-        result = helper(self, result);
+impl<ParserA> PopFromFrameParser<ParserA> {
+    fn helper(&mut self, mut result: ParseResult) -> ParseResult {
+        if !self.frame_stack.contains_prefix_u8vec(self.values.clone()) {
+            result = ParseResult::default();
+        }
+        if let Some(parse_data) = &mut result.parse_data {
+            let mut frame_stack = self.frame_stack.clone();
+            frame_stack.pop_name(&self.values);
+            parse_data.frame_stack = Some(frame_stack);
+        }
         result
     }
 }
@@ -191,19 +188,7 @@ where
         let (a_parser, mut result) = self.a.parser(parse_data.clone());
         let mut parser = PopFromFrameParser { parser: a_parser, frame_stack, values: Vec::new() };
 
-        fn helper<ParserA>(parser: &mut PopFromFrameParser<ParserA>, mut result: ParseResult) -> ParseResult {
-            if !parser.frame_stack.contains_prefix_u8vec(parser.values.clone()) {
-                result = ParseResult::default();
-            }
-            if let Some(parse_data) = &mut result.parse_data {
-                let mut frame_stack = parser.frame_stack.clone();
-                frame_stack.pop_name(&[]);
-                parse_data.frame_stack = Some(frame_stack);
-            }
-            result
-        }
-
-        result = helper(&mut parser, result);
+        result = parser.helper(result);
         (parser, result)
     }
 }
@@ -216,19 +201,7 @@ where
         self.values.push(c);
         let mut result = self.parser.step(c);
 
-        fn helper<ParserA>(parser: &mut PopFromFrameParser<ParserA>, mut result: ParseResult) -> ParseResult {
-            if !parser.frame_stack.contains_prefix_u8vec(parser.values.clone()) {
-                result = ParseResult::default();
-            }
-            if let Some(parse_data) = &mut result.parse_data {
-                let mut frame_stack = parser.frame_stack.clone();
-                frame_stack.pop_name(&parser.values);
-                parse_data.frame_stack = Some(frame_stack);
-            }
-            result
-        }
-
-        result = helper(self, result);
+        result = self.helper(result);
         result
     }
 }
