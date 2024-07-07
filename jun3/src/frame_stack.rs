@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
 use std::ops::BitOr;
+
 use crate::U8Set;
 
 #[derive(Clone, PartialEq, Debug)]
