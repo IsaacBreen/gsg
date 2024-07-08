@@ -1,4 +1,5 @@
-use crate::{Combinator, ParseData, ParseDataExt, Parser, ParseResult};
+use crate::Seq2;
+use crate::{Combinator, ParseData, ParseDataExt, Parser, ParseResult, seq};
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct IndentTrackers {
@@ -54,35 +55,40 @@ impl IndentTracker {
     }
 }
 
-pub struct WithIndent<A> {
-    a: A,
-}
-
-pub struct WithIndentParser<ParserA> {
-    parser: ParserA,
-}
-
+pub struct Indent {}
+pub struct IndentParser {}
+pub struct Dedent {}
+pub struct DedentParser {}
 pub struct Newline {}
 pub struct NewlineParser {}
 
-impl<A, ParserA> Combinator for WithIndent<A>
-where
-    A: Combinator<Parser = ParserA>,
-    ParserA: Parser,
-{
-    type Parser = WithIndentParser<ParserA>;
+impl Combinator for Indent {
+    type Parser = IndentParser;
 
     fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
-        todo!()
+        todo!();
     }
 }
 
-impl<ParserA> Parser for WithIndentParser<ParserA>
-where
-    ParserA: Parser,
-{
+impl Parser for IndentParser {
     fn step(&mut self, c: u8) -> ParseResult {
-        todo!()
+        todo!();
+    }
+}
+
+
+impl Combinator for Dedent {
+    type Parser = DedentParser;
+
+    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        todo!();
+    }
+
+}
+
+impl Parser for DedentParser {
+    fn step(&mut self, c: u8) -> ParseResult {
+        todo!();
     }
 }
 
@@ -100,10 +106,18 @@ impl Parser for NewlineParser {
     }
 }
 
-pub fn with_indent<ParserA>(a: ParserA) -> WithIndent<ParserA> {
-    todo!()
+pub fn newline() -> Newline {
+    Newline {}
 }
 
-pub fn newline() -> Newline {
-    todo!()
+pub fn indent() -> Indent {
+    Indent {}
+}
+
+pub fn dedent() -> Dedent {
+    Dedent {}
+}
+
+pub fn with_indent<ParserA>(a: ParserA) -> Seq2<Indent, Seq2<ParserA, Dedent>> {
+    seq!(indent(), a, dedent())
 }
