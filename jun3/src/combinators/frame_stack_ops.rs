@@ -1,7 +1,7 @@
 use crate::{Combinator, ParseData, Parser, ParseResult};
 use crate::frame_stack::FrameStack;
 
-pub struct WithNewFrame<A> {
+pub struct WithNewFrame<A> where A: Combinator {
     a: A,
 }
 
@@ -120,7 +120,7 @@ impl<ParserA> FrameOperationParser<ParserA> {
     }
 }
 
-pub fn with_new_frame<A>(a: A) -> WithNewFrame<A> {
+pub fn with_new_frame<A: Combinator>(a: A) -> WithNewFrame<A> {
     WithNewFrame { a }
 }
 

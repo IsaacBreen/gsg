@@ -5,7 +5,7 @@ use crate::{Combinator, Parser, ParseResult};
 use crate::parse_data::ParseData;
 
 #[derive(Clone)]
-pub struct ForwardRef {
+pub struct ForwardRef where Self: Combinator {
     a: Rc<RefCell<Option<Rc<dyn Combinator<Parser = Box<dyn Parser>>>>>>,  
 }
 

@@ -251,6 +251,6 @@ pub fn dedent() -> Dedent {
     Dedent {}
 }
 
-pub fn with_indent<ParserA>(a: ParserA) -> Seq2<Indent, Seq2<ParserA, Dedent>> {
+pub fn with_indent<A: Combinator>(a: A) -> Seq2<Indent, Seq2<A, Dedent>> {
     seq!(indent(), a, dedent())
 }

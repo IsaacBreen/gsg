@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::ParseData;
 use crate::ParseResult;
 
@@ -34,13 +35,12 @@ where
     }
 }
 
-impl<A, P> From<A> for Box<dyn Combinator<Parser=Box<dyn Parser>>>
-where
-    A: Combinator<Parser=P>,
-    P: Parser + 'static
-{
-    fn from(a: A) -> Self {
-        a.into_boxed()
-    }
+impl Combinator for Box<dyn Combinator<Parser=Box<dyn Parser>>> {
+    type Parser = Box<dyn Parser>;
 
+    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        (**self).parser(parse_data)
+    }
 }
+
+pub type DynParser = Box<dyn Combinator<Parser=Box<dyn Parser>>>;

@@ -1,7 +1,7 @@
 use crate::{Combinator, ParseData, Parser, ParseResult};
 
 #[derive(Clone)]
-pub struct Repeat1<A> {
+pub struct Repeat1<A> where A: Combinator {
     a: A,
 }
 
@@ -50,6 +50,6 @@ where
     }
 }
 
-pub fn repeat1<A>(a: A) -> Repeat1<A> {
+pub fn repeat1<A: Combinator>(a: A) -> Repeat1<A> {
     Repeat1 { a }
 }

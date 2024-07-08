@@ -1,7 +1,7 @@
-use crate::{Combinator, Eps, eps, Parser, ParseResult};
+use crate::{Combinator, DynParser, Eps, eps, Parser, ParseResult};
 use crate::parse_data::ParseData;
 
-pub struct Choice2<A, B> {
+pub struct Choice2<A, B> where A: Combinator, B: Combinator {
     a: A,
     b: B,
 }
@@ -56,8 +56,26 @@ where
     }
 }
 
-pub fn choice2<A, B>(a: A, b: B) -> Choice2<A, B> {
+pub fn choice2<A: Combinator, B: Combinator>(a: A, b: B) -> Choice2<A, B> {
     Choice2 { a, b }
+}
+
+pub fn choice_vec<A>(mut parsers: Vec<A>) -> DynParser
+where
+    A: Combinator,
+{
+    if parsers.len() == 0 {
+        eps().into_boxed()
+    } else if parsers.len() == 1 {
+        // Take the only one
+        parsers.into_iter().next().unwrap().into_boxed()
+    } else {
+        // Split in two
+        let second = parsers.split_off(parsers.len() / 2);
+        let first = parsers;
+        let x = choice2(choice_vec(first), choice_vec(second));
+        x.into_boxed()
+    }
 }
 
 #[macro_export]

@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::{Combinator, ParseData, Parser, ParseResult};
 
-pub struct Seq2<A, B> {
+pub struct Seq2<A, B> where A: Combinator, B: Combinator {
     a: A,
     b: Rc<B>,
 }
@@ -76,7 +76,7 @@ where
     }
 }
 
-pub fn seq2<A, B>(a: A, b: B) -> Seq2<A, B> {
+pub fn seq2<A: Combinator, B: Combinator>(a: A, b: B) -> Seq2<A, B> {
     Seq2 { a, b: Rc::new(b) }
 }
 
