@@ -6,6 +6,7 @@ pub use forward_ref::*;
 pub use frame_stack_ops::*;
 pub use repeat1::*;
 pub use seq::*;
+pub use indent_ops::*;
 
 mod choice;
 mod eat_string; 

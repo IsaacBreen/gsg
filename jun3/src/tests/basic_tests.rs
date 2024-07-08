@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, opt, ParseData, ParseResult, push_to_frame, repeat1, seq, U8Set, with_new_frame};
+    use crate::{choice, eat_chars, eat_string, forward_ref, frame_stack_contains, newline, opt, ParseData, ParseResult, push_to_frame, repeat1, seq, U8Set, with_indent, with_new_frame};
     use crate::combinator::*;
     use crate::frame_stack::FrameStack;
     use crate::pop_from_frame;
@@ -162,5 +162,29 @@ mod tests {
         assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("}"), None));
         assert_eq!(parser.step('}' as u8), ParseResult::new(U8Set::none(), None));
         assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), None));
+    }
+
+    #[test]
+    fn test_indents() {
+        let mut frame_stack = FrameStack::default();
+        let parse_data = ParseData::new(frame_stack.clone());
+        let combinator = seq!(
+            eat_chars("a"),
+            newline(),
+            with_indent(seq!(
+                eat_chars("b"),
+                newline(),
+            )),
+            eat_chars("c"),
+        );
+        // e.g. "a\n b\nc" should parse, but not "a\nb\nc" or "a\n b\n c".
+        let (mut parser, result0) = combinator.parser(parse_data);
+        assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
+        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("\n"), None));
+        assert_eq!(parser.step('\n' as u8), ParseResult::new(U8Set::from_chars(" "), None));
+        assert_eq!(parser.step(' ' as u8), ParseResult::new(U8Set::from_chars("b"), None));
+        assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars("\n"), None));
+        assert_eq!(parser.step('\n' as u8), ParseResult::new(U8Set::from_chars("c"), None));
+        assert_eq!(parser.step('c' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
     }
 }

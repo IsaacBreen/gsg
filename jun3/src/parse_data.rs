@@ -1,5 +1,5 @@
 use crate::frame_stack::FrameStack;
-use crate::indent::{IndentTracker, IndentTrackers};
+use crate::{IndentTracker, IndentTrackers};
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct ParseData {
@@ -20,4 +20,9 @@ impl ParseData {
         };
         Self { frame_stack, indent_tracker: None }
     }
+}
+
+pub trait ParseDataExt: Default {
+    fn merge(self, other: Self) -> Self;
+    fn forward(self, other: Self) -> Self;
 }
