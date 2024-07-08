@@ -60,6 +60,8 @@ pub struct Dedent {}
 pub struct DedentParser {}
 pub struct Newline {}
 pub struct NewlineParser {}
+pub struct ValidateIndent {}
+pub struct ValidateIndentParser {}
 
 impl Combinator for Indent {
     type Parser = IndentParser;
@@ -99,6 +101,20 @@ impl Combinator for Newline {
 }
 
 impl Parser for NewlineParser {
+    fn step(&mut self, c: u8) -> ParseResult {
+        todo!()
+    }
+}
+
+impl Combinator for ValidateIndent {
+    type Parser = ValidateIndentParser;
+
+    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
+        todo!()
+    }
+}
+
+impl Parser for ValidateIndentParser {
     fn step(&mut self, c: u8) -> ParseResult {
         todo!()
     }
