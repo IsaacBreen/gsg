@@ -121,7 +121,7 @@ def main():
     grammar_text = fetch_grammar(url)
     grammar = parse_grammar(grammar_text)
     grammar_dict = grammar_to_dict(grammar)
-    save_grammar_to_json(grammar_dict, "grammar.json")
+    save_grammar_to_json(grammar_dict, "python_grammar.json")
 
 if __name__ == "__main__":
     main()
