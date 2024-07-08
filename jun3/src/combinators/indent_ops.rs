@@ -44,7 +44,6 @@ impl Default for IndentTracker {
     }
 }
 
-
 impl IndentTracker {
     pub fn push(&mut self) {
         self.indents.push(vec![]);
@@ -75,7 +74,6 @@ impl Parser for IndentParser {
         todo!();
     }
 }
-
 
 impl Combinator for Dedent {
     type Parser = DedentParser;
