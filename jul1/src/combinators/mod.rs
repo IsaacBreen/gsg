@@ -6,7 +6,7 @@ pub use forward_ref::*;
 pub use frame_stack_ops::*;
 pub use repeat1::*;
 pub use seq::*;
-pub use indent_ops::*;
+pub use indent::*;
 pub use brute_force::*;
 
 mod choice;
@@ -17,5 +17,5 @@ mod forward_ref;
 mod repeat1;
 mod seq;
 mod frame_stack_ops;
-mod indent_ops;
+mod indent;
 mod brute_force;
