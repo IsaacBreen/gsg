@@ -6,10 +6,8 @@ pub use combinators::*;
 pub use frame_stack::Frame;
 // Re-export common types and functions
 pub use frame_stack::FrameStack;
-pub use parse_data::*;
 
 // Re-export common types and functions
-pub use crate::parse_result::ParseResult;
 pub use crate::u8set::U8Set;
 
 mod combinator;
@@ -21,5 +19,4 @@ mod bitset256;
 // Include tests
 #[cfg(test)]
 mod tests;
-mod parse_data;
 mod frame_stack;

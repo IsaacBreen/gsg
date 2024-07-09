@@ -14,18 +14,23 @@ pub struct EatU8Parser {
 impl Combinator for EatU8 {
     type Parser = Option<EatU8Parser>;
 
-    fn parser(&self, parse_data: ParseData) -> (Self::Parser, ParseResult) {
+    fn parser(&self, parse_data: ParseData) -> (Self::Parser, Vec<ParseResult>) {
         (Some(EatU8Parser {
             mask: self.mask.clone(),
             parse_data,
-        }), ParseResult::new(self.mask.clone(), None))
+        }), vec![ParseResult::new(self.mask.clone(), None)])
     }
 }
 
 impl Parser for Option<EatU8Parser> {
-    fn step(&mut self, c: u8) -> ParseResult {
+    fn step(&mut self, c: u8) -> Vec<ParseResult> {
         let EatU8Parser { mask, parse_data } = self.take().expect("EatU8Parser::exhausted");
-        ParseResult::new(U8Set::none(), mask.contains(c).then(|| parse_data.clone()))
+        // ParseResult::new(U8Set::none(), mask.contains(c).then(|| parse_data.clone()))
+        if mask.contains(c) {
+            vec![ParseResult::new(U8Set::none(), Some(parse_data.clone()))]
+        } else {
+            vec![]
+        }
     }
 }
 
