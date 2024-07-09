@@ -17,3 +17,4 @@ mod repeat1;
 mod seq;
 mod frame_stack_ops;
 mod indent_ops;
+mod brute_force;
