@@ -43,14 +43,14 @@ impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA> where ParserA: ParserTra
     fn step(&mut self, c: u8) -> (Vec<HorizontalData>, Vec<VerticalData>) {
         let (horizontal_data_a, vertical_data_a) = self.a.as_mut().map(|a| a.step(c)).unwrap_or((vec![], vec![]));
         let (mut horizontal_data_bs, mut vertical_data_bs) = (vec![], vec![]);
-        for horizontal_data_b in horizontal_data_a {
-            let (b, horizontal_data_b, vertical_data_b) = self.b.parser(horizontal_data_b);
-            self.bs.push(b);
+        for b in self.bs.iter_mut() {
+            let (horizontal_data_b, vertical_data_b) = b.step(c);
             horizontal_data_bs.extend(horizontal_data_b);
             vertical_data_bs.extend(vertical_data_b);
         }
-        for b in self.bs.iter_mut() {
-            let (horizontal_data_b, vertical_data_b) = b.step(c);
+        for horizontal_data_b in horizontal_data_a {
+            let (b, horizontal_data_b, vertical_data_b) = self.b.parser(horizontal_data_b);
+            self.bs.push(b);
             horizontal_data_bs.extend(horizontal_data_b);
             vertical_data_bs.extend(vertical_data_b);
         }

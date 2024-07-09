@@ -117,18 +117,28 @@ mod tests {
         assert_eq!((horizontal_data2, vertical_data2), (vec![HorizontalData::default(), HorizontalData::default()], vec![]));
     }
 
-    // #[test]
-    // fn test_forward_ref() {
-    //     let mut A = forward_ref();
-    //     A.set(choice!(seq!(eat_chars("a"), A.clone()), eat_chars("b")));
-    //     let combinator = A.clone();
-    //     let (mut parser, result0) = combinator.parser(ParseData::default());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("ab"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("ab"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("ab"), None));
-    //     assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
-    // }
-    //
+    #[test]
+    fn test_forward_ref() {
+        // let mut A = forward_ref();
+        // A.set(choice!(seq!(eat_chars("a"), A.clone()), eat_chars("b")));
+        // let combinator = A.clone();
+        // let (mut parser, result0) = combinator.parser(ParseData::default());
+        // assert_eq!(result0, ParseResult::new(U8Set::from_chars("ab"), None));
+        // assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("ab"), None));
+        // assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("ab"), None));
+        // assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        let mut combinator = forward_ref();
+        combinator.set(choice!(seq!(eat_char_choice("a"), combinator.clone()), eat_char_choice("b")));
+        let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(HorizontalData::default());
+        assert_eq!((horizontal_data0, VerticalData::squash(vertical_data0)), (vec![], vec![VerticalData { u8set: U8Set::from_chars("ab") }]));
+        let (horizontal_data1, vertical_data1) = parser.step('a' as u8);
+        assert_eq!((horizontal_data1, VerticalData::squash(vertical_data1)), (vec![], vec![VerticalData { u8set: U8Set::from_chars("ab") }]));
+        let (horizontal_data2, vertical_data2) = parser.step('a' as u8);
+        assert_eq!((horizontal_data2, VerticalData::squash(vertical_data2)), (vec![], vec![VerticalData { u8set: U8Set::from_chars("ab") }]));
+        let (horizontal_data3, vertical_data3) = parser.step('b' as u8);
+        assert_eq!((HorizontalData::squash(horizontal_data3), VerticalData::squash(vertical_data3)), (vec![HorizontalData::default()], vec![]));
+    }
+
     // #[test]
     // fn test_frame_stack_contains() {
     //     let mut frame_stack = FrameStack::default();
