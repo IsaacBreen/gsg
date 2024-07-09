@@ -23,7 +23,6 @@ impl CombinatorTrait for BruteForce {
     type Parser = BruteForceParser;
 
     fn parser(&self, horizontal_data: HorizontalData) -> (Self::Parser, Vec<HorizontalData>, Vec<VerticalData>) {
-        // let (horizontal_data2, vertical_data) = (self.f)(&Vec::new(), &horizontal_data);
         let data_enum = (self.f)(&Vec::new(), &horizontal_data);
         let (mut horizontal_data_vec, mut vertical_data_vec) = (vec![], vec![]);
         match data_enum {
