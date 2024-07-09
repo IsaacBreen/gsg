@@ -56,16 +56,27 @@ impl BitSet256 {
     pub fn none() -> Self {
         BitSet256 { x: 0, y: 0 }
     }
+
+    pub fn union(&self, other: &Self) -> Self {
+        BitSet256 {
+            x: self.x | other.x,
+            y: self.y | other.y,
+        }
+    }
+
+    pub fn intersection(&self, other: &Self) -> Self {
+        BitSet256 {
+            x: self.x & other.x,
+            y: self.y & other.y,
+        }
+    }
 }
 
 impl BitOr for BitSet256 {
     type Output = Self;
 
     fn bitor(self, other: Self) -> Self {
-        BitSet256 {
-            x: self.x | other.x,
-            y: self.y | other.y,
-        }
+        self.union(&other)
     }
 }
 
@@ -73,10 +84,7 @@ impl BitAnd for BitSet256 {
     type Output = Self;
 
     fn bitand(self, other: Self) -> Self {
-        BitSet256 {
-            x: self.x & other.x,
-            y: self.y & other.y,
-        }
+        self.intersection(&other)
     }
 }
 

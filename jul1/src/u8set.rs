@@ -108,6 +108,10 @@ impl U8Set {
     pub fn iter(&self) -> impl Iterator<Item = u8> + '_ {
         (0..=255).filter(move |&i| self.contains(i))
     }
+
+    pub fn union(&self, other: &Self) -> Self {
+        U8Set { bitset: self.bitset.union(&other.bitset) }
+    }
 }
 
 impl BitOr for &U8Set {

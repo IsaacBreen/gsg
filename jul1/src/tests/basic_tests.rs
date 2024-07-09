@@ -44,43 +44,70 @@ mod tests {
         assert_eq!(parser.step('a' as u8), (vec![], vec![VerticalData { u8set: U8Set::from_chars("b") }]));
         assert_eq!(parser.step('b' as u8), (vec![HorizontalData::default()], vec![]));
     }
-    //
-    // #[test]
-    // fn test_repeat1() {
-    //     let combinator = repeat1(eat_chars("a"));
-    //     let (mut parser, result0) = combinator.parser(ParseData::default());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), Some(ParseData::default())));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), Some(ParseData::default())));
-    // }
-    //
-    // #[test]
-    // fn test_choice() {
-    //     let combinator = choice!(eat_chars("a"), eat_chars("b"));
-    //     let (mut parser, result0) = combinator.parser(ParseData::default());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("ab"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars(""), Some(ParseData::default())));
-    // }
-    //
-    // #[test]
-    // fn test_seq_choice_seq() {
-    //     let combinator = seq!(choice!(eat_chars("a"), seq!(eat_chars("a"), eat_chars("b"))), eat_chars("c"));
-    //     let (mut parser, result0) = combinator.parser(ParseData::default());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("bc"), None));
-    //     assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars("c"), None));
-    //     assert_eq!(parser.step('c' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
-    // }
-    //
-    // #[test]
-    // fn test_seq_opt() {
-    //     let combinator = seq!(opt(eat_chars("a")), eat_chars("b"));
-    //     let (mut parser, result0) = combinator.parser(ParseData::default());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("ab"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("b"), None));
-    //     assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
-    // }
-    //
+
+    #[test]
+    fn test_repeat1() {
+        // let combinator = repeat1(eat_chars("a"));
+        // let (mut parser, result0) = combinator.parser(ParseData::default());
+        // assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
+        // assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), Some(ParseData::default())));
+        // assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), Some(ParseData::default())));
+        let combinator = repeat1(eat_char_choice("a"));
+        let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(HorizontalData::default());
+        assert_eq!((horizontal_data0, VerticalData::squash(vertical_data0)), (vec![], VerticalData { u8set: U8Set::from_chars("a") }));
+        let (horizontal_data1, vertical_data1) = parser.step('a' as u8);
+        assert_eq!((horizontal_data1, VerticalData::squash(vertical_data1)), (vec![HorizontalData::default()], VerticalData { u8set: U8Set::from_chars("a") }));
+        let (horizontal_data2, vertical_data2) = parser.step('a' as u8);
+        assert_eq!((horizontal_data2, VerticalData::squash(vertical_data2)), (vec![HorizontalData::default()], VerticalData { u8set: U8Set::from_chars("a") }));
+    }
+
+    #[test]
+    fn test_choice() {
+        // let combinator = choice!(eat_chars("a"), eat_chars("b"));
+        // let (mut parser, result0) = combinator.parser(ParseData::default());
+        // assert_eq!(result0, ParseResult::new(U8Set::from_chars("ab"), None));
+        // assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars(""), Some(ParseData::default())));
+        let combinator = choice!(eat_char_choice("a"), eat_char_choice("b"));
+        let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(HorizontalData::default());
+        assert_eq!((horizontal_data0, vertical_data0), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }, VerticalData { u8set: U8Set::from_chars("b") }]));
+        assert_eq!(parser.step('b' as u8), (vec![HorizontalData::default()], vec![]));
+    }
+
+    #[test]
+    fn test_seq_choice_seq() {
+        // let combinator = seq!(choice!(eat_chars("a"), seq!(eat_chars("a"), eat_chars("b"))), eat_chars("c"));
+        // let (mut parser, result0) = combinator.parser(ParseData::default());
+        // assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
+        // assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("bc"), None));
+        // assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars("c"), None));
+        // assert_eq!(parser.step('c' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        let combinator = seq!(choice!(eat_char_choice("a"), seq!(eat_char_choice("a"), eat_char_choice("b"))), eat_char_choice("c"));
+        let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(HorizontalData::default());
+        assert_eq!((horizontal_data0, VerticalData::squash(vertical_data0)), (vec![], VerticalData { u8set: U8Set::from_chars("a") }));
+        let (horizontal_data1, vertical_data1) = parser.step('a' as u8);
+        assert_eq!((horizontal_data1, VerticalData::squash(vertical_data1)), (vec![], VerticalData { u8set: U8Set::from_chars("bc") }));
+        let (horizontal_data2, vertical_data2) = parser.step('b' as u8);
+        assert_eq!((horizontal_data2, VerticalData::squash(vertical_data2)), (vec![], VerticalData { u8set: U8Set::from_chars("c") }));
+        let (horizontal_data3, vertical_data3) = parser.step('c' as u8);
+        assert_eq!((horizontal_data3, vertical_data3), (vec![HorizontalData::default(), HorizontalData::default()], vec![]));
+    }
+
+    #[test]
+    fn test_seq_opt() {
+        // let combinator = seq!(opt(eat_chars("a")), eat_chars("b"));
+        // let (mut parser, result0) = combinator.parser(ParseData::default());
+        // assert_eq!(result0, ParseResult::new(U8Set::from_chars("ab"), None));
+        // assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("b"), None));
+        // assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        let combinator = seq!(opt(eat_char_choice("a")), eat_char_choice("b"));
+        let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(HorizontalData::default());
+        assert_eq!((horizontal_data0, VerticalData::squash(vertical_data0)), (vec![], VerticalData { u8set: U8Set::from_chars("ab") }));
+        let (horizontal_data1, vertical_data1) = parser.step('a' as u8);
+        assert_eq!((horizontal_data1, VerticalData::squash(vertical_data1)), (vec![], VerticalData { u8set: U8Set::from_chars("b") }));
+        let (horizontal_data2, vertical_data2) = parser.step('b' as u8);
+        assert_eq!((horizontal_data2, vertical_data2), (vec![HorizontalData::default(), HorizontalData::default()], vec![]));
+    }
+
     // #[test]
     // fn test_forward_ref() {
     //     let mut A = forward_ref();
