@@ -11,11 +11,11 @@ pub struct VerticalData {
 }
 
 impl VerticalData {
-    pub fn squash(vertical_data: Vec<VerticalData>) -> VerticalData {
+    pub fn squash(vertical_data: Vec<VerticalData>) -> Vec<VerticalData> {
         let mut u8set = U8Set::none();
         for vd in vertical_data {
             u8set = u8set.union(&vd.u8set);
         }
-        VerticalData { u8set }
+        vec![VerticalData { u8set }]
     }
 }
