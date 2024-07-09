@@ -141,17 +141,17 @@ mod tests {
 
     #[test]
     fn test_frame_stack_contains() {
-    //     let mut frame_stack = FrameStack::default();
-    //     frame_stack.push_name(b"a");
-    //     let parse_data = ParseData::new(frame_stack.clone());
-    //     let combinator = frame_stack_contains(eat_chars("a"));
-    //     let (mut parser, result0) = combinator.parser(parse_data.clone());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), Some(parse_data.clone())));
-    //
-    //     let combinator = frame_stack_contains(eat_chars("b"));
-    //     let (mut parser, result0) = combinator.parser(parse_data);
-    //     assert_eq!(result0, ParseResult::new(U8Set::none(), None));
+        //     let mut frame_stack = FrameStack::default();
+        //     frame_stack.push_name(b"a");
+        //     let parse_data = ParseData::new(frame_stack.clone());
+        //     let combinator = frame_stack_contains(eat_chars("a"));
+        //     let (mut parser, result0) = combinator.parser(parse_data.clone());
+        //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
+        //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), Some(parse_data.clone())));
+        //
+        //     let combinator = frame_stack_contains(eat_chars("b"));
+        //     let (mut parser, result0) = combinator.parser(parse_data);
+        //     assert_eq!(result0, ParseResult::new(U8Set::none(), None));
         let mut frame_stack = FrameStack::default();
         frame_stack.push_name(b"a");
         let parse_data = ParseData::new(frame_stack.clone());
@@ -167,13 +167,13 @@ mod tests {
 
     #[test]
     fn test_frame_stack_push() {
-    //     let mut frame_stack = FrameStack::default();
-    //     let parse_data = ParseData::new(frame_stack.clone());
-    //     let combinator = seq!(push_to_frame(eat_chars("a")), frame_stack_contains(choice!(eat_chars("b"), eat_chars("a"))));
-    //     let (mut parser, result0) = combinator.parser(parse_data.clone());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), None));
-    //     assert_eq!(parser.step('b' as u8), ParseResult::default());
+        //     let mut frame_stack = FrameStack::default();
+        //     let parse_data = ParseData::new(frame_stack.clone());
+        //     let combinator = seq!(push_to_frame(eat_chars("a")), frame_stack_contains(choice!(eat_chars("b"), eat_chars("a"))));
+        //     let (mut parser, result0) = combinator.parser(parse_data.clone());
+        //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
+        //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), None));
+        //     assert_eq!(parser.step('b' as u8), ParseResult::default());
         let mut frame_stack = FrameStack::default();
         let parse_data = ParseData::new(frame_stack.clone());
         let combinator = seq!(push_to_frame(eat_char_choice("a")), frame_stack_contains(choice!(eat_char_choice("b"), eat_char_choice("a"))));
@@ -185,32 +185,32 @@ mod tests {
 
     #[test]
     fn test_frame_stack_pop() {
-    //     let mut frame_stack = FrameStack::default();
-    //     let parse_data = ParseData::new(frame_stack.clone());
-    //     let combinator = seq!(
-    //         push_to_frame(eat_chars("a")),
-    //         frame_stack_contains(choice!(eat_chars("b"), eat_chars("a"))),
-    //         pop_from_frame(eat_chars("a")),
-    //         frame_stack_contains(eat_chars("a"))
-    //     );
-    //     let (mut parser, result0) = combinator.parser(parse_data.clone());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-    //     // Parsing goes like this:
-    //     //
-    //     // 1. "a" is pushed to the frame stack.
-    //     // 2. the choice says the next character is "b" or "a", but the frame stack only contains "a", so it only allows "a".
-    //     // 3. the pop_from_frame parser pops the "a" from the frame stack.
-    //     // 4. eat_chars("a") says the next character is "a", but the frame stack is empty, so it doesn't allow anything, and parsing fails.
-    //     //
-    //     // i.e. "aaaa" should fail on the final "a".
-    //     //
-    //     // 1. "a" is pushed to the frame stack.
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), None));
-    //     // 2. the choice says the next character is "b" or "a", but the frame stack only contains "a", so it only allows "a".
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), None));
-    //     // 3. the pop_from_frame parser pops the "a" from the frame stack.
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), None));
-    //     // 4. eat_chars("a") says the next character is "a", but the frame stack is empty, so it doesn't allow anything, and parsing fails.
+        //     let mut frame_stack = FrameStack::default();
+        //     let parse_data = ParseData::new(frame_stack.clone());
+        //     let combinator = seq!(
+        //         push_to_frame(eat_chars("a")),
+        //         frame_stack_contains(choice!(eat_chars("b"), eat_chars("a"))),
+        //         pop_from_frame(eat_chars("a")),
+        //         frame_stack_contains(eat_chars("a"))
+        //     );
+        //     let (mut parser, result0) = combinator.parser(parse_data.clone());
+        //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
+        //     // Parsing goes like this:
+        //     //
+        //     // 1. "a" is pushed to the frame stack.
+        //     // 2. the choice says the next character is "b" or "a", but the frame stack only contains "a", so it only allows "a".
+        //     // 3. the pop_from_frame parser pops the "a" from the frame stack.
+        //     // 4. eat_chars("a") says the next character is "a", but the frame stack is empty, so it doesn't allow anything, and parsing fails.
+        //     //
+        //     // i.e. "aaaa" should fail on the final "a".
+        //     //
+        //     // 1. "a" is pushed to the frame stack.
+        //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), None));
+        //     // 2. the choice says the next character is "b" or "a", but the frame stack only contains "a", so it only allows "a".
+        //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("a"), None));
+        //     // 3. the pop_from_frame parser pops the "a" from the frame stack.
+        //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), None));
+        //     // 4. eat_chars("a") says the next character is "a", but the frame stack is empty, so it doesn't allow anything, and parsing fails.
 
         let mut frame_stack = FrameStack::default();
         let parse_data = ParseData::new(frame_stack.clone());
@@ -229,28 +229,28 @@ mod tests {
 
     #[test]
     fn test_frame_stack_push_empty_frame() {
-    //     let mut frame_stack = FrameStack::default();
-    //     let parse_data = ParseData::new(frame_stack.clone());
-    //     // Simulate declaring a new scope with curly braces, defining a variable, and then using it.
-    //     let combinator = seq!(
-    //         eat_chars("{"),
-    //         with_new_frame(seq!(
-    //                 push_to_frame(eat_chars("a")), eat_chars("="), eat_chars("b"), eat_chars(";"),
-    //                 frame_stack_contains(eat_chars("a")),
-    //         )),
-    //         eat_chars("}"),
-    //         frame_stack_contains(eat_chars("a")),
-    //     );
-    //     let (mut parser, result0) = combinator.parser(parse_data.clone());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("{"), None));
-    //     assert_eq!(parser.step('{' as u8), ParseResult::new(U8Set::from_chars("a"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("="), None));
-    //     assert_eq!(parser.step('=' as u8), ParseResult::new(U8Set::from_chars("b"), None));
-    //     assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars(";"), None));
-    //     assert_eq!(parser.step(';' as u8), ParseResult::new(U8Set::from_chars("a"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("}"), None));
-    //     assert_eq!(parser.step('}' as u8), ParseResult::new(U8Set::none(), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), None));
+        //     let mut frame_stack = FrameStack::default();
+        //     let parse_data = ParseData::new(frame_stack.clone());
+        //     // Simulate declaring a new scope with curly braces, defining a variable, and then using it.
+        //     let combinator = seq!(
+        //         eat_chars("{"),
+        //         with_new_frame(seq!(
+        //                 push_to_frame(eat_chars("a")), eat_chars("="), eat_chars("b"), eat_chars(";"),
+        //                 frame_stack_contains(eat_chars("a")),
+        //         )),
+        //         eat_chars("}"),
+        //         frame_stack_contains(eat_chars("a")),
+        //     );
+        //     let (mut parser, result0) = combinator.parser(parse_data.clone());
+        //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("{"), None));
+        //     assert_eq!(parser.step('{' as u8), ParseResult::new(U8Set::from_chars("a"), None));
+        //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("="), None));
+        //     assert_eq!(parser.step('=' as u8), ParseResult::new(U8Set::from_chars("b"), None));
+        //     assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars(";"), None));
+        //     assert_eq!(parser.step(';' as u8), ParseResult::new(U8Set::from_chars("a"), None));
+        //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("}"), None));
+        //     assert_eq!(parser.step('}' as u8), ParseResult::new(U8Set::none(), None));
+        //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), None));
 
         let mut frame_stack = FrameStack::default();
         let parse_data = ParseData::new(frame_stack.clone());
@@ -277,26 +277,26 @@ mod tests {
 
     #[test]
     fn test_indents() {
-    //     let mut frame_stack = FrameStack::default();
-    //     let parse_data = ParseData::new(frame_stack.clone());
-    //     let combinator = seq!(
-    //         eat_chars("a"),
-    //         newline(),
-    //         with_indent(seq!(
-    //             eat_chars("b"),
-    //             newline(),
-    //         )),
-    //         eat_chars("c"),
-    //     );
-    //     // e.g. "a\n b\nc" should parse, but not "a\nb\nc" or "a\n b\n c".
-    //     let (mut parser, result0) = combinator.parser(parse_data);
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("\n"), None));
-    //     assert_eq!(parser.step('\n' as u8), ParseResult::new(U8Set::from_chars(" "), None));
-    //     assert_eq!(parser.step(' ' as u8), ParseResult::new(U8Set::from_chars("b"), None));
-    //     assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars("\n"), None));
-    //     assert_eq!(parser.step('\n' as u8), ParseResult::new(U8Set::from_chars("c"), None));
-    //     assert_eq!(parser.step('c' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        //     let mut frame_stack = FrameStack::default();
+        //     let parse_data = ParseData::new(frame_stack.clone());
+        //     let combinator = seq!(
+        //         eat_chars("a"),
+        //         newline(),
+        //         with_indent(seq!(
+        //             eat_chars("b"),
+        //             newline(),
+        //         )),
+        //         eat_chars("c"),
+        //     );
+        //     // e.g. "a\n b\nc" should parse, but not "a\nb\nc" or "a\n b\n c".
+        //     let (mut parser, result0) = combinator.parser(parse_data);
+        //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
+        //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("\n"), None));
+        //     assert_eq!(parser.step('\n' as u8), ParseResult::new(U8Set::from_chars(" "), None));
+        //     assert_eq!(parser.step(' ' as u8), ParseResult::new(U8Set::from_chars("b"), None));
+        //     assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars("\n"), None));
+        //     assert_eq!(parser.step('\n' as u8), ParseResult::new(U8Set::from_chars("c"), None));
+        //     assert_eq!(parser.step('c' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
         let mut frame_stack = FrameStack::default();
         let parse_data = ParseData::new(frame_stack.clone());
         let combinator = seq!(
