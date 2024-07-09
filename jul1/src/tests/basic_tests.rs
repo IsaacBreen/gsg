@@ -21,16 +21,25 @@ mod tests {
         assert_eq!(parser.step('a' as u8), (vec![HorizontalData::default()], vec![]));
     }
 
-    // #[test]
-    // fn test_eat_string() {
-    //     let combinator = eat_string("abc");
-    //     let (mut parser, result0) = combinator.parser(ParseData::default());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("b"), None));
-    //     assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars("c"), None));
-    //     assert_eq!(parser.step('c' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
-    // }
-    //
+    #[test]
+    fn test_eat_string() {
+        // let combinator = eat_string("abc");
+        // let (mut parser, result0) = combinator.parser(ParseData::default());
+        // assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
+        // assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("b"), None));
+        // assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::from_chars("c"), None));
+        // assert_eq!(parser.step('c' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        let combinator = eat_string("abc");
+        let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(HorizontalData::default());
+        assert_eq!((horizontal_data0, vertical_data0), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
+        let (horizontal_data1, vertical_data1) = parser.step('a' as u8);
+        assert_eq!((horizontal_data1, vertical_data1), (vec![], vec![VerticalData { u8set: U8Set::from_chars("b") }]));
+        let (horizontal_data2, vertical_data2) = parser.step('b' as u8);
+        assert_eq!((horizontal_data2, vertical_data2), (vec![], vec![VerticalData { u8set: U8Set::from_chars("c") }]));
+        let (horizontal_data3, vertical_data3) = parser.step('c' as u8);
+        assert_eq!((horizontal_data3, vertical_data3), (vec![HorizontalData::default()], vec![]));
+    }
+
     #[test]
     fn test_seq() {
         // let combinator = seq!(eat_chars("a"), eat_chars("b"));
