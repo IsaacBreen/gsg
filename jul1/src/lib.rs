@@ -12,7 +12,7 @@ pub use crate::u8set::U8Set;
 
 mod combinator;
 mod combinators;
-mod parse_result;
+mod parse_state;
 mod u8set;
 mod bitset256;
 

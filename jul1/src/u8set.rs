@@ -7,6 +7,12 @@ pub struct U8Set {
     bitset: BitSet256,
 }
 
+impl Default for U8Set {
+    fn default() -> Self {
+        Self::none()
+    }
+}
+
 impl U8Set {
     pub(crate) fn from_u8(p0: u8) -> U8Set {
         let mut result = U8Set::none();

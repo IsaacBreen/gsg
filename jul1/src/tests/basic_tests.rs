@@ -2,17 +2,19 @@
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
     use crate::*;
     use crate::combinators::*;
+    use crate::parse_state::{HorizontalData, VerticalData};
     // use crate::frame_stack::FrameStack;
     // use crate::pop_from_frame;
 
     #[test]
     fn test_eat_u8() {
-        let combinator = eat_chars("a");
-        let (mut parser, result0) = combinator.parser(ParseData::default());
-        assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+        let combinator = eat_char_choice("a");
+        let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(HorizontalData::default());
+        assert_eq!((horizontal_data0, vertical_data0), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
+        assert_eq!(parser.step('a' as u8), (vec![HorizontalData::default()], vec![]));
     }
 
     // #[test]
@@ -25,14 +27,14 @@ mod tests {
     //     assert_eq!(parser.step('c' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
     // }
     //
-    // #[test]
-    // fn test_seq() {
-    //     let combinator = seq!(eat_chars("a"), eat_chars("b"));
-    //     let (mut parser, result0) = combinator.parser(ParseData::default());
-    //     assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
-    //     assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("b"), None));
-    //     assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
-    // }
+    #[test]
+    fn test_seq() {
+        let combinator = seq!(eat_chars("a"), eat_chars("b"));
+        let (mut parser, result0) = combinator.parser(ParseData::default());
+        assert_eq!(result0, ParseResult::new(U8Set::from_chars("a"), None));
+        assert_eq!(parser.step('a' as u8), ParseResult::new(U8Set::from_chars("b"), None));
+        assert_eq!(parser.step('b' as u8), ParseResult::new(U8Set::none(), Some(ParseData::default())));
+    }
     //
     // #[test]
     // fn test_repeat1() {
