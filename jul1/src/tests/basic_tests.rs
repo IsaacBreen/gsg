@@ -2,7 +2,6 @@
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
     use crate::*;
     use crate::combinators::*;
     use crate::parse_state::{HorizontalData, VerticalData};
