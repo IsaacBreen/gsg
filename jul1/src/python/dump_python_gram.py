@@ -1,3 +1,4 @@
+import io
 import json
 import requests
 from pegen.grammar import Grammar, Rule, Rhs, Alt, NamedItem, Leaf, NameLeaf, StringLeaf, Group, Opt, Repeat, Forced, Lookahead, PositiveLookahead, NegativeLookahead, Repeat0, Repeat1, Gather, Cut
@@ -112,9 +113,88 @@ def grammar_to_dict(grammar: Grammar) -> dict:
         "metas": {meta: grammar.metas[meta] for meta in grammar.metas}
     }
 
+def grammar_to_rust(grammar: Grammar) -> str:
+    def rhs_to_rust(rhs: Rhs, top_level: bool = False) -> str:
+        if top_level:
+            return "choice!(" + ",\n        ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
+        else:
+            return "choice!(" + ", ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
+
+    def alt_to_rust(alt: Alt) -> str:
+        # return ' '.join(named_item_to_rust(item) for item in alt.items)
+        return "seq!(" + ", ".join(named_item_to_rust(item) for item in alt.items) + ")"
+
+    def named_item_to_rust(item: NamedItem) -> str:
+        return item_to_rust(item.item)
+
+    def item_to_rust(item) -> str:
+        if isinstance(item, Leaf):
+            value = item.value
+            if value[0] == value[-1] == "'":
+                value = value[1:-1]
+                return f'eat_char_choice("{value}")'
+            else:
+                return value
+        elif isinstance(item, NameLeaf):
+            value = item.value
+            assert value[0] == value[-1] == '"'
+            value = value[1:-1]
+            return f'eat_char_choice("{value}")'
+        elif isinstance(item, StringLeaf):
+            value = item.value
+            assert value[0] == value[-1] == '"'
+            value = value[1:-1]
+            return f'eat_string("{value}")'
+        elif isinstance(item, Group):
+            return f'group({rhs_to_rust(item.rhs)})'
+        elif isinstance(item, Opt):
+            return f'opt({item_to_rust(item.node)})'
+        elif isinstance(item, Gather):
+            return f'gather({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
+        elif isinstance(item, Repeat):
+            return f'repeat({item_to_rust(item.node)})'
+        elif isinstance(item, Repeat0):
+            return f'repeat0({item_to_rust(item.node)})'
+        elif isinstance(item, Repeat1):
+            return f'repeat1({item_to_rust(item.node)})'
+        elif isinstance(item, Forced):
+            return f'forced({item_to_rust(item.node)})'
+        elif isinstance(item, Lookahead):
+            return f'lookahead({item_to_rust(item.node)}, {item.sign})'
+        elif isinstance(item, PositiveLookahead):
+            return f'positive_lookahead({item_to_rust(item.node)})'
+        elif isinstance(item, NegativeLookahead):
+            return f'negative_lookahead({item_to_rust(item.node)})'
+        elif isinstance(item, Rhs):
+            return rhs_to_rust(item)
+        elif isinstance(item, Cut):
+            return 'cut()'
+        else:
+            raise ValueError(f"Unknown item type: {type(item)}")
+
+    rules = '\n'.join(f'    let {name} = {rhs_to_rust(rule.rhs, top_level=True)};' for name, rule in grammar.rules.items())
+    forward_refs = '\n'.join(f'    let {name} = forward_ref();' for name, rule in grammar.rules.items())
+    forward_ref_copies = '\n'.join(f'    let {name}_copy = {name}.clone();' for name, rule in grammar.rules.items())
+    forward_ref_sets = '\n'.join(f'    {name}_copy.set({name});' for name, rule in grammar.rules.items())
+
+    f = io.StringIO()
+    f.write('use crate::{choice, seq, repeat, repeat as repeat0, repeat1, opt, eat_char_choice, eat_string};\n\n')
+    f.write('fn main() {\n')
+    f.write(forward_refs)
+    f.write(forward_ref_copies)
+    f.write(rules)
+    f.write(forward_ref_sets)
+    f.write('}\n')
+    return f.getvalue()
+
 def save_grammar_to_json(grammar_dict: dict, filename: str) -> None:
     with open(filename, 'w') as file:
         json.dump(grammar_dict, file, indent=4)
+
+def save_grammar_to_rust(grammar: Grammar, filename: str) -> None:
+    rust_code = grammar_to_rust(grammar)
+    with open(filename, 'w') as file:
+        file.write(rust_code)
 
 def main():
     url = "https://raw.githubusercontent.com/python/cpython/main/Grammar/python.gram"
@@ -122,6 +202,7 @@ def main():
     grammar = parse_grammar(grammar_text)
     grammar_dict = grammar_to_dict(grammar)
     save_grammar_to_json(grammar_dict, "python_grammar.json")
+    save_grammar_to_rust(grammar, "python_grammar.rs")
 
 if __name__ == "__main__":
     main()
