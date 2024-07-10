@@ -4,6 +4,7 @@ use crate::{FrameStack, U8Set};
 pub struct HorizontalData {
     pub frame_stack: FrameStack,
     pub indents: Vec<Vec<u8>>,
+    pub dedents: usize,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]

@@ -65,10 +65,10 @@ pub fn seq2<A, B>(a: A, b: B) -> Seq2<A, B> where A: CombinatorTrait, B: Combina
 
 #[macro_export]
 macro_rules! seq {
-    ($a:expr) => {
+    ($a:expr $(,)?) => {
         $a
     };
-    ($a:expr, $($b:expr),+) => {
+    ($a:expr, $($b:expr),+ $(,)?) => {
         $crate::seq2($a, $crate::seq!($($b),+))
     };
 }
