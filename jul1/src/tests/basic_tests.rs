@@ -155,15 +155,16 @@ mod tests {
 
         let mut frame_stack = FrameStack::default();
         frame_stack.push_name(b"a");
-        let horizontal_data = HorizontalData::default();
+        let mut horizontal_data = HorizontalData::default();
+        horizontal_data.frame_stack.as_mut().unwrap().push_name(b"a");
         let combinator = frame_stack_contains(eat_char_choice("a"));
         let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(horizontal_data.clone());
         assert_eq!((horizontal_data0, vertical_data0), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
-        assert_eq!(parser.step('a' as u8), (vec![HorizontalData::default()], vec![]));
+        assert_eq!(parser.step('a' as u8), (vec![horizontal_data.clone()], vec![]));
 
         let combinator = frame_stack_contains(eat_char_choice("b"));
         let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(horizontal_data);
-        assert_eq!((horizontal_data0, vertical_data0), (vec![], vec![]));
+        assert_eq!((horizontal_data0, vertical_data0).squashed(), (vec![], vec![]));
     }
 
     #[test]
@@ -179,10 +180,10 @@ mod tests {
         let mut frame_stack = FrameStack::default();
         let horizontal_data = HorizontalData::default();
         let combinator = seq!(push_to_frame(eat_char_choice("a")), frame_stack_contains(choice!(eat_char_choice("b"), eat_char_choice("a"))));
-        let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(horizontal_data);
+        let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(horizontal_data.clone());
         assert_eq!((horizontal_data0, vertical_data0), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
-        assert_eq!(parser.step('a' as u8), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
-        assert_eq!(parser.step('b' as u8), (vec![HorizontalData::default()], vec![]));
+        assert_eq!(parser.step('a' as u8).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
+        assert_eq!(parser.step('b' as u8).squashed(), (vec![], vec![]));
     }
 
     #[test]
@@ -224,9 +225,9 @@ mod tests {
         );
         let (mut parser, horizontal_data0, vertical_data0) = combinator.parser(horizontal_data);
         assert_eq!((horizontal_data0, vertical_data0), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
-        assert_eq!(parser.step('a' as u8), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
-        assert_eq!(parser.step('a' as u8), (vec![], vec![VerticalData { u8set: U8Set::none() }]));
-        assert_eq!(parser.step('a' as u8), (vec![], vec![]));
+        assert_eq!(parser.step('a' as u8).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
+        assert_eq!(parser.step('a' as u8).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
+        assert_eq!(parser.step('a' as u8).squashed(), (vec![], vec![]));
     }
 
     #[test]
@@ -273,8 +274,8 @@ mod tests {
         assert_eq!(parser.step('b' as u8), (vec![], vec![VerticalData { u8set: U8Set::from_chars(";") }]));
         assert_eq!(parser.step(';' as u8), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
         assert_eq!(parser.step('a' as u8), (vec![], vec![VerticalData { u8set: U8Set::from_chars("}") }]));
-        assert_eq!(parser.step('}' as u8), (vec![], vec![]));
-        assert_eq!(parser.step('a' as u8), (vec![], vec![]));
+        assert_eq!(parser.step('}' as u8).squashed(), (vec![], vec![]));
+        assert_eq!(parser.step('a' as u8).squashed(), (vec![], vec![]));
     }
 
     #[test]

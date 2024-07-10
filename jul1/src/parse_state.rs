@@ -1,8 +1,8 @@
 use crate::{FrameStack, U8Set};
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HorizontalData {
-    pub frame_stack: FrameStack,
+    pub frame_stack: Option<FrameStack>,
     pub indents: Vec<Vec<u8>>,
     pub dedents: usize,
 }
@@ -10,6 +10,16 @@ pub struct HorizontalData {
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct VerticalData {
     pub u8set: U8Set,
+}
+
+impl Default for HorizontalData {
+    fn default() -> Self {
+        Self {
+            frame_stack: Some(FrameStack::default()),
+            indents: vec![],
+            dedents: 0,
+        }
+    }
 }
 
 pub trait Squash {

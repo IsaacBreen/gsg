@@ -8,7 +8,7 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, horizontal_data: &HorizontalDat
             // If there are remaining chunks, we could continue to match them, or we could match a
             // non-whitespace character and emit dedents - one for each remaining chunk.
             if indent_num < horizontal_data.indents.len() {
-                let next_u8 = indent_chunk.get(values.len()).cloned().unwrap();
+                let next_u8 = indent_chunk[values.len() - i];
                 let u8set = U8Set::from_u8(next_u8);
                 let mut horizontal_data = horizontal_data.clone();
                 horizontal_data.dedents = horizontal_data.indents.len() - indent_num;
