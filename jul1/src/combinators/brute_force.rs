@@ -56,6 +56,17 @@ impl ParserTrait for BruteForceParser {
     }
 }
 
+
+impl DataEnum {
+    pub fn to_vecs(self) -> (Vec<HorizontalData>, Vec<VerticalData>) {
+        match self {
+            DataEnum::Horizontal(horizontal_data) => (vec![horizontal_data], vec![]),
+            DataEnum::Vertical(vertical_data) => (vec![], vec![vertical_data]),
+            DataEnum::None => (vec![], vec![]),
+        }
+    }
+}
+
 pub fn brute_force(f: BruteForceFn) -> BruteForce {
     BruteForce { f: Rc::new(f) }
 }

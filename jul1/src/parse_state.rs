@@ -12,10 +12,16 @@ pub struct VerticalData {
     pub u8set: U8Set,
 }
 
-impl HorizontalData {
-    pub fn squash(horizontal_data: Vec<HorizontalData>) -> Vec<HorizontalData> {
+pub trait Squash {
+    type Output;
+    fn squashed(self) -> Self::Output;
+}
+
+impl Squash for Vec<HorizontalData> {
+    type Output = Vec<HorizontalData>;
+    fn squashed(self) -> Self::Output {
         let mut new_horizontal_data = vec![];
-        for hd in horizontal_data {
+        for hd in self {
             if new_horizontal_data.is_empty() || hd != new_horizontal_data.last().cloned().unwrap() {
                 new_horizontal_data.push(hd);
             }
@@ -24,10 +30,11 @@ impl HorizontalData {
     }
 }
 
-impl VerticalData {
-    pub fn squash(vertical_data: Vec<VerticalData>) -> Vec<VerticalData> {
+impl Squash for Vec<VerticalData> {
+    type Output = Vec<VerticalData>;
+    fn squashed(self) -> Self::Output {
         let mut u8set = U8Set::none();
-        for vd in vertical_data {
+        for vd in self {
             u8set = u8set.union(&vd.u8set);
         }
         if u8set.is_empty() {
@@ -35,5 +42,12 @@ impl VerticalData {
         } else {
             vec![VerticalData { u8set }]
         }
+    }
+}
+
+impl Squash for (Vec<HorizontalData>, Vec<VerticalData>) {
+    type Output = (Vec<HorizontalData>, Vec<VerticalData>);
+    fn squashed(self) -> Self::Output {
+        (self.0.squashed(), self.1.squashed())
     }
 }
