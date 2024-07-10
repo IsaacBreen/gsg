@@ -19,3 +19,4 @@ mod seq;
 mod frame_stack_ops;
 mod indent;
 mod brute_force;
+mod left_recursion_guard;

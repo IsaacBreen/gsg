@@ -1,10 +1,12 @@
 use crate::{FrameStack, U8Set};
+use crate::left_recursion_guard_data::LeftRecursionGuardData;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HorizontalData {
     pub frame_stack: Option<FrameStack>,
     pub indents: Vec<Vec<u8>>,
     pub dedents: usize,
+    pub left_recursion_guard_data: LeftRecursionGuardData,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -18,6 +20,7 @@ impl Default for HorizontalData {
             frame_stack: Some(FrameStack::default()),
             indents: vec![],
             dedents: 0,
+            left_recursion_guard_data: None,
         }
     }
 }
