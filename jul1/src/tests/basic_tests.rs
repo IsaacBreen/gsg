@@ -303,10 +303,10 @@ mod tests {
         let parse_data = HorizontalData::default();
         let combinator = seq!(
             eat_char_choice("a"),
-            newline(),
+            python_newline(),
             with_indent(seq!(
                 eat_char_choice("b"),
-                newline(),
+                python_newline(),
             )),
             eat_char_choice("c"),
         );
@@ -314,9 +314,9 @@ mod tests {
         assert_eq!((horizontal_data0, vertical_data0).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("a") }]));
         assert_eq!(parser.step('a' as u8).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("\n ") }]));
         assert_eq!(parser.step('\n' as u8).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("\n ") }]));
-        assert_eq!(parser.step(' ' as u8).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("b") }]));
+        assert_eq!(parser.step(' ' as u8).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("\n b") }]));
         assert_eq!(parser.step('b' as u8).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("\n ") }]));
-        assert_eq!(parser.step('\n' as u8).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("c") }]));
+        assert_eq!(parser.step('\n' as u8).squashed(), (vec![], vec![VerticalData { u8set: U8Set::from_chars("\n c") }]));
         assert_eq!(parser.step('c' as u8).squashed(), (vec![HorizontalData::default()], vec![]));
     }
 }

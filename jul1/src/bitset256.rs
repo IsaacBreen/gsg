@@ -70,6 +70,13 @@ impl BitSet256 {
             y: self.y & other.y,
         }
     }
+
+    pub fn complement(&self) -> Self {
+        BitSet256 {
+            x: !self.x,
+            y: !self.y,
+        }
+    }
 }
 
 impl BitOr for BitSet256 {

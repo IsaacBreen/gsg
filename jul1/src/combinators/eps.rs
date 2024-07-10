@@ -1,4 +1,4 @@
-use crate::{choice, CombinatorTrait, ParserTrait};
+use crate::{choice, Choice2, CombinatorTrait, ParserTrait};
 use crate::parse_state::{HorizontalData, VerticalData};
 
 pub struct Eps;
@@ -22,6 +22,7 @@ pub fn eps() -> Eps {
     Eps
 }
 
-pub fn opt(a: impl CombinatorTrait) -> impl CombinatorTrait {
+pub fn opt<A>(a: A) -> Choice2<A, Eps> where A: CombinatorTrait
+{
     choice!(a, eps())
 }

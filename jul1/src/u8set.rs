@@ -112,6 +112,14 @@ impl U8Set {
     pub fn union(&self, other: &Self) -> Self {
         U8Set { bitset: self.bitset.union(&other.bitset) }
     }
+
+    pub fn intersection(&self, other: &Self) -> Self {
+        U8Set { bitset: self.bitset.intersection(&other.bitset) }
+    }
+
+    pub fn complement(&self) -> Self {
+        U8Set { bitset: self.bitset.complement() }
+    }
 }
 
 impl BitOr for &U8Set {
