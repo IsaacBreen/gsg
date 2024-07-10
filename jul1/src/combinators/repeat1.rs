@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use crate::{Choice2, CombinatorTrait, Eps, opt, ParserTrait, Seq2};
-use crate::parse_state::{HorizontalData, UpData};
+use crate::parse_state::{RightData, UpData};
 
 pub struct Repeat1<A> where A: CombinatorTrait {
     a: Rc<A>,
@@ -9,35 +9,35 @@ pub struct Repeat1<A> where A: CombinatorTrait {
 pub struct Repeat1Parser<A> where A: CombinatorTrait {
     a: Rc<A>,
     a_parsers: Vec<A::Parser>,
-    horizontal_data: HorizontalData,
+    right_data: RightData,
 }
 
 impl<A> CombinatorTrait for Repeat1<A> where A: CombinatorTrait
 {
     type Parser = Repeat1Parser<A>;
 
-    fn parser(&self, horizontal_data: HorizontalData) -> (Self::Parser, Vec<HorizontalData>, Vec<UpData>) {
-        let (a, horizontal_data_a, up_data_a) = self.a.parser(horizontal_data.clone());
-        (Repeat1Parser { a: self.a.clone(), a_parsers: vec![a], horizontal_data }, horizontal_data_a, up_data_a)
+    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+        let (a, right_data_a, up_data_a) = self.a.parser(right_data.clone());
+        (Repeat1Parser { a: self.a.clone(), a_parsers: vec![a], right_data }, right_data_a, up_data_a)
     }
 }
 
 impl<A> ParserTrait for Repeat1Parser<A> where A: CombinatorTrait
 {
-    fn step(&mut self, c: u8) -> (Vec<HorizontalData>, Vec<UpData>) {
-        let (mut horizontal_data_as, mut up_data_as) = (vec![], vec![]);
+    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+        let (mut right_data_as, mut up_data_as) = (vec![], vec![]);
         for a_parser in self.a_parsers.iter_mut() {
-            let (horizontal_data_a, up_data_a) = a_parser.step(c);
-            horizontal_data_as.extend(horizontal_data_a);
+            let (right_data_a, up_data_a) = a_parser.step(c);
+            right_data_as.extend(right_data_a);
             up_data_as.extend(up_data_a);
         }
-        for horizontal_data_a in horizontal_data_as.clone() {
-            let (a_parser, horizontal_data_a, up_data_a) = self.a.parser(horizontal_data_a);
+        for right_data_a in right_data_as.clone() {
+            let (a_parser, right_data_a, up_data_a) = self.a.parser(right_data_a);
             self.a_parsers.push(a_parser);
-            horizontal_data_as.extend(horizontal_data_a);
+            right_data_as.extend(right_data_a);
             up_data_as.extend(up_data_a);
         }
-        (horizontal_data_as, up_data_as)
+        (right_data_as, up_data_as)
     }
 }
 

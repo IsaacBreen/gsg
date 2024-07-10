@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::{CombinatorTrait, ParserTrait};
-use crate::parse_state::{HorizontalData, UpData};
+use crate::parse_state::{RightData, UpData};
 
 #[derive(Clone)]
 pub struct ForwardRef where Self: CombinatorTrait {
@@ -11,8 +11,8 @@ pub struct ForwardRef where Self: CombinatorTrait {
 impl CombinatorTrait for ForwardRef {
     type Parser = Box<dyn ParserTrait>;
 
-    fn parser(&self, horizontal_data: HorizontalData) -> (Self::Parser, Vec<HorizontalData>, Vec<UpData>) {
-        self.a.borrow().as_ref().unwrap().parser(horizontal_data)
+    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+        self.a.borrow().as_ref().unwrap().parser(right_data)
     }
 }
 

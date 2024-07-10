@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, Eps, FrameStack, HorizontalData, ParserTrait, UpData};
+use crate::{CombinatorTrait, Eps, FrameStack, RightData, ParserTrait, UpData};
 
 pub struct WithNewFrame<A> where A: CombinatorTrait
 {
@@ -14,21 +14,21 @@ impl<A> CombinatorTrait for WithNewFrame<A> where A: CombinatorTrait
 {
     type Parser = WithNewFrameParser<A::Parser>;
 
-    fn parser(&self, mut horizontal_data: HorizontalData) -> (Self::Parser, Vec<HorizontalData>, Vec<UpData>) {
-        horizontal_data.frame_stack.as_mut().unwrap().push_empty_frame();
-        let (a, horizontal_data_vec, up_data_vec) = self.a.parser(horizontal_data);
-        (WithNewFrameParser { a }, horizontal_data_vec, up_data_vec)
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+        right_data.frame_stack.as_mut().unwrap().push_empty_frame();
+        let (a, right_data_vec, up_data_vec) = self.a.parser(right_data);
+        (WithNewFrameParser { a }, right_data_vec, up_data_vec)
     }
 }
 
 impl<P> ParserTrait for WithNewFrameParser<P> where P: ParserTrait
 {
-    fn step(&mut self, c: u8) -> (Vec<HorizontalData>, Vec<UpData>) {
-        let (mut horizontal_data_vec, up_data_vec) = self.a.step(c);
-        for horizontal_data in horizontal_data_vec.iter_mut() {
-            horizontal_data.frame_stack.as_mut().unwrap().pop();
+    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+        let (mut right_data_vec, up_data_vec) = self.a.step(c);
+        for right_data in right_data_vec.iter_mut() {
+            right_data.frame_stack.as_mut().unwrap().pop();
         }
-        (horizontal_data_vec, up_data_vec)
+        (right_data_vec, up_data_vec)
     }
 }
 
@@ -57,9 +57,9 @@ impl<A> CombinatorTrait for FrameStackOp<A> where A: CombinatorTrait
 {
     type Parser = FrameStackOpParser<A::Parser>;
 
-    fn parser(&self, mut horizontal_data: HorizontalData) -> (Self::Parser, Vec<HorizontalData>, Vec<UpData>) {
-        let frame_stack = horizontal_data.frame_stack.take().unwrap();
-        let (a, mut horizontal_data_vec, mut up_data_vec) = self.a.parser(horizontal_data);
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+        let frame_stack = right_data.frame_stack.take().unwrap();
+        let (a, mut right_data_vec, mut up_data_vec) = self.a.parser(right_data);
         let parser = FrameStackOpParser {
             op_type: self.op_type,
             frame_stack,
@@ -68,13 +68,13 @@ impl<A> CombinatorTrait for FrameStackOp<A> where A: CombinatorTrait
         };
         match self.op_type {
             FrameStackOpType::PushToFrame => {
-                for horizontal_data in horizontal_data_vec.iter_mut() {
-                    horizontal_data.frame_stack.as_mut().unwrap().push_empty_frame();
+                for right_data in right_data_vec.iter_mut() {
+                    right_data.frame_stack.as_mut().unwrap().push_empty_frame();
                 }
             }
             FrameStackOpType::PopFromFrame => {
-                for horizontal_data in horizontal_data_vec.iter_mut() {
-                    horizontal_data.frame_stack.as_mut().unwrap().pop();
+                for right_data in right_data_vec.iter_mut() {
+                    right_data.frame_stack.as_mut().unwrap().pop();
                 }
             }
             FrameStackOpType::FrameStackContains => {
@@ -83,53 +83,53 @@ impl<A> CombinatorTrait for FrameStackOp<A> where A: CombinatorTrait
                     up_data.u8set = up_data.u8set.intersection(&u8set);
                 }
                 if !is_complete {
-                    // Empty horizontal data
-                    horizontal_data_vec = vec![];
+                    // Empty right data
+                    right_data_vec = vec![];
                 }
             }
         }
-        (parser, horizontal_data_vec, up_data_vec)
+        (parser, right_data_vec, up_data_vec)
     }
 }
 
 impl<P> ParserTrait for FrameStackOpParser<P> where P: ParserTrait
 {
-    fn step(&mut self, c: u8) -> (Vec<HorizontalData>, Vec<UpData>) {
+    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         self.values.push(c);
         match self.op_type {
             FrameStackOpType::PushToFrame => {
-                let (mut horizontal_data_vec, up_data_vec) = self.a.step(c);
-                for horizontal_data in horizontal_data_vec.iter_mut() {
+                let (mut right_data_vec, up_data_vec) = self.a.step(c);
+                for right_data in right_data_vec.iter_mut() {
                     let mut frame_stack = self.frame_stack.clone();
                     frame_stack.push_name(&self.values);
-                    horizontal_data.frame_stack = Some(frame_stack);
+                    right_data.frame_stack = Some(frame_stack);
                 }
-                (horizontal_data_vec, up_data_vec)
+                (right_data_vec, up_data_vec)
             }
             FrameStackOpType::PopFromFrame => {
-                let (mut horizontal_data_vec, up_data_vec) = self.a.step(c);
-                for horizontal_data in horizontal_data_vec.iter_mut() {
+                let (mut right_data_vec, up_data_vec) = self.a.step(c);
+                for right_data in right_data_vec.iter_mut() {
                     let mut frame_stack = self.frame_stack.clone();
                     frame_stack.pop_name(&self.values);
-                    horizontal_data.frame_stack = Some(frame_stack);
+                    right_data.frame_stack = Some(frame_stack);
                 }
-                (horizontal_data_vec, up_data_vec)
+                (right_data_vec, up_data_vec)
             }
             FrameStackOpType::FrameStackContains => {
                 let (u8set, is_complete) = self.frame_stack.next_u8_given_contains_u8slice(&self.values);
-                let (mut horizontal_data_vec, mut up_data_vec) = self.a.step(c);
+                let (mut right_data_vec, mut up_data_vec) = self.a.step(c);
                 for up_data in up_data_vec.iter_mut() {
                     up_data.u8set = up_data.u8set.intersection(&u8set);
                 }
                 if !is_complete {
-                    // Empty horizontal data
-                    horizontal_data_vec = vec![];
+                    // Empty right data
+                    right_data_vec = vec![];
                 } else {
-                    for horizontal_data in horizontal_data_vec.iter_mut() {
-                        horizontal_data.frame_stack = Some(self.frame_stack.clone());
+                    for right_data in right_data_vec.iter_mut() {
+                        right_data.frame_stack = Some(self.frame_stack.clone());
                     }
                 }
-                (horizontal_data_vec, up_data_vec)
+                (right_data_vec, up_data_vec)
             }
         }
     }

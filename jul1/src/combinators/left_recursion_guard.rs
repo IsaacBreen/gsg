@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::{CombinatorTrait, ParserTrait};
-use crate::parse_state::{HorizontalData, UpData};
+use crate::parse_state::{RightData, UpData};
 
 #[derive(Clone)]
 pub struct LeftRecursionGuard<A> where A: CombinatorTrait {
@@ -11,10 +11,10 @@ pub struct LeftRecursionGuard<A> where A: CombinatorTrait {
 impl<A> CombinatorTrait for LeftRecursionGuard<A> where A: CombinatorTrait {
     type Parser = A::Parser;
 
-    fn parser(&self, horizontal_data: HorizontalData) -> (Self::Parser, Vec<HorizontalData>, Vec<UpData>) {
+    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
         // if
-        // let (a, horizontal_data_a, up_data_a) = self.a.parser(horizontal_data.clone());
-        // (a, horizontal_data_a, up_data_a)
+        // let (a, right_data_a, up_data_a) = self.a.parser(right_data.clone());
+        // (a, right_data_a, up_data_a)
         todo!()
     }
 }

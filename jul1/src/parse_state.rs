@@ -2,7 +2,7 @@ use crate::{FrameStack, U8Set};
 use crate::left_recursion_guard_data::LeftRecursionGuardData;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct HorizontalData {
+pub struct RightData {
     pub frame_stack: Option<FrameStack>,
     pub indents: Vec<Vec<u8>>,
     pub dedents: usize,
@@ -14,7 +14,7 @@ pub struct UpData {
     pub u8set: U8Set,
 }
 
-impl Default for HorizontalData {
+impl Default for RightData {
     fn default() -> Self {
         Self {
             frame_stack: Some(FrameStack::default()),
@@ -30,16 +30,16 @@ pub trait Squash {
     fn squashed(self) -> Self::Output;
 }
 
-impl Squash for Vec<HorizontalData> {
-    type Output = Vec<HorizontalData>;
+impl Squash for Vec<RightData> {
+    type Output = Vec<RightData>;
     fn squashed(self) -> Self::Output {
-        let mut new_horizontal_data = vec![];
+        let mut new_right_data = vec![];
         for hd in self {
-            if new_horizontal_data.is_empty() || hd != new_horizontal_data.last().cloned().unwrap() {
-                new_horizontal_data.push(hd);
+            if new_right_data.is_empty() || hd != new_right_data.last().cloned().unwrap() {
+                new_right_data.push(hd);
             }
         }
-        new_horizontal_data
+        new_right_data
     }
 }
 
@@ -58,8 +58,8 @@ impl Squash for Vec<UpData> {
     }
 }
 
-impl Squash for (Vec<HorizontalData>, Vec<UpData>) {
-    type Output = (Vec<HorizontalData>, Vec<UpData>);
+impl Squash for (Vec<RightData>, Vec<UpData>) {
+    type Output = (Vec<RightData>, Vec<UpData>);
     fn squashed(self) -> Self::Output {
         (self.0.squashed(), self.1.squashed())
     }

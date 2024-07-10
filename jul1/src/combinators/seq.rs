@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use crate::*;
-use crate::parse_state::{HorizontalData, UpData};
+use crate::parse_state::{RightData, UpData};
 
 pub struct Seq2<A, B> where A: CombinatorTrait, B: CombinatorTrait {
     a: A,
@@ -12,49 +12,49 @@ pub struct Seq2Parser<B, ParserA> where ParserA: ParserTrait, B: CombinatorTrait
     a: Option<ParserA>,
     bs: Vec<B::Parser>,
     b: Rc<B>,
-    horizontal_data: HorizontalData,
+    right_data: RightData,
 }
 
 impl<A, B> CombinatorTrait for Seq2<A, B> where A: CombinatorTrait, B: CombinatorTrait
 {
     type Parser = Seq2Parser<B, A::Parser>;
 
-    fn parser(&self, horizontal_data: HorizontalData) -> (Self::Parser, Vec<HorizontalData>, Vec<UpData>) {
-        let (a, horizontal_data_a, up_data_a) = self.a.parser(horizontal_data.clone());
-        let (mut bs, mut horizontal_data_bs, mut up_data_bs) = (vec![], vec![], vec![]);
-        for horizontal_data_b in horizontal_data_a {
-            let (b, horizontal_data_b, up_data_b) = self.b.parser(horizontal_data_b);
+    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+        let (a, right_data_a, up_data_a) = self.a.parser(right_data.clone());
+        let (mut bs, mut right_data_bs, mut up_data_bs) = (vec![], vec![], vec![]);
+        for right_data_b in right_data_a {
+            let (b, right_data_b, up_data_b) = self.b.parser(right_data_b);
             bs.push(b);
-            horizontal_data_bs.extend(horizontal_data_b);
+            right_data_bs.extend(right_data_b);
             up_data_bs.extend(up_data_b);
         }
         let parser = Seq2Parser {
             a: Some(a),
             bs: bs,
             b: self.b.clone(),
-            horizontal_data,
+            right_data,
         };
-        (parser, horizontal_data_bs, up_data_bs.into_iter().chain(up_data_a).collect())
+        (parser, right_data_bs, up_data_bs.into_iter().chain(up_data_a).collect())
     }
 }
 
 impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA> where ParserA: ParserTrait, B: CombinatorTrait
 {
-    fn step(&mut self, c: u8) -> (Vec<HorizontalData>, Vec<UpData>) {
-        let (horizontal_data_a, up_data_a) = self.a.as_mut().map(|a| a.step(c)).unwrap_or((vec![], vec![]));
-        let (mut horizontal_data_bs, mut up_data_bs) = (vec![], vec![]);
+    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+        let (right_data_a, up_data_a) = self.a.as_mut().map(|a| a.step(c)).unwrap_or((vec![], vec![]));
+        let (mut right_data_bs, mut up_data_bs) = (vec![], vec![]);
         for b in self.bs.iter_mut() {
-            let (horizontal_data_b, up_data_b) = b.step(c);
-            horizontal_data_bs.extend(horizontal_data_b);
+            let (right_data_b, up_data_b) = b.step(c);
+            right_data_bs.extend(right_data_b);
             up_data_bs.extend(up_data_b);
         }
-        for horizontal_data_b in horizontal_data_a {
-            let (b, horizontal_data_b, up_data_b) = self.b.parser(horizontal_data_b);
+        for right_data_b in right_data_a {
+            let (b, right_data_b, up_data_b) = self.b.parser(right_data_b);
             self.bs.push(b);
-            horizontal_data_bs.extend(horizontal_data_b);
+            right_data_bs.extend(right_data_b);
             up_data_bs.extend(up_data_b);
         }
-        (horizontal_data_bs, up_data_bs.into_iter().chain(up_data_a).collect())
+        (right_data_bs, up_data_bs.into_iter().chain(up_data_a).collect())
     }
 }
 

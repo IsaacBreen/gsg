@@ -1,19 +1,19 @@
-use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, HorizontalData, ParserTrait, repeat, Repeat1, repeat1, seq, Seq2, U8Set, UpData};
+use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, RightData, ParserTrait, repeat, Repeat1, repeat1, seq, Seq2, U8Set, UpData};
 
-const DENT_FN: BruteForceFn = |values: &Vec<u8>, horizontal_data: &HorizontalData| {
+const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
     let mut i = 0;
-    for (indent_num, indent_chunk) in horizontal_data.indents.iter().enumerate() {
+    for (indent_num, indent_chunk) in right_data.indents.iter().enumerate() {
         if i == values.len() {
             // We've matched every indent chunk so far in its entirety.
             // If there are remaining chunks, we could continue to match them, or we could match a
             // non-whitespace character and emit dedents - one for each remaining chunk.
-            if indent_num < horizontal_data.indents.len() {
+            if indent_num < right_data.indents.len() {
                 let next_u8 = indent_chunk[values.len() - i];
                 let u8set = U8Set::from_u8(next_u8);
-                let mut horizontal_data = horizontal_data.clone();
-                horizontal_data.dedents = horizontal_data.indents.len() - indent_num;
-                horizontal_data.indents.truncate(indent_num);
-                return (vec![horizontal_data], vec![UpData { u8set } ]);
+                let mut right_data = right_data.clone();
+                right_data.dedents = right_data.indents.len() - indent_num;
+                right_data.indents.truncate(indent_num);
+                return (vec![right_data], vec![UpData { u8set } ]);
             }
         }
         let values_chunk = &values[i..(i + indent_chunk.len()).min(values.len())];
@@ -31,7 +31,7 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, horizontal_data: &HorizontalDat
         i += indent_chunk.len();
     }
     if i == values.len() {
-        (vec![horizontal_data.clone()], vec![])
+        (vec![right_data.clone()], vec![])
     } else {
         (vec![], vec![])
     }
@@ -46,48 +46,48 @@ pub enum IndentCombinator {
 
 pub enum IndentCombinatorParser {
     DentParser(BruteForceParser),
-    IndentParser(Option<HorizontalData>),
+    IndentParser(Option<RightData>),
     DedentParser,
 }
 
 impl CombinatorTrait for IndentCombinator {
     type Parser = IndentCombinatorParser;
 
-    fn parser(&self, mut horizontal_data: HorizontalData) -> (Self::Parser, Vec<HorizontalData>, Vec<UpData>) {
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
         match self {
             IndentCombinator::Dent => {
-                let (parser, horizontal_data_vec, up_data_vec) = brute_force(DENT_FN).parser(horizontal_data);
-                (IndentCombinatorParser::DentParser(parser), horizontal_data_vec, up_data_vec)
+                let (parser, right_data_vec, up_data_vec) = brute_force(DENT_FN).parser(right_data);
+                (IndentCombinatorParser::DentParser(parser), right_data_vec, up_data_vec)
             }
             IndentCombinator::Indent => {
-                horizontal_data.indents.push(vec![]);
-                (IndentCombinatorParser::IndentParser(Some(horizontal_data)), vec![], vec![UpData { u8set: U8Set::from_chars(" ") }])
+                right_data.indents.push(vec![]);
+                (IndentCombinatorParser::IndentParser(Some(right_data)), vec![], vec![UpData { u8set: U8Set::from_chars(" ") }])
             },
             IndentCombinator::Dedent => {
-                let horizontal_data_to_return = if horizontal_data.dedents == 0 {
+                let right_data_to_return = if right_data.dedents == 0 {
                     vec![]
                 } else {
-                    horizontal_data.dedents -= 1;
-                    vec![horizontal_data]
+                    right_data.dedents -= 1;
+                    vec![right_data]
                 };
-                (IndentCombinatorParser::DedentParser, horizontal_data_to_return, vec![])
+                (IndentCombinatorParser::DedentParser, right_data_to_return, vec![])
             }
         }
     }
 }
 
 impl ParserTrait for IndentCombinatorParser {
-    fn step(&mut self, c: u8) -> (Vec<HorizontalData>, Vec<UpData>) {
+    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         match self {
             IndentCombinatorParser::DentParser(parser) => parser.step(c),
-            IndentCombinatorParser::IndentParser(maybe_horizontal_data) => {
+            IndentCombinatorParser::IndentParser(maybe_right_data) => {
                 if c == b' ' {
-                    let mut horizontal_data = maybe_horizontal_data.as_mut().unwrap().clone();
-                    horizontal_data.indents.last_mut().unwrap().push(c);
-                    (vec![horizontal_data.clone()], vec![UpData { u8set: U8Set::from_chars(" ") }])
+                    let mut right_data = maybe_right_data.as_mut().unwrap().clone();
+                    right_data.indents.last_mut().unwrap().push(c);
+                    (vec![right_data.clone()], vec![UpData { u8set: U8Set::from_chars(" ") }])
                 } else {
-                    // Fail. Purge the horizontal data to poison the parser.
-                    maybe_horizontal_data.take();
+                    // Fail. Purge the right data to poison the parser.
+                    maybe_right_data.take();
                     (vec![], vec![])
                 }
             }
