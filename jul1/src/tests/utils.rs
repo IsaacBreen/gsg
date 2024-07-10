@@ -4,8 +4,8 @@ macro_rules! assert_parses {
         let (mut parser, _, _) = $combinator.parser(HorizontalData::default());
         let mut result = Ok(());
         for &byte in $input.as_bytes() {
-            let (horizontal_data, vertical_data) = parser.step(byte);
-            if horizontal_data.is_empty() && vertical_data.is_empty() {
+            let (horizontal_data, up_data) = parser.step(byte);
+            if horizontal_data.is_empty() && up_data.is_empty() {
                 result = Err(format!("Parser failed at byte: {}", byte as char));
                 break;
             }

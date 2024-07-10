@@ -1,5 +1,5 @@
 use crate::{U8Set, CombinatorTrait, ParserTrait};
-use crate::parse_state::{HorizontalData, VerticalData};
+use crate::parse_state::{HorizontalData, UpData};
 
 pub struct EatU8 {
     u8set: U8Set,
@@ -12,19 +12,19 @@ pub struct EatU8Parser {
 
 impl CombinatorTrait for EatU8 {
     type Parser = EatU8Parser;
-    fn parser(&self, horizontal_data: HorizontalData) -> (EatU8Parser, Vec<HorizontalData>, Vec<VerticalData>) {
+    fn parser(&self, horizontal_data: HorizontalData) -> (EatU8Parser, Vec<HorizontalData>, Vec<UpData>) {
         let parser = EatU8Parser {
             u8set: self.u8set.clone(),
             horizontal_data: Some(horizontal_data),
         };
-        (parser, vec![], vec![VerticalData {
+        (parser, vec![], vec![UpData {
                 u8set: self.u8set.clone(),
         }])
     }
 }
 
 impl ParserTrait for EatU8Parser {
-    fn step(&mut self, c: u8) -> (Vec<HorizontalData>, Vec<VerticalData>) {
+    fn step(&mut self, c: u8) -> (Vec<HorizontalData>, Vec<UpData>) {
         if self.u8set.contains(c) {
             if let Some(horizontal_data) = self.horizontal_data.take() {
                 return (vec![horizontal_data], vec![])

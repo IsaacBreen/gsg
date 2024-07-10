@@ -10,7 +10,7 @@ pub struct HorizontalData {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct VerticalData {
+pub struct UpData {
     pub u8set: U8Set,
 }
 
@@ -43,8 +43,8 @@ impl Squash for Vec<HorizontalData> {
     }
 }
 
-impl Squash for Vec<VerticalData> {
-    type Output = Vec<VerticalData>;
+impl Squash for Vec<UpData> {
+    type Output = Vec<UpData>;
     fn squashed(self) -> Self::Output {
         let mut u8set = U8Set::none();
         for vd in self {
@@ -53,13 +53,13 @@ impl Squash for Vec<VerticalData> {
         if u8set.is_empty() {
             vec![]
         } else {
-            vec![VerticalData { u8set }]
+            vec![UpData { u8set }]
         }
     }
 }
 
-impl Squash for (Vec<HorizontalData>, Vec<VerticalData>) {
-    type Output = (Vec<HorizontalData>, Vec<VerticalData>);
+impl Squash for (Vec<HorizontalData>, Vec<UpData>) {
+    type Output = (Vec<HorizontalData>, Vec<UpData>);
     fn squashed(self) -> Self::Output {
         (self.0.squashed(), self.1.squashed())
     }
