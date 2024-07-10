@@ -50,4 +50,4 @@ impl CombinatorTrait for Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>> {
     }
 }
 
-pub type DynParser = Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>;
+pub type DynCombinator = dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>;

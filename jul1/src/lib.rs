@@ -12,6 +12,7 @@ pub use crate::u8set::U8Set;
 pub use crate::combinators::*;
 pub use crate::parse_state::*;
 pub use crate::python::*;
+pub use crate::tests::*;
 
 mod combinator;
 mod combinators;
@@ -20,7 +21,6 @@ mod u8set;
 mod bitset256;
 
 // Include tests
-#[cfg(test)]
 mod tests;
 mod frame_stack;
 mod python;
