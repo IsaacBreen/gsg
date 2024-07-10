@@ -12,9 +12,10 @@ impl<A> CombinatorTrait for LeftRecursionGuard<A> where A: CombinatorTrait {
     type Parser = A::Parser;
 
     fn parser(&self, horizontal_data: HorizontalData) -> (Self::Parser, Vec<HorizontalData>, Vec<VerticalData>) {
-        if 
-        let (a, horizontal_data_a, vertical_data_a) = self.a.parser(horizontal_data.clone());
-        (a, horizontal_data_a, vertical_data_a)
+        // if
+        // let (a, horizontal_data_a, vertical_data_a) = self.a.parser(horizontal_data.clone());
+        // (a, horizontal_data_a, vertical_data_a)
+        todo!()
     }
 }
 

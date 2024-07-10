@@ -20,7 +20,7 @@ impl Default for HorizontalData {
             frame_stack: Some(FrameStack::default()),
             indents: vec![],
             dedents: 0,
-            left_recursion_guard_data: None,
+            left_recursion_guard_data: LeftRecursionGuardData::default(),
         }
     }
 }
