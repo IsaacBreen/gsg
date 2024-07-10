@@ -14,6 +14,11 @@ pub struct UpData {
     pub u8set: U8Set,
 }
 
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct DownData {
+
+}
+
 impl Default for RightData {
     fn default() -> Self {
         Self {

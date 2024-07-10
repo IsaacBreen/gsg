@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, ParserTrait, U8Set};
+use crate::{CombinatorTrait, DownData, ParserTrait, U8Set};
 use crate::parse_state::{RightData, UpData};
 
 pub struct EatString {
@@ -14,7 +14,7 @@ pub struct EatStringParser {
 impl CombinatorTrait for EatString {
     type Parser = EatStringParser;
 
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+    fn parser(&self, right_data: RightData, down_data: DownData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
         let mut parser = EatStringParser {
             string: self.string.clone(),
             index: 0,
@@ -25,7 +25,7 @@ impl CombinatorTrait for EatString {
 }
 
 impl ParserTrait for EatStringParser {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+    fn step(&mut self, c: u8, down_data: DownData) -> (Vec<RightData>, Vec<UpData>) {
         if self.index < self.string.len() {
             if self.string[self.index] == c {
                 self.index += 1;
