@@ -76,6 +76,12 @@ impl U8Set {
         U8Set { bitset: BitSet256::none() }
     }
 
+    pub fn from_byte(byte: u8) -> Self {
+        let mut result = Self::none();
+        result.insert(byte);
+        result
+    }
+
     pub fn from_chars(chars: &str) -> Self {
         let mut result = Self::none();
         for c in chars.chars() {
@@ -103,6 +109,10 @@ impl U8Set {
             }
         }
         result
+    }
+
+    pub fn from_range(start: u8, end: u8) -> Self {
+        U8Set::from_match_fn(move |i| start <= i && i <= end)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = u8> + '_ {

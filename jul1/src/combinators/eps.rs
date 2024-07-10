@@ -1,6 +1,7 @@
 use crate::{choice, Choice2, CombinatorTrait, ParserTrait};
 use crate::parse_state::{HorizontalData, VerticalData};
 
+#[derive(Debug, Clone, Copy)]
 pub struct Eps;
 
 pub struct EpsParser;

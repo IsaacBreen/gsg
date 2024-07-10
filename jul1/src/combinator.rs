@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::parse_state::{HorizontalData, VerticalData};
 
 pub trait CombinatorTrait where Self: 'static {
@@ -15,6 +16,14 @@ pub trait ParserTrait {
 impl ParserTrait for Box<dyn ParserTrait> {
     fn step(&mut self, c: u8) -> (Vec<HorizontalData>, Vec<VerticalData>) {
         (**self).step(c)
+    }
+}
+
+impl<C> CombinatorTrait for Rc<C> where C: CombinatorTrait {
+    type Parser = C::Parser;
+
+    fn parser(&self, horizontal_data: HorizontalData) -> (Self::Parser, Vec<HorizontalData>, Vec<VerticalData>) {
+        (**self).parser(horizontal_data)
     }
 }
 

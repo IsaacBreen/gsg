@@ -34,8 +34,33 @@ impl ParserTrait for EatU8Parser {
     }
 }
 
+pub fn eat_byte(byte: u8) -> EatU8 {
+    EatU8 {
+        u8set: U8Set::from_byte(byte),
+    }
+}
+
+pub fn eat_char(c: char) -> EatU8 {
+    eat_byte(c as u8)
+}
+
 pub fn eat_char_choice(chars: &str) -> EatU8 {
     EatU8 {
         u8set: U8Set::from_chars(chars),
+    }
+}
+
+pub fn eat_char_range(start: u8, end: u8) -> EatU8 {
+    EatU8 {
+        u8set: U8Set::from_range(start, end),
+    }
+}
+
+pub fn eat_match_fn<F>(f: F) -> EatU8
+where
+    F: Fn(u8) -> bool,
+{
+    EatU8 {
+        u8set: U8Set::from_match_fn(f),
     }
 }

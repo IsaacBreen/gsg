@@ -1,5 +1,7 @@
 import io
 import json
+import logging
+
 import requests
 from pegen.grammar import Grammar, Rule, Rhs, Alt, NamedItem, Leaf, NameLeaf, StringLeaf, Group, Opt, Repeat, Forced, Lookahead, PositiveLookahead, NegativeLookahead, Repeat0, Repeat1, Gather, Cut
 from pegen.grammar_parser import GeneratedParser
@@ -132,25 +134,29 @@ def grammar_to_rust(grammar: Grammar) -> str:
             value = item.value
             if value[0] == value[-1] == "'":
                 value = value[1:-1]
-                return f'eat_char_choice("{value}")'
+                return f'eat_string("{value}")'
+            elif value[0] == value[-1] == '"':
+                value = value[1:-1]
+                return f'eat_string("{value}")'
             else:
-                return value
+                return f'{value}.clone()'
         elif isinstance(item, NameLeaf):
             value = item.value
             assert value[0] == value[-1] == '"'
             value = value[1:-1]
-            return f'eat_char_choice("{value}")'
+            return f'eat_string("{value}")'
         elif isinstance(item, StringLeaf):
             value = item.value
             assert value[0] == value[-1] == '"'
             value = value[1:-1]
             return f'eat_string("{value}")'
         elif isinstance(item, Group):
-            return f'group({rhs_to_rust(item.rhs)})'
+            logging.warning(f"Passing through group: {item}")
+            return item_to_rust(item.rhs)
         elif isinstance(item, Opt):
             return f'opt({item_to_rust(item.node)})'
         elif isinstance(item, Gather):
-            return f'gather({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
+            return f'seq!({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
         elif isinstance(item, Repeat):
             return f'repeat({item_to_rust(item.node)})'
         elif isinstance(item, Repeat0):
@@ -158,31 +164,51 @@ def grammar_to_rust(grammar: Grammar) -> str:
         elif isinstance(item, Repeat1):
             return f'repeat1({item_to_rust(item.node)})'
         elif isinstance(item, Forced):
-            return f'forced({item_to_rust(item.node)})'
+            logging.warning(f"Passing through forced: {item}")
+            return item_to_rust(item.node)
         elif isinstance(item, Lookahead):
-            return f'lookahead({item_to_rust(item.node)}, {item.sign})'
+            logging.warning(f"Doing nothing with lookahead: {item}")
+            return "eps()"
         elif isinstance(item, PositiveLookahead):
-            return f'positive_lookahead({item_to_rust(item.node)})'
+            logging.warning(f"Doing nothing with positive lookahead: {item}")
+            return "eps()"
         elif isinstance(item, NegativeLookahead):
-            return f'negative_lookahead({item_to_rust(item.node)})'
+            logging.warning(f"Doing nothing with negative lookahead: {item}")
+            return "eps()"
         elif isinstance(item, Rhs):
             return rhs_to_rust(item)
         elif isinstance(item, Cut):
-            return 'cut()'
+            logging.warning(f"Doing nothing with cut: {item}")
+            return 'eps()'
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
-    rules = '\n'.join(f'    let {name} = {rhs_to_rust(rule.rhs, top_level=True)};' for name, rule in grammar.rules.items())
-    forward_refs = '\n'.join(f'    let {name} = forward_ref();' for name, rule in grammar.rules.items())
-    forward_ref_copies = '\n'.join(f'    let {name}_copy = {name}.clone();' for name, rule in grammar.rules.items())
+    rules = '\n'.join(f'    let {name} = Rc::new({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in grammar.rules.items())
+    forward_refs = '\n'.join(f'    let mut {name} = forward_ref();' for name, rule in grammar.rules.items())
+    forward_ref_copies = '\n'.join(f'    let mut {name}_copy = {name}.clone();' for name, rule in grammar.rules.items())
     forward_ref_sets = '\n'.join(f'    {name}_copy.set({name});' for name, rule in grammar.rules.items())
 
+    tokens = ['NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING']
+
     f = io.StringIO()
-    f.write('use crate::{choice, seq, repeat, repeat as repeat0, repeat1, opt, eat_char_choice, eat_string};\n\n')
+    f.write('use std::rc::Rc;\n')
+    f.write('use crate::{choice, seq, repeat, repeat as repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, python_newline, indent, dedent};\n')
+    f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
+    f.write('\n')
     f.write('fn main() {\n')
+    for token in tokens:
+        f.write(f"    let {token} = Rc::new({token}());\n")
+    f.write("    let NEWLINE = Rc::new(python_newline());\n")
+    f.write('    let INDENT = Rc::new(indent());\n')
+    f.write('    let DEDENT = Rc::new(dedent());\n')
+    f.write("    let ENDMARKER = eps();")
+    f.write('\n')
     f.write(forward_refs)
+    f.write('\n')
     f.write(forward_ref_copies)
+    f.write('\n')
     f.write(rules)
+    f.write('\n')
     f.write(forward_ref_sets)
     f.write('}\n')
     return f.getvalue()
