@@ -58,9 +58,19 @@ impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA> where ParserA: ParserTra
     }
 }
 
-pub fn seq2<A, B>(a: A, b: B) -> Seq2<A, B> where A: CombinatorTrait, B: CombinatorTrait
+// pub fn seq2<A, B>(a: A, b: B) -> Seq2<A::Output, B::Output> where A: IntoCombinator, B: IntoCombinator
+// {
+//     Seq2 { a: a.into_combinator(), b: Rc::new(b.into_combinator()) }
+// }
+
+// pub fn seq2<A, B>(a: A, b: B) -> Seq2<A, B> where A: CombinatorTrait, B: CombinatorTrait
+// {
+//     Seq2 { a, b: Rc::new(b) }
+// }
+
+pub fn seq2<A, B>(a: A, b: B) -> Seq2<A::Output, B::Output> where A: IntoCombinator, B: IntoCombinator
 {
-    Seq2 { a, b: Rc::new(b) }
+    Seq2 { a: a.into_combinator(), b: Rc::new(b.into_combinator()) }
 }
 
 #[macro_export]

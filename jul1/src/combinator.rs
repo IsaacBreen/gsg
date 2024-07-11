@@ -51,3 +51,51 @@ impl CombinatorTrait for Box<DynCombinator> {
 }
 
 pub type DynCombinator = dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>;
+
+// trait IntoCombinator {
+//     type Output: CombinatorTrait;
+//     fn into_combinator(self) -> Self::Output;
+// }
+//
+// impl<T> IntoCombinator for T where T: CombinatorTrait {
+//     type Output = T;
+//     fn into_combinator(self) -> Self::Output {
+//         self
+//     }
+// }
+//
+// impl<T> IntoCombinator for &T where T: CombinatorTrait + Clone {
+//     type Output = T;
+//     fn into_combinator(self) -> Self::Output {
+//         self
+//     }
+// }
+
+// pub trait FromCombinator<T> where Self: Sized {
+//     fn from_combinator(t: T) -> Self;
+// }
+//
+// impl<T> FromCombinator<T> for T where T: CombinatorTrait {
+//     fn from_combinator(t: T) -> Self {
+//         t
+//     }
+// }
+//
+// impl<T> FromCombinator<&T> for T where T: CombinatorTrait + Clone {
+//     fn from_combinator(t: &T) -> Self {
+//         t.clone()
+//     }
+// }
+
+pub trait IntoCombinator {
+    type Output: CombinatorTrait;
+    fn into_combinator(self) -> Self::Output;
+}
+
+impl<T> IntoCombinator for T where T: CombinatorTrait {
+    type Output = T;
+    fn into_combinator(self) -> Self::Output {
+        self
+    }
+}
+
