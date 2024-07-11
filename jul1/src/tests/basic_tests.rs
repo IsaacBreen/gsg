@@ -94,6 +94,17 @@ mod tests {
     }
 
     #[test]
+    fn test_left_recursion_guard_implicit() {
+        let eat_char_choice2 = |s| left_recursion_guard_terminal(eat_char_choice(s));
+        let mut A = forward_ref();
+        A.set(choice!(seq!(&A, eat_char_choice2("a")), eat_char_choice2("b")));
+        let (mut parser, right_data0, up_data0) = A.parser(RightData::default());
+        assert_eq!(Squash::squashed((right_data0, up_data0)), (vec![], vec![UpData { u8set: U8Set::from_chars("b") }]));
+        assert_eq!(parser.step('b' as u8).squashed(), (vec![RightData::default()], vec![UpData { u8set: U8Set::from_chars("a") }]));
+        assert_eq!(parser.step('a' as u8).squashed(), (vec![RightData::default()], vec![UpData { u8set: U8Set::from_chars("a") }]));
+        let (right_data3, up_data3) = parser.step('a' as u8);
+    }
+    #[test]
     fn test_left_recursion_backtrack() {
         let eat_char_choice2 = |s| left_recursion_guard_terminal(eat_char_choice(s));
         let mut A = forward_ref();
