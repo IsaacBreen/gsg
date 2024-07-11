@@ -3,10 +3,15 @@ use std::rc::Rc;
 use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParserTrait, seq, seq2, Seq2, Seq2Parser};
 use crate::parse_state::{RightData, UpData};
 
-#[derive(Clone)]
-pub struct LeftRecursionGuard<A> {
+pub struct LeftRecursionGuard<A> where A: CombinatorTrait {
     // todo: problem: what if we have `a` somewhere else without a left recursion guard? then we have an oopsie?
-    a: Rc<A>,
+    pub a: Rc<A>,
+}
+
+impl<A> Clone for LeftRecursionGuard<A> where A: CombinatorTrait {
+    fn clone(&self) -> Self {
+        LeftRecursionGuard { a: self.a.clone() }
+    }
 }
 
 pub enum LeftRecursionGuardParser<A> where A: CombinatorTrait {

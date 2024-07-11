@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn test_forward_ref() {
         let mut combinator = forward_ref();
-        combinator.set(choice!(seq!(eat_char_choice("a"), combinator.clone()), eat_char_choice("b")));
+        combinator.set(choice!(seq!(eat_char_choice("a"), &combinator), eat_char_choice("b")));
         let (mut parser, right_data0, up_data0) = combinator.parser(RightData::default());
         assert_eq!(Squash::squashed((right_data0, up_data0)), (vec![], vec![UpData { u8set: U8Set::from_chars("ab") }]));
         assert_eq!(parser.step('a' as u8).squashed(), (vec![], vec![UpData { u8set: U8Set::from_chars("ab") }]));
