@@ -20,7 +20,7 @@ impl ParserTrait for Box<dyn ParserTrait> {
     }
 }
 
-impl<C> CombinatorTrait for Rc<C> where C: CombinatorTrait {
+impl<C> CombinatorTrait for Rc<C> where C: CombinatorTrait + ?Sized {
     type Parser = C::Parser;
 
     fn parser(&self, right_data: RightData, down_data: DownData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {

@@ -8,6 +8,7 @@ pub use repeat1::*;
 pub use seq::*;
 pub use indent::*;
 pub use brute_force::*;
+pub use left_recursion_guard::*;
 
 mod choice;
 mod eat_string;
