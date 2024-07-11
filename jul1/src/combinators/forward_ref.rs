@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::{CombinatorTrait, ParserTrait};
+use crate::{CombinatorTrait, IntoCombinator, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
 #[derive(Clone)]
@@ -13,6 +13,13 @@ impl CombinatorTrait for ForwardRef {
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
         self.a.borrow().as_ref().unwrap().parser(right_data)
+    }
+}
+
+impl IntoCombinator for &ForwardRef {
+    type Output = ForwardRef;
+    fn into_combinator(self) -> Self::Output {
+        self.clone()
     }
 }
 
