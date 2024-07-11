@@ -3,33 +3,36 @@ use std::rc::Rc;
 use crate::{CombinatorTrait, IntoCombinator, left_recursion_guard, LeftRecursionGuard, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
-pub struct ForwardRef where Self: CombinatorTrait {
-    a: LeftRecursionGuard<Option<Rc<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>>>>,
+pub struct ForwardRefInner {
+    a: Rc<RefCell<Option<Rc<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>>>,
 }
 
-impl CombinatorTrait for ForwardRef {
+pub enum ForwardRef {
+    Inner(ForwardRefInner),
+    LeftRecursionGuarded(LeftRecursionGuard<ForwardRefInner>),
+}
+
+impl CombinatorTrait for ForwardRefInner {
     type Parser = Box<dyn ParserTrait>;
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        self.a.a.borrow().as_ref().unwrap().parser(right_data)
+        self.a.borrow().as_ref().unwrap().parser(right_data)
     }
 }
 
 impl IntoCombinator for &ForwardRef {
     type Output = Rc<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>;
     fn into_combinator(self) -> Self::Output {
-        if let Some(a) = self.a.a.borrow().as_ref() {
+        if let Some(a) = self.a.borrow().as_ref() {
             a.clone()
         } else {
-            self.a.into_boxed().into()
+            left_recursion_guard(self.into_boxed().into()).into_boxed().into()
         }
     }
 }
 
 pub fn forward_ref() -> ForwardRef {
-    let mut s = ForwardRef { a: Rc::new(RefCell::new(None)), left_recursion_guarded: None };
-    s.left_recursion_guarded = Some(left_recursion_guard(s.clone()));
-    s
+    ForwardRef { a: Rc::new(RefCell::new(None)) }
 }
 
 impl ForwardRef {
