@@ -17,9 +17,13 @@ impl CombinatorTrait for ForwardRef {
 }
 
 impl IntoCombinator for &ForwardRef {
-    type Output = ForwardRef;
+    type Output = Rc<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>;
     fn into_combinator(self) -> Self::Output {
-        self.clone()
+        if let Some(a) = self.a.borrow().as_ref() {
+            a.clone()
+        } else {
+            self.clone().into_boxed().into()
+        }
     }
 }
 
