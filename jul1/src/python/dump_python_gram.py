@@ -183,9 +183,6 @@ def grammar_to_rust(grammar: Grammar) -> str:
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
-    rules = '\n'.join(f'    let {name} = {name}.set({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in grammar.rules.items())
-    forward_refs = '\n'.join(f'    let mut {name} = forward_ref();' for name, rule in grammar.rules.items())
-
     tokens = ['NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING']
 
     f = io.StringIO()
@@ -201,9 +198,9 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f.write('    let DEDENT = Rc::new(dedent());\n')
     f.write("    let ENDMARKER = eps();")
     f.write('\n')
-    f.write(forward_refs)
+    f.write('\n'.join(f'    let mut {name} = forward_ref();' for name, rule in grammar.rules.items()))
     f.write('\n')
-    f.write(rules)
+    f.write('\n'.join(f'    let {name} = {name}.set({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in grammar.rules.items()))
     f.write('\n    file.into_boxed().into()\n')
     f.write('}\n')
     return f.getvalue()
