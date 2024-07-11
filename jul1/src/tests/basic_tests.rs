@@ -97,7 +97,8 @@ mod tests {
     #[test]
     fn test_left_recursion_guard() {
         let mut A = forward_ref();
-        A.set(choice!(seq!(left_recursion_guard(A.clone().into_boxed().into()), eat_char_choice("a")), eat_char_choice("b")));
+        let eat_char_choice2 = |s| left_recursion_guard_terminal(eat_char_choice(s));
+        A.set(choice!(seq!(left_recursion_guard(A.clone().into_boxed().into()), eat_char_choice2("a")), eat_char_choice2("b")));
         let (mut parser, right_data0, up_data0) = A.parser(RightData::default(), DownData::default());
         assert_eq!((right_data0, Squash::squashed(up_data0)), (vec![], vec![UpData { u8set: U8Set::from_chars("b") }]));
         let (right_data1, up_data1) = parser.step('b' as u8, DownData::default());
