@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{Choice2, CombinatorTrait, Eps, opt, ParserTrait, Seq2};
+use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParserTrait, Seq2};
 use crate::parse_state::{RightData, UpData};
 
 pub struct Repeat1<A> where A: CombinatorTrait {
@@ -41,11 +41,12 @@ impl<A> ParserTrait for Repeat1Parser<A> where A: CombinatorTrait
     }
 }
 
-pub fn repeat1<A>(a: A) -> Repeat1<A> where A: CombinatorTrait {
-    Repeat1 { a: Rc::new(a) }
+pub fn repeat1<A>(a: A) -> Repeat1<A::Output> where A: IntoCombinator
+{
+    Repeat1 { a: Rc::new(a.into_combinator()) }
 }
 
-pub fn repeat<A>(a: A) -> Choice2<Repeat1<A>, Eps> where A: CombinatorTrait
+pub fn repeat<A>(a: A) -> Choice2<Repeat1<A::Output>, Eps> where A: IntoCombinator
 {
-    opt(repeat1(a))
+    opt(repeat1(a.into_combinator()))
 }

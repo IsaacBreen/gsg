@@ -23,7 +23,6 @@ pub fn eps() -> Eps {
     Eps
 }
 
-pub fn opt<A>(a: A) -> Choice2<A, Eps> where A: CombinatorTrait
-{
+pub fn opt<A>(a: A) -> Choice2<A, Eps> where A: CombinatorTrait {
     choice!(a, eps())
 }
