@@ -22,7 +22,7 @@ impl IntoCombinator for &ForwardRef {
         if let Some(a) = self.a.borrow().as_ref() {
             a.clone()
         } else {
-            left_recursion_guard(self.clone().into_boxed().into()).into_boxed().into()
+            left_recursion_guard(self.clone()).into_boxed().into()
         }
     }
 }

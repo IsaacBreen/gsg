@@ -1,25 +1,25 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::{CombinatorTrait, DynCombinator, ParserTrait, seq, seq2, Seq2, Seq2Parser};
+use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParserTrait, seq, seq2, Seq2, Seq2Parser};
 use crate::parse_state::{RightData, UpData};
 
 #[derive(Clone)]
-pub struct LeftRecursionGuard {
+pub struct LeftRecursionGuard<A> {
     // todo: problem: what if we have `a` somewhere else without a left recursion guard? then we have an oopsie?
-    a: Rc<DynCombinator>,
+    a: Rc<A>,
 }
 
-pub enum LeftRecursionGuardParser {
+pub enum LeftRecursionGuardParser<A> where A: CombinatorTrait {
     Done,
-    Normal(Vec<Box<dyn ParserTrait>>, Rc<DynCombinator>),
+    Normal(Vec<A::Parser>, Rc<A>),
 }
 
-impl CombinatorTrait for LeftRecursionGuard {
-    type Parser = LeftRecursionGuardParser;
+impl<A> CombinatorTrait for LeftRecursionGuard<A> where A: CombinatorTrait {
+    type Parser = LeftRecursionGuardParser<A>;
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        if let Some(skip_on_this_nonterminal_or_fail_on_any_terminal) = &right_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal {
-            if std::ptr::eq(skip_on_this_nonterminal_or_fail_on_any_terminal.as_ref(), self.a.as_ref()) {
+        if let Some(skip_on_this_nonterminal_or_fail_on_any_terminal) = right_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal {
+            if std::ptr::eq(skip_on_this_nonterminal_or_fail_on_any_terminal, Rc::as_ptr(&self.a) as *const u8) {
                 // Skip
                 // Strip all left recursion guard data.
                 right_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = None;
@@ -27,12 +27,12 @@ impl CombinatorTrait for LeftRecursionGuard {
                 return (LeftRecursionGuardParser::Done, vec![right_data], vec![])
             }
         }
-        if right_data.left_recursion_guard_data.fail_on_these_nonterminals.iter().any(|a| std::ptr::eq(a.as_ref(), self.a.as_ref())) {
+        if right_data.left_recursion_guard_data.fail_on_these_nonterminals.iter().any(|a| std::ptr::eq(*a, Rc::as_ptr(&self.a) as *const u8)) {
             // Fail
             return (LeftRecursionGuardParser::Done, vec![], vec![])
         }
         // Fail upon encountering the current nonterminal again without consuming.
-        right_data.left_recursion_guard_data.fail_on_these_nonterminals.push(self.a.clone());
+        right_data.left_recursion_guard_data.fail_on_these_nonterminals.push(Rc::as_ptr(&self.a) as *const u8);
         let (parser, right_data, up_data) = self.a.parser(right_data);
         // All left recursion guard data should have been stripped.
         for right_data0 in &right_data {
@@ -43,7 +43,7 @@ impl CombinatorTrait for LeftRecursionGuard {
     }
 }
 
-impl ParserTrait for LeftRecursionGuardParser {
+impl<A> ParserTrait for LeftRecursionGuardParser<A> where A: CombinatorTrait {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         match self {
             LeftRecursionGuardParser::Done => (vec![], vec![]),
@@ -66,7 +66,7 @@ impl ParserTrait for LeftRecursionGuardParser {
                     assert!(right_data0.left_recursion_guard_data.fail_on_these_nonterminals.is_empty());
 
                     // Now skip the current nonterminal.
-                    right_data0.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = Some(a.clone());
+                    right_data0.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = Some(Rc::as_ptr(&a) as *const u8);
 
                     let (parser, right_data0, up_data0) = a.parser(right_data0);
                     parsers.push(parser);
@@ -121,13 +121,11 @@ where
     }
 }
 
-pub fn left_recursion_guard_terminal<A>(a: A) -> LeftRecursionGuardTerminal<A>
-where
-    A: CombinatorTrait
-{
-    LeftRecursionGuardTerminal { a }
+pub fn left_recursion_guard_terminal<A>(a: A) -> LeftRecursionGuardTerminal<A::Output> where A: IntoCombinator {
+    LeftRecursionGuardTerminal { a: a.into_combinator() }
 }
 
-pub fn left_recursion_guard(a: Rc<DynCombinator>) -> LeftRecursionGuard {
-    LeftRecursionGuard { a }
+pub fn left_recursion_guard<A>(a: A) -> LeftRecursionGuard<A::Output>
+where A: IntoCombinator {
+    LeftRecursionGuard { a: a.into_combinator().into() }
 }
