@@ -21,6 +21,9 @@ impl CombinatorTrait for LeftRecursionGuard {
         if let Some(skip_on_this_nonterminal_or_fail_on_any_terminal) = &right_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal {
             if std::ptr::eq(skip_on_this_nonterminal_or_fail_on_any_terminal.as_ref(), self.a.as_ref()) {
                 // Skip
+                // Strip all left recursion guard data.
+                right_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = None;
+                right_data.left_recursion_guard_data.fail_on_these_nonterminals.clear();
                 return (LeftRecursionGuardParser::Done, vec![right_data], vec![])
             }
         }
@@ -31,6 +34,11 @@ impl CombinatorTrait for LeftRecursionGuard {
         // Fail upon encountering the current nonterminal again without consuming.
         right_data.left_recursion_guard_data.fail_on_these_nonterminals.push(self.a.clone());
         let (parser, right_data, up_data) = self.a.parser(right_data);
+        // All left recursion guard data should have been stripped.
+        for right_data0 in &right_data {
+            assert!(right_data0.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal.is_none());
+            assert!(right_data0.left_recursion_guard_data.fail_on_these_nonterminals.is_empty());
+        }
         (LeftRecursionGuardParser::Normal(vec![parser], self.a.clone()), right_data, up_data)
     }
 }
@@ -44,6 +52,11 @@ impl ParserTrait for LeftRecursionGuardParser {
                 let mut up_data = vec![];
                 for parser in parsers.iter_mut() {
                     let (right_data0, up_data0) = parser.step(c);
+                    // All left recursion guard data should have been stripped.
+                    for right_data0 in &right_data0 {
+                        assert!(right_data0.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal.is_none());
+                        assert!(right_data0.left_recursion_guard_data.fail_on_these_nonterminals.is_empty());
+                    }
                     right_data.extend(right_data0);
                     up_data.extend(up_data0);
                 }
