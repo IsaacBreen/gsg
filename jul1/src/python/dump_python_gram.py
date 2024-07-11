@@ -183,10 +183,8 @@ def grammar_to_rust(grammar: Grammar) -> str:
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
-    rules = '\n'.join(f'    let {name} = Rc::new({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in grammar.rules.items())
+    rules = '\n'.join(f'    let {name} = {name}.set({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in grammar.rules.items())
     forward_refs = '\n'.join(f'    let mut {name} = forward_ref();' for name, rule in grammar.rules.items())
-    forward_ref_copies = '\n'.join(f'    let mut {name}_fwd = {name}.clone();' for name, rule in grammar.rules.items())
-    forward_ref_sets = '\n'.join(f'    {name}_fwd.set({name});' for name, rule in grammar.rules.items())
 
     tokens = ['NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING']
 
@@ -205,12 +203,8 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f.write('\n')
     f.write(forward_refs)
     f.write('\n')
-    f.write(forward_ref_copies)
-    f.write('\n')
     f.write(rules)
-    f.write('\n')
-    f.write(forward_ref_sets)
-    f.write('\n    file_fwd.into_boxed().into()\n')
+    f.write('\n    file.into_boxed().into()\n')
     f.write('}\n')
     return f.getvalue()
 
