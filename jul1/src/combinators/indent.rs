@@ -1,4 +1,4 @@
-use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, RightData, ParserTrait, repeat, Repeat1, repeat1, seq, Seq2, U8Set, UpData, DownData};
+use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, RightData, ParserTrait, repeat, Repeat1, repeat1, seq, Seq2, U8Set, UpData};
 
 const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
     let mut i = 0;
@@ -53,10 +53,10 @@ pub enum IndentCombinatorParser {
 impl CombinatorTrait for IndentCombinator {
     type Parser = IndentCombinatorParser;
 
-    fn parser(&self, mut right_data: RightData, down_data: DownData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
         match self {
             IndentCombinator::Dent => {
-                let (parser, right_data_vec, up_data_vec) = brute_force(DENT_FN).parser(right_data, down_data);
+                let (parser, right_data_vec, up_data_vec) = brute_force(DENT_FN).parser(right_data);
                 (IndentCombinatorParser::DentParser(parser), right_data_vec, up_data_vec)
             }
             IndentCombinator::Indent => {
@@ -77,9 +77,9 @@ impl CombinatorTrait for IndentCombinator {
 }
 
 impl ParserTrait for IndentCombinatorParser {
-    fn step(&mut self, c: u8, down_data: DownData) -> (Vec<RightData>, Vec<UpData>) {
+    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         match self {
-            IndentCombinatorParser::DentParser(parser) => parser.step(c, down_data),
+            IndentCombinatorParser::DentParser(parser) => parser.step(c),
             IndentCombinatorParser::IndentParser(maybe_right_data) => {
                 if c == b' ' {
                     let mut right_data = maybe_right_data.as_mut().unwrap().clone();
