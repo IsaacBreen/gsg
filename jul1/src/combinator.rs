@@ -4,7 +4,7 @@ use crate::parse_state::{RightData, UpData};
 pub trait CombinatorTrait where Self: 'static {
     type Parser: ParserTrait;
     fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>);
-    fn into_boxed(self) -> Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>> where Self: Sized {
+    fn into_boxed(self) -> Box<DynCombinator> where Self: Sized {
         Box::new(DynWrapper(self))
     }
 }
@@ -42,7 +42,7 @@ where
     }
 }
 
-impl CombinatorTrait for Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>> {
+impl CombinatorTrait for Box<DynCombinator> {
     type Parser = Box<dyn ParserTrait>;
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
