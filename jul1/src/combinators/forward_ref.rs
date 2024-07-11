@@ -32,7 +32,9 @@ pub fn forward_ref() -> ForwardRef {
 }
 
 impl ForwardRef {
-    pub fn set<A: CombinatorTrait<Parser = P> + 'static, P: ParserTrait + 'static>(&mut self, a: A) {
-        *self.a.borrow_mut() = Some(a.into_boxed().into());
+    pub fn set<A: CombinatorTrait<Parser = P> + 'static, P: ParserTrait + 'static>(&mut self, a: A) -> Rc<A> {
+        let a = Rc::new(a);
+        *self.a.borrow_mut() = Some(a.clone().into_boxed().into());
+        a
     }
 }
