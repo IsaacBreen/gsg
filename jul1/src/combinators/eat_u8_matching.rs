@@ -19,7 +19,6 @@ impl CombinatorTrait for EatU8 {
         };
         (parser, vec![], vec![UpData {
             u8set: self.u8set.clone(),
-            left_recursion_guard_data: Default::default(),
         }])
     }
 }

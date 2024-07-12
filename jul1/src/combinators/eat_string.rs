@@ -20,7 +20,7 @@ impl CombinatorTrait for EatString {
             index: 0,
             right_data: Some(right_data),
         };
-        (parser, vec![], vec![UpData { u8set: U8Set::from_u8(self.string[0]), left_recursion_guard_data: Default::default() }])
+        (parser, vec![], vec![UpData { u8set: U8Set::from_u8(self.string[0]) }])
     }
 }
 
@@ -32,7 +32,7 @@ impl ParserTrait for EatStringParser {
                 if self.index == self.string.len() {
                     (vec![self.right_data.take().unwrap()], vec![])
                 } else {
-                    (vec![], vec![UpData { u8set: U8Set::from_u8(self.string[self.index]), left_recursion_guard_data: Default::default() }])
+                    (vec![], vec![UpData { u8set: U8Set::from_u8(self.string[self.index]) }])
                 }
             } else {
                 (vec![], vec![])

@@ -6,17 +6,16 @@ pub struct RightData {
     pub frame_stack: Option<FrameStack>,
     pub indents: Vec<Vec<u8>>,
     pub dedents: usize,
+    pub left_recursion_guard_data: LeftRecursionGuardDownData,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct UpData {
     pub u8set: U8Set,
-    pub left_recursion_guard_data: LeftRecursionGuardUpData,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DownData {
-    pub left_recursion_guard_data: LeftRecursionGuardDownData,
 }
 
 impl Default for RightData {
@@ -25,6 +24,7 @@ impl Default for RightData {
             frame_stack: Some(FrameStack::default()),
             indents: vec![],
             dedents: 0,
+            left_recursion_guard_data: LeftRecursionGuardDownData::default(),
         }
     }
 }
@@ -57,7 +57,7 @@ impl Squash for Vec<UpData> {
         if u8set.is_empty() {
             vec![]
         } else {
-            vec![UpData { u8set, left_recursion_guard_data: Default::default() }]
+            vec![UpData { u8set }]
         }
     }
 }
