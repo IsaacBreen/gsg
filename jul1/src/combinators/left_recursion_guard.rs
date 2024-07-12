@@ -74,8 +74,8 @@ impl<A> ParserTrait for LeftRecursionGuardParser<A> where A: CombinatorTrait {
                     let (parser, right_data0, up_data0) = a.parser(right_data0, down_data.clone());
                     parsers.push(parser);
                     right_data.extend(right_data0);
-                    // Discard up data since it indicates we have consumed a terminal, and we're supposed to fail on any terminal.
-                    // up_data.extend(up_data0);
+                    // Discard any up data that doesn't skip the current nonterminal.
+                    // up_data.retain(|up_data| up_data.left_recursion_guard_data.
                 }
                 (right_data, up_data)
             }
