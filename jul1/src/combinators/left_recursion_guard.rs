@@ -1,6 +1,7 @@
+// todo: does this behave properly with double consecutive left recursion?
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParserTrait, seq, seq2, Seq2, Seq2Parser};
+use crate::{CombinatorTrait, DownData, DynCombinator, IntoCombinator, ParserTrait, seq, seq2, Seq2, Seq2Parser};
 use crate::parse_state::{RightData, UpData};
 
 pub struct LeftRecursionGuard<A> where A: CombinatorTrait {
@@ -22,61 +23,59 @@ pub enum LeftRecursionGuardParser<A> where A: CombinatorTrait {
 impl<A> CombinatorTrait for LeftRecursionGuard<A> where A: CombinatorTrait {
     type Parser = LeftRecursionGuardParser<A>;
 
-    fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        if let Some(skip_on_this_nonterminal_or_fail_on_any_terminal) = right_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal {
+    fn parser(&self, right_data: RightData, mut down_data: DownData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+        if let Some(skip_on_this_nonterminal_or_fail_on_any_terminal) = down_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal {
             if std::ptr::eq(skip_on_this_nonterminal_or_fail_on_any_terminal, Rc::as_ptr(&self.a) as *const u8) {
                 // Skip
                 // Strip all left recursion guard data.
-                right_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = None;
-                right_data.left_recursion_guard_data.fail_on_these_nonterminals.clear();
+                // down_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = None;
+                // down_data.left_recursion_guard_data.fail_on_these_nonterminals.clear();
                 return (LeftRecursionGuardParser::Done, vec![right_data], vec![])
             }
         }
-        if right_data.left_recursion_guard_data.fail_on_these_nonterminals.iter().any(|a| std::ptr::eq(*a, Rc::as_ptr(&self.a) as *const u8)) {
+        if down_data.left_recursion_guard_data.fail_on_these_nonterminals.iter().any(|a| std::ptr::eq(*a, Rc::as_ptr(&self.a) as *const u8)) {
             // Fail
             return (LeftRecursionGuardParser::Done, vec![], vec![])
         }
         // Fail upon encountering the current nonterminal again without consuming.
-        right_data.left_recursion_guard_data.fail_on_these_nonterminals.push(Rc::as_ptr(&self.a) as *const u8);
-        let (parser, right_data, up_data) = self.a.parser(right_data);
-        // All left recursion guard data should have been stripped.
-        for right_data0 in &right_data {
-            assert!(right_data0.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal.is_none());
-            assert!(right_data0.left_recursion_guard_data.fail_on_these_nonterminals.is_empty());
+        down_data.left_recursion_guard_data.fail_on_these_nonterminals.push(Rc::as_ptr(&self.a) as *const u8);
+        let (parser, mut right_data_vec, mut up_data_vec) = self.a.parser(right_data, down_data.clone());
+        let mut parsers = vec![parser];
+        for right_data0 in right_data_vec.clone() {
+            down_data.left_recursion_guard_data.fail_on_these_nonterminals.pop();
+            down_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = Some(Rc::as_ptr(&self.a) as *const u8);
+            let (parser_new, right_data_vec_new, up_data_vec_new) = self.a.parser(right_data0.clone(), down_data.clone());
+            parsers.push(parser_new);
+            right_data_vec.extend(right_data_vec_new);
+            // We're supposed to fail on any terminal.
+            up_data_vec.retain(|up_data| !up_data.left_recursion_guard_data.did_skip);
+            // up_data_vec.extend(up_data_vec_new);
         }
-        (LeftRecursionGuardParser::Normal(vec![parser], self.a.clone()), right_data, up_data)
+        (LeftRecursionGuardParser::Normal(parsers, self.a.clone()), right_data_vec, up_data_vec)
     }
 }
 
 impl<A> ParserTrait for LeftRecursionGuardParser<A> where A: CombinatorTrait {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+    fn step(&mut self, c: u8, mut down_data: DownData) -> (Vec<RightData>, Vec<UpData>) {
         match self {
             LeftRecursionGuardParser::Done => (vec![], vec![]),
             LeftRecursionGuardParser::Normal(parsers, a) => {
                 let mut right_data = vec![];
                 let mut up_data = vec![];
                 for parser in parsers.iter_mut() {
-                    let (right_data0, up_data0) = parser.step(c);
-                    // All left recursion guard data should have been stripped.
-                    for right_data0 in &right_data0 {
-                        assert!(right_data0.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal.is_none());
-                        assert!(right_data0.left_recursion_guard_data.fail_on_these_nonterminals.is_empty());
-                    }
+                    let (right_data0, up_data0) = parser.step(c, down_data.clone());
                     right_data.extend(right_data0);
                     up_data.extend(up_data0);
                 }
                 for mut right_data0 in right_data.clone() {
-                    // All left recursion guard data should have been stripped.
-                    assert!(right_data0.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal.is_none());
-                    assert!(right_data0.left_recursion_guard_data.fail_on_these_nonterminals.is_empty());
-
                     // Now skip the current nonterminal.
-                    right_data0.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = Some(Rc::as_ptr(&a) as *const u8);
+                    down_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = Some(Rc::as_ptr(&a) as *const u8);
 
-                    let (parser, right_data0, up_data0) = a.parser(right_data0);
+                    let (parser, right_data0, up_data0) = a.parser(right_data0, down_data.clone());
                     parsers.push(parser);
                     right_data.extend(right_data0);
-                    up_data.extend(up_data0);
+                    // Discard up data since it indicates we have consumed a terminal, and we're supposed to fail on any terminal.
+                    // up_data.extend(up_data0);
                 }
                 (right_data, up_data)
             }
@@ -98,9 +97,9 @@ where
 {
     type Parser = LeftRecursionGuardTerminalParser<A::Parser>;
 
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        let should_fail = right_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal.is_some();
-        let (parser, right_data_vec, mut up_data_vec) = self.a.parser(right_data);
+    fn parser(&self, right_data: RightData, down_data: DownData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+        let should_fail = down_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal.is_some();
+        let (parser, right_data_vec, mut up_data_vec) = self.a.parser(right_data, down_data);
         if should_fail {
             // Force fail on any terminal by emptying the up data.
             up_data_vec = vec![];
@@ -114,13 +113,13 @@ impl<A> ParserTrait for LeftRecursionGuardTerminalParser<A>
 where
     A: ParserTrait
 {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+    fn step(&mut self, c: u8, mut down_data: DownData) -> (Vec<RightData>, Vec<UpData>) {
         // By this point, at least one byte has been consumed, so we can just pass through.
         // Strip all left recursion guard data.
-        let (mut right_data_vec, up_data_vec) = self.a.step(c);
+        let (mut right_data_vec, up_data_vec) = self.a.step(c, down_data.clone());
         for right_data in right_data_vec.iter_mut() {
-            right_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = None;
-            right_data.left_recursion_guard_data.fail_on_these_nonterminals.clear();
+            down_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = None;
+            down_data.left_recursion_guard_data.fail_on_these_nonterminals.clear();
         }
         (right_data_vec, up_data_vec)
     }

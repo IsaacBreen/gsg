@@ -19,11 +19,11 @@ impl<A, B> CombinatorTrait for Seq2<A, B> where A: CombinatorTrait, B: Combinato
 {
     type Parser = Seq2Parser<B, A::Parser>;
 
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        let (a, right_data_a, up_data_a) = self.a.parser(right_data.clone());
+    fn parser(&self, right_data: RightData, down_data: DownData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+        let (a, right_data_a, up_data_a) = self.a.parser(right_data.clone(), down_data.clone());
         let (mut bs, mut right_data_bs, mut up_data_bs) = (vec![], vec![], vec![]);
         for right_data_b in right_data_a {
-            let (b, right_data_b, up_data_b) = self.b.parser(right_data_b);
+            let (b, right_data_b, up_data_b) = self.b.parser(right_data_b, down_data.clone());
             bs.push(b);
             right_data_bs.extend(right_data_b);
             up_data_bs.extend(up_data_b);
@@ -40,16 +40,16 @@ impl<A, B> CombinatorTrait for Seq2<A, B> where A: CombinatorTrait, B: Combinato
 
 impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA> where ParserA: ParserTrait, B: CombinatorTrait
 {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
-        let (right_data_a, up_data_a) = self.a.as_mut().map(|a| a.step(c)).unwrap_or((vec![], vec![]));
+    fn step(&mut self, c: u8, down_data: DownData) -> (Vec<RightData>, Vec<UpData>) {
+        let (right_data_a, up_data_a) = self.a.as_mut().map(|a| a.step(c, down_data.clone())).unwrap_or((vec![], vec![]));
         let (mut right_data_bs, mut up_data_bs) = (vec![], vec![]);
         for b in self.bs.iter_mut() {
-            let (right_data_b, up_data_b) = b.step(c);
+            let (right_data_b, up_data_b) = b.step(c, down_data.clone());
             right_data_bs.extend(right_data_b);
             up_data_bs.extend(up_data_b);
         }
         for right_data_b in right_data_a {
-            let (b, right_data_b, up_data_b) = self.b.parser(right_data_b);
+            let (b, right_data_b, up_data_b) = self.b.parser(right_data_b, down_data.clone());
             self.bs.push(b);
             right_data_bs.extend(right_data_b);
             up_data_bs.extend(up_data_b);
