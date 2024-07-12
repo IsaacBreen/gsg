@@ -869,5 +869,6 @@ pub fn python_file() -> Rc<DynCombinator> {
     let invalid_arithmetic = invalid_arithmetic.set(choice!(seq!(&sum, choice!(seq!(eat_string("+")), seq!(eat_string("-")), seq!(eat_string("*")), seq!(eat_string("/")), seq!(eat_string("%")), seq!(eat_string("//")), seq!(eat_string("@"))), eat_string("not"), &inversion)));
     let invalid_factor = invalid_factor.set(choice!(seq!(choice!(seq!(eat_string("+")), seq!(eat_string("-")), seq!(eat_string("~"))), eat_string("not"), &factor)));
     let invalid_type_params = invalid_type_params.set(choice!(seq!(eat_string("["), eat_string("]"))));
+    println!("done");
     file.into_boxed().into()
 }

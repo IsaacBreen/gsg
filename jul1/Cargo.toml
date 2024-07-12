@@ -4,3 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+
+# Run tests with opt level 3
+#[profile.dev]
+#opt-level = 3
+
+#[profile.test]
+#opt-level = 3

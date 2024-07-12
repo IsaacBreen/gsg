@@ -1,7 +1,9 @@
 #[macro_export]
 macro_rules! assert_parses {
     ($combinator:expr, $input:expr) => {{
+        println!("beginning assert_parses");
         let (mut parser, _, _) = $combinator.parser($crate::RightData::default());
+        println!("constructed parser");
         let mut result = Ok(());
         for &byte in $input.as_bytes() {
             let (right_data, up_data) = parser.step(byte);
