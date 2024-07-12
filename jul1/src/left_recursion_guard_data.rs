@@ -13,6 +13,17 @@ pub struct LeftRecursionGuardUpData {
     pub did_skip: bool,
 }
 
+impl LeftRecursionGuardDownData {
+    pub fn may_consume(&self) -> bool {
+        self.skip_on_this_nonterminal_or_fail_on_any_terminal.is_none()
+    }
+
+    pub fn on_consume(&mut self) {
+        self.skip_on_this_nonterminal_or_fail_on_any_terminal = None;
+        self.fail_on_these_nonterminals.clear();
+    }
+}
+
 impl Debug for LeftRecursionGuardDownData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LeftRecursionGuardData").finish()

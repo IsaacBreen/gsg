@@ -12,7 +12,11 @@ pub struct EatU8Parser {
 
 impl CombinatorTrait for EatU8 {
     type Parser = EatU8Parser;
-    fn parser(&self, right_data: RightData, down_data: DownData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+    fn parser(&self, mut right_data: RightData, down_data: DownData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+        if !right_data.may_consume() {
+            return (EatU8Parser { u8set: self.u8set.clone(), right_data: None }, vec![], vec![])
+        }
+        right_data.on_consume();
         let parser = EatU8Parser {
             u8set: self.u8set.clone(),
             right_data: Some(right_data),

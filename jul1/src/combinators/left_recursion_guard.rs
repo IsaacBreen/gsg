@@ -28,8 +28,7 @@ impl<A> CombinatorTrait for LeftRecursionGuard<A> where A: CombinatorTrait {
             if std::ptr::eq(skip_on_this_nonterminal_or_fail_on_any_terminal, Rc::as_ptr(&self.a) as *const u8) {
                 // Skip
                 // Strip all left recursion guard data.
-                // right_data.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = None;
-                // right_data.left_recursion_guard_data.fail_on_these_nonterminals.clear();
+                right_data.on_consume();
                 return (LeftRecursionGuardParser::Done, vec![right_data], vec![])
             }
         }
@@ -47,9 +46,7 @@ impl<A> CombinatorTrait for LeftRecursionGuard<A> where A: CombinatorTrait {
             let (parser_new, right_data_vec_new, up_data_vec_new) = self.a.parser(right_data0.clone(), down_data.clone());
             parsers.push(parser_new);
             right_data_vec.extend(right_data_vec_new);
-            // We're supposed to fail on any terminal.
-            // up_data_vec.retain(|up_data| !up_data.left_recursion_guard_data.did_skip);
-            // up_data_vec.extend(up_data_vec_new);
+            up_data_vec.extend(up_data_vec_new);
         }
         (LeftRecursionGuardParser::Normal(parsers, self.a.clone()), right_data_vec, up_data_vec)
     }
@@ -68,14 +65,15 @@ impl<A> ParserTrait for LeftRecursionGuardParser<A> where A: CombinatorTrait {
                     up_data.extend(up_data0);
                 }
                 for mut right_data0 in right_data.clone() {
+                    assert!(right_data0.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal.is_none());
+                    assert!(right_data0.left_recursion_guard_data.fail_on_these_nonterminals.is_empty());
                     // Now skip the current nonterminal.
                     right_data0.left_recursion_guard_data.skip_on_this_nonterminal_or_fail_on_any_terminal = Some(Rc::as_ptr(&a) as *const u8);
 
                     let (parser, right_data0, up_data0) = a.parser(right_data0, down_data.clone());
                     parsers.push(parser);
                     right_data.extend(right_data0);
-                    // Discard any up data that doesn't skip the current nonterminal.
-                    // up_data.retain(|up_data| up_data.left_recursion_guard_data.
+                    up_data.extend(up_data0);
                 }
                 (right_data, up_data)
             }

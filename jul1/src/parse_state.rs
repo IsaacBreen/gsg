@@ -29,6 +29,16 @@ impl Default for RightData {
     }
 }
 
+impl RightData {
+    pub fn may_consume(&self) -> bool {
+        self.left_recursion_guard_data.may_consume()
+    }
+
+    pub fn on_consume(&mut self) {
+        self.left_recursion_guard_data.on_consume();
+    }
+}
+
 pub trait Squash {
     type Output;
     fn squashed(self) -> Self::Output;
