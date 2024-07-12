@@ -1,4 +1,4 @@
-use crate::{U8Set, CombinatorTrait, ParserTrait, DownData};
+use crate::{U8Set, CombinatorTrait, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
 pub struct EatU8 {
@@ -12,7 +12,7 @@ pub struct EatU8Parser {
 
 impl CombinatorTrait for EatU8 {
     type Parser = EatU8Parser;
-    fn parser(&self, mut right_data: RightData, down_data: DownData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
         if !right_data.may_consume() {
             return (EatU8Parser { u8set: self.u8set.clone(), right_data: None }, vec![], vec![])
         }
@@ -28,7 +28,7 @@ impl CombinatorTrait for EatU8 {
 }
 
 impl ParserTrait for EatU8Parser {
-    fn step(&mut self, c: u8, down_data: DownData) -> (Vec<RightData>, Vec<UpData>) {
+    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         if self.u8set.contains(c) {
             if let Some(right_data) = self.right_data.take() {
                 return (vec![right_data], vec![])

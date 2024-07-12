@@ -1,5 +1,5 @@
 use crate::{FrameStack, U8Set};
-use crate::left_recursion_guard_data::{LeftRecursionGuardDownData, LeftRecursionGuardUpData};
+use crate::left_recursion_guard_data::{LeftRecursionGuardUpData, LeftRecursionGuardDownData};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RightData {
@@ -12,10 +12,6 @@ pub struct RightData {
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct UpData {
     pub u8set: U8Set,
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct DownData {
 }
 
 impl Default for RightData {
