@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use crate::{ParserTrait, CombinatorTrait, UpData, RightData};
+
+use crate::{CombinatorTrait, ParserTrait, RightData, UpData};
 
 pub type BruteForceFn = fn(&Vec<u8>, &RightData) -> (Vec<RightData>, Vec<UpData>);
 

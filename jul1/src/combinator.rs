@@ -1,4 +1,5 @@
 use std::rc::Rc;
+
 use crate::parse_state::{RightData, UpData};
 
 pub trait CombinatorTrait where Self: 'static {

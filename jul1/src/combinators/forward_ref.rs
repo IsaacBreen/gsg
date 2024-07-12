@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::{CombinatorTrait, IntoCombinator, left_recursion_guard, LeftRecursionGuard, ParserTrait};
+
+use crate::{CombinatorTrait, IntoCombinator, LeftRecursionGuard, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
 pub struct ForwardRef {

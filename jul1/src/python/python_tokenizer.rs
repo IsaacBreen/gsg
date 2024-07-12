@@ -1,4 +1,4 @@
-use crate::{choice, seq, repeat, repeat as repeat0, repeat1, opt, eat_char, eat_string, forward_ref, eps, eat_char_range, EatU8, Choice2, Seq2, Repeat1, Eps};
+use crate::{choice, Choice2, eat_char, eat_char_range, EatU8, Eps, repeat, repeat1, Repeat1, seq, Seq2};
 
 // Define character ranges and specific characters for the Python tokenizer
 

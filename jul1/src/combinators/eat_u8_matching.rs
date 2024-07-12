@@ -1,4 +1,4 @@
-use crate::{U8Set, CombinatorTrait, ParserTrait};
+use crate::{CombinatorTrait, ParserTrait, U8Set};
 use crate::parse_state::{RightData, UpData};
 
 pub struct EatU8 {

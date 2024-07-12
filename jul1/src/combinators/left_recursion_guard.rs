@@ -1,7 +1,6 @@
-// todo: does this behave properly with double consecutive left recursion?
-use std::cell::RefCell;
 use std::rc::Rc;
-use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParserTrait, seq, seq2, Seq2, Seq2Parser};
+
+use crate::{CombinatorTrait, IntoCombinator, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
 pub struct LeftRecursionGuard<A> where A: CombinatorTrait {

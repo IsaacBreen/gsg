@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, Eps, FrameStack, RightData, ParserTrait, UpData, IntoCombinator};
+use crate::{CombinatorTrait, FrameStack, IntoCombinator, ParserTrait, RightData, UpData};
 
 pub struct WithNewFrame<A> where A: CombinatorTrait
 {

@@ -1,4 +1,4 @@
-use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, RightData, ParserTrait, repeat, Repeat1, repeat1, seq, Seq2, U8Set, UpData};
+use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, ParserTrait, repeat, Repeat1, repeat1, RightData, seq, Seq2, U8Set, UpData};
 
 const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
     let mut i = 0;

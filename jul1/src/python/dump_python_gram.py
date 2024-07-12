@@ -1,13 +1,15 @@
 import io
 import json
 import logging
-
-import requests
-from pegen.grammar import Grammar, Rule, Rhs, Alt, NamedItem, Leaf, NameLeaf, StringLeaf, Group, Opt, Repeat, Forced, Lookahead, PositiveLookahead, NegativeLookahead, Repeat0, Repeat1, Gather, Cut
-from pegen.grammar_parser import GeneratedParser
-from pegen.tokenizer import Tokenizer
 import tokenize
 from io import StringIO
+
+import requests
+from pegen.grammar import Grammar, Rhs, Alt, NamedItem, Leaf, NameLeaf, StringLeaf, Group, Opt, Repeat, Forced, Lookahead, \
+    PositiveLookahead, NegativeLookahead, Repeat0, Repeat1, Gather, Cut
+from pegen.grammar_parser import GeneratedParser
+from pegen.tokenizer import Tokenizer
+
 
 def fetch_grammar(url: str) -> str:
     response = requests.get(url)

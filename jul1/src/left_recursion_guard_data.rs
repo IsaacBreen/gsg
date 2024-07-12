@@ -1,6 +1,4 @@
 use std::fmt::{Debug, Formatter};
-use std::rc::Rc;
-use crate::{CombinatorTrait, DynCombinator};
 
 #[derive(Default, Clone)]
 pub struct LeftRecursionGuardDownData {

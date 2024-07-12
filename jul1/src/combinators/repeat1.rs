@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParserTrait, Seq2};
+
+use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
 pub struct Repeat1<A> where A: CombinatorTrait {
