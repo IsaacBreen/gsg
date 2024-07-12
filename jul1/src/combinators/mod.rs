@@ -9,6 +9,7 @@ pub use indent::*;
 pub use left_recursion_guard::*;
 pub use repeat1::*;
 pub use seq::*;
+pub use symbol::*;
 
 mod choice;
 mod eat_string;
@@ -21,3 +22,4 @@ mod frame_stack_ops;
 mod indent;
 mod brute_force;
 mod left_recursion_guard;
+mod symbol;

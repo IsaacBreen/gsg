@@ -1,4 +1,4 @@
-use crate::{choice, Choice2, CombinatorTrait, ParserTrait};
+use crate::{choice, Choice2, CombinatorTrait, IntoCombinator, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
 #[derive(Debug, Clone, Copy)]
@@ -23,9 +23,9 @@ pub fn eps() -> Eps {
     Eps
 }
 
-pub fn opt<A>(a: A) -> Choice2<A, Eps>
+pub fn opt<A>(a: A) -> Choice2<A::Output, Eps>
 where
-    A: CombinatorTrait,
+    A: IntoCombinator,
 {
-    choice!(a, eps())
+    choice!(a.into_combinator(), eps())
 }

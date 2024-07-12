@@ -76,3 +76,13 @@ where
         self
     }
 }
+
+impl<T> IntoCombinator for &Rc<T>
+where
+    T: CombinatorTrait,
+{
+    type Output = Rc<T>;
+    fn into_combinator(self) -> Self::Output {
+        self.clone()
+    }
+}

@@ -144,7 +144,7 @@ def grammar_to_rust(grammar: Grammar) -> str:
                 value = value[1:-1]
                 return f'eat_string("{value}")'
             else:
-                return f'{value}.clone()'
+                return f'&{value}'
         elif isinstance(item, NameLeaf):
             value = item.value
             assert value[0] == value[-1] == '"'
@@ -193,17 +193,17 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
     f.write(
-        'use crate::{choice, seq, repeat, repeat as repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, python_newline, indent, dedent, DynCombinator, CombinatorTrait};\n'
+        'use crate::{choice, seq, repeat, repeat as repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, python_newline, indent, dedent, DynCombinator, CombinatorTrait, symbol};\n'
         )
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('\n')
     f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
     for token in tokens:
-        f.write(f"    let {token} = Rc::new({token}());\n")
-    f.write("    let NEWLINE = Rc::new(python_newline());\n")
-    f.write('    let INDENT = Rc::new(indent());\n')
-    f.write('    let DEDENT = Rc::new(dedent());\n')
-    f.write("    let ENDMARKER = eps();")
+        f.write(f"    let {token} = symbol({token}());\n")
+    f.write("    let NEWLINE = symbol(python_newline());\n")
+    f.write('    let INDENT = symbol(indent());\n')
+    f.write('    let DEDENT = symbol(dedent());\n')
+    f.write("    let ENDMARKER = symbol(eps());\n")
     f.write('\n')
     f.write('\n'.join(f'    let mut {name} = forward_ref();' for name, rule in grammar.rules.items()))
     f.write('\n')
