@@ -16,7 +16,7 @@ impl CombinatorTrait for EatString {
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
         if !right_data.may_consume() {
-            return (EatStringParser { string: self.string.clone(), index: 0, right_data: None }, vec![], vec![])
+            return (EatStringParser { string: self.string.clone(), index: 0, right_data: None }, vec![], vec![]);
         }
         let mut parser = EatStringParser {
             string: self.string.clone(),

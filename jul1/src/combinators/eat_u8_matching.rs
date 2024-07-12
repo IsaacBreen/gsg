@@ -14,7 +14,7 @@ impl CombinatorTrait for EatU8 {
     type Parser = EatU8Parser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
         if !right_data.may_consume() {
-            return (EatU8Parser { u8set: self.u8set.clone(), right_data: None }, vec![], vec![])
+            return (EatU8Parser { u8set: self.u8set.clone(), right_data: None }, vec![], vec![]);
         }
         right_data.on_consume();
         let parser = EatU8Parser {
@@ -31,7 +31,7 @@ impl ParserTrait for EatU8Parser {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         if self.u8set.contains(c) {
             if let Some(right_data) = self.right_data.take() {
-                return (vec![right_data], vec![])
+                return (vec![right_data], vec![]);
             }
         }
         (vec![], vec![])

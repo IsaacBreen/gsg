@@ -1,17 +1,29 @@
 use crate::{CombinatorTrait, IntoCombinator, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
-pub struct Choice2<A, B> where A: CombinatorTrait, B: CombinatorTrait {
+pub struct Choice2<A, B>
+where
+    A: CombinatorTrait,
+    B: CombinatorTrait,
+{
     a: A,
     b: B,
 }
 
-pub struct Choice2Parser<ParserA, ParserB> where ParserA: ParserTrait, ParserB: ParserTrait {
+pub struct Choice2Parser<ParserA, ParserB>
+where
+    ParserA: ParserTrait,
+    ParserB: ParserTrait,
+{
     a: ParserA,
     b: ParserB,
 }
 
-impl<A, B> CombinatorTrait for Choice2<A, B> where A: CombinatorTrait, B: CombinatorTrait {
+impl<A, B> CombinatorTrait for Choice2<A, B>
+where
+    A: CombinatorTrait,
+    B: CombinatorTrait,
+{
     type Parser = Choice2Parser<A::Parser, B::Parser>;
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
@@ -25,7 +37,10 @@ impl<A, B> CombinatorTrait for Choice2<A, B> where A: CombinatorTrait, B: Combin
     }
 }
 
-impl<A, B> ParserTrait for Choice2Parser<A, B> where A: ParserTrait, B: ParserTrait
+impl<A, B> ParserTrait for Choice2Parser<A, B>
+where
+    A: ParserTrait,
+    B: ParserTrait,
 {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         let (right_data_a, up_data_a) = self.a.step(c);
@@ -37,7 +52,11 @@ impl<A, B> ParserTrait for Choice2Parser<A, B> where A: ParserTrait, B: ParserTr
     }
 }
 
-pub fn choice2<A, B>(a: A, b: B) -> Choice2<A::Output, B::Output> where A: IntoCombinator, B: IntoCombinator {
+pub fn choice2<A, B>(a: A, b: B) -> Choice2<A::Output, B::Output>
+where
+    A: IntoCombinator,
+    B: IntoCombinator,
+{
     Choice2 { a: a.into_combinator(), b: b.into_combinator() }
 }
 

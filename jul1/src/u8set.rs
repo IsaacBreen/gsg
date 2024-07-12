@@ -115,7 +115,7 @@ impl U8Set {
         U8Set::from_match_fn(move |i| start <= i && i <= end)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = u8> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item=u8> + '_ {
         (0..=255).filter(move |&i| self.contains(i))
     }
 

@@ -32,15 +32,15 @@ impl PartialEq for LeftRecursionGuardDownData {
     fn eq(&self, other: &Self) -> bool {
         for (a, b) in self.skip_on_this_nonterminal_or_fail_on_any_terminal.as_ref().iter().zip(other.skip_on_this_nonterminal_or_fail_on_any_terminal.as_ref().iter()) {
             if std::ptr::eq(*a, *b) {
-                continue
+                continue;
             }
-            return false
+            return false;
         }
         for (a, b) in self.fail_on_these_nonterminals.iter().zip(other.fail_on_these_nonterminals.iter()) {
             if std::ptr::eq(*a, *b) {
-                continue
+                continue;
             }
-            return false
+            return false;
         }
         true
     }

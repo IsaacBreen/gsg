@@ -28,7 +28,7 @@ struct Wrapper<T>(T);
 
 impl<T, A> Trait for Wrapper<T>
 where
-    T: Trait<Assoc = A>,
+    T: Trait<Assoc=A>,
     A: AssocTrait + 'static,
 {
     type Assoc = Box<dyn AssocTrait>;
@@ -40,7 +40,7 @@ where
 // Forward references are useful for recursive definitions.
 #[derive(Clone)]
 struct ForwardRef {
-    inner: Rc<RefCell<Option<Rc<dyn Trait<Assoc = Box<dyn AssocTrait>>>>>>,
+    inner: Rc<RefCell<Option<Rc<dyn Trait<Assoc=Box<dyn AssocTrait>>>>>>,
 }
 
 impl ForwardRef {
@@ -83,7 +83,7 @@ impl Trait for ForwardRef {
     fn get_assoc(&self) -> Self::Assoc {
         Box::new(DeferredAssoc {
             inner: Rc::new(RefCell::new(None)),
-            trait_obj: <Option<Rc<dyn Trait<Assoc = Box<dyn AssocTrait>>>> as Clone>::clone(&self.inner.borrow()).unwrap().clone(),
+            trait_obj: <Option<Rc<dyn Trait<Assoc=Box<dyn AssocTrait>>>> as Clone>::clone(&self.inner.borrow()).unwrap().clone(),
         })
     }
 }

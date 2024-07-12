@@ -5,7 +5,7 @@ use crate::{CombinatorTrait, IntoCombinator, LeftRecursionGuard, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
 pub struct ForwardRef {
-    a: Rc<RefCell<Option<Rc<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>>>,
+    a: Rc<RefCell<Option<Rc<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>>>,
 }
 
 impl CombinatorTrait for ForwardRef {
@@ -16,7 +16,7 @@ impl CombinatorTrait for ForwardRef {
     }
 }
 
-impl CombinatorTrait for RefCell<Option<Rc<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>> {
+impl CombinatorTrait for RefCell<Option<Rc<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>> {
     type Parser = Box<dyn ParserTrait>;
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
@@ -25,7 +25,7 @@ impl CombinatorTrait for RefCell<Option<Rc<dyn CombinatorTrait<Parser = Box<dyn 
 }
 
 impl IntoCombinator for &ForwardRef {
-    type Output = Rc<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>;
+    type Output = Rc<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>;
     fn into_combinator(self) -> Self::Output {
         if let Some(a) = self.a.borrow().as_ref() {
             a.clone()
@@ -40,7 +40,7 @@ pub fn forward_ref() -> ForwardRef {
 }
 
 impl ForwardRef {
-    pub fn set<A: CombinatorTrait<Parser = P> + 'static, P: ParserTrait + 'static>(&mut self, a: A) -> Rc<A> {
+    pub fn set<A: CombinatorTrait<Parser=P> + 'static, P: ParserTrait + 'static>(&mut self, a: A) -> Rc<A> {
         let a = Rc::new(a);
         *self.a.borrow_mut() = Some(a.clone().into_boxed().into());
         a

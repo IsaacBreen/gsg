@@ -3,12 +3,19 @@ use std::rc::Rc;
 use crate::*;
 use crate::parse_state::{RightData, UpData};
 
-pub struct Seq2<A, B> where A: CombinatorTrait, B: CombinatorTrait {
+pub struct Seq2<A, B>
+where
+    A: CombinatorTrait,
+    B: CombinatorTrait,
+{
     a: A,
     b: Rc<B>,
 }
 
-pub struct Seq2Parser<B, ParserA> where ParserA: ParserTrait, B: CombinatorTrait
+pub struct Seq2Parser<B, ParserA>
+where
+    ParserA: ParserTrait,
+    B: CombinatorTrait,
 {
     a: Option<ParserA>,
     bs: Vec<B::Parser>,
@@ -16,7 +23,10 @@ pub struct Seq2Parser<B, ParserA> where ParserA: ParserTrait, B: CombinatorTrait
     right_data: RightData,
 }
 
-impl<A, B> CombinatorTrait for Seq2<A, B> where A: CombinatorTrait, B: CombinatorTrait
+impl<A, B> CombinatorTrait for Seq2<A, B>
+where
+    A: CombinatorTrait,
+    B: CombinatorTrait,
 {
     type Parser = Seq2Parser<B, A::Parser>;
 
@@ -39,7 +49,10 @@ impl<A, B> CombinatorTrait for Seq2<A, B> where A: CombinatorTrait, B: Combinato
     }
 }
 
-impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA> where ParserA: ParserTrait, B: CombinatorTrait
+impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA>
+where
+    ParserA: ParserTrait,
+    B: CombinatorTrait,
 {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         let (right_data_a, up_data_a) = self.a.as_mut().map(|a| a.step(c)).unwrap_or((vec![], vec![]));
@@ -59,7 +72,10 @@ impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA> where ParserA: ParserTra
     }
 }
 
-pub fn seq2<A, B>(a: A, b: B) -> Seq2<A::Output, B::Output> where A: IntoCombinator, B: IntoCombinator
+pub fn seq2<A, B>(a: A, b: B) -> Seq2<A::Output, B::Output>
+where
+    A: IntoCombinator,
+    B: IntoCombinator,
 {
     Seq2 { a: a.into_combinator(), b: Rc::new(b.into_combinator()) }
 }

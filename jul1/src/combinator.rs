@@ -2,10 +2,16 @@ use std::rc::Rc;
 
 use crate::parse_state::{RightData, UpData};
 
-pub trait CombinatorTrait where Self: 'static {
+pub trait CombinatorTrait
+where
+    Self: 'static,
+{
     type Parser: ParserTrait;
     fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>);
-    fn into_boxed(self) -> Box<DynCombinator> where Self: Sized {
+    fn into_boxed(self) -> Box<DynCombinator>
+    where
+        Self: Sized,
+    {
         Box::new(DynWrapper(self))
     }
 }
@@ -20,7 +26,10 @@ impl ParserTrait for Box<dyn ParserTrait> {
     }
 }
 
-impl<C> CombinatorTrait for Rc<C> where C: CombinatorTrait + ?Sized {
+impl<C> CombinatorTrait for Rc<C>
+where
+    C: CombinatorTrait + ?Sized,
+{
     type Parser = C::Parser;
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
@@ -32,7 +41,7 @@ struct DynWrapper<T>(T);
 
 impl<T, P> CombinatorTrait for DynWrapper<T>
 where
-    T: CombinatorTrait<Parser = P>,
+    T: CombinatorTrait<Parser=P>,
     P: ParserTrait + 'static,
 {
     type Parser = Box<dyn ParserTrait>;
@@ -58,7 +67,10 @@ pub trait IntoCombinator {
     fn into_combinator(self) -> Self::Output;
 }
 
-impl<T> IntoCombinator for T where T: CombinatorTrait {
+impl<T> IntoCombinator for T
+where
+    T: CombinatorTrait,
+{
     type Output = T;
     fn into_combinator(self) -> Self::Output {
         self

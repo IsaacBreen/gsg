@@ -16,6 +16,7 @@ def fetch_grammar(url: str) -> str:
     response.raise_for_status()
     return response.text
 
+
 def parse_grammar(text: str) -> Grammar:
     # Assume `parse_string` is the function to parse grammar text into a Grammar object
     # You might need to implement this function based on how pegen parses the grammar text
@@ -25,6 +26,7 @@ def parse_grammar(text: str) -> Grammar:
         parser = GeneratedParser(tokenizer)
         grammar = parser.start()
         return grammar
+
 
 def grammar_to_dict(grammar: Grammar) -> dict:
     def rhs_to_dict(rhs: Rhs) -> dict:
@@ -117,6 +119,7 @@ def grammar_to_dict(grammar: Grammar) -> dict:
         "metas": {meta: grammar.metas[meta] for meta in grammar.metas}
     }
 
+
 def grammar_to_rust(grammar: Grammar) -> str:
     def rhs_to_rust(rhs: Rhs, top_level: bool = False) -> str:
         if top_level:
@@ -189,7 +192,9 @@ def grammar_to_rust(grammar: Grammar) -> str:
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{choice, seq, repeat, repeat as repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, python_newline, indent, dedent, DynCombinator, CombinatorTrait};\n')
+    f.write(
+        'use crate::{choice, seq, repeat, repeat as repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, python_newline, indent, dedent, DynCombinator, CombinatorTrait};\n'
+        )
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('\n')
     f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
@@ -207,14 +212,17 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f.write('}\n')
     return f.getvalue()
 
+
 def save_grammar_to_json(grammar_dict: dict, filename: str) -> None:
     with open(filename, 'w') as file:
         json.dump(grammar_dict, file, indent=4)
+
 
 def save_grammar_to_rust(grammar: Grammar, filename: str) -> None:
     rust_code = grammar_to_rust(grammar)
     with open(filename, 'w') as file:
         file.write(rust_code)
+
 
 def main():
     url = "https://raw.githubusercontent.com/python/cpython/main/Grammar/python.gram"
@@ -223,6 +231,7 @@ def main():
     grammar_dict = grammar_to_dict(grammar)
     save_grammar_to_json(grammar_dict, "python_grammar.json")
     save_grammar_to_rust(grammar, "python_grammar.rs")
+
 
 if __name__ == "__main__":
     main()

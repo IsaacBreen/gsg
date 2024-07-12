@@ -13,7 +13,7 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
                 let mut right_data = right_data.clone();
                 right_data.dedents = right_data.indents.len() - indent_num;
                 right_data.indents.truncate(indent_num);
-                return (vec![right_data], vec![UpData { u8set } ]);
+                return (vec![right_data], vec![UpData { u8set }]);
             }
         }
         let values_chunk = &values[i..(i + indent_chunk.len()).min(values.len())];
@@ -22,7 +22,7 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
                 // This could be a valid indentation, but we need more
                 let next_u8 = indent_chunk.get(values_chunk.len()).cloned().unwrap();
                 let u8set = U8Set::from_u8(next_u8);
-                return (vec![], vec![UpData { u8set } ]);
+                return (vec![], vec![UpData { u8set }]);
             } else {
                 // We have invalid indentation
                 return (vec![], vec![]);
@@ -62,7 +62,7 @@ impl CombinatorTrait for IndentCombinator {
             IndentCombinator::Indent => {
                 right_data.indents.push(vec![]);
                 (IndentCombinatorParser::IndentParser(Some(right_data)), vec![], vec![UpData { u8set: U8Set::from_chars(" ") }])
-            },
+            }
             IndentCombinator::Dedent => {
                 let right_data_to_return = if right_data.dedents == 0 {
                     vec![]
@@ -112,7 +112,9 @@ pub fn dedent() -> IndentCombinator {
     IndentCombinator::Dedent
 }
 
-pub fn with_indent<A>(a: A) -> Seq2<IndentCombinator, Seq2<A, IndentCombinator>> where A: CombinatorTrait
+pub fn with_indent<A>(a: A) -> Seq2<IndentCombinator, Seq2<A, IndentCombinator>>
+where
+    A: CombinatorTrait,
 {
     seq!(indent(), a, dedent())
 }

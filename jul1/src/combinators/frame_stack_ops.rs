@@ -1,16 +1,22 @@
 use crate::{CombinatorTrait, FrameStack, IntoCombinator, ParserTrait, RightData, UpData};
 
-pub struct WithNewFrame<A> where A: CombinatorTrait
+pub struct WithNewFrame<A>
+where
+    A: CombinatorTrait,
 {
     pub a: A,
 }
 
-pub struct WithNewFrameParser<P> where P: ParserTrait
+pub struct WithNewFrameParser<P>
+where
+    P: ParserTrait,
 {
     pub a: P,
 }
 
-impl<A> CombinatorTrait for WithNewFrame<A> where A: CombinatorTrait
+impl<A> CombinatorTrait for WithNewFrame<A>
+where
+    A: CombinatorTrait,
 {
     type Parser = WithNewFrameParser<A::Parser>;
 
@@ -21,7 +27,9 @@ impl<A> CombinatorTrait for WithNewFrame<A> where A: CombinatorTrait
     }
 }
 
-impl<P> ParserTrait for WithNewFrameParser<P> where P: ParserTrait
+impl<P> ParserTrait for WithNewFrameParser<P>
+where
+    P: ParserTrait,
 {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         let (mut right_data_vec, up_data_vec) = self.a.step(c);
@@ -39,13 +47,17 @@ pub enum FrameStackOpType {
     FrameStackContains,
 }
 
-pub struct FrameStackOp<A> where A: CombinatorTrait
+pub struct FrameStackOp<A>
+where
+    A: CombinatorTrait,
 {
     pub op_type: FrameStackOpType,
     pub a: A,
 }
 
-pub struct FrameStackOpParser<P> where P: ParserTrait
+pub struct FrameStackOpParser<P>
+where
+    P: ParserTrait,
 {
     pub op_type: FrameStackOpType,
     pub frame_stack: FrameStack,
@@ -53,7 +65,9 @@ pub struct FrameStackOpParser<P> where P: ParserTrait
     pub a: P,
 }
 
-impl<A> CombinatorTrait for FrameStackOp<A> where A: CombinatorTrait
+impl<A> CombinatorTrait for FrameStackOp<A>
+where
+    A: CombinatorTrait,
 {
     type Parser = FrameStackOpParser<A::Parser>;
 
@@ -92,7 +106,9 @@ impl<A> CombinatorTrait for FrameStackOp<A> where A: CombinatorTrait
     }
 }
 
-impl<P> ParserTrait for FrameStackOpParser<P> where P: ParserTrait
+impl<P> ParserTrait for FrameStackOpParser<P>
+where
+    P: ParserTrait,
 {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         self.values.push(c);
@@ -135,25 +151,37 @@ impl<P> ParserTrait for FrameStackOpParser<P> where P: ParserTrait
     }
 }
 
-pub fn with_new_frame<T>(parser: T) -> WithNewFrame<T::Output> where T: IntoCombinator {
+pub fn with_new_frame<T>(parser: T) -> WithNewFrame<T::Output>
+where
+    T: IntoCombinator,
+{
     WithNewFrame { a: parser.into_combinator() }
 }
 
-pub fn push_to_frame<T>(parser: T) -> FrameStackOp<T::Output> where T: IntoCombinator {
+pub fn push_to_frame<T>(parser: T) -> FrameStackOp<T::Output>
+where
+    T: IntoCombinator,
+{
     FrameStackOp {
         op_type: FrameStackOpType::PushToFrame,
         a: parser.into_combinator(),
     }
 }
 
-pub fn pop_from_frame<T>(parser: T) -> FrameStackOp<T::Output> where T: IntoCombinator {
+pub fn pop_from_frame<T>(parser: T) -> FrameStackOp<T::Output>
+where
+    T: IntoCombinator,
+{
     FrameStackOp {
         op_type: FrameStackOpType::PopFromFrame,
         a: parser.into_combinator(),
     }
 }
 
-pub fn frame_stack_contains<T>(parser: T) -> FrameStackOp<T::Output> where T: IntoCombinator {
+pub fn frame_stack_contains<T>(parser: T) -> FrameStackOp<T::Output>
+where
+    T: IntoCombinator,
+{
     FrameStackOp {
         op_type: FrameStackOpType::FrameStackContains,
         a: parser.into_combinator(),

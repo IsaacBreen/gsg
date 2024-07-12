@@ -3,23 +3,35 @@ use std::rc::Rc;
 use crate::{CombinatorTrait, IntoCombinator, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
-pub struct LeftRecursionGuard<A> where A: CombinatorTrait {
+pub struct LeftRecursionGuard<A>
+where
+    A: CombinatorTrait,
+{
     // todo: problem: what if we have `a` somewhere else without a left recursion guard? then we have an oopsie?
     pub a: Rc<A>,
 }
 
-impl<A> Clone for LeftRecursionGuard<A> where A: CombinatorTrait {
+impl<A> Clone for LeftRecursionGuard<A>
+where
+    A: CombinatorTrait,
+{
     fn clone(&self) -> Self {
         LeftRecursionGuard { a: self.a.clone() }
     }
 }
 
-pub enum LeftRecursionGuardParser<A> where A: CombinatorTrait {
+pub enum LeftRecursionGuardParser<A>
+where
+    A: CombinatorTrait,
+{
     Done,
     Normal(Vec<A::Parser>, Rc<A>),
 }
 
-impl<A> CombinatorTrait for LeftRecursionGuard<A> where A: CombinatorTrait {
+impl<A> CombinatorTrait for LeftRecursionGuard<A>
+where
+    A: CombinatorTrait,
+{
     type Parser = LeftRecursionGuardParser<A>;
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
@@ -28,12 +40,12 @@ impl<A> CombinatorTrait for LeftRecursionGuard<A> where A: CombinatorTrait {
                 // Skip
                 // Strip all left recursion guard data.
                 right_data.on_consume();
-                return (LeftRecursionGuardParser::Done, vec![right_data], vec![])
+                return (LeftRecursionGuardParser::Done, vec![right_data], vec![]);
             }
         }
         if right_data.left_recursion_guard_data.fail_on_these_nonterminals.iter().any(|a| std::ptr::eq(*a, Rc::as_ptr(&self.a) as *const u8)) {
             // Fail
-            return (LeftRecursionGuardParser::Done, vec![], vec![])
+            return (LeftRecursionGuardParser::Done, vec![], vec![]);
         }
         // Fail upon encountering the current nonterminal again without consuming.
         right_data.left_recursion_guard_data.fail_on_these_nonterminals.push(Rc::as_ptr(&self.a) as *const u8);
@@ -51,7 +63,10 @@ impl<A> CombinatorTrait for LeftRecursionGuard<A> where A: CombinatorTrait {
     }
 }
 
-impl<A> ParserTrait for LeftRecursionGuardParser<A> where A: CombinatorTrait {
+impl<A> ParserTrait for LeftRecursionGuardParser<A>
+where
+    A: CombinatorTrait,
+{
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         match self {
             LeftRecursionGuardParser::Done => (vec![], vec![]),
@@ -90,7 +105,7 @@ pub struct LeftRecursionGuardTerminalParser<A> {
 
 impl<A> CombinatorTrait for LeftRecursionGuardTerminal<A>
 where
-    A: CombinatorTrait
+    A: CombinatorTrait,
 {
     type Parser = LeftRecursionGuardTerminalParser<A::Parser>;
 
@@ -108,7 +123,7 @@ where
 
 impl<A> ParserTrait for LeftRecursionGuardTerminalParser<A>
 where
-    A: ParserTrait
+    A: ParserTrait,
 {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         // By this point, at least one byte has been consumed, so we can just pass through.
@@ -122,11 +137,16 @@ where
     }
 }
 
-pub fn left_recursion_guard_terminal<A>(a: A) -> LeftRecursionGuardTerminal<A::Output> where A: IntoCombinator {
+pub fn left_recursion_guard_terminal<A>(a: A) -> LeftRecursionGuardTerminal<A::Output>
+where
+    A: IntoCombinator,
+{
     LeftRecursionGuardTerminal { a: a.into_combinator() }
 }
 
 pub fn left_recursion_guard<A>(a: A) -> LeftRecursionGuard<A::Output>
-where A: IntoCombinator {
+where
+    A: IntoCombinator,
+{
     LeftRecursionGuard { a: a.into_combinator().into() }
 }
