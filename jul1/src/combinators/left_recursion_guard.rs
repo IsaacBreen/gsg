@@ -41,6 +41,8 @@ where
                 // Strip all left recursion guard data.
                 right_data.on_consume();
                 return (LeftRecursionGuardParser::Done, vec![right_data], vec![]);
+            } else {
+                right_data.left_recursion_guard_data.fail_on_these_nonterminals.push(skip_on_this_nonterminal_or_fail_on_any_terminal);
             }
         }
         if right_data.left_recursion_guard_data.fail_on_these_nonterminals.iter().any(|a| std::ptr::eq(*a, Rc::as_ptr(&self.a) as *const u8)) {

@@ -104,6 +104,15 @@ mod tests {
         assert_eq!(parser.step('a' as u8).squashed(), (vec![RightData::default()], vec![UpData { u8set: U8Set::from_chars("a") }]));
         let (right_data3, up_data3) = parser.step('a' as u8);
     }
+
+    #[test]
+    fn test_left_recursion_guard_empty() {
+        let mut A = forward_ref();
+        A.set(left_recursion_guard(choice!(&A, eps())));
+        let (mut parser, right_data0, up_data0) = A.parser(RightData::default());
+        assert_eq!(Squash::squashed((right_data0, up_data0)), (vec![RightData::default()], vec![]));
+    }
+
     #[test]
     fn test_left_recursion_backtrack() {
         let eat_char_choice2 = |s| left_recursion_guard_terminal(eat_char_choice(s));
