@@ -267,10 +267,10 @@ pub fn python_file() -> Rc<DynCombinator> {
     let mut invalid_arithmetic = forward_ref();
     let mut invalid_factor = forward_ref();
     let mut invalid_type_params = forward_ref();
-    let file = file.set(choice!(seq!(opt(opt(choice!(seq!(&statements)))), &ENDMARKER)));
+    let file = file.set(choice!(seq!(opt(choice!(seq!(&statements))), &ENDMARKER)));
     let interactive = interactive.set(choice!(seq!(&statement_newline)));
     let eval = eval.set(choice!(seq!(&expressions, repeat(&NEWLINE), &ENDMARKER)));
-    let func_type = func_type.set(choice!(seq!(eat_string("("), opt(opt(choice!(seq!(&type_expressions)))), eat_string(")"), eat_string("->"), &expression, repeat(&NEWLINE), &ENDMARKER)));
+    let func_type = func_type.set(choice!(seq!(eat_string("("), opt(choice!(seq!(&type_expressions))), eat_string(")"), eat_string("->"), &expression, repeat(&NEWLINE), &ENDMARKER)));
     let statements = statements.set(choice!(seq!(repeat(&statement))));
     let statement = statement.set(choice!(seq!(&compound_stmt),
         seq!(&simple_stmts)));
@@ -279,7 +279,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&NEWLINE),
         seq!(&ENDMARKER)));
     let simple_stmts = simple_stmts.set(choice!(seq!(&simple_stmt, eps(), &NEWLINE),
-        seq!(seq!(eat_string(";"), &simple_stmt), opt(opt(choice!(seq!(eat_string(";"))))), &NEWLINE)));
+        seq!(seq!(&simple_stmt, eat_string(";")), opt(choice!(seq!(eat_string(";")))), &NEWLINE)));
     let simple_stmt = simple_stmt.set(choice!(seq!(&assignment),
         seq!(eps(), &type_alias),
         seq!(&star_expressions),
@@ -302,9 +302,9 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eps(), &try_stmt),
         seq!(eps(), &while_stmt),
         seq!(&match_stmt)));
-    let assignment = assignment.set(choice!(seq!(&NAME, eat_string(":"), &expression, opt(opt(choice!(seq!(eat_string("="), &annotated_rhs))))),
-        seq!(choice!(seq!(eat_string("("), &single_target, eat_string(")")), seq!(&single_subscript_attribute_target)), eat_string(":"), &expression, opt(opt(choice!(seq!(eat_string("="), &annotated_rhs))))),
-        seq!(repeat(choice!(seq!(&star_targets, eat_string("=")))), choice!(seq!(&yield_expr), seq!(&star_expressions)), eps(), opt(opt(choice!(seq!(&TYPE_COMMENT))))),
+    let assignment = assignment.set(choice!(seq!(&NAME, eat_string(":"), &expression, opt(choice!(seq!(eat_string("="), &annotated_rhs)))),
+        seq!(choice!(seq!(eat_string("("), &single_target, eat_string(")")), seq!(&single_subscript_attribute_target)), eat_string(":"), &expression, opt(choice!(seq!(eat_string("="), &annotated_rhs)))),
+        seq!(repeat(choice!(seq!(&star_targets, eat_string("=")))), choice!(seq!(&yield_expr), seq!(&star_expressions)), eps(), opt(choice!(seq!(&TYPE_COMMENT)))),
         seq!(&single_target, &augassign, eps(), choice!(seq!(&yield_expr), seq!(&star_expressions))),
         seq!(&invalid_assignment)));
     let annotated_rhs = annotated_rhs.set(choice!(seq!(&yield_expr),
@@ -322,29 +322,29 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string(">>=")),
         seq!(eat_string("**=")),
         seq!(eat_string("//="))));
-    let return_stmt = return_stmt.set(choice!(seq!(eat_string("return"), opt(opt(choice!(seq!(&star_expressions)))))));
-    let raise_stmt = raise_stmt.set(choice!(seq!(eat_string("raise"), &expression, opt(opt(choice!(seq!(eat_string("from"), &expression))))),
+    let return_stmt = return_stmt.set(choice!(seq!(eat_string("return"), opt(choice!(seq!(&star_expressions))))));
+    let raise_stmt = raise_stmt.set(choice!(seq!(eat_string("raise"), &expression, opt(choice!(seq!(eat_string("from"), &expression)))),
         seq!(eat_string("raise"))));
-    let global_stmt = global_stmt.set(choice!(seq!(eat_string("global"), seq!(eat_string(","), &NAME))));
-    let nonlocal_stmt = nonlocal_stmt.set(choice!(seq!(eat_string("nonlocal"), seq!(eat_string(","), &NAME))));
+    let global_stmt = global_stmt.set(choice!(seq!(eat_string("global"), seq!(&NAME, eat_string(",")))));
+    let nonlocal_stmt = nonlocal_stmt.set(choice!(seq!(eat_string("nonlocal"), seq!(&NAME, eat_string(",")))));
     let del_stmt = del_stmt.set(choice!(seq!(eat_string("del"), &del_targets, eps()),
         seq!(&invalid_del_stmt)));
     let yield_stmt = yield_stmt.set(choice!(seq!(&yield_expr)));
-    let assert_stmt = assert_stmt.set(choice!(seq!(eat_string("assert"), &expression, opt(opt(choice!(seq!(eat_string(","), &expression)))))));
+    let assert_stmt = assert_stmt.set(choice!(seq!(eat_string("assert"), &expression, opt(choice!(seq!(eat_string(","), &expression))))));
     let import_stmt = import_stmt.set(choice!(seq!(&invalid_import),
         seq!(&import_name),
         seq!(&import_from)));
     let import_name = import_name.set(choice!(seq!(eat_string("import"), &dotted_as_names)));
     let import_from = import_from.set(choice!(seq!(eat_string("from"), repeat(choice!(seq!(eat_string(".")), seq!(eat_string("...")))), &dotted_name, eat_string("import"), &import_from_targets),
         seq!(eat_string("from"), repeat(choice!(seq!(eat_string(".")), seq!(eat_string("...")))), eat_string("import"), &import_from_targets)));
-    let import_from_targets = import_from_targets.set(choice!(seq!(eat_string("("), &import_from_as_names, opt(opt(choice!(seq!(eat_string(","))))), eat_string(")")),
+    let import_from_targets = import_from_targets.set(choice!(seq!(eat_string("("), &import_from_as_names, opt(choice!(seq!(eat_string(",")))), eat_string(")")),
         seq!(&import_from_as_names, eps()),
         seq!(eat_string("*")),
         seq!(&invalid_import_from_targets)));
-    let import_from_as_names = import_from_as_names.set(choice!(seq!(seq!(eat_string(","), &import_from_as_name))));
-    let import_from_as_name = import_from_as_name.set(choice!(seq!(&NAME, opt(opt(choice!(seq!(eat_string("as"), &NAME)))))));
-    let dotted_as_names = dotted_as_names.set(choice!(seq!(seq!(eat_string(","), &dotted_as_name))));
-    let dotted_as_name = dotted_as_name.set(choice!(seq!(&dotted_name, opt(opt(choice!(seq!(eat_string("as"), &NAME)))))));
+    let import_from_as_names = import_from_as_names.set(choice!(seq!(seq!(&import_from_as_name, eat_string(",")))));
+    let import_from_as_name = import_from_as_name.set(choice!(seq!(&NAME, opt(choice!(seq!(eat_string("as"), &NAME))))));
+    let dotted_as_names = dotted_as_names.set(choice!(seq!(seq!(&dotted_as_name, eat_string(",")))));
+    let dotted_as_name = dotted_as_name.set(choice!(seq!(&dotted_name, opt(choice!(seq!(eat_string("as"), &NAME))))));
     let dotted_name = dotted_name.set(choice!(seq!(&dotted_name, eat_string("."), &NAME),
         seq!(&NAME)));
     let block = block.set(choice!(seq!(&NEWLINE, &INDENT, &statements, &DEDENT),
@@ -354,27 +354,27 @@ pub fn python_file() -> Rc<DynCombinator> {
     let class_def = class_def.set(choice!(seq!(&decorators, &class_def_raw),
         seq!(&class_def_raw)));
     let class_def_raw = class_def_raw.set(choice!(seq!(&invalid_class_def_raw),
-        seq!(eat_string("class"), &NAME, opt(opt(choice!(seq!(&type_params)))), opt(opt(choice!(seq!(eat_string("("), opt(opt(choice!(seq!(&arguments)))), eat_string(")"))))), eat_string(":"), &block)));
+        seq!(eat_string("class"), &NAME, opt(choice!(seq!(&type_params))), opt(choice!(seq!(eat_string("("), opt(choice!(seq!(&arguments))), eat_string(")")))), eat_string(":"), &block)));
     let function_def = function_def.set(choice!(seq!(&decorators, &function_def_raw),
         seq!(&function_def_raw)));
     let function_def_raw = function_def_raw.set(choice!(seq!(&invalid_def_raw),
-        seq!(eat_string("def"), &NAME, opt(opt(choice!(seq!(&type_params)))), eat_string("("), opt(opt(choice!(seq!(&params)))), eat_string(")"), opt(opt(choice!(seq!(eat_string("->"), &expression)))), eat_string(":"), opt(opt(choice!(seq!(&func_type_comment)))), &block),
-        seq!(eat_string("async"), eat_string("def"), &NAME, opt(opt(choice!(seq!(&type_params)))), eat_string("("), opt(opt(choice!(seq!(&params)))), eat_string(")"), opt(opt(choice!(seq!(eat_string("->"), &expression)))), eat_string(":"), opt(opt(choice!(seq!(&func_type_comment)))), &block)));
+        seq!(eat_string("def"), &NAME, opt(choice!(seq!(&type_params))), eat_string("("), opt(choice!(seq!(&params))), eat_string(")"), opt(choice!(seq!(eat_string("->"), &expression))), eat_string(":"), opt(choice!(seq!(&func_type_comment))), &block),
+        seq!(eat_string("async"), eat_string("def"), &NAME, opt(choice!(seq!(&type_params))), eat_string("("), opt(choice!(seq!(&params))), eat_string(")"), opt(choice!(seq!(eat_string("->"), &expression))), eat_string(":"), opt(choice!(seq!(&func_type_comment))), &block)));
     let params = params.set(choice!(seq!(&invalid_parameters),
         seq!(&parameters)));
-    let parameters = parameters.set(choice!(seq!(&slash_no_default, repeat(&param_no_default), repeat(&param_with_default), opt(opt(choice!(seq!(&star_etc))))),
-        seq!(&slash_with_default, repeat(&param_with_default), opt(opt(choice!(seq!(&star_etc))))),
-        seq!(repeat(&param_no_default), repeat(&param_with_default), opt(opt(choice!(seq!(&star_etc))))),
-        seq!(repeat(&param_with_default), opt(opt(choice!(seq!(&star_etc))))),
+    let parameters = parameters.set(choice!(seq!(&slash_no_default, repeat(&param_no_default), repeat(&param_with_default), opt(choice!(seq!(&star_etc)))),
+        seq!(&slash_with_default, repeat(&param_with_default), opt(choice!(seq!(&star_etc)))),
+        seq!(repeat(&param_no_default), repeat(&param_with_default), opt(choice!(seq!(&star_etc)))),
+        seq!(repeat(&param_with_default), opt(choice!(seq!(&star_etc)))),
         seq!(&star_etc)));
     let slash_no_default = slash_no_default.set(choice!(seq!(repeat(&param_no_default), eat_string("/"), eat_string(",")),
         seq!(repeat(&param_no_default), eat_string("/"), eps())));
     let slash_with_default = slash_with_default.set(choice!(seq!(repeat(&param_no_default), repeat(&param_with_default), eat_string("/"), eat_string(",")),
         seq!(repeat(&param_no_default), repeat(&param_with_default), eat_string("/"), eps())));
     let star_etc = star_etc.set(choice!(seq!(&invalid_star_etc),
-        seq!(eat_string("*"), &param_no_default, repeat(&param_maybe_default), opt(opt(choice!(seq!(&kwds))))),
-        seq!(eat_string("*"), &param_no_default_star_annotation, repeat(&param_maybe_default), opt(opt(choice!(seq!(&kwds))))),
-        seq!(eat_string("*"), eat_string(","), repeat(&param_maybe_default), opt(opt(choice!(seq!(&kwds))))),
+        seq!(eat_string("*"), &param_no_default, repeat(&param_maybe_default), opt(choice!(seq!(&kwds)))),
+        seq!(eat_string("*"), &param_no_default_star_annotation, repeat(&param_maybe_default), opt(choice!(seq!(&kwds)))),
+        seq!(eat_string("*"), eat_string(","), repeat(&param_maybe_default), opt(choice!(seq!(&kwds)))),
         seq!(&kwds)));
     let kwds = kwds.set(choice!(seq!(&invalid_kwds),
         seq!(eat_string("**"), &param_no_default)));
@@ -394,40 +394,40 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&invalid_default)));
     let if_stmt = if_stmt.set(choice!(seq!(&invalid_if_stmt),
         seq!(eat_string("if"), &named_expression, eat_string(":"), &block, &elif_stmt),
-        seq!(eat_string("if"), &named_expression, eat_string(":"), &block, opt(opt(choice!(seq!(&else_block)))))));
+        seq!(eat_string("if"), &named_expression, eat_string(":"), &block, opt(choice!(seq!(&else_block))))));
     let elif_stmt = elif_stmt.set(choice!(seq!(&invalid_elif_stmt),
         seq!(eat_string("elif"), &named_expression, eat_string(":"), &block, &elif_stmt),
-        seq!(eat_string("elif"), &named_expression, eat_string(":"), &block, opt(opt(choice!(seq!(&else_block)))))));
+        seq!(eat_string("elif"), &named_expression, eat_string(":"), &block, opt(choice!(seq!(&else_block))))));
     let else_block = else_block.set(choice!(seq!(&invalid_else_stmt),
-        seq!(eat_string("else"), opt(eat_string(":")), &block)));
+        seq!(eat_string("else"), eat_string(":"), &block)));
     let while_stmt = while_stmt.set(choice!(seq!(&invalid_while_stmt),
-        seq!(eat_string("while"), &named_expression, eat_string(":"), &block, opt(opt(choice!(seq!(&else_block)))))));
+        seq!(eat_string("while"), &named_expression, eat_string(":"), &block, opt(choice!(seq!(&else_block))))));
     let for_stmt = for_stmt.set(choice!(seq!(&invalid_for_stmt),
-        seq!(eat_string("for"), &star_targets, eat_string("in"), eps(), &star_expressions, eat_string(":"), opt(opt(choice!(seq!(&TYPE_COMMENT)))), &block, opt(opt(choice!(seq!(&else_block))))),
-        seq!(eat_string("async"), eat_string("for"), &star_targets, eat_string("in"), eps(), &star_expressions, eat_string(":"), opt(opt(choice!(seq!(&TYPE_COMMENT)))), &block, opt(opt(choice!(seq!(&else_block))))),
+        seq!(eat_string("for"), &star_targets, eat_string("in"), eps(), &star_expressions, eat_string(":"), opt(choice!(seq!(&TYPE_COMMENT))), &block, opt(choice!(seq!(&else_block)))),
+        seq!(eat_string("async"), eat_string("for"), &star_targets, eat_string("in"), eps(), &star_expressions, eat_string(":"), opt(choice!(seq!(&TYPE_COMMENT))), &block, opt(choice!(seq!(&else_block)))),
         seq!(&invalid_for_target)));
     let with_stmt = with_stmt.set(choice!(seq!(&invalid_with_stmt_indent),
-        seq!(eat_string("with"), eat_string("("), seq!(eat_string(","), &with_item), opt(eat_string(",")), eat_string(")"), eat_string(":"), opt(opt(choice!(seq!(&TYPE_COMMENT)))), &block),
-        seq!(eat_string("with"), seq!(eat_string(","), &with_item), eat_string(":"), opt(opt(choice!(seq!(&TYPE_COMMENT)))), &block),
-        seq!(eat_string("async"), eat_string("with"), eat_string("("), seq!(eat_string(","), &with_item), opt(eat_string(",")), eat_string(")"), eat_string(":"), &block),
-        seq!(eat_string("async"), eat_string("with"), seq!(eat_string(","), &with_item), eat_string(":"), opt(opt(choice!(seq!(&TYPE_COMMENT)))), &block),
+        seq!(eat_string("with"), eat_string("("), seq!(&with_item, eat_string(",")), opt(eat_string(",")), eat_string(")"), eat_string(":"), opt(choice!(seq!(&TYPE_COMMENT))), &block),
+        seq!(eat_string("with"), seq!(&with_item, eat_string(",")), eat_string(":"), opt(choice!(seq!(&TYPE_COMMENT))), &block),
+        seq!(eat_string("async"), eat_string("with"), eat_string("("), seq!(&with_item, eat_string(",")), opt(eat_string(",")), eat_string(")"), eat_string(":"), &block),
+        seq!(eat_string("async"), eat_string("with"), seq!(&with_item, eat_string(",")), eat_string(":"), opt(choice!(seq!(&TYPE_COMMENT))), &block),
         seq!(&invalid_with_stmt)));
     let with_item = with_item.set(choice!(seq!(&expression, eat_string("as"), &star_target, eps()),
         seq!(&invalid_with_item),
         seq!(&expression)));
     let try_stmt = try_stmt.set(choice!(seq!(&invalid_try_stmt),
-        seq!(eat_string("try"), opt(eat_string(":")), &block, &finally_block),
-        seq!(eat_string("try"), opt(eat_string(":")), &block, repeat(&except_block), opt(opt(choice!(seq!(&else_block)))), opt(opt(choice!(seq!(&finally_block))))),
-        seq!(eat_string("try"), opt(eat_string(":")), &block, repeat(&except_star_block), opt(opt(choice!(seq!(&else_block)))), opt(opt(choice!(seq!(&finally_block)))))));
+        seq!(eat_string("try"), eat_string(":"), &block, &finally_block),
+        seq!(eat_string("try"), eat_string(":"), &block, repeat(&except_block), opt(choice!(seq!(&else_block))), opt(choice!(seq!(&finally_block)))),
+        seq!(eat_string("try"), eat_string(":"), &block, repeat(&except_star_block), opt(choice!(seq!(&else_block))), opt(choice!(seq!(&finally_block))))));
     let except_block = except_block.set(choice!(seq!(&invalid_except_stmt_indent),
-        seq!(eat_string("except"), &expression, opt(opt(choice!(seq!(eat_string("as"), &NAME)))), eat_string(":"), &block),
+        seq!(eat_string("except"), &expression, opt(choice!(seq!(eat_string("as"), &NAME))), eat_string(":"), &block),
         seq!(eat_string("except"), eat_string(":"), &block),
         seq!(&invalid_except_stmt)));
     let except_star_block = except_star_block.set(choice!(seq!(&invalid_except_star_stmt_indent),
-        seq!(eat_string("except"), eat_string("*"), &expression, opt(opt(choice!(seq!(eat_string("as"), &NAME)))), eat_string(":"), &block),
+        seq!(eat_string("except"), eat_string("*"), &expression, opt(choice!(seq!(eat_string("as"), &NAME))), eat_string(":"), &block),
         seq!(&invalid_except_stmt)));
     let finally_block = finally_block.set(choice!(seq!(&invalid_finally_stmt),
-        seq!(eat_string("finally"), opt(eat_string(":")), &block)));
+        seq!(eat_string("finally"), eat_string(":"), &block)));
     let match_stmt = match_stmt.set(choice!(seq!(eat_string("match"), &subject_expr, eat_string(":"), &NEWLINE, &INDENT, repeat(&case_block), &DEDENT),
         seq!(&invalid_match_stmt)));
     let subject_expr = subject_expr.set(choice!(seq!(&star_named_expression, eat_string(","), opt(&star_named_expressions)),
@@ -441,7 +441,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&or_pattern)));
     let as_pattern = as_pattern.set(choice!(seq!(&or_pattern, eat_string("as"), &pattern_capture_target),
         seq!(&invalid_as_pattern)));
-    let or_pattern = or_pattern.set(choice!(seq!(seq!(eat_string("|"), &closed_pattern))));
+    let or_pattern = or_pattern.set(choice!(seq!(seq!(&closed_pattern, eat_string("|")))));
     let closed_pattern = closed_pattern.set(choice!(seq!(&literal_pattern),
         seq!(&capture_pattern),
         seq!(&wildcard_pattern),
@@ -481,7 +481,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     let sequence_pattern = sequence_pattern.set(choice!(seq!(eat_string("["), opt(&maybe_sequence_pattern), eat_string("]")),
         seq!(eat_string("("), opt(&open_sequence_pattern), eat_string(")"))));
     let open_sequence_pattern = open_sequence_pattern.set(choice!(seq!(&maybe_star_pattern, eat_string(","), opt(&maybe_sequence_pattern))));
-    let maybe_sequence_pattern = maybe_sequence_pattern.set(choice!(seq!(seq!(eat_string(","), &maybe_star_pattern), opt(eat_string(",")))));
+    let maybe_sequence_pattern = maybe_sequence_pattern.set(choice!(seq!(seq!(&maybe_star_pattern, eat_string(",")), opt(eat_string(",")))));
     let maybe_star_pattern = maybe_star_pattern.set(choice!(seq!(&star_pattern),
         seq!(&pattern)));
     let star_pattern = star_pattern.set(choice!(seq!(eat_string("*"), &pattern_capture_target),
@@ -490,7 +490,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string("{"), &double_star_pattern, opt(eat_string(",")), eat_string("}")),
         seq!(eat_string("{"), &items_pattern, eat_string(","), &double_star_pattern, opt(eat_string(",")), eat_string("}")),
         seq!(eat_string("{"), &items_pattern, opt(eat_string(",")), eat_string("}"))));
-    let items_pattern = items_pattern.set(choice!(seq!(seq!(eat_string(","), &key_value_pattern))));
+    let items_pattern = items_pattern.set(choice!(seq!(seq!(&key_value_pattern, eat_string(",")))));
     let key_value_pattern = key_value_pattern.set(choice!(seq!(choice!(seq!(&literal_expr), seq!(&attr)), eat_string(":"), &pattern)));
     let double_star_pattern = double_star_pattern.set(choice!(seq!(eat_string("**"), &pattern_capture_target)));
     let class_pattern = class_pattern.set(choice!(seq!(&name_or_attr, eat_string("("), eat_string(")")),
@@ -498,21 +498,21 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&name_or_attr, eat_string("("), &keyword_patterns, opt(eat_string(",")), eat_string(")")),
         seq!(&name_or_attr, eat_string("("), &positional_patterns, eat_string(","), &keyword_patterns, opt(eat_string(",")), eat_string(")")),
         seq!(&invalid_class_pattern)));
-    let positional_patterns = positional_patterns.set(choice!(seq!(seq!(eat_string(","), &pattern))));
-    let keyword_patterns = keyword_patterns.set(choice!(seq!(seq!(eat_string(","), &keyword_pattern))));
+    let positional_patterns = positional_patterns.set(choice!(seq!(seq!(&pattern, eat_string(",")))));
+    let keyword_patterns = keyword_patterns.set(choice!(seq!(seq!(&keyword_pattern, eat_string(",")))));
     let keyword_pattern = keyword_pattern.set(choice!(seq!(&NAME, eat_string("="), &pattern)));
-    let type_alias = type_alias.set(choice!(seq!(eat_string("type"), &NAME, opt(opt(choice!(seq!(&type_params)))), eat_string("="), &expression)));
+    let type_alias = type_alias.set(choice!(seq!(eat_string("type"), &NAME, opt(choice!(seq!(&type_params))), eat_string("="), &expression)));
     let type_params = type_params.set(choice!(seq!(&invalid_type_params),
         seq!(eat_string("["), &type_param_seq, eat_string("]"))));
-    let type_param_seq = type_param_seq.set(choice!(seq!(seq!(eat_string(","), &type_param), opt(opt(choice!(seq!(eat_string(","))))))));
-    let type_param = type_param.set(choice!(seq!(&NAME, opt(opt(choice!(seq!(&type_param_bound)))), opt(opt(choice!(seq!(&type_param_default))))),
+    let type_param_seq = type_param_seq.set(choice!(seq!(seq!(&type_param, eat_string(",")), opt(choice!(seq!(eat_string(",")))))));
+    let type_param = type_param.set(choice!(seq!(&NAME, opt(choice!(seq!(&type_param_bound))), opt(choice!(seq!(&type_param_default)))),
         seq!(&invalid_type_param),
-        seq!(eat_string("*"), &NAME, opt(opt(choice!(seq!(&type_param_starred_default))))),
-        seq!(eat_string("**"), &NAME, opt(opt(choice!(seq!(&type_param_default)))))));
+        seq!(eat_string("*"), &NAME, opt(choice!(seq!(&type_param_starred_default)))),
+        seq!(eat_string("**"), &NAME, opt(choice!(seq!(&type_param_default))))));
     let type_param_bound = type_param_bound.set(choice!(seq!(eat_string(":"), &expression)));
     let type_param_default = type_param_default.set(choice!(seq!(eat_string("="), &expression)));
     let type_param_starred_default = type_param_starred_default.set(choice!(seq!(eat_string("="), &star_expression)));
-    let expressions = expressions.set(choice!(seq!(&expression, repeat(choice!(seq!(eat_string(","), &expression))), opt(opt(choice!(seq!(eat_string(",")))))),
+    let expressions = expressions.set(choice!(seq!(&expression, repeat(choice!(seq!(eat_string(","), &expression))), opt(choice!(seq!(eat_string(","))))),
         seq!(&expression, eat_string(",")),
         seq!(&expression)));
     let expression = expression.set(choice!(seq!(&invalid_expression),
@@ -521,13 +521,13 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&disjunction),
         seq!(&lambdef)));
     let yield_expr = yield_expr.set(choice!(seq!(eat_string("yield"), eat_string("from"), &expression),
-        seq!(eat_string("yield"), opt(opt(choice!(seq!(&star_expressions)))))));
-    let star_expressions = star_expressions.set(choice!(seq!(&star_expression, repeat(choice!(seq!(eat_string(","), &star_expression))), opt(opt(choice!(seq!(eat_string(",")))))),
+        seq!(eat_string("yield"), opt(choice!(seq!(&star_expressions))))));
+    let star_expressions = star_expressions.set(choice!(seq!(&star_expression, repeat(choice!(seq!(eat_string(","), &star_expression))), opt(choice!(seq!(eat_string(","))))),
         seq!(&star_expression, eat_string(",")),
         seq!(&star_expression)));
     let star_expression = star_expression.set(choice!(seq!(eat_string("*"), &bitwise_or),
         seq!(&expression)));
-    let star_named_expressions = star_named_expressions.set(choice!(seq!(seq!(eat_string(","), &star_named_expression), opt(opt(choice!(seq!(eat_string(","))))))));
+    let star_named_expressions = star_named_expressions.set(choice!(seq!(seq!(&star_named_expression, eat_string(",")), opt(choice!(seq!(eat_string(",")))))));
     let star_named_expression = star_named_expression.set(choice!(seq!(eat_string("*"), &bitwise_or),
         seq!(&named_expression)));
     let assignment_expression = assignment_expression.set(choice!(seq!(&NAME, eat_string(":="), eps(), &expression)));
@@ -592,12 +592,12 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&primary)));
     let primary = primary.set(choice!(seq!(&primary, eat_string("."), &NAME),
         seq!(&primary, &genexp),
-        seq!(&primary, eat_string("("), opt(opt(choice!(seq!(&arguments)))), eat_string(")")),
+        seq!(&primary, eat_string("("), opt(choice!(seq!(&arguments))), eat_string(")")),
         seq!(&primary, eat_string("["), &slices, eat_string("]")),
         seq!(&atom)));
     let slices = slices.set(choice!(seq!(&slice, eps()),
-        seq!(seq!(eat_string(","), choice!(seq!(&slice), seq!(&starred_expression))), opt(opt(choice!(seq!(eat_string(","))))))));
-    let slice = slice.set(choice!(seq!(opt(opt(choice!(seq!(&expression)))), eat_string(":"), opt(opt(choice!(seq!(&expression)))), opt(opt(choice!(seq!(eat_string(":"), opt(opt(choice!(seq!(&expression))))))))),
+        seq!(seq!(choice!(seq!(&slice), seq!(&starred_expression)), eat_string(",")), opt(choice!(seq!(eat_string(",")))))));
+    let slice = slice.set(choice!(seq!(opt(choice!(seq!(&expression))), eat_string(":"), opt(choice!(seq!(&expression))), opt(choice!(seq!(eat_string(":"), opt(choice!(seq!(&expression))))))),
         seq!(&named_expression)));
     let atom = atom.set(choice!(seq!(&NAME),
         seq!(eat_string("True")),
@@ -611,21 +611,21 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string("..."))));
     let group = group.set(choice!(seq!(eat_string("("), choice!(seq!(&yield_expr), seq!(&named_expression)), eat_string(")")),
         seq!(&invalid_group)));
-    let lambdef = lambdef.set(choice!(seq!(eat_string("lambda"), opt(opt(choice!(seq!(&lambda_params)))), eat_string(":"), &expression)));
+    let lambdef = lambdef.set(choice!(seq!(eat_string("lambda"), opt(choice!(seq!(&lambda_params))), eat_string(":"), &expression)));
     let lambda_params = lambda_params.set(choice!(seq!(&invalid_lambda_parameters),
         seq!(&lambda_parameters)));
-    let lambda_parameters = lambda_parameters.set(choice!(seq!(&lambda_slash_no_default, repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), opt(opt(choice!(seq!(&lambda_star_etc))))),
-        seq!(&lambda_slash_with_default, repeat(&lambda_param_with_default), opt(opt(choice!(seq!(&lambda_star_etc))))),
-        seq!(repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), opt(opt(choice!(seq!(&lambda_star_etc))))),
-        seq!(repeat(&lambda_param_with_default), opt(opt(choice!(seq!(&lambda_star_etc))))),
+    let lambda_parameters = lambda_parameters.set(choice!(seq!(&lambda_slash_no_default, repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), opt(choice!(seq!(&lambda_star_etc)))),
+        seq!(&lambda_slash_with_default, repeat(&lambda_param_with_default), opt(choice!(seq!(&lambda_star_etc)))),
+        seq!(repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), opt(choice!(seq!(&lambda_star_etc)))),
+        seq!(repeat(&lambda_param_with_default), opt(choice!(seq!(&lambda_star_etc)))),
         seq!(&lambda_star_etc)));
     let lambda_slash_no_default = lambda_slash_no_default.set(choice!(seq!(repeat(&lambda_param_no_default), eat_string("/"), eat_string(",")),
         seq!(repeat(&lambda_param_no_default), eat_string("/"), eps())));
     let lambda_slash_with_default = lambda_slash_with_default.set(choice!(seq!(repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), eat_string("/"), eat_string(",")),
         seq!(repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), eat_string("/"), eps())));
     let lambda_star_etc = lambda_star_etc.set(choice!(seq!(&invalid_lambda_star_etc),
-        seq!(eat_string("*"), &lambda_param_no_default, repeat(&lambda_param_maybe_default), opt(opt(choice!(seq!(&lambda_kwds))))),
-        seq!(eat_string("*"), eat_string(","), repeat(&lambda_param_maybe_default), opt(opt(choice!(seq!(&lambda_kwds))))),
+        seq!(eat_string("*"), &lambda_param_no_default, repeat(&lambda_param_maybe_default), opt(choice!(seq!(&lambda_kwds)))),
+        seq!(eat_string("*"), eat_string(","), repeat(&lambda_param_maybe_default), opt(choice!(seq!(&lambda_kwds)))),
         seq!(&lambda_kwds)));
     let lambda_kwds = lambda_kwds.set(choice!(seq!(&invalid_lambda_kwds),
         seq!(eat_string("**"), &lambda_param_no_default)));
@@ -638,7 +638,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     let lambda_param = lambda_param.set(choice!(seq!(&NAME)));
     let fstring_middle = fstring_middle.set(choice!(seq!(&fstring_replacement_field),
         seq!(&FSTRING_MIDDLE)));
-    let fstring_replacement_field = fstring_replacement_field.set(choice!(seq!(eat_string("{"), &annotated_rhs, opt(eat_string("=")), opt(opt(choice!(seq!(&fstring_conversion)))), opt(opt(choice!(seq!(&fstring_full_format_spec)))), eat_string("}")),
+    let fstring_replacement_field = fstring_replacement_field.set(choice!(seq!(eat_string("{"), &annotated_rhs, opt(eat_string("=")), opt(choice!(seq!(&fstring_conversion))), opt(choice!(seq!(&fstring_full_format_spec))), eat_string("}")),
         seq!(&invalid_replacement_field)));
     let fstring_conversion = fstring_conversion.set(choice!(seq!(eat_string("!"), &NAME)));
     let fstring_full_format_spec = fstring_full_format_spec.set(choice!(seq!(eat_string(":"), repeat(&fstring_format_spec))));
@@ -647,12 +647,12 @@ pub fn python_file() -> Rc<DynCombinator> {
     let fstring = fstring.set(choice!(seq!(&FSTRING_START, repeat(&fstring_middle), &FSTRING_END)));
     let string = string.set(choice!(seq!(&STRING)));
     let strings = strings.set(choice!(seq!(repeat(choice!(seq!(&fstring), seq!(&string))))));
-    let list = list.set(choice!(seq!(eat_string("["), opt(opt(choice!(seq!(&star_named_expressions)))), eat_string("]"))));
-    let tuple = tuple.set(choice!(seq!(eat_string("("), opt(opt(choice!(seq!(&star_named_expression, eat_string(","), opt(opt(choice!(seq!(&star_named_expressions)))))))), eat_string(")"))));
+    let list = list.set(choice!(seq!(eat_string("["), opt(choice!(seq!(&star_named_expressions))), eat_string("]"))));
+    let tuple = tuple.set(choice!(seq!(eat_string("("), opt(choice!(seq!(&star_named_expression, eat_string(","), opt(choice!(seq!(&star_named_expressions)))))), eat_string(")"))));
     let set = set.set(choice!(seq!(eat_string("{"), &star_named_expressions, eat_string("}"))));
-    let dict = dict.set(choice!(seq!(eat_string("{"), opt(opt(choice!(seq!(&double_starred_kvpairs)))), eat_string("}")),
+    let dict = dict.set(choice!(seq!(eat_string("{"), opt(choice!(seq!(&double_starred_kvpairs))), eat_string("}")),
         seq!(eat_string("{"), &invalid_double_starred_kvpairs, eat_string("}"))));
-    let double_starred_kvpairs = double_starred_kvpairs.set(choice!(seq!(seq!(eat_string(","), &double_starred_kvpair), opt(opt(choice!(seq!(eat_string(","))))))));
+    let double_starred_kvpairs = double_starred_kvpairs.set(choice!(seq!(seq!(&double_starred_kvpair, eat_string(",")), opt(choice!(seq!(eat_string(",")))))));
     let double_starred_kvpair = double_starred_kvpair.set(choice!(seq!(eat_string("**"), &bitwise_or),
         seq!(&kvpair)));
     let kvpair = kvpair.set(choice!(seq!(&expression, eat_string(":"), &expression)));
@@ -669,13 +669,13 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&invalid_comprehension)));
     let dictcomp = dictcomp.set(choice!(seq!(eat_string("{"), &kvpair, &for_if_clauses, eat_string("}")),
         seq!(&invalid_dict_comprehension)));
-    let arguments = arguments.set(choice!(seq!(&args, opt(opt(choice!(seq!(eat_string(","))))), eps()),
+    let arguments = arguments.set(choice!(seq!(&args, opt(choice!(seq!(eat_string(",")))), eps()),
         seq!(&invalid_arguments)));
-    let args = args.set(choice!(seq!(seq!(eat_string(","), choice!(seq!(&starred_expression), seq!(choice!(seq!(&assignment_expression), seq!(&expression, eps())), eps()))), opt(opt(choice!(seq!(eat_string(","), &kwargs))))),
+    let args = args.set(choice!(seq!(seq!(choice!(seq!(&starred_expression), seq!(choice!(seq!(&assignment_expression), seq!(&expression, eps())), eps())), eat_string(",")), opt(choice!(seq!(eat_string(","), &kwargs)))),
         seq!(&kwargs)));
-    let kwargs = kwargs.set(choice!(seq!(seq!(eat_string(","), &kwarg_or_starred), eat_string(","), seq!(eat_string(","), &kwarg_or_double_starred)),
-        seq!(seq!(eat_string(","), &kwarg_or_starred)),
-        seq!(seq!(eat_string(","), &kwarg_or_double_starred))));
+    let kwargs = kwargs.set(choice!(seq!(seq!(&kwarg_or_starred, eat_string(",")), eat_string(","), seq!(&kwarg_or_double_starred, eat_string(","))),
+        seq!(seq!(&kwarg_or_starred, eat_string(","))),
+        seq!(seq!(&kwarg_or_double_starred, eat_string(",")))));
     let starred_expression = starred_expression.set(choice!(seq!(&invalid_starred_expression_unpacking),
         seq!(eat_string("*"), &expression),
         seq!(&invalid_starred_expression)));
@@ -686,9 +686,9 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&NAME, eat_string("="), &expression),
         seq!(eat_string("**"), &expression)));
     let star_targets = star_targets.set(choice!(seq!(&star_target, eps()),
-        seq!(&star_target, repeat(choice!(seq!(eat_string(","), &star_target))), opt(opt(choice!(seq!(eat_string(","))))))));
-    let star_targets_list_seq = star_targets_list_seq.set(choice!(seq!(seq!(eat_string(","), &star_target), opt(opt(choice!(seq!(eat_string(","))))))));
-    let star_targets_tuple_seq = star_targets_tuple_seq.set(choice!(seq!(&star_target, repeat(choice!(seq!(eat_string(","), &star_target))), opt(opt(choice!(seq!(eat_string(",")))))),
+        seq!(&star_target, repeat(choice!(seq!(eat_string(","), &star_target))), opt(choice!(seq!(eat_string(",")))))));
+    let star_targets_list_seq = star_targets_list_seq.set(choice!(seq!(seq!(&star_target, eat_string(",")), opt(choice!(seq!(eat_string(",")))))));
+    let star_targets_tuple_seq = star_targets_tuple_seq.set(choice!(seq!(&star_target, repeat(choice!(seq!(eat_string(","), &star_target))), opt(choice!(seq!(eat_string(","))))),
         seq!(&star_target, eat_string(","))));
     let star_target = star_target.set(choice!(seq!(eat_string("*"), choice!(seq!(eps(), &star_target))),
         seq!(&target_with_star_atom)));
@@ -697,8 +697,8 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&star_atom)));
     let star_atom = star_atom.set(choice!(seq!(&NAME),
         seq!(eat_string("("), &target_with_star_atom, eat_string(")")),
-        seq!(eat_string("("), opt(opt(choice!(seq!(&star_targets_tuple_seq)))), eat_string(")")),
-        seq!(eat_string("["), opt(opt(choice!(seq!(&star_targets_list_seq)))), eat_string("]"))));
+        seq!(eat_string("("), opt(choice!(seq!(&star_targets_tuple_seq))), eat_string(")")),
+        seq!(eat_string("["), opt(choice!(seq!(&star_targets_list_seq))), eat_string("]"))));
     let single_target = single_target.set(choice!(seq!(&single_subscript_attribute_target),
         seq!(&NAME),
         seq!(eat_string("("), &single_target, eat_string(")"))));
@@ -707,31 +707,31 @@ pub fn python_file() -> Rc<DynCombinator> {
     let t_primary = t_primary.set(choice!(seq!(&t_primary, eat_string("."), &NAME, eps()),
         seq!(&t_primary, eat_string("["), &slices, eat_string("]"), eps()),
         seq!(&t_primary, &genexp, eps()),
-        seq!(&t_primary, eat_string("("), opt(opt(choice!(seq!(&arguments)))), eat_string(")"), eps()),
+        seq!(&t_primary, eat_string("("), opt(choice!(seq!(&arguments))), eat_string(")"), eps()),
         seq!(&atom, eps())));
     let t_lookahead = t_lookahead.set(choice!(seq!(eat_string("(")),
         seq!(eat_string("[")),
         seq!(eat_string("."))));
-    let del_targets = del_targets.set(choice!(seq!(seq!(eat_string(","), &del_target), opt(opt(choice!(seq!(eat_string(","))))))));
+    let del_targets = del_targets.set(choice!(seq!(seq!(&del_target, eat_string(",")), opt(choice!(seq!(eat_string(",")))))));
     let del_target = del_target.set(choice!(seq!(&t_primary, eat_string("."), &NAME, eps()),
         seq!(&t_primary, eat_string("["), &slices, eat_string("]"), eps()),
         seq!(&del_t_atom)));
     let del_t_atom = del_t_atom.set(choice!(seq!(&NAME),
         seq!(eat_string("("), &del_target, eat_string(")")),
-        seq!(eat_string("("), opt(opt(choice!(seq!(&del_targets)))), eat_string(")")),
-        seq!(eat_string("["), opt(opt(choice!(seq!(&del_targets)))), eat_string("]"))));
-    let type_expressions = type_expressions.set(choice!(seq!(seq!(eat_string(","), &expression), eat_string(","), eat_string("*"), &expression, eat_string(","), eat_string("**"), &expression),
-        seq!(seq!(eat_string(","), &expression), eat_string(","), eat_string("*"), &expression),
-        seq!(seq!(eat_string(","), &expression), eat_string(","), eat_string("**"), &expression),
+        seq!(eat_string("("), opt(choice!(seq!(&del_targets))), eat_string(")")),
+        seq!(eat_string("["), opt(choice!(seq!(&del_targets))), eat_string("]"))));
+    let type_expressions = type_expressions.set(choice!(seq!(seq!(&expression, eat_string(",")), eat_string(","), eat_string("*"), &expression, eat_string(","), eat_string("**"), &expression),
+        seq!(seq!(&expression, eat_string(",")), eat_string(","), eat_string("*"), &expression),
+        seq!(seq!(&expression, eat_string(",")), eat_string(","), eat_string("**"), &expression),
         seq!(eat_string("*"), &expression, eat_string(","), eat_string("**"), &expression),
         seq!(eat_string("*"), &expression),
         seq!(eat_string("**"), &expression),
-        seq!(seq!(eat_string(","), &expression))));
+        seq!(seq!(&expression, eat_string(",")))));
     let func_type_comment = func_type_comment.set(choice!(seq!(&NEWLINE, &TYPE_COMMENT, eps()),
         seq!(&invalid_double_type_comments),
         seq!(&TYPE_COMMENT)));
-    let invalid_arguments = invalid_arguments.set(choice!(seq!(choice!(seq!(choice!(seq!(seq!(eat_string(","), choice!(seq!(&starred_expression), seq!(choice!(seq!(&assignment_expression), seq!(&expression, eps())), eps()))), eat_string(","), &kwargs))), seq!(&kwargs)), eat_string(","), seq!(eat_string(","), choice!(seq!(&starred_expression, eps())))),
-        seq!(&expression, &for_if_clauses, eat_string(","), opt(opt(choice!(seq!(&args), seq!(&expression, &for_if_clauses))))),
+    let invalid_arguments = invalid_arguments.set(choice!(seq!(choice!(seq!(choice!(seq!(seq!(choice!(seq!(&starred_expression), seq!(choice!(seq!(&assignment_expression), seq!(&expression, eps())), eps())), eat_string(",")), eat_string(","), &kwargs))), seq!(&kwargs)), eat_string(","), seq!(choice!(seq!(&starred_expression, eps())), eat_string(","))),
+        seq!(&expression, &for_if_clauses, eat_string(","), opt(choice!(seq!(&args), seq!(&expression, &for_if_clauses)))),
         seq!(&NAME, eat_string("="), &expression, &for_if_clauses),
         seq!(opt(choice!(seq!(&args, eat_string(",")))), &NAME, eat_string("="), eps()),
         seq!(&args, &for_if_clauses),
@@ -749,7 +749,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string("**"), &NAME, eat_string(":"), &expression)));
     let invalid_expression = invalid_expression.set(choice!(seq!(eps(), &disjunction, &expression_without_invalid),
         seq!(&disjunction, eat_string("if"), &disjunction, eps()),
-        seq!(eat_string("lambda"), opt(opt(choice!(seq!(&lambda_params)))), eat_string(":"), eps())));
+        seq!(eat_string("lambda"), opt(choice!(seq!(&lambda_params))), eat_string(":"), eps())));
     let invalid_named_expression = invalid_named_expression.set(choice!(seq!(&expression, eat_string(":="), &expression),
         seq!(&NAME, eat_string("="), &bitwise_or, eps()),
         seq!(eps(), &bitwise_or, eat_string("="), &bitwise_or, eps())));
@@ -787,7 +787,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     let invalid_lambda_parameters = invalid_lambda_parameters.set(choice!(seq!(eat_string("/"), eat_string(",")),
         seq!(choice!(seq!(&lambda_slash_no_default), seq!(&lambda_slash_with_default)), repeat(&lambda_param_maybe_default), eat_string("/")),
         seq!(opt(&lambda_slash_no_default), repeat(&lambda_param_no_default), &invalid_lambda_parameters_helper, &lambda_param_no_default),
-        seq!(repeat(&lambda_param_no_default), eat_string("("), seq!(eat_string(","), &lambda_param), opt(eat_string(",")), eat_string(")")),
+        seq!(repeat(&lambda_param_no_default), eat_string("("), seq!(&lambda_param, eat_string(",")), opt(eat_string(",")), eat_string(")")),
         seq!(opt(choice!(seq!(&lambda_slash_no_default), seq!(&lambda_slash_with_default))), repeat(&lambda_param_maybe_default), eat_string("*"), choice!(seq!(eat_string(",")), seq!(&lambda_param_no_default)), repeat(&lambda_param_maybe_default), eat_string("/")),
         seq!(repeat(&lambda_param_maybe_default), eat_string("/"), eat_string("*"))));
     let invalid_lambda_parameters_helper = invalid_lambda_parameters_helper.set(choice!(seq!(&lambda_slash_with_default),
@@ -800,30 +800,30 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string("**"), &lambda_param, eat_string(","), choice!(seq!(eat_string("*")), seq!(eat_string("**")), seq!(eat_string("/"))))));
     let invalid_double_type_comments = invalid_double_type_comments.set(choice!(seq!(&TYPE_COMMENT, &NEWLINE, &TYPE_COMMENT, &NEWLINE, &INDENT)));
     let invalid_with_item = invalid_with_item.set(choice!(seq!(&expression, eat_string("as"), &expression, eps())));
-    let invalid_for_if_clause = invalid_for_if_clause.set(choice!(seq!(opt(eat_string("async")), eat_string("for"), choice!(seq!(&bitwise_or, repeat(choice!(seq!(eat_string(","), &bitwise_or))), opt(opt(choice!(seq!(eat_string(","))))))), eps())));
+    let invalid_for_if_clause = invalid_for_if_clause.set(choice!(seq!(opt(eat_string("async")), eat_string("for"), choice!(seq!(&bitwise_or, repeat(choice!(seq!(eat_string(","), &bitwise_or))), opt(choice!(seq!(eat_string(",")))))), eps())));
     let invalid_for_target = invalid_for_target.set(choice!(seq!(opt(eat_string("async")), eat_string("for"), &star_expressions)));
     let invalid_group = invalid_group.set(choice!(seq!(eat_string("("), &starred_expression, eat_string(")")),
         seq!(eat_string("("), eat_string("**"), &expression, eat_string(")"))));
-    let invalid_import = invalid_import.set(choice!(seq!(eat_string("import"), seq!(eat_string(","), &dotted_name), eat_string("from"), &dotted_name),
+    let invalid_import = invalid_import.set(choice!(seq!(eat_string("import"), seq!(&dotted_name, eat_string(",")), eat_string("from"), &dotted_name),
         seq!(eat_string("import"), &NEWLINE)));
     let invalid_import_from_targets = invalid_import_from_targets.set(choice!(seq!(&import_from_as_names, eat_string(","), &NEWLINE),
         seq!(&NEWLINE)));
-    let invalid_with_stmt = invalid_with_stmt.set(choice!(seq!(opt(opt(choice!(seq!(eat_string("async"))))), eat_string("with"), seq!(eat_string(","), choice!(seq!(&expression, opt(opt(choice!(seq!(eat_string("as"), &star_target))))))), &NEWLINE),
-        seq!(opt(opt(choice!(seq!(eat_string("async"))))), eat_string("with"), eat_string("("), seq!(eat_string(","), choice!(seq!(&expressions, opt(opt(choice!(seq!(eat_string("as"), &star_target))))))), opt(eat_string(",")), eat_string(")"), &NEWLINE)));
-    let invalid_with_stmt_indent = invalid_with_stmt_indent.set(choice!(seq!(opt(opt(choice!(seq!(eat_string("async"))))), eat_string("with"), seq!(eat_string(","), choice!(seq!(&expression, opt(opt(choice!(seq!(eat_string("as"), &star_target))))))), eat_string(":"), &NEWLINE, eps()),
-        seq!(opt(opt(choice!(seq!(eat_string("async"))))), eat_string("with"), eat_string("("), seq!(eat_string(","), choice!(seq!(&expressions, opt(opt(choice!(seq!(eat_string("as"), &star_target))))))), opt(eat_string(",")), eat_string(")"), eat_string(":"), &NEWLINE, eps())));
+    let invalid_with_stmt = invalid_with_stmt.set(choice!(seq!(opt(choice!(seq!(eat_string("async")))), eat_string("with"), seq!(choice!(seq!(&expression, opt(choice!(seq!(eat_string("as"), &star_target))))), eat_string(",")), &NEWLINE),
+        seq!(opt(choice!(seq!(eat_string("async")))), eat_string("with"), eat_string("("), seq!(choice!(seq!(&expressions, opt(choice!(seq!(eat_string("as"), &star_target))))), eat_string(",")), opt(eat_string(",")), eat_string(")"), &NEWLINE)));
+    let invalid_with_stmt_indent = invalid_with_stmt_indent.set(choice!(seq!(opt(choice!(seq!(eat_string("async")))), eat_string("with"), seq!(choice!(seq!(&expression, opt(choice!(seq!(eat_string("as"), &star_target))))), eat_string(",")), eat_string(":"), &NEWLINE, eps()),
+        seq!(opt(choice!(seq!(eat_string("async")))), eat_string("with"), eat_string("("), seq!(choice!(seq!(&expressions, opt(choice!(seq!(eat_string("as"), &star_target))))), eat_string(",")), opt(eat_string(",")), eat_string(")"), eat_string(":"), &NEWLINE, eps())));
     let invalid_try_stmt = invalid_try_stmt.set(choice!(seq!(eat_string("try"), eat_string(":"), &NEWLINE, eps()),
         seq!(eat_string("try"), eat_string(":"), &block, eps()),
-        seq!(eat_string("try"), eat_string(":"), repeat(&block), repeat(&except_block), eat_string("except"), eat_string("*"), &expression, opt(opt(choice!(seq!(eat_string("as"), &NAME)))), eat_string(":")),
-        seq!(eat_string("try"), eat_string(":"), repeat(&block), repeat(&except_star_block), eat_string("except"), opt(opt(choice!(seq!(&expression, opt(opt(choice!(seq!(eat_string("as"), &NAME)))))))), eat_string(":"))));
-    let invalid_except_stmt = invalid_except_stmt.set(choice!(seq!(eat_string("except"), opt(eat_string("*")), &expression, eat_string(","), &expressions, opt(opt(choice!(seq!(eat_string("as"), &NAME)))), eat_string(":")),
-        seq!(eat_string("except"), opt(eat_string("*")), &expression, opt(opt(choice!(seq!(eat_string("as"), &NAME)))), &NEWLINE),
+        seq!(eat_string("try"), eat_string(":"), repeat(&block), repeat(&except_block), eat_string("except"), eat_string("*"), &expression, opt(choice!(seq!(eat_string("as"), &NAME))), eat_string(":")),
+        seq!(eat_string("try"), eat_string(":"), repeat(&block), repeat(&except_star_block), eat_string("except"), opt(choice!(seq!(&expression, opt(choice!(seq!(eat_string("as"), &NAME)))))), eat_string(":"))));
+    let invalid_except_stmt = invalid_except_stmt.set(choice!(seq!(eat_string("except"), opt(eat_string("*")), &expression, eat_string(","), &expressions, opt(choice!(seq!(eat_string("as"), &NAME))), eat_string(":")),
+        seq!(eat_string("except"), opt(eat_string("*")), &expression, opt(choice!(seq!(eat_string("as"), &NAME))), &NEWLINE),
         seq!(eat_string("except"), &NEWLINE),
         seq!(eat_string("except"), eat_string("*"), choice!(seq!(&NEWLINE), seq!(eat_string(":"))))));
     let invalid_finally_stmt = invalid_finally_stmt.set(choice!(seq!(eat_string("finally"), eat_string(":"), &NEWLINE, eps())));
-    let invalid_except_stmt_indent = invalid_except_stmt_indent.set(choice!(seq!(eat_string("except"), &expression, opt(opt(choice!(seq!(eat_string("as"), &NAME)))), eat_string(":"), &NEWLINE, eps()),
+    let invalid_except_stmt_indent = invalid_except_stmt_indent.set(choice!(seq!(eat_string("except"), &expression, opt(choice!(seq!(eat_string("as"), &NAME))), eat_string(":"), &NEWLINE, eps()),
         seq!(eat_string("except"), eat_string(":"), &NEWLINE, eps())));
-    let invalid_except_star_stmt_indent = invalid_except_star_stmt_indent.set(choice!(seq!(eat_string("except"), eat_string("*"), &expression, opt(opt(choice!(seq!(eat_string("as"), &NAME)))), eat_string(":"), &NEWLINE, eps())));
+    let invalid_except_star_stmt_indent = invalid_except_star_stmt_indent.set(choice!(seq!(eat_string("except"), eat_string("*"), &expression, opt(choice!(seq!(eat_string("as"), &NAME))), eat_string(":"), &NEWLINE, eps())));
     let invalid_match_stmt = invalid_match_stmt.set(choice!(seq!(eat_string("match"), &subject_expr, &NEWLINE),
         seq!(eat_string("match"), &subject_expr, eat_string(":"), &NEWLINE, eps())));
     let invalid_case_block = invalid_case_block.set(choice!(seq!(eat_string("case"), &patterns, opt(&guard), &NEWLINE),
@@ -831,7 +831,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     let invalid_as_pattern = invalid_as_pattern.set(choice!(seq!(&or_pattern, eat_string("as"), eat_string("_")),
         seq!(&or_pattern, eat_string("as"), eps(), &expression)));
     let invalid_class_pattern = invalid_class_pattern.set(choice!(seq!(&name_or_attr, eat_string("("), &invalid_class_argument_pattern)));
-    let invalid_class_argument_pattern = invalid_class_argument_pattern.set(choice!(seq!(opt(opt(choice!(seq!(&positional_patterns, eat_string(","))))), &keyword_patterns, eat_string(","), &positional_patterns)));
+    let invalid_class_argument_pattern = invalid_class_argument_pattern.set(choice!(seq!(opt(choice!(seq!(&positional_patterns, eat_string(",")))), &keyword_patterns, eat_string(","), &positional_patterns)));
     let invalid_if_stmt = invalid_if_stmt.set(choice!(seq!(eat_string("if"), &named_expression, &NEWLINE),
         seq!(eat_string("if"), &named_expression, eat_string(":"), &NEWLINE, eps())));
     let invalid_elif_stmt = invalid_elif_stmt.set(choice!(seq!(eat_string("elif"), &named_expression, &NEWLINE),
@@ -839,13 +839,13 @@ pub fn python_file() -> Rc<DynCombinator> {
     let invalid_else_stmt = invalid_else_stmt.set(choice!(seq!(eat_string("else"), eat_string(":"), &NEWLINE, eps())));
     let invalid_while_stmt = invalid_while_stmt.set(choice!(seq!(eat_string("while"), &named_expression, &NEWLINE),
         seq!(eat_string("while"), &named_expression, eat_string(":"), &NEWLINE, eps())));
-    let invalid_for_stmt = invalid_for_stmt.set(choice!(seq!(opt(opt(choice!(seq!(eat_string("async"))))), eat_string("for"), &star_targets, eat_string("in"), &star_expressions, &NEWLINE),
-        seq!(opt(opt(choice!(seq!(eat_string("async"))))), eat_string("for"), &star_targets, eat_string("in"), &star_expressions, eat_string(":"), &NEWLINE, eps())));
-    let invalid_def_raw = invalid_def_raw.set(choice!(seq!(opt(opt(choice!(seq!(eat_string("async"))))), eat_string("def"), &NAME, opt(opt(choice!(seq!(&type_params)))), eat_string("("), opt(opt(choice!(seq!(&params)))), eat_string(")"), opt(opt(choice!(seq!(eat_string("->"), &expression)))), eat_string(":"), &NEWLINE, eps()),
-        seq!(opt(opt(choice!(seq!(eat_string("async"))))), eat_string("def"), &NAME, opt(opt(choice!(seq!(&type_params)))), opt(eat_string("(")), opt(opt(choice!(seq!(&params)))), eat_string(")"), opt(opt(choice!(seq!(eat_string("->"), &expression)))), opt(eat_string(":")), opt(opt(choice!(seq!(&func_type_comment)))), &block)));
-    let invalid_class_def_raw = invalid_class_def_raw.set(choice!(seq!(eat_string("class"), &NAME, opt(opt(choice!(seq!(&type_params)))), opt(opt(choice!(seq!(eat_string("("), opt(opt(choice!(seq!(&arguments)))), eat_string(")"))))), &NEWLINE),
-        seq!(eat_string("class"), &NAME, opt(opt(choice!(seq!(&type_params)))), opt(opt(choice!(seq!(eat_string("("), opt(opt(choice!(seq!(&arguments)))), eat_string(")"))))), eat_string(":"), &NEWLINE, eps())));
-    let invalid_double_starred_kvpairs = invalid_double_starred_kvpairs.set(choice!(seq!(seq!(eat_string(","), &double_starred_kvpair), eat_string(","), &invalid_kvpair),
+    let invalid_for_stmt = invalid_for_stmt.set(choice!(seq!(opt(choice!(seq!(eat_string("async")))), eat_string("for"), &star_targets, eat_string("in"), &star_expressions, &NEWLINE),
+        seq!(opt(choice!(seq!(eat_string("async")))), eat_string("for"), &star_targets, eat_string("in"), &star_expressions, eat_string(":"), &NEWLINE, eps())));
+    let invalid_def_raw = invalid_def_raw.set(choice!(seq!(opt(choice!(seq!(eat_string("async")))), eat_string("def"), &NAME, opt(choice!(seq!(&type_params))), eat_string("("), opt(choice!(seq!(&params))), eat_string(")"), opt(choice!(seq!(eat_string("->"), &expression))), eat_string(":"), &NEWLINE, eps()),
+        seq!(opt(choice!(seq!(eat_string("async")))), eat_string("def"), &NAME, opt(choice!(seq!(&type_params))), eat_string("("), opt(choice!(seq!(&params))), eat_string(")"), opt(choice!(seq!(eat_string("->"), &expression))), eat_string(":"), opt(choice!(seq!(&func_type_comment))), &block)));
+    let invalid_class_def_raw = invalid_class_def_raw.set(choice!(seq!(eat_string("class"), &NAME, opt(choice!(seq!(&type_params))), opt(choice!(seq!(eat_string("("), opt(choice!(seq!(&arguments))), eat_string(")")))), &NEWLINE),
+        seq!(eat_string("class"), &NAME, opt(choice!(seq!(&type_params))), opt(choice!(seq!(eat_string("("), opt(choice!(seq!(&arguments))), eat_string(")")))), eat_string(":"), &NEWLINE, eps())));
+    let invalid_double_starred_kvpairs = invalid_double_starred_kvpairs.set(choice!(seq!(seq!(&double_starred_kvpair, eat_string(",")), eat_string(","), &invalid_kvpair),
         seq!(&expression, eat_string(":"), eat_string("*"), &bitwise_or),
         seq!(&expression, eat_string(":"), eps())));
     let invalid_kvpair = invalid_kvpair.set(choice!(seq!(&expression, eps()),
@@ -861,13 +861,14 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string("{"), &annotated_rhs, eps()),
         seq!(eat_string("{"), &annotated_rhs, eat_string("="), eps()),
         seq!(eat_string("{"), &annotated_rhs, opt(eat_string("=")), &invalid_conversion_character),
-        seq!(eat_string("{"), &annotated_rhs, opt(eat_string("=")), opt(opt(choice!(seq!(eat_string("!"), &NAME)))), eps()),
-        seq!(eat_string("{"), &annotated_rhs, opt(eat_string("=")), opt(opt(choice!(seq!(eat_string("!"), &NAME)))), eat_string(":"), repeat(&fstring_format_spec), eps()),
-        seq!(eat_string("{"), &annotated_rhs, opt(eat_string("=")), opt(opt(choice!(seq!(eat_string("!"), &NAME)))), eps())));
+        seq!(eat_string("{"), &annotated_rhs, opt(eat_string("=")), opt(choice!(seq!(eat_string("!"), &NAME))), eps()),
+        seq!(eat_string("{"), &annotated_rhs, opt(eat_string("=")), opt(choice!(seq!(eat_string("!"), &NAME))), eat_string(":"), repeat(&fstring_format_spec), eps()),
+        seq!(eat_string("{"), &annotated_rhs, opt(eat_string("=")), opt(choice!(seq!(eat_string("!"), &NAME))), eps())));
     let invalid_conversion_character = invalid_conversion_character.set(choice!(seq!(eat_string("!"), eps()),
         seq!(eat_string("!"), eps())));
     let invalid_arithmetic = invalid_arithmetic.set(choice!(seq!(&sum, choice!(seq!(eat_string("+")), seq!(eat_string("-")), seq!(eat_string("*")), seq!(eat_string("/")), seq!(eat_string("%")), seq!(eat_string("//")), seq!(eat_string("@"))), eat_string("not"), &inversion)));
     let invalid_factor = invalid_factor.set(choice!(seq!(choice!(seq!(eat_string("+")), seq!(eat_string("-")), seq!(eat_string("~"))), eat_string("not"), &factor)));
     let invalid_type_params = invalid_type_params.set(choice!(seq!(eat_string("["), eat_string("]"))));
+    println!("done");
     file.into_boxed().into()
 }
