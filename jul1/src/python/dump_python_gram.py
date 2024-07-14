@@ -31,12 +31,13 @@ def parse_grammar(text: str) -> Grammar:
 def grammar_to_dict(grammar: Grammar) -> dict:
     def rhs_to_dict(rhs: Rhs) -> dict:
         return {
+            "node_type": "rhs",
             "alts": [alt_to_dict(alt) for alt in rhs.alts],
-            "memo": rhs.memo if rhs.memo else None
         }
 
     def alt_to_dict(alt: Alt) -> dict:
         return {
+            "node_type": "alt",
             "items": [named_item_to_dict(item) for item in alt.items],
             "icut": alt.icut,
             "action": alt.action
@@ -44,6 +45,7 @@ def grammar_to_dict(grammar: Grammar) -> dict:
 
     def named_item_to_dict(item: NamedItem) -> dict:
         return {
+            "node_type": "named_item",
             "name": item.name,
             "item": item_to_dict(item.item),
             "type": item.type,
@@ -52,49 +54,53 @@ def grammar_to_dict(grammar: Grammar) -> dict:
 
     def item_to_dict(item) -> dict:
         if isinstance(item, Leaf):
-            return {"value": item.value}
+            return {"node_type": "leaf", "value": item.value}
         elif isinstance(item, NameLeaf):
-            return {"value": item.value}
+            return {"node_type": "name_leaf", "value": item.value}
         elif isinstance(item, StringLeaf):
-            return {"value": item.value}
+            return {"node_type": "string_leaf", "value": item.value}
         elif isinstance(item, Group):
-            return {"rhs": rhs_to_dict(item.rhs)}
+            return {"node_type": "group", "rhs": rhs_to_dict(item.rhs)}
         elif isinstance(item, Opt):
-            return {"node": item_to_dict(item.node)}
+            return {"node_type": "opt", "node": item_to_dict(item.node)}
         elif isinstance(item, Gather):
             return {
-                "node": item_to_dict(item.node),
+                "node_type": "gather",
                 "separator": item_to_dict(item.separator),
+                "node": item_to_dict(item.node),
             }
         elif isinstance(item, Repeat):
             return {
+                "node_type": "repeat",
                 "node": item_to_dict(item.node),
-                "memo": item.memo if item.memo else None
             }
         elif isinstance(item, Repeat0):
             return {
+                "node_type": "repeat0",
                 "node": item_to_dict(item.node),
-                "memo": item.memo if item.memo else None
             }
         elif isinstance(item, Repeat1):
             return {
+                "node_type": "repeat1",
                 "node": item_to_dict(item.node),
-                "memo": item.memo if item.memo else None
             }
         elif isinstance(item, Forced):
-            return {"node": item_to_dict(item.node)}
+            return {"node_type": "forced", "node": item_to_dict(item.node)}
         elif isinstance(item, Lookahead):
             return {
+                "node_type": "lookahead",
                 "node": item_to_dict(item.node),
                 "sign": item.sign
             }
         elif isinstance(item, PositiveLookahead):
             return {
+                "node_type": "positive_lookahead",
                 "node": item_to_dict(item.node),
                 "sign": item.sign
             }
         elif isinstance(item, NegativeLookahead):
             return {
+                "node_type": "negative_lookahead",
                 "node": item_to_dict(item.node),
                 "sign": item.sign
             }
@@ -105,92 +111,26 @@ def grammar_to_dict(grammar: Grammar) -> dict:
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
-    return {
-        "rules": {name: {
-            "name": rule.name,
+
+    def rule_to_dict(name: str, rule: Rule) -> dict:
+        return {
+            "name": name,
             "type": rule.type,
             "rhs": rhs_to_dict(rule.rhs),
-            "memo": rule.memo,
             "visited": rule.visited,
             "nullable": rule.nullable,
             "left_recursive": rule.left_recursive,
             "leader": rule.leader
-        } for name, rule in grammar.rules.items()},
+        }
+
+    return {
+        "rules": [rule_to_dict(name, rule) for name, rule in grammar.rules.items()],
         "metas": {meta: grammar.metas[meta] for meta in grammar.metas}
     }
 
 
 def dict_to_grammar(grammar_dict: dict) -> Grammar:
-    def dict_to_rhs(rhs_dict: dict) -> Rhs:
-        return Rhs(
-            alts=[dict_to_alt(alt) for alt in rhs_dict['alts']],
-        )
-
-    def dict_to_alt(alt_dict: dict) -> Alt:
-        return Alt(
-            items=[dict_to_named_item(item) for item in alt_dict['items']],
-            icut=alt_dict['icut'],
-            action=alt_dict['action']
-        )
-
-    def dict_to_named_item(item_dict: dict) -> NamedItem:
-        return NamedItem(
-            name=item_dict['name'],
-            item=dict_to_item(item_dict['item']),
-            type=item_dict['type'],
-        )
-
-    def dict_to_item(item_dict: dict) -> Item:
-        if 'value' in item_dict:
-            if isinstance(item_dict['value'], str):
-                if item_dict['value'].startswith('"') and item_dict['value'].endswith('"'):
-                    return StringLeaf(item_dict['value'])
-                elif item_dict['value'].startswith("'") and item_dict['value'].endswith("'"):
-                    return StringLeaf(item_dict['value'])
-                else:
-                    return NameLeaf(item_dict['value'])
-            else:
-                return Leaf(item_dict['value'])
-        elif 'rhs' in item_dict:
-            return Group(dict_to_rhs(item_dict['rhs']))
-        elif 'node' in item_dict:
-            if 'separator' in item_dict:
-                return Gather(dict_to_item(item_dict['node']), dict_to_item(item_dict['separator']))
-            elif 'sign' in item_dict:
-                if item_dict['sign'] == 1:
-                    return PositiveLookahead(dict_to_item(item_dict['node']))
-                elif item_dict['sign'] == -1:
-                    return NegativeLookahead(dict_to_item(item_dict['node']))
-                else:
-                    return Lookahead(dict_to_item(item_dict['node']), item_dict['sign'])
-            elif 'memo' in item_dict:
-                if isinstance(item_dict['memo'], bool):
-                    if item_dict['memo']:
-                        return Repeat1(dict_to_item(item_dict['node']))
-                    else:
-                        return Repeat0(dict_to_item(item_dict['node']))
-                else:
-                    return Repeat(dict_to_item(item_dict['node']))
-            else:
-                return Opt(dict_to_item(item_dict['node']))
-        elif 'alts' in item_dict:
-            # This handles the case where an Opt node contains an Rhs directly
-            return Opt(dict_to_rhs(item_dict))
-        elif not item_dict:  # Empty dict represents Cut
-            return Cut()
-        else:
-            raise ValueError(f"Unknown item type: {item_dict}")
-
-    rules = {}
-    for name, rule_dict in grammar_dict['rules'].items():
-        rules[name] = Rule(
-            name=rule_dict['name'],
-            type=rule_dict['type'],
-            rhs=dict_to_rhs(rule_dict['rhs']),
-            memo=rule_dict['memo'],
-        )
-
-    return Grammar(rules=rules.values(), metas=grammar_dict['metas'])
+    ...
 
 
 def load_grammar_from_json(filename: str) -> Grammar:
