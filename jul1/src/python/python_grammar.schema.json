@@ -1,335 +1,220 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Grammar",
-  "description": "A grammar definition",
   "type": "object",
   "properties": {
     "rules": {
-      "type": "object",
-      "description": "A dictionary of rules",
-      "additionalProperties": {
-        "$ref": "#/definitions/Rule"
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "rhs": {
+            "$ref": "#/definitions/rhs"
+          },
+          "visited": {
+            "type": "boolean"
+          },
+          "nullable": {
+            "type": "boolean"
+          },
+          "left_recursive": {
+            "type": "boolean"
+          },
+          "leader": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "rhs",
+          "visited",
+          "nullable",
+          "left_recursive",
+          "leader"
+        ]
       }
     },
     "metas": {
       "type": "object",
-      "description": "A dictionary of metadata",
       "additionalProperties": {
-        "type": ["string", "null"]
+        "type": "string"
       }
     }
   },
+  "required": [
+    "rules",
+    "metas"
+  ],
   "definitions": {
-    "Rule": {
+    "rhs": {
       "type": "object",
       "properties": {
-        "name": {
+        "node_type": {
           "type": "string",
-          "description": "The name of the rule"
+          "enum": ["rhs"]
         },
-        "type": {
-          "type": ["string", "null"],
-          "description": "The type of the rule"
-        },
-        "rhs": {
-          "$ref": "#/definitions/Rhs",
-          "description": "The right-hand side of the rule"
-        },
-        "memo": {
-          "type": "object",
-          "description": "Memoization data"
-        },
-        "visited": {
-          "type": "boolean",
-          "description": "Whether the rule has been visited"
-        },
-        "nullable": {
-          "type": "boolean",
-          "description": "Whether the rule is nullable"
-        },
-        "left_recursive": {
-          "type": "boolean",
-          "description": "Whether the rule is left-recursive"
-        },
-        "leader": {
-          "type": "boolean",
-          "description": "Whether the rule is a leader"
-        }
-      }
-    },
-    "Rhs": {
-      "type": "object",
-      "properties": {
         "alts": {
           "type": "array",
-          "description": "A list of alternatives",
           "items": {
-            "$ref": "#/definitions/Alt"
+            "$ref": "#/definitions/alt"
           }
-        },
-        "memo": {
-          "type": ["array", "null"],
-          "description": "Memoization data",
-          "items": [
-            {
-              "type": ["string", "null"]
-            },
-            {
-              "type": "string"
-            }
-          ]
         }
-      }
+      },
+      "required": [
+        "node_type",
+        "alts"
+      ]
     },
-    "Alt": {
+    "alt": {
       "type": "object",
       "properties": {
+        "node_type": {
+          "type": "string",
+          "enum": ["alt"]
+        },
         "items": {
           "type": "array",
-          "description": "A list of named items",
           "items": {
-            "$ref": "#/definitions/NamedItem"
+            "$ref": "#/definitions/named_item"
           }
         },
         "icut": {
-          "type": "integer",
-          "description": "The cut index"
+          "type": ["boolean", "null"]
         },
         "action": {
-          "type": ["string", "null"],
-          "description": "The action to perform"
+          "type": ["string", "null"]
         }
-      }
+      },
+      "required": [
+        "node_type",
+        "items",
+        "icut",
+        "action"
+      ]
     },
-    "NamedItem": {
+    "named_item": {
       "type": "object",
       "properties": {
+        "node_type": {
+          "type": "string",
+          "enum": ["named_item"]
+        },
         "name": {
-          "type": ["string", "null"],
-          "description": "The name of the item"
+          "type": ["string", "null"]
         },
         "item": {
-          "$ref": "#/definitions/Item",
-          "description": "The item itself"
+          "$ref": "#/definitions/item"
         },
         "type": {
-          "type": ["string", "null"],
-          "description": "The type of the item"
-        },
-        "nullable": {
-          "type": "boolean",
-          "description": "Whether the item is nullable"
+          "type": ["string", "null"]
         }
-      }
-    },
-    "Item": {
-      "oneOf": [
-        {
-          "$ref": "#/definitions/Leaf"
-        },
-        {
-          "$ref": "#/definitions/NameLeaf"
-        },
-        {
-          "$ref": "#/definitions/StringLeaf"
-        },
-        {
-          "$ref": "#/definitions/Group"
-        },
-        {
-          "$ref": "#/definitions/Opt"
-        },
-        {
-          "$ref": "#/definitions/Repeat"
-        },
-        {
-          "$ref": "#/definitions/Repeat0"
-        },
-        {
-          "$ref": "#/definitions/Repeat1"
-        },
-        {
-          "$ref": "#/definitions/Gather"
-        },
-        {
-          "$ref": "#/definitions/Forced"
-        },
-        {
-          "$ref": "#/definitions/Lookahead"
-        },
-        {
-          "$ref": "#/definitions/PositiveLookahead"
-        },
-        {
-          "$ref": "#/definitions/NegativeLookahead"
-        },
-        {
-          "$ref": "#/definitions/Rhs"
-        },
-        {
-          "$ref": "#/definitions/Cut"
-        }
+      },
+      "required": [
+        "node_type",
+        "name",
+        "item",
+        "type"
       ]
     },
-    "Leaf": {
+    "item": {
       "type": "object",
       "properties": {
-        "value": {
+        "node_type": {
           "type": "string",
-          "description": "The value of the leaf"
-        }
-      }
-    },
-    "NameLeaf": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Leaf"
-        }
-      ]
-    },
-    "StringLeaf": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Leaf"
-        }
-      ]
-    },
-    "Group": {
-      "type": "object",
-      "properties": {
-        "rhs": {
-          "$ref": "#/definitions/Rhs",
-          "description": "The right-hand side of the group"
-        }
-      }
-    },
-    "Opt": {
-      "type": "object",
-      "properties": {
-        "node": {
-          "$ref": "#/definitions/Item",
-          "description": "The optional item"
-        }
-      }
-    },
-    "Repeat": {
-      "type": "object",
-      "properties": {
-        "node": {
-          "$ref": "#/definitions/Plain",
-          "description": "The repeated item"
-        },
-        "memo": {
-          "type": ["array", "null"],
-          "description": "Memoization data",
-          "items": [
-            {
-              "type": ["string", "null"]
-            },
-            {
-              "type": "string"
-            }
+          "enum": [
+            "leaf", "name_leaf", "string_leaf", "group", "opt",
+            "gather", "repeat", "repeat0", "repeat1", "forced",
+            "lookahead", "positive_lookahead", "negative_lookahead",
+            "rhs", "cut"
           ]
-        }
-      }
-    },
-    "Repeat0": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Repeat"
-        }
-      ]
-    },
-    "Repeat1": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Repeat"
-        }
-      ]
-    },
-    "Gather": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Repeat"
         },
-        {
-          "properties": {
-            "separator": {
-              "$ref": "#/definitions/Plain",
-              "description": "The separator between items"
-            }
-          }
-        }
-      ]
-    },
-    "Forced": {
-      "type": "object",
-      "properties": {
+        "value": {
+          "type": ["string", "null"]
+        },
+        "rhs": {
+          "$ref": "#/definitions/rhs"
+        },
         "node": {
-          "$ref": "#/definitions/Plain",
-          "description": "The forced item"
-        }
-      }
-    },
-    "Lookahead": {
-      "type": "object",
-      "properties": {
-        "node": {
-          "$ref": "#/definitions/Plain",
-          "description": "The lookahead item"
+          "$ref": "#/definitions/item"
+        },
+        "separator": {
+          "$ref": "#/definitions/item"
         },
         "sign": {
-          "type": "string",
-          "description": "The lookahead sign"
+          "type": ["boolean", "null"]
         }
-      }
-    },
-    "PositiveLookahead": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Lookahead"
-        },
-        {
-          "properties": {
-            "sign": {
-              "const": "&"
-            }
-          }
-        }
-      ]
-    },
-    "NegativeLookahead": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Lookahead"
-        },
-        {
-          "properties": {
-            "sign": {
-              "const": "!"
-            }
-          }
-        }
-      ]
-    },
-    "Plain": {
+      },
+      "required": [
+        "node_type"
+      ],
       "oneOf": [
         {
-          "$ref": "#/definitions/Leaf"
+          "properties": {
+            "node_type": { "enum": ["leaf", "name_leaf", "string_leaf"] },
+            "value": { "type": "string" }
+          },
+          "required": ["value"]
         },
         {
-          "$ref": "#/definitions/NameLeaf"
+          "properties": {
+            "node_type": { "enum": ["group"] },
+            "rhs": { "$ref": "#/definitions/rhs" }
+          },
+          "required": ["rhs"]
         },
         {
-          "$ref": "#/definitions/StringLeaf"
+          "properties": {
+            "node_type": { "enum": ["opt", "forced", "lookahead", "positive_lookahead", "negative_lookahead"] },
+            "node": { "$ref": "#/definitions/item" }
+          },
+          "required": ["node"]
         },
         {
-          "$ref": "#/definitions/Group"
+          "properties": {
+            "node_type": { "enum": ["gather"] },
+            "node": { "$ref": "#/definitions/item" },
+            "separator": { "$ref": "#/definitions/item" }
+          },
+          "required": ["node", "separator"]
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["repeat", "repeat0", "repeat1"] },
+            "node": { "$ref": "#/definitions/item" }
+          },
+          "required": ["node"]
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["rhs"] },
+            "rhs": { "$ref": "#/definitions/rhs" }
+          },
+          "required": ["rhs"]
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["cut"] }
+          }
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["lookahead"] },
+            "node": { "$ref": "#/definitions/item" },
+            "sign": { "type": "boolean" }
+          },
+          "required": ["node", "sign"]
         }
       ]
-    },
-    "Cut": {
-      "type": "object"
     }
   }
 }
