@@ -20,6 +20,10 @@ impl LeftRecursionGuardDownData {
         self.skip_on_this_nonterminal_or_fail_on_any_terminal = None;
         self.fail_on_these_nonterminals.clear();
     }
+
+    pub fn did_consume(&self) -> bool {
+        self.skip_on_this_nonterminal_or_fail_on_any_terminal.is_none() && self.fail_on_these_nonterminals.is_empty()
+    }
 }
 
 impl Debug for LeftRecursionGuardDownData {

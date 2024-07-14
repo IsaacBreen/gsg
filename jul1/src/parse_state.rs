@@ -33,6 +33,10 @@ impl RightData {
     pub fn on_consume(&mut self) {
         self.left_recursion_guard_data.on_consume();
     }
+
+    pub fn did_consume(&self) -> bool {
+        self.left_recursion_guard_data.did_consume()
+    }
 }
 
 pub trait Squash {

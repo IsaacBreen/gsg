@@ -39,7 +39,7 @@ where
             if std::ptr::eq(skip_on_this_nonterminal_or_fail_on_any_terminal, Rc::as_ptr(&self.a) as *const u8) {
                 // Skip
                 // Strip all left recursion guard data.
-                right_data.on_consume();
+                right_data.did_consume();
                 return (LeftRecursionGuardParser::Done, vec![right_data], vec![]);
             } else {
                 right_data.left_recursion_guard_data.fail_on_these_nonterminals.push(skip_on_this_nonterminal_or_fail_on_any_terminal);

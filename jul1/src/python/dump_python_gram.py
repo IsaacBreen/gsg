@@ -6,7 +6,7 @@ from io import StringIO
 
 import requests
 from pegen.grammar import Grammar, Rhs, Alt, NamedItem, Leaf, NameLeaf, StringLeaf, Group, Opt, Repeat, Forced, Lookahead, \
-    PositiveLookahead, NegativeLookahead, Repeat0, Repeat1, Gather, Cut
+    PositiveLookahead, NegativeLookahead, Repeat0, Repeat1, Gather, Cut, Rule, Item
 from pegen.grammar_parser import GeneratedParser
 from pegen.tokenizer import Tokenizer
 
@@ -120,6 +120,85 @@ def grammar_to_dict(grammar: Grammar) -> dict:
     }
 
 
+def dict_to_grammar(grammar_dict: dict) -> Grammar:
+    def dict_to_rhs(rhs_dict: dict) -> Rhs:
+        return Rhs(
+            alts=[dict_to_alt(alt) for alt in rhs_dict['alts']],
+        )
+
+    def dict_to_alt(alt_dict: dict) -> Alt:
+        return Alt(
+            items=[dict_to_named_item(item) for item in alt_dict['items']],
+            icut=alt_dict['icut'],
+            action=alt_dict['action']
+        )
+
+    def dict_to_named_item(item_dict: dict) -> NamedItem:
+        return NamedItem(
+            name=item_dict['name'],
+            item=dict_to_item(item_dict['item']),
+            type=item_dict['type'],
+        )
+
+    def dict_to_item(item_dict: dict) -> Item:
+        if 'value' in item_dict:
+            if isinstance(item_dict['value'], str):
+                if item_dict['value'].startswith('"') and item_dict['value'].endswith('"'):
+                    return StringLeaf(item_dict['value'])
+                elif item_dict['value'].startswith("'") and item_dict['value'].endswith("'"):
+                    return StringLeaf(item_dict['value'])
+                else:
+                    return NameLeaf(item_dict['value'])
+            else:
+                return Leaf(item_dict['value'])
+        elif 'rhs' in item_dict:
+            return Group(dict_to_rhs(item_dict['rhs']))
+        elif 'node' in item_dict:
+            if 'separator' in item_dict:
+                return Gather(dict_to_item(item_dict['node']), dict_to_item(item_dict['separator']))
+            elif 'sign' in item_dict:
+                if item_dict['sign'] == 1:
+                    return PositiveLookahead(dict_to_item(item_dict['node']))
+                elif item_dict['sign'] == -1:
+                    return NegativeLookahead(dict_to_item(item_dict['node']))
+                else:
+                    return Lookahead(dict_to_item(item_dict['node']), item_dict['sign'])
+            elif 'memo' in item_dict:
+                if isinstance(item_dict['memo'], bool):
+                    if item_dict['memo']:
+                        return Repeat1(dict_to_item(item_dict['node']))
+                    else:
+                        return Repeat0(dict_to_item(item_dict['node']))
+                else:
+                    return Repeat(dict_to_item(item_dict['node']))
+            else:
+                return Opt(dict_to_item(item_dict['node']))
+        elif 'alts' in item_dict:
+            # This handles the case where an Opt node contains an Rhs directly
+            return Opt(dict_to_rhs(item_dict))
+        elif not item_dict:  # Empty dict represents Cut
+            return Cut()
+        else:
+            raise ValueError(f"Unknown item type: {item_dict}")
+
+    rules = {}
+    for name, rule_dict in grammar_dict['rules'].items():
+        rules[name] = Rule(
+            name=rule_dict['name'],
+            type=rule_dict['type'],
+            rhs=dict_to_rhs(rule_dict['rhs']),
+            memo=rule_dict['memo'],
+        )
+
+    return Grammar(rules=rules.values(), metas=grammar_dict['metas'])
+
+
+def load_grammar_from_json(filename: str) -> Grammar:
+    with open(filename, 'r') as file:
+        grammar_dict = json.load(file)
+    return dict_to_grammar(grammar_dict)
+
+
 def grammar_to_rust(grammar: Grammar) -> str:
     def rhs_to_rust(rhs: Rhs, top_level: bool = False) -> str:
         if top_level:
@@ -230,6 +309,7 @@ def main():
     grammar = parse_grammar(grammar_text)
     grammar_dict = grammar_to_dict(grammar)
     save_grammar_to_json(grammar_dict, "python_grammar.json")
+    grammar = dict_to_grammar(grammar_dict)
     save_grammar_to_rust(grammar, "python_grammar.rs")
 
 
