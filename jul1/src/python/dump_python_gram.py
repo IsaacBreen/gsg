@@ -49,7 +49,6 @@ def grammar_to_dict(grammar: Grammar) -> dict:
             "name": item.name,
             "item": item_to_dict(item.item),
             "type": item.type,
-            "nullable": item.nullable
         }
 
     def item_to_dict(item) -> dict:
@@ -96,18 +95,16 @@ def grammar_to_dict(grammar: Grammar) -> dict:
             return {
                 "node_type": "positive_lookahead",
                 "node": item_to_dict(item.node),
-                "sign": item.sign
             }
         elif isinstance(item, NegativeLookahead):
             return {
                 "node_type": "negative_lookahead",
                 "node": item_to_dict(item.node),
-                "sign": item.sign
             }
         elif isinstance(item, Rhs):
             return rhs_to_dict(item)
         elif isinstance(item, Cut):
-            return {}
+            return {"node_type": "cut"}
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
@@ -130,7 +127,66 @@ def grammar_to_dict(grammar: Grammar) -> dict:
 
 
 def dict_to_grammar(grammar_dict: dict) -> Grammar:
-    ...
+    def dict_to_rhs(rhs_dict: dict) -> Rhs:
+        return Rhs(alts=[dict_to_alt(alt) for alt in rhs_dict["alts"]])
+
+    def dict_to_alt(alt_dict: dict) -> Alt:
+        return Alt(items=[dict_to_named_item(item) for item in alt_dict["items"]],
+                   icut=alt_dict["icut"],
+                   action=alt_dict["action"])
+
+    def dict_to_named_item(item_dict: dict) -> NamedItem:
+        return NamedItem(name=item_dict["name"],
+                         item=dict_to_item(item_dict["item"]),
+                         type=item_dict["type"])
+
+    def dict_to_item(item_dict: dict) -> Item:
+        if "node_type" not in item_dict:
+            raise ValueError(f"Item dict does not have node_type: {item_dict}")
+        node_type = item_dict["node_type"]
+        if node_type == "leaf":
+            return Leaf(value=item_dict["value"])
+        elif node_type == "name_leaf":
+            return NameLeaf(value=item_dict["value"])
+        elif node_type == "string_leaf":
+            return StringLeaf(value=item_dict["value"])
+        elif node_type == "group":
+            return Group(rhs=dict_to_rhs(item_dict["rhs"]))
+        elif node_type == "opt":
+            return Opt(node=dict_to_item(item_dict["node"]))
+        elif node_type == "gather":
+            return Gather(separator=dict_to_item(item_dict["separator"]),
+                          node=dict_to_item(item_dict["node"]))
+        elif node_type == "repeat":
+            return Repeat(node=dict_to_item(item_dict["node"]))
+        elif node_type == "repeat0":
+            return Repeat0(node=dict_to_item(item_dict["node"]))
+        elif node_type == "repeat1":
+            return Repeat1(node=dict_to_item(item_dict["node"]))
+        elif node_type == "forced":
+            return Forced(node=dict_to_item(item_dict["node"]))
+        elif node_type == "lookahead":
+            return Lookahead(node=dict_to_item(item_dict["node"]),
+                             sign=item_dict["sign"])
+        elif node_type == "positive_lookahead":
+            return PositiveLookahead(node=dict_to_item(item_dict["node"]))
+        elif node_type == "negative_lookahead":
+            return NegativeLookahead(node=dict_to_item(item_dict["node"]))
+        elif node_type == "rhs":
+            return dict_to_rhs(item_dict)
+        elif node_type == "cut":
+            return Cut()
+        else:
+            raise ValueError(f"Unknown node type: {node_type}")
+
+    def dict_to_rule(rule_dict: dict) -> Rule:
+        return Rule(name=rule_dict["name"],
+                    type=rule_dict["type"],
+                    rhs=dict_to_rhs(rule_dict["rhs"]))
+
+    rules = {rule_dict["name"]: dict_to_rule(rule_dict) for rule_dict in grammar_dict["rules"]}
+    metas = grammar_dict["metas"]
+    return Grammar(rules=rules.values(), metas=metas)
 
 
 def load_grammar_from_json(filename: str) -> Grammar:
