@@ -39,12 +39,12 @@ def pegen_to_custom(grammar: Grammar) -> dict[Ref, Node]:
         return item_to_node(item.item)
 
     def item_to_node(item) -> Node:
-        if isinstance(item, Leaf):
-            return Term(item.value)
-        elif isinstance(item, NameLeaf):
-            return Term(item.value)
+        if isinstance(item, NameLeaf):
+            value = item.value
+            return Ref(value)
         elif isinstance(item, StringLeaf):
-            return Term(item.value)
+            value = item.value
+            return Term(value)
         elif isinstance(item, Group):
             return rhs_to_node(item.rhs)
         elif isinstance(item, Opt):
@@ -92,7 +92,9 @@ def custom_to_pegen(rules: dict[Ref, Node]) -> Grammar:
 
     def node_to_item(node: Node):
         if isinstance(node, Term):
-            return Leaf(node.value)
+            return StringLeaf(node.value)
+        elif isinstance(node, Ref):
+            return NameLeaf(node.name)
         elif isinstance(node, Seq):
             assert len(node.children) > 0
             return Group(node_to_rhs(node))
@@ -127,24 +129,14 @@ def grammar_to_rust(grammar: Grammar) -> str:
         return item_to_rust(item.item)
 
     def item_to_rust(item) -> str:
-        if isinstance(item, Leaf):
+        if isinstance(item, NameLeaf):
             value = item.value
-            if value[0] == value[-1] == "'":
-                value = value[1:-1]
-                return f'eat_string("{value}")'
-            elif value[0] == value[-1] == '"':
-                value = value[1:-1]
-                return f'eat_string("{value}")'
-            else:
-                return f'&{value}'
-        elif isinstance(item, NameLeaf):
-            value = item.value
-            assert value[0] == value[-1] == '"'
-            value = value[1:-1]
-            return f'eat_string("{value}")'
+            return f'&{value}'
         elif isinstance(item, StringLeaf):
             value = item.value
-            assert value[0] == value[-1] == '"'
+            if value[0] == '"' and value[-1] == '"':
+                value = value[1:-1]
+            assert not value[0] == value[-1] == '"', f"Invalid string literal: {value}"
             value = value[1:-1]
             return f'eat_string("{value}")'
         elif isinstance(item, Group):
@@ -180,6 +172,8 @@ def grammar_to_rust(grammar: Grammar) -> str:
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
+    rules = list(reversed(grammar.rules.items()))
+
     tokens = ['NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING']
 
     f = io.StringIO()
@@ -197,9 +191,9 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f.write('    let DEDENT = symbol(dedent());\n')
     f.write("    let ENDMARKER = symbol(eps());\n")
     f.write('\n')
-    f.write('\n'.join(f'    let mut {name} = forward_ref();' for name, rule in grammar.rules.items()))
+    f.write('\n'.join(f'    let mut {name} = forward_ref();' for name, rule in rules))
     f.write('\n')
-    f.write('\n'.join(f'    let {name} = {name}.set({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in grammar.rules.items()))
+    f.write('\n'.join(f'    let {name} = {name}.set({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in rules))
     f.write('\n    file.into_boxed().into()\n')
     f.write('}\n')
     return f.getvalue()

@@ -85,6 +85,11 @@ def is_left_recursive(node: Node, rules: dict[Ref, Node], seen: set[Ref] = None)
     for ref in firsts:
         if ref in seen:
             return True
+        if ref not in rules:
+            # If it's all capitalized, assume it's a token
+            if ref.name[0].isupper():
+                return True
+            raise ValueError(f"Unknown rule: {ref}")
         if is_left_recursive(rules[ref], rules, seen | {ref}):
             return True
     return False
@@ -108,14 +113,20 @@ def validate_rules(rules: dict[Ref, Node]) -> None:
     rule_types = infer_rule_types(rules)
     for ref, rule_type in rule_types.items():
         firsts = first_refs(rules[ref], get_nullable_rules(rules))
+        def get_rule_type(ref: Ref, rule_types: dict[Ref, RuleType]) -> RuleType:
+            # If it's all capitalized, assume it's a token
+            if ref not in rules:
+                if ref.name[0].isupper():
+                    return RuleType.NORMAL
+            return rule_types[ref]
         if rule_type == RuleType.LEFT_RECURSIVE:
-            if any(rule_type[first_ref] != RuleType.LEFT_RECURSIVE for first_ref in firsts):
-                raise ValueError(f"Firsts for left-recursive rule must be left-recursive. Found {firsts} for {rules[ref]}")
+            if any(get_rule_type(first_ref, rule_types) == RuleType.NULLABLE for first_ref in firsts):
+                raise ValueError(f"Firsts for left-recursive rule must not be nullable. Found {firsts} for {rules[ref]}")
         elif rule_type == RuleType.NULLABLE:
-            if any(rule_type[first_ref] == RuleType.LEFT_RECURSIVE for first_ref in firsts):
+            if any(get_rule_type(first_ref, rule_types) == RuleType.LEFT_RECURSIVE for first_ref in firsts):
                 raise ValueError(f"Firsts for nullable rule must not be left-recursive. Found {firsts} for {rules[ref]}")
         elif rule_type == RuleType.NORMAL:
-            if any(rule_type[first_ref] == RuleType.LEFT_RECURSIVE for first_ref in firsts):
+            if any(get_rule_type(first_ref, rule_types) == RuleType.LEFT_RECURSIVE for first_ref in firsts):
                 raise ValueError(f"Firsts for non-nullable rule must not be left-recursive. Found {firsts} for {rules[ref]}")
         else:
             raise ValueError(f"Unknown rule type: {rule_type}")
