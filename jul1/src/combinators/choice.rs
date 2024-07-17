@@ -15,8 +15,8 @@ where
     ParserA: ParserTrait,
     ParserB: ParserTrait,
 {
-    a: ParserA,
-    b: ParserB,
+    a: Option<ParserA>,
+    b: Option<ParserB>,
 }
 
 impl<A, B> CombinatorTrait for Choice2<A, B>
@@ -30,7 +30,7 @@ where
         let (a, right_data_a, up_data_a) = self.a.parser(right_data.clone());
         let (b, right_data_b, up_data_b) = self.b.parser(right_data);
         (
-            Choice2Parser { a, b },
+            Choice2Parser { a: Some(a), b: Some(b) },
             right_data_a.into_iter().chain(right_data_b).collect(),
             up_data_a.into_iter().chain(up_data_b).collect()
         )
@@ -43,12 +43,26 @@ where
     B: ParserTrait,
 {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
-        let (right_data_a, up_data_a) = self.a.step(c);
-        let (right_data_b, up_data_b) = self.b.step(c);
-        (
-            right_data_a.into_iter().chain(right_data_b).collect(),
-            up_data_a.into_iter().chain(up_data_b).collect()
-        )
+        let (mut right_data, mut up_data) = (vec![], vec![]);
+        if let Some(a) = &mut self.a {
+            let (mut right_data_a, mut up_data_a) = a.step(c);
+            if right_data_a.is_empty() && up_data_a.is_empty() {
+                self.a = None;
+            } else {
+                right_data.append(&mut right_data_a);
+                up_data.append(&mut up_data_a);
+            }
+        }
+        if let Some(b) = &mut self.b {
+            let (mut right_data_b, mut up_data_b) = b.step(c);
+            if right_data_b.is_empty() && up_data_b.is_empty() {
+                self.b = None;
+            } else {
+                right_data.append(&mut right_data_b);
+                up_data.append(&mut up_data_b);
+            }
+        }
+        (right_data, up_data)
     }
 }
 
