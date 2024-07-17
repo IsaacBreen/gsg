@@ -40,11 +40,6 @@ pub fn forward_ref() -> ForwardRef {
 }
 
 impl ForwardRef {
-    // pub fn set<A: CombinatorTrait<Parser=P> + 'static, P: ParserTrait + 'static>(&mut self, a: A) -> Rc<A> {
-    //     let a = Rc::new(a);
-    //     *self.a.borrow_mut() = Some(a.clone().into_boxed().into());
-    //     a
-    // }
     pub fn set<A: IntoCombinator<Output = B>, B: CombinatorTrait<Parser=P> + 'static, P: ParserTrait + 'static>(&mut self, a: A) -> Rc<B> {
         let a = Rc::new(a.into_combinator());
         *self.a.borrow_mut() = Some(a.clone().into_boxed().into());
