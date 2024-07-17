@@ -27,69 +27,98 @@ class RuleType(Enum):
     NORMAL = auto()
 
 
-def first_refs(node: Node, seen: set[Ref], rule_types: dict[Ref, RuleType]) -> set[Ref]:
-    if seen is None:
-        seen = set()
+def is_nullable(node: Node, nullable_rules: set[Ref]) -> bool:
+    match node:
+        case Ref(name):
+            return name in nullable_rules
+        case Seq(children):
+            return all(is_nullable(child, nullable_rules) for child in children)
+        case Choice(children):
+            return any(is_nullable(child, nullable_rules) for child in children)
+        case Repeat1(child):
+            return is_nullable(child, nullable_rules)
+        case _:
+            return False
+
+
+def get_nullable_rules(rules: dict[Ref, Node]) -> set[Ref]:
+    # Assume all rules are nullable
+    nullable_rules = set(rules.keys())
+    # Keep trying until we can't find anymore
+    while True:
+        prev_len = len(nullable_rules)
+        for ref, node in rules.items():
+            if not is_nullable(node, nullable_rules):
+                nullable_rules -= {ref}
+        if len(nullable_rules) == prev_len:
+            break
+    return nullable_rules
+
+
+def first_refs(node: Node, nullable_rules: set[Ref]) -> set[Ref]:
     if isinstance(node, Term):
         return set()
     elif isinstance(node, Ref):
-        if node in seen:
-            return {node}
-        seen.add(node)
-        return first_refs(rules[node], seen)
+        return {node}
     elif isinstance(node, Seq):
         result = set()
         for child in node.children:
-            result.update(first_refs(child, seen))
-            if not is_nullable(child, seen, rules):
+            result.update(first_refs(child, nullable_rules))
+            if not is_nullable(child, nullable_rules):
                 break
         return result
     elif isinstance(node, Choice):
         result = set()
         for child in node.children:
-            result.update(first_refs(child, seen))
+            result.update(first_refs(child, nullable_rules))
         return result
     elif isinstance(node, Repeat1):
-        return first_refs(node.child, seen)
+        return first_refs(node.child, nullable_rules)
     else:
         raise ValueError(f"Unknown node type: {type(node)}")
 
 
+def is_left_recursive(node: Node, rules: dict[Ref, Node], seen: set[Ref] = None) -> bool:
+    if seen is None:
+        seen = set()
+    firsts = first_refs(node, seen)
+    for ref in firsts:
+        if ref in seen:
+            return True
+        if is_left_recursive(rules[ref], rules, seen | {ref}):
+            return True
+    return False
+
+
 def infer_rule_types(rules: dict[Ref, Node]) -> dict[Ref, RuleType]:
+    nullable_rules = get_nullable_rules(rules)
     rule_types = {}
     for ref, node in rules.items():
-        firsts = first_refs(node, set())
-        if any(isinstance(symbol, Term) or symbol == ref for symbol in firsts):
-            rule_types[ref] = RuleType.LEFT_RECURSIVE
-        elif is_nullable(node, set(), rules):
+        if ref in nullable_rules:
+            assert not is_left_recursive(node, rules)
             rule_types[ref] = RuleType.NULLABLE
+        elif is_left_recursive(node, rules):
+            rule_types[ref] = RuleType.LEFT_RECURSIVE
         else:
             rule_types[ref] = RuleType.NORMAL
-
     return rule_types
+
 
 def validate_rules(rules: dict[Ref, Node]) -> None:
     rule_types = infer_rule_types(rules)
-
-    for ref, node in rules.items():
-        rule_type = rule_types[ref]
-        firsts = first_refs(node, set())
-
+    for ref, rule_type in rule_types.items():
+        firsts = first_refs(rules[ref], get_nullable_rules(rules))
         if rule_type == RuleType.LEFT_RECURSIVE:
-            if any(rule_types[symbol] != RuleType.LEFT_RECURSIVE for symbol in firsts):
-                raise ValueError(f"Invalid LEFT_RECURSIVE rule: {ref}")
-
+            if any(rule_type[first_ref] != RuleType.LEFT_RECURSIVE for first_ref in firsts):
+                raise ValueError(f"Firsts for left-recursive rule must be left-recursive. Found {firsts} for {rules[ref]}")
         elif rule_type == RuleType.NULLABLE:
-            if any(rule_types[symbol] == RuleType.LEFT_RECURSIVE for symbol in firsts):
-                raise ValueError(f"Invalid NULLABLE rule: {ref}")
-            if not is_nullable(node, set(), rules):
-                raise ValueError(f"NULLABLE rule is not nullable: {ref}")
-
+            if any(rule_type[first_ref] == RuleType.LEFT_RECURSIVE for first_ref in firsts):
+                raise ValueError(f"Firsts for nullable rule must not be left-recursive. Found {firsts} for {rules[ref]}")
         elif rule_type == RuleType.NORMAL:
-            if any(rule_types[symbol] == RuleType.LEFT_RECURSIVE for symbol in firsts):
-                raise ValueError(f"Invalid NORMAL rule: {ref}")
-            if is_nullable(node, set(), rules):
-                raise ValueError(f"NORMAL rule is nullable: {ref}")
+            if any(rule_type[first_ref] == RuleType.LEFT_RECURSIVE for first_ref in firsts):
+                raise ValueError(f"Firsts for non-nullable rule must not be left-recursive. Found {firsts} for {rules[ref]}")
+        else:
+            raise ValueError(f"Unknown rule type: {rule_type}")
 
 
 def resolve_left_recursion_for_rule[T: Node](node: T, ref: Ref, replacements: dict[Ref, Node]) -> Node:
