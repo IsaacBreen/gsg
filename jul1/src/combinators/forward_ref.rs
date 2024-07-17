@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::{CombinatorTrait, IntoCombinator, LeftRecursionGuard, ParserTrait};
+use crate::{CombinatorTrait, IntoCombinator, ParserTrait};
 use crate::parse_state::{RightData, UpData};
 
 pub struct ForwardRef {
@@ -30,7 +30,7 @@ impl IntoCombinator for &ForwardRef {
         if let Some(a) = self.a.borrow().as_ref() {
             a.clone()
         } else {
-            LeftRecursionGuard { a: self.a.clone() }.into_boxed().into()
+            Rc::new(self.a.clone()).into_boxed().into()
         }
     }
 }

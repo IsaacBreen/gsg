@@ -10,4 +10,4 @@ edition = "2021"
 #opt-level = 1
 
 [profile.test]
-opt-level = 1
+opt-level = 2

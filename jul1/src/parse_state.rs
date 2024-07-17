@@ -6,7 +6,6 @@ pub struct RightData {
     pub frame_stack: Option<FrameStack>,
     pub indents: Vec<Vec<u8>>,
     pub dedents: usize,
-    pub left_recursion_guard_data: LeftRecursionGuardDownData,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -20,23 +19,11 @@ impl Default for RightData {
             frame_stack: Some(FrameStack::default()),
             indents: vec![],
             dedents: 0,
-            left_recursion_guard_data: LeftRecursionGuardDownData::default(),
         }
     }
 }
 
 impl RightData {
-    pub fn may_consume(&self) -> bool {
-        self.left_recursion_guard_data.may_consume()
-    }
-
-    pub fn on_consume(&mut self) {
-        self.left_recursion_guard_data.on_consume();
-    }
-
-    pub fn did_consume(&self) -> bool {
-        self.left_recursion_guard_data.did_consume()
-    }
 }
 
 pub trait Squash {
