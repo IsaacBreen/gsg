@@ -1,199 +1,109 @@
 import io
-import json
 import logging
 import tokenize
 from io import StringIO
 
 import requests
 from pegen.grammar import Grammar, Rhs, Alt, NamedItem, Leaf, NameLeaf, StringLeaf, Group, Opt, Repeat, Forced, Lookahead, \
-    PositiveLookahead, NegativeLookahead, Repeat0, Repeat1, Gather, Cut, Rule, Item
+    PositiveLookahead, NegativeLookahead, Repeat0, Repeat1, Gather, Cut, Rule
 from pegen.grammar_parser import GeneratedParser
 from pegen.tokenizer import Tokenizer
 
+from remove_left_recursion import resolve_left_recursion, Node, Seq, Choice, Term, Ref, eps, fail, Repeat1, RuleType
 
 def fetch_grammar(url: str) -> str:
     response = requests.get(url)
     response.raise_for_status()
     return response.text
 
-
 def parse_grammar(text: str) -> Grammar:
-    # Assume `parse_string` is the function to parse grammar text into a Grammar object
-    # You might need to implement this function based on how pegen parses the grammar text
-    # from pegen.parser import parse_string
     with StringIO(text) as f:
         tokenizer = Tokenizer(tokenize.generate_tokens(f.readline))
         parser = GeneratedParser(tokenizer)
         grammar = parser.start()
         return grammar
 
+def pegen_to_custom(grammar: Grammar) -> dict[Ref, Node]:
+    def rhs_to_node(rhs: Rhs) -> Node:
+        if len(rhs.alts) == 1:
+            return alt_to_node(rhs.alts[0])
+        return Choice([alt_to_node(alt) for alt in rhs.alts])
 
-def grammar_to_dict(grammar: Grammar) -> dict:
-    def rhs_to_dict(rhs: Rhs) -> dict:
-        return {
-            "node_type": "rhs",
-            "alts": [alt_to_dict(alt) for alt in rhs.alts],
-        }
+    def alt_to_node(alt: Alt) -> Node:
+        if len(alt.items) == 1:
+            return named_item_to_node(alt.items[0])
+        return Seq([named_item_to_node(item) for item in alt.items])
 
-    def alt_to_dict(alt: Alt) -> dict:
-        return {
-            "node_type": "alt",
-            "items": [named_item_to_dict(item) for item in alt.items],
-            "icut": alt.icut,
-            "action": alt.action
-        }
+    def named_item_to_node(item: NamedItem) -> Node:
+        return item_to_node(item.item)
 
-    def named_item_to_dict(item: NamedItem) -> dict:
-        return {
-            "node_type": "named_item",
-            "name": item.name,
-            "item": item_to_dict(item.item),
-            "type": item.type,
-        }
-
-    def item_to_dict(item) -> dict:
+    def item_to_node(item) -> Node:
         if isinstance(item, Leaf):
-            return {"node_type": "leaf", "value": item.value}
+            return Term(item.value)
         elif isinstance(item, NameLeaf):
-            return {"node_type": "name_leaf", "value": item.value}
+            return Term(item.value)
         elif isinstance(item, StringLeaf):
-            return {"node_type": "string_leaf", "value": item.value}
+            return Term(item.value)
         elif isinstance(item, Group):
-            return {"node_type": "group", "rhs": rhs_to_dict(item.rhs)}
+            return rhs_to_node(item.rhs)
         elif isinstance(item, Opt):
-            return {"node_type": "opt", "node": item_to_dict(item.node)}
+            return Choice([item_to_node(item.node), eps()])
         elif isinstance(item, Gather):
-            return {
-                "node_type": "gather",
-                "separator": item_to_dict(item.separator),
-                "node": item_to_dict(item.node),
-            }
+            return Seq([item_to_node(item.node), Repeat1(item_to_node(item.separator))])
         elif isinstance(item, Repeat):
-            return {
-                "node_type": "repeat",
-                "node": item_to_dict(item.node),
-            }
+            return Repeat1(item_to_node(item.node))
         elif isinstance(item, Repeat0):
-            return {
-                "node_type": "repeat0",
-                "node": item_to_dict(item.node),
-            }
+            return Choice([Repeat1(item_to_node(item.node)), eps()])
         elif isinstance(item, Repeat1):
-            return {
-                "node_type": "repeat1",
-                "node": item_to_dict(item.node),
-            }
+            return Repeat1(item_to_node(item.node))
         elif isinstance(item, Forced):
-            return {"node_type": "forced", "node": item_to_dict(item.node)}
+            return item_to_node(item.node)
         elif isinstance(item, Lookahead):
-            return {
-                "node_type": "lookahead",
-                "node": item_to_dict(item.node),
-                "sign": item.sign
-            }
+            return eps()
         elif isinstance(item, PositiveLookahead):
-            return {
-                "node_type": "positive_lookahead",
-                "node": item_to_dict(item.node),
-            }
+            return eps()
         elif isinstance(item, NegativeLookahead):
-            return {
-                "node_type": "negative_lookahead",
-                "node": item_to_dict(item.node),
-            }
+            return eps()
         elif isinstance(item, Rhs):
-            return rhs_to_dict(item)
+            return rhs_to_node(item)
         elif isinstance(item, Cut):
-            return {"node_type": "cut"}
+            return eps()
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
+    rules = {}
+    for name, rule in grammar.rules.items():
+        ref = Ref(name)
+        rules[ref] = rhs_to_node(rule.rhs)
+    return rules
 
-    def rule_to_dict(name: str, rule: Rule) -> dict:
-        return {
-            "name": name,
-            "type": rule.type,
-            "rhs": rhs_to_dict(rule.rhs),
-            "visited": rule.visited,
-            "nullable": rule.nullable,
-            "left_recursive": rule.left_recursive,
-            "leader": rule.leader
-        }
+def custom_to_pegen(rules: dict[Ref, Node]) -> Grammar:
+    def node_to_rhs(node: Node) -> Rhs:
+        if isinstance(node, Choice):
+            return Rhs([node_to_alt(child) for child in node.children])
+        return Rhs([node_to_alt(node)])
 
-    return {
-        "rules": [rule_to_dict(name, rule) for name, rule in grammar.rules.items()],
-        "metas": {meta: grammar.metas[meta] for meta in grammar.metas}
-    }
+    def node_to_alt(node: Node) -> Alt:
+        if isinstance(node, Seq):
+            return Alt([NamedItem(None, node_to_item(child)) for child in node.children])
+        return Alt([NamedItem(None, node_to_item(node))])
 
-
-def dict_to_grammar(grammar_dict: dict) -> Grammar:
-    def dict_to_rhs(rhs_dict: dict) -> Rhs:
-        return Rhs(alts=[dict_to_alt(alt) for alt in rhs_dict["alts"]])
-
-    def dict_to_alt(alt_dict: dict) -> Alt:
-        return Alt(items=[dict_to_named_item(item) for item in alt_dict["items"]],
-                   icut=alt_dict["icut"],
-                   action=alt_dict["action"])
-
-    def dict_to_named_item(item_dict: dict) -> NamedItem:
-        return NamedItem(name=item_dict["name"],
-                         item=dict_to_item(item_dict["item"]),
-                         type=item_dict["type"])
-
-    def dict_to_item(item_dict: dict) -> Item:
-        if "node_type" not in item_dict:
-            raise ValueError(f"Item dict does not have node_type: {item_dict}")
-        node_type = item_dict["node_type"]
-        if node_type == "leaf":
-            return Leaf(value=item_dict["value"])
-        elif node_type == "name_leaf":
-            return NameLeaf(value=item_dict["value"])
-        elif node_type == "string_leaf":
-            return StringLeaf(value=item_dict["value"])
-        elif node_type == "group":
-            return Group(rhs=dict_to_rhs(item_dict["rhs"]))
-        elif node_type == "opt":
-            return Opt(node=dict_to_item(item_dict["node"]))
-        elif node_type == "gather":
-            return Gather(separator=dict_to_item(item_dict["separator"]),
-                          node=dict_to_item(item_dict["node"]))
-        elif node_type == "repeat":
-            return Repeat(node=dict_to_item(item_dict["node"]))
-        elif node_type == "repeat0":
-            return Repeat0(node=dict_to_item(item_dict["node"]))
-        elif node_type == "repeat1":
-            return Repeat1(node=dict_to_item(item_dict["node"]))
-        elif node_type == "forced":
-            return Forced(node=dict_to_item(item_dict["node"]))
-        elif node_type == "lookahead":
-            return Lookahead(node=dict_to_item(item_dict["node"]),
-                             sign=item_dict["sign"])
-        elif node_type == "positive_lookahead":
-            return PositiveLookahead(node=dict_to_item(item_dict["node"]))
-        elif node_type == "negative_lookahead":
-            return NegativeLookahead(node=dict_to_item(item_dict["node"]))
-        elif node_type == "rhs":
-            return dict_to_rhs(item_dict)
-        elif node_type == "cut":
-            return Cut()
+    def node_to_item(node: Node):
+        if isinstance(node, Term):
+            return Leaf(node.value)
+        elif isinstance(node, Seq):
+            return Group(node_to_rhs(node))
+        elif isinstance(node, Choice):
+            return Group(node_to_rhs(node))
+        elif isinstance(node, Repeat1):
+            return Repeat(node_to_item(node.child))
         else:
-            raise ValueError(f"Unknown node type: {node_type}")
+            raise ValueError(f"Unknown node type: {type(node)}")
 
-    def dict_to_rule(rule_dict: dict) -> Rule:
-        return Rule(name=rule_dict["name"],
-                    type=rule_dict["type"],
-                    rhs=dict_to_rhs(rule_dict["rhs"]))
-
-    rules = {rule_dict["name"]: dict_to_rule(rule_dict) for rule_dict in grammar_dict["rules"]}
-    metas = grammar_dict["metas"]
-    return Grammar(rules=rules.values(), metas=metas)
-
-
-def load_grammar_from_json(filename: str) -> Grammar:
-    with open(filename, 'r') as file:
-        grammar_dict = json.load(file)
-    return dict_to_grammar(grammar_dict)
-
+    pegen_rules = {}
+    for ref, node in rules.items():
+        pegen_rules[ref.name] = Rule(ref.name, None, node_to_rhs(node))
+    return Grammar(pegen_rules.values(), {})
 
 def grammar_to_rust(grammar: Grammar) -> str:
     def rhs_to_rust(rhs: Rhs, top_level: bool = False) -> str:
@@ -203,7 +113,6 @@ def grammar_to_rust(grammar: Grammar) -> str:
             return "choice!(" + ", ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
 
     def alt_to_rust(alt: Alt) -> str:
-        # return ' '.join(named_item_to_rust(item) for item in alt.items)
         return "seq!(" + ", ".join(named_item_to_rust(item) for item in alt.items) + ")"
 
     def named_item_to_rust(item: NamedItem) -> str:
@@ -269,7 +178,7 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f.write('use std::rc::Rc;\n')
     f.write(
         'use crate::{choice, seq, repeat, repeat as repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, python_newline, indent, dedent, DynCombinator, CombinatorTrait, symbol};\n'
-        )
+    )
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('\n')
     f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
@@ -287,27 +196,24 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f.write('}\n')
     return f.getvalue()
 
-
-def save_grammar_to_json(grammar_dict: dict, filename: str) -> None:
-    with open(filename, 'w') as file:
-        json.dump(grammar_dict, file, indent=4)
-
-
 def save_grammar_to_rust(grammar: Grammar, filename: str) -> None:
     rust_code = grammar_to_rust(grammar)
-    with open(filename, 'w') as file:
-        file.write(rust_code)
-
+    with open(filename, 'w') as f:
+        f.write(rust_code)
 
 def main():
-    url = "https://raw.githubusercontent.com/python/cpython/main/Grammar/python.gram"
-    grammar_text = fetch_grammar(url)
-    grammar = parse_grammar(grammar_text)
-    grammar_dict = grammar_to_dict(grammar)
-    save_grammar_to_json(grammar_dict, "python_grammar.json")
-    grammar = dict_to_grammar(grammar_dict)
-    save_grammar_to_rust(grammar, "python_grammar.rs")
+    # Fetch and parse the Python grammar
+    grammar_url = "https://raw.githubusercontent.com/python/cpython/main/Grammar/python.gram"
+    grammar_text = fetch_grammar(grammar_url)
+    pegen_grammar = parse_grammar(grammar_text)
 
+    # Convert to custom grammar format and remove left recursion
+    custom_grammar = pegen_to_custom(pegen_grammar)
+    resolved_grammar = resolve_left_recursion(custom_grammar)
+
+    # Convert back to pegen format and save to Rust
+    resolved_pegen_grammar = custom_to_pegen(resolved_grammar)
+    save_grammar_to_rust(resolved_pegen_grammar, 'src/python_grammar.rs')
 
 if __name__ == "__main__":
     main()
