@@ -9,7 +9,8 @@ from pegen.grammar import Grammar, Rhs, Alt, NamedItem, Leaf, NameLeaf, StringLe
 from pegen.grammar_parser import GeneratedParser
 from pegen.tokenizer import Tokenizer
 
-from remove_left_recursion import resolve_left_recursion, Node, Seq, Choice, Term, Ref, eps, fail, Repeat1, RuleType
+from remove_left_recursion import resolve_left_recursion, Node, Seq, Choice, Term, Ref, eps, fail, Repeat1, RuleType, validate_rules
+
 
 def fetch_grammar(url: str) -> str:
     response = requests.get(url)
@@ -85,6 +86,7 @@ def custom_to_pegen(rules: dict[Ref, Node]) -> Grammar:
 
     def node_to_alt(node: Node) -> Alt:
         if isinstance(node, Seq):
+            assert len(node.children) > 0
             return Alt([NamedItem(None, node_to_item(child)) for child in node.children])
         return Alt([NamedItem(None, node_to_item(node))])
 
@@ -92,8 +94,14 @@ def custom_to_pegen(rules: dict[Ref, Node]) -> Grammar:
         if isinstance(node, Term):
             return Leaf(node.value)
         elif isinstance(node, Seq):
+            assert len(node.children) > 0
             return Group(node_to_rhs(node))
         elif isinstance(node, Choice):
+            if eps() in node.children:
+                children = node.children.copy()
+                children.remove(eps())
+                return Opt(node_to_rhs(Choice(children)))
+            assert len(node.children) > 0
             return Group(node_to_rhs(node))
         elif isinstance(node, Repeat1):
             return Repeat(node_to_item(node.child))
@@ -209,11 +217,12 @@ def main():
 
     # Convert to custom grammar format and remove left recursion
     custom_grammar = pegen_to_custom(pegen_grammar)
+    validate_rules(custom_grammar)
     resolved_grammar = resolve_left_recursion(custom_grammar)
 
     # Convert back to pegen format and save to Rust
     resolved_pegen_grammar = custom_to_pegen(resolved_grammar)
-    save_grammar_to_rust(resolved_pegen_grammar, 'src/python_grammar.rs')
+    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs')
 
 if __name__ == "__main__":
     main()

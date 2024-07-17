@@ -27,7 +27,7 @@ class RuleType(Enum):
     NORMAL = auto()
 
 
-def first_refs(node: Node, seen: set[Ref]) -> set[Ref]:
+def first_refs(node: Node, seen: set[Ref], rule_types: dict[Ref, RuleType]) -> set[Ref]:
     if seen is None:
         seen = set()
     if isinstance(node, Term):
@@ -41,7 +41,7 @@ def first_refs(node: Node, seen: set[Ref]) -> set[Ref]:
         result = set()
         for child in node.children:
             result.update(first_refs(child, seen))
-            if not is_nullable(child, seen):
+            if not is_nullable(child, seen, rules):
                 break
         return result
     elif isinstance(node, Choice):
@@ -51,36 +51,17 @@ def first_refs(node: Node, seen: set[Ref]) -> set[Ref]:
         return result
     elif isinstance(node, Repeat1):
         return first_refs(node.child, seen)
-    return set()
-
-
-def is_nullable(node: Node, seen: set[Ref]) -> bool:
-    if seen is None:
-        seen = set()
-    if isinstance(node, Seq):
-        return all(is_nullable(child, seen) for child in node.children)
-    elif isinstance(node, Choice):
-        return any(is_nullable(child, seen) for child in node.children)
-    elif isinstance(node, Repeat1):
-        return is_nullable(node.child, seen)
-    elif isinstance(node, Ref):
-        if node in seen:
-            return False
-        seen.add(node)
-        return is_nullable(rules[node], seen)
-    elif isinstance(node, Seq) and len(node.children) == 0:
-        return True
-    return False
+    else:
+        raise ValueError(f"Unknown node type: {type(node)}")
 
 
 def infer_rule_types(rules: dict[Ref, Node]) -> dict[Ref, RuleType]:
-
     rule_types = {}
     for ref, node in rules.items():
         firsts = first_refs(node, set())
         if any(isinstance(symbol, Term) or symbol == ref for symbol in firsts):
             rule_types[ref] = RuleType.LEFT_RECURSIVE
-        elif is_nullable(node, set()):
+        elif is_nullable(node, set(), rules):
             rule_types[ref] = RuleType.NULLABLE
         else:
             rule_types[ref] = RuleType.NORMAL
@@ -99,12 +80,17 @@ def validate_rules(rules: dict[Ref, Node]) -> None:
                 raise ValueError(f"Invalid LEFT_RECURSIVE rule: {ref}")
 
         elif rule_type == RuleType.NULLABLE:
-            if any(rule_types[symbol] == RuleType.NORMAL for symbol in firsts):
+            if any(rule_types[symbol] == RuleType.LEFT_RECURSIVE for symbol in firsts):
                 raise ValueError(f"Invalid NULLABLE rule: {ref}")
+            if not is_nullable(node, set(), rules):
+                raise ValueError(f"NULLABLE rule is not nullable: {ref}")
 
         elif rule_type == RuleType.NORMAL:
             if any(rule_types[symbol] == RuleType.LEFT_RECURSIVE for symbol in firsts):
                 raise ValueError(f"Invalid NORMAL rule: {ref}")
+            if is_nullable(node, set(), rules):
+                raise ValueError(f"NORMAL rule is nullable: {ref}")
+
 
 def resolve_left_recursion_for_rule[T: Node](node: T, ref: Ref, replacements: dict[Ref, Node]) -> Node:
     # Resolve indirect left recursion
