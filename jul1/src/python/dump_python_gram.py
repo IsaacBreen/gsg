@@ -2,6 +2,7 @@ import io
 import logging
 import tokenize
 from io import StringIO
+from typing import Dict
 
 import requests
 from pegen.grammar import Grammar, Rhs, Alt, NamedItem, Leaf, NameLeaf, StringLeaf, Group, Opt, Repeat, Forced, Lookahead, \
@@ -41,7 +42,10 @@ def pegen_to_custom(grammar: Grammar) -> dict[Ref, Node]:
     def item_to_node(item) -> Node:
         if isinstance(item, NameLeaf):
             value = item.value
-            return Ref(value)
+            if value.startswith('invalid_'):
+                return fail()
+            else:
+                return Ref(value)
         elif isinstance(item, StringLeaf):
             value = item.value
             return Term(value)
@@ -75,7 +79,8 @@ def pegen_to_custom(grammar: Grammar) -> dict[Ref, Node]:
     rules = {}
     for name, rule in grammar.rules.items():
         ref = Ref(name)
-        rules[ref] = rhs_to_node(rule.rhs)
+        if not ref.name.startswith('invalid_'):
+            rules[ref] = rhs_to_node(rule.rhs)
     return rules
 
 def custom_to_pegen(rules: dict[Ref, Node]) -> Grammar:
@@ -173,7 +178,7 @@ def grammar_to_rust(grammar: Grammar) -> str:
             raise ValueError(f"Unknown item type: {type(item)}")
 
     rules = grammar.rules.items()
-    # rules = list(reversed(rules))
+    rules = list(reversed(rules))
 
     tokens = ['NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING']
 
@@ -194,7 +199,7 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f.write('\n')
     f.write('\n'.join(f'    let mut {name} = forward_ref();' for name, rule in rules))
     f.write('\n')
-    f.write('\n'.join(f'    let {name} = {name}.set({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in rules))
+    f.write('\n'.join(f'    let {name} = Rc::new({name}.set({rhs_to_rust(rule.rhs, top_level=True)}).into_boxed());' for name, rule in rules))
     f.write('\n    file.into_boxed().into()\n')
     f.write('}\n')
     return f.getvalue()
