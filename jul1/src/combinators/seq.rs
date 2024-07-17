@@ -82,10 +82,8 @@ where
 
 #[macro_export]
 macro_rules! seq {
-    ($a:expr $(,)?) => {
-        $a
-    };
-    ($a:expr, $($b:expr),+ $(,)?) => {
-        $crate::seq2($a, $crate::seq!($($b),+))
-    };
+    ($a:expr $(,)?) => {$a}
+    ($a1:expr, $a2:expr) => {$crate::seq2($a1, $a2)}
+    ($a1:expr, $a2:expr, $a3:expr) => {$crate::seq2($a1, $crate::seq2($a2, $a3))}
+    ($a1:expr, $a2:expr, $a3:expr, $a4:expr) => {$crate::seq2($crate::seq2($a1, $a2), $crate::seq2($a3, $a4))}
 }
