@@ -56,12 +56,20 @@ where
 {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         let (right_data_a, up_data_a) = self.a.as_mut().map(|a| a.step(c)).unwrap_or((vec![], vec![]));
-        let (mut right_data_bs, mut up_data_bs) = (vec![], vec![]);
-        for b in self.bs.iter_mut() {
-            let (right_data_b, up_data_b) = b.step(c);
-            right_data_bs.extend(right_data_b);
-            up_data_bs.extend(up_data_b);
+        if right_data_a.is_empty() && up_data_a.is_empty() {
+            self.a = None;
         }
+        let (mut right_data_bs, mut up_data_bs) = (vec![], vec![]);
+        self.bs.retain_mut(|b| {
+            let (right_data_b, up_data_b) = b.step(c);
+            if right_data_b.is_empty() && up_data_b.is_empty() {
+                false
+            } else {
+                right_data_bs.extend(right_data_b);
+                up_data_bs.extend(up_data_b);
+                true
+            }
+        });
         for right_data_b in right_data_a {
             let (b, right_data_b, up_data_b) = self.b.parser(right_data_b);
             self.bs.push(b);
