@@ -24,4 +24,3 @@ mod bitset256;
 mod tests;
 mod frame_stack;
 mod python;
-mod left_recursion_guard_data;
