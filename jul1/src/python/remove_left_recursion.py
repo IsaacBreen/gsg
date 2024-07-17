@@ -126,12 +126,18 @@ class Seq(Node):
     children: list[Node]
 
     def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
-        first, recursive = self.children[0].decompose_on_left_recursion(ref)
-        return Seq([first, *self.children[1:]]), Seq([recursive, *self.children[1:]])
+        if len(self.children) == 0:
+            return self, self
+        else:
+            first, recursive = self.children[0].decompose_on_left_recursion(ref)
+            return Seq([first, *self.children[1:]]), Seq([recursive, *self.children[1:]])
 
     def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
-        self.children[0] = self.children[0].replace_left_refs(replacements)
-        return self
+        if len(self.children) == 0:
+            return self
+        else:
+            self.children[0] = self.children[0].replace_left_refs(replacements)
+            return self
 
     def simplify(self) -> Node:
         # Simplify children
@@ -211,8 +217,11 @@ class Choice(Node):
         return Choice(firsts), Choice(recursives)
 
     def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
-        self.children = [child.replace_left_refs(replacements) for child in self.children]
-        return self
+        if len(self.children) == 0:
+            return self
+        else:
+            self.children = [child.replace_left_refs(replacements) for child in self.children]
+            return self
 
     def simplify(self) -> Node:
         # Simplify children
