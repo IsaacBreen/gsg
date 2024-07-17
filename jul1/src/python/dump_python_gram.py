@@ -172,7 +172,8 @@ def grammar_to_rust(grammar: Grammar) -> str:
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
-    rules = list(reversed(grammar.rules.items()))
+    rules = grammar.rules.items()
+    # rules = list(reversed(rules))
 
     tokens = ['NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING']
 
