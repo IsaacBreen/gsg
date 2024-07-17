@@ -15,7 +15,7 @@ pub struct UpData {
 impl Default for RightData {
     fn default() -> Self {
         Self {
-            frame_stack: Some(FrameStack::default()),
+            frame_stack: None,
             indents: vec![],
             dedents: 0,
         }
