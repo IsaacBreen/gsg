@@ -4,7 +4,7 @@ use crate::{assert_parses, python_file};
 fn test_simple() {
     println!("beginning test_simple");
     let combinator = python_file();
-    // assert_parses!(combinator, "x = 12");
+    // assert_parses!(combinator, "x=12");
     assert_parses!(combinator, "xxxxxxxx");
     // assert_parses!(combinator, "xxxxxxxxxxxxxxxx");
     // assert_parses!(combinator, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");

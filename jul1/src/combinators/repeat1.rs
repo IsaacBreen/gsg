@@ -37,11 +37,16 @@ where
 {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         let (mut right_data_as, mut up_data_as) = (vec![], vec![]);
-        for a_parser in self.a_parsers.iter_mut() {
+        self.a_parsers.retain_mut(|a_parser| {
             let (right_data_a, up_data_a) = a_parser.step(c);
-            right_data_as.extend(right_data_a);
-            up_data_as.extend(up_data_a);
-        }
+            if right_data_a.is_empty() && up_data_a.is_empty() {
+                false
+            } else {
+                right_data_as.extend(right_data_a);
+                up_data_as.extend(up_data_a);
+                true
+            }
+        });
         for right_data_a in right_data_as.clone() {
             let (a_parser, right_data_a, up_data_a) = self.a.parser(right_data_a);
             self.a_parsers.push(a_parser);
