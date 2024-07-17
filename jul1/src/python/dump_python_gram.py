@@ -123,7 +123,7 @@ def custom_to_pegen(rules: dict[Ref, Node]) -> Grammar:
 def grammar_to_rust(grammar: Grammar) -> str:
     def rhs_to_rust(rhs: Rhs, top_level: bool = False) -> str:
         if top_level:
-            return "choice!(" + ",\n        ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
+            return "choice!(\n        " + ",\n        ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n    )"
         else:
             return "choice!(" + ", ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
 
@@ -199,7 +199,8 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f.write('\n')
     f.write('\n'.join(f'    let mut {name} = forward_ref();' for name, rule in rules))
     f.write('\n')
-    f.write('\n'.join(f'    let {name} = Rc::new({name}.set({rhs_to_rust(rule.rhs, top_level=True)}).into_boxed());' for name, rule in rules))
+    f.write('\n'.join(f'    let {name} = {name}.set({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in rules))
+    # f.write('\n'.join(f'    let {name} = Rc::new({name}.set({rhs_to_rust(rule.rhs, top_level=True)}).into_boxed());' for name, rule in rules))
     f.write('\n    file.into_boxed().into()\n')
     f.write('}\n')
     return f.getvalue()
