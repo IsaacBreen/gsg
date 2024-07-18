@@ -41,7 +41,7 @@ where
         }
         let parser = Seq2Parser {
             a: Some(a),
-            bs: bs,
+            bs,
             b: self.b.clone(),
             right_data,
         };
