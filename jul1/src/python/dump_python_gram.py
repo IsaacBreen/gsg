@@ -216,6 +216,8 @@ if __name__ == "__main__":
     # Fetch and parse the Python grammar
     grammar_url = "https://raw.githubusercontent.com/python/cpython/main/Grammar/python.gram"
     grammar_text = fetch_grammar(grammar_url)
+    with open('python.gram', 'w') as f:
+        f.write(grammar_text)
     pegen_grammar = parse_grammar(grammar_text)
 
     # Convert to custom grammar format and remove left recursion

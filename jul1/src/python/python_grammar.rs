@@ -969,5 +969,5 @@ pub fn python_file() -> Rc<DynCombinator> {
     let file = Rc::new(file.set(choice!(
         seq!(opt(choice!(seq!(&statements))), repeat(&ENDMARKER))
     )).into_boxed());
-    NUMBER.into_boxed().into()
+    file.into_boxed().into()
 }

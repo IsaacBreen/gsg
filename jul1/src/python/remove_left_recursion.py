@@ -215,6 +215,11 @@ class Seq(Node):
             else:
                 break
 
+        # Merge any choices of sequences with a shared prefix
+        # It's hard to find the optimal merge strategy, but we do our best
+        # todo
+        raise NotImplementedError
+
         match children:
             case []:
                 return eps()
