@@ -101,6 +101,15 @@ pub fn id_start_bytestrings() -> Vec<Vec<u8>> {
     let category_bytestrings: Vec<Vec<u8>> = categories.iter().map(|category| get_unicode_general_category_bytestrings(*category)).flatten().collect();
     let other_bytestrings: Vec<Vec<u8>> = vec![vec![b'_']];
 
+    // let category_strings: Vec<String> = category_bytestrings.iter().map(|bytes| std::str::from_utf8(bytes).unwrap().to_string()).collect();
+    //
+    // let category_bytestrings2: Vec<Vec<Vec<u8>>> = categories.iter().map(|category| get_unicode_general_category_bytestrings(*category)).collect();
+    // let category_strings2: Vec<Vec<String>> = category_bytestrings2.iter().map(|bytestrings| bytestrings.iter().map(|bytes| std::str::from_utf8(bytes).unwrap().to_string()).collect()).collect();
+    // for category_strings22 in &category_strings2 {
+    //     dbg!(&category_strings22[..200]);
+    // }
+    // panic!();
+
     category_bytestrings.into_iter().chain(other_bytestrings.into_iter()).collect()
 }
 

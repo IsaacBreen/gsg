@@ -7,9 +7,6 @@ pub fn get_unicode_general_category_bytestrings(general_category: GeneralCategor
     for c in '\u{0}'..='\u{10FFFF}' {
         if get_general_category(c) == general_category {
             let utf8_bytes = c.to_string().as_bytes().to_vec();
-            let c2 = c as u8;
-            let c3 = "a".to_string().as_bytes().to_vec();
-            let c4 = "a".as_bytes();
             result.push(utf8_bytes);
         }
     }

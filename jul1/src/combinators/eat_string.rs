@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use crate::{choice, choice_from_vec, CombinatorTrait, DynCombinator, eat_byte, eps, ParserTrait, seq, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
@@ -64,7 +64,7 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
 
 pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Box<DynCombinator> {
     // Group by first byte
-    let mut grouped_bytestrings: HashMap<u8, Vec<Vec<u8>>> = HashMap::new();
+    let mut grouped_bytestrings: BTreeMap<u8, Vec<Vec<u8>>> = BTreeMap::new();
     let mut any_done = false;
     for bytestring in bytestrings {
         let [first, rest @ ..] = bytestring.as_slice() else {
