@@ -13,6 +13,7 @@ pub use crate::python::*;
 pub use crate::tests::*;
 // Re-export common types and functions
 pub use crate::u8set::U8Set;
+pub use crate::stats::*;
 
 mod combinator;
 mod combinators;
@@ -24,3 +25,4 @@ mod bitset256;
 mod tests;
 mod frame_stack;
 mod python;
+mod stats;

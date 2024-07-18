@@ -15,8 +15,8 @@ where
     ParserA: ParserTrait,
     ParserB: ParserTrait,
 {
-    a: Option<ParserA>,
-    b: Option<ParserB>,
+    pub(crate) a: Option<ParserA>,
+    pub(crate) b: Option<ParserB>,
 }
 
 impl<A, B> CombinatorTrait for Choice2<A, B>

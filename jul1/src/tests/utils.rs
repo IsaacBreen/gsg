@@ -7,6 +7,8 @@ macro_rules! assert_parses {
         let mut result = Ok(());
         for &byte in $input.as_bytes() {
             let (right_data, up_data) = parser.step(byte);
+            use crate::ParserStats;
+            println!("Stats: {:?}", parser.stats());
             if right_data.is_empty() && up_data.is_empty() {
                 result = Err(format!("Parser failed at byte: {}", byte as char));
                 break;

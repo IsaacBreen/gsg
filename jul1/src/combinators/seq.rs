@@ -17,8 +17,8 @@ where
     ParserA: ParserTrait,
     B: CombinatorTrait,
 {
-    a: Option<ParserA>,
-    bs: Vec<B::Parser>,
+    pub(crate) a: Option<ParserA>,
+    pub(crate) bs: Vec<B::Parser>,
     b: Rc<B>,
     right_data: RightData,
 }

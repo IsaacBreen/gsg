@@ -14,8 +14,8 @@ pub struct Repeat1Parser<A>
 where
     A: CombinatorTrait,
 {
-    a: Rc<A>,
-    a_parsers: Vec<A::Parser>,
+    pub(crate) a: Rc<A>,
+    pub(crate) a_parsers: Vec<A::Parser>,
     right_data: RightData,
 }
 
