@@ -89,8 +89,8 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
 pub fn id_start_bytestrings() -> Vec<Vec<u8>> {
     // all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property
     let categories = [
-        GeneralCategory::UppercaseLetter,
         GeneralCategory::LowercaseLetter,
+        GeneralCategory::UppercaseLetter,
         GeneralCategory::TitlecaseLetter,
         GeneralCategory::ModifierLetter,
         GeneralCategory::OtherLetter,
@@ -98,7 +98,7 @@ pub fn id_start_bytestrings() -> Vec<Vec<u8>> {
         // We ignore Other_ID_Start - it's just for backwards compatibility.
     ];
 
-    let category_bytestrings: Vec<Vec<u8>> = categories.iter().flat_map(|category| get_unicode_general_category_bytestrings(*category)).collect();
+    let category_bytestrings: Vec<Vec<u8>> = categories.iter().map(|category| get_unicode_general_category_bytestrings(*category)).flatten().collect();
     let other_bytestrings: Vec<Vec<u8>> = vec![vec![b'_']];
 
     category_bytestrings.into_iter().chain(other_bytestrings.into_iter()).collect()
@@ -114,11 +114,12 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
         GeneralCategory::ConnectorPunctuation,
     ];
 
-
-    let other_bytestrings: Vec<Vec<u8>> = vec![vec![b'0', b'9']];
-
     let new_category_bytestrings: Vec<Vec<u8>> = new_categories.iter().flat_map(|category| get_unicode_general_category_bytestrings(*category)).collect();
-    new_category_bytestrings.into_iter().chain(other_bytestrings.into_iter()).collect()
+
+    let mut bytestrings = Vec::new();
+    bytestrings.extend(id_start_bytestrings());
+    bytestrings.extend(new_category_bytestrings);
+    bytestrings
 }
 
 pub fn id_start() -> Box<DynCombinator> {

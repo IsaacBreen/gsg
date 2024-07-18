@@ -1,4 +1,5 @@
-use crate::{choice_from_vec, CombinatorTrait, DynCombinator, ParserTrait, Stats, U8Set};
+use std::collections::HashMap;
+use crate::{choice, choice_from_vec, CombinatorTrait, DynCombinator, eat_byte, eps, ParserTrait, seq, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
 pub struct EatString {
@@ -62,6 +63,23 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
 }
 
 pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Box<DynCombinator> {
-    let bytestrings: Vec<Box<DynCombinator>> = bytestrings.into_iter().map(|bytestring| eat_bytes(bytestring.as_slice()).into_boxed()).collect();
-    choice_from_vec(bytestrings).into_boxed()
+    // Group by first byte
+    let mut grouped_bytestrings: HashMap<u8, Vec<Vec<u8>>> = HashMap::new();
+    let mut any_done = false;
+    for bytestring in bytestrings {
+        let [first, rest @ ..] = bytestring.as_slice() else {
+            any_done = true;
+            continue
+        };
+        grouped_bytestrings.entry(*first).or_default().push((*rest).to_vec());
+    }
+    // Create combinators for each group
+    let combinator = choice_from_vec(grouped_bytestrings.into_iter().map(|(first, rest)| {
+        seq!(eat_byte(first), eat_bytestring_choice(rest))
+    }).collect());
+    if any_done {
+        choice!(combinator, eps()).into_boxed()
+    } else {
+        combinator
+    }
 }

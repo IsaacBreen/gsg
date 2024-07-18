@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParserTrait, Stats};
+use crate::{CombinatorTrait, DynCombinator, eps, IntoCombinator, ParserTrait, Stats};
 use crate::parse_state::{RightData, UpData};
 
 pub struct Choice2<A, B>
@@ -107,7 +107,9 @@ where
     T: IntoCombinator,
 {
     let mut v = v;
-    if v.len() == 1 {
+    if v.len() == 0 {
+        eps().into_boxed()
+    } else if v.len() == 1 {
         v.into_iter().next().unwrap().into_combinator().into_boxed()
     } else {
         let rest = v.split_off(v.len() / 2);
