@@ -42,12 +42,13 @@ pub enum IndentCombinator {
     Dent,
     Indent,
     Dedent,
+    AssertNoDedents,
 }
 
 pub enum IndentCombinatorParser {
     DentParser(BruteForceParser),
     IndentParser(Option<RightData>),
-    DedentParser,
+    Done,
 }
 
 impl CombinatorTrait for IndentCombinator {
@@ -70,7 +71,14 @@ impl CombinatorTrait for IndentCombinator {
                     right_data.dedents -= 1;
                     vec![right_data]
                 };
-                (IndentCombinatorParser::DedentParser, right_data_to_return, vec![])
+                (IndentCombinatorParser::Done, right_data_to_return, vec![])
+            }
+            IndentCombinator::AssertNoDedents => {
+                if right_data.dedents == 0 {
+                    (IndentCombinatorParser::Done, vec![right_data], vec![])
+                } else {
+                    (IndentCombinatorParser::Done, vec![], vec![])
+                }
             }
         }
     }
@@ -91,7 +99,7 @@ impl ParserTrait for IndentCombinatorParser {
                     (vec![], vec![])
                 }
             }
-            IndentCombinatorParser::DedentParser => (vec![], vec![]),
+            IndentCombinatorParser::Done => (vec![], vec![]),
         }
     }
 
@@ -110,6 +118,10 @@ pub fn indent() -> IndentCombinator {
 
 pub fn dedent() -> IndentCombinator {
     IndentCombinator::Dedent
+}
+
+pub fn assert_no_dedents() -> IndentCombinator {
+    IndentCombinator::AssertNoDedents
 }
 
 pub fn with_indent<A>(a: A) -> Seq2<IndentCombinator, Seq2<A::Output, IndentCombinator>>
