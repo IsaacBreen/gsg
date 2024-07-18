@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, FrameStack, IntoCombinator, ParserTrait, RightData, UpData};
+use crate::{CombinatorTrait, FrameStack, IntoCombinator, ParserTrait, RightData, Stats, UpData};
 
 pub struct WithNewFrame<A>
 where
@@ -37,6 +37,11 @@ where
             right_data.frame_stack.as_mut().unwrap().pop();
         }
         (right_data_vec, up_data_vec)
+    }
+
+    fn collect_stats(&self, stats: &mut Stats) {
+        self.a.collect_stats(stats);
+        stats.active_parser_type_counts.entry("WithNewFrameParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
     }
 }
 
@@ -148,6 +153,11 @@ where
                 (right_data_vec, up_data_vec)
             }
         }
+    }
+
+    fn collect_stats(&self, stats: &mut Stats) {
+        self.a.collect_stats(stats);
+        stats.active_parser_type_counts.entry("FrameStackOpParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
     }
 }
 

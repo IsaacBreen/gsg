@@ -2,6 +2,17 @@ use std::rc::Rc;
 
 use crate::parse_state::{RightData, UpData};
 
+use std::collections::HashMap;
+// use crate::{Seq2, Choice2, EatU8, EatString, Repeat1, FrameStackOp, Eps, BruteForce, IndentCombinator, Symbol, ParserTrait, CombinatorTrait};
+// use crate::{Seq2Parser, Choice2Parser, EatU8Parser, EatStringParser, Repeat1Parser, FrameStackOpParser, EpsParser, BruteForceParser, IndentCombinatorParser};
+// use std::rc::Rc;
+
+#[derive(Default, Debug)]
+pub struct Stats
+{
+    pub active_parser_type_counts: HashMap<String, usize>,
+}
+
 pub trait CombinatorTrait
 where
     Self: 'static,
@@ -18,11 +29,20 @@ where
 
 pub trait ParserTrait {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>);
+    fn stats(&self) -> Stats {
+        let mut stats = Stats::default();
+        self.collect_stats(&mut stats);
+        stats
+    }
+    fn collect_stats(&self, stats: &mut Stats);
 }
 
 impl ParserTrait for Box<dyn ParserTrait> {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         (**self).step(c)
+    }
+    fn collect_stats(&self, stats: &mut Stats) {
+        (**self).collect_stats(stats);
     }
 }
 

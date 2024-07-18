@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParserTrait};
+use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParserTrait, Stats};
 use crate::parse_state::{RightData, UpData};
 
 pub struct Repeat1<A>
@@ -54,6 +54,11 @@ where
             up_data_as.extend(up_data_a);
         }
         (right_data_as, up_data_as)
+    }
+
+    fn collect_stats(&self, stats: &mut Stats) {
+        self.a_parsers.iter().for_each(|a| a.collect_stats(stats));
+        stats.active_parser_type_counts.entry("Repeat1Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);
     }
 }
 

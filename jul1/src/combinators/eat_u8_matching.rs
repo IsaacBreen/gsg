@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, ParserTrait, U8Set};
+use crate::{CombinatorTrait, ParserTrait, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
 pub struct EatU8 {
@@ -31,6 +31,9 @@ impl ParserTrait for EatU8Parser {
             }
         }
         (vec![], vec![])
+    }
+    fn collect_stats(&self, stats: &mut Stats) {
+        stats.active_parser_type_counts.entry("EatU8Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);
     }
 }
 

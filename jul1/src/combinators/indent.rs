@@ -1,4 +1,4 @@
-use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, IntoCombinator, ParserTrait, repeat, Repeat1, repeat1, RightData, seq, Seq2, U8Set, UpData};
+use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, IntoCombinator, ParserTrait, repeat, Repeat1, repeat1, RightData, seq, Seq2, Stats, U8Set, UpData};
 
 const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
     let mut i = 0;
@@ -93,6 +93,10 @@ impl ParserTrait for IndentCombinatorParser {
             }
             IndentCombinatorParser::DedentParser => (vec![], vec![]),
         }
+    }
+
+    fn collect_stats(&self, stats: &mut Stats) {
+        stats.active_parser_type_counts.entry("IndentCombinatorParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
     }
 }
 

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{CombinatorTrait, ParserTrait, RightData, UpData};
+use crate::{CombinatorTrait, ParserTrait, RightData, Stats, UpData};
 
 pub type BruteForceFn = fn(&Vec<u8>, &RightData) -> (Vec<RightData>, Vec<UpData>);
 
@@ -28,6 +28,9 @@ impl ParserTrait for BruteForceParser {
         self.values.push(c);
         let (right_data2, up_data) = (self.f)(&self.values, &self.right_data);
         (right_data2, up_data)
+    }
+    fn collect_stats(&self, stats: &mut Stats) {
+        stats.active_parser_type_counts.entry("BruteForceParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
     }
 }
 

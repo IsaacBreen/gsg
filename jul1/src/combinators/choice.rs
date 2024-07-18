@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, IntoCombinator, ParserTrait};
+use crate::{CombinatorTrait, IntoCombinator, ParserTrait, Stats};
 use crate::parse_state::{RightData, UpData};
 
 pub struct Choice2<A, B>
@@ -63,6 +63,11 @@ where
             }
         }
         (right_data, up_data)
+    }
+    fn collect_stats(&self, stats: &mut Stats) {
+        self.a.as_ref().map(|a| a.collect_stats(stats));
+        self.b.as_ref().map(|b| b.collect_stats(stats));
+        stats.active_parser_type_counts.entry("Choice2Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);
     }
 }
 
