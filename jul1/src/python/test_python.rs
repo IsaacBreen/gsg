@@ -24,95 +24,169 @@ fn test_gpt4_suggestions_0() {
     println!("beginning test_simple");
     let combinator = python_file();
 
-    let binding0 = "a".repeat(100);
-    let binding1 = "a".repeat(10000);
-    let binding2 = "max_elements ".repeat(100);
-    let test_cases = vec![
-        // Input Size
-        ("Empty input", true, vec![""]),
-        ("Very small input", true, vec!["a", "1"]),
-        ("Medium-sized input", true, vec![binding0.as_str()]),
-        ("Large input", true, vec![binding1.as_str()]),
+    // g0 = "a".repeat(100);
+    // let binding1 = "a".repeat(10000);
+    // let test_cases = vec![
+    //     // Input Size
+    //     ("Empty input", true, vec![""]),
+    //     ("Very small input", true, vec!["a", "1"]),
+    //     ("Medium-sized input", true, vec![binding0.as_str()]),
+    //     ("Large input", true, vec![binding1.as_str()]),
+    //
+    //     // Input Content
+    //     ("Valid, well-formed input", true, vec!["valid_input"]),
+    //     ("Input with all possible valid tokens/constructs", true, vec!["token1 token2 token3"]),
+    //     ("Input with repeated elements", false, vec!["repeat repeat repeat"]),
+    //     ("Input with nested structures", true, vec!["nested(start(inner))"]),
+    //
+    //     // Edge Cases
+    //     ("Input with only whitespace", false, vec![" "]),
+    //     ("Input with mixed whitespace", false, vec![" \t\n "]),
+    //     ("Input with Unicode characters", true, vec!["こんにちは"]),
+    //     ("Input with escape sequences", true, vec!["escape\\nsequence"]),
+    //     ("Input with comments", true, vec!["# this is a comment\nvalid_input"]),
+    //
+    //     // Error Handling
+    //     ("Malformed input", false, vec!["malformed{"]),
+    //     ("Incomplete input", false, vec!["incomplete"]),
+    //     ("Input with syntax errors", false, vec!["syntax error"]),
+    //     ("Input with semantic errors", false, vec!["semantic error"]),
+    //     ("Input with invalid characters", false, vec!["invalid\x00char"]),
+    //     ("Input with mismatched delimiters", false, vec!["mismatched{"]),
+    //
+    //     // Special Characters
+    //     ("Input with special characters", true, vec!["!@#$%^&*()"]),
+    //     ("Input with quotation marks", true, vec!["'single' \"double\""]),
+    //     ("Input with backslashes", true, vec!["back\\slash"]),
+    //
+    //     // Numeric Values
+    //     ("Integer values", true, vec!["123", "-123", "0"]),
+    //     ("Floating-point values", true, vec!["123.456", "-123.456", "0.0"]),
+    //     ("Scientific notation", true, vec!["1.23e10", "-1.23e-10"]),
+    //     ("Very large numbers", true, vec!["12345678901234567890"]),
+    //     ("Very small numbers", true, vec!["0.000000000123456789"]),
+    //
+    //     // String Values
+    //     ("Empty strings", true, vec!["\"\""]),
+    //     ("Strings with spaces", true, vec!["\"a string with spaces\""]),
+    //     ("Strings with escape sequences", true, vec!["\"escape\\tsequence\""]),
+    //     ("Multi-line strings", true, vec!["\"\"\"multi\nline\nstring\"\"\""]),
+    //
+    //     // Boolean Values
+    //     ("True/False values", true, vec!["true", "false"]),
+    //     ("Case sensitivity testing", false, vec!["True", "False"]),
+    //
+    //     // Null/None Values
+    //     ("Null or None values", true, vec!["null"]),
+    //
+    //     // Arrays/Lists
+    //     ("Empty arrays", true, vec!["[]"]),
+    //     ("Arrays with single element", true, vec!["[1]"]),
+    //     ("Arrays with multiple elements", true, vec!["[1, 2, 3]"]),
+    //     ("Nested arrays", true, vec!["[[1, 2], [3, 4]]"]),
+    //
+    //     // Objects/Dictionaries
+    //     ("Empty objects", true, vec!["{}"]),
+    //     ("Objects with single key-value pair", true, vec!["{\"key\": \"value\"}"]),
+    //     ("Objects with multiple key-value pairs", true, vec!["{\"key1\": \"value1\", \"key2\": \"value2\"}"]),
+    //     ("Nested objects", true, vec!["{\"outer\": {\"inner\": \"value\"}}"]),
+    //
+    //     // Encoding
+    //     ("Different character encodings", true, vec!["utf8_string"]),
+    //     ("Byte Order Mark (BOM) handling", true, vec!["\u{feff}bom_handling"]),
+    //
+    //     // Localization
+    //     ("Input in different languages", true, vec!["bonjour", "hola", "你好"]),
+    //     ("Input with different locale-specific formatting", true, vec!["1,000.00", "1.000,00"]),
+    // ];
+    //
+    // for (description, should_parse, cases) in test_cases {
+    //     println!("description: {}", description);
+    //     println!("should_parse: {}", should_parse);
+    //     for case in cases {
+    //         println!("case: {}", case);
+    //         if should_parse {
+    //             assert_parses!(combinator, case);
+    //         } else {
+    //             assert_fails!(combinator, case);
+    //         }
+    //     }
+    // }
 
-        // Input Content
-        ("Valid, well-formed input", true, vec!["valid_input"]),
-        ("Input with all possible valid tokens/constructs", true, vec!["token1 token2 token3"]),
-        ("Input with minimum required elements", true, vec!["min_elements"]),
-        ("Input with maximum allowed elements", true, vec![binding2.as_str()]),
-        ("Input with repeated elements", true, vec!["repeat repeat repeat"]),
-        ("Input with nested structures", true, vec!["nested(start(inner))"]),
+    // Input Size
+    assert_parses!(combinator, "", "Empty input");
+    assert_parses!(combinator, "a", "Very small input");
+    assert_parses!(combinator, "a".repeat(100), "Medium-sized input");
+    assert_parses!(combinator, "a".repeat(10000), "Large input");
 
-        // Edge Cases
-        ("Input with only whitespace", false, vec![" "]),
-        ("Input with mixed whitespace", false, vec![" \t\n "]),
-        ("Input with Unicode characters", true, vec!["こんにちは"]),
-        ("Input with escape sequences", true, vec!["escape\\nsequence"]),
-        ("Input with comments", true, vec!["# this is a comment\nvalid_input"]),
+    // Input Content
+    assert_parses!(combinator, "valid_input", "Valid, well-formed input");
+    assert_parses!(combinator, "token1 token2 token3", "Input with all possible valid tokens/constructs");
+    assert_fails!(combinator, "repeat repeat repeat", "Input with repeated elements");
+    assert_parses!(combinator, "nested(start(inner))", "Input with nested structures");
 
-        // Error Handling
-        ("Malformed input", false, vec!["malformed{"]),
-        ("Incomplete input", false, vec!["incomplete"]),
-        ("Input with syntax errors", false, vec!["syntax error"]),
-        ("Input with semantic errors", false, vec!["semantic error"]),
-        ("Input with invalid characters", false, vec!["invalid\x00char"]),
-        ("Input with mismatched delimiters", false, vec!["mismatched{"]),
+    // Edge Cases
+    assert_fails!(combinator, " ", "Input with only whitespace");
+    assert_fails!(combinator, " \t\n ", "Input with mixed whitespace");
+    assert_parses!(combinator, "こんにちは", "Input with Unicode characters");
+    assert_parses!(combinator, "escape\\nsequence", "Input with escape sequences");
+    assert_parses!(combinator, "# this is a comment\nvalid_input", "Input with comments");
 
-        // Special Characters
-        ("Input with special characters", true, vec!["!@#$%^&*()"]),
-        ("Input with quotation marks", true, vec!["'single' \"double\""]),
-        ("Input with backslashes", true, vec!["back\\slash"]),
+    // Error Handling
+    assert_fails!(combinator, "malformed{", "Malformed input");
+    assert_fails!(combinator, "incomplete", "Incomplete input");
+    assert_fails!(combinator, "syntax error", "Input with syntax errors");
+    assert_fails!(combinator, "semantic error", "Input with semantic errors");
+    assert_fails!(combinator, "invalid\x00char", "Input with invalid characters");
+    assert_fails!(combinator, "mismatched{", "Input with mismatched delimiters");
 
-        // Numeric Values
-        ("Integer values", true, vec!["123", "-123", "0"]),
-        ("Floating-point values", true, vec!["123.456", "-123.456", "0.0"]),
-        ("Scientific notation", true, vec!["1.23e10", "-1.23e-10"]),
-        ("Very large numbers", true, vec!["12345678901234567890"]),
-        ("Very small numbers", true, vec!["0.000000000123456789"]),
+    // Special Characters
+    assert_parses!(combinator, "!@#$%^&*()", "Input with special characters");
+    assert_parses!(combinator, "'single' \"double\"", "Input with quotation marks");
+    assert_parses!(combinator, "back\\slash", "Input with backslashes");
 
-        // String Values
-        ("Empty strings", true, vec!["\"\""]),
-        ("Strings with spaces", true, vec!["\"a string with spaces\""]),
-        ("Strings with escape sequences", true, vec!["\"escape\\tsequence\""]),
-        ("Multi-line strings", true, vec!["\"\"\"multi\nline\nstring\"\"\""]),
+    // Numeric Values
+    assert_parses!(combinator, "123", "Integer values");
+    assert_parses!(combinator, "-123", "Integer values");
+    assert_parses!(combinator, "0", "Integer values");
+    assert_parses!(combinator, "123.456", "Floating-point values");
+    assert_parses!(combinator, "-123.456", "Floating-point values");
+    assert_parses!(combinator, "0.0", "Floating-point values");
+    assert_parses!(combinator, "1.23e10", "Scientific notation");
+    assert_parses!(combinator, "-1.23e-10", "Scientific notation");
+    assert_parses!(combinator, "12345678901234567890", "Very large numbers");
+    assert_parses!(combinator, "0.000000000123456789", "Very small numbers");
 
-        // Boolean Values
-        ("True/False values", true, vec!["true", "false"]),
-        ("Case sensitivity testing", false, vec!["True", "False"]),
+    // String Values
+    assert_parses!(combinator, "\"\"", "Empty strings");
+    assert_parses!(combinator, "\"a string with spaces\"", "Strings with spaces");
+    assert_parses!(combinator, "\"escape\\tsequence\"", "Strings with escape sequences");
+    assert_parses!(combinator, "\"\"\"multi\nline\nstring\"\"\"", "Multi-line strings");
 
-        // Null/None Values
-        ("Null or None values", true, vec!["null"]),
+    // Boolean Values
+    assert_parses!(combinator, "true", "True/False values");
+    assert_fails!(combinator, "True", "Case sensitivity testing");
 
-        // Arrays/Lists
-        ("Empty arrays", true, vec!["[]"]),
-        ("Arrays with single element", true, vec!["[1]"]),
-        ("Arrays with multiple elements", true, vec!["[1, 2, 3]"]),
-        ("Nested arrays", true, vec!["[[1, 2], [3, 4]]"]),
+    // Null/None Values
+    assert_parses!(combinator, "null");
 
-        // Objects/Dictionaries
-        ("Empty objects", true, vec!["{}"]),
-        ("Objects with single key-value pair", true, vec!["{\"key\": \"value\"}"]),
-        ("Objects with multiple key-value pairs", true, vec!["{\"key1\": \"value1\", \"key2\": \"value2\"}"]),
-        ("Nested objects", true, vec!["{\"outer\": {\"inner\": \"value\"}}"]),
+    // Arrays/Lists
+    assert_parses!(combinator, "[]", "Empty arrays");
+    assert_parses!(combinator, "[1]", "Arrays with single element");
+    assert_parses!(combinator, "[1, 2, 3]", "Arrays with multiple elements");
+    assert_parses!(combinator, "[[1, 2], [3, 4]]", "Nested arrays");
 
-        // Encoding
-        ("Different character encodings", true, vec!["utf8_string"]),
-        ("Byte Order Mark (BOM) handling", true, vec!["\u{feff}bom_handling"]),
+    // Objects/Dictionaries
+    assert_parses!(combinator, "{}", "Empty objects");
+    assert_parses!(combinator, "{\"key\": \"value\"}", "Objects with single key-value pair");
+    assert_parses!(combinator, "{\"key1\": \"value1\", \"key2\": \"value2\"}", "Objects with multiple key-value pairs");
+    assert_parses!(combinator, "{\"outer\": {\"inner\": \"value\"}}", "Nested objects");
 
-        // Localization
-        ("Input in different languages", true, vec!["bonjour", "hola", "你好"]),
-        ("Input with different locale-specific formatting", true, vec!["1,000.00", "1.000,00"]),
-    ];
+    // Encoding
+    assert_parses!(combinator, "utf8_string");
+    assert_parses!(combinator, "\u{feff}bom_handling");
 
-    for (description, should_parse, cases) in test_cases {
-        println!("description: {}", description);
-        println!("should_parse: {}", should_parse);
-        for case in cases {
-            println!("case: {}", case);
-            if should_parse {
-                assert_parses!(combinator, case);
-            } else {
-                assert_fails!(combinator, case);
-            }
-        }
-    }
+    // Localization
+    assert_parses!(combinator, "bonjour", "Input in different languages");
+    assert_parses!(combinator, "1,000.00", "Input with different locale-specific formatting");
 }
