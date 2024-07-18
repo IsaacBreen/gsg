@@ -39,8 +39,7 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
     }
 }
 
-// From the Python docs:
-// """
+// https://docs.python.org/3/reference/lexical_analysis.html#identifiers
 // identifier   ::=  xid_start xid_continue*
 // id_start     ::=  <all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property>
 // id_continue  ::=  <all characters in id_start, plus characters in the categories Mn, Mc, Nd, Pc and others with the Other_ID_Continue property>
@@ -159,7 +158,9 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
 // shortstringchar ::=  <any source character except "\" or newline or the quote>
 // longstringchar  ::=  <any source character except "\">
 // stringescapeseq ::=  "\" <any source character>
+// ```
 //
+// ```
 // bytesliteral   ::=  bytesprefix(shortbytes | longbytes)
 // bytesprefix    ::=  "b" | "B" | "br" | "Br" | "bR" | "BR" | "rb" | "rB" | "Rb" | "RB"
 // shortbytes     ::=  "'" shortbytesitem* "'" | '"' shortbytesitem* '"'
@@ -169,6 +170,7 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
 // shortbyteschar ::=  <any ASCII character except "\" or newline or the quote>
 // longbyteschar  ::=  <any ASCII character except "\">
 // bytesescapeseq ::=  "\" <any ASCII character>
+// ```
 //
 // One syntactic restriction not indicated by these productions is that whitespace is not allowed between the stringprefix or bytesprefix and the rest of the literal. The source character set is defined by the encoding declaration; it is UTF-8 if no encoding declaration is given in the source file; see section Encoding declarations.
 //
