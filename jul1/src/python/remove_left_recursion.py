@@ -215,11 +215,6 @@ class Seq(Node):
             else:
                 break
 
-        # Merge any choices of sequences with a shared prefix
-        # It's hard to find the optimal merge strategy, but we do our best
-        # todo
-        raise NotImplementedError
-
         match children:
             case []:
                 return eps()
@@ -227,9 +222,6 @@ class Seq(Node):
                 return child
             case _:
                 return Seq(children)
-
-    def copy(self) -> Self:
-        return Seq([child.copy() for child in self.children])
 
     def __str__(self) -> str:
         match self:
@@ -272,11 +264,24 @@ class Choice(Node):
             else:
                 _children.append(child)
         children = _children
-        match children:
-            case [child]:
-                return child
-            case _:
-                return Choice(children)
+        if len(children) == 1:
+            return children[0]
+
+    # Merge any choices of sequences with a shared prefix.
+    # It's hard to find the optimal merge strategy, but we do our best by employing a greedy strategy.
+    # Convert each child into a list of sequents. If the child is not a sequence, wrap it in a singleton list.
+    # Group each child sequence by its first element.
+    # For each group, merge on their longest common prefix.
+    # Recursively simplify the new children.
+    # Ignore the order of children.
+    class DumbHashable[T]:
+        value: T
+        def __init__(self, value: T): self.value = value
+        def __hash__(self): return hash(type(self.value))
+        def __eq__(self, other): return self.value == other.value
+
+    # todo
+    raise NotImplementedError
 
     def copy(self) -> Self:
         return Choice([child.copy() for child in self.children])
@@ -442,3 +447,12 @@ if __name__ == '__main__':
     print(f"Nullable rules: {nullable_rules}")
     assert nullable_rules == {Ref('A'), Ref('B')}
 
+    # Test simplifying with common prefixes
+    expr = choice(
+        seq(term('a'), term('b'), term('c')),
+        seq(term('a'), term('b'), term('d')),
+        seq(term('a'), term('c'), term('d')),
+        term('e'),
+    )
+    print(expr)
+    print(expr.simplify())
