@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use unicode_general_category::GeneralCategory;
 
-use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice};
+use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice, IndentCombinator};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn breaking_space() -> EatU8 {
@@ -664,9 +664,9 @@ pub fn comment() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
 // When embedding Python, source code strings should be passed to Python APIs using
 // the standard C conventions for newline characters (the ``\n`` character,
 // representing ASCII LF, is the line terminator).
-pub fn NEWLINE() -> Symbol<Box<DynCombinator>> {
+pub fn NEWLINE() -> Symbol<Seq2<Repeat1<Seq2<Choice2<Repeat1<EatU8>, Eps>, Seq2<Choice2<Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>>, Eps>, EatU8>>>, IndentCombinator>> {
     let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
-    python_symbol(seq!(repeat1(blank_line), dent()))
+    symbol(seq!(repeat1(blank_line), dent()))
 }
 
 // .. _indentation:
@@ -746,16 +746,16 @@ pub fn NEWLINE() -> Symbol<Box<DynCombinator>> {
 // (Actually, the first three errors are detected by the parser; only the last
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
-pub fn INDENT() -> Symbol<Box<DynCombinator>> {
-    python_symbol(indent())
+pub fn INDENT() -> Symbol<IndentCombinator> {
+    symbol(indent())
 }
 
-pub fn DEDENT() -> Symbol<Box<DynCombinator>> {
-    python_symbol(dedent())
+pub fn DEDENT() -> Symbol<IndentCombinator> {
+    symbol(dedent())
 }
 
-pub fn ENDMARKER() -> Symbol<Box<DynCombinator>> {
-    python_symbol(eps())
+pub fn ENDMARKER() -> Symbol<Eps> {
+    symbol(eps())
 }
 
 pub fn TYPE_COMMENT() -> Symbol<Box<DynCombinator>> {
