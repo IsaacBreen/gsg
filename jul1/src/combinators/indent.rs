@@ -1,4 +1,4 @@
-use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, IntoCombinator, ParserTrait, repeat, Repeat1, repeat1, RightData, seq, Seq2, Stats, U8Set, UpData};
+use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, IntoCombinator, ParserTrait, repeat0, Repeat1, repeat1, RightData, seq, Seq2, Stats, U8Set, UpData};
 
 const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
     let mut i = 0;
@@ -101,7 +101,7 @@ impl ParserTrait for IndentCombinatorParser {
 }
 
 pub fn newline() -> Seq2<Choice2<Repeat1<EatU8>, Eps>, EatU8> {
-    seq!(repeat(eat_char_choice(" ")), eat_char_choice("\n"))
+    seq!(repeat0(eat_char_choice(" ")), eat_char_choice("\n"))
 }
 
 pub fn dent() -> IndentCombinator {

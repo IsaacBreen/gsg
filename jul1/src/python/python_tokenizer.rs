@@ -1,4 +1,4 @@
-use crate::{choice, Choice2, eat_char, eat_char_range, EatU8, Eps, repeat, repeat1, Repeat1, seq, Seq2};
+use crate::{choice, Choice2, eat_char, eat_char_range, EatU8, Eps, repeat0, repeat1, Repeat1, seq, Seq2};
 
 // Define character ranges and specific characters for the Python tokenizer
 
@@ -11,11 +11,11 @@ pub fn xid_continue() -> Choice2<Choice2<EatU8, Choice2<EatU8, EatU8>>, EatU8> {
 }
 
 pub fn NAME() -> Seq2<Choice2<EatU8, Choice2<EatU8, EatU8>>, Choice2<Repeat1<Choice2<Choice2<EatU8, Choice2<EatU8, EatU8>>, EatU8>>, Eps>> {
-    seq!(xid_start(), repeat(xid_continue()))
+    seq!(xid_start(), repeat0(xid_continue()))
 }
 
 pub fn TYPE_COMMENT() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
-    seq!(eat_char('#'), repeat(eat_char(' ')))
+    seq!(eat_char('#'), repeat0(eat_char(' ')))
 }
 
 pub fn FSTRING_START() -> EatU8 {
@@ -39,5 +39,5 @@ pub fn NUMBER() -> Choice2<Repeat1<EatU8>, Seq2<Repeat1<EatU8>, Seq2<EatU8, Repe
 }
 
 pub fn STRING() -> Choice2<Seq2<EatU8, Seq2<Choice2<Repeat1<EatU8>, Eps>, EatU8>>, Seq2<EatU8, Seq2<Choice2<Repeat1<EatU8>, Eps>, EatU8>>> {
-    choice!(seq!(eat_char('"'), repeat(eat_char('\\')), eat_char('"')), seq!(eat_char('\''), repeat(eat_char('\\')), eat_char('\'')))
+    choice!(seq!(eat_char('"'), repeat0(eat_char('\\')), eat_char('"')), seq!(eat_char('\''), repeat0(eat_char('\\')), eat_char('\'')))
 }

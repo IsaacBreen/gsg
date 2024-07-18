@@ -69,7 +69,7 @@ where
     Repeat1 { a: Rc::new(a.into_combinator()) }
 }
 
-pub fn repeat<A>(a: A) -> Choice2<Repeat1<A::Output>, Eps>
+pub fn repeat0<A>(a: A) -> Choice2<Repeat1<A::Output>, Eps>
 where
     A: IntoCombinator,
 {
