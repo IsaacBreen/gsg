@@ -1,13 +1,15 @@
 use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_char, eat_char_choice, eat_char_range, eat_string, EatString, EatU8, Eps, eps, indent, IndentCombinator, mutate_right_data, MutateRightData, IntoCombinator, newline, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol};
 
 
-pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, EatU8>> {
-    // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
+pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<EatString, EatU8>>> {
     repeat1(choice!(
+        // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
         seq!(
             mutate_right_data(|right_data| right_data.scope_count > 0),
             eat_char('\n')
         ),
+        // But we can match an escaped newline.
+        eat_string("\\\n"),
         eat_char(' ')
     ))
 }
