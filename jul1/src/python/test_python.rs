@@ -54,8 +54,8 @@ fn test_gpt4_suggestions_0() {
 
     // Special Characters
     assert_fails!(combinator, "!@#$%^&*()", "Input with special characters");
-    // assert_parses!(combinator, "'single'", "Input with single-quoted string");
-    // assert_parses!(combinator, "\"double\"", "Input with double-quoted string");
+    assert_parses!(combinator, "'single'", "Input with single-quoted string");
+    assert_parses!(combinator, "\"double\"", "Input with double-quoted string");
     assert_fails!(combinator, "back\\slash", "Input with backslashes");
 
     // Numeric Values
@@ -72,9 +72,9 @@ fn test_gpt4_suggestions_0() {
 
     // String Values
     assert_parses!(combinator, "\"\"", "Empty strings");
-    // assert_parses!(combinator, "\"a string with spaces\"", "Strings with spaces");
-    // assert_parses!(combinator, "\"escape\\tsequence\"", "Strings with escape sequences");
-    // assert_parses!(combinator, "\"\"\"multi\nline\nstring\"\"\"", "Multi-line strings");
+    assert_parses!(combinator, "\"a string with spaces\"", "Strings with spaces");
+    assert_parses!(combinator, "\"escape\\tsequence\"", "Strings with escape sequences");
+    assert_parses!(combinator, "\"\"\"multi\nline\nstring\"\"\"", "Multi-line strings");
 
     // Boolean Values
     assert_parses!(combinator, "true", "True/False values");

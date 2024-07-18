@@ -31,7 +31,7 @@ impl U8Set {
     pub(crate) fn from_char_negation(p0: char) -> U8Set {
         let mut result = U8Set::none();
         result.insert(p0 as u8);
-        result
+        result.complement()
     }
 
     pub(crate) fn from_char_range(start: char, end: char) -> U8Set {
@@ -47,7 +47,7 @@ impl U8Set {
         for i in start as u8..=end as u8 {
             result.insert(i);
         }
-        result
+        result.complement()
     }
 }
 
