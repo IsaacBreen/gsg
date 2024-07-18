@@ -189,7 +189,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     f.write('\n')
     # f.write('\n'.join(f'    let {name} = {name}.set({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in rules))
     f.write('\n'.join(f'    let {name} = Rc::new({name}.set({rhs_to_rust(rule.rhs, top_level=True)}).into_boxed());' for name, rule in rules))
-    f.write('\n    file.into_boxed().into()\n')
+    f.write('\n    seq!(repeat0(NEWLINE), file).into_boxed().into()\n')
     f.write('}\n')
     return f.getvalue()
 

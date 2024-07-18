@@ -23,7 +23,7 @@ fn test_simple() {
 fn test_gpt4_suggestions_0() {
     println!("beginning test_simple");
     let combinator = python_file();
-    
+
     // Input Size
     assert_parses!(combinator, "", "Empty input");
     assert_parses!(combinator, "a", "Very small input");
@@ -37,8 +37,8 @@ fn test_gpt4_suggestions_0() {
     assert_parses!(combinator, "nested(start(inner))", "Input with nested structures");
 
     // Edge Cases
-    assert_fails!(combinator, " ", "Input with only whitespace");
-    assert_fails!(combinator, " \t\n ", "Input with mixed whitespace");
+    assert_parses!(combinator, " ", "Input with only whitespace. A valid completion is ' \n...'");
+    assert_parses!(combinator, " \t\n ", "Input with mixed whitespace");
     assert_parses!(combinator, "こんにちは", "Input with Unicode characters");
     assert_parses!(combinator, "escape\\nsequence", "Input with escape sequences");
     assert_parses!(combinator, "# this is a comment\nvalid_input", "Input with comments");

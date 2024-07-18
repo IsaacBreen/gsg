@@ -10,7 +10,7 @@ pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<Eat
         ),
         // But we can match an escaped newline.
         eat_string("\\\n"),
-        eat_char(' ')
+        eat_char_choice(" \t")
     ))
 }
 
