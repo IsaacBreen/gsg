@@ -54,9 +54,33 @@ pub fn eat_char_choice(chars: &str) -> EatU8 {
     }
 }
 
-pub fn eat_char_range(start: u8, end: u8) -> EatU8 {
+pub fn eat_char_negation_choice(chars: &str) -> EatU8 {
+    EatU8 {
+        u8set: U8Set::from_chars_negation(chars),
+    }
+}
+
+pub fn eat_byte_range(start: u8, end: u8) -> EatU8 {
     EatU8 {
         u8set: U8Set::from_range(start, end),
+    }
+}
+
+pub fn eat_char_negation(c: char) -> EatU8 {
+    EatU8 {
+        u8set: U8Set::from_char_negation(c),
+    }
+}
+
+pub fn eat_char_range(start: char, end: char) -> EatU8 {
+    EatU8 {
+        u8set: U8Set::from_char_range(start, end),
+    }
+}
+
+pub fn eat_char_negation_range(start: char, end: char) -> EatU8 {
+    EatU8 {
+        u8set: U8Set::from_char_negation_range(start, end),
     }
 }
 

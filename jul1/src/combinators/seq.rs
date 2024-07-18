@@ -123,11 +123,13 @@ where
     T: IntoCombinator,
 {
     let mut v = v;
-    if v.len() == 1 {
+    if v.len() == 0 {
+        eps().into_boxed()
+    } else if v.len() == 1 {
         v.into_iter().next().unwrap().into_combinator().into_boxed()
     } else {
         let rest = v.split_off(v.len() / 2);
-        seq2(seq_from_vec(v), seq_from_vec(rest)).into_boxed()
+        seq2(crate::seq_from_vec(v), crate::seq_from_vec(rest)).into_boxed()
     }
 }
 

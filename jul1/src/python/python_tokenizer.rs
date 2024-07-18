@@ -1,18 +1,26 @@
 use unicode_general_category::GeneralCategory;
 
-use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_range, eat_string, EatString, EatU8, eps, indent, mutate_right_data, MutateRightData, newline, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol};
+use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
-pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<EatString, EatU8>>> {
+pub fn breaking_space() -> EatU8 {
+    eat_char_choice("\n\r")
+}
+
+pub fn non_breaking_space() -> EatU8 {
+    eat_char_choice(" \t")
+}
+
+pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<Seq2<EatString, EatU8>, EatU8>>> {
     repeat1(choice!(
         // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
         seq!(
             mutate_right_data(|right_data| right_data.scope_count > 0),
-            eat_char('\n')
+            breaking_space()
         ),
         // But we can match an escaped newline.
-        eat_string("\\\n"),
-        eat_char_choice(" \t")
+        seq!(eat_string("\\"), breaking_space()),
+        non_breaking_space()
     ))
 }
 
@@ -81,7 +89,7 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
 //     ];
 //
 //     let new_categories_combinator = choice_from_vec(new_categories.iter().map(|category| get_unicode_general_category_combinator(*category)).collect());
-//     let other_combinator = eat_char_range(b'0', b'9');
+//     let other_combinator = eat_byte_range(b'0', b'9');
 //
 //     choice!(id_start(), new_categories_combinator, other_combinator).into_boxed()
 // }
@@ -100,15 +108,6 @@ pub fn id_start_bytestrings() -> Vec<Vec<u8>> {
 
     let category_bytestrings: Vec<Vec<u8>> = categories.iter().map(|category| get_unicode_general_category_bytestrings(*category)).flatten().collect();
     let other_bytestrings: Vec<Vec<u8>> = vec![vec![b'_']];
-
-    // let category_strings: Vec<String> = category_bytestrings.iter().map(|bytes| std::str::from_utf8(bytes).unwrap().to_string()).collect();
-    //
-    // let category_bytestrings2: Vec<Vec<Vec<u8>>> = categories.iter().map(|category| get_unicode_general_category_bytestrings(*category)).collect();
-    // let category_strings2: Vec<Vec<String>> = category_bytestrings2.iter().map(|bytestrings| bytestrings.iter().map(|bytes| std::str::from_utf8(bytes).unwrap().to_string()).collect()).collect();
-    // for category_strings22 in &category_strings2 {
-    //     dbg!(&category_strings22[..200]);
-    // }
-    // panic!();
 
     category_bytestrings.into_iter().chain(other_bytestrings.into_iter()).collect()
 }
@@ -164,7 +163,7 @@ pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
 }
 
 pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
-    python_symbol(repeat1(eat_char_range(b'0', b'9')))
+    python_symbol(repeat1(eat_byte_range(b'0', b'9')))
 }
 
 pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
@@ -176,7 +175,7 @@ pub fn SOFT_KEYWORD() -> Symbol<Box<DynCombinator>> {
 }
 
 pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
-    python_symbol(choice!(repeat1(eat_char_range(b'0', b'9')), seq!(repeat1(eat_char_range(b'0', b'9')), seq!(eat_char('.'), repeat1(eat_char_range(b'0', b'9'))))))
+    python_symbol(choice!(repeat1(eat_byte_range(b'0', b'9')), seq!(repeat1(eat_byte_range(b'0', b'9')), seq!(eat_char('.'), repeat1(eat_byte_range(b'0', b'9'))))))
 }
 
 pub fn STRING() -> Symbol<Box<DynCombinator>> {
@@ -184,7 +183,9 @@ pub fn STRING() -> Symbol<Box<DynCombinator>> {
 }
 
 pub fn NEWLINE() -> Symbol<Box<DynCombinator>> {
-    python_symbol(seq!(repeat1(newline()), dent()))
+    let comment = seq!(eat_char('#'), repeat0(eat_char_negation_choice("\n\r")));
+    let blank_line = seq!(repeat0(non_breaking_space()), opt(comment), breaking_space());
+    python_symbol(seq!(repeat1(blank_line), dent()))
 }
 
 pub fn INDENT() -> Symbol<Box<DynCombinator>> {

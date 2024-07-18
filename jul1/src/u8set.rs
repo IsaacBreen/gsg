@@ -27,6 +27,28 @@ impl U8Set {
     pub(crate) fn from_char(p0: char) -> U8Set {
         U8Set::from_chars(&p0.to_string())
     }
+
+    pub(crate) fn from_char_negation(p0: char) -> U8Set {
+        let mut result = U8Set::none();
+        result.insert(p0 as u8);
+        result
+    }
+
+    pub(crate) fn from_char_range(start: char, end: char) -> U8Set {
+        let mut result = U8Set::none();
+        for i in start as u8..=end as u8 {
+            result.insert(i);
+        }
+        result
+    }
+
+    pub(crate) fn from_char_negation_range(start: char, end: char) -> U8Set {
+        let mut result = U8Set::none();
+        for i in start as u8..=end as u8 {
+            result.insert(i);
+        }
+        result
+    }
 }
 
 impl U8Set {
@@ -88,6 +110,14 @@ impl U8Set {
             result.insert(c as u8);
         }
         result
+    }
+
+    pub fn from_chars_negation(chars: &str) -> Self {
+        let mut result = Self::none();
+        for c in chars.chars() {
+            result.insert(c as u8);
+        }
+        result.complement()
     }
 
     pub fn from_str(s: &str) -> Self {

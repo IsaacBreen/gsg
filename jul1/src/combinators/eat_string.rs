@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
-use crate::{choice, choice_from_vec, CombinatorTrait, DynCombinator, eat_byte, eps, ParserTrait, seq, Stats, U8Set};
+use crate::{choice, choice_from_vec, CombinatorTrait, DynCombinator, eat_byte, eps, opt, ParserTrait, seq, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
 pub struct EatString {
@@ -62,7 +62,7 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
     }
 }
 
-pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Box<DynCombinator> {
+pub fn eat_bytestring_choice(mut bytestrings: Vec<Vec<u8>>) -> Box<DynCombinator> {
     // Group by first byte
     let mut grouped_bytestrings: BTreeMap<u8, Vec<Vec<u8>>> = BTreeMap::new();
     let mut any_done = false;
@@ -74,11 +74,12 @@ pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Box<DynCombinator> {
         grouped_bytestrings.entry(*first).or_default().push((*rest).to_vec());
     }
     // Create combinators for each group
-    let combinator = choice_from_vec(grouped_bytestrings.into_iter().map(|(first, rest)| {
-        seq!(eat_byte(first), eat_bytestring_choice(rest))
+    let combinator = choice_from_vec(grouped_bytestrings.clone().into_iter().map(|(first, rests)| {
+        seq!(eat_byte(first), eat_bytestring_choice(rests))
     }).collect());
     if any_done {
-        choice!(combinator, eps()).into_boxed()
+        assert!(grouped_bytestrings.is_empty());
+        opt(combinator).into_boxed()
     } else {
         combinator
     }

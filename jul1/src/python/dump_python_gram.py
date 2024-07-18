@@ -45,20 +45,20 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar) -> dict[remove_left_recursio
             if value.startswith('invalid_'):
                 return remove_left_recursion.fail()
             else:
-                return remove_left_recursion.Ref(value)
+                return remove_left_recursion.ref(value)
         elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
-            return remove_left_recursion.Term(value)
+            return remove_left_recursion.term(value)
         elif isinstance(item, pegen.grammar.Group):
             return rhs_to_node(item.rhs)
         elif isinstance(item, pegen.grammar.Opt):
-            return remove_left_recursion.Choice([item_to_node(item.node), remove_left_recursion.eps()])
+            return remove_left_recursion.opt(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.Gather):
-            return remove_left_recursion.Seq([item_to_node(item.node), remove_left_recursion.Repeat1(item_to_node(item.separator))])
+            return remove_left_recursion.sep1(item_to_node(item.node), item_to_node(item.separator))
         elif isinstance(item, pegen.grammar.Repeat0):
-            return remove_left_recursion.Choice([remove_left_recursion.Repeat1(item_to_node(item.node)), remove_left_recursion.eps()])
+            return remove_left_recursion.repeat0(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.Repeat1):
-            return remove_left_recursion.Repeat1(item_to_node(item.node))
+            return remove_left_recursion.repeat1(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.Forced):
             return item_to_node(item.node)
         elif isinstance(item, pegen.grammar.PositiveLookahead):
@@ -74,7 +74,7 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar) -> dict[remove_left_recursio
 
     rules = {}
     for name, rule in grammar.rules.items():
-        ref = remove_left_recursion.Ref(name)
+        ref = remove_left_recursion.ref(name)
         if not ref.name.startswith('invalid_'):
             rules[ref] = rhs_to_node(rule.rhs)
     return rules
@@ -113,17 +113,21 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
 
     pegen_rules = {}
     for ref, node in rules.items():
-        pegen_rules[ref.name] = pegen.grammar.Rule(ref.name, None, node_to_rhs(node))
+        pegen_rules[ref.name] = pegen.grammar.Rule(ref.name, None, node_to_rhs(node.simplify()))
     return pegen.grammar.Grammar(pegen_rules.values(), {})
 
 def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     def rhs_to_rust(rhs: pegen.grammar.Rhs, top_level: bool = False) -> str:
+        if len(rhs.alts) == 1:
+            return alt_to_rust(rhs.alts[0])
         if top_level:
             return "choice!(\n        " + ",\n        ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n    )"
         else:
             return "choice!(" + ", ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
 
     def alt_to_rust(alt: pegen.grammar.Alt) -> str:
+        if len(alt.items) == 1:
+            return named_item_to_rust(alt.items[0])
         return "seq!(" + ", ".join(named_item_to_rust(item) for item in alt.items) + ")"
 
     def named_item_to_rust(item: pegen.grammar.NamedItem) -> str:
@@ -146,7 +150,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
         elif isinstance(item, pegen.grammar.Opt):
             return f'opt({item_to_rust(item.node)})'
         elif isinstance(item, pegen.grammar.Gather):
-            return f'seq!({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
+            return f'sep1!({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
         elif isinstance(item, pegen.grammar.Repeat0):
             return f'repeat0({item_to_rust(item.node)})'
         elif isinstance(item, pegen.grammar.Repeat1):
