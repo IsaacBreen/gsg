@@ -44,6 +44,8 @@ impl ParserTrait for EatStringParser {
     }
     fn collect_stats(&self, stats: &mut Stats) {
         stats.active_parser_type_counts.entry("EatStringParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
+        let string = std::str::from_utf8(&self.string).unwrap();
+        stats.active_string_matchers.entry(string.to_string()).and_modify(|c| *c += 1).or_insert(1);
     }
 }
 

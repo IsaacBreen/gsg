@@ -11,7 +11,8 @@ from pegen.grammar import Grammar, Rhs, Alt, NamedItem, Leaf, NameLeaf, StringLe
 from pegen.grammar_parser import GeneratedParser
 from pegen.tokenizer import Tokenizer
 
-from remove_left_recursion import resolve_left_recursion, Node, Seq, Choice, Term, Ref, eps, fail, Repeat1, RuleType, validate_rules
+from remove_left_recursion import resolve_left_recursion, Node, Seq, Choice, Term, Ref, eps, fail, Repeat1, RuleType, validate_rules, \
+    first_refs
 from remove_left_recursion import get_nullable_rules, get_firsts
 
 def fetch_grammar(url: str) -> str:
@@ -252,3 +253,21 @@ if __name__ == "__main__":
                 print(f"\033[32m{term.value}\033[0m, ", end=" ")
             print()
 
+    print(f"Nullable rules:")
+    for ref in nullable_rules:
+        print(f"  {ref.name}")
+
+    # Print number of rules active at the first step, starting from 'file'
+    active_count = {}
+    queue = [Ref('file')]
+    while len(queue) > 0:
+        ref = queue.pop()
+        active_count.setdefault(ref, 0)
+        active_count[ref] += 1
+        if ref in resolved_grammar:
+            for ref in first_refs(resolved_grammar[ref], nullable_rules):
+                queue.append(ref)
+
+    print("Number of rules active at the first step:")
+    for ref, count in sorted(active_count.items(), key=lambda x: x[1]):
+        print(f"  {ref.name}: {count}")

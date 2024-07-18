@@ -29,8 +29,10 @@ class RuleType(Enum):
 
 def is_nullable(node: Node, nullable_rules: set[Ref]) -> bool:
     match node:
-        case Ref(name):
-            return name in nullable_rules
+        case Ref(_):
+            return node in nullable_rules
+        case Term(_):
+            return False
         case Seq(children):
             return all(is_nullable(child, nullable_rules) for child in children)
         case Choice(children):
@@ -38,7 +40,7 @@ def is_nullable(node: Node, nullable_rules: set[Ref]) -> bool:
         case Repeat1(child):
             return is_nullable(child, nullable_rules)
         case _:
-            return False
+            raise ValueError(f"Unknown node type: {type(node)}")
 
 
 def get_nullable_rules(rules: dict[Ref, Node]) -> set[Ref]:
@@ -425,4 +427,13 @@ if __name__ == '__main__':
     print(infer_rule_types(rules))
     validate_rules(rules)
     print()
+
+    # Test nullable rules
+    rules = make_rules(
+        A=choice(seq(ref('B')), term('b')),
+        B=choice(term('a'), eps()),
+    )
+    nullable_rules = get_nullable_rules(rules)
+    print(f"Nullable rules: {nullable_rules}")
+    assert nullable_rules == {Ref('A'), Ref('B')}
 

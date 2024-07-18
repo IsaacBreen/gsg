@@ -2,12 +2,15 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::parse_state::{RightData, UpData};
+use crate::U8Set;
 
 #[derive(Default, Debug)]
 pub struct Stats
 {
     pub active_parser_type_counts: BTreeMap<String, usize>,
     pub active_tags: BTreeMap<String, usize>,
+    pub active_string_matchers: BTreeMap<String, usize>,
+    pub active_u8_matchers: BTreeMap<U8Set, usize>,
 }
 
 pub trait CombinatorTrait
