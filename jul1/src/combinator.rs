@@ -1,16 +1,12 @@
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::parse_state::{RightData, UpData};
 
-use std::collections::HashMap;
-// use crate::{Seq2, Choice2, EatU8, EatString, Repeat1, FrameStackOp, Eps, BruteForce, IndentCombinator, Symbol, ParserTrait, CombinatorTrait};
-// use crate::{Seq2Parser, Choice2Parser, EatU8Parser, EatStringParser, Repeat1Parser, FrameStackOpParser, EpsParser, BruteForceParser, IndentCombinatorParser};
-// use std::rc::Rc;
-
 #[derive(Default, Debug)]
 pub struct Stats
 {
-    pub active_parser_type_counts: HashMap<String, usize>,
+    pub active_parser_type_counts: BTreeMap<String, usize>,
 }
 
 pub trait CombinatorTrait
