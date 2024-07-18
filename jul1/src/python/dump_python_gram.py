@@ -139,7 +139,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
                 value = value[1:-1]
             assert not value[0] == value[-1] == '"', f"Invalid string literal: {value}"
             value = value[1:-1]
-            return f'eat_string("{value}")'
+            return f'python_literal("{value}")'
         elif isinstance(item, pegen.grammar.Group):
             logging.warning(f"Passing through group: {item}")
             return item_to_rust(item.rhs)
@@ -171,22 +171,19 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     rules = grammar.rules.items()
     rules = list(reversed(rules))
 
-    tokens = ['NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING']
+    tokens = ['NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING', 'NEWLINE', 'INDENT', 'DEDENT', 'ENDMARKER']
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
     f.write(
-        'use crate::{choice, seq, repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, python_newline, indent, dedent, DynCombinator, CombinatorTrait, symbol};\n'
+        'use crate::{choice, seq, repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, DynCombinator, CombinatorTrait};\n'
     )
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
+    f.write('use super::python_tokenizer::python_literal;\n')
     f.write('\n')
     f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
     for token in tokens:
-        f.write(f"    let {token} = symbol({token}());\n")
-    f.write("    let NEWLINE = symbol(python_newline());\n")
-    f.write('    let INDENT = symbol(indent());\n')
-    f.write('    let DEDENT = symbol(dedent());\n')
-    f.write("    let ENDMARKER = symbol(eps());\n")
+        f.write(f"    let {token} = {token}();\n")
     f.write('\n')
     f.write('\n'.join(f'    let mut {name} = forward_ref();' for name, rule in rules))
     f.write('\n')

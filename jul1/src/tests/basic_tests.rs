@@ -165,6 +165,10 @@ mod tests {
 
     #[test]
     fn test_indents() {
+        pub fn python_newline() -> Seq2<Repeat1<Seq2<Choice2<Repeat1<EatU8>, Eps>, EatU8>>, IndentCombinator> {
+            seq!(repeat1(newline()), dent())
+        }
+
         let mut frame_stack = FrameStack::default();
         let parse_data = RightData::default();
         let combinator = seq!(

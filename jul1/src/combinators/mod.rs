@@ -9,6 +9,9 @@ pub use indent::*;
 pub use repeat1::*;
 pub use seq::*;
 pub use symbol::*;
+pub use tag::*;
+pub use mutate_right_data::*;
+pub use custom_fn::*;
 
 mod choice;
 mod eat_string;
@@ -22,3 +25,5 @@ mod indent;
 mod brute_force;
 mod symbol;
 mod tag;
+mod mutate_right_data;
+mod custom_fn;

@@ -5,6 +5,7 @@ pub struct RightData {
     pub frame_stack: Option<FrameStack>,
     pub indents: Vec<Vec<u8>>,
     pub dedents: usize,
+    pub scope_count: usize,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -18,6 +19,7 @@ impl Default for RightData {
             frame_stack: Some(FrameStack::default()),
             indents: vec![],
             dedents: 0,
+            scope_count: 0,
         }
     }
 }

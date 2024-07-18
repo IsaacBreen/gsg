@@ -1,43 +1,84 @@
-use crate::{choice, Choice2, eat_char, eat_char_range, EatU8, Eps, repeat0, repeat1, Repeat1, seq, Seq2};
+use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_char, eat_char_choice, eat_char_range, eat_string, EatString, EatU8, Eps, eps, indent, IndentCombinator, mutate_right_data, MutateRightData, IntoCombinator, newline, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol};
 
-// Define character ranges and specific characters for the Python tokenizer
 
-pub fn xid_start() -> Choice2<EatU8, Choice2<EatU8, EatU8>> {
-    choice!(eat_char('_'), eat_char_range(b'a', b'z'), eat_char_range(b'A', b'Z'))
+pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, EatU8>> {
+    // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
+    repeat1(choice!(
+        seq!(
+            mutate_right_data(|right_data| right_data.scope_count > 0),
+            eat_char('\n')
+        ),
+        eat_char(' ')
+    ))
 }
 
-pub fn xid_continue() -> Choice2<Choice2<EatU8, Choice2<EatU8, EatU8>>, EatU8> {
-    choice!(xid_start(), eat_char_range(b'0', b'9'))
+pub fn python_symbol<A: CombinatorTrait>(a: A) -> Symbol<Box<DynCombinator>> {
+    symbol(seq!(opt(whitespace()), a).into_boxed())
 }
 
-pub fn NAME() -> Seq2<Choice2<EatU8, Choice2<EatU8, EatU8>>, Choice2<Repeat1<Choice2<Choice2<EatU8, Choice2<EatU8, EatU8>>, EatU8>>, Eps>> {
-    seq!(xid_start(), repeat0(xid_continue()))
+pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
+    let increment_scope_count = |right_data: &mut RightData| { right_data.scope_count += 1; true };
+    let decrement_scope_count = |right_data: &mut RightData| { right_data.scope_count -= 1; true };
+
+    match s {
+        "(" | "[" | "{" => python_symbol(seq!(eat_string(s), mutate_right_data(increment_scope_count))),
+        ")" | "]" | "}" => python_symbol(seq!(eat_string(s), mutate_right_data(decrement_scope_count))),
+        _ => python_symbol(eat_string(s)),
+    }
 }
 
-pub fn TYPE_COMMENT() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
-    seq!(eat_char('#'), repeat0(eat_char(' ')))
+pub fn xid_start() -> Symbol<Box<DynCombinator>> {
+    python_symbol(choice!(eat_char('_'), eat_char_range(b'a', b'z'), eat_char_range(b'A', b'Z')))
 }
 
-pub fn FSTRING_START() -> EatU8 {
-    eat_char('f')
+pub fn xid_continue() -> Symbol<Box<DynCombinator>> {
+    python_symbol(choice!(xid_start(), eat_char_range(b'0', b'9')))
 }
 
-pub fn FSTRING_MIDDLE() -> Repeat1<EatU8> {
-    repeat1(eat_char_range(b'0', b'9'))
+pub fn NAME() -> Symbol<Box<DynCombinator>> {
+    python_symbol(seq!(xid_start(), repeat0(xid_continue())))
 }
 
-pub fn FSTRING_END() -> EatU8 {
-    eat_char('"')
+pub fn TYPE_COMMENT() -> Symbol<Box<DynCombinator>> {
+    python_symbol(seq!(eat_char('#'), repeat0(eat_char(' '))))
 }
 
-pub fn SOFT_KEYWORD() -> Choice2<Seq2<EatU8, EatU8>, Seq2<EatU8, EatU8>> {
-    choice!(seq!(eat_char('i'), eat_char('f')), seq!(eat_char('e'), eat_char('l')))
+pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
+    python_symbol(eat_char('f'))
 }
 
-pub fn NUMBER() -> Choice2<Repeat1<EatU8>, Seq2<Repeat1<EatU8>, Seq2<EatU8, Repeat1<EatU8>>>> {
-    choice!(repeat1(eat_char_range(b'0', b'9')), seq!(repeat1(eat_char_range(b'0', b'9')), seq!(eat_char('.'), repeat1(eat_char_range(b'0', b'9')))))
+pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
+    python_symbol(repeat1(eat_char_range(b'0', b'9')))
 }
 
-pub fn STRING() -> Choice2<Seq2<EatU8, Seq2<Choice2<Repeat1<EatU8>, Eps>, EatU8>>, Seq2<EatU8, Seq2<Choice2<Repeat1<EatU8>, Eps>, EatU8>>> {
-    choice!(seq!(eat_char('"'), repeat0(eat_char('\\')), eat_char('"')), seq!(eat_char('\''), repeat0(eat_char('\\')), eat_char('\'')))
+pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
+    python_symbol(eat_char('"'))
+}
+
+pub fn SOFT_KEYWORD() -> Symbol<Box<DynCombinator>> {
+    python_symbol(choice!(seq!(eat_char('i'), eat_char('f')), seq!(eat_char('e'), eat_char('l'))))
+}
+
+pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
+    python_symbol(choice!(repeat1(eat_char_range(b'0', b'9')), seq!(repeat1(eat_char_range(b'0', b'9')), seq!(eat_char('.'), repeat1(eat_char_range(b'0', b'9'))))))
+}
+
+pub fn STRING() -> Symbol<Box<DynCombinator>> {
+    python_symbol(choice!(seq!(eat_char('"'), repeat0(eat_char('\\')), eat_char('"')), seq!(eat_char('\''), repeat0(eat_char('\\')), eat_char('\''))))
+}
+
+pub fn NEWLINE() -> Symbol<Box<DynCombinator>> {
+    python_symbol(seq!(repeat1(newline()), dent()))
+}
+
+pub fn INDENT() -> Symbol<Box<DynCombinator>> {
+    python_symbol(indent())
+}
+
+pub fn DEDENT() -> Symbol<Box<DynCombinator>> {
+    python_symbol(dedent())
+}
+
+pub fn ENDMARKER() -> Symbol<Box<DynCombinator>> {
+    python_symbol(eps())
 }
