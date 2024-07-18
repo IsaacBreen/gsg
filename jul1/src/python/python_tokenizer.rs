@@ -1,6 +1,7 @@
-use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_char, eat_char_choice, eat_char_range, eat_string, EatString, EatU8, Eps, eps, indent, IndentCombinator, mutate_right_data, MutateRightData, IntoCombinator, newline, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, choice_from_vec};
 use unicode_general_category::GeneralCategory;
-use crate::unicode::get_unicode_general_category_combinator;
+
+use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_range, eat_string, EatString, EatU8, eps, indent, mutate_right_data, MutateRightData, newline, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol};
+use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<EatString, EatU8>>> {
     repeat1(choice!(
@@ -51,7 +52,41 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
 // Pc - connector punctuations
 // Other_ID_Start - explicit list of characters in PropList.txt to support backwards compatibility
 // Other_ID_Continue - likewise
-pub fn id_start() -> Box<DynCombinator> {
+// pub fn id_start() -> Box<DynCombinator> {
+//     // all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property
+//     let categories = [
+//         GeneralCategory::UppercaseLetter,
+//         GeneralCategory::LowercaseLetter,
+//         GeneralCategory::TitlecaseLetter,
+//         GeneralCategory::ModifierLetter,
+//         GeneralCategory::OtherLetter,
+//         GeneralCategory::LetterNumber,
+//         // We ignore Other_ID_Start - it's just for backwards compatibility.
+//     ];
+//
+//     let categories_combinator = choice_from_vec(categories.iter().map(|category| get_unicode_general_category_combinator(*category)).collect());
+//     let other_combinator = eat_char_choice("_");
+//
+//     choice!(categories_combinator, other_combinator).into_boxed()
+// }
+//
+// pub fn id_continue() -> Box<DynCombinator> {
+//     // all characters in id_start, plus characters in the categories Mn, Mc, Nd, Pc and others with the Other_ID_Continue property
+//     let new_categories = [
+//         GeneralCategory::NonspacingMark,
+//         // todo: where is SpacingCombiningMark?
+//         // GeneralCategory::SpacingCombiningMark,
+//         GeneralCategory::DecimalNumber,
+//         GeneralCategory::ConnectorPunctuation,
+//     ];
+//
+//     let new_categories_combinator = choice_from_vec(new_categories.iter().map(|category| get_unicode_general_category_combinator(*category)).collect());
+//     let other_combinator = eat_char_range(b'0', b'9');
+//
+//     choice!(id_start(), new_categories_combinator, other_combinator).into_boxed()
+// }
+
+pub fn id_start_bytestrings() -> Vec<Vec<u8>> {
     // all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property
     let categories = [
         GeneralCategory::UppercaseLetter,
@@ -63,13 +98,13 @@ pub fn id_start() -> Box<DynCombinator> {
         // We ignore Other_ID_Start - it's just for backwards compatibility.
     ];
 
-    let categories_combinator = choice_from_vec(categories.iter().map(|category| get_unicode_general_category_combinator(*category)).collect());
-    let other_combinator = eat_char_choice("_");
+    let category_bytestrings: Vec<Vec<u8>> = categories.iter().flat_map(|category| get_unicode_general_category_bytestrings(*category)).collect();
+    let other_bytestrings: Vec<Vec<u8>> = vec![vec![b'_']];
 
-    choice!(categories_combinator, other_combinator).into_boxed()
+    category_bytestrings.into_iter().chain(other_bytestrings.into_iter()).collect()
 }
 
-pub fn id_continue() -> Box<DynCombinator> {
+pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
     // all characters in id_start, plus characters in the categories Mn, Mc, Nd, Pc and others with the Other_ID_Continue property
     let new_categories = [
         GeneralCategory::NonspacingMark,
@@ -79,10 +114,19 @@ pub fn id_continue() -> Box<DynCombinator> {
         GeneralCategory::ConnectorPunctuation,
     ];
 
-    let new_categories_combinator = choice_from_vec(new_categories.iter().map(|category| get_unicode_general_category_combinator(*category)).collect());
-    let other_combinator = eat_char_range(b'0', b'9');
 
-    choice!(id_start(), new_categories_combinator, other_combinator).into_boxed()
+    let other_bytestrings: Vec<Vec<u8>> = vec![vec![b'0', b'9']];
+
+    let new_category_bytestrings: Vec<Vec<u8>> = new_categories.iter().flat_map(|category| get_unicode_general_category_bytestrings(*category)).collect();
+    new_category_bytestrings.into_iter().chain(other_bytestrings.into_iter()).collect()
+}
+
+pub fn id_start() -> Box<DynCombinator> {
+    eat_bytestring_choice(id_start_bytestrings()).into_boxed()
+}
+
+pub fn id_continue() -> Box<DynCombinator> {
+    eat_bytestring_choice(id_continue_bytestrings()).into_boxed()
 }
 
 pub fn xid_start() -> Box<DynCombinator> {

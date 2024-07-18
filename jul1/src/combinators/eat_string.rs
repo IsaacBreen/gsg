@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, ParserTrait, Stats, U8Set};
+use crate::{choice_from_vec, CombinatorTrait, DynCombinator, ParserTrait, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
 pub struct EatString {
@@ -59,4 +59,9 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
     EatString {
         string: bytes.to_vec(),
     }
+}
+
+pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Box<DynCombinator> {
+    let bytestrings: Vec<Box<DynCombinator>> = bytestrings.into_iter().map(|bytestring| eat_bytes(bytestring.as_slice()).into_boxed()).collect();
+    choice_from_vec(bytestrings).into_boxed()
 }
