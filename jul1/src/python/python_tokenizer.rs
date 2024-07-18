@@ -39,7 +39,8 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
     }
 }
 
-// https://docs.python.org/3/reference/lexical_analysis.html#identifiers
+// From the Python docs:
+// """
 // identifier   ::=  xid_start xid_continue*
 // id_start     ::=  <all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property>
 // id_continue  ::=  <all characters in id_start, plus characters in the categories Mn, Mc, Nd, Pc and others with the Other_ID_Continue property>
@@ -60,39 +61,7 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
 // Pc - connector punctuations
 // Other_ID_Start - explicit list of characters in PropList.txt to support backwards compatibility
 // Other_ID_Continue - likewise
-// pub fn id_start() -> Box<DynCombinator> {
-//     // all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property
-//     let categories = [
-//         GeneralCategory::UppercaseLetter,
-//         GeneralCategory::LowercaseLetter,
-//         GeneralCategory::TitlecaseLetter,
-//         GeneralCategory::ModifierLetter,
-//         GeneralCategory::OtherLetter,
-//         GeneralCategory::LetterNumber,
-//         // We ignore Other_ID_Start - it's just for backwards compatibility.
-//     ];
-//
-//     let categories_combinator = choice_from_vec(categories.iter().map(|category| get_unicode_general_category_combinator(*category)).collect());
-//     let other_combinator = eat_char_choice("_");
-//
-//     choice!(categories_combinator, other_combinator).into_boxed()
-// }
-//
-// pub fn id_continue() -> Box<DynCombinator> {
-//     // all characters in id_start, plus characters in the categories Mn, Mc, Nd, Pc and others with the Other_ID_Continue property
-//     let new_categories = [
-//         GeneralCategory::NonspacingMark,
-//         // todo: where is SpacingCombiningMark?
-//         // GeneralCategory::SpacingCombiningMark,
-//         GeneralCategory::DecimalNumber,
-//         GeneralCategory::ConnectorPunctuation,
-//     ];
-//
-//     let new_categories_combinator = choice_from_vec(new_categories.iter().map(|category| get_unicode_general_category_combinator(*category)).collect());
-//     let other_combinator = eat_byte_range(b'0', b'9');
-//
-//     choice!(id_start(), new_categories_combinator, other_combinator).into_boxed()
-// }
+// """
 
 pub fn id_start_bytestrings() -> Vec<Vec<u8>> {
     // all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property
@@ -178,10 +147,8 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
     python_symbol(choice!(repeat1(eat_byte_range(b'0', b'9')), seq!(repeat1(eat_byte_range(b'0', b'9')), seq!(eat_char('.'), repeat1(eat_byte_range(b'0', b'9'))))))
 }
 
-// https://docs.python.org/3/reference/lexical_analysis.html#strings
-// String literals are described by the following lexical definitions:
-//
-// ```
+// From the Python docs:
+// """
 // stringliteral   ::=  [stringprefix](shortstring | longstring)
 // stringprefix    ::=  "r" | "u" | "R" | "U" | "f" | "F"
 //                      | "fr" | "Fr" | "fR" | "FR" | "rf" | "rF" | "Rf" | "RF"
@@ -192,9 +159,7 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
 // shortstringchar ::=  <any source character except "\" or newline or the quote>
 // longstringchar  ::=  <any source character except "\">
 // stringescapeseq ::=  "\" <any source character>
-// ```
 //
-// ```
 // bytesliteral   ::=  bytesprefix(shortbytes | longbytes)
 // bytesprefix    ::=  "b" | "B" | "br" | "Br" | "bR" | "BR" | "rb" | "rB" | "Rb" | "RB"
 // shortbytes     ::=  "'" shortbytesitem* "'" | '"' shortbytesitem* '"'
@@ -204,15 +169,14 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
 // shortbyteschar ::=  <any ASCII character except "\" or newline or the quote>
 // longbyteschar  ::=  <any ASCII character except "\">
 // bytesescapeseq ::=  "\" <any ASCII character>
-// ```
 //
 // One syntactic restriction not indicated by these productions is that whitespace is not allowed between the stringprefix or bytesprefix and the rest of the literal. The source character set is defined by the encoding declaration; it is UTF-8 if no encoding declaration is given in the source file; see section Encoding declarations.
 //
-// In plain English: Both types of literals can be enclosed in matching single quotes (') or double quotes ("). They can also be enclosed in matching groups of three single or double quotes (these are generally referred to as triple-quoted strings). The backslash (\) character is used to give special meaning to otherwise ordinary characters like n, which means ‘newline’ when escaped (\n). It can also be used to escape characters that otherwise have a special meaning, such as newline, backslash itself, or the quote character. See escape sequences below for examples.
+// In plain English: Both types of literals can be enclosed in matching single quotes (') or double quotes ("). They can also be enclosed in matching groups of three single or double quotes (these are generally referred to as triple-quoted strings). The backslash (\) character is used to give special meaning to otherwise ordinary characters like n, which means 'newline' when escaped (\n). It can also be used to escape characters that otherwise have a special meaning, such as newline, backslash itself, or the quote character. See escape sequences below for examples.
 //
 // Bytes literals are always prefixed with 'b' or 'B'; they produce an instance of the bytes type instead of the str type. They may only contain ASCII characters; bytes with a numeric value of 128 or greater must be expressed with escapes.
 //
-// Both string and bytes literals may optionally be prefixed with a letter 'r' or 'R'; such strings are called raw strings and treat backslashes as literal characters. As a result, in string literals, '\U' and '\u' escapes in raw strings are not treated specially. Given that Python 2.x’s raw unicode literals behave differently than Python 3.x’s the 'ur' syntax is not supported.
+// Both string and bytes literals may optionally be prefixed with a letter 'r' or 'R'; such strings are called raw strings and treat backslashes as literal characters. As a result, in string literals, '\U' and '\u' escapes in raw strings are not treated specially. Given that Python 2.x's raw unicode literals behave differently than Python 3.x's the 'ur' syntax is not supported.
 //
 // Added in version 3.3: The 'rb' prefix of raw bytes literals has been added as a synonym of 'br'.
 //
@@ -220,9 +184,28 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
 //
 // A string literal with 'f' or 'F' in its prefix is a formatted string literal; see f-strings. The 'f' may be combined with 'r', but not with 'b' or 'u', therefore raw formatted strings are possible, but formatted bytes literals are not.
 //
-// In triple-quoted literals, unescaped newlines and quotes are allowed (and are retained), except that three unescaped quotes in a row terminate the literal. (A “quote” is the character used to open the literal, i.e. either ' or ".)
+// In triple-quoted literals, unescaped newlines and quotes are allowed (and are retained), except that three unescaped quotes in a row terminate the literal. (A "quote" is the character used to open the literal, i.e. either ' or ".)
+// """
 pub fn STRING() -> Symbol<Box<DynCombinator>> {
-    todo!()
+    let stringprefix = choice!(
+        eat_char_choice("ruRUfF"),
+        choice!(
+            seq!(eat_char_choice("fF"), eat_char_choice("rR")),
+            seq!(eat_char_choice("rR"), eat_char_choice("fF"))
+        )
+    );
+
+    let shortstring = choice!(
+        seq!(eat_char('\''), repeat0(choice!(eat_char_negation_choice("\\\'\n"), seq!(eat_char('\\'), eat_char_negation("\0")))), eat_char('\'')),
+        seq!(eat_char('"'), repeat0(choice!(eat_char_negation_choice("\\\"\n"), seq!(eat_char('\\'), eat_char_negation("\0")))), eat_char('"'))
+    );
+
+    let longstring = choice!(
+        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), eat_char_negation("\0")))), eat_string("'''")),
+        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), eat_char_negation("\0")))), eat_string("\"\"\""))
+    );
+
+    python_symbol(seq!(opt(stringprefix), choice!(shortstring, longstring)))
 }
 
 pub fn NEWLINE() -> Symbol<Box<DynCombinator>> {
