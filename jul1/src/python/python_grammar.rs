@@ -212,29 +212,29 @@ pub fn python_file() -> Rc<DynCombinator> {
     let mut interactive = forward_ref();
     let mut file = forward_ref();
     let expression_without_invalid = Rc::new(expression_without_invalid.set(choice!(
-        seq!(&conjunction, repeat(choice!(seq!(eat_string("or"), &conjunction))), eat_string("if"), &disjunction, eat_string("else"), &expression),
-        seq!(eat_string("lambda"), &lambda_params, eat_string(":"), &expression)
+        seq!(&conjunction, opt(choice!(seq!(repeat(choice!(seq!(eat_string("or"), &conjunction)))))), opt(choice!(seq!(eat_string("if"), &disjunction, eat_string("else"), &expression)))),
+        seq!(eat_string("lambda"), opt(choice!(seq!(&lambda_params))), eat_string(":"), &expression)
     )).into_boxed());
     let func_type_comment = Rc::new(func_type_comment.set(choice!(
         seq!(&NEWLINE, &TYPE_COMMENT),
         seq!(&TYPE_COMMENT)
     )).into_boxed());
     let type_expressions = Rc::new(type_expressions.set(choice!(
-        seq!(choice!(seq!(&disjunction, eat_string("if"), &disjunction, eat_string("else"), &expression), seq!(&lambdef)), repeat(eat_string(",")), choice!(seq!(eat_string("*"), &expression, eat_string(","), eat_string("**"), &expression), seq!(eat_string("**"), &expression))),
-        seq!(eat_string("*"), &expression, eat_string(","), eat_string("**"), &expression),
+        seq!(choice!(seq!(&disjunction, opt(choice!(seq!(eat_string("if"), &disjunction, eat_string("else"), &expression)))), seq!(&lambdef)), repeat(eat_string(",")), opt(choice!(seq!(eat_string("*"), &expression, opt(choice!(seq!(eat_string(","), eat_string("**"), &expression)))), seq!(eat_string("**"), &expression)))),
+        seq!(eat_string("*"), &expression, opt(choice!(seq!(eat_string(","), eat_string("**"), &expression)))),
         seq!(eat_string("**"), &expression)
     )).into_boxed());
     let del_t_atom = Rc::new(del_t_atom.set(choice!(
         seq!(&NAME),
-        seq!(eat_string("("), choice!(seq!(&del_target, eat_string(")")), seq!(&del_targets, eat_string(")")))),
-        seq!(eat_string("["), &del_targets, eat_string("]"))
+        seq!(eat_string("("), choice!(seq!(&del_target, eat_string(")")), seq!(opt(choice!(seq!(&del_targets))), eat_string(")")))),
+        seq!(eat_string("["), opt(choice!(seq!(&del_targets))), eat_string("]"))
     )).into_boxed());
     let del_target = Rc::new(del_target.set(choice!(
-        seq!(choice!(seq!(&NAME), seq!(eat_string("True")), seq!(eat_string("False")), seq!(eat_string("None")), seq!(&strings), seq!(&NUMBER), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp), seq!(eat_string("..."))), repeat(choice!(seq!(&strings), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp))), repeat(choice!(seq!(eat_string("."), &NAME), seq!(eat_string("["), &slices, eat_string("]")), seq!(&genexp), seq!(eat_string("("), &arguments, eat_string(")")))), choice!(seq!(eat_string("."), &NAME), seq!(eat_string("["), &slices, eat_string("]")))),
+        seq!(choice!(seq!(&NAME), seq!(eat_string("True")), seq!(eat_string("False")), seq!(eat_string("None")), seq!(&strings), seq!(&NUMBER), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp), seq!(eat_string("..."))), opt(choice!(seq!(repeat(choice!(seq!(&strings), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp)))))), opt(choice!(seq!(repeat(choice!(seq!(eat_string("."), &NAME), seq!(eat_string("["), &slices, eat_string("]")), seq!(&genexp), seq!(eat_string("("), opt(choice!(seq!(&arguments))), eat_string(")"))))))), choice!(seq!(eat_string("."), &NAME), seq!(eat_string("["), &slices, eat_string("]")))),
         seq!(&del_t_atom)
     )).into_boxed());
     let del_targets = Rc::new(del_targets.set(choice!(
-        seq!(&del_target, repeat(eat_string(",")))
+        seq!(&del_target, repeat(eat_string(",")), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let t_lookahead = Rc::new(t_lookahead.set(choice!(
         seq!(eat_string("(")),
@@ -242,7 +242,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string("."))
     )).into_boxed());
     let t_primary = Rc::new(t_primary.set(choice!(
-        seq!(choice!(seq!(&NAME), seq!(eat_string("True")), seq!(eat_string("False")), seq!(eat_string("None")), seq!(&strings), seq!(&NUMBER), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp), seq!(eat_string("..."))), repeat(choice!(seq!(&strings), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp))), repeat(choice!(seq!(eat_string("."), &NAME), seq!(eat_string("["), &slices, eat_string("]")), seq!(&genexp), seq!(eat_string("("), &arguments, eat_string(")")))))
+        seq!(choice!(seq!(&NAME), seq!(eat_string("True")), seq!(eat_string("False")), seq!(eat_string("None")), seq!(&strings), seq!(&NUMBER), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp), seq!(eat_string("..."))), opt(choice!(seq!(repeat(choice!(seq!(&strings), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp)))))), opt(choice!(seq!(repeat(choice!(seq!(eat_string("."), &NAME), seq!(eat_string("["), &slices, eat_string("]")), seq!(&genexp), seq!(eat_string("("), opt(choice!(seq!(&arguments))), eat_string(")"))))))))
     )).into_boxed());
     let single_subscript_attribute_target = Rc::new(single_subscript_attribute_target.set(choice!(
         seq!(&t_primary, choice!(seq!(eat_string("."), &NAME), seq!(eat_string("["), &slices, eat_string("]"))))
@@ -254,8 +254,8 @@ pub fn python_file() -> Rc<DynCombinator> {
     )).into_boxed());
     let star_atom = Rc::new(star_atom.set(choice!(
         seq!(&NAME),
-        seq!(eat_string("("), choice!(seq!(&target_with_star_atom, eat_string(")")), seq!(&star_targets_tuple_seq, eat_string(")")))),
-        seq!(eat_string("["), &star_targets_list_seq, eat_string("]"))
+        seq!(eat_string("("), choice!(seq!(&target_with_star_atom, eat_string(")")), seq!(opt(choice!(seq!(&star_targets_tuple_seq))), eat_string(")")))),
+        seq!(eat_string("["), opt(choice!(seq!(&star_targets_list_seq))), eat_string("]"))
     )).into_boxed());
     let target_with_star_atom = Rc::new(target_with_star_atom.set(choice!(
         seq!(&t_primary, choice!(seq!(eat_string("."), &NAME), seq!(eat_string("["), &slices, eat_string("]")))),
@@ -266,13 +266,13 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&target_with_star_atom)
     )).into_boxed());
     let star_targets_tuple_seq = Rc::new(star_targets_tuple_seq.set(choice!(
-        seq!(&star_target, choice!(seq!(repeat(choice!(seq!(eat_string(","), &star_target))), eat_string(",")), seq!(eat_string(","))))
+        seq!(&star_target, choice!(seq!(repeat(choice!(seq!(eat_string(","), &star_target))), opt(choice!(seq!(eat_string(","))))), seq!(eat_string(","))))
     )).into_boxed());
     let star_targets_list_seq = Rc::new(star_targets_list_seq.set(choice!(
-        seq!(&star_target, repeat(eat_string(",")))
+        seq!(&star_target, repeat(eat_string(",")), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let star_targets = Rc::new(star_targets.set(choice!(
-        seq!(&star_target, repeat(choice!(seq!(eat_string(","), &star_target))), eat_string(","))
+        seq!(&star_target, opt(choice!(seq!(repeat(choice!(seq!(eat_string(","), &star_target))), opt(choice!(seq!(eat_string(","))))))))
     )).into_boxed());
     let kwarg_or_double_starred = Rc::new(kwarg_or_double_starred.set(choice!(
         seq!(&NAME, eat_string("="), &expression),
@@ -286,15 +286,15 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string("*"), &expression)
     )).into_boxed());
     let kwargs = Rc::new(kwargs.set(choice!(
-        seq!(&kwarg_or_starred, repeat(eat_string(",")), &kwarg_or_double_starred, repeat(eat_string(","))),
+        seq!(&kwarg_or_starred, repeat(eat_string(",")), opt(choice!(seq!(&kwarg_or_double_starred, repeat(eat_string(",")))))),
         seq!(&kwarg_or_double_starred, repeat(eat_string(",")))
     )).into_boxed());
     let args = Rc::new(args.set(choice!(
-        seq!(choice!(seq!(&starred_expression), seq!(&NAME, eat_string(":="), &expression), seq!(&disjunction, eat_string("if"), &disjunction, eat_string("else"), &expression), seq!(&lambdef)), repeat(eat_string(",")), &kwargs),
+        seq!(choice!(seq!(&starred_expression), seq!(&NAME, eat_string(":="), &expression), seq!(&disjunction, opt(choice!(seq!(eat_string("if"), &disjunction, eat_string("else"), &expression)))), seq!(&lambdef)), repeat(eat_string(",")), opt(choice!(seq!(eat_string(","), &kwargs)))),
         seq!(&kwargs)
     )).into_boxed());
     let arguments = Rc::new(arguments.set(choice!(
-        seq!(&args, eat_string(","))
+        seq!(&args, opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let dictcomp = Rc::new(dictcomp.set(choice!(
         seq!(eat_string("{"), &kvpair, &for_if_clauses, eat_string("}"))
@@ -316,26 +316,26 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(repeat(&for_if_clause))
     )).into_boxed());
     let kvpair = Rc::new(kvpair.set(choice!(
-        seq!(choice!(seq!(&disjunction, eat_string("if"), &disjunction, eat_string("else"), &expression), seq!(&lambdef)), eat_string(":"), &expression)
+        seq!(choice!(seq!(&disjunction, opt(choice!(seq!(eat_string("if"), &disjunction, eat_string("else"), &expression)))), seq!(&lambdef)), eat_string(":"), &expression)
     )).into_boxed());
     let double_starred_kvpair = Rc::new(double_starred_kvpair.set(choice!(
         seq!(eat_string("**"), &bitwise_or),
         seq!(&kvpair)
     )).into_boxed());
     let double_starred_kvpairs = Rc::new(double_starred_kvpairs.set(choice!(
-        seq!(&double_starred_kvpair, repeat(eat_string(",")))
+        seq!(&double_starred_kvpair, repeat(eat_string(",")), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let dict = Rc::new(dict.set(choice!(
-        seq!(eat_string("{"), &double_starred_kvpairs, eat_string("}"))
+        seq!(eat_string("{"), opt(choice!(seq!(&double_starred_kvpairs))), eat_string("}"))
     )).into_boxed());
     let set = Rc::new(set.set(choice!(
         seq!(eat_string("{"), &star_named_expressions, eat_string("}"))
     )).into_boxed());
     let tuple = Rc::new(tuple.set(choice!(
-        seq!(eat_string("("), &star_named_expression, eat_string(","), &star_named_expressions, eat_string(")"))
+        seq!(eat_string("("), opt(choice!(seq!(&star_named_expression, eat_string(","), opt(choice!(seq!(&star_named_expressions)))))), eat_string(")"))
     )).into_boxed());
     let list = Rc::new(list.set(choice!(
-        seq!(eat_string("["), &star_named_expressions, eat_string("]"))
+        seq!(eat_string("["), opt(choice!(seq!(&star_named_expressions))), eat_string("]"))
     )).into_boxed());
     let strings = Rc::new(strings.set(choice!(
         seq!(repeat(choice!(seq!(&FSTRING_START, repeat(&fstring_middle), &FSTRING_END), seq!(&STRING))))
@@ -348,7 +348,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     )).into_boxed());
     let fstring_format_spec = Rc::new(fstring_format_spec.set(choice!(
         seq!(&FSTRING_MIDDLE),
-        seq!(eat_string("{"), &annotated_rhs, eat_string("="), &fstring_conversion, &fstring_full_format_spec, eat_string("}"))
+        seq!(eat_string("{"), &annotated_rhs, opt(choice!(seq!(eat_string("=")))), opt(choice!(seq!(&fstring_conversion))), opt(choice!(seq!(&fstring_full_format_spec))), eat_string("}"))
     )).into_boxed());
     let fstring_full_format_spec = Rc::new(fstring_full_format_spec.set(choice!(
         seq!(eat_string(":"), repeat(&fstring_format_spec))
@@ -357,7 +357,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string(""), &NAME)
     )).into_boxed());
     let fstring_replacement_field = Rc::new(fstring_replacement_field.set(choice!(
-        seq!(eat_string("{"), &annotated_rhs, eat_string("="), &fstring_conversion, &fstring_full_format_spec, eat_string("}"))
+        seq!(eat_string("{"), &annotated_rhs, opt(choice!(seq!(eat_string("=")))), opt(choice!(seq!(&fstring_conversion))), opt(choice!(seq!(&fstring_full_format_spec))), eat_string("}"))
     )).into_boxed());
     let fstring_middle = Rc::new(fstring_middle.set(choice!(
         seq!(&fstring_replacement_field),
@@ -367,62 +367,62 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&NAME)
     )).into_boxed());
     let lambda_param_maybe_default = Rc::new(lambda_param_maybe_default.set(choice!(
-        seq!(&lambda_param, &default, eat_string(","))
+        seq!(&lambda_param, opt(choice!(seq!(&default))), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let lambda_param_with_default = Rc::new(lambda_param_with_default.set(choice!(
-        seq!(&lambda_param, &default, eat_string(","))
+        seq!(&lambda_param, &default, opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let lambda_param_no_default = Rc::new(lambda_param_no_default.set(choice!(
-        seq!(&lambda_param, eat_string(","))
+        seq!(&lambda_param, opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let lambda_kwds = Rc::new(lambda_kwds.set(choice!(
         seq!(eat_string("**"), &lambda_param_no_default)
     )).into_boxed());
     let lambda_star_etc = Rc::new(lambda_star_etc.set(choice!(
-        seq!(eat_string("*"), choice!(seq!(&lambda_param_no_default, repeat(&lambda_param_maybe_default), &lambda_kwds), seq!(eat_string(","), repeat(&lambda_param_maybe_default), &lambda_kwds))),
+        seq!(eat_string("*"), choice!(seq!(&lambda_param_no_default, repeat(&lambda_param_maybe_default), opt(choice!(seq!(&lambda_kwds)))), seq!(eat_string(","), repeat(&lambda_param_maybe_default), opt(choice!(seq!(&lambda_kwds)))))),
         seq!(&lambda_kwds)
     )).into_boxed());
     let lambda_slash_with_default = Rc::new(lambda_slash_with_default.set(choice!(
-        seq!(repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), eat_string("/"), eat_string(","))
+        seq!(repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), eat_string("/"), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let lambda_slash_no_default = Rc::new(lambda_slash_no_default.set(choice!(
-        seq!(repeat(&lambda_param_no_default), eat_string("/"), eat_string(","))
+        seq!(repeat(&lambda_param_no_default), eat_string("/"), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let lambda_parameters = Rc::new(lambda_parameters.set(choice!(
-        seq!(&lambda_slash_no_default, repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), &lambda_star_etc),
-        seq!(&lambda_slash_with_default, repeat(&lambda_param_with_default), &lambda_star_etc),
-        seq!(repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), &lambda_star_etc),
-        seq!(repeat(&lambda_param_with_default), &lambda_star_etc),
+        seq!(&lambda_slash_no_default, repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), opt(choice!(seq!(&lambda_star_etc)))),
+        seq!(&lambda_slash_with_default, repeat(&lambda_param_with_default), opt(choice!(seq!(&lambda_star_etc)))),
+        seq!(repeat(&lambda_param_no_default), repeat(&lambda_param_with_default), opt(choice!(seq!(&lambda_star_etc)))),
+        seq!(repeat(&lambda_param_with_default), opt(choice!(seq!(&lambda_star_etc)))),
         seq!(&lambda_star_etc)
     )).into_boxed());
     let lambda_params = Rc::new(lambda_params.set(choice!(
         seq!(&lambda_parameters)
     )).into_boxed());
     let lambdef = Rc::new(lambdef.set(choice!(
-        seq!(eat_string("lambda"), &lambda_params, eat_string(":"), &expression)
+        seq!(eat_string("lambda"), opt(choice!(seq!(&lambda_params))), eat_string(":"), &expression)
     )).into_boxed());
     let group = Rc::new(group.set(choice!(
         seq!(eat_string("("), choice!(seq!(&yield_expr), seq!(&named_expression)), eat_string(")"))
     )).into_boxed());
     let atom = Rc::new(atom.set(choice!(
-        seq!(choice!(seq!(&NAME), seq!(eat_string("True")), seq!(eat_string("False")), seq!(eat_string("None")), seq!(&strings), seq!(&NUMBER), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp), seq!(eat_string("..."))), repeat(choice!(seq!(&strings), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp))))
+        seq!(choice!(seq!(&NAME), seq!(eat_string("True")), seq!(eat_string("False")), seq!(eat_string("None")), seq!(&strings), seq!(&NUMBER), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp), seq!(eat_string("..."))), opt(choice!(seq!(repeat(choice!(seq!(&strings), seq!(&tuple), seq!(&group), seq!(&genexp), seq!(&list), seq!(&listcomp), seq!(&dict), seq!(&set), seq!(&dictcomp), seq!(&setcomp)))))))
     )).into_boxed());
     let slice = Rc::new(slice.set(choice!(
-        seq!(choice!(seq!(choice!(seq!(&disjunction, eat_string("if"), &disjunction, eat_string("else"), &expression), seq!(&lambdef)), eat_string(":"), &expression, eat_string(":"), &expression), seq!(&NAME, eat_string(":="), &expression), seq!(&disjunction, eat_string("if"), &disjunction, eat_string("else"), &expression), seq!(&lambdef)), repeat(choice!(seq!(eat_string(":"), &expression, eat_string(":"), &expression))))
+        seq!(choice!(seq!(opt(choice!(seq!(&disjunction, opt(choice!(seq!(eat_string("if"), &disjunction, eat_string("else"), &expression)))), seq!(&lambdef))), eat_string(":"), opt(choice!(seq!(&expression))), opt(choice!(seq!(eat_string(":"), opt(choice!(seq!(&expression))))))), seq!(&NAME, eat_string(":="), &expression), seq!(&disjunction, opt(choice!(seq!(eat_string("if"), &disjunction, eat_string("else"), &expression)))), seq!(&lambdef)), opt(choice!(seq!(repeat(choice!(seq!(eat_string(":"), opt(choice!(seq!(&expression))), opt(choice!(seq!(eat_string(":"), opt(choice!(seq!(&expression)))))))))))))
     )).into_boxed());
     let slices = Rc::new(slices.set(choice!(
         seq!(&slice),
-        seq!(choice!(seq!(&slice), seq!(&starred_expression)), repeat(eat_string(",")))
+        seq!(choice!(seq!(&slice), seq!(&starred_expression)), repeat(eat_string(",")), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let primary = Rc::new(primary.set(choice!(
-        seq!(&atom, repeat(choice!(seq!(eat_string("."), &NAME), seq!(&genexp), seq!(eat_string("("), &arguments, eat_string(")")), seq!(eat_string("["), &slices, eat_string("]")))))
+        seq!(&atom, opt(choice!(seq!(repeat(choice!(seq!(eat_string("."), &NAME), seq!(&genexp), seq!(eat_string("("), opt(choice!(seq!(&arguments))), eat_string(")")), seq!(eat_string("["), &slices, eat_string("]"))))))))
     )).into_boxed());
     let await_primary = Rc::new(await_primary.set(choice!(
         seq!(eat_string("await"), &primary),
         seq!(&primary)
     )).into_boxed());
     let power = Rc::new(power.set(choice!(
-        seq!(&await_primary, eat_string("**"), &factor)
+        seq!(&await_primary, opt(choice!(seq!(eat_string("**"), &factor))))
     )).into_boxed());
     let factor = Rc::new(factor.set(choice!(
         seq!(eat_string("+"), &factor),
@@ -431,22 +431,22 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&power)
     )).into_boxed());
     let term = Rc::new(term.set(choice!(
-        seq!(&factor, repeat(choice!(seq!(eat_string("*"), &factor), seq!(eat_string("/"), &factor), seq!(eat_string("//"), &factor), seq!(eat_string("%"), &factor), seq!(eat_string("@"), &factor))))
+        seq!(&factor, opt(choice!(seq!(repeat(choice!(seq!(eat_string("*"), &factor), seq!(eat_string("/"), &factor), seq!(eat_string("//"), &factor), seq!(eat_string("%"), &factor), seq!(eat_string("@"), &factor)))))))
     )).into_boxed());
     let sum = Rc::new(sum.set(choice!(
-        seq!(&term, repeat(choice!(seq!(eat_string("+"), &term), seq!(eat_string("-"), &term))))
+        seq!(&term, opt(choice!(seq!(repeat(choice!(seq!(eat_string("+"), &term), seq!(eat_string("-"), &term)))))))
     )).into_boxed());
     let shift_expr = Rc::new(shift_expr.set(choice!(
-        seq!(&sum, repeat(choice!(seq!(eat_string("<<"), &sum), seq!(eat_string(">>"), &sum))))
+        seq!(&sum, opt(choice!(seq!(repeat(choice!(seq!(eat_string("<<"), &sum), seq!(eat_string(">>"), &sum)))))))
     )).into_boxed());
     let bitwise_and = Rc::new(bitwise_and.set(choice!(
-        seq!(&shift_expr, repeat(choice!(seq!(eat_string("&"), &shift_expr))))
+        seq!(&shift_expr, opt(choice!(seq!(repeat(choice!(seq!(eat_string("&"), &shift_expr)))))))
     )).into_boxed());
     let bitwise_xor = Rc::new(bitwise_xor.set(choice!(
-        seq!(&bitwise_and, repeat(choice!(seq!(eat_string("^"), &bitwise_and))))
+        seq!(&bitwise_and, opt(choice!(seq!(repeat(choice!(seq!(eat_string("^"), &bitwise_and)))))))
     )).into_boxed());
     let bitwise_or = Rc::new(bitwise_or.set(choice!(
-        seq!(&bitwise_xor, repeat(choice!(seq!(eat_string("|"), &bitwise_xor))))
+        seq!(&bitwise_xor, opt(choice!(seq!(repeat(choice!(seq!(eat_string("|"), &bitwise_xor)))))))
     )).into_boxed());
     let is_bitwise_or = Rc::new(is_bitwise_or.set(choice!(
         seq!(eat_string("is"), &bitwise_or)
@@ -491,21 +491,21 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&is_bitwise_or)
     )).into_boxed());
     let comparison = Rc::new(comparison.set(choice!(
-        seq!(&bitwise_or, repeat(&compare_op_bitwise_or_pair))
+        seq!(&bitwise_or, opt(choice!(seq!(repeat(&compare_op_bitwise_or_pair)))))
     )).into_boxed());
     let inversion = Rc::new(inversion.set(choice!(
         seq!(eat_string("not"), &inversion),
         seq!(&comparison)
     )).into_boxed());
     let conjunction = Rc::new(conjunction.set(choice!(
-        seq!(&inversion, repeat(choice!(seq!(eat_string("and"), &inversion))))
+        seq!(&inversion, opt(choice!(seq!(repeat(choice!(seq!(eat_string("and"), &inversion)))))))
     )).into_boxed());
     let disjunction = Rc::new(disjunction.set(choice!(
-        seq!(&conjunction, repeat(choice!(seq!(eat_string("or"), &conjunction))))
+        seq!(&conjunction, opt(choice!(seq!(repeat(choice!(seq!(eat_string("or"), &conjunction)))))))
     )).into_boxed());
     let named_expression = Rc::new(named_expression.set(choice!(
         seq!(&NAME, eat_string(":="), &expression),
-        seq!(&disjunction, eat_string("if"), &disjunction, eat_string("else"), &expression),
+        seq!(&disjunction, opt(choice!(seq!(eat_string("if"), &disjunction, eat_string("else"), &expression)))),
         seq!(&lambdef)
     )).into_boxed());
     let assignment_expression = Rc::new(assignment_expression.set(choice!(
@@ -516,25 +516,25 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&named_expression)
     )).into_boxed());
     let star_named_expressions = Rc::new(star_named_expressions.set(choice!(
-        seq!(&star_named_expression, repeat(eat_string(",")))
+        seq!(&star_named_expression, repeat(eat_string(",")), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let star_expression = Rc::new(star_expression.set(choice!(
         seq!(eat_string("*"), &bitwise_or),
-        seq!(&disjunction, eat_string("if"), &disjunction, eat_string("else"), &expression),
+        seq!(&disjunction, opt(choice!(seq!(eat_string("if"), &disjunction, eat_string("else"), &expression)))),
         seq!(&lambdef)
     )).into_boxed());
     let star_expressions = Rc::new(star_expressions.set(choice!(
-        seq!(&star_expression, choice!(seq!(repeat(choice!(seq!(eat_string(","), &star_expression))), eat_string(",")), seq!(eat_string(","))))
+        seq!(&star_expression, opt(choice!(seq!(repeat(choice!(seq!(eat_string(","), &star_expression))), opt(choice!(seq!(eat_string(","))))), seq!(eat_string(",")))))
     )).into_boxed());
     let yield_expr = Rc::new(yield_expr.set(choice!(
-        seq!(eat_string("yield"), choice!(seq!(eat_string("from"), &expression), seq!(&star_expressions)))
+        seq!(eat_string("yield"), opt(choice!(seq!(eat_string("from"), &expression), seq!(&star_expressions))))
     )).into_boxed());
     let expression = Rc::new(expression.set(choice!(
-        seq!(&disjunction, eat_string("if"), &disjunction, eat_string("else"), &expression),
+        seq!(&disjunction, opt(choice!(seq!(eat_string("if"), &disjunction, eat_string("else"), &expression)))),
         seq!(&lambdef)
     )).into_boxed());
     let expressions = Rc::new(expressions.set(choice!(
-        seq!(&expression, choice!(seq!(repeat(choice!(seq!(eat_string(","), &expression))), eat_string(",")), seq!(eat_string(","))))
+        seq!(&expression, opt(choice!(seq!(repeat(choice!(seq!(eat_string(","), &expression))), opt(choice!(seq!(eat_string(","))))), seq!(eat_string(",")))))
     )).into_boxed());
     let type_param_starred_default = Rc::new(type_param_starred_default.set(choice!(
         seq!(eat_string("="), &star_expression)
@@ -546,18 +546,18 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string(":"), &expression)
     )).into_boxed());
     let type_param = Rc::new(type_param.set(choice!(
-        seq!(&NAME, &type_param_bound, &type_param_default),
-        seq!(eat_string("*"), &NAME, &type_param_starred_default),
-        seq!(eat_string("**"), &NAME, &type_param_default)
+        seq!(&NAME, opt(choice!(seq!(&type_param_bound))), opt(choice!(seq!(&type_param_default)))),
+        seq!(eat_string("*"), &NAME, opt(choice!(seq!(&type_param_starred_default)))),
+        seq!(eat_string("**"), &NAME, opt(choice!(seq!(&type_param_default))))
     )).into_boxed());
     let type_param_seq = Rc::new(type_param_seq.set(choice!(
-        seq!(&type_param, repeat(eat_string(",")))
+        seq!(&type_param, repeat(eat_string(",")), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let type_params = Rc::new(type_params.set(choice!(
         seq!(eat_string("["), &type_param_seq, eat_string("]"))
     )).into_boxed());
     let type_alias = Rc::new(type_alias.set(choice!(
-        seq!(eat_string("yp"), &NAME, &type_params, eat_string("="), &expression)
+        seq!(eat_string("yp"), &NAME, opt(choice!(seq!(&type_params))), eat_string("="), &expression)
     )).into_boxed());
     let keyword_pattern = Rc::new(keyword_pattern.set(choice!(
         seq!(&NAME, eat_string("="), &pattern)
@@ -569,7 +569,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(choice!(seq!(&as_pattern), seq!(&or_pattern)), repeat(eat_string(",")))
     )).into_boxed());
     let class_pattern = Rc::new(class_pattern.set(choice!(
-        seq!(&NAME, repeat(choice!(seq!(eat_string("."), &NAME))), eat_string("("), choice!(seq!(eat_string(")")), seq!(&positional_patterns, eat_string(","), choice!(seq!(eat_string(")")), seq!(&keyword_patterns, eat_string(","), eat_string(")")))), seq!(&keyword_patterns, eat_string(","), eat_string(")"))))
+        seq!(&NAME, opt(choice!(seq!(repeat(choice!(seq!(eat_string("."), &NAME)))))), eat_string("("), choice!(seq!(eat_string(")")), seq!(&positional_patterns, choice!(seq!(opt(choice!(seq!(eat_string(",")))), eat_string(")")), seq!(eat_string(","), &keyword_patterns, opt(choice!(seq!(eat_string(",")))), eat_string(")")))), seq!(&keyword_patterns, opt(choice!(seq!(eat_string(",")))), eat_string(")"))))
     )).into_boxed());
     let double_star_pattern = Rc::new(double_star_pattern.set(choice!(
         seq!(eat_string("**"), &pattern_capture_target)
@@ -581,7 +581,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&key_value_pattern, repeat(eat_string(",")))
     )).into_boxed());
     let mapping_pattern = Rc::new(mapping_pattern.set(choice!(
-        seq!(eat_string("{"), choice!(seq!(eat_string("}")), seq!(&double_star_pattern, eat_string(","), eat_string("}")), seq!(&items_pattern, eat_string(","), choice!(seq!(&double_star_pattern, eat_string(","), eat_string("}")), seq!(eat_string("}"))))))
+        seq!(eat_string("{"), choice!(seq!(eat_string("}")), seq!(&double_star_pattern, opt(choice!(seq!(eat_string(",")))), eat_string("}")), seq!(&items_pattern, choice!(seq!(eat_string(","), &double_star_pattern, opt(choice!(seq!(eat_string(",")))), eat_string("}")), seq!(opt(choice!(seq!(eat_string(",")))), eat_string("}"))))))
     )).into_boxed());
     let star_pattern = Rc::new(star_pattern.set(choice!(
         seq!(eat_string("*"), choice!(seq!(&pattern_capture_target), seq!(&wildcard_pattern)))
@@ -592,20 +592,20 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&or_pattern)
     )).into_boxed());
     let maybe_sequence_pattern = Rc::new(maybe_sequence_pattern.set(choice!(
-        seq!(&maybe_star_pattern, repeat(eat_string(",")))
+        seq!(&maybe_star_pattern, repeat(eat_string(",")), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let open_sequence_pattern = Rc::new(open_sequence_pattern.set(choice!(
-        seq!(&maybe_star_pattern, eat_string(","), &maybe_sequence_pattern)
+        seq!(&maybe_star_pattern, eat_string(","), opt(choice!(seq!(&maybe_sequence_pattern))))
     )).into_boxed());
     let sequence_pattern = Rc::new(sequence_pattern.set(choice!(
-        seq!(eat_string("["), &maybe_sequence_pattern, eat_string("]")),
-        seq!(eat_string("("), &open_sequence_pattern, eat_string(")"))
+        seq!(eat_string("["), opt(choice!(seq!(&maybe_sequence_pattern))), eat_string("]")),
+        seq!(eat_string("("), opt(choice!(seq!(&open_sequence_pattern))), eat_string(")"))
     )).into_boxed());
     let group_pattern = Rc::new(group_pattern.set(choice!(
         seq!(eat_string("("), &pattern, eat_string(")"))
     )).into_boxed());
     let name_or_attr = Rc::new(name_or_attr.set(choice!(
-        seq!(&NAME, repeat(choice!(seq!(eat_string("."), &NAME))))
+        seq!(&NAME, opt(choice!(seq!(repeat(choice!(seq!(eat_string("."), &NAME)))))))
     )).into_boxed());
     let attr = Rc::new(attr.set(choice!(
         seq!(&name_or_attr, eat_string("."), &NAME)
@@ -683,10 +683,10 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string("if"), &named_expression)
     )).into_boxed());
     let case_block = Rc::new(case_block.set(choice!(
-        seq!(eat_string("as"), &patterns, &guard, eat_string(":"), &block)
+        seq!(eat_string("as"), &patterns, opt(choice!(seq!(&guard))), eat_string(":"), &block)
     )).into_boxed());
     let subject_expr = Rc::new(subject_expr.set(choice!(
-        seq!(&star_named_expression, eat_string(","), &star_named_expressions),
+        seq!(&star_named_expression, eat_string(","), opt(choice!(seq!(&star_named_expressions)))),
         seq!(&named_expression)
     )).into_boxed());
     let match_stmt = Rc::new(match_stmt.set(choice!(
@@ -696,36 +696,36 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string("finally"), eat_string(":"), &block)
     )).into_boxed());
     let except_star_block = Rc::new(except_star_block.set(choice!(
-        seq!(eat_string("except"), eat_string("*"), &expression, eat_string("as"), &NAME, eat_string(":"), &block)
+        seq!(eat_string("except"), eat_string("*"), &expression, opt(choice!(seq!(eat_string("as"), &NAME))), eat_string(":"), &block)
     )).into_boxed());
     let except_block = Rc::new(except_block.set(choice!(
-        seq!(eat_string("except"), choice!(seq!(&expression, eat_string("as"), &NAME, eat_string(":"), &block), seq!(eat_string(":"), &block)))
+        seq!(eat_string("except"), choice!(seq!(&expression, opt(choice!(seq!(eat_string("as"), &NAME))), eat_string(":"), &block), seq!(eat_string(":"), &block)))
     )).into_boxed());
     let try_stmt = Rc::new(try_stmt.set(choice!(
-        seq!(eat_string("try"), eat_string(":"), &block, choice!(seq!(&finally_block), seq!(repeat(&except_block), &else_block, &finally_block), seq!(repeat(&except_star_block), &else_block, &finally_block)))
+        seq!(eat_string("try"), eat_string(":"), &block, choice!(seq!(&finally_block), seq!(repeat(&except_block), opt(choice!(seq!(&else_block))), opt(choice!(seq!(&finally_block)))), seq!(repeat(&except_star_block), opt(choice!(seq!(&else_block))), opt(choice!(seq!(&finally_block))))))
     )).into_boxed());
     let with_item = Rc::new(with_item.set(choice!(
-        seq!(&expression, eat_string("as"), &star_target)
+        seq!(&expression, opt(choice!(seq!(eat_string("as"), &star_target))))
     )).into_boxed());
     let with_stmt = Rc::new(with_stmt.set(choice!(
-        seq!(eat_string("with"), choice!(seq!(eat_string("("), &with_item, repeat(eat_string(",")), eat_string(")"), eat_string(":"), &TYPE_COMMENT, &block), seq!(&with_item, repeat(eat_string(",")), eat_string(":"), &TYPE_COMMENT, &block))),
-        seq!(eat_string("async"), eat_string("with"), choice!(seq!(eat_string("("), &with_item, repeat(eat_string(",")), eat_string(")"), eat_string(":"), &block), seq!(&with_item, repeat(eat_string(",")), eat_string(":"), &TYPE_COMMENT, &block)))
+        seq!(eat_string("with"), choice!(seq!(eat_string("("), &with_item, repeat(eat_string(",")), opt(choice!(seq!(eat_string(",")))), eat_string(")"), eat_string(":"), opt(choice!(seq!(&TYPE_COMMENT))), &block), seq!(&with_item, repeat(eat_string(",")), eat_string(":"), opt(choice!(seq!(&TYPE_COMMENT))), &block))),
+        seq!(eat_string("async"), eat_string("with"), choice!(seq!(eat_string("("), &with_item, repeat(eat_string(",")), opt(choice!(seq!(eat_string(",")))), eat_string(")"), eat_string(":"), &block), seq!(&with_item, repeat(eat_string(",")), eat_string(":"), opt(choice!(seq!(&TYPE_COMMENT))), &block)))
     )).into_boxed());
     let for_stmt = Rc::new(for_stmt.set(choice!(
-        seq!(eat_string("for"), &star_targets, eat_string("in"), &star_expressions, eat_string(":"), &TYPE_COMMENT, &block, &else_block),
-        seq!(eat_string("async"), eat_string("for"), &star_targets, eat_string("in"), &star_expressions, eat_string(":"), &TYPE_COMMENT, &block, &else_block)
+        seq!(eat_string("for"), &star_targets, eat_string("in"), &star_expressions, eat_string(":"), opt(choice!(seq!(&TYPE_COMMENT))), &block, opt(choice!(seq!(&else_block)))),
+        seq!(eat_string("async"), eat_string("for"), &star_targets, eat_string("in"), &star_expressions, eat_string(":"), opt(choice!(seq!(&TYPE_COMMENT))), &block, opt(choice!(seq!(&else_block))))
     )).into_boxed());
     let while_stmt = Rc::new(while_stmt.set(choice!(
-        seq!(eat_string("while"), &named_expression, eat_string(":"), &block, &else_block)
+        seq!(eat_string("while"), &named_expression, eat_string(":"), &block, opt(choice!(seq!(&else_block))))
     )).into_boxed());
     let else_block = Rc::new(else_block.set(choice!(
         seq!(eat_string("else"), eat_string(":"), &block)
     )).into_boxed());
     let elif_stmt = Rc::new(elif_stmt.set(choice!(
-        seq!(eat_string("elif"), &named_expression, eat_string(":"), &block, choice!(seq!(&elif_stmt), seq!(&else_block)))
+        seq!(eat_string("elif"), &named_expression, eat_string(":"), &block, opt(choice!(seq!(&elif_stmt), seq!(&else_block))))
     )).into_boxed());
     let if_stmt = Rc::new(if_stmt.set(choice!(
-        seq!(eat_string("if"), &named_expression, eat_string(":"), &block, choice!(seq!(&elif_stmt), seq!(&else_block)))
+        seq!(eat_string("if"), &named_expression, eat_string(":"), &block, opt(choice!(seq!(&elif_stmt), seq!(&else_block))))
     )).into_boxed());
     let default = Rc::new(default.set(choice!(
         seq!(eat_string("="), &expression)
@@ -740,82 +740,82 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&NAME, &star_annotation)
     )).into_boxed());
     let param = Rc::new(param.set(choice!(
-        seq!(&NAME, &annotation)
+        seq!(&NAME, opt(choice!(seq!(&annotation))))
     )).into_boxed());
     let param_maybe_default = Rc::new(param_maybe_default.set(choice!(
-        seq!(&param, &default, choice!(seq!(eat_string(","), &TYPE_COMMENT), seq!(&TYPE_COMMENT)))
+        seq!(&param, opt(choice!(seq!(&default))), opt(choice!(seq!(eat_string(","), opt(choice!(seq!(&TYPE_COMMENT)))), seq!(&TYPE_COMMENT))))
     )).into_boxed());
     let param_with_default = Rc::new(param_with_default.set(choice!(
-        seq!(&param, &default, choice!(seq!(eat_string(","), &TYPE_COMMENT), seq!(&TYPE_COMMENT)))
+        seq!(&param, &default, opt(choice!(seq!(eat_string(","), opt(choice!(seq!(&TYPE_COMMENT)))), seq!(&TYPE_COMMENT))))
     )).into_boxed());
     let param_no_default_star_annotation = Rc::new(param_no_default_star_annotation.set(choice!(
-        seq!(&param_star_annotation, choice!(seq!(eat_string(","), &TYPE_COMMENT), seq!(&TYPE_COMMENT)))
+        seq!(&param_star_annotation, opt(choice!(seq!(eat_string(","), opt(choice!(seq!(&TYPE_COMMENT)))), seq!(&TYPE_COMMENT))))
     )).into_boxed());
     let param_no_default = Rc::new(param_no_default.set(choice!(
-        seq!(&param, choice!(seq!(eat_string(","), &TYPE_COMMENT), seq!(&TYPE_COMMENT)))
+        seq!(&param, opt(choice!(seq!(eat_string(","), opt(choice!(seq!(&TYPE_COMMENT)))), seq!(&TYPE_COMMENT))))
     )).into_boxed());
     let kwds = Rc::new(kwds.set(choice!(
         seq!(eat_string("**"), &param_no_default)
     )).into_boxed());
     let star_etc = Rc::new(star_etc.set(choice!(
-        seq!(eat_string("*"), choice!(seq!(&param_no_default, repeat(&param_maybe_default), &kwds), seq!(&param_no_default_star_annotation, repeat(&param_maybe_default), &kwds), seq!(eat_string(","), repeat(&param_maybe_default), &kwds))),
+        seq!(eat_string("*"), choice!(seq!(&param_no_default, repeat(&param_maybe_default), opt(choice!(seq!(&kwds)))), seq!(&param_no_default_star_annotation, repeat(&param_maybe_default), opt(choice!(seq!(&kwds)))), seq!(eat_string(","), repeat(&param_maybe_default), opt(choice!(seq!(&kwds)))))),
         seq!(&kwds)
     )).into_boxed());
     let slash_with_default = Rc::new(slash_with_default.set(choice!(
-        seq!(repeat(&param_no_default), repeat(&param_with_default), eat_string("/"), eat_string(","))
+        seq!(repeat(&param_no_default), repeat(&param_with_default), eat_string("/"), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let slash_no_default = Rc::new(slash_no_default.set(choice!(
-        seq!(repeat(&param_no_default), eat_string("/"), eat_string(","))
+        seq!(repeat(&param_no_default), eat_string("/"), opt(choice!(seq!(eat_string(",")))))
     )).into_boxed());
     let parameters = Rc::new(parameters.set(choice!(
-        seq!(&slash_no_default, repeat(&param_no_default), repeat(&param_with_default), &star_etc),
-        seq!(&slash_with_default, repeat(&param_with_default), &star_etc),
-        seq!(repeat(&param_no_default), repeat(&param_with_default), &star_etc),
-        seq!(repeat(&param_with_default), &star_etc),
+        seq!(&slash_no_default, repeat(&param_no_default), repeat(&param_with_default), opt(choice!(seq!(&star_etc)))),
+        seq!(&slash_with_default, repeat(&param_with_default), opt(choice!(seq!(&star_etc)))),
+        seq!(repeat(&param_no_default), repeat(&param_with_default), opt(choice!(seq!(&star_etc)))),
+        seq!(repeat(&param_with_default), opt(choice!(seq!(&star_etc)))),
         seq!(&star_etc)
     )).into_boxed());
     let params = Rc::new(params.set(choice!(
         seq!(&parameters)
     )).into_boxed());
     let function_def_raw = Rc::new(function_def_raw.set(choice!(
-        seq!(eat_string("def"), &NAME, &type_params, eat_string("("), &params, eat_string(")"), eat_string("->"), &expression, eat_string(":"), &func_type_comment, &block),
-        seq!(eat_string("async"), eat_string("def"), &NAME, &type_params, eat_string("("), &params, eat_string(")"), eat_string("->"), &expression, eat_string(":"), &func_type_comment, &block)
+        seq!(eat_string("def"), &NAME, opt(choice!(seq!(&type_params))), eat_string("("), opt(choice!(seq!(&params))), eat_string(")"), opt(choice!(seq!(eat_string("->"), &expression))), eat_string(":"), opt(choice!(seq!(&func_type_comment))), &block),
+        seq!(eat_string("async"), eat_string("def"), &NAME, opt(choice!(seq!(&type_params))), eat_string("("), opt(choice!(seq!(&params))), eat_string(")"), opt(choice!(seq!(eat_string("->"), &expression))), eat_string(":"), opt(choice!(seq!(&func_type_comment))), &block)
     )).into_boxed());
     let function_def = Rc::new(function_def.set(choice!(
-        seq!(eat_string("@"), &named_expression, &NEWLINE, repeat(choice!(seq!(eat_string("@"), &named_expression, &NEWLINE))), &function_def_raw),
+        seq!(eat_string("@"), &named_expression, &NEWLINE, opt(choice!(seq!(repeat(choice!(seq!(eat_string("@"), &named_expression, &NEWLINE)))))), &function_def_raw),
         seq!(&function_def_raw)
     )).into_boxed());
     let class_def_raw = Rc::new(class_def_raw.set(choice!(
-        seq!(eat_string("class"), &NAME, &type_params, eat_string("("), &arguments, eat_string(")"), eat_string(":"), &block)
+        seq!(eat_string("class"), &NAME, opt(choice!(seq!(&type_params))), opt(choice!(seq!(eat_string("("), opt(choice!(seq!(&arguments))), eat_string(")")))), eat_string(":"), &block)
     )).into_boxed());
     let class_def = Rc::new(class_def.set(choice!(
-        seq!(eat_string("@"), &named_expression, &NEWLINE, repeat(choice!(seq!(eat_string("@"), &named_expression, &NEWLINE))), &class_def_raw),
+        seq!(eat_string("@"), &named_expression, &NEWLINE, opt(choice!(seq!(repeat(choice!(seq!(eat_string("@"), &named_expression, &NEWLINE)))))), &class_def_raw),
         seq!(&class_def_raw)
     )).into_boxed());
     let decorators = Rc::new(decorators.set(choice!(
-        seq!(eat_string("@"), &named_expression, &NEWLINE, repeat(choice!(seq!(eat_string("@"), &named_expression, &NEWLINE))))
+        seq!(eat_string("@"), &named_expression, &NEWLINE, opt(choice!(seq!(repeat(choice!(seq!(eat_string("@"), &named_expression, &NEWLINE)))))))
     )).into_boxed());
     let block = Rc::new(block.set(choice!(
         seq!(&NEWLINE, &INDENT, &statements, &DEDENT),
-        seq!(&simple_stmt, choice!(seq!(&NEWLINE), seq!(repeat(eat_string(";")), &NEWLINE)))
+        seq!(&simple_stmt, choice!(seq!(&NEWLINE), seq!(repeat(eat_string(";")), opt(choice!(seq!(eat_string(";")))), &NEWLINE)))
     )).into_boxed());
     let dotted_name = Rc::new(dotted_name.set(choice!(
-        seq!(&NAME, repeat(choice!(seq!(eat_string("."), &NAME))))
+        seq!(&NAME, opt(choice!(seq!(repeat(choice!(seq!(eat_string("."), &NAME)))))))
     )).into_boxed());
     let dotted_as_name = Rc::new(dotted_as_name.set(choice!(
-        seq!(&dotted_name, eat_string("as"), &NAME)
+        seq!(&dotted_name, opt(choice!(seq!(eat_string("as"), &NAME))))
     )).into_boxed());
     let dotted_as_names = Rc::new(dotted_as_names.set(choice!(
         seq!(&dotted_as_name, repeat(eat_string(",")))
     )).into_boxed());
     let import_from_as_name = Rc::new(import_from_as_name.set(choice!(
-        seq!(&NAME, eat_string("as"), &NAME)
+        seq!(&NAME, opt(choice!(seq!(eat_string("as"), &NAME))))
     )).into_boxed());
     let import_from_as_names = Rc::new(import_from_as_names.set(choice!(
         seq!(&import_from_as_name, repeat(eat_string(",")))
     )).into_boxed());
     let import_from_targets = Rc::new(import_from_targets.set(choice!(
-        seq!(eat_string("("), &import_from_as_names, eat_string(","), eat_string(")")),
+        seq!(eat_string("("), &import_from_as_names, opt(choice!(seq!(eat_string(",")))), eat_string(")")),
         seq!(&import_from_as_names),
         seq!(eat_string("*"))
     )).into_boxed());
@@ -830,7 +830,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&import_from)
     )).into_boxed());
     let assert_stmt = Rc::new(assert_stmt.set(choice!(
-        seq!(eat_string("assert"), &expression, eat_string(","), &expression)
+        seq!(eat_string("assert"), &expression, opt(choice!(seq!(eat_string(","), &expression))))
     )).into_boxed());
     let yield_stmt = Rc::new(yield_stmt.set(choice!(
         seq!(&yield_expr)
@@ -845,10 +845,10 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(eat_string("global"), &NAME, repeat(eat_string(",")))
     )).into_boxed());
     let raise_stmt = Rc::new(raise_stmt.set(choice!(
-        seq!(eat_string("raise"), &expression, eat_string("from"), &expression)
+        seq!(eat_string("raise"), opt(choice!(seq!(&expression, opt(choice!(seq!(eat_string("from"), &expression)))))))
     )).into_boxed());
     let return_stmt = Rc::new(return_stmt.set(choice!(
-        seq!(eat_string("return"), &star_expressions)
+        seq!(eat_string("return"), opt(choice!(seq!(&star_expressions))))
     )).into_boxed());
     let augassign = Rc::new(augassign.set(choice!(
         seq!(eat_string("+=")),
@@ -870,19 +870,19 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&star_expressions)
     )).into_boxed());
     let assignment = Rc::new(assignment.set(choice!(
-        seq!(&NAME, eat_string(":"), &expression, eat_string("="), &annotated_rhs),
-        seq!(choice!(seq!(eat_string("("), &single_target, eat_string(")")), seq!(&single_subscript_attribute_target)), eat_string(":"), &expression, eat_string("="), &annotated_rhs),
-        seq!(&star_targets, eat_string("="), repeat(choice!(seq!(&star_targets, eat_string("=")))), choice!(seq!(&yield_expr), seq!(&star_expressions)), &TYPE_COMMENT),
+        seq!(&NAME, eat_string(":"), &expression, opt(choice!(seq!(eat_string("="), &annotated_rhs)))),
+        seq!(choice!(seq!(eat_string("("), &single_target, eat_string(")")), seq!(&single_subscript_attribute_target)), eat_string(":"), &expression, opt(choice!(seq!(eat_string("="), &annotated_rhs)))),
+        seq!(&star_targets, eat_string("="), opt(choice!(seq!(repeat(choice!(seq!(&star_targets, eat_string("="))))))), choice!(seq!(&yield_expr), seq!(&star_expressions)), opt(choice!(seq!(&TYPE_COMMENT)))),
         seq!(&single_target, &augassign, choice!(seq!(&yield_expr), seq!(&star_expressions)))
     )).into_boxed());
     let compound_stmt = Rc::new(compound_stmt.set(choice!(
-        seq!(choice!(seq!(&function_def), seq!(&if_stmt), seq!(&class_def), seq!(&with_stmt), seq!(&for_stmt), seq!(&try_stmt), seq!(&while_stmt), seq!(&match_stmt)), repeat(choice!(seq!(&function_def), seq!(&if_stmt), seq!(&class_def), seq!(&with_stmt), seq!(&for_stmt), seq!(&try_stmt), seq!(&while_stmt))))
+        seq!(choice!(seq!(&function_def), seq!(&if_stmt), seq!(&class_def), seq!(&with_stmt), seq!(&for_stmt), seq!(&try_stmt), seq!(&while_stmt), seq!(&match_stmt)), opt(choice!(seq!(repeat(choice!(seq!(&function_def), seq!(&if_stmt), seq!(&class_def), seq!(&with_stmt), seq!(&for_stmt), seq!(&try_stmt), seq!(&while_stmt)))))))
     )).into_boxed());
     let simple_stmt = Rc::new(simple_stmt.set(choice!(
-        seq!(choice!(seq!(&assignment), seq!(&type_alias), seq!(&star_expressions), seq!(&return_stmt), seq!(&import_stmt), seq!(&raise_stmt), seq!(eat_string("pass")), seq!(&del_stmt), seq!(&yield_stmt), seq!(&assert_stmt), seq!(eat_string("break")), seq!(eat_string("continue")), seq!(&global_stmt), seq!(&nonlocal_stmt)), repeat(choice!(seq!(&type_alias), seq!(&return_stmt), seq!(&import_stmt), seq!(&raise_stmt), seq!(&del_stmt), seq!(&yield_stmt), seq!(&assert_stmt), seq!(&global_stmt), seq!(&nonlocal_stmt))))
+        seq!(choice!(seq!(&assignment), seq!(&type_alias), seq!(&star_expressions), seq!(&return_stmt), seq!(&import_stmt), seq!(&raise_stmt), seq!(eat_string("pass")), seq!(&del_stmt), seq!(&yield_stmt), seq!(&assert_stmt), seq!(eat_string("break")), seq!(eat_string("continue")), seq!(&global_stmt), seq!(&nonlocal_stmt)), opt(choice!(seq!(repeat(choice!(seq!(&type_alias), seq!(&return_stmt), seq!(&import_stmt), seq!(&raise_stmt), seq!(&del_stmt), seq!(&yield_stmt), seq!(&assert_stmt), seq!(&global_stmt), seq!(&nonlocal_stmt)))))))
     )).into_boxed());
     let simple_stmts = Rc::new(simple_stmts.set(choice!(
-        seq!(&simple_stmt, choice!(seq!(&NEWLINE), seq!(repeat(eat_string(";")), &NEWLINE)))
+        seq!(&simple_stmt, choice!(seq!(&NEWLINE), seq!(repeat(eat_string(";")), opt(choice!(seq!(eat_string(";")))), &NEWLINE)))
     )).into_boxed());
     let statement_newline = Rc::new(statement_newline.set(choice!(
         seq!(&compound_stmt, &NEWLINE),
@@ -898,7 +898,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(repeat(&statement))
     )).into_boxed());
     let func_type = Rc::new(func_type.set(choice!(
-        seq!(eat_string("("), &type_expressions, eat_string(")"), eat_string("->"), &expression, repeat(&NEWLINE), &ENDMARKER)
+        seq!(eat_string("("), opt(choice!(seq!(&type_expressions))), eat_string(")"), eat_string("->"), &expression, repeat(&NEWLINE), &ENDMARKER)
     )).into_boxed());
     let eval = Rc::new(eval.set(choice!(
         seq!(&expressions, repeat(&NEWLINE), &ENDMARKER)
@@ -907,7 +907,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&statement_newline)
     )).into_boxed());
     let file = Rc::new(file.set(choice!(
-        seq!(&statements, repeat(&ENDMARKER))
+        seq!(opt(choice!(seq!(&statements))), repeat(&ENDMARKER))
     )).into_boxed());
     file.into_boxed().into()
 }

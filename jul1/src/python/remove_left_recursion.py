@@ -285,14 +285,14 @@ class Choice(Node):
         def group_by_first_element(sequences: list[list[Node]]) -> dict[DumbHashable, list[list[Node]]]:
             groups = defaultdict(list)
             for seq in sequences:
-                if seq:
-                    groups[DumbHashable(seq[0])].append(seq)
+                groups[DumbHashable(seq[0])].append(seq)
             return groups
 
         sequences = []
         for child in children:
             if isinstance(child, Seq):
-                sequences.append(child.children)
+                if len(child.children) > 0:
+                    sequences.append(child.children)
             else:
                 sequences.append([child])
 
@@ -312,6 +312,9 @@ class Choice(Node):
                 new_children.append(seq(*prefixes, Choice([seq(*suffix) for suffix in suffixes])))
 
         new_children = [child.simplify() for child in new_children]
+
+        if eps() in children:
+            new_children.append(eps())
 
         if len(new_children) == 1:
             return new_children[0]
@@ -489,6 +492,7 @@ if __name__ == '__main__':
         seq(term('b'), term('c'), term('d')),
         seq(term('b'), term('d')),
         term('e'),
+        eps(),
     )
     print(expr)
     print(expr.simplify())
