@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use unicode_general_category::GeneralCategory;
 
 use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice};
@@ -420,34 +421,331 @@ pub fn STRING() -> Symbol<Box<DynCombinator>> {
 }
 
 pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
-    todo!()
+    let fstringprefix = choice!(
+        eat_char_choice("fF"),
+        seq!(eat_char_choice("fF"), eat_char_choice("rR")),
+        seq!(eat_char_choice("rR"), eat_char_choice("fF"))
+    );
+
+    let fstring_start = choice!(
+        seq!(eat_char('\''), repeat0(choice!(eat_char_negation_choice("\\\'{"), seq!(eat_char('\\'), eat_char_negation_choice("\0"))))),
+        seq!(eat_char('"'), repeat0(choice!(eat_char_negation_choice("\\\"{"), seq!(eat_char('\\'), eat_char_negation_choice("\0"))))),
+        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0"))))),
+        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))))
+    );
+
+    python_symbol(seq!(fstringprefix, fstring_start))
 }
 
 pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
-    todo!()
+    let fstring_middle = choice!(
+        repeat0(choice!(eat_char_negation_choice("\\\'{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))),
+        repeat0(choice!(eat_char_negation_choice("\\\"{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))),
+        repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))),
+        repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0"))))
+    );
+
+    python_symbol(fstring_middle)
 }
 
 pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
-    todo!()
+    let fstring_end = choice!(
+        seq!(repeat0(choice!(eat_char_negation_choice("\\\'{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_char('\'')),
+        seq!(repeat0(choice!(eat_char_negation_choice("\\\"{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_char('"')),
+        seq!(repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_string("'''")),
+        seq!(repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_string("\"\"\""))
+    );
+
+    python_symbol(fstring_end)
 }
 
+// .. _numbers:
+//
+// Numeric literals
+// ----------------
+//
+// .. index:: number, numeric literal, integer literal
+//    floating point literal, hexadecimal literal
+//    octal literal, binary literal, decimal literal, imaginary literal, complex literal
+//
+// There are three types of numeric literals: integers, floating point numbers, and
+// imaginary numbers.  There are no complex literals (complex numbers can be formed
+// by adding a real number and an imaginary number).
+//
+// Note that numeric literals do not include a sign; a phrase like ``-1`` is
+// actually an expression composed of the unary operator '``-``' and the literal
+// ``1``.
+//
+//
+// .. index::
+//    single: 0b; integer literal
+//    single: 0o; integer literal
+//    single: 0x; integer literal
+//    single: _ (underscore); in numeric literal
+//
+// .. _integers:
+//
+// Integer literals
+// ----------------
+//
+// Integer literals are described by the following lexical definitions:
+//
+// .. productionlist:: python-grammar
+//    integer: `decinteger` | `bininteger` | `octinteger` | `hexinteger`
+//    decinteger: `nonzerodigit` (["_"] `digit`)* | "0"+ (["_"] "0")*
+//    bininteger: "0" ("b" | "B") (["_"] `bindigit`)+
+//    octinteger: "0" ("o" | "O") (["_"] `octdigit`)+
+//    hexinteger: "0" ("x" | "X") (["_"] `hexdigit`)+
+//    nonzerodigit: "1"..."9"
+//    digit: "0"..."9"
+//    bindigit: "0" | "1"
+//    octdigit: "0"..."7"
+//    hexdigit: `digit` | "a"..."f" | "A"..."F"
+//
+// There is no limit for the length of integer literals apart from what can be
+// stored in available memory.
+//
+// Underscores are ignored for determining the numeric value of the literal.  They
+// can be used to group digits for enhanced readability.  One underscore can occur
+// between digits, and after base specifiers like ``0x``.
+//
+// Note that leading zeros in a non-zero decimal number are not allowed. This is
+// for disambiguation with C-style octal literals, which Python used before version
+// 3.0.
+//
+// Some examples of integer literals::
+//
+//    7     2147483647                        0o177    0b100110111
+//    3     79228162514264337593543950336     0o377    0xdeadbeef
+//          100_000_000_000                   0b_1110_0101
+//
+// .. versionchanged:: 3.6
+//    Underscores are now allowed for grouping purposes in literals.
+//
+//
+// .. index::
+//    single: . (dot); in numeric literal
+//    single: e; in numeric literal
+//    single: _ (underscore); in numeric literal
+// .. _floating:
+//
+// Floating point literals
+// -----------------------
+//
+// Floating point literals are described by the following lexical definitions:
+//
+// .. productionlist:: python-grammar
+//    floatnumber: `pointfloat` | `exponentfloat`
+//    pointfloat: [`digitpart`] `fraction` | `digitpart` "."
+//    exponentfloat: (`digitpart` | `pointfloat`) `exponent`
+//    digitpart: `digit` (["_"] `digit`)*
+//    fraction: "." `digitpart`
+//    exponent: ("e" | "E") ["+" | "-"] `digitpart`
+//
+// Note that the integer and exponent parts are always interpreted using radix 10.
+// For example, ``077e010`` is legal, and denotes the same number as ``77e10``. The
+// allowed range of floating point literals is implementation-dependent.  As in
+// integer literals, underscores are supported for digit grouping.
+//
+// Some examples of floating point literals::
+//
+//    3.14    10.    .001    1e100    3.14e-10    0e0    3.14_15_93
+//
+// .. versionchanged:: 3.6
+//    Underscores are now allowed for grouping purposes in literals.
+//
+//
+// .. index::
+//    single: j; in numeric literal
+// .. _imaginary:
+//
+// Imaginary literals
+// ------------------
+//
+// Imaginary literals are described by the following lexical definitions:
+//
+// .. productionlist:: python-grammar
+//    imagnumber: (`floatnumber` | `digitpart`) ("j" | "J")
+//
+// An imaginary literal yields a complex number with a real part of 0.0.  Complex
+// numbers are represented as a pair of floating point numbers and have the same
+// restrictions on their range.  To create a complex number with a nonzero real
+// part, add a floating point number to it, e.g., ``(3+4j)``.  Some examples of
+// imaginary literals::
+//
+//    3.14j   10.j    10j     .001j   1e100j   3.14e-10j   3.14_15_93j
 pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
-    todo!()
+    let digit = eat_byte_range(b'0', b'9');
+    let nonzerodigit = eat_byte_range(b'1', b'9');
+    let bindigit = eat_byte_range(b'0', b'1');
+    let octdigit = eat_byte_range(b'0', b'7');
+    let hexdigit = choice!(digit, eat_byte_range(b'a', b'f'), eat_byte_range(b'A', b'F'));
+
+    let decinteger = choice!(
+        seq!(nonzerodigit, repeat0(seq!(opt(eat_char('_')), digit))),
+        seq!(repeat1(eat_char('0')), repeat0(seq!(opt(eat_char('_')), eat_char('0'))))
+    );
+    let bininteger = seq!(eat_char('0'), eat_char_choice("bB"), repeat1(seq!(opt(eat_char('_')), bindigit)));
+    let octinteger = seq!(eat_char('0'), eat_char_choice("oO"), repeat1(seq!(opt(eat_char('_')), octdigit)));
+    let hexinteger = seq!(eat_char('0'), eat_char_choice("xX"), repeat1(seq!(opt(eat_char('_')), hexdigit)));
+
+    let integer = choice!(decinteger, bininteger, octinteger, hexinteger);
+
+    let digitpart = Rc::new(seq!(digit, repeat0(seq!(opt(eat_char('_')), digit))));
+    let fraction = seq!(eat_char('.'), digitpart.clone());
+    let exponent = seq!(eat_char_choice("eE"), opt(eat_char_choice("+-")), digitpart.clone());
+
+    let pointfloat = Rc::new(choice!(
+        seq!(opt(digitpart.clone()), fraction),
+        seq!(digitpart.clone(), eat_char('.'))
+    ));
+    let exponentfloat = seq!(choice!(digitpart.clone(), pointfloat.clone()), exponent);
+
+    let floatnumber = Rc::new(choice!(pointfloat, exponentfloat));
+
+    let imagnumber = seq!(choice!(floatnumber.clone(), digitpart), eat_char_choice("jJ"));
+
+    python_symbol(choice!(integer, floatnumber, imagnumber))
 }
 
+// .. _comments:
+//
+// Comments
+// --------
+//
+// .. index:: comment, hash character
+//    single: # (hash); comment
+//
+// A comment starts with a hash character (``#``) that is not part of a string
+// literal, and ends at the end of the physical line.  A comment signifies the end
+// of the logical line unless the implicit line joining rules are invoked. Comments
+// are ignored by the syntax.
 pub fn comment() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
     seq!(eat_char('#'), repeat0(eat_char_negation_choice("\n\r")))
 }
 
-pub fn TYPE_COMMENT() -> Symbol<Box<DynCombinator>> {
-    python_symbol(seq!(comment()))
-}
-
+// .. _line-structure:
+//
+// Line structure
+// ==============
+//
+// .. index:: line structure
+//
+// A Python program is divided into a number of *logical lines*.
+//
+//
+// .. _logical-lines:
+//
+// Logical lines
+// -------------
+//
+// .. index:: logical line, physical line, line joining, NEWLINE token
+//
+// The end of a logical line is represented by the token NEWLINE.  Statements
+// cannot cross logical line boundaries except where NEWLINE is allowed by the
+// syntax (e.g., between statements in compound statements). A logical line is
+// constructed from one or more *physical lines* by following the explicit or
+// implicit *line joining* rules.
+//
+//
+// .. _physical-lines:
+//
+// Physical lines
+// --------------
+//
+// A physical line is a sequence of characters terminated by an end-of-line
+// sequence.  In source files and strings, any of the standard platform line
+// termination sequences can be used - the Unix form using ASCII LF (linefeed),
+// the Windows form using the ASCII sequence CR LF (return followed by linefeed),
+// or the old Macintosh form using the ASCII CR (return) character.  All of these
+// forms can be used equally, regardless of platform. The end of input also serves
+// as an implicit terminator for the final physical line.
+//
+// When embedding Python, source code strings should be passed to Python APIs using
+// the standard C conventions for newline characters (the ``\n`` character,
+// representing ASCII LF, is the line terminator).
 pub fn NEWLINE() -> Symbol<Box<DynCombinator>> {
     let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
     python_symbol(seq!(repeat1(blank_line), dent()))
 }
 
+// .. _indentation:
+//
+// Indentation
+// -----------
+//
+// .. index:: indentation, leading whitespace, space, tab, grouping, statement grouping
+//
+// Leading whitespace (spaces and tabs) at the beginning of a logical line is used
+// to compute the indentation level of the line, which in turn is used to determine
+// the grouping of statements.
+//
+// Tabs are replaced (from left to right) by one to eight spaces such that the
+// total number of characters up to and including the replacement is a multiple of
+// eight (this is intended to be the same rule as used by Unix).  The total number
+// of spaces preceding the first non-blank character then determines the line's
+// indentation.  Indentation cannot be split over multiple physical lines using
+// backslashes; the whitespace up to the first backslash determines the
+// indentation.
+//
+// Indentation is rejected as inconsistent if a source file mixes tabs and spaces
+// in a way that makes the meaning dependent on the worth of a tab in spaces; a
+// :exc:`TabError` is raised in that case.
+//
+// **Cross-platform compatibility note:** because of the nature of text editors on
+// non-UNIX platforms, it is unwise to use a mixture of spaces and tabs for the
+// indentation in a single source file.  It should also be noted that different
+// platforms may explicitly limit the maximum indentation level.
+//
+// A formfeed character may be present at the start of the line; it will be ignored
+// for the indentation calculations above.  Formfeed characters occurring elsewhere
+// in the leading whitespace have an undefined effect (for instance, they may reset
+// the space count to zero).
+//
+// .. index:: INDENT token, DEDENT token
+//
+// The indentation levels of consecutive lines are used to generate INDENT and
+// DEDENT tokens, using a stack, as follows.
+//
+// Before the first line of the file is read, a single zero is pushed on the stack;
+// this will never be popped off again.  The numbers pushed on the stack will
+// always be strictly increasing from bottom to top.  At the beginning of each
+// logical line, the line's indentation level is compared to the top of the stack.
+// If it is equal, nothing happens. If it is larger, it is pushed on the stack, and
+// one INDENT token is generated.  If it is smaller, it *must* be one of the
+// numbers occurring on the stack; all numbers on the stack that are larger are
+// popped off, and for each number popped off a DEDENT token is generated.  At the
+// end of the file, a DEDENT token is generated for each number remaining on the
+// stack that is larger than zero.
+//
+// Here is an example of a correctly (though confusingly) indented piece of Python
+// code::
+//
+//    def perm(l):
+//            # Compute the list of all permutations of l
+//        if len(l) <= 1:
+//                     return [l]
+//        r = []
+//        for i in range(len(l)):
+//                s = l[:i] + l[i+1:]
+//                p = perm(s)
+//                for x in p:
+//                 r.append(l[i:i+1] + x)
+//        return r
+//
+// The following example shows various indentation errors::
+//
+//     def perm(l):                       # error: first line indented
+//    for i in range(len(l)):             # error: not indented
+//        s = l[:i] + l[i+1:]
+//            p = perm(l[:i] + l[i+1:])   # error: unexpected indent
+//            for x in p:
+//                    r.append(l[i:i+1] + x)
+//                return r                # error: inconsistent dedent
+//
+// (Actually, the first three errors are detected by the parser; only the last
+// error is found by the lexical analyzer --- the indentation of ``return r`` does
+// not match a level popped off the stack.)
 pub fn INDENT() -> Symbol<Box<DynCombinator>> {
     python_symbol(indent())
 }
@@ -458,4 +756,8 @@ pub fn DEDENT() -> Symbol<Box<DynCombinator>> {
 
 pub fn ENDMARKER() -> Symbol<Box<DynCombinator>> {
     python_symbol(eps())
+}
+
+pub fn TYPE_COMMENT() -> Symbol<Box<DynCombinator>> {
+    python_symbol(seq!(eat_string("#"), opt(whitespace()), eat_string("type:"), opt(whitespace()), repeat0(eat_char_negation_choice("\n\r"))))
 }

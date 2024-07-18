@@ -65,8 +65,8 @@ fn test_gpt4_suggestions_0() {
     assert_parses!(combinator, "123.456", "Floating-point values");
     assert_parses!(combinator, "-123.456", "Floating-point values");
     assert_parses!(combinator, "0.0", "Floating-point values");
-    // assert_parses!(combinator, "1.23e10", "Scientific notation");
-    // assert_parses!(combinator, "-1.23e-10", "Scientific notation");
+    assert_parses!(combinator, "1.23e10", "Scientific notation");
+    assert_parses!(combinator, "-1.23e-10", "Scientific notation");
     assert_parses!(combinator, "12345678901234567890", "Very large numbers");
     assert_parses!(combinator, "0.000000000123456789", "Very small numbers");
 

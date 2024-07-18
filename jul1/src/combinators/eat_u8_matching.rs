@@ -1,6 +1,7 @@
 use crate::{CombinatorTrait, ParserTrait, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
+#[derive(Copy, Clone)]
 pub struct EatU8 {
     u8set: U8Set,
 }
