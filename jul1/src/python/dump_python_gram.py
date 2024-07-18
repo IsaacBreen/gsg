@@ -187,7 +187,7 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
     f.write(
-        'use crate::{choice, seq, repeat, repeat as repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, python_newline, indent, dedent, DynCombinator, CombinatorTrait, symbol};\n'
+        'use crate::{choice, seq, repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, python_newline, indent, dedent, DynCombinator, CombinatorTrait, symbol};\n'
     )
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('\n')

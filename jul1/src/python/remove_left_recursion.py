@@ -5,7 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum, auto
 from io import StringIO
-from typing import Self
+from typing import Self, Iterable
 
 
 class Node(abc.ABC):
@@ -116,7 +116,22 @@ def infer_rule_types(rules: dict[Ref, Node]) -> dict[Ref, RuleType]:
     return rule_types
 
 
+def iter_nodes(node: Node) -> Iterable[Node]:
+    match node:
+        case Seq(children) | Choice(children):
+            yield node
+            for child in children:
+                yield from iter_nodes(child)
+        case Repeat1(child):
+            yield node
+            yield from iter_nodes(child)
+        case _:
+            yield node
+
 def validate_rules(rules: dict[Ref, Node]) -> None:
+    for ref, node in rules.items():
+        for child in iter_nodes(node):
+            assert isinstance(child, Node)
     rule_types = infer_rule_types(rules)
     for ref, rule_type in rule_types.items():
         firsts = first_refs(rules[ref], get_nullable_rules(rules))
