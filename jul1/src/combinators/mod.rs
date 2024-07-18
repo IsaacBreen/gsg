@@ -21,3 +21,4 @@ mod frame_stack_ops;
 mod indent;
 mod brute_force;
 mod symbol;
+mod tag;

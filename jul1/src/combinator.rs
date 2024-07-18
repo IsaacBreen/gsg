@@ -7,6 +7,7 @@ use crate::parse_state::{RightData, UpData};
 pub struct Stats
 {
     pub active_parser_type_counts: BTreeMap<String, usize>,
+    pub active_tags: BTreeMap<String, usize>,
 }
 
 pub trait CombinatorTrait
