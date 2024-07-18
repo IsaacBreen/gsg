@@ -8,6 +8,7 @@ use crate::U8Set;
 pub struct Stats
 {
     pub active_parser_type_counts: BTreeMap<String, usize>,
+    pub active_symbols: BTreeMap<String, usize>,
     pub active_tags: BTreeMap<String, usize>,
     pub active_string_matchers: BTreeMap<String, usize>,
     pub active_u8_matchers: BTreeMap<U8Set, usize>,
