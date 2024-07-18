@@ -24,3 +24,4 @@ mod bitset256;
 mod tests;
 mod frame_stack;
 mod python;
+mod unicode;
