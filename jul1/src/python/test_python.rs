@@ -38,7 +38,7 @@ fn test_gpt4_suggestions_0() {
     // Edge Cases
     assert_parses!(combinator, " ", "Input with only whitespace. A valid completion is ' \n...'");
     assert_parses!(combinator, " \t\n ", "Input with mixed whitespace");
-    assert_parses!(combinator, "こんにちは", "Input with Unicode characters");
+    assert_parses!(combinator, "def こんにちは(x):", "Input with Unicode characters");
     assert_fails!(combinator, "1 + \n2", "Input with unescaped newline");
     assert_parses!(combinator, "1 +\\\nsequence", "Arithmetic expression with escaped newline");
     assert_parses!(combinator, "(1 + \n2) * 3", "Arithmetic expression with unescaped newline inside parentheses");
