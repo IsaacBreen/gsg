@@ -123,27 +123,23 @@ pub fn NAME() -> Symbol<Box<DynCombinator>> {
 }
 
 pub fn TYPE_COMMENT() -> Symbol<Box<DynCombinator>> {
-    python_symbol(seq!(eat_char('#'), repeat0(eat_char(' '))))
+    python_symbol(seq!(comment()))
 }
 
 pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
-    python_symbol(eat_char('f'))
+    todo!()
 }
 
 pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
-    python_symbol(repeat1(eat_byte_range(b'0', b'9')))
+    todo!()
 }
 
 pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
-    python_symbol(eat_char('"'))
-}
-
-pub fn SOFT_KEYWORD() -> Symbol<Box<DynCombinator>> {
-    python_symbol(choice!(seq!(eat_char('i'), eat_char('f')), seq!(eat_char('e'), eat_char('l'))))
+    todo!()
 }
 
 pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
-    python_symbol(choice!(repeat1(eat_byte_range(b'0', b'9')), seq!(repeat1(eat_byte_range(b'0', b'9')), seq!(eat_char('.'), repeat1(eat_byte_range(b'0', b'9'))))))
+    todo!()
 }
 
 // From the Python docs:
@@ -210,9 +206,12 @@ pub fn STRING() -> Symbol<Box<DynCombinator>> {
     python_symbol(seq!(opt(stringprefix), choice!(shortstring, longstring)))
 }
 
+pub fn comment() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
+    seq!(eat_char('#'), repeat0(eat_char_negation_choice("\n\r")))
+}
+
 pub fn NEWLINE() -> Symbol<Box<DynCombinator>> {
-    let comment = seq!(eat_char('#'), repeat0(eat_char_negation_choice("\n\r")));
-    let blank_line = seq!(repeat0(non_breaking_space()), opt(comment), breaking_space());
+    let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
     python_symbol(seq!(repeat1(blank_line), dent()))
 }
 
