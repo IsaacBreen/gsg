@@ -6,13 +6,11 @@ from pprint import pprint
 from typing import Dict
 
 import requests
-from pegen.grammar import Grammar, Rhs, Alt, NamedItem, Leaf, NameLeaf, StringLeaf, Group, Opt, Repeat, Forced, Lookahead, \
-    PositiveLookahead, NegativeLookahead, Repeat0, Repeat1, Gather, Cut, Rule
+import pegen.grammar
 from pegen.grammar_parser import GeneratedParser
 from pegen.tokenizer import Tokenizer
 
-from remove_left_recursion import resolve_left_recursion, Node, Seq, Choice, Term, Ref, eps, fail, Repeat1, RuleType, validate_rules, \
-    first_refs
+import remove_left_recursion
 from remove_left_recursion import get_nullable_rules, get_firsts
 
 def fetch_grammar(url: str) -> str:
@@ -20,160 +18,151 @@ def fetch_grammar(url: str) -> str:
     response.raise_for_status()
     return response.text
 
-def parse_grammar(text: str) -> Grammar:
+def parse_grammar(text: str) -> pegen.grammar.Grammar:
     with StringIO(text) as f:
         tokenizer = Tokenizer(tokenize.generate_tokens(f.readline))
         parser = GeneratedParser(tokenizer)
         grammar = parser.start()
         return grammar
 
-def pegen_to_custom(grammar: Grammar) -> dict[Ref, Node]:
-    def rhs_to_node(rhs: Rhs) -> Node:
+def pegen_to_custom(grammar: pegen.grammar.Grammar) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
+    def rhs_to_node(rhs: pegen.grammar.Rhs) -> remove_left_recursion.Node:
         if len(rhs.alts) == 1:
             return alt_to_node(rhs.alts[0])
-        return Choice([alt_to_node(alt) for alt in rhs.alts])
+        return remove_left_recursion.Choice([alt_to_node(alt) for alt in rhs.alts])
 
-    def alt_to_node(alt: Alt) -> Node:
+    def alt_to_node(alt: pegen.grammar.Alt) -> remove_left_recursion.Node:
         if len(alt.items) == 1:
             return named_item_to_node(alt.items[0])
-        return Seq([named_item_to_node(item) for item in alt.items])
+        return remove_left_recursion.Seq([named_item_to_node(item) for item in alt.items])
 
-    def named_item_to_node(item: NamedItem) -> Node:
+    def named_item_to_node(item: pegen.grammar.NamedItem) -> remove_left_recursion.Node:
         return item_to_node(item.item)
 
-    def item_to_node(item) -> Node:
-        if isinstance(item, NameLeaf):
+    def item_to_node(item) -> remove_left_recursion.Node:
+        if isinstance(item, pegen.grammar.NameLeaf):
             value = item.value
             if value.startswith('invalid_'):
-                return fail()
+                return remove_left_recursion.fail()
             else:
-                return Ref(value)
-        elif isinstance(item, StringLeaf):
+                return remove_left_recursion.Ref(value)
+        elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
-            return Term(value)
-        elif isinstance(item, Group):
+            return remove_left_recursion.Term(value)
+        elif isinstance(item, pegen.grammar.Group):
             return rhs_to_node(item.rhs)
-        elif isinstance(item, Opt):
-            return Choice([item_to_node(item.node), eps()])
-        elif isinstance(item, Gather):
-            return Seq([item_to_node(item.node), Repeat1(item_to_node(item.separator))])
-        elif isinstance(item, Repeat):
-            return Repeat1(item_to_node(item.node))
-        elif isinstance(item, Repeat0):
-            return Choice([Repeat1(item_to_node(item.node)), eps()])
-        elif isinstance(item, Repeat1):
-            return Repeat1(item_to_node(item.node))
-        elif isinstance(item, Forced):
+        elif isinstance(item, pegen.grammar.Opt):
+            return remove_left_recursion.Choice([item_to_node(item.node), remove_left_recursion.eps()])
+        elif isinstance(item, pegen.grammar.Gather):
+            return remove_left_recursion.Seq([item_to_node(item.node), remove_left_recursion.Repeat1(item_to_node(item.separator))])
+        elif isinstance(item, pegen.grammar.Repeat0):
+            return remove_left_recursion.Choice([remove_left_recursion.Repeat1(item_to_node(item.node)), remove_left_recursion.eps()])
+        elif isinstance(item, pegen.grammar.Repeat1):
+            return remove_left_recursion.Repeat1(item_to_node(item.node))
+        elif isinstance(item, pegen.grammar.Forced):
             return item_to_node(item.node)
-        elif isinstance(item, Lookahead):
-            return eps()
-        elif isinstance(item, PositiveLookahead):
-            return eps()
-        elif isinstance(item, NegativeLookahead):
-            return eps()
-        elif isinstance(item, Rhs):
+        elif isinstance(item, pegen.grammar.PositiveLookahead):
+            return remove_left_recursion.eps()
+        elif isinstance(item, pegen.grammar.NegativeLookahead):
+            return remove_left_recursion.eps()
+        elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_node(item)
-        elif isinstance(item, Cut):
-            return eps()
+        elif isinstance(item, pegen.grammar.Cut):
+            return remove_left_recursion.eps()
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
     rules = {}
     for name, rule in grammar.rules.items():
-        ref = Ref(name)
+        ref = remove_left_recursion.Ref(name)
         if not ref.name.startswith('invalid_'):
             rules[ref] = rhs_to_node(rule.rhs)
     return rules
 
-def custom_to_pegen(rules: dict[Ref, Node]) -> Grammar:
-    def node_to_rhs(node: Node) -> Rhs:
-        if isinstance(node, Choice):
-            return Rhs([node_to_alt(child) for child in node.children])
-        return Rhs([node_to_alt(node)])
+def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion.Node]) -> pegen.grammar.Grammar:
+    def node_to_rhs(node: remove_left_recursion.Node) -> pegen.grammar.Rhs:
+        if isinstance(node, remove_left_recursion.Choice):
+            return pegen.grammar.Rhs([node_to_alt(child) for child in node.children])
+        return pegen.grammar.Rhs([node_to_alt(node)])
 
-    def node_to_alt(node: Node) -> Alt:
-        if isinstance(node, Seq):
+    def node_to_alt(node: remove_left_recursion.Node) -> pegen.grammar.Alt:
+        if isinstance(node, remove_left_recursion.Seq):
             assert len(node.children) > 0
-            return Alt([NamedItem(None, node_to_item(child)) for child in node.children])
-        return Alt([NamedItem(None, node_to_item(node))])
+            return pegen.grammar.Alt([pegen.grammar.NamedItem(None, node_to_item(child)) for child in node.children])
+        return pegen.grammar.Alt([pegen.grammar.NamedItem(None, node_to_item(node))])
 
-    def node_to_item(node: Node):
-        if isinstance(node, Term):
-            return StringLeaf(node.value)
-        elif isinstance(node, Ref):
-            return NameLeaf(node.name)
-        elif isinstance(node, Seq):
+    def node_to_item(node: remove_left_recursion.Node):
+        if isinstance(node, remove_left_recursion.Term):
+            return pegen.grammar.StringLeaf(node.value)
+        elif isinstance(node, remove_left_recursion.Ref):
+            return pegen.grammar.NameLeaf(node.name)
+        elif isinstance(node, remove_left_recursion.Seq):
             assert len(node.children) > 0
-            return Group(node_to_rhs(node))
-        elif isinstance(node, Choice):
-            if eps() in node.children:
+            return pegen.grammar.Group(node_to_rhs(node))
+        elif isinstance(node, remove_left_recursion.Choice):
+            if remove_left_recursion.eps() in node.children:
                 children = node.children.copy()
-                children.remove(eps())
-                return Opt(node_to_rhs(Choice(children)))
+                children.remove(remove_left_recursion.eps())
+                return pegen.grammar.Opt(node_to_rhs(remove_left_recursion.Choice(children)))
             assert len(node.children) > 0
-            return Group(node_to_rhs(node))
-        elif isinstance(node, Repeat1):
-            return Repeat(node_to_item(node.child))
+            return pegen.grammar.Group(node_to_rhs(node))
+        elif isinstance(node, remove_left_recursion.Repeat1):
+            return pegen.grammar.Repeat1(node_to_item(node.child))
         else:
             raise ValueError(f"Unknown node type: {type(node)}")
 
     pegen_rules = {}
     for ref, node in rules.items():
-        pegen_rules[ref.name] = Rule(ref.name, None, node_to_rhs(node))
-    return Grammar(pegen_rules.values(), {})
+        pegen_rules[ref.name] = pegen.grammar.Rule(ref.name, None, node_to_rhs(node))
+    return pegen.grammar.Grammar(pegen_rules.values(), {})
 
-def grammar_to_rust(grammar: Grammar) -> str:
-    def rhs_to_rust(rhs: Rhs, top_level: bool = False) -> str:
+def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
+    def rhs_to_rust(rhs: pegen.grammar.Rhs, top_level: bool = False) -> str:
         if top_level:
             return "choice!(\n        " + ",\n        ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n    )"
         else:
             return "choice!(" + ", ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
 
-    def alt_to_rust(alt: Alt) -> str:
+    def alt_to_rust(alt: pegen.grammar.Alt) -> str:
         return "seq!(" + ", ".join(named_item_to_rust(item) for item in alt.items) + ")"
 
-    def named_item_to_rust(item: NamedItem) -> str:
+    def named_item_to_rust(item: pegen.grammar.NamedItem) -> str:
         return item_to_rust(item.item)
 
     def item_to_rust(item) -> str:
-        if isinstance(item, NameLeaf):
+        if isinstance(item, pegen.grammar.NameLeaf):
             value = item.value
             return f'&{value}'
-        elif isinstance(item, StringLeaf):
+        elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
             if value[0] == '"' and value[-1] == '"':
                 value = value[1:-1]
             assert not value[0] == value[-1] == '"', f"Invalid string literal: {value}"
             value = value[1:-1]
             return f'eat_string("{value}")'
-        elif isinstance(item, Group):
+        elif isinstance(item, pegen.grammar.Group):
             logging.warning(f"Passing through group: {item}")
             return item_to_rust(item.rhs)
-        elif isinstance(item, Opt):
+        elif isinstance(item, pegen.grammar.Opt):
             return f'opt({item_to_rust(item.node)})'
-        elif isinstance(item, Gather):
+        elif isinstance(item, pegen.grammar.Gather):
             return f'seq!({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
-        elif isinstance(item, Repeat):
-            return f'repeat({item_to_rust(item.node)})'
-        elif isinstance(item, Repeat0):
+        elif isinstance(item, pegen.grammar.Repeat0):
             return f'repeat0({item_to_rust(item.node)})'
-        elif isinstance(item, Repeat1):
+        elif isinstance(item, pegen.grammar.Repeat1):
             return f'repeat1({item_to_rust(item.node)})'
-        elif isinstance(item, Forced):
+        elif isinstance(item, pegen.grammar.Forced):
             logging.warning(f"Passing through forced: {item}")
             return item_to_rust(item.node)
-        elif isinstance(item, Lookahead):
-            logging.warning(f"Doing nothing with lookahead: {item}")
-            return "eps()"
-        elif isinstance(item, PositiveLookahead):
+        elif isinstance(item, pegen.grammar.PositiveLookahead):
             logging.warning(f"Doing nothing with positive lookahead: {item}")
             return "eps()"
-        elif isinstance(item, NegativeLookahead):
+        elif isinstance(item, pegen.grammar.NegativeLookahead):
             logging.warning(f"Doing nothing with negative lookahead: {item}")
             return "eps()"
-        elif isinstance(item, Rhs):
+        elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_rust(item)
-        elif isinstance(item, Cut):
+        elif isinstance(item, pegen.grammar.Cut):
             logging.warning(f"Doing nothing with cut: {item}")
             return 'eps()'
         else:
@@ -207,7 +196,7 @@ def grammar_to_rust(grammar: Grammar) -> str:
     f.write('}\n')
     return f.getvalue()
 
-def save_grammar_to_rust(grammar: Grammar, filename: str) -> None:
+def save_grammar_to_rust(grammar: pegen.grammar.Grammar, filename: str) -> None:
     rust_code = grammar_to_rust(grammar)
     with open(filename, 'w') as f:
         f.write(rust_code)
@@ -222,8 +211,8 @@ if __name__ == "__main__":
 
     # Convert to custom grammar format and remove left recursion
     custom_grammar = pegen_to_custom(pegen_grammar)
-    validate_rules(custom_grammar)
-    resolved_grammar = resolve_left_recursion(custom_grammar)
+    remove_left_recursion.validate_rules(custom_grammar)
+    resolved_grammar = remove_left_recursion.resolve_left_recursion(custom_grammar)
 
     # Convert back to pegen format and save to Rust
     resolved_pegen_grammar = custom_to_pegen(resolved_grammar)
@@ -233,8 +222,8 @@ if __name__ == "__main__":
     nullable_rules = get_nullable_rules(resolved_grammar)
     firsts_by_rule = {ref: {first for first in get_firsts(node, nullable_rules)} for ref, node in resolved_grammar.items()}
     for ref, firsts in firsts_by_rule.items():
-        refs = [ref for ref in firsts if isinstance(ref, Ref)]
-        terms = [term for term in firsts if isinstance(term, Term)]
+        refs = [ref for ref in firsts if isinstance(ref, remove_left_recursion.Ref)]
+        terms = [term for term in firsts if isinstance(term, remove_left_recursion.Term)]
         # Pad the ref so firsts line up
         print(f"\033[31m{ref.name}\033[0m", end="")
         i = len(ref.name)
@@ -261,13 +250,13 @@ if __name__ == "__main__":
 
     # Print number of rules active at the first step, starting from 'file'
     active_count = {}
-    queue = [Ref('file')]
+    queue = [remove_left_recursion.Ref('file')]
     while len(queue) > 0:
         ref = queue.pop()
         active_count.setdefault(ref, 0)
         active_count[ref] += 1
         if ref in resolved_grammar:
-            for ref in first_refs(resolved_grammar[ref], nullable_rules):
+            for ref in remove_left_recursion.first_refs(resolved_grammar[ref], nullable_rules):
                 queue.append(ref)
 
     print("Number of rules active at the first step:")
