@@ -198,13 +198,13 @@ pub fn STRING() -> Symbol<Box<DynCombinator>> {
     );
 
     let shortstring = choice!(
-        seq!(eat_char('\''), repeat0(choice!(eat_char_negation_choice("\\\'\n"), seq!(eat_char('\\'), eat_char_negation("\0")))), eat_char('\'')),
-        seq!(eat_char('"'), repeat0(choice!(eat_char_negation_choice("\\\"\n"), seq!(eat_char('\\'), eat_char_negation("\0")))), eat_char('"'))
+        seq!(eat_char('\''), repeat0(choice!(eat_char_negation_choice("\\\'\n"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_char('\'')),
+        seq!(eat_char('"'), repeat0(choice!(eat_char_negation_choice("\\\"\n"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_char('"'))
     );
 
     let longstring = choice!(
-        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), eat_char_negation("\0")))), eat_string("'''")),
-        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), eat_char_negation("\0")))), eat_string("\"\"\""))
+        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_string("'''")),
+        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_string("\"\"\""))
     );
 
     python_symbol(seq!(opt(stringprefix), choice!(shortstring, longstring)))

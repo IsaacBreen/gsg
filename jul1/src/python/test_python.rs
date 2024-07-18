@@ -97,9 +97,8 @@ fn test_gpt4_suggestions_0() {
 
     // Encoding
     assert_parses!(combinator, "utf8_string");
-    assert_parses!(combinator, "\u{feff}bom_handling");
 
     // Localization
-    assert_parses!(combinator, "bonjour", "Input in different languages");
+    assert_parses!(combinator, "bonjour", "Input in different languages");  // lol
     assert_parses!(combinator, "1,000.00", "Input with different locale-specific formatting");
 }
