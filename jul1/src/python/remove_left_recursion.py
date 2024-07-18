@@ -55,27 +55,31 @@ def get_nullable_rules(rules: dict[Ref, Node]) -> set[Ref]:
     return nullable_rules
 
 
-def first_refs(node: Node, nullable_rules: set[Ref]) -> set[Ref]:
+def get_firsts(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term]:
     if isinstance(node, Term):
-        return set()
+        return {node}
     elif isinstance(node, Ref):
         return {node}
     elif isinstance(node, Seq):
         result = set()
         for child in node.children:
-            result.update(first_refs(child, nullable_rules))
+            result.update(get_firsts(child, nullable_rules))
             if not is_nullable(child, nullable_rules):
                 break
         return result
     elif isinstance(node, Choice):
         result = set()
         for child in node.children:
-            result.update(first_refs(child, nullable_rules))
+            result.update(get_firsts(child, nullable_rules))
         return result
     elif isinstance(node, Repeat1):
-        return first_refs(node.child, nullable_rules)
+        return get_firsts(node.child, nullable_rules)
     else:
         raise ValueError(f"Unknown node type: {type(node)}")
+
+
+def first_refs(node: Node, nullable_rules: set[Ref]) -> set[Ref]:
+    return {ref for ref in get_firsts(node, nullable_rules) if isinstance(ref, Ref)}
 
 
 def is_left_recursive(node: Node, rules: dict[Ref, Node], seen: set[Ref] = None) -> bool:
@@ -328,7 +332,7 @@ class Ref(Node):
         return f'ref(\u001b[31m{repr(self.name)}\u001b[0m)'
 
 
-@dataclass
+@dataclass(frozen=True)
 class Term(Node):
     value: str
 

@@ -2,6 +2,7 @@ import io
 import logging
 import tokenize
 from io import StringIO
+from pprint import pprint
 from typing import Dict
 
 import requests
@@ -11,7 +12,7 @@ from pegen.grammar_parser import GeneratedParser
 from pegen.tokenizer import Tokenizer
 
 from remove_left_recursion import resolve_left_recursion, Node, Seq, Choice, Term, Ref, eps, fail, Repeat1, RuleType, validate_rules
-
+from remove_left_recursion import get_nullable_rules, get_firsts
 
 def fetch_grammar(url: str) -> str:
     response = requests.get(url)
@@ -210,7 +211,7 @@ def save_grammar_to_rust(grammar: Grammar, filename: str) -> None:
     with open(filename, 'w') as f:
         f.write(rust_code)
 
-def main():
+if __name__ == "__main__":
     # Fetch and parse the Python grammar
     grammar_url = "https://raw.githubusercontent.com/python/cpython/main/Grammar/python.gram"
     grammar_text = fetch_grammar(grammar_url)
@@ -225,5 +226,29 @@ def main():
     resolved_pegen_grammar = custom_to_pegen(resolved_grammar)
     save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs')
 
-if __name__ == "__main__":
-    main()
+    # Print some useful stats
+    nullable_rules = get_nullable_rules(resolved_grammar)
+    firsts_by_rule = {ref: {first for first in get_firsts(node, nullable_rules)} for ref, node in resolved_grammar.items()}
+    for ref, firsts in firsts_by_rule.items():
+        refs = [ref for ref in firsts if isinstance(ref, Ref)]
+        terms = [term for term in firsts if isinstance(term, Term)]
+        # Pad the ref so firsts line up
+        print(f"\033[31m{ref.name}\033[0m", end="")
+        i = len(ref.name)
+        PADDING = 40
+        if len(refs) > 0:
+            # Red
+            print(" " * (PADDING - i), end="")
+            print("refs:  ", end="")
+            for ref in refs:
+                print(f"\033[31m{ref.name}\033[0m, ", end=" ")
+            print()
+            i = 0
+        if len(terms) > 0:
+            # Green
+            print(" " * (PADDING - i), end="")
+            print("terms ", end="")
+            for term in terms:
+                print(f"\033[32m{term.value}\033[0m, ", end=" ")
+            print()
+
