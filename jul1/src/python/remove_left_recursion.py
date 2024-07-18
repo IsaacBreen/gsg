@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum, auto
 from io import StringIO
@@ -233,6 +234,13 @@ class Seq(Node):
                 return f'\u001b[32mseq\u001b[0m({", ".join(str(child) for child in self.children)})'
 
 
+class DumbHashable[T]:
+    value: T
+    def __init__(self, value: T): self.value = value
+    def __hash__(self): return hash(type(self.value))
+    def __eq__(self, other): return self.value == other.value
+
+
 @dataclass
 class Choice(Node):
     children: list[Node]
@@ -267,21 +275,48 @@ class Choice(Node):
         if len(children) == 1:
             return children[0]
 
-    # Merge any choices of sequences with a shared prefix.
-    # It's hard to find the optimal merge strategy, but we do our best by employing a greedy strategy.
-    # Convert each child into a list of sequents. If the child is not a sequence, wrap it in a singleton list.
-    # Group each child sequence by its first element.
-    # For each group, merge on their longest common prefix.
-    # Recursively simplify the new children.
-    # Ignore the order of children.
-    class DumbHashable[T]:
-        value: T
-        def __init__(self, value: T): self.value = value
-        def __hash__(self): return hash(type(self.value))
-        def __eq__(self, other): return self.value == other.value
+        # Merge any choices of sequences with a shared prefix.
+        # It's hard to find the optimal merge strategy, but we do our best by employing a greedy strategy.
+        # Convert each child into a list of sequents. If the child is not a sequence, wrap it in a singleton list.
+        # Group each child sequence by its first element.
+        # For each group, merge on their longest common prefix.
+        # Recursively simplify the new children.
+        # Ignore the order of children.
+        def group_by_first_element(sequences: list[list[Node]]) -> dict[DumbHashable, list[list[Node]]]:
+            groups = defaultdict(list)
+            for seq in sequences:
+                if seq:
+                    groups[DumbHashable(seq[0])].append(seq)
+            return groups
 
-    # todo
-    raise NotImplementedError
+        sequences = []
+        for child in children:
+            if isinstance(child, Seq):
+                sequences.append(child.children)
+            else:
+                sequences.append([child])
+
+        groups = group_by_first_element(sequences)
+        new_children = []
+        for first, group in groups.items():
+            if len(group) == 1:
+                new_children.append(seq(*group[0]))
+            else:
+                prefixes = []
+                for i in range(min(len(g) for g in group)):
+                    if len(set(DumbHashable(g[i]) for g in group)) == 1:
+                        prefixes.append(group[0][i])
+                    else:
+                        break
+                suffixes = [g[len(prefixes):] for g in group]
+                new_children.append(seq(*prefixes, Choice([seq(*suffix) for suffix in suffixes])))
+
+        new_children = [child.simplify() for child in new_children]
+
+        if len(new_children) == 1:
+            return new_children[0]
+
+        return Choice(new_children)
 
     def copy(self) -> Self:
         return Choice([child.copy() for child in self.children])
@@ -451,7 +486,8 @@ if __name__ == '__main__':
     expr = choice(
         seq(term('a'), term('b'), term('c')),
         seq(term('a'), term('b'), term('d')),
-        seq(term('a'), term('c'), term('d')),
+        seq(term('b'), term('c'), term('d')),
+        seq(term('b'), term('d')),
         term('e'),
     )
     print(expr)

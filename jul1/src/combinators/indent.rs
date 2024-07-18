@@ -100,9 +100,8 @@ impl ParserTrait for IndentCombinatorParser {
     }
 }
 
-pub fn newline() -> EatU8 {
-    // seq!(repeat(eat_char_choice(" ")), eat_char_choice("\n"))
-    eat_char_choice("\n")
+pub fn newline() -> Seq2<Choice2<Repeat1<EatU8>, Eps>, EatU8> {
+    seq!(repeat(eat_char_choice(" ")), eat_char_choice("\n"))
 }
 
 pub fn dent() -> IndentCombinator {
@@ -124,6 +123,6 @@ where
     seq!(indent(), a.into_combinator(), dedent())
 }
 
-pub fn python_newline() -> Seq2<Repeat1<EatU8>, IndentCombinator> {
+pub fn python_newline() -> Seq2<Repeat1<Seq2<Choice2<Repeat1<EatU8>, Eps>, EatU8>>, IndentCombinator> {
     seq!(repeat1(newline()), dent())
 }
