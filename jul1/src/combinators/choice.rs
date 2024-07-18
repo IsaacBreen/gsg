@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, IntoCombinator, ParserTrait, Stats};
+use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParserTrait, Stats};
 use crate::parse_state::{RightData, UpData};
 
 pub struct Choice2<A, B>
@@ -77,6 +77,42 @@ where
     B: IntoCombinator,
 {
     Choice2 { a: a.into_combinator(), b: b.into_combinator() }
+}
+
+
+impl<T> From<Vec<T>> for Choice2<Box<DynCombinator>, Box<DynCombinator>>
+where
+    T: IntoCombinator,
+{
+    fn from(mut v: Vec<T>) -> Self {
+        fn helper<T>(mut v: Vec<T>) -> Box<DynCombinator>
+        where
+            T: IntoCombinator,
+        {
+            if v.len() == 1 {
+                v.into_iter().next().unwrap().into_combinator().into_boxed()
+            } else {
+                let rest = v.split_off(v.len() / 2);
+                choice2(helper(v), helper(rest)).into_boxed()
+            }
+        }
+        assert!(v.len() >= 2);
+        let rest = v.split_off(v.len() / 2);
+        choice2(helper(v), helper(rest))
+    }
+}
+
+pub fn choice_from_vec<T>(v: Vec<T>) -> Box<DynCombinator>
+where
+    T: IntoCombinator,
+{
+    let mut v = v;
+    if v.len() == 1 {
+        v.into_iter().next().unwrap().into_combinator().into_boxed()
+    } else {
+        let rest = v.split_off(v.len() / 2);
+        choice2(choice_from_vec(v), choice_from_vec(rest)).into_boxed()
+    }
 }
 
 #[macro_export]

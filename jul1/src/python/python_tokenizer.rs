@@ -1,5 +1,6 @@
-use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_char, eat_char_choice, eat_char_range, eat_string, EatString, EatU8, Eps, eps, indent, IndentCombinator, mutate_right_data, MutateRightData, IntoCombinator, newline, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol};
-
+use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_char, eat_char_choice, eat_char_range, eat_string, EatString, EatU8, Eps, eps, indent, IndentCombinator, mutate_right_data, MutateRightData, IntoCombinator, newline, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, choice_from_vec};
+use unicode_general_category::GeneralCategory;
+use crate::unicode::get_unicode_general_category_combinator;
 
 pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<EatString, EatU8>>> {
     repeat1(choice!(
@@ -29,12 +30,59 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
     }
 }
 
-pub fn xid_start() -> Symbol<Box<DynCombinator>> {
-    python_symbol(choice!(eat_char('_'), eat_char_range(b'a', b'z'), eat_char_range(b'A', b'Z')))
+// https://docs.python.org/3/reference/lexical_analysis.html#identifiers
+// identifier   ::=  xid_start xid_continue*
+// id_start     ::=  <all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property>
+// id_continue  ::=  <all characters in id_start, plus characters in the categories Mn, Mc, Nd, Pc and others with the Other_ID_Continue property>
+// xid_start    ::=  <all characters in id_start whose NFKC normalization is in "id_start xid_continue*">
+// xid_continue ::=  <all characters in id_continue whose NFKC normalization is in "id_continue*">
+//
+// The Unicode category codes mentioned above stand for:
+//
+// Lu - uppercase letters
+// Ll - lowercase letters
+// Lt - titlecase letters
+// Lm - modifier letters
+// Lo - other letters
+// Nl - letter numbers
+// Mn - nonspacing marks
+// Mc - spacing combining marks
+// Nd - decimal numbers
+// Pc - connector punctuations
+// Other_ID_Start - explicit list of characters in PropList.txt to support backwards compatibility
+// Other_ID_Continue - likewise
+pub fn xid_start() -> Box<DynCombinator> {
+    // all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property
+    let categories = [
+        GeneralCategory::UppercaseLetter,
+        GeneralCategory::LowercaseLetter,
+        GeneralCategory::TitlecaseLetter,
+        GeneralCategory::ModifierLetter,
+        GeneralCategory::OtherLetter,
+        GeneralCategory::LetterNumber,
+        // We ignore Other_ID_Start - it's just for backwards compatibility.
+    ];
+
+    let categories_combinator = choice_from_vec(categories.iter().map(|category| get_unicode_general_category_combinator(*category)).collect());
+    let other_combinator = eat_char_choice("_");
+
+    choice!(categories_combinator, other_combinator).into_boxed()
 }
 
-pub fn xid_continue() -> Symbol<Box<DynCombinator>> {
-    python_symbol(choice!(xid_start(), eat_char_range(b'0', b'9')))
+pub fn xid_continue() -> Box<DynCombinator> {
+    // all characters in id_start, plus characters in the categories Mn, Mc, Nd, Pc and others with the Other_ID_Continue property
+    let new_categories = [
+        GeneralCategory::NonspacingMark,
+        // todo: where is SpacingCombiningMark?
+        // GeneralCategory::SpacingCombiningMark,
+        GeneralCategory::DecimalNumber,
+        GeneralCategory::ConnectorPunctuation,
+    ];
+
+    let new_categories_combinator = choice_from_vec(new_categories.iter().map(|category| get_unicode_general_category_combinator(*category)).collect());
+    let other_combinator = eat_char_range(b'0', b'9');
+
+    choice!(xid_start(), new_categories_combinator, other_combinator).into_boxed()
 }
 
 pub fn NAME() -> Symbol<Box<DynCombinator>> {

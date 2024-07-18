@@ -54,3 +54,9 @@ pub fn eat_string(string: &str) -> EatString {
         string: string.as_bytes().to_vec(),
     }
 }
+
+pub fn eat_bytes(bytes: &[u8]) -> EatString {
+    EatString {
+        string: bytes.to_vec(),
+    }
+}

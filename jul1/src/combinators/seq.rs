@@ -96,6 +96,41 @@ where
     Seq2 { a: a.into_combinator(), b: Rc::new(b.into_combinator()) }
 }
 
+impl<T> From<Vec<T>> for Seq2<Box<DynCombinator>, Box<DynCombinator>>
+where
+    T: IntoCombinator,
+{
+    fn from(mut v: Vec<T>) -> Self {
+        fn helper<T>(mut v: Vec<T>) -> Box<DynCombinator>
+        where
+            T: IntoCombinator,
+        {
+            if v.len() == 1 {
+                v.into_iter().next().unwrap().into_combinator().into_boxed()
+            } else {
+                let rest = v.split_off(v.len() / 2);
+                seq2(helper(v), helper(rest)).into_boxed()
+            }
+        }
+        assert!(v.len() >= 2);
+        let rest = v.split_off(v.len() / 2);
+        seq2(helper(v), helper(rest))
+    }
+}
+
+pub fn seq_from_vec<T>(v: Vec<T>) -> Box<DynCombinator>
+where
+    T: IntoCombinator,
+{
+    let mut v = v;
+    if v.len() == 1 {
+        v.into_iter().next().unwrap().into_combinator().into_boxed()
+    } else {
+        let rest = v.split_off(v.len() / 2);
+        seq2(seq_from_vec(v), seq_from_vec(rest)).into_boxed()
+    }
+}
+
 #[macro_export]
 macro_rules! seq {
     ($a1:expr $(,)?) => {$a1};
