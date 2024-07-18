@@ -6,7 +6,7 @@ macro_rules! assert_parses {
         println!("constructed parser");
         // println!("Stats: {:?}", parser.stats());
         let mut result = Ok(());
-        for &byte in $input.as_bytes() {
+        for &byte in kdam::tqdm!($input.as_bytes().into_iter()) {
             let (right_data, up_data) = parser.step(byte);
             // println!("Stats: {:?}", parser.stats());
             if right_data.is_empty() && up_data.is_empty() {
@@ -30,7 +30,7 @@ macro_rules! assert_fails {
         println!("constructed parser");
         // println!("Stats: {:?}", parser.stats());
         let mut result = Ok(());
-        for &byte in $input.as_bytes() {
+        for &byte in kdam::tqdm!($input.as_bytes().into_iter()) {
             let (right_data, up_data) = parser.step(byte);
             // println!("Stats: {:?}", parser.stats());
             if right_data.is_empty() && up_data.is_empty() {

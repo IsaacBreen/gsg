@@ -1,3 +1,4 @@
+use std::path::Path;
 use crate::{assert_fails, assert_parses, python_file};
 
 #[test]
@@ -45,12 +46,12 @@ fn test_gpt4_suggestions_0() {
     assert_parses!(combinator, "# this is a comment\nvalid_input", "Input with comments");
 
     // Error Handling
-    // assert_fails!(combinator, "malformed{", "Malformed input");
+    // assert_fails!(combinator, "x {", "Malformed input");
     assert_parses!(combinator, "def f():", "Incomplete input");
     assert_fails!(combinator, "syntax error", "Input with syntax errors");
     assert_fails!(combinator, "semantic error", "Input with semantic errors");
     assert_fails!(combinator, "invalid\x00char", "Input with invalid characters");
-    // assert_fails!(combinator, "mismatched{", "Input with mismatched delimiters");
+    // assert_fails!(combinator, "x {", "Input with mismatched delimiters");
 
     // Special Characters
     assert_fails!(combinator, "!@#$%^&*()", "Input with special characters");
@@ -101,4 +102,12 @@ fn test_gpt4_suggestions_0() {
     // Localization
     assert_parses!(combinator, "bonjour", "Input in different languages");  // lol
     assert_parses!(combinator, "1,000.00", "Input with different locale-specific formatting");
+}
+
+#[test]
+fn test_actual_python_file() {
+    let path = Path::new("src/python/remove_left_recursion.py");
+    let file = std::fs::read_to_string(path).unwrap();
+    let combinator = python_file();
+    assert_parses!(combinator, &file, "Actual Python file");
 }
