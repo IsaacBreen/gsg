@@ -51,7 +51,7 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
 // Pc - connector punctuations
 // Other_ID_Start - explicit list of characters in PropList.txt to support backwards compatibility
 // Other_ID_Continue - likewise
-pub fn xid_start() -> Box<DynCombinator> {
+pub fn id_start() -> Box<DynCombinator> {
     // all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property
     let categories = [
         GeneralCategory::UppercaseLetter,
@@ -69,7 +69,7 @@ pub fn xid_start() -> Box<DynCombinator> {
     choice!(categories_combinator, other_combinator).into_boxed()
 }
 
-pub fn xid_continue() -> Box<DynCombinator> {
+pub fn id_continue() -> Box<DynCombinator> {
     // all characters in id_start, plus characters in the categories Mn, Mc, Nd, Pc and others with the Other_ID_Continue property
     let new_categories = [
         GeneralCategory::NonspacingMark,
@@ -82,7 +82,19 @@ pub fn xid_continue() -> Box<DynCombinator> {
     let new_categories_combinator = choice_from_vec(new_categories.iter().map(|category| get_unicode_general_category_combinator(*category)).collect());
     let other_combinator = eat_char_range(b'0', b'9');
 
-    choice!(xid_start(), new_categories_combinator, other_combinator).into_boxed()
+    choice!(id_start(), new_categories_combinator, other_combinator).into_boxed()
+}
+
+pub fn xid_start() -> Box<DynCombinator> {
+    // all characters in id_start whose NFKC normalization is in "id_start xid_continue*"
+    // Honestly, I don't know what this means.
+    id_start()
+}
+
+pub fn xid_continue() -> Box<DynCombinator> {
+    // all characters in id_continue whose NFKC normalization is in "id_continue*"
+    // Honestly, I don't know what this means.
+    id_continue()
 }
 
 pub fn NAME() -> Symbol<Box<DynCombinator>> {
