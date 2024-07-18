@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-unicode-xid = "0.2.4"
+unicode-general-category = "0.6.0"
+unicode-segmentation = "1.11.0"
 
 # Run tests with opt level 3
 #[profile.dev]
