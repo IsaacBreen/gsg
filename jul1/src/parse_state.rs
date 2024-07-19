@@ -4,6 +4,7 @@ use crate::{FrameStack, U8Set};
 pub struct ParseResults {
     pub right_data_vec: Vec<RightData>,
     pub up_data_vec: Vec<UpData>,
+    pub cut: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -72,6 +73,7 @@ impl Squash for ParseResults {
         ParseResults {
             right_data_vec: self.right_data_vec.squashed(),
             up_data_vec: self.up_data_vec.squashed(),
+            cut: self.cut,
         }
     }
 }

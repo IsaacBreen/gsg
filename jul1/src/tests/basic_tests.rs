@@ -14,7 +14,8 @@ mod tests {
         assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }]));
         assert_eq!(parser.step('a' as u8), ParseResults {
             right_data_vec: vec![RightData::default()],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -25,15 +26,18 @@ mod tests {
         assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }]));
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("b") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("b") }],
+            cut: false,
         });
         assert_eq!(parser.step('b' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("c") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("c") }],
+            cut: false,
         });
         assert_eq!(parser.step('c' as u8).squashed(), ParseResults {
             right_data_vec: vec![RightData::default()],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -44,11 +48,13 @@ mod tests {
         assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }]));
         assert_eq!(parser.step('a' as u8), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("b") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("b") }],
+            cut: false,
         });
         assert_eq!(parser.step('b' as u8), ParseResults {
             right_data_vec: vec![RightData::default()],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -58,18 +64,22 @@ mod tests {
         let (mut parser, right_data0, up_data0) = combinator.parser(RightData::default());
         assert_eq!(Squash::squashed(ParseResults {
             right_data_vec: right_data0,
-            up_data_vec: up_data0
+            up_data_vec: up_data0,
+            cut: false,
         }), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
+            cut: false,
         });
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![RightData::default()],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
+            cut: false,
         });
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![RightData::default()],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
+            cut: false,
         });
     }
 
@@ -80,7 +90,8 @@ mod tests {
         assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }, UpData { u8set: U8Set::from_chars("b") }]));
         assert_eq!(parser.step('b' as u8), ParseResults {
             right_data_vec: vec![RightData::default()],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -90,22 +101,27 @@ mod tests {
         let (mut parser, right_data0, up_data0) = combinator.parser(RightData::default());
         assert_eq!(Squash::squashed(ParseResults {
             right_data_vec: right_data0,
-            up_data_vec: up_data0
+            up_data_vec: up_data0,
+            cut: false,
         }), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
+            cut: false,
         });
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("bc") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("bc") }],
+            cut: false,
         });
         assert_eq!(parser.step('b' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("c") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("c") }],
+            cut: false,
         });
         assert_eq!(parser.step('c' as u8).squashed(), ParseResults {
             right_data_vec: vec![RightData::default()],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -115,18 +131,22 @@ mod tests {
         let (mut parser, right_data0, up_data0) = combinator.parser(RightData::default());
         assert_eq!(Squash::squashed(ParseResults {
             right_data_vec: right_data0,
-            up_data_vec: up_data0
+            up_data_vec: up_data0,
+            cut: false,
         }), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("ab") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("ab") }],
+            cut: false,
         });
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("b") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("b") }],
+            cut: false,
         });
         assert_eq!(parser.step('b' as u8).squashed(), ParseResults {
             right_data_vec: vec![RightData::default()],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -137,22 +157,27 @@ mod tests {
         let (mut parser, right_data0, up_data0) = combinator.parser(RightData::default());
         assert_eq!(Squash::squashed(ParseResults {
             right_data_vec: right_data0,
-            up_data_vec: up_data0
+            up_data_vec: up_data0,
+            cut: false,
         }), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("ab") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("ab") }],
+            cut: false,
         });
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("ab") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("ab") }],
+            cut: false,
         });
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("ab") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("ab") }],
+            cut: false,
         });
         assert_eq!(parser.step('b' as u8).squashed(), ParseResults {
             right_data_vec: vec![RightData::default()],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -167,17 +192,20 @@ mod tests {
         assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }]));
         assert_eq!(parser.step('a' as u8), ParseResults {
             right_data_vec: vec![right_data.clone()],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
 
         let combinator = frame_stack_contains(eat_char_choice("b"));
         let (mut parser, right_data0, up_data0) = combinator.parser(right_data);
         assert_eq!(ParseResults {
             right_data_vec: right_data0,
-            up_data_vec: up_data0
+            up_data_vec: up_data0,
+            cut: false,
         }.squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -190,11 +218,13 @@ mod tests {
         assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }]));
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
+            cut: false,
         });
         assert_eq!(parser.step('b' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -223,17 +253,20 @@ mod tests {
         //     // 2. the choice says the next character is "b" or "a", but the frame stack only contains "a", so it only allows "a".
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
+            cut: false,
         });
         //     // 3. the pop_from_frame parser pops the "a" from the frame stack.
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
+            cut: false,
         });
         //     // 4. eat_chars("a") says the next character is "a", but the frame stack is empty, so it doesn't allow anything, and parsing fails.
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -254,35 +287,43 @@ mod tests {
         assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("{") }]));
         assert_eq!(parser.step('{' as u8), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
+            cut: false,
         });
         assert_eq!(parser.step('a' as u8), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("=") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("=") }],
+            cut: false,
         });
         assert_eq!(parser.step('=' as u8), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("b") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("b") }],
+            cut: false,
         });
         assert_eq!(parser.step('b' as u8), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars(";") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars(";") }],
+            cut: false,
         });
         assert_eq!(parser.step(';' as u8), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
+            cut: false,
         });
         assert_eq!(parser.step('a' as u8), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("}") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("}") }],
+            cut: false,
         });
         assert_eq!(parser.step('}' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 
@@ -310,34 +351,42 @@ mod tests {
         let (mut parser, right_data0, up_data0) = combinator.parser(parse_data);
         assert_eq!(ParseResults {
             right_data_vec: right_data0,
-            up_data_vec: up_data0
+            up_data_vec: up_data0,
+            cut: false,
         }.squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
+            cut: false,
         });
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("\n ") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("\n ") }],
+            cut: false,
         });
         assert_eq!(parser.step('\n' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("\n ") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("\n ") }],
+            cut: false,
         });
         assert_eq!(parser.step(' ' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("\n b") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("\n b") }],
+            cut: false,
         });
         assert_eq!(parser.step('b' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("\n ") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("\n ") }],
+            cut: false,
         });
         assert_eq!(parser.step('\n' as u8).squashed(), ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("\n c") }]
+            up_data_vec: vec![UpData { u8set: U8Set::from_chars("\n c") }],
+            cut: false,
         });
         assert_eq!(parser.step('c' as u8).squashed(), ParseResults {
             right_data_vec: vec![RightData::default()],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         });
     }
 }

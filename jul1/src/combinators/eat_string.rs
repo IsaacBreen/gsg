@@ -34,24 +34,28 @@ impl ParserTrait for EatStringParser {
                     let mut right_data = self.right_data.take().unwrap();
                     ParseResults {
                         right_data_vec: vec![right_data],
-                        up_data_vec: vec![]
+                        up_data_vec: vec![],
+                        cut: false,
                     }
                 } else {
                     ParseResults {
                         right_data_vec: vec![],
-                        up_data_vec: vec![UpData { u8set: U8Set::from_u8(self.string[self.index]) }]
+                        up_data_vec: vec![UpData { u8set: U8Set::from_u8(self.string[self.index]) }],
+                        cut: false,
                     }
                 }
             } else {
                 ParseResults {
                     right_data_vec: vec![],
-                    up_data_vec: vec![]
+                    up_data_vec: vec![],
+                        cut: false,
                 }
             }
         } else {
             ParseResults {
                 right_data_vec: vec![],
-                up_data_vec: vec![]
+                up_data_vec: vec![],
+                        cut: false,
             }
         }
     }

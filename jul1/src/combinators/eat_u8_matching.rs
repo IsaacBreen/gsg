@@ -30,13 +30,15 @@ impl ParserTrait for EatU8Parser {
             if let Some(right_data) = self.right_data.take() {
                 return ParseResults {
                     right_data_vec: vec![right_data],
-                    up_data_vec: vec![]
+                    up_data_vec: vec![],
+                    cut: false,
                 };
             }
         }
         ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![]
+            up_data_vec: vec![],
+            cut: false,
         }
     }
     fn collect_stats(&self, stats: &mut Stats) {

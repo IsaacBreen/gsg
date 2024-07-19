@@ -27,10 +27,11 @@ where
     A: ParserTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        let ParseResults { right_data_vec: right_data, up_data_vec: up_data } = self.inner.step(c);
+        let ParseResults { right_data_vec: right_data, up_data_vec: up_data, cut } = self.inner.step(c);
         ParseResults {
             right_data_vec: right_data,
-            up_data_vec: up_data
+            up_data_vec: up_data,
+            cut,
         }
     }
 

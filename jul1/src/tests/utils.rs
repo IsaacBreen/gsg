@@ -8,7 +8,7 @@ macro_rules! assert_parses {
         // println!("Stats: {:?}", parser.stats());
         let mut result = Ok(());
         for &byte in kdam::tqdm!($input.as_bytes().into_iter(), animation = "fillup") {
-            let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data} = parser.step(byte);
+            let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data, cut} = parser.step(byte);
             // println!("Stats: {:?}", parser.stats());
             if right_data.is_empty() && up_data.is_empty() {
                 result = Err(format!("Parser failed at byte: {}", byte as char));
@@ -32,7 +32,7 @@ macro_rules! assert_fails {
         // println!("Stats: {:?}", parser.stats());
         let mut result = Ok(());
         for &byte in kdam::tqdm!($input.as_bytes().into_iter(), animation = "fillup") {
-            let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data} = parser.step(byte);
+            let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data, cut} = parser.step(byte);
             // println!("Stats: {:?}", parser.stats());
             if right_data.is_empty() && up_data.is_empty() {
                 result = Err(format!("Parser failed at byte: {}", byte as char));
