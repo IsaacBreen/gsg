@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::parse_state::{RightData, UpData};
-use crate::U8Set;
+use crate::{ParseResults, U8Set};
 
 #[derive(Default, Debug)]
 pub struct Stats
@@ -29,7 +29,7 @@ where
 }
 
 pub trait ParserTrait {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>);
+    fn step(&mut self, c: u8) -> ParseResults;
     fn stats(&self) -> Stats {
         let mut stats = Stats::default();
         self.collect_stats(&mut stats);
@@ -47,10 +47,16 @@ pub trait ParserTrait {
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &'a mut dyn ParserTrait> + 'a> {
         Box::new(std::iter::empty())
     }
+    fn gc(&mut self) {
+        for child in self.iter_children_mut() {
+            child.gc();
+        }
+    }
 }
 
+
 impl ParserTrait for Box<dyn ParserTrait> {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+    fn step(&mut self, c: u8) -> ParseResults {
         (**self).step(c)
     }
 

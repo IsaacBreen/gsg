@@ -1,4 +1,4 @@
-use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, IntoCombinator, ParserTrait, repeat0, Repeat1, repeat1, RightData, seq, Seq2, Stats, U8Set, UpData};
+use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, IntoCombinator, ParseResults, ParserTrait, repeat0, Repeat1, repeat1, RightData, seq, Seq2, Stats, U8Set, UpData};
 
 const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
     let mut i = 0;
@@ -13,7 +13,7 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
                 let mut right_data = right_data.clone();
                 right_data.dedents = right_data.indents.len() - indent_num;
                 right_data.indents.truncate(indent_num);
-                return (vec![right_data], vec![UpData { u8set }]);
+                return ParseResults(vec![right_data], vec![UpData { u8set }]);
             }
         }
         let values_chunk = &values[i..(i + indent_chunk.len()).min(values.len())];
@@ -22,18 +22,18 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
                 // This could be a valid indentation, but we need more
                 let next_u8 = indent_chunk.get(values_chunk.len()).cloned().unwrap();
                 let u8set = U8Set::from_u8(next_u8);
-                return (vec![], vec![UpData { u8set }]);
+                return ParseResults(vec![], vec![UpData { u8set }]);
             } else {
                 // We have invalid indentation
-                return (vec![], vec![]);
+                return ParseResults(vec![], vec![]);
             }
         }
         i += indent_chunk.len();
     }
     if i == values.len() {
-        (vec![right_data.clone()], vec![])
+        ParseResults(vec![right_data.clone()], vec![])
     } else {
-        (vec![], vec![])
+        ParseResults(vec![], vec![])
     }
 };
 
@@ -85,21 +85,21 @@ impl CombinatorTrait for IndentCombinator {
 }
 
 impl ParserTrait for IndentCombinatorParser {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+    fn step(&mut self, c: u8) -> ParseResults {
         match self {
             IndentCombinatorParser::DentParser(parser) => parser.step(c),
             IndentCombinatorParser::IndentParser(maybe_right_data) => {
                 if c == b' ' {
                     let mut right_data = maybe_right_data.as_mut().unwrap().clone();
                     right_data.indents.last_mut().unwrap().push(c);
-                    (vec![right_data.clone()], vec![UpData { u8set: U8Set::from_chars(" ") }])
+                    ParseResults(vec![right_data.clone()], vec![UpData { u8set: U8Set::from_chars(" ") }])
                 } else {
                     // Fail. Purge the right data to poison the parser.
                     maybe_right_data.take();
-                    (vec![], vec![])
+                    ParseResults(vec![], vec![])
                 }
             }
-            IndentCombinatorParser::Done => (vec![], vec![]),
+            IndentCombinatorParser::Done => ParseResults(vec![], vec![]),
         }
     }
 }

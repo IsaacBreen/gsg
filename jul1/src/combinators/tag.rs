@@ -26,9 +26,9 @@ impl<A> ParserTrait for TaggedParser<A>
 where
     A: ParserTrait,
 {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
-        let (right_data, up_data) = self.inner.step(c);
-        (right_data, up_data)
+    fn step(&mut self, c: u8) -> ParseResults {
+        let ParseResults(right_data, up_data) = self.inner.step(c);
+        ParseResults(right_data, up_data)
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {

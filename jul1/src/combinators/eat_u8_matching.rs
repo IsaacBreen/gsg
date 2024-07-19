@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, ParserTrait, Stats, U8Set};
+use crate::{CombinatorTrait, ParseResults, ParserTrait, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
 #[derive(Copy, Clone)]
@@ -25,13 +25,13 @@ impl CombinatorTrait for EatU8 {
 }
 
 impl ParserTrait for EatU8Parser {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+    fn step(&mut self, c: u8) -> ParseResults {
         if self.u8set.contains(c) {
             if let Some(right_data) = self.right_data.take() {
-                return (vec![right_data], vec![]);
+                return ParseResults(vec![right_data], vec![]);
             }
         }
-        (vec![], vec![])
+        ParseResults(vec![], vec![])
     }
     fn collect_stats(&self, stats: &mut Stats) {
         stats.active_parser_type_counts.entry("EatU8Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);

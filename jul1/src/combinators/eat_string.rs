@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
-use crate::{choice, choice_from_vec, CombinatorTrait, DynCombinator, eat_byte, eps, opt, ParserTrait, seq, Stats, U8Set};
+use crate::{choice, choice_from_vec, CombinatorTrait, DynCombinator, eat_byte, eps, opt, ParseResults, ParserTrait, seq, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
 pub struct EatString {
@@ -26,21 +26,21 @@ impl CombinatorTrait for EatString {
 }
 
 impl ParserTrait for EatStringParser {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+    fn step(&mut self, c: u8) -> ParseResults {
         if self.index < self.string.len() {
             if self.string[self.index] == c {
                 self.index += 1;
                 if self.index == self.string.len() {
                     let mut right_data = self.right_data.take().unwrap();
-                    (vec![right_data], vec![])
+                    ParseResults(vec![right_data], vec![])
                 } else {
-                    (vec![], vec![UpData { u8set: U8Set::from_u8(self.string[self.index]) }])
+                    ParseResults(vec![], vec![UpData { u8set: U8Set::from_u8(self.string[self.index]) }])
                 }
             } else {
-                (vec![], vec![])
+                ParseResults(vec![], vec![])
             }
         } else {
-            (vec![], vec![])
+            ParseResults(vec![], vec![])
         }
     }
     fn collect_stats(&self, stats: &mut Stats) {

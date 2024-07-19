@@ -54,14 +54,14 @@ where
     ParserA: ParserTrait,
     B: CombinatorTrait,
 {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
-        let (right_data_a, up_data_a) = self.a.as_mut().map(|a| a.step(c)).unwrap_or((vec![], vec![]));
+    fn step(&mut self, c: u8) -> ParseResults {
+        let ParseResults(right_data_a, up_data_a) = self.a.as_mut().map(|a| a.step(c)).unwrap_or(ParseResults(vec![], vec![]));
         if right_data_a.is_empty() && up_data_a.is_empty() {
             self.a = None;
         }
         let (mut right_data_bs, mut up_data_bs) = (vec![], vec![]);
         self.bs.retain_mut(|b| {
-            let (right_data_b, up_data_b) = b.step(c);
+            let ParseResults(right_data_b, up_data_b) = b.step(c);
             if right_data_b.is_empty() && up_data_b.is_empty() {
                 false
             } else {
@@ -76,7 +76,7 @@ where
             right_data_bs.extend(right_data_b);
             up_data_bs.extend(up_data_b);
         }
-        (right_data_bs, up_data_bs.into_iter().chain(up_data_a).collect())
+        ParseResults(right_data_bs, up_data_bs.into_iter().chain(up_data_a).collect())
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {

@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{CombinatorTrait, IntoCombinator, ParserTrait, RightData, Stats, UpData};
+use crate::{CombinatorTrait, IntoCombinator, ParseResults, ParserTrait, RightData, Stats, UpData};
 
 pub struct Symbol<T> {
     pub value: Rc<T>,
@@ -26,7 +26,7 @@ impl<T> CombinatorTrait for Symbol<T> where T: CombinatorTrait {
 
 impl<T> ParserTrait for SymbolParser<T> where T: CombinatorTrait
 {
-    fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
+    fn step(&mut self, c: u8) -> ParseResults {
         self.inner.step(c)
     }
 
