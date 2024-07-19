@@ -13,7 +13,10 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
                 let mut right_data = right_data.clone();
                 right_data.dedents = right_data.indents.len() - indent_num;
                 right_data.indents.truncate(indent_num);
-                return ParseResults(vec![right_data], vec![UpData { u8set }]);
+                return ParseResults {
+                    right_data_vec: vec![right_data],
+                    up_data_vec: vec![UpData { u8set }]
+                };
             }
         }
         let values_chunk = &values[i..(i + indent_chunk.len()).min(values.len())];
@@ -22,18 +25,30 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
                 // This could be a valid indentation, but we need more
                 let next_u8 = indent_chunk.get(values_chunk.len()).cloned().unwrap();
                 let u8set = U8Set::from_u8(next_u8);
-                return ParseResults(vec![], vec![UpData { u8set }]);
+                return ParseResults {
+                    right_data_vec: vec![],
+                    up_data_vec: vec![UpData { u8set }]
+                };
             } else {
                 // We have invalid indentation
-                return ParseResults(vec![], vec![]);
+                return ParseResults {
+                    right_data_vec: vec![],
+                    up_data_vec: vec![]
+                };
             }
         }
         i += indent_chunk.len();
     }
     if i == values.len() {
-        ParseResults(vec![right_data.clone()], vec![])
+        ParseResults {
+            right_data_vec: vec![right_data.clone()],
+            up_data_vec: vec![]
+        }
     } else {
-        ParseResults(vec![], vec![])
+        ParseResults {
+            right_data_vec: vec![],
+            up_data_vec: vec![]
+        }
     }
 };
 
@@ -92,14 +107,23 @@ impl ParserTrait for IndentCombinatorParser {
                 if c == b' ' {
                     let mut right_data = maybe_right_data.as_mut().unwrap().clone();
                     right_data.indents.last_mut().unwrap().push(c);
-                    ParseResults(vec![right_data.clone()], vec![UpData { u8set: U8Set::from_chars(" ") }])
+                    ParseResults {
+                        right_data_vec: vec![right_data.clone()],
+                        up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }]
+                    }
                 } else {
                     // Fail. Purge the right data to poison the parser.
                     maybe_right_data.take();
-                    ParseResults(vec![], vec![])
+                    ParseResults {
+                        right_data_vec: vec![],
+                        up_data_vec: vec![]
+                    }
                 }
             }
-            IndentCombinatorParser::Done => ParseResults(vec![], vec![]),
+            IndentCombinatorParser::Done => ParseResults {
+                right_data_vec: vec![],
+                up_data_vec: vec![]
+            },
         }
     }
 }

@@ -27,8 +27,11 @@ where
     A: ParserTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        let ParseResults(right_data, up_data) = self.inner.step(c);
-        ParseResults(right_data, up_data)
+        let ParseResults { right_data_vec: right_data, up_data_vec: up_data } = self.inner.step(c);
+        ParseResults {
+            right_data_vec: right_data,
+            up_data_vec: up_data
+        }
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {

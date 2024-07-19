@@ -15,7 +15,10 @@ impl CombinatorTrait for Eps {
 
 impl ParserTrait for EpsParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        ParseResults(vec![], vec![])
+        ParseResults {
+            right_data_vec: vec![],
+            up_data_vec: vec![]
+        }
     }
 }
 

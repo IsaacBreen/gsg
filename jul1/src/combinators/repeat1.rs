@@ -38,7 +38,7 @@ where
     fn step(&mut self, c: u8) -> ParseResults {
         let (mut right_data_as, mut up_data_as) = (vec![], vec![]);
         self.a_parsers.retain_mut(|a_parser| {
-            let ParseResults(right_data_a, up_data_a) = a_parser.step(c);
+            let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a } = a_parser.step(c);
             if right_data_a.is_empty() && up_data_a.is_empty() {
                 false
             } else {
@@ -53,7 +53,10 @@ where
             right_data_as.extend(right_data_a);
             up_data_as.extend(up_data_a);
         }
-        ParseResults(right_data_as, up_data_as)
+        ParseResults {
+            right_data_vec: right_data_as,
+            up_data_vec: up_data_as
+        }
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {

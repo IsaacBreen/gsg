@@ -1,7 +1,10 @@
 use crate::{FrameStack, U8Set};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ParseResults(pub Vec<RightData>, pub Vec<UpData>);
+pub struct ParseResults {
+    pub right_data_vec: Vec<RightData>,
+    pub up_data_vec: Vec<UpData>,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RightData {
@@ -66,6 +69,9 @@ impl Squash for Vec<UpData> {
 impl Squash for ParseResults {
     type Output = ParseResults;
     fn squashed(self) -> Self::Output {
-        ParseResults(self.0.squashed(), self.1.squashed())
+        ParseResults {
+            right_data_vec: self.right_data_vec.squashed(),
+            up_data_vec: self.up_data_vec.squashed(),
+        }
     }
 }

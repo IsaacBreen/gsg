@@ -18,7 +18,10 @@ impl CombinatorTrait for MutateRightData {
 
 impl ParserTrait for MutateRightData {
     fn step(&mut self, c: u8) -> ParseResults {
-        ParseResults(vec![], vec![])
+        ParseResults {
+            right_data_vec: vec![],
+            up_data_vec: vec![]
+        }
     }
 }
 

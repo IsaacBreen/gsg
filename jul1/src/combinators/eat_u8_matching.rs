@@ -28,10 +28,16 @@ impl ParserTrait for EatU8Parser {
     fn step(&mut self, c: u8) -> ParseResults {
         if self.u8set.contains(c) {
             if let Some(right_data) = self.right_data.take() {
-                return ParseResults(vec![right_data], vec![]);
+                return ParseResults {
+                    right_data_vec: vec![right_data],
+                    up_data_vec: vec![]
+                };
             }
         }
-        ParseResults(vec![], vec![])
+        ParseResults {
+            right_data_vec: vec![],
+            up_data_vec: vec![]
+        }
     }
     fn collect_stats(&self, stats: &mut Stats) {
         stats.active_parser_type_counts.entry("EatU8Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);

@@ -45,7 +45,7 @@ where
     fn step(&mut self, c: u8) -> ParseResults {
         let (mut right_data, mut up_data) = (vec![], vec![]);
         if let Some(a) = &mut self.a {
-            let ParseResults(mut right_data_a, mut up_data_a) = a.step(c);
+            let ParseResults { right_data_vec: mut right_data_a, up_data_vec: mut up_data_a } = a.step(c);
             if right_data_a.is_empty() && up_data_a.is_empty() {
                 self.a = None;
             } else {
@@ -54,7 +54,7 @@ where
             }
         }
         if let Some(b) = &mut self.b {
-            let ParseResults(mut right_data_b, mut up_data_b) = b.step(c);
+            let ParseResults { right_data_vec: mut right_data_b, up_data_vec: mut up_data_b } = b.step(c);
             if right_data_b.is_empty() && up_data_b.is_empty() {
                 self.b = None;
             } else {
@@ -62,7 +62,10 @@ where
                 up_data.append(&mut up_data_b);
             }
         }
-        ParseResults(right_data, up_data)
+        ParseResults {
+            right_data_vec: right_data,
+            up_data_vec: up_data
+        }
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
