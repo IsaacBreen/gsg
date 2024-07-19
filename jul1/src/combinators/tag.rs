@@ -31,6 +31,14 @@ where
         (right_data, up_data)
     }
 
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        Box::new(std::iter::once(&self.inner as &dyn ParserTrait))
+    }
+
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        Box::new(std::iter::once(&mut self.inner as &mut dyn ParserTrait))
+    }
+
     fn collect_stats(&self, stats: &mut Stats) {
         self.inner.collect_stats(stats);
         stats.active_parser_type_counts.insert("TaggedParser".to_string(), 1);

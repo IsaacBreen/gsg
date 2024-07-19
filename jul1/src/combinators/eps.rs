@@ -17,9 +17,6 @@ impl ParserTrait for EpsParser {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         (vec![], vec![])
     }
-    fn collect_stats(&self, stats: &mut Stats) {
-        stats.active_parser_type_counts.entry("EpsParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
-    }
 }
 
 pub fn eps() -> Eps {

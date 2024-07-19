@@ -56,9 +56,12 @@ where
         (right_data_as, up_data_as)
     }
 
-    fn collect_stats(&self, stats: &mut Stats) {
-        self.a_parsers.iter().for_each(|a| a.collect_stats(stats));
-        stats.active_parser_type_counts.entry("Repeat1Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        Box::new(self.a_parsers.iter().map(|a| a as &dyn ParserTrait))
+    }
+
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        Box::new(self.a_parsers.iter_mut().map(|a| a as &mut dyn ParserTrait))
     }
 }
 

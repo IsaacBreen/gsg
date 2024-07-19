@@ -39,9 +39,12 @@ where
         (right_data_vec, up_data_vec)
     }
 
-    fn collect_stats(&self, stats: &mut Stats) {
-        self.a.collect_stats(stats);
-        stats.active_parser_type_counts.entry("WithNewFrameParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        Box::new(std::iter::once(&self.a as &dyn ParserTrait))
+    }
+
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        Box::new(std::iter::once(&mut self.a as &mut dyn ParserTrait))
     }
 }
 
@@ -155,9 +158,12 @@ where
         }
     }
 
-    fn collect_stats(&self, stats: &mut Stats) {
-        self.a.collect_stats(stats);
-        stats.active_parser_type_counts.entry("FrameStackOpParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        Box::new(std::iter::once(&self.a as &dyn ParserTrait))
+    }
+
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        Box::new(std::iter::once(&mut self.a as &mut dyn ParserTrait))
     }
 }
 

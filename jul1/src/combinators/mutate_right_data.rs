@@ -20,9 +20,6 @@ impl ParserTrait for MutateRightData {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         (vec![], vec![])
     }
-    fn collect_stats(&self, stats: &mut Stats) {
-        stats.active_parser_type_counts.entry("MutateRightData".to_string()).or_insert(0);
-    }
 }
 
 pub fn mutate_right_data(run: fn(&mut RightData) -> bool) -> MutateRightData {

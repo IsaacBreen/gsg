@@ -79,12 +79,12 @@ where
         (right_data_bs, up_data_bs.into_iter().chain(up_data_a).collect())
     }
 
-    fn collect_stats(&self, stats: &mut Stats) {
-        self.a.as_ref().map(|a| a.collect_stats(stats));
-        for b in &self.bs {
-            b.collect_stats(stats);
-        }
-        stats.active_parser_type_counts.entry("Seq2Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        Box::new(self.a.iter().map(|a| a as &dyn ParserTrait).chain(self.bs.iter().map(|b| b as &dyn ParserTrait)))
+    }
+
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        Box::new(self.a.iter_mut().map(|a| a as &mut dyn ParserTrait).chain(self.bs.iter_mut().map(|b| b as &mut dyn ParserTrait)))
     }
 }
 

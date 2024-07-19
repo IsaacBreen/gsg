@@ -35,15 +35,31 @@ pub trait ParserTrait {
         self.collect_stats(&mut stats);
         stats
     }
-    fn collect_stats(&self, stats: &mut Stats);
+    fn collect_stats(&self, stats: &mut Stats) {
+        stats.active_parser_type_counts.entry(std::any::type_name::<Self>().to_string()).and_modify(|c| *c += 1).or_insert(1);
+        for child in self.iter_children() {
+            child.collect_stats(stats);
+        }
+    }
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item = &'a dyn ParserTrait> + 'a> {
+        Box::new(std::iter::empty())
+    }
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &'a mut dyn ParserTrait> + 'a> {
+        Box::new(std::iter::empty())
+    }
 }
 
 impl ParserTrait for Box<dyn ParserTrait> {
     fn step(&mut self, c: u8) -> (Vec<RightData>, Vec<UpData>) {
         (**self).step(c)
     }
-    fn collect_stats(&self, stats: &mut Stats) {
-        (**self).collect_stats(stats);
+
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        (**self).iter_children()
+    }
+
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        (**self).iter_children_mut()
     }
 }
 

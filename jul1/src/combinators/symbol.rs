@@ -30,10 +30,12 @@ impl<T> ParserTrait for SymbolParser<T> where T: CombinatorTrait
         self.inner.step(c)
     }
 
-    fn collect_stats(&self, stats: &mut Stats) {
-        self.inner.collect_stats(stats);
-        stats.active_parser_type_counts.insert("Symbol".to_string(), 1);
-        // stats.active_symbols.insert(format!("{:?}", self.symbol_value), 1);
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        Box::new(std::iter::once(&self.inner as &dyn ParserTrait))
+    }
+
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        Box::new(std::iter::once(&mut self.inner as &mut dyn ParserTrait))
     }
 }
 

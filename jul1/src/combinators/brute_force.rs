@@ -29,9 +29,6 @@ impl ParserTrait for BruteForceParser {
         let (right_data2, up_data) = (self.f)(&self.values, &self.right_data);
         (right_data2, up_data)
     }
-    fn collect_stats(&self, stats: &mut Stats) {
-        stats.active_parser_type_counts.entry("BruteForceParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
-    }
 }
 
 pub fn brute_force(f: BruteForceFn) -> BruteForce {
