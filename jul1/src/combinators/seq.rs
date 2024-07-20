@@ -15,7 +15,7 @@ where
 
 pub struct Seq2Parser<B, ParserA>
 where
-    ParserA: ParserTrait,
+    ParserA: ParserTrait + PartialEq,
     B: CombinatorTrait,
 {
     pub(crate) a: Option<ParserA>,
@@ -28,6 +28,7 @@ impl<A, B> CombinatorTrait for Seq2<A, B>
 where
     A: CombinatorTrait,
     B: CombinatorTrait,
+    A::Parser: PartialEq,
 {
     type Parser = Seq2Parser<B, A::Parser>;
 
@@ -75,7 +76,7 @@ where
 
 impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA>
 where
-    ParserA: ParserTrait + 'static,
+    ParserA: ParserTrait + 'static + PartialEq,
     B: CombinatorTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {

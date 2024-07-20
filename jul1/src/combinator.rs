@@ -2,9 +2,10 @@ use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::rc::Rc;
 use std::any::Any;
-
+use std::hash::Hasher;
 use crate::parse_state::{RightData, UpData};
 use crate::{ParseResults, U8Set};
+use std::hash::{Hash};
 
 #[derive(Default, Debug)]
 pub struct Stats
@@ -65,24 +66,37 @@ pub trait ParserTrait {
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &'a mut dyn ParserTrait> + 'a> {
         Box::new(std::iter::empty())
     }
-    fn gc(&mut self) {
+    fn gc(&mut self)  {
         for child in self.iter_children_mut() {
             child.gc();
         }
     }
-    fn eq(&self, other: &dyn ParserTrait) -> bool where Self: PartialEq + Sized + 'static {
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool where Self: PartialEq + Sized + 'static {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
             self == other
         } else {
             false
         }
     }
+    fn default_hash(&self, state: &mut std::hash::DefaultHasher) where Self: Hash {
+        self.hash(state);
+    }
     fn as_any(&self) -> &dyn Any;
+}
+
+struct HashWrapper<T>(T);
+
+impl<T: ParserTrait + Hash> Hash for HashWrapper<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let mut state2 = std::collections::hash_map::DefaultHasher::new();
+        self.0.default_hash(&mut state2);
+        state.write_u64(state2.finish());
+    }
 }
 
 impl<T: ParserTrait + 'static + PartialEq> ParserTrait for T {
     fn step(&mut self, c: u8) -> ParseResults {
-        todo!()
+        self.step(c)
     }
 
     fn as_any(&self) -> &dyn Any {

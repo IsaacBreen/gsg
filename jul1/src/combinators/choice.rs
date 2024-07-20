@@ -24,6 +24,7 @@ impl<A, B> CombinatorTrait for Choice2<A, B>
 where
     A: CombinatorTrait,
     B: CombinatorTrait,
+    A::Parser: std::cmp::PartialEq,
 {
     type Parser = Choice2Parser<A::Parser, B::Parser>;
 
@@ -39,7 +40,7 @@ where
 
 impl<A, B> ParserTrait for Choice2Parser<A, B>
 where
-    A: ParserTrait + 'static,
+    A: ParserTrait + 'static + std::cmp::PartialEq,
     B: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
@@ -89,6 +90,20 @@ where
 
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
         Box::new(self.a.iter_mut().map(|a| a as &mut dyn ParserTrait).chain(self.b.iter_mut().map(|b| b as &mut dyn ParserTrait)))
+    }
+
+    fn gc(&mut self) {
+        if let Some(a) = &mut self.a {
+            a.gc();
+        }
+        if let Some(b) = &mut self.b {
+            b.gc();
+        }
+        if let (Some(a), Some(b)) = (&self.a, &self.b) {
+            if a.dyn_eq(b) {
+                self.b = None;
+            }
+        }
     }
 
     fn as_any(&self) -> &dyn Any {
