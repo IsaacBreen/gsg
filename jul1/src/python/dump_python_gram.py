@@ -68,7 +68,7 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar) -> dict[remove_left_recursio
         elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_node(item)
         elif isinstance(item, pegen.grammar.Cut):
-            return remove_left_recursion.eps()
+            return remove_left_recursion.eps_external(item)
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
@@ -96,6 +96,8 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
             return pegen.grammar.StringLeaf(node.value)
         elif isinstance(node, remove_left_recursion.Ref):
             return pegen.grammar.NameLeaf(node.name)
+        elif isinstance(node, remove_left_recursion.EpsExternal):
+            return node.data
         elif isinstance(node, remove_left_recursion.Seq):
             assert len(node.children) > 0
             return pegen.grammar.Group(node_to_rhs(node))
@@ -167,8 +169,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
         elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_rust(item)
         elif isinstance(item, pegen.grammar.Cut):
-            logging.warning(f"Doing nothing with cut: {item}")
-            return 'eps()'
+            return 'cut()'
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
@@ -180,7 +181,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
     f.write(
-        'use crate::{choice, seq, repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, DynCombinator, CombinatorTrait};\n'
+        'use crate::{choice, seq, repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, DynCombinator, CombinatorTrait};\n'
     )
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('use super::python_tokenizer::python_literal;\n')

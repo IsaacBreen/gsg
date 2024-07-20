@@ -34,6 +34,8 @@ def is_nullable(node: Node, nullable_rules: set[Ref]) -> bool:
             return node in nullable_rules
         case Term(_):
             return False
+        case EpsExternal(_):
+            return True
         case Seq(children):
             return all(is_nullable(child, nullable_rules) for child in children)
         case Choice(children):
@@ -58,10 +60,12 @@ def get_nullable_rules(rules: dict[Ref, Node]) -> set[Ref]:
     return nullable_rules
 
 
-def get_firsts(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term]:
+def get_firsts(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExternal]:
     if isinstance(node, Term):
         return {node}
     elif isinstance(node, Ref):
+        return {node}
+    elif isinstance(node, EpsExternal):
         return {node}
     elif isinstance(node, Seq):
         result = set()
@@ -398,8 +402,8 @@ class Ref(Node):
 
 
 @dataclass(frozen=True)
-class Term(Node):
-    value: str
+class Term[T](Node):
+    value: T
 
     def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
         return self, fail()
@@ -417,12 +421,33 @@ class Term(Node):
         return f'term(\u001b[36m{repr(self.value)}\u001b[0m)'
 
 
+@dataclass(frozen=True)
+class EpsExternal[T](Node):
+    data: T
+
+    def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
+        return self, fail()
+
+    def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
+        return self
+
+    def simplify(self) -> Node:
+        return self
+
+    def copy(self) -> Self:
+        return EpsExternal(self.data)
+
+    def __str__(self) -> str:
+        return f'eps(\u001b[36m{repr(self.data)}\u001b[0m)'
+
+
 # Core combinators
 def seq(*children: Node) -> Seq: return Seq(list(children))
 def choice(*children: Node) -> Choice: return Choice(list(children))
 def repeat1(child: Node) -> Repeat1: return Repeat1(child)
 def ref(name: str) -> Ref: return Ref(name)
 def term(value: str) -> Term: return Term(value)
+def eps_external[T](data: T) -> EpsExternal[T]: return EpsExternal(data)
 
 
 # Derived combinators

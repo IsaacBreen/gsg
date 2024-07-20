@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{choice, seq, repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, DynCombinator, CombinatorTrait};
+use crate::{choice, seq, repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, DynCombinator, CombinatorTrait};
 use super::python_tokenizer::{NAME, TYPE_COMMENT, FSTRING_START, FSTRING_MIDDLE, FSTRING_END, NUMBER, STRING, NEWLINE, INDENT, DEDENT, ENDMARKER};
 use super::python_tokenizer::python_literal;
 
@@ -277,7 +277,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&kwarg_or_double_starred, opt(repeat1(seq!(python_literal(","), &kwarg_or_double_starred))))
     )).into_boxed());
     let args = Rc::new(args.set(choice!(
-        seq!(choice!(&starred_expression, seq!(&NAME, python_literal(":="), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(repeat1(seq!(python_literal(","), choice!(&starred_expression, seq!(&NAME, python_literal(":="), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))), opt(seq!(python_literal(","), &kwargs))),
+        seq!(choice!(&starred_expression, seq!(&NAME, python_literal(":="), cut(), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(repeat1(seq!(python_literal(","), choice!(&starred_expression, seq!(&NAME, python_literal(":="), cut(), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))), opt(seq!(python_literal(","), &kwargs))),
         &kwargs
     )).into_boxed());
     let arguments = Rc::new(arguments.set(seq!(&args, opt(python_literal(",")))).into_boxed());
@@ -286,8 +286,8 @@ pub fn python_file() -> Rc<DynCombinator> {
     let setcomp = Rc::new(setcomp.set(seq!(python_literal("{"), &named_expression, &for_if_clauses, python_literal("}"))).into_boxed());
     let listcomp = Rc::new(listcomp.set(seq!(python_literal("["), &named_expression, &for_if_clauses, python_literal("]"))).into_boxed());
     let for_if_clause = Rc::new(for_if_clause.set(choice!(
-        seq!(python_literal("async"), python_literal("for"), &star_targets, python_literal("in"), &disjunction, opt(repeat1(seq!(python_literal("if"), &disjunction)))),
-        seq!(python_literal("for"), &star_targets, python_literal("in"), &disjunction, opt(repeat1(seq!(python_literal("if"), &disjunction))))
+        seq!(python_literal("async"), python_literal("for"), &star_targets, python_literal("in"), cut(), &disjunction, opt(repeat1(seq!(python_literal("if"), &disjunction)))),
+        seq!(python_literal("for"), &star_targets, python_literal("in"), cut(), &disjunction, opt(repeat1(seq!(python_literal("if"), &disjunction))))
     )).into_boxed());
     let for_if_clauses = Rc::new(for_if_clauses.set(repeat1(&for_if_clause)).into_boxed());
     let kvpair = Rc::new(kvpair.set(seq!(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), python_literal(":"), &expression)).into_boxed());
@@ -336,7 +336,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     let lambdef = Rc::new(lambdef.set(seq!(python_literal("lambda"), opt(&lambda_params), python_literal(":"), &expression)).into_boxed());
     let group = Rc::new(group.set(seq!(python_literal("("), choice!(&yield_expr, &named_expression), python_literal(")"))).into_boxed());
     let atom = Rc::new(atom.set(seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), &strings, &NUMBER, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp, python_literal("...")), opt(repeat1(choice!(&strings, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp))))).into_boxed());
-    let slice = Rc::new(slice.set(seq!(choice!(seq!(opt(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), python_literal(":"), opt(&expression), opt(seq!(python_literal(":"), opt(&expression)))), seq!(&NAME, python_literal(":="), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(repeat1(seq!(python_literal(":"), opt(&expression), opt(seq!(python_literal(":"), opt(&expression)))))))).into_boxed());
+    let slice = Rc::new(slice.set(seq!(choice!(seq!(opt(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), python_literal(":"), opt(&expression), opt(seq!(python_literal(":"), opt(&expression)))), seq!(&NAME, python_literal(":="), cut(), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(repeat1(seq!(python_literal(":"), opt(&expression), opt(seq!(python_literal(":"), opt(&expression)))))))).into_boxed());
     let slices = Rc::new(slices.set(choice!(
         &slice,
         seq!(choice!(&slice, &starred_expression), opt(repeat1(seq!(python_literal(","), choice!(&slice, &starred_expression)))), opt(python_literal(",")))
@@ -389,11 +389,11 @@ pub fn python_file() -> Rc<DynCombinator> {
     let conjunction = Rc::new(conjunction.set(seq!(&inversion, opt(repeat1(seq!(python_literal("and"), &inversion))))).into_boxed());
     let disjunction = Rc::new(disjunction.set(seq!(&conjunction, opt(repeat1(seq!(python_literal("or"), &conjunction))))).into_boxed());
     let named_expression = Rc::new(named_expression.set(choice!(
-        seq!(&NAME, python_literal(":="), &expression),
+        seq!(&NAME, python_literal(":="), cut(), &expression),
         seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))),
         &lambdef
     )).into_boxed());
-    let assignment_expression = Rc::new(assignment_expression.set(seq!(&NAME, python_literal(":="), &expression)).into_boxed());
+    let assignment_expression = Rc::new(assignment_expression.set(seq!(&NAME, python_literal(":="), cut(), &expression)).into_boxed());
     let star_named_expression = Rc::new(star_named_expression.set(choice!(
         seq!(python_literal("*"), &bitwise_or),
         &named_expression
@@ -513,8 +513,8 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(python_literal("async"), python_literal("with"), choice!(seq!(python_literal("("), &with_item, opt(repeat1(seq!(python_literal(","), &with_item))), opt(python_literal(",")), python_literal(")"), python_literal(":"), &block), seq!(&with_item, opt(repeat1(seq!(python_literal(","), &with_item))), python_literal(":"), opt(&TYPE_COMMENT), &block)))
     )).into_boxed());
     let for_stmt = Rc::new(for_stmt.set(choice!(
-        seq!(python_literal("for"), &star_targets, python_literal("in"), &star_expressions, python_literal(":"), opt(&TYPE_COMMENT), &block, opt(&else_block)),
-        seq!(python_literal("async"), python_literal("for"), &star_targets, python_literal("in"), &star_expressions, python_literal(":"), opt(&TYPE_COMMENT), &block, opt(&else_block))
+        seq!(python_literal("for"), &star_targets, python_literal("in"), cut(), &star_expressions, python_literal(":"), opt(&TYPE_COMMENT), &block, opt(&else_block)),
+        seq!(python_literal("async"), python_literal("for"), &star_targets, python_literal("in"), cut(), &star_expressions, python_literal(":"), opt(&TYPE_COMMENT), &block, opt(&else_block))
     )).into_boxed());
     let while_stmt = Rc::new(while_stmt.set(seq!(python_literal("while"), &named_expression, python_literal(":"), &block, opt(&else_block))).into_boxed());
     let else_block = Rc::new(else_block.set(seq!(python_literal("else"), python_literal(":"), &block)).into_boxed());
@@ -608,7 +608,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&NAME, python_literal(":"), &expression, opt(seq!(python_literal("="), &annotated_rhs))),
         seq!(choice!(seq!(python_literal("("), &single_target, python_literal(")")), &single_subscript_attribute_target), python_literal(":"), &expression, opt(seq!(python_literal("="), &annotated_rhs))),
         seq!(&star_targets, python_literal("="), opt(repeat1(seq!(&star_targets, python_literal("=")))), choice!(&yield_expr, &star_expressions), opt(&TYPE_COMMENT)),
-        seq!(&single_target, &augassign, choice!(&yield_expr, &star_expressions))
+        seq!(&single_target, &augassign, cut(), choice!(&yield_expr, &star_expressions))
     )).into_boxed());
     let compound_stmt = Rc::new(compound_stmt.set(seq!(choice!(&function_def, &if_stmt, &class_def, &with_stmt, &for_stmt, &try_stmt, &while_stmt, &match_stmt), opt(repeat1(choice!(&function_def, &if_stmt, &class_def, &with_stmt, &for_stmt, &try_stmt, &while_stmt))))).into_boxed());
     let simple_stmt = Rc::new(simple_stmt.set(seq!(choice!(&assignment, &type_alias, &star_expressions, &return_stmt, &import_stmt, &raise_stmt, python_literal("pass"), &del_stmt, &yield_stmt, &assert_stmt, python_literal("break"), python_literal("continue"), &global_stmt, &nonlocal_stmt), opt(repeat1(choice!(&type_alias, &return_stmt, &import_stmt, &raise_stmt, &del_stmt, &yield_stmt, &assert_stmt, &global_stmt, &nonlocal_stmt))))).into_boxed());
