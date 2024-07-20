@@ -68,12 +68,8 @@ pub trait ParserTrait {
             child.collect_stats(stats);
         }
     }
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item = &'a dyn ParserTrait> + 'a> {
-        Box::new(std::iter::empty())
-    }
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &'a mut dyn ParserTrait> + 'a> {
-        Box::new(std::iter::empty())
-    }
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item = &'a dyn ParserTrait> + 'a>;
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &'a mut dyn ParserTrait> + 'a>;
     fn gc(&mut self) {
         for child in self.iter_children_mut() {
             child.gc();

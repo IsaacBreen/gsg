@@ -37,6 +37,12 @@ impl ParserTrait for BruteForceParser {
             cut,
         }
     }
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        Box::new(std::iter::empty())
+    }
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        Box::new(std::iter::empty())
+    }
 }
 
 pub fn brute_force(f: BruteForceFn) -> BruteForce {

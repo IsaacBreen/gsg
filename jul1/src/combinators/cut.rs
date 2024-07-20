@@ -25,6 +25,12 @@ impl ParserTrait for CutParser {
             cut: false,
         }
     }
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        Box::new(std::iter::empty())
+    }
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        Box::new(std::iter::empty())
+    }
 }
 
 pub fn cut() -> Cut {
