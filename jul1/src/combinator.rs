@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::rc::Rc;
+use std::any::Any;
 
 use crate::parse_state::{RightData, UpData};
 use crate::{ParseResults, U8Set};
@@ -17,26 +18,10 @@ pub struct Stats
 
 impl Display for Stats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // writeln!(f, "Active Parser Types:")?;
-        // for (name, count) in &self.active_parser_type_counts {
-        //     writeln!(f, "    {}: {}", name, count)?;
-        // }
-        // writeln!(f, "Active Symbols:")?;
-        // for (name, count) in &self.active_symbols {
-        //     writeln!(f, "    {}: {}", name, count)?;
-        // }
         writeln!(f, "Active Tags:")?;
         for (name, count) in &self.active_tags {
             writeln!(f, "    {}: {}", name, count)?;
         }
-        // writeln!(f, "Active String Matchers:")?;
-        // for (name, count) in &self.active_string_matchers {
-        //     writeln!(f, "    {}: {}", name, count)?;
-        // }
-        // writeln!(f, "Active U8 Matchers:")?;
-        // for (name, count) in &self.active_u8_matchers {
-        //     writeln!(f, "    {}: {}", name, count)?;
-        // }
         Ok(())
     }
 }
@@ -85,8 +70,25 @@ pub trait ParserTrait {
             child.gc();
         }
     }
+    fn eq(&self, other: &dyn ParserTrait) -> bool where Self: PartialEq + Sized + 'static {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
+        }
+    }
+    fn as_any(&self) -> &dyn Any;
 }
 
+impl<T: ParserTrait + 'static + PartialEq> ParserTrait for T {
+    fn step(&mut self, c: u8) -> ParseResults {
+        todo!()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 
 impl ParserTrait for Box<dyn ParserTrait> {
     fn step(&mut self, c: u8) -> ParseResults {
@@ -111,6 +113,10 @@ impl ParserTrait for Box<dyn ParserTrait> {
 
     fn gc(&mut self) {
         (**self).gc()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::collections::{BTreeMap, HashMap};
 use crate::{choice, choice_from_vec, CombinatorTrait, DynCombinator, eat_byte, eps, opt, ParseResults, ParserTrait, seq, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
@@ -67,6 +68,10 @@ impl ParserTrait for EatStringParser {
         stats.active_parser_type_counts.entry("EatStringParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
         let string = std::str::from_utf8(&self.string).unwrap();
         stats.active_string_matchers.entry(string.to_string()).and_modify(|c| *c += 1).or_insert(1);
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

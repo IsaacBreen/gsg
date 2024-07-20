@@ -1,3 +1,4 @@
+use std::any::Any;
 use crate::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +26,7 @@ where
 
 impl<A> ParserTrait for TaggedParser<A>
 where
-    A: ParserTrait,
+    A: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         let ParseResults { right_data_vec: right_data, up_data_vec: up_data, cut } = self.inner.step(c);
@@ -48,6 +49,10 @@ where
         self.inner.collect_stats(stats);
         stats.active_parser_type_counts.entry("TaggedParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
         *stats.active_tags.entry(self.tag.clone()).and_modify(|c| *c += 1).or_insert(1);
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

@@ -1,3 +1,4 @@
+use std::any::Any;
 use crate::{CombinatorTrait, DynCombinator, eps, fail, IntoCombinator, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::{RightData, UpData};
 
@@ -38,8 +39,8 @@ where
 
 impl<A, B> ParserTrait for Choice2Parser<A, B>
 where
-    A: ParserTrait,
-    B: ParserTrait,
+    A: ParserTrait + 'static,
+    B: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut right_data = vec![];
@@ -88,6 +89,10 @@ where
 
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
         Box::new(self.a.iter_mut().map(|a| a as &mut dyn ParserTrait).chain(self.b.iter_mut().map(|b| b as &mut dyn ParserTrait)))
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

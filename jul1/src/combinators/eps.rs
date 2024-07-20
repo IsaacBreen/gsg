@@ -1,3 +1,4 @@
+use std::any::Any;
 use crate::{choice, Choice2, CombinatorTrait, IntoCombinator, ParseResults, ParserTrait, Stats};
 use crate::parse_state::{RightData, UpData};
 
@@ -24,6 +25,10 @@ impl ParserTrait for EpsParser {
             up_data_vec: vec![],
             cut: false,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

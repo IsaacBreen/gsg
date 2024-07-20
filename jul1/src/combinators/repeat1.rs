@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::rc::Rc;
 
 use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParseResults, ParserTrait, Squash, Stats};
@@ -97,6 +98,10 @@ where
 
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
         Box::new(self.a_parsers.iter_mut().map(|a| a as &mut dyn ParserTrait))
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

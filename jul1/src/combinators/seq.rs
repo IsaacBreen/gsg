@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::rc::Rc;
 
 use crate::*;
@@ -74,7 +75,7 @@ where
 
 impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA>
 where
-    ParserA: ParserTrait,
+    ParserA: ParserTrait + 'static,
     B: CombinatorTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
@@ -153,6 +154,10 @@ where
 
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
         Box::new(self.a.iter_mut().map(|a| a as &mut dyn ParserTrait).chain(self.bs.iter_mut().map(|b| b as &mut dyn ParserTrait)))
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

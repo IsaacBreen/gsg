@@ -1,3 +1,4 @@
+use std::any::Any;
 use crate::*;
 
 pub struct MutateRightData {
@@ -31,6 +32,10 @@ impl ParserTrait for MutateRightData {
             up_data_vec: vec![],
             cut: false,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

@@ -1,3 +1,4 @@
+use std::any::Any;
 use crate::*;
 
 pub struct CustomFn<Parser: ParserTrait> {
@@ -12,13 +13,17 @@ impl<Parser: ParserTrait + 'static> CombinatorTrait for CustomFn<Parser> {
     }
 }
 
-impl<Parser: ParserTrait> ParserTrait for CustomFn<Parser> {
+impl<Parser: ParserTrait + 'static> ParserTrait for CustomFn<Parser> {
     fn step(&mut self, c: u8) -> ParseResults {
         ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

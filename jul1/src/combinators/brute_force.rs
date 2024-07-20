@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::rc::Rc;
 
 use crate::{CombinatorTrait, ParseResults, ParserTrait, RightData, Stats, UpData};
@@ -36,6 +37,10 @@ impl ParserTrait for BruteForceParser {
             up_data_vec: up_data,
             cut,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

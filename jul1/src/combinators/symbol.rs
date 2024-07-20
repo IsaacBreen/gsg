@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::rc::Rc;
 use crate::{CombinatorTrait, IntoCombinator, ParseResults, ParserTrait, RightData, Stats, UpData};
 
@@ -36,6 +37,10 @@ impl<T> ParserTrait for SymbolParser<T> where T: CombinatorTrait
 
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
         Box::new(std::iter::once(&mut self.inner as &mut dyn ParserTrait))
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

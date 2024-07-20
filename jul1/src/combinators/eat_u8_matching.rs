@@ -1,3 +1,4 @@
+use std::any::Any;
 use crate::{CombinatorTrait, ParseResults, ParserTrait, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
@@ -48,6 +49,10 @@ impl ParserTrait for EatU8Parser {
     fn collect_stats(&self, stats: &mut Stats) {
         stats.active_parser_type_counts.entry("EatU8Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);
         stats.active_u8_matchers.entry(self.u8set.clone()).and_modify(|c| *c += 1).or_insert(1);
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
