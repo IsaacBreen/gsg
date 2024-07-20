@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+use std::hash::{Hash, Hasher};
 use crate::{FrameStack, U8Set};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,7 +22,7 @@ impl ParseResults {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, PartialOrd, Ord, Eq)]
 pub struct RightData {
     pub frame_stack: Option<FrameStack>,
     pub indents: Vec<Vec<u8>>,
@@ -56,16 +58,10 @@ pub trait Squash {
 impl Squash for Vec<RightData> {
     type Output = Vec<RightData>;
     fn squashed(self) -> Self::Output {
-        let mut new_right_data = vec![];
-        for hd in self {
-            if new_right_data.is_empty() || hd != new_right_data.last().cloned().unwrap() {
-                new_right_data.push(hd);
-            }
-        }
-        new_right_data
+        self.into_iter().collect::<BTreeSet<_>>().into_iter().collect()
     }
     fn squash(&mut self) {
-        *self = self.clone().squashed();
+        *self = self.drain(..).collect::<Self>().squashed()
     }
 }
 

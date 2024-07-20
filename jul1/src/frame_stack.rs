@@ -1,8 +1,8 @@
-use std::collections::HashSet;
-
+use std::collections::{BTreeSet, HashSet};
+use std::hash::{Hash, Hasher};
 use crate::U8Set;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Hash, PartialOrd, Ord, Eq)]
 pub struct FrameStack {
     frames: Vec<Frame>,
 }
@@ -15,9 +15,9 @@ impl Default for FrameStack {
     }
 }
 
-#[derive(Clone, PartialEq, Debug, Default, Eq)]
+#[derive(Clone, PartialEq, Debug, Default, Eq, Hash, PartialOrd, Ord)]
 pub struct Frame {
-    pos: HashSet<String>,
+    pos: BTreeSet<String>,
 }
 
 impl Frame {
