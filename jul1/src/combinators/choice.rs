@@ -48,31 +48,30 @@ where
 
         if let Some(a) = &mut self.a {
             let ParseResults { right_data_vec: mut right_data_a, up_data_vec: mut up_data_a, cut } = a.step(c);
+            any_cut = cut;
             if right_data_a.is_empty() && up_data_a.is_empty() {
                 self.a = None;
             } else {
                 right_data.append(&mut right_data_a);
                 up_data.append(&mut up_data_a);
-                any_cut = cut;
             }
         }
 
         if let Some(b) = &mut self.b {
             let ParseResults { right_data_vec: mut right_data_b, up_data_vec: mut up_data_b, cut } = b.step(c);
-            if right_data_b.is_empty() && up_data_b.is_empty() {
-                self.b = None;
-            } else {
-                if cut && !any_cut {
-                    // Clear the 'a' combinator and any up data from 'a' if 'b' cuts and 'a' didn't
-                    self.a = None;
-                    up_data.clear();
-                    any_cut = true;
-                }
-                if cut || !any_cut {
-                    up_data.append(&mut up_data_b);
-                }
-                right_data.append(&mut right_data_b);
+            if cut && !any_cut {
+                // Clear the 'a' combinator and any up data from 'a' if 'b' cuts and 'a' didn't
+                self.a = None;
+                up_data.clear();
+                any_cut = true;
             }
+            if cut || !any_cut {
+                up_data.append(&mut up_data_b);
+                if right_data_b.is_empty() && up_data_b.is_empty() {
+                    self.b = None;
+                }
+            }
+            right_data.append(&mut right_data_b);
         }
 
         ParseResults {

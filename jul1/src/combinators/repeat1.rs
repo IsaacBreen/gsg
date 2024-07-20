@@ -27,7 +27,12 @@ where
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         let (a, parse_results) = self.a.parser(right_data.clone());
-        (Repeat1Parser { a: self.a.clone(), a_parsers: vec![a], right_data }, parse_results)
+        let a_parsers = if !parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty() {
+            vec![a]
+        } else {
+            vec![]
+        };
+        (Repeat1Parser { a: self.a.clone(), a_parsers, right_data }, parse_results)
     }
 }
 
@@ -43,19 +48,19 @@ where
 
         for mut a_parser in self.a_parsers.drain(..) {
             let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, cut } = a_parser.step(c);
-            if !right_data_a.is_empty() || !up_data_a.is_empty() {
                 if cut && !any_cut {
                     // Clear any parsers and up data up to this point, but not right data
                     new_parsers.clear();
                     up_data_as.clear();
                     any_cut = true;
                 }
-                if cut || !any_cut {
-                    up_data_as.extend(up_data_a);
+            if cut || !any_cut {
+                if !right_data_a.is_empty() || !up_data_a.is_empty() {
                     new_parsers.push(a_parser);
                 }
-                right_data_as.extend(right_data_a);
+                up_data_as.extend(up_data_a);
             }
+            right_data_as.extend(right_data_a);
         }
 
         right_data_as.squash();

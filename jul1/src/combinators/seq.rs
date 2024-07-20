@@ -51,7 +51,9 @@ where
                 any_cut = true;
             }
             if cut || !any_cut {
-                bs.push(b);
+                if !right_data_b.is_empty() || !up_data_b.is_empty() {
+                    bs.push(b);
+                }
                 up_data_bs.extend(up_data_b);
             }
             right_data_bs.extend(right_data_b);
@@ -96,21 +98,21 @@ where
 
         for mut b in self.bs.drain(..) {
             let ParseResults { right_data_vec, up_data_vec, cut } = b.step(c);
-            if !right_data_vec.is_empty() || !up_data_vec.is_empty() {
-                if cut && !any_cut {
-                    // Clear any combinators and up data up to this point, but not right data.
-                    self.a = None;
-                    up_data_a.clear();
-                    new_bs.clear();
-                    up_data_bs.clear();
-                    any_cut = true;
-                }
-                if cut || !any_cut {
-                    up_data_bs.extend(up_data_vec);
+            if cut && !any_cut {
+                // Clear any combinators and up data up to this point, but not right data.
+                self.a = None;
+                up_data_a.clear();
+                new_bs.clear();
+                up_data_bs.clear();
+                any_cut = true;
+            }
+            if cut || !any_cut {
+                if !right_data_vec.is_empty() || !up_data_vec.is_empty() {
                     new_bs.push(b);
                 }
-                right_data_bs.extend(right_data_vec);
+                up_data_bs.extend(up_data_vec);
             }
+            right_data_bs.extend(right_data_vec);
         }
 
         right_data_a.squash();
@@ -126,8 +128,10 @@ where
                 any_cut = true;
             }
             if cut || !any_cut {
+                if !right_data_b.is_empty() || !up_data_b.is_empty() {
+                    new_bs.push(b);
+                }
                 up_data_bs.extend(up_data_b);
-                new_bs.push(b);
             }
             right_data_bs.extend(right_data_b);
         }
