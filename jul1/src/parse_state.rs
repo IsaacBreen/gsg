@@ -37,7 +37,7 @@ impl Default for RightData {
     fn default() -> Self {
         Self {
             frame_stack: Some(FrameStack::default()),
-            indents: vec![],
+            indents: vec![vec![]],
             dedents: 0,
             scope_count: 0,
         }
