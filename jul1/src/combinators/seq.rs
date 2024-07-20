@@ -30,11 +30,11 @@ where
 {
     type Parser = Seq2Parser<B, A::Parser>;
 
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        let (a, right_data_a, up_data_a) = self.a.parser(right_data.clone());
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
+        let (a, parse_results) = self.a.parser(right_data.clone());
         let (mut bs, mut right_data_bs, mut up_data_bs) = (vec![], vec![], vec![]);
-        for right_data_b in right_data_a {
-            let (b, right_data_b, up_data_b) = self.b.parser(right_data_b);
+        for right_data_b in parse_results.right_data_vec {
+            let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut }) = self.b.parser(right_data_b);
             bs.push(b);
             right_data_bs.extend(right_data_b);
             up_data_bs.extend(up_data_b);
@@ -45,7 +45,11 @@ where
             b: self.b.clone(),
             right_data,
         };
-        (parser, right_data_bs, up_data_bs.into_iter().chain(up_data_a).collect())
+        (parser, ParseResults {
+            right_data_vec: right_data_bs,
+            up_data_vec: up_data_bs.into_iter().chain(parse_results.up_data_vec).collect(),
+            cut: parse_results.cut,
+        })
     }
 }
 
@@ -95,7 +99,7 @@ where
         self.bs = new_bs;
 
         for right_data_b in right_data_a {
-            let (b, right_data_b, up_data_b) = self.b.parser(right_data_b);
+            let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut }) = self.b.parser(right_data_b);
             self.bs.push(b);
             right_data_bs.extend(right_data_b);
             up_data_bs.extend(up_data_b);

@@ -19,7 +19,7 @@ where
     Self: 'static,
 {
     type Parser: ParserTrait;
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>);
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults);
     fn into_boxed(self) -> Box<DynCombinator>
     where
         Self: Sized,
@@ -75,7 +75,7 @@ where
 {
     type Parser = C::Parser;
 
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         (**self).parser(right_data)
     }
 }
@@ -89,16 +89,16 @@ where
 {
     type Parser = Box<dyn ParserTrait>;
 
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        let (parser, right_data, up_data) = self.0.parser(right_data);
-        (Box::new(parser), right_data, up_data)
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
+        let (parser, parse_results) = self.0.parser(right_data);
+        (Box::new(parser), parse_results)
     }
 }
 
 impl CombinatorTrait for Box<DynCombinator> {
     type Parser = Box<dyn ParserTrait>;
 
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         (**self).parser(right_data)
     }
 }

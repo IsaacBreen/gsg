@@ -25,9 +25,9 @@ where
 {
     type Parser = Repeat1Parser<A>;
 
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        let (a, right_data_a, up_data_a) = self.a.parser(right_data.clone());
-        (Repeat1Parser { a: self.a.clone(), a_parsers: vec![a], right_data }, right_data_a, up_data_a)
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
+        let (a, parse_results) = self.a.parser(right_data.clone());
+        (Repeat1Parser { a: self.a.clone(), a_parsers: vec![a], right_data }, parse_results)
     }
 }
 
@@ -61,7 +61,7 @@ where
         self.a_parsers = new_parsers;
 
         for right_data_a in right_data_as.clone() {
-            let (a_parser, right_data_a, up_data_a) = self.a.parser(right_data_a);
+            let (a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, cut }) = self.a.parser(right_data_a);
             self.a_parsers.push(a_parser);
             right_data_as.extend(right_data_a);
             up_data_as.extend(up_data_a);

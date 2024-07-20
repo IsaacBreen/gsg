@@ -3,7 +3,7 @@
 macro_rules! assert_parses {
     ($combinator:expr, $input:expr, $desc:expr) => {
         println!("beginning assert_parses {}", $desc);
-        let (mut parser, _, _) = $combinator.parser($crate::RightData::default());
+        let (mut parser, _) = $combinator.parser($crate::RightData::default());
         println!("constructed parser");
         // println!("Stats: {:?}", parser.stats());
         let mut result = Ok(());
@@ -27,7 +27,7 @@ macro_rules! assert_parses {
 macro_rules! assert_fails {
     ($combinator:expr, $input:expr, $desc:expr) => {
         println!("beginning assert_fails {}", $desc);
-        let (mut parser, _, _) = $combinator.parser($crate::RightData::default());
+        let (mut parser, _) = $combinator.parser($crate::RightData::default());
         println!("constructed parser");
         // println!("Stats: {:?}", parser.stats());
         let mut result = Ok(());

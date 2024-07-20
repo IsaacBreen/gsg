@@ -7,6 +7,19 @@ pub struct ParseResults {
     pub cut: bool,
 }
 
+impl ParseResults {
+    pub(crate) fn combine(&mut self, mut p0: ParseResults) {
+        self.right_data_vec.append(&mut p0.right_data_vec);
+        self.up_data_vec.append(&mut p0.up_data_vec);
+        self.cut |= p0.cut;
+    }
+
+    pub(crate) fn combine_inplace(mut self, p0: ParseResults) -> Self {
+        self.combine(p0);
+        self
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RightData {
     pub frame_stack: Option<FrameStack>,

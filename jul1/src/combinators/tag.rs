@@ -16,9 +16,9 @@ where
 {
     type Parser = TaggedParser<A::Parser>;
 
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        let (parser, right_data, up_data) = self.inner.parser(right_data);
-        (TaggedParser { inner: parser, tag: self.tag.clone() }, right_data, up_data)
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
+        let (parser, parse_results) = self.inner.parser(right_data);
+        (TaggedParser { inner: parser, tag: self.tag.clone() }, parse_results)
     }
 }
 

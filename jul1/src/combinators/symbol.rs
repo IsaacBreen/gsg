@@ -18,9 +18,9 @@ impl<T> Clone for Symbol<T> {
 
 impl<T> CombinatorTrait for Symbol<T> where T: CombinatorTrait {
     type Parser = SymbolParser<T>;
-    fn parser(&self, right_data: crate::parse_state::RightData) -> (Self::Parser, Vec<crate::parse_state::RightData>, Vec<crate::parse_state::UpData>) {
-        let (inner, right_data, up_data) = self.value.parser(right_data);
-        (SymbolParser { inner, symbol_value: self.value.clone() }, right_data, up_data)
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
+        let (inner, parse_results) = self.value.parser(right_data);
+        (SymbolParser { inner, symbol_value: self.value.clone() }, parse_results)
     }
 }
 

@@ -8,8 +8,12 @@ pub struct CutParser;
 
 impl CombinatorTrait for Cut {
     type Parser = CutParser;
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        (CutParser, vec![right_data], vec![])
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
+        (CutParser, ParseResults {
+            right_data_vec: vec![right_data],
+            up_data_vec: vec![],
+            cut: false,
+        })
     }
 }
 

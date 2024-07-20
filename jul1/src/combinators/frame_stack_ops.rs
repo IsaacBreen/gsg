@@ -20,10 +20,10 @@ where
 {
     type Parser = WithNewFrameParser<A::Parser>;
 
-    fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         right_data.frame_stack.as_mut().unwrap().push_empty_frame();
-        let (a, right_data_vec, up_data_vec) = self.a.parser(right_data);
-        (WithNewFrameParser { a }, right_data_vec, up_data_vec)
+        let (a, parse_results) = self.a.parser(right_data);
+        (WithNewFrameParser { a }, parse_results)
     }
 }
 
@@ -83,9 +83,9 @@ where
 {
     type Parser = FrameStackOpParser<A::Parser>;
 
-    fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         let frame_stack = right_data.frame_stack.take().unwrap();
-        let (a, mut right_data_vec, mut up_data_vec) = self.a.parser(right_data);
+        let (a, ParseResults { right_data_vec: mut right_data_vec, up_data_vec: mut up_data_vec, cut }) = self.a.parser(right_data);
         let parser = FrameStackOpParser {
             op_type: self.op_type,
             frame_stack,
@@ -114,7 +114,11 @@ where
                 }
             }
         }
-        (parser, right_data_vec, up_data_vec)
+        (parser, ParseResults {
+            right_data_vec: right_data_vec,
+            up_data_vec: up_data_vec,
+            cut,
+        })
     }
 }
 

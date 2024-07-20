@@ -26,13 +26,12 @@ where
 {
     type Parser = Choice2Parser<A::Parser, B::Parser>;
 
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        let (a, right_data_a, up_data_a) = self.a.parser(right_data.clone());
-        let (b, right_data_b, up_data_b) = self.b.parser(right_data);
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
+        let (a, parse_results_a) = self.a.parser(right_data.clone());
+        let (b, parse_results_b) = self.b.parser(right_data);
         (
             Choice2Parser { a: Some(a), b: Some(b) },
-            right_data_a.into_iter().chain(right_data_b).collect(),
-            up_data_a.into_iter().chain(up_data_b).collect()
+            parse_results_a.combine_inplace(parse_results_b)
         )
     }
 }

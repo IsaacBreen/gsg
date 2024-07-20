@@ -8,8 +8,12 @@ pub struct FailParser;
 
 impl CombinatorTrait for Fail {
     type Parser = FailParser;
-    fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        (FailParser, vec![], vec![])
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
+        (FailParser, ParseResults {
+            right_data_vec: vec![],
+            up_data_vec: vec![],
+            cut: false,
+        })
     }
 }
 

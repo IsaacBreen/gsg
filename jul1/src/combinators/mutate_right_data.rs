@@ -7,11 +7,19 @@ pub struct MutateRightData {
 impl CombinatorTrait for MutateRightData {
     type Parser = MutateRightData;
 
-    fn parser(&self, mut right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         if (self.run)(&mut right_data) {
-            (MutateRightData { run: self.run }, vec![right_data], vec![])
+            (MutateRightData { run: self.run }, ParseResults {
+                right_data_vec: vec![right_data],
+                up_data_vec: vec![],
+                cut: false,
+            })
         } else {
-            (MutateRightData { run: self.run }, vec![], vec![])
+            (MutateRightData { run: self.run }, ParseResults {
+                right_data_vec: vec![],
+                up_data_vec: vec![],
+                cut: false,
+            })
         }
     }
 }
