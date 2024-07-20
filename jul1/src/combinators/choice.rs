@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, DynCombinator, eps, fail, IntoCombinator, ParseResults, ParserTrait, Stats};
+use crate::{CombinatorTrait, DynCombinator, eps, fail, IntoCombinator, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::{RightData, UpData};
 
 pub struct Choice2<A, B>
@@ -31,7 +31,7 @@ where
         let (b, parse_results_b) = self.b.parser(right_data);
         (
             Choice2Parser { a: Some(a), b: Some(b) },
-            parse_results_a.combine_inplace(parse_results_b)
+            parse_results_a.combine_inplace(parse_results_b).squashed()
         )
     }
 }
@@ -76,7 +76,7 @@ where
         }
 
         ParseResults {
-            right_data_vec: right_data,
+            right_data_vec: right_data.squashed(),
             up_data_vec: up_data,
             cut: any_cut,
         }

@@ -88,7 +88,7 @@ where
             right_data_vec: right_data_as,
             up_data_vec: up_data_as,
             cut: any_cut,
-        }
+        }.squashed()
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
