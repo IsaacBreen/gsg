@@ -50,6 +50,7 @@ impl RightData {
 pub trait Squash {
     type Output;
     fn squashed(self) -> Self::Output;
+    fn squash(&mut self);
 }
 
 impl Squash for Vec<RightData> {
@@ -62,6 +63,9 @@ impl Squash for Vec<RightData> {
             }
         }
         new_right_data
+    }
+    fn squash(&mut self) {
+        *self = self.clone().squashed();
     }
 }
 
@@ -78,6 +82,9 @@ impl Squash for Vec<UpData> {
             vec![UpData { u8set }]
         }
     }
+    fn squash(&mut self) {
+        *self = self.clone().squashed();
+    }
 }
 
 impl Squash for ParseResults {
@@ -88,5 +95,8 @@ impl Squash for ParseResults {
             up_data_vec: self.up_data_vec.squashed(),
             cut: self.cut,
         }
+    }
+    fn squash(&mut self) {
+        *self = self.clone().squashed();
     }
 }

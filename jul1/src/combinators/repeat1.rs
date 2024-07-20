@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParseResults, ParserTrait, Stats};
+use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::{RightData, UpData};
 
 pub struct Repeat1<A>
@@ -58,6 +58,7 @@ where
             }
         }
 
+        right_data_as.squash();
 
         for right_data_a in right_data_as.clone() {
             let (a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, cut }) = self.a.parser(right_data_a);

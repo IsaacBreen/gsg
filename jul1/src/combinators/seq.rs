@@ -112,6 +112,7 @@ where
             }
         }
 
+        right_data_a.squash();
         for right_data_b in right_data_a {
             let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut }) = self.b.parser(right_data_b);
             if cut && !any_cut {
