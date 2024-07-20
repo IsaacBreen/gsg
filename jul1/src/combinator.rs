@@ -93,12 +93,24 @@ impl ParserTrait for Box<dyn ParserTrait> {
         (**self).step(c)
     }
 
+    fn stats(&self) -> Stats {
+        (**self).stats()
+    }
+
+    fn collect_stats(&self, stats: &mut Stats) {
+        (**self).collect_stats(stats)
+    }
+
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
         (**self).iter_children()
     }
 
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
         (**self).iter_children_mut()
+    }
+
+    fn gc(&mut self) {
+        (**self).gc()
     }
 }
 
@@ -163,6 +175,7 @@ where
     }
 }
 
+// TODO: why do we need this? Should be able to delete it, but throws an error (try it!)
 impl IntoCombinator for &Rc<DynCombinator> {
     type Output = Rc<DynCombinator>;
     fn into_combinator(self) -> Self::Output {
