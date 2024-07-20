@@ -66,9 +66,10 @@ where
                 any_cut = true;
             }
             if cut || !any_cut {
-                up_data.append(&mut up_data_b);
                 if right_data_b.is_empty() && up_data_b.is_empty() {
                     self.b = None;
+                } else {
+                    up_data.append(&mut up_data_b);
                 }
             }
             right_data.append(&mut right_data_b);
