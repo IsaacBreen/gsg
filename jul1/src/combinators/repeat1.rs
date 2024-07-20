@@ -36,28 +36,41 @@ where
     A: CombinatorTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        // TODO: modify this to use the new `cut` field.
-        let (mut right_data_as, mut up_data_as) = (vec![], vec![]);
-        self.a_parsers.retain_mut(|a_parser| {
-            let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a , cut} = a_parser.step(c);
-            if right_data_a.is_empty() && up_data_a.is_empty() {
-                false
-            } else {
+        let mut right_data_as = vec![];
+        let mut up_data_as = vec![];
+        let mut any_cut = false;
+        let mut new_parsers = vec![];
+
+        for mut a_parser in self.a_parsers.drain(..) {
+            let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, cut } = a_parser.step(c);
+            if !right_data_a.is_empty() || !up_data_a.is_empty() {
+                if cut && !any_cut {
+                    // Clear any parsers and up data up to this point, but not right data
+                    new_parsers.clear();
+                    up_data_as.clear();
+                    any_cut = true;
+                }
+                if cut || !any_cut {
+                    up_data_as.extend(up_data_a);
+                    new_parsers.push(a_parser);
+                }
                 right_data_as.extend(right_data_a);
-                up_data_as.extend(up_data_a);
-                true
             }
-        });
+        }
+
+        self.a_parsers = new_parsers;
+
         for right_data_a in right_data_as.clone() {
             let (a_parser, right_data_a, up_data_a) = self.a.parser(right_data_a);
             self.a_parsers.push(a_parser);
             right_data_as.extend(right_data_a);
             up_data_as.extend(up_data_a);
         }
+
         ParseResults {
             right_data_vec: right_data_as,
             up_data_vec: up_data_as,
-            cut: false,
+            cut: any_cut,
         }
     }
 

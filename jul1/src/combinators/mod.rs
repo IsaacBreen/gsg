@@ -13,6 +13,7 @@ pub use tag::*;
 pub use mutate_right_data::*;
 pub use custom_fn::*;
 pub use fail::*;
+pub use cut::*;
 
 mod choice;
 mod eat_string;
@@ -29,3 +30,4 @@ mod tag;
 mod mutate_right_data;
 mod custom_fn;
 mod fail;
+mod cut;

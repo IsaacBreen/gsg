@@ -55,36 +55,56 @@ where
     B: CombinatorTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        // TODO: modify this to use the new `cut` field.
-        let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, cut } = self.a.as_mut().map(|a| a.step(c)).unwrap_or(ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![],
-            cut: false,
-        });
-        if right_data_a.is_empty() && up_data_a.is_empty() {
-            self.a = None;
-        }
-        let (mut right_data_bs, mut up_data_bs) = (vec![], vec![]);
-        self.bs.retain_mut(|b| {
-            let ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut } = b.step(c);
-            if right_data_b.is_empty() && up_data_b.is_empty() {
-                false
-            } else {
-                right_data_bs.extend(right_data_b);
-                up_data_bs.extend(up_data_b);
-                true
+        let mut any_cut = false;
+        let mut right_data_a = vec![];
+        let mut up_data_a = vec![];
+
+        if let Some(a) = &mut self.a {
+            let ParseResults { right_data_vec, up_data_vec, cut } = a.step(c);
+            right_data_a = right_data_vec;
+            up_data_a = up_data_vec;
+            any_cut = cut;
+            if right_data_a.is_empty() && up_data_a.is_empty() {
+                self.a = None;
             }
-        });
+        }
+
+        let mut right_data_bs = vec![];
+        let mut up_data_bs = vec![];
+        let mut new_bs = vec![];
+
+        for mut b in self.bs.drain(..) {
+            let ParseResults { right_data_vec, up_data_vec, cut } = b.step(c);
+            if !right_data_vec.is_empty() || !up_data_vec.is_empty() {
+                if cut && !any_cut {
+                    // Clear any combinators and up data up to this point, but not right data.
+                    self.a = None;
+                    up_data_a.clear();
+                    new_bs.clear();
+                    up_data_bs.clear();
+                    any_cut = true;
+                }
+                if cut || !any_cut {
+                    up_data_bs.extend(up_data_vec);
+                    new_bs.push(b);
+                }
+                right_data_bs.extend(right_data_vec);
+            }
+        }
+
+        self.bs = new_bs;
+
         for right_data_b in right_data_a {
             let (b, right_data_b, up_data_b) = self.b.parser(right_data_b);
             self.bs.push(b);
             right_data_bs.extend(right_data_b);
             up_data_bs.extend(up_data_b);
         }
+
         ParseResults {
             right_data_vec: right_data_bs,
             up_data_vec: up_data_bs.into_iter().chain(up_data_a).collect(),
-            cut: false,
+            cut: any_cut,
         }
     }
 

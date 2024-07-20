@@ -2,18 +2,18 @@ use crate::{choice, Choice2, CombinatorTrait, IntoCombinator, ParseResults, Pars
 use crate::parse_state::{RightData, UpData};
 
 #[derive(Debug, Clone, Copy)]
-pub struct Eps;
+pub struct Cut;
 
-pub struct EpsParser;
+pub struct CutParser;
 
-impl CombinatorTrait for Eps {
-    type Parser = EpsParser;
+impl CombinatorTrait for Cut {
+    type Parser = CutParser;
     fn parser(&self, right_data: RightData) -> (Self::Parser, Vec<RightData>, Vec<UpData>) {
-        (EpsParser, vec![right_data], vec![])
+        (CutParser, vec![right_data], vec![])
     }
 }
 
-impl ParserTrait for EpsParser {
+impl ParserTrait for CutParser {
     fn step(&mut self, c: u8) -> ParseResults {
         ParseResults {
             right_data_vec: vec![],
@@ -23,13 +23,13 @@ impl ParserTrait for EpsParser {
     }
 }
 
-pub fn eps() -> Eps {
-    Eps
+pub fn cut() -> Cut {
+    Cut
 }
 
-pub fn opt<A>(a: A) -> Choice2<A::Output, Eps>
+pub fn opt<A>(a: A) -> Choice2<A::Output, Cut>
 where
     A: IntoCombinator,
 {
-    choice!(a.into_combinator(), eps())
+    choice!(a.into_combinator(), cut())
 }
