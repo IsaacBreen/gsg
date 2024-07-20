@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use crate::{choice, choice_from_vec, CombinatorTrait, DynCombinator, eat_byte, eps, opt, ParseResults, ParserTrait, seq, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
+#[derive(PartialEq, Eq)]
 pub struct EatString {
     string: Vec<u8>,
 }

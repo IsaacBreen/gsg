@@ -1,3 +1,4 @@
+use crate::combinator;
 use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, IntoCombinator, ParseResults, ParserTrait, repeat0, Repeat1, repeat1, RightData, seq, Seq2, Stats, U8Set, UpData};
 
 const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
@@ -57,7 +58,7 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
     }
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IndentCombinator {
     Dent,
     Indent,
@@ -65,6 +66,7 @@ pub enum IndentCombinator {
     AssertNoDedents,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum IndentCombinatorParser {
     DentParser(BruteForceParser),
     IndentParser(Option<RightData>),
@@ -168,9 +170,9 @@ pub fn assert_no_dedents() -> IndentCombinator {
     IndentCombinator::AssertNoDedents
 }
 
-pub fn with_indent<A>(a: A) -> Seq2<IndentCombinator, Seq2<A::Output, IndentCombinator>>
+pub fn with_indent<A: PartialEq + Eq>(a: A) -> Seq2<IndentCombinator, Seq2<A::Output, IndentCombinator>>
 where
-    A: IntoCombinator,
+    A: IntoCombinator, <<A as IntoCombinator>::Output as CombinatorTrait>::Parser: PartialEq + Eq, <A as combinator::IntoCombinator>::Output: Eq
 {
     seq!(indent(), a.into_combinator(), dedent())
 }

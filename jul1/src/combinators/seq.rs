@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::*;
 use crate::parse_state::{RightData, UpData};
 
+#[derive(PartialEq, Eq)]
 pub struct Seq2<A, B>
 where
     A: CombinatorTrait,
@@ -12,11 +13,10 @@ where
     b: Rc<B>,
 }
 
-#[derive(PartialEq, Eq)]
 pub struct Seq2Parser<B, ParserA>
 where
-    ParserA: ParserTrait,
-    B: CombinatorTrait,
+    ParserA: ParserTrait + PartialEq + Eq,
+    B: CombinatorTrait + PartialEq + Eq,
 {
     pub(crate) a: Option<ParserA>,
     pub(crate) bs: Vec<B::Parser>,
@@ -24,10 +24,20 @@ where
     right_data: RightData,
 }
 
+impl<B, ParserA> PartialEq for Seq2Parser<B, ParserA> where B: CombinatorTrait + PartialEq + Eq, ParserA: ParserTrait + PartialEq + Eq, B::Parser: PartialEq + Eq, ParserA: PartialEq + Eq {
+    fn eq(&self, other: &Self) -> bool {
+        self.a == other.a && self.bs == other.bs && self.b == other.b
+    }
+}
+
+impl<B, ParserA> Eq for Seq2Parser<B, ParserA> where B: CombinatorTrait + std::cmp::Eq, ParserA: ParserTrait, B::Parser: PartialEq + Eq, ParserA: PartialEq + Eq {}
+
 impl<A, B> CombinatorTrait for Seq2<A, B>
 where
-    A: CombinatorTrait,
-    B: CombinatorTrait,
+    A: CombinatorTrait + PartialEq + Eq,
+    B: CombinatorTrait + PartialEq + Eq,
+    A::Parser: PartialEq + Eq,
+    B::Parser: PartialEq + Eq,
 {
     type Parser = Seq2Parser<B, A::Parser>;
 
@@ -75,8 +85,9 @@ where
 
 impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA>
 where
-    ParserA: ParserTrait,
-    B: CombinatorTrait,
+    ParserA: ParserTrait + PartialEq + Eq,
+    B: CombinatorTrait + PartialEq + Eq,
+    B::Parser: PartialEq + PartialEq + Eq,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut any_cut = false;

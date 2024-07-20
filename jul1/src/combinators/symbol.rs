@@ -5,11 +5,18 @@ pub struct Symbol<T> {
     pub value: Rc<T>,
 }
 
-#[derive(PartialEq, Eq)]
 pub struct SymbolParser<T> where T: CombinatorTrait {
     pub inner: T::Parser,
     pub symbol_value: Rc<T>,
 }
+
+impl<T> PartialEq for SymbolParser<T> where T: CombinatorTrait, T::Parser: PartialEq + Eq {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner && self.symbol_value == other.symbol_value
+    }
+}
+
+impl<T> Eq for SymbolParser<T> where T: CombinatorTrait, T::Parser: PartialEq + Eq {}
 
 impl<T> Clone for Symbol<T> {
     fn clone(&self) -> Self {
@@ -17,7 +24,7 @@ impl<T> Clone for Symbol<T> {
     }
 }
 
-impl<T> CombinatorTrait for Symbol<T> where T: CombinatorTrait {
+impl<T> CombinatorTrait for Symbol<T> where T: CombinatorTrait, T::Parser: PartialEq + Eq {
     type Parser = SymbolParser<T>;
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         let (inner, parse_results) = self.value.parser(right_data);
@@ -25,7 +32,7 @@ impl<T> CombinatorTrait for Symbol<T> where T: CombinatorTrait {
     }
 }
 
-impl<T> ParserTrait for SymbolParser<T> where T: CombinatorTrait
+impl<T> ParserTrait for SymbolParser<T> where T: CombinatorTrait, T::Parser: PartialEq + Eq
 {
     fn step(&mut self, c: u8) -> ParseResults {
         self.inner.step(c)
@@ -40,7 +47,7 @@ impl<T> ParserTrait for SymbolParser<T> where T: CombinatorTrait
     }
 }
 
-impl<T> IntoCombinator for &Symbol<T> where T: CombinatorTrait {
+impl<T> IntoCombinator for &Symbol<T> where T: CombinatorTrait, T::Parser: PartialEq + Eq {
     type Output = Symbol<T>;
     fn into_combinator(self) -> Self::Output {
         self.clone()

@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::{RightData, UpData};
 
+#[derive(PartialEq, Eq)]
 pub struct Repeat1<A>
 where
     A: CombinatorTrait,
@@ -13,23 +14,25 @@ where
 pub struct Repeat1Parser<A>
 where
     A: CombinatorTrait,
-    A::Parser: Eq,
+    A::Parser: PartialEq + Eq,
 {
     pub(crate) a: Rc<A>,
     pub(crate) a_parsers: Vec<A::Parser>,
     right_data: RightData,
 }
 
-impl<A> PartialEq for Repeat1Parser<A> where A: PartialEq {
+impl<A> PartialEq for Repeat1Parser<A> where A: CombinatorTrait + PartialEq + Eq, A::Parser: PartialEq + Eq {
     fn eq(&self, other: &Self) -> bool {
         self.a == other.a && self.a_parsers == other.a_parsers
     }
 }
-impl<A> Eq for Repeat1Parser<A> where A: Eq {}
+
+impl<A> Eq for Repeat1Parser<A> where A: CombinatorTrait + Eq, A::Parser: Eq {}
 
 impl<A> CombinatorTrait for Repeat1<A>
 where
-    A: CombinatorTrait,
+    A: CombinatorTrait + PartialEq + Eq,
+    A::Parser: PartialEq + Eq,
 {
     type Parser = Repeat1Parser<A>;
 
@@ -46,7 +49,8 @@ where
 
 impl<A> ParserTrait for Repeat1Parser<A>
 where
-    A: CombinatorTrait,
+    A: CombinatorTrait + PartialEq + Eq,
+    A::Parser: PartialEq + Eq,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut right_data_as = vec![];
@@ -118,6 +122,7 @@ where
 pub fn repeat0<A>(a: A) -> Choice2<Repeat1<A::Output>, Eps>
 where
     A: IntoCombinator,
+    <<A as IntoCombinator>::Output as CombinatorTrait>::Parser: PartialEq + Eq, <A as IntoCombinator>::Output: Eq
 {
     opt(repeat1(a.into_combinator()))
 }

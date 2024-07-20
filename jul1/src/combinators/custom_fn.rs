@@ -1,5 +1,6 @@
 use crate::*;
 
+#[derive(PartialEq, Eq)]
 pub struct CustomFn<Parser: ParserTrait> {
     pub run: fn(&mut RightData) -> (Parser, ParseResults),
 }
@@ -12,7 +13,7 @@ impl<Parser: ParserTrait + 'static> CombinatorTrait for CustomFn<Parser> {
     }
 }
 
-impl<Parser: ParserTrait> ParserTrait for CustomFn<Parser> {
+impl<Parser: ParserTrait> ParserTrait for CustomFn<Parser> where Parser: PartialEq + Eq {
     fn step(&mut self, c: u8) -> ParseResults {
         ParseResults {
             right_data_vec: vec![],
