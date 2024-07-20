@@ -1,5 +1,6 @@
 use crate::*;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Tagged<A> {
     pub inner: A,
     pub tag: String,
@@ -47,5 +48,22 @@ where
         self.inner.collect_stats(stats);
         stats.active_parser_type_counts.insert("TaggedParser".to_string(), 1);
         stats.active_tags.insert(self.tag.clone(), 1);
+    }
+}
+
+pub fn tag<A>(tag: &str, a: A) -> Tagged<A::Output>
+where
+    A: IntoCombinator,
+{
+    Tagged { inner: a.into_combinator(), tag: tag.to_string() }
+}
+
+impl<A> IntoCombinator for &Tagged<A>
+where
+    A: CombinatorTrait + Clone,
+{
+    type Output = Tagged<A>;
+    fn into_combinator(self) -> Self::Output {
+        self.clone()
     }
 }

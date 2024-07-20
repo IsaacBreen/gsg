@@ -181,19 +181,23 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
     f.write(
-        'use crate::{choice, seq, repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, DynCombinator, CombinatorTrait};\n'
+        'use crate::{choice, seq, repeat0, repeat1, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, DynCombinator, CombinatorTrait};\n'
     )
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('\n')
     f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
     for token in tokens:
-        f.write(f"    let {token} = {token}();\n")
+        expr = f'{token}()'
+        expr = f'tag("{token}", {expr})'
+        f.write(f"    let {token} = {expr};\n")
     f.write('\n')
     f.write('\n'.join(f'    let mut {name} = forward_ref();' for name, rule in rules))
     f.write('\n')
-    # f.write('\n'.join(f'    let {name} = {name}.set({rhs_to_rust(rule.rhs, top_level=True)});' for name, rule in rules))
-    f.write('\n'.join(f'    let {name} = Rc::new({name}.set({rhs_to_rust(rule.rhs, top_level=True)}).into_boxed());' for name, rule in rules))
+    for name, rule in rules:
+        expr = rhs_to_rust(rule.rhs, top_level=True)
+        expr = f'tag("{name}", {expr})'
+        f.write(f'    let {name} = Rc::new({name}.set({expr}).into_boxed());\n')
     f.write('\n    seq!(repeat0(NEWLINE), file).into_boxed().into()\n')
     f.write('}\n')
     return f.getvalue()
