@@ -29,7 +29,7 @@ where
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         let (a, mut parse_results) = self.a.parser(right_data.clone());
         // assert!(parse_results.right_data_vec.is_empty());
-        parse_results.cut |= parse_results.right_data_vec.is_empty();
+        // parse_results.cut |= parse_results.right_data_vec.is_empty();
         let a_parsers = if !parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty() {
             vec![a]
         } else {
@@ -70,8 +70,11 @@ where
 
         for right_data_a in right_data_as.clone() {
             let (a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut cut }) = self.a.parser(right_data_a);
+            // if right_data_a.is_empty() {
+            //     continue;
+            // }
             // assert!(right_data_a.is_empty());
-            cut |= right_data_a.is_empty();
+            // cut |= right_data_a.is_empty();
             if cut && !any_cut {
                 // Clear any parsers and up data up to this point, but not right data
                 new_parsers.clear();
