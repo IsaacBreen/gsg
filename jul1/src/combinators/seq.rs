@@ -55,7 +55,7 @@ where
     B: CombinatorTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        let ParseResults { right_data_vec: right_data_a, up_data_vec: mut up_data_a, mut cut } = self.a.as_mut().map(|a| a.step(c)).unwrap_or(ParseResults {
+        let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, cut } = self.a.as_mut().map(|a| a.step(c)).unwrap_or(ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
@@ -63,42 +63,26 @@ where
         if right_data_a.is_empty() && up_data_a.is_empty() {
             self.a = None;
         }
-        let mut results_bs = self.bs.iter_mut().map(|b| b.step(c)).collect::<Vec<_>>();
-        let cut_bs = results_bs.iter().any(|r| r.cut);
-        if !cut && cut_bs {
-            cut = true;
-            // Erase up data for a
-            up_data_a.clear();
-        }
-        if cut {
-            // Remove b combinators and up results that don't cut
-            let indices_to_keep = results_bs.iter().enumerate().filter_map(|(i, r)| if r.cut { Some(i) } else { None }).collect::<Vec<_>>();
-            let new_bs = vec![];
-            let new_up_data_vec_bs = vec![];
-            for (b, up_data_b) in self.bs.iter_mut().zip(new_up_data_vec_bs) {
-                let ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut } = b.step(c);
-                if right_data_b.is_empty() && up_data_b.is_empty() {
-                    continue;
-                }
+        let (mut right_data_bs, mut up_data_bs) = (vec![], vec![]);
+        self.bs.retain_mut(|b| {
+            let ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut } = b.step(c);
+            if right_data_b.is_empty() && up_data_b.is_empty() {
+                false
+            } else {
                 right_data_bs.extend(right_data_b);
                 up_data_bs.extend(up_data_b);
-                new_bs.push(b);
+                true
             }
-            self.bs = new_bs;
-            up_data_bs.extend(up_data_a);
-        }
-        let mut right_data_vec = results_bs.iter().flat_map(|r| r.right_data_vec.iter()).cloned().collect::<Vec<_>>();
-        let mut up_data_vec = results_bs.iter().flat_map(|r| r.up_data_vec.iter()).cloned().collect::<Vec<_>>();
-        right_data_vec.extend(right_data_a.clone());
-        up_data_vec.extend(up_data_a);
+        });
         for right_data_b in right_data_a {
             let (b, right_data_b, up_data_b) = self.b.parser(right_data_b);
-            // todo
             self.bs.push(b);
+            right_data_bs.extend(right_data_b);
+            up_data_bs.extend(up_data_b);
         }
         ParseResults {
-            right_data_vec,
-            up_data_vec,
+            right_data_vec: right_data_bs,
+            up_data_vec: up_data_bs.into_iter().chain(up_data_a).collect(),
             cut: false,
         }
     }
