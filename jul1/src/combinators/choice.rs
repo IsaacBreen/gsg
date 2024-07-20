@@ -1,7 +1,6 @@
 use crate::{CombinatorTrait, DynCombinator, eps, fail, IntoCombinator, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::{RightData, UpData};
 
-#[derive(PartialEq, Eq)]
 pub struct Choice2<A, B>
 where
     A: CombinatorTrait,

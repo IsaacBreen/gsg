@@ -1,7 +1,7 @@
 use crate::{choice, Choice2, CombinatorTrait, IntoCombinator, ParseResults, ParserTrait, Stats};
 use crate::parse_state::{RightData, UpData};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Eps;
 
 #[derive(PartialEq, Eq)]

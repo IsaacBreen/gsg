@@ -15,7 +15,6 @@ pub struct TaggedParser<A> {
 impl<A> CombinatorTrait for Tagged<A>
 where
     A: CombinatorTrait,
-    A::Parser: PartialEq + Eq,
 {
     type Parser = TaggedParser<A::Parser>;
 
@@ -27,7 +26,7 @@ where
 
 impl<A> ParserTrait for TaggedParser<A>
 where
-    A: ParserTrait + Eq,
+    A: ParserTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         let ParseResults { right_data_vec: right_data, up_data_vec: up_data, cut } = self.inner.step(c);
@@ -62,7 +61,7 @@ where
 
 impl<A> IntoCombinator for &Tagged<A>
 where
-    A: CombinatorTrait + Clone, <<A as IntoCombinator>::Output as CombinatorTrait>::Parser: PartialEq + Eq
+    A: CombinatorTrait + Clone,
 {
     type Output = Tagged<A>;
     fn into_combinator(self) -> Self::Output {

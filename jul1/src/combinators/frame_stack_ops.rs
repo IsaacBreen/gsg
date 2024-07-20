@@ -7,6 +7,7 @@ where
     pub a: A,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct WithNewFrameParser<P>
 where
     P: ParserTrait,
@@ -17,7 +18,6 @@ where
 impl<A> CombinatorTrait for WithNewFrame<A>
 where
     A: CombinatorTrait,
-    A::Parser: PartialEq + Eq
 {
     type Parser = WithNewFrameParser<A::Parser>;
 
@@ -28,18 +28,9 @@ where
     }
 }
 
-impl<P> PartialEq for WithNewFrameParser<P> where P: ParserTrait, P: PartialEq + Eq {
-    fn eq(&self, other: &Self) -> bool {
-        self.a == other.a
-    }
-}
-
-impl<P> Eq for WithNewFrameParser<P> where P: ParserTrait, P: PartialEq + Eq {}
-
 impl<P> ParserTrait for WithNewFrameParser<P>
 where
     P: ParserTrait,
-    P: PartialEq + Eq,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, cut } = self.a.step(c);
@@ -91,7 +82,6 @@ where
 impl<A> CombinatorTrait for FrameStackOp<A>
 where
     A: CombinatorTrait,
-    A::Parser: PartialEq + Eq,
 {
     type Parser = FrameStackOpParser<A::Parser>;
 
@@ -136,7 +126,7 @@ where
 
 impl<P> ParserTrait for FrameStackOpParser<P>
 where
-    P: ParserTrait + Eq,
+    P: ParserTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         self.values.push(c);

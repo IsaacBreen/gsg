@@ -1,6 +1,5 @@
 use crate::*;
 
-#[derive(PartialEq, Eq)]
 pub struct MutateRightData {
     pub run: fn(&mut RightData) -> bool,
 }
