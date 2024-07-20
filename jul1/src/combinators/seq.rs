@@ -12,7 +12,6 @@ where
     b: Rc<B>,
 }
 
-#[derive(PartialEq, Eq)]
 pub struct Seq2Parser<B, ParserA>
 where
     ParserA: ParserTrait,

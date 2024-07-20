@@ -6,7 +6,6 @@ pub struct Tagged<A> {
     pub tag: String,
 }
 
-#[derive(PartialEq, Eq)]
 pub struct TaggedParser<A> {
     pub inner: A,
     pub tag: String,

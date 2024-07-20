@@ -4,7 +4,6 @@ use crate::parse_state::{RightData, UpData};
 #[derive(Debug, Clone, Copy)]
 pub struct Cut;
 
-#[derive(PartialEq, Eq)]
 pub struct CutParser;
 
 impl CombinatorTrait for Cut {

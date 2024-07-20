@@ -7,7 +7,6 @@ where
     pub a: A,
 }
 
-#[derive(PartialEq, Eq)]
 pub struct WithNewFrameParser<P>
 where
     P: ParserTrait,
@@ -68,7 +67,6 @@ where
     pub a: A,
 }
 
-#[derive(PartialEq, Eq)]
 pub struct FrameStackOpParser<P>
 where
     P: ParserTrait,

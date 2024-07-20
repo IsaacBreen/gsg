@@ -4,7 +4,6 @@ use crate::parse_state::{RightData, UpData};
 #[derive(Debug, Clone, Copy)]
 pub struct Fail;
 
-#[derive(PartialEq, Eq)]
 pub struct FailParser;
 
 impl CombinatorTrait for Fail {

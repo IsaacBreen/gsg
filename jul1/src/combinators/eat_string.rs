@@ -6,7 +6,6 @@ pub struct EatString {
     string: Vec<u8>,
 }
 
-#[derive(PartialEq, Eq)]
 pub struct EatStringParser {
     string: Vec<u8>,
     index: usize,

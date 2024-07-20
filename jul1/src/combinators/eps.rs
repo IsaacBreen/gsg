@@ -4,7 +4,6 @@ use crate::parse_state::{RightData, UpData};
 #[derive(Debug, Clone, Copy)]
 pub struct Eps;
 
-#[derive(PartialEq, Eq)]
 pub struct EpsParser;
 
 impl CombinatorTrait for Eps {
