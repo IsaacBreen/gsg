@@ -86,7 +86,7 @@ where
         self.a_parsers = new_parsers;
 
         ParseResults {
-            right_data_vec: right_data_as,
+            right_data_vec: right_data_as.squashed(),
             up_data_vec: up_data_as,
             cut: any_cut,
         }.squashed()
