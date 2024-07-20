@@ -32,6 +32,7 @@ where
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         let (a, mut parse_results_a) = self.a.parser(right_data.clone());
+        parse_results_a.right_data_vec.squash();
         let mut a = if parse_results_a.up_data_vec.is_empty() && parse_results_a.right_data_vec.is_empty() {
             None
         } else {
@@ -113,6 +114,7 @@ where
         }
 
         right_data_a.squash();
+
         for right_data_b in right_data_a {
             let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut }) = self.b.parser(right_data_b);
             if cut && !any_cut {
@@ -129,6 +131,8 @@ where
             }
             right_data_bs.extend(right_data_b);
         }
+
+        right_data_bs.squash();
 
         self.bs = new_bs;
 
