@@ -36,6 +36,7 @@ where
     A: CombinatorTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
+        // TODO: modify this to use the new `cut` field.
         let (mut right_data_as, mut up_data_as) = (vec![], vec![]);
         self.a_parsers.retain_mut(|a_parser| {
             let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a , cut} = a_parser.step(c);

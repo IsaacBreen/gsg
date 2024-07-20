@@ -43,6 +43,7 @@ where
     B: ParserTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
+        // TODO: modify this to use the new `cut` field.
         let (mut right_data, mut up_data) = (vec![], vec![]);
         if let Some(a) = &mut self.a {
             let ParseResults { right_data_vec: mut right_data_a, up_data_vec: mut up_data_a, cut } = a.step(c);
