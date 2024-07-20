@@ -110,10 +110,10 @@ where
             T: IntoCombinator,
         {
             if v.len() == 1 {
-                v.into_iter().next().unwrap().into_combinator().into_boxed()
+                v.into_iter().next().unwrap().into_combinator().into_box_dyn()
             } else {
                 let rest = v.split_off(v.len() / 2);
-                choice2(helper(v), helper(rest)).into_boxed()
+                choice2(helper(v), helper(rest)).into_box_dyn()
             }
         }
         assert!(v.len() >= 2);
@@ -128,12 +128,12 @@ where
 {
     let mut v = v;
     if v.len() == 0 {
-        fail().into_boxed()
+        fail().into_box_dyn()
     } else if v.len() == 1 {
-        v.into_iter().next().unwrap().into_combinator().into_boxed()
+        v.into_iter().next().unwrap().into_combinator().into_box_dyn()
     } else {
         let rest = v.split_off(v.len() / 2);
-        choice2(choice_from_vec(v), choice_from_vec(rest)).into_boxed()
+        choice2(choice_from_vec(v), choice_from_vec(rest)).into_box_dyn()
     }
 }
 

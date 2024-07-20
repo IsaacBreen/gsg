@@ -30,7 +30,7 @@ impl IntoCombinator for &ForwardRef {
         if let Some(a) = self.a.borrow().as_ref() {
             a.clone()
         } else {
-            Rc::new(self.a.clone()).into_boxed().into()
+            Rc::new(self.a.clone()).into_box_dyn().into()
         }
     }
 }
@@ -42,7 +42,7 @@ pub fn forward_ref() -> ForwardRef {
 impl ForwardRef {
     pub fn set<A: IntoCombinator<Output = B>, B: CombinatorTrait<Parser=P> + 'static, P: ParserTrait + 'static>(&mut self, a: A) -> Rc<B> {
         let a = Rc::new(a.into_combinator());
-        *self.a.borrow_mut() = Some(a.clone().into_boxed().into());
+        *self.a.borrow_mut() = Some(a.clone().into_box_dyn().into());
         a
     }
 }

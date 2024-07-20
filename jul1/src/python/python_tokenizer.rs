@@ -52,7 +52,7 @@ pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<Seq
 }
 
 pub fn python_symbol<A: CombinatorTrait>(a: A) -> Symbol<Box<DynCombinator>> {
-    symbol(seq!(assert_no_dedents(), opt(whitespace()), a).into_boxed())
+    symbol(seq!(assert_no_dedents(), opt(whitespace()), a).into_box_dyn())
 }
 
 pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
@@ -256,11 +256,11 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
 }
 
 pub fn id_start() -> Box<DynCombinator> {
-    eat_bytestring_choice(id_start_bytestrings()).into_boxed()
+    eat_bytestring_choice(id_start_bytestrings()).into_box_dyn()
 }
 
 pub fn id_continue() -> Box<DynCombinator> {
-    eat_bytestring_choice(id_continue_bytestrings()).into_boxed()
+    eat_bytestring_choice(id_continue_bytestrings()).into_box_dyn()
 }
 
 pub fn xid_start() -> Box<DynCombinator> {

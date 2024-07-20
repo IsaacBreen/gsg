@@ -99,7 +99,7 @@ pub fn eat_bytestring_choice(mut bytestrings: Vec<Vec<u8>>) -> Box<DynCombinator
     }).collect());
     if any_done {
         assert!(grouped_bytestrings.is_empty());
-        opt(combinator).into_boxed()
+        opt(combinator).into_box_dyn()
     } else {
         combinator
     }

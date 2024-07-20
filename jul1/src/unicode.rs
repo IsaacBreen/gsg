@@ -19,8 +19,8 @@ pub fn get_unicode_general_category_combinator(general_category: GeneralCategory
 
     let mut children = Vec::new();
     for bytestring in bytestrings {
-        children.push(eat_bytes(&bytestring).into_boxed());
+        children.push(eat_bytes(&bytestring).into_box_dyn());
     }
 
-    choice_from_vec(children).into_boxed()
+    choice_from_vec(children).into_box_dyn()
 }

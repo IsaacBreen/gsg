@@ -190,6 +190,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     for token in tokens:
         expr = f'{token}()'
         expr = f'tag("{token}", {expr})'
+        expr = f'{expr}.into_rc()'
         f.write(f"    let {token} = {expr};\n")
     f.write('\n')
     f.write('\n'.join(f'    let mut {name} = forward_ref();' for name, rule in rules))
@@ -197,8 +198,8 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     for name, rule in rules:
         expr = rhs_to_rust(rule.rhs, top_level=True)
         expr = f'tag("{name}", {expr})'
-        f.write(f'    let {name} = Rc::new({name}.set({expr}).into_boxed());\n')
-    f.write('\n    seq!(repeat0(NEWLINE), file).into_boxed().into()\n')
+        f.write(f'    let {name} = {name}.set({expr}).into_rc();\n')
+    f.write('\n    seq!(repeat0(NEWLINE), file).into_rc()\n')
     f.write('}\n')
     return f.getvalue()
 

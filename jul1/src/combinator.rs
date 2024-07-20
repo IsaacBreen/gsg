@@ -17,7 +17,7 @@ pub struct Stats
 
 impl Display for Stats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Active Parser Types:")?;
+        // writeln!(f, "Active Parser Types:")?;
         // for (name, count) in &self.active_parser_type_counts {
         //     writeln!(f, "    {}: {}", name, count)?;
         // }
@@ -47,11 +47,17 @@ where
 {
     type Parser: ParserTrait;
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults);
-    fn into_boxed(self) -> Box<DynCombinator>
+    fn into_box_dyn(self) -> Box<DynCombinator>
     where
         Self: Sized,
     {
         Box::new(DynWrapper(self))
+    }
+    fn into_rc_dyn(self) -> Rc<DynCombinator>
+    where
+        Self: Sized,
+    {
+        Rc::new(DynWrapper(self))
     }
 }
 
@@ -152,6 +158,13 @@ where
     T: CombinatorTrait,
 {
     type Output = Rc<T>;
+    fn into_combinator(self) -> Self::Output {
+        self.clone()
+    }
+}
+
+impl IntoCombinator for &Rc<DynCombinator> {
+    type Output = Rc<DynCombinator>;
     fn into_combinator(self) -> Self::Output {
         self.clone()
     }

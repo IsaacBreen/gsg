@@ -46,8 +46,8 @@ where
 
     fn collect_stats(&self, stats: &mut Stats) {
         self.inner.collect_stats(stats);
-        stats.active_parser_type_counts.insert("TaggedParser".to_string(), 1);
-        *stats.active_tags.entry(self.tag.clone()).or_default() += 1;
+        stats.active_parser_type_counts.entry("TaggedParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
+        *stats.active_tags.entry(self.tag.clone()).and_modify(|c| *c += 1).or_insert(1);
     }
 }
 
