@@ -6,6 +6,7 @@ pub struct EatU8 {
     u8set: U8Set,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct EatU8Parser {
     u8set: U8Set,
     right_data: Option<RightData>,

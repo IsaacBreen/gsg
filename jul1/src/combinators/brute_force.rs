@@ -8,6 +8,7 @@ pub struct BruteForce {
     pub f: Rc<BruteForceFn>,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct BruteForceParser {
     pub f: Rc<BruteForceFn>,
     pub values: Vec<u8>,

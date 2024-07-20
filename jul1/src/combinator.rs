@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
+use std::hash::Hasher;
 use std::rc::Rc;
-
+use dyn_eq::DynEq;
 use crate::parse_state::{RightData, UpData};
 use crate::{ParseResults, U8Set};
 
@@ -61,7 +62,7 @@ where
     }
 }
 
-pub trait ParserTrait {
+pub trait ParserTrait: DynEq {
     fn step(&mut self, c: u8) -> ParseResults;
     fn stats(&self) -> Stats {
         let mut stats = Stats::default();
@@ -87,6 +88,12 @@ pub trait ParserTrait {
     }
 }
 
+impl PartialEq for Box<dyn ParserTrait> {
+    fn eq(&self, other: &Self) -> bool {
+        self.dyn_eq(other)
+    }
+}
+impl Eq for Box<dyn ParserTrait> {}
 
 impl ParserTrait for Box<dyn ParserTrait> {
     fn step(&mut self, c: u8) -> ParseResults {

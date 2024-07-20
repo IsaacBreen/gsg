@@ -13,11 +13,19 @@ where
 pub struct Repeat1Parser<A>
 where
     A: CombinatorTrait,
+    A::Parser: Eq,
 {
     pub(crate) a: Rc<A>,
     pub(crate) a_parsers: Vec<A::Parser>,
     right_data: RightData,
 }
+
+impl<A> PartialEq for Repeat1Parser<A> where A: PartialEq {
+    fn eq(&self, other: &Self) -> bool {
+        self.a == other.a && self.a_parsers == other.a_parsers
+    }
+}
+impl<A> Eq for Repeat1Parser<A> where A: Eq {}
 
 impl<A> CombinatorTrait for Repeat1<A>
 where

@@ -5,6 +5,7 @@ pub struct Symbol<T> {
     pub value: Rc<T>,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct SymbolParser<T> where T: CombinatorTrait {
     pub inner: T::Parser,
     pub symbol_value: Rc<T>,

@@ -10,6 +10,7 @@ where
     b: B,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct Choice2Parser<ParserA, ParserB>
 where
     ParserA: ParserTrait,
@@ -23,6 +24,8 @@ impl<A, B> CombinatorTrait for Choice2<A, B>
 where
     A: CombinatorTrait,
     B: CombinatorTrait,
+    A::Parser: PartialEq + Eq,
+    B::Parser: PartialEq + Eq,
 {
     type Parser = Choice2Parser<A::Parser, B::Parser>;
 
@@ -38,8 +41,8 @@ where
 
 impl<A, B> ParserTrait for Choice2Parser<A, B>
 where
-    A: ParserTrait,
-    B: ParserTrait,
+    A: ParserTrait + Eq,
+    B: ParserTrait + Eq,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut right_data = vec![];
