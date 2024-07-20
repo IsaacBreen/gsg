@@ -1,11 +1,15 @@
 use std::rc::Rc;
 use unicode_general_category::GeneralCategory;
 
-use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice, IndentCombinator, assert_no_dedents, tag};
+use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice, IndentCombinator, assert_no_dedents, tag, fail};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn breaking_space() -> EatU8 {
     eat_char_choice("\n\r")
+}
+
+pub fn not_breaking_space() -> EatU8 {
+    eat_char_negation_choice("\n\r")
 }
 
 pub fn non_breaking_space() -> EatU8 {
@@ -621,7 +625,7 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
 // of the logical line unless the implicit line joining rules are invoked. Comments
 // are ignored by the syntax.
 pub fn comment() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
-    seq!(eat_char('#'), repeat0(eat_char_negation_choice("\n\r")))
+    seq!(eat_char('#'), repeat0(not_breaking_space()))
 }
 
 // .. _line-structure:
@@ -759,5 +763,6 @@ pub fn ENDMARKER() -> Symbol<Eps> {
 }
 
 pub fn TYPE_COMMENT() -> Symbol<Box<DynCombinator>> {
-    python_symbol(seq!(eat_string("#"), opt(whitespace()), eat_string("type:"), opt(whitespace()), repeat0(eat_char_negation_choice("\n\r"))))
+    // python_symbol(seq!(eat_string("#"), opt(whitespace()), eat_string("type:"), opt(whitespace()), repeat0(eat_char_negation_choice("\n\r"))))
+    symbol(fail().into_box_dyn())
 }
