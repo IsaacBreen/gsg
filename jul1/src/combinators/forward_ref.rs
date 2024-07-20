@@ -46,3 +46,12 @@ impl ForwardRef {
         a
     }
 }
+
+#[macro_export]
+macro_rules! forward_decls {
+    ($($name:ident),* $(,)?) => {
+        $(
+            let mut $name = forward_ref();
+        )*
+    };
+}
