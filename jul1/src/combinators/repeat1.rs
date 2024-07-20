@@ -58,14 +58,22 @@ where
             }
         }
 
-        self.a_parsers = new_parsers;
 
         for right_data_a in right_data_as.clone() {
             let (a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, cut }) = self.a.parser(right_data_a);
-            self.a_parsers.push(a_parser);
-            right_data_as.extend(right_data_a);
-            up_data_as.extend(up_data_a);
+            if cut && !any_cut {
+                // Clear any parsers and up data up to this point, but not right data
+                new_parsers.clear();
+                up_data_as.clear();
+                any_cut = true;
+            }
+            if cut || !any_cut {
+                up_data_as.extend(up_data_a);
+                new_parsers.push(a_parser);
+            }
         }
+
+        self.a_parsers = new_parsers;
 
         ParseResults {
             right_data_vec: right_data_as,

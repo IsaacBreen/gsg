@@ -12,7 +12,7 @@ impl CombinatorTrait for Cut {
         (CutParser, ParseResults {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
-            cut: false,
+            cut: true,
         })
     }
 }

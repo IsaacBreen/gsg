@@ -31,24 +31,40 @@ where
     type Parser = Seq2Parser<B, A::Parser>;
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
-        let (a, parse_results) = self.a.parser(right_data.clone());
+        let (a, mut parse_results_a) = self.a.parser(right_data.clone());
+        let mut a = if parse_results_a.up_data_vec.is_empty() && parse_results_a.right_data_vec.is_empty() {
+            None
+        } else {
+            Some(a)
+        };
         let (mut bs, mut right_data_bs, mut up_data_bs) = (vec![], vec![], vec![]);
-        for right_data_b in parse_results.right_data_vec {
+        let mut any_cut = parse_results_a.cut;
+        for right_data_b in parse_results_a.right_data_vec {
             let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut }) = self.b.parser(right_data_b);
-            bs.push(b);
+            if cut && !any_cut {
+                // Clear any combinators and up data up to this point, but not right data.
+                a = None;
+                parse_results_a.up_data_vec.clear();
+                bs.clear();
+                up_data_bs.clear();
+                any_cut = true;
+            }
+            if cut || !any_cut {
+                bs.push(b);
+                up_data_bs.extend(up_data_b);
+            }
             right_data_bs.extend(right_data_b);
-            up_data_bs.extend(up_data_b);
         }
         let parser = Seq2Parser {
-            a: Some(a),
+            a,
             bs,
             b: self.b.clone(),
             right_data,
         };
         (parser, ParseResults {
             right_data_vec: right_data_bs,
-            up_data_vec: up_data_bs.into_iter().chain(parse_results.up_data_vec).collect(),
-            cut: parse_results.cut,
+            up_data_vec: up_data_bs.into_iter().chain(parse_results_a.up_data_vec).collect(),
+            cut: any_cut,
         })
     }
 }
@@ -96,14 +112,24 @@ where
             }
         }
 
-        self.bs = new_bs;
-
         for right_data_b in right_data_a {
             let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut }) = self.b.parser(right_data_b);
-            self.bs.push(b);
+            if cut && !any_cut {
+                // Clear any combinators and up data up to this point, but not right data.
+                self.a = None;
+                up_data_a.clear();
+                new_bs.clear();
+                up_data_bs.clear();
+                any_cut = true;
+            }
+            if cut || !any_cut {
+                up_data_bs.extend(up_data_b);
+                new_bs.push(b);
+            }
             right_data_bs.extend(right_data_b);
-            up_data_bs.extend(up_data_b);
         }
+
+        self.bs = new_bs;
 
         ParseResults {
             right_data_vec: right_data_bs,
