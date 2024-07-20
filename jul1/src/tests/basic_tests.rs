@@ -87,7 +87,7 @@ mod tests {
     fn test_choice() {
         let combinator = choice!(eat_char_choice("a"), eat_char_choice("b"));
         let (mut parser, ParseResults { right_data_vec: right_data0, up_data_vec: up_data0, cut } ) = combinator.parser(RightData::default());
-        assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }, UpData { u8set: U8Set::from_chars("b") }]));
+        assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }, UpData { u8set: U8Set::from_chars("b") }].squashed()));
         assert_eq!(parser.step('b' as u8), ParseResults {
             right_data_vec: vec![RightData::default()],
             up_data_vec: vec![],
