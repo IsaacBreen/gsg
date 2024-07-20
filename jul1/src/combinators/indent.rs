@@ -81,6 +81,7 @@ impl CombinatorTrait for IndentCombinator {
                 (IndentCombinatorParser::DentParser(parser), parse_results)
             }
             IndentCombinator::Indent => {
+                right_data.indents.push(vec![]);
                 (IndentCombinatorParser::IndentParser(Some(right_data)), ParseResults {
                     right_data_vec: vec![],
                     up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
