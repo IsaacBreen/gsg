@@ -30,7 +30,7 @@ impl IntoCombinator for &ForwardRef {
         if let Some(a) = self.a.borrow().as_ref() {
             a.clone()
         } else {
-            Rc::new(self.a.clone()).into_box_dyn().into()
+            self.a.clone()
         }
     }
 }
