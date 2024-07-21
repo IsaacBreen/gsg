@@ -105,12 +105,19 @@ fn test_gpt4_suggestions_0() {
     assert_parses!(combinator, "1,000.00", "Input with different locale-specific formatting");
 }
 
+#[ignore]
 #[test]
 fn test_actual_python_file() {
     let path = Path::new("src/python/remove_left_recursion.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses!(combinator, &file, "Actual Python file");
+}
+
+#[test]
+fn test_simple_2() {
+    let combinator = python_file();
+    assert_parses!(combinator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 }
 
 #[test]
