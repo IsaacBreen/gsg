@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use crate::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -19,8 +20,17 @@ where
     type Parser = TaggedParser<A::Parser>;
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
-        let (parser, parse_results) = self.inner.parser(right_data);
-        (TaggedParser { inner: parser, tag: self.tag.clone() }, parse_results)
+        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parser(right_data)));
+        match result {
+            Ok((parser, parse_results)) => (
+                TaggedParser { inner: parser, tag: self.tag.clone() },
+                parse_results,
+            ),
+            Err(err) => {
+                eprintln!("Panic caught in parser with tag: {}", self.tag);
+                resume_unwind(err);
+            }
+        }
     }
 }
 
@@ -29,11 +39,13 @@ where
     A: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        let ParseResults { right_data_vec: right_data, up_data_vec: up_data, cut } = self.inner.step(c);
-        ParseResults {
-            right_data_vec: right_data,
-            up_data_vec: up_data,
-            cut,
+        let result = catch_unwind(AssertUnwindSafe(|| self.inner.step(c)));
+        match result {
+            Ok(parse_results) => parse_results,
+            Err(err) => {
+                eprintln!("Panic caught in step with tag: {}", self.tag);
+                resume_unwind(err);
+            }
         }
     }
 
