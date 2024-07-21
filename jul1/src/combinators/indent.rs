@@ -77,11 +77,11 @@ impl CombinatorTrait for IndentCombinator {
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         match self {
-            IndentCombinator::Dent => {
+            IndentCombinator::Dent if right_data.dedents == 0  => {
                 let (parser, parse_results) = brute_force(DENT_FN).parser(right_data);
                 (IndentCombinatorParser::DentParser(parser), parse_results)
             }
-            IndentCombinator::Indent => {
+            IndentCombinator::Indent if right_data.dedents == 0 => {
                 right_data.indents.push(vec![]);
                 (IndentCombinatorParser::IndentParser(Some(right_data)), ParseResults {
                     right_data_vec: vec![],
@@ -89,34 +89,22 @@ impl CombinatorTrait for IndentCombinator {
                     cut: false,
                 })
             }
-            IndentCombinator::Dedent => {
-                let right_data_to_return = if right_data.dedents == 0 {
-                    vec![]
-                } else {
-                    right_data.dedents -= 1;
-                    vec![right_data]
-                };
+            IndentCombinator::Dedent if right_data.dedents > 0 => {
+                right_data.dedents -= 1;
                 (IndentCombinatorParser::Done, ParseResults {
-                    right_data_vec: right_data_to_return,
+                    right_data_vec: vec![right_data],
                     up_data_vec: vec![],
                     cut: false,
                 })
             }
-            IndentCombinator::AssertNoDedents => {
-                if right_data.dedents == 0 {
-                    (IndentCombinatorParser::Done, ParseResults {
-                        right_data_vec: vec![right_data],
-                        up_data_vec: vec![],
-                        cut: false,
-                    })
-                } else {
-                    (IndentCombinatorParser::Done, ParseResults {
-                        right_data_vec: vec![],
-                        up_data_vec: vec![],
-                        cut: false,
-                    })
-                }
+            IndentCombinator::AssertNoDedents if right_data.dedents == 0 => {
+                (IndentCombinatorParser::Done, ParseResults {
+                    right_data_vec: vec![right_data],
+                    up_data_vec: vec![],
+                    cut: false,
+                })
             }
+            _ => (IndentCombinatorParser::Done, ParseResults::no_match()),
         }
     }
 }
