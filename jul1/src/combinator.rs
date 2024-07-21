@@ -18,11 +18,53 @@ pub struct Stats
 
 impl Display for Stats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Active Parser Types:")?;
+        for (name, count) in &self.active_parser_type_counts {
+            writeln!(f, "    {}: {}", name, count)?;
+        }
+        println!();
+        writeln!(f, "Active Symbols:")?;
+        for (name, count) in &self.active_symbols {
+            writeln!(f, "    {}: {}", name, count)?;
+        }
+        writeln!(f, "Active Tags:")?;
         writeln!(f, "Active Tags:")?;
         for (name, count) in &self.active_tags {
             writeln!(f, "    {}: {}", name, count)?;
         }
+        println!();
+        writeln!(f, "Active String Matchers:")?;
+        for (name, count) in &self.active_string_matchers {
+            writeln!(f, "    {}: {}", name, count)?;
+        }
+        println!();
+        writeln!(f, "Active U8 Matchers:")?;
+        for (name, count) in &self.active_u8_matchers {
+            writeln!(f, "    {}: {}", name, count)?;
+        }
         Ok(())
+    }
+}
+
+impl Stats {
+    pub fn total_active_parsers(&self) -> usize {
+        self.active_parser_type_counts.values().sum()
+    }
+
+    pub fn total_active_symbols(&self) -> usize {
+        self.active_symbols.values().sum()
+    }
+
+    pub fn total_active_tags(&self) -> usize {
+        self.active_tags.values().sum()
+    }
+
+    pub fn total_active_string_matchers(&self) -> usize {
+        self.active_string_matchers.values().sum()
+    }
+
+    pub fn total_active_u8_matchers(&self) -> usize {
+        self.active_u8_matchers.values().sum()
     }
 }
 
