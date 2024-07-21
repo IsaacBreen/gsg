@@ -219,15 +219,16 @@ if __name__ == "__main__":
     # Convert to custom grammar format and remove left recursion
     custom_grammar = pegen_to_custom(pegen_grammar)
     remove_left_recursion.validate_rules(custom_grammar)
-    resolved_grammar = remove_left_recursion.resolve_left_recursion(custom_grammar)
+    remove_left_recursion.prettify_rules(custom_grammar)
+    custom_grammar = remove_left_recursion.resolve_left_recursion(custom_grammar)
 
     # Convert back to pegen format and save to Rust
-    resolved_pegen_grammar = custom_to_pegen(resolved_grammar)
+    resolved_pegen_grammar = custom_to_pegen(custom_grammar)
     save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs')
 
     # Print some useful stats
-    nullable_rules = get_nullable_rules(resolved_grammar)
-    firsts_by_rule = {ref: {first for first in get_firsts(node, nullable_rules)} for ref, node in resolved_grammar.items()}
+    nullable_rules = get_nullable_rules(custom_grammar)
+    firsts_by_rule = {ref: {first for first in get_firsts(node, nullable_rules)} for ref, node in custom_grammar.items()}
     for ref, firsts in firsts_by_rule.items():
         refs = [ref for ref in firsts if isinstance(ref, remove_left_recursion.Ref)]
         terms = [term for term in firsts if isinstance(term, remove_left_recursion.Term)]
@@ -262,8 +263,8 @@ if __name__ == "__main__":
         ref = queue.pop()
         active_count.setdefault(ref, 0)
         active_count[ref] += 1
-        if ref in resolved_grammar:
-            for ref in remove_left_recursion.first_refs(resolved_grammar[ref], nullable_rules):
+        if ref in custom_grammar:
+            for ref in remove_left_recursion.first_refs(custom_grammar[ref], nullable_rules):
                 queue.append(ref)
 
     print("Number of rules active at the first step:")
