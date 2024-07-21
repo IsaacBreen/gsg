@@ -132,11 +132,7 @@ impl ParserTrait for IndentCombinatorParser {
                     }
                 }
             }
-            IndentCombinatorParser::Done => ParseResults {
-                right_data_vec: vec![],
-                up_data_vec: vec![],
-                cut: false,
-            },
+            IndentCombinatorParser::Done => ParseResults::no_match(),
         }
     }
 
