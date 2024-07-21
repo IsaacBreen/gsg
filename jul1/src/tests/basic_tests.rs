@@ -395,9 +395,9 @@ mod tests {
         // Based on a Python slowdown issue.
         let NAME = tag("repeat_a", repeat1(eat_char('a'))).into_rc_dyn();
 
-        forward_decls!(X);
-        X.set(seq!(&NAME, &X));
-        let combinator_recursive = X.into_rc_dyn();
+        let mut combinator_recursive = forward_ref();
+        combinator_recursive.set(seq!(&NAME, &combinator_recursive));
+        let combinator_recursive = combinator_recursive.into_rc_dyn();
 
         let combinator_repeat1 = repeat1(&NAME).into_rc_dyn();
 
