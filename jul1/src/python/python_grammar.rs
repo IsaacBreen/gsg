@@ -37,7 +37,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(python_literal("["), opt(&del_targets), python_literal("]"))
     ))).into_rc_dyn();
     let del_target = del_target.set(tag("del_target", choice!(
-        seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), &strings, &NUMBER, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp, python_literal("...")), opt(repeat1(choice!(&strings, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp))), opt(repeat1(choice!(seq!(python_literal("."), &NAME), seq!(python_literal("["), &slices, python_literal("]")), &genexp, seq!(python_literal("("), opt(&arguments), python_literal(")"))))), choice!(seq!(python_literal("."), &NAME), seq!(python_literal("["), &slices, python_literal("]")))),
+        seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), &strings, &NUMBER, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp, python_literal("...")), opt(repeat1(choice!(seq!(python_literal("."), &NAME), seq!(python_literal("["), &slices, python_literal("]")), &genexp, seq!(python_literal("("), opt(&arguments), python_literal(")"))))), choice!(seq!(python_literal("."), &NAME), seq!(python_literal("["), &slices, python_literal("]")))),
         &del_t_atom
     ))).into_rc_dyn();
     let del_targets = del_targets.set(tag("del_targets", seq!(&del_target, opt(repeat1(seq!(python_literal(","), &del_target))), opt(python_literal(","))))).into_rc_dyn();
@@ -46,7 +46,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         python_literal("["),
         python_literal(".")
     ))).into_rc_dyn();
-    let t_primary = t_primary.set(tag("t_primary", seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), &strings, &NUMBER, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp, python_literal("...")), opt(repeat1(choice!(&strings, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp))), opt(repeat1(choice!(seq!(python_literal("."), &NAME), seq!(python_literal("["), &slices, python_literal("]")), &genexp, seq!(python_literal("("), opt(&arguments), python_literal(")")))))))).into_rc_dyn();
+    let t_primary = t_primary.set(tag("t_primary", seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), &strings, &NUMBER, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp, python_literal("...")), opt(repeat1(choice!(seq!(python_literal("."), &NAME), seq!(python_literal("["), &slices, python_literal("]")), &genexp, seq!(python_literal("("), opt(&arguments), python_literal(")")))))))).into_rc_dyn();
     let single_subscript_attribute_target = single_subscript_attribute_target.set(tag("single_subscript_attribute_target", seq!(&t_primary, choice!(seq!(python_literal("."), &NAME), seq!(python_literal("["), &slices, python_literal("]")))))).into_rc_dyn();
     let single_target = single_target.set(tag("single_target", choice!(
         &single_subscript_attribute_target,
@@ -129,7 +129,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(python_literal("*"), choice!(seq!(&lambda_param_no_default, opt(repeat1(&lambda_param_maybe_default)), opt(&lambda_kwds)), seq!(python_literal(","), repeat1(&lambda_param_maybe_default), opt(&lambda_kwds)))),
         &lambda_kwds
     ))).into_rc_dyn();
-    let lambda_slash_with_default = lambda_slash_with_default.set(tag("lambda_slash_with_default", seq!(opt(repeat1(&lambda_param_no_default)), repeat1(&lambda_param_with_default), python_literal("/"), opt(python_literal(",")), opt(repeat1(seq!(repeat1(&lambda_param_with_default), python_literal("/"), opt(python_literal(",")))))))).into_rc_dyn();
+    let lambda_slash_with_default = lambda_slash_with_default.set(tag("lambda_slash_with_default", seq!(opt(repeat1(&lambda_param_no_default)), repeat1(&lambda_param_with_default), python_literal("/"), opt(python_literal(","))))).into_rc_dyn();
     let lambda_slash_no_default = lambda_slash_no_default.set(tag("lambda_slash_no_default", seq!(repeat1(&lambda_param_no_default), python_literal("/"), opt(python_literal(","))))).into_rc_dyn();
     let lambda_parameters = lambda_parameters.set(tag("lambda_parameters", choice!(
         seq!(&lambda_slash_no_default, opt(repeat1(&lambda_param_no_default)), opt(repeat1(&lambda_param_with_default)), opt(&lambda_star_etc)),
@@ -141,8 +141,30 @@ pub fn python_file() -> Rc<DynCombinator> {
     let lambda_params = lambda_params.set(tag("lambda_params", &lambda_parameters)).into_rc_dyn();
     let lambdef = lambdef.set(tag("lambdef", seq!(python_literal("lambda"), opt(&lambda_params), python_literal(":"), &expression))).into_rc_dyn();
     let group = group.set(tag("group", seq!(python_literal("("), choice!(&yield_expr, &named_expression), python_literal(")")))).into_rc_dyn();
-    let atom = atom.set(tag("atom", seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), &strings, &NUMBER, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp, python_literal("...")), opt(repeat1(choice!(&strings, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp)))))).into_rc_dyn();
-    let slice = slice.set(tag("slice", seq!(choice!(seq!(opt(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), python_literal(":"), opt(&expression), opt(seq!(python_literal(":"), opt(&expression)))), seq!(&NAME, python_literal(":="), cut(), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(repeat1(seq!(python_literal(":"), opt(&expression), opt(seq!(python_literal(":"), opt(&expression))))))))).into_rc_dyn();
+    let atom = atom.set(tag("atom", choice!(
+        &NAME,
+        python_literal("True"),
+        python_literal("False"),
+        python_literal("None"),
+        &strings,
+        &NUMBER,
+        &tuple,
+        &group,
+        &genexp,
+        &list,
+        &listcomp,
+        &dict,
+        &set,
+        &dictcomp,
+        &setcomp,
+        python_literal("...")
+    ))).into_rc_dyn();
+    let slice = slice.set(tag("slice", choice!(
+        seq!(opt(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), python_literal(":"), opt(&expression), opt(seq!(python_literal(":"), opt(&expression)))),
+        seq!(&NAME, python_literal(":="), cut(), &expression),
+        seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))),
+        &lambdef
+    ))).into_rc_dyn();
     let slices = slices.set(tag("slices", choice!(
         &slice,
         seq!(choice!(&slice, &starred_expression), opt(repeat1(seq!(python_literal(","), choice!(&slice, &starred_expression)))), opt(python_literal(",")))
@@ -253,7 +275,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     let attr = attr.set(tag("attr", seq!(&name_or_attr, python_literal("."), &NAME))).into_rc_dyn();
     let value_pattern = value_pattern.set(tag("value_pattern", &attr)).into_rc_dyn();
     let wildcard_pattern = wildcard_pattern.set(tag("wildcard_pattern", python_literal(""))).into_rc_dyn();
-    let pattern_capture_target = pattern_capture_target.set(tag("pattern_capture_target", repeat1(&NAME))).into_rc_dyn();
+    let pattern_capture_target = pattern_capture_target.set(tag("pattern_capture_target", &NAME)).into_rc_dyn();
     let capture_pattern = capture_pattern.set(tag("capture_pattern", &pattern_capture_target)).into_rc_dyn();
     let imaginary_number = imaginary_number.set(tag("imaginary_number", &NUMBER)).into_rc_dyn();
     let real_number = real_number.set(tag("real_number", &NUMBER)).into_rc_dyn();
@@ -340,7 +362,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(python_literal("*"), choice!(seq!(&param_no_default, opt(repeat1(&param_maybe_default)), opt(&kwds)), seq!(&param_no_default_star_annotation, opt(repeat1(&param_maybe_default)), opt(&kwds)), seq!(python_literal(","), repeat1(&param_maybe_default), opt(&kwds)))),
         &kwds
     ))).into_rc_dyn();
-    let slash_with_default = slash_with_default.set(tag("slash_with_default", seq!(opt(repeat1(&param_no_default)), repeat1(&param_with_default), python_literal("/"), opt(python_literal(",")), opt(repeat1(seq!(repeat1(&param_with_default), python_literal("/"), opt(python_literal(",")))))))).into_rc_dyn();
+    let slash_with_default = slash_with_default.set(tag("slash_with_default", seq!(opt(repeat1(&param_no_default)), repeat1(&param_with_default), python_literal("/"), opt(python_literal(","))))).into_rc_dyn();
     let slash_no_default = slash_no_default.set(tag("slash_no_default", seq!(repeat1(&param_no_default), python_literal("/"), opt(python_literal(","))))).into_rc_dyn();
     let parameters = parameters.set(tag("parameters", choice!(
         seq!(&slash_no_default, opt(repeat1(&param_no_default)), opt(repeat1(&param_with_default)), opt(&star_etc)),
@@ -416,8 +438,32 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&star_targets, python_literal("="), opt(repeat1(seq!(&star_targets, python_literal("=")))), choice!(&yield_expr, &star_expressions), opt(&TYPE_COMMENT)),
         seq!(&single_target, &augassign, cut(), choice!(&yield_expr, &star_expressions))
     ))).into_rc_dyn();
-    let compound_stmt = compound_stmt.set(tag("compound_stmt", seq!(choice!(&function_def, &if_stmt, &class_def, &with_stmt, &for_stmt, &try_stmt, &while_stmt, &match_stmt), opt(repeat1(choice!(&function_def, &if_stmt, &class_def, &with_stmt, &for_stmt, &try_stmt, &while_stmt)))))).into_rc_dyn();
-    let simple_stmt = simple_stmt.set(tag("simple_stmt", seq!(choice!(&assignment, &type_alias, &star_expressions, &return_stmt, &import_stmt, &raise_stmt, python_literal("pass"), &del_stmt, &yield_stmt, &assert_stmt, python_literal("break"), python_literal("continue"), &global_stmt, &nonlocal_stmt), opt(repeat1(choice!(&type_alias, &return_stmt, &import_stmt, &raise_stmt, &del_stmt, &yield_stmt, &assert_stmt, &global_stmt, &nonlocal_stmt)))))).into_rc_dyn();
+    let compound_stmt = compound_stmt.set(tag("compound_stmt", choice!(
+        &function_def,
+        &if_stmt,
+        &class_def,
+        &with_stmt,
+        &for_stmt,
+        &try_stmt,
+        &while_stmt,
+        &match_stmt
+    ))).into_rc_dyn();
+    let simple_stmt = simple_stmt.set(tag("simple_stmt", choice!(
+        &assignment,
+        &type_alias,
+        &star_expressions,
+        &return_stmt,
+        &import_stmt,
+        &raise_stmt,
+        python_literal("pass"),
+        &del_stmt,
+        &yield_stmt,
+        &assert_stmt,
+        python_literal("break"),
+        python_literal("continue"),
+        &global_stmt,
+        &nonlocal_stmt
+    ))).into_rc_dyn();
     let simple_stmts = simple_stmts.set(tag("simple_stmts", seq!(&simple_stmt, choice!(&NEWLINE, seq!(opt(repeat1(seq!(python_literal(";"), &simple_stmt))), opt(python_literal(";")), &NEWLINE))))).into_rc_dyn();
     let statement_newline = statement_newline.set(tag("statement_newline", choice!(
         seq!(&compound_stmt, &NEWLINE),
@@ -433,7 +479,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     let func_type = func_type.set(tag("func_type", seq!(python_literal("("), opt(&type_expressions), python_literal(")"), python_literal("->"), &expression, opt(repeat1(&NEWLINE)), &ENDMARKER))).into_rc_dyn();
     let eval = eval.set(tag("eval", seq!(&expressions, opt(repeat1(&NEWLINE)), &ENDMARKER))).into_rc_dyn();
     let interactive = interactive.set(tag("interactive", &statement_newline)).into_rc_dyn();
-    let file = file.set(tag("file", seq!(opt(&statements), repeat1(&ENDMARKER)))).into_rc_dyn();
+    let file = file.set(tag("file", seq!(opt(&statements), &ENDMARKER))).into_rc_dyn();
 
     seq!(repeat0(NEWLINE), file).into_rc_dyn()
 }
