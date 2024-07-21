@@ -723,5 +723,43 @@ pub fn python_file() -> Rc<DynCombinator> {
     let interactive = interactive.set(tag("interactive", &statement_newline)).into_rc_dyn();
     let file = file.set(tag("file", seq!(opt(&statements), &ENDMARKER))).into_rc_dyn();
 
-    seq!(repeat0(NEWLINE), file).into_rc_dyn()
+    // seq!(repeat0(NEWLINE), file).into_rc_dyn()
+
+    // assignment.into_rc_dyn()
+
+    // seq!(&NAME, python_literal(":"), &expression, opt(seq!(python_literal("="), &annotated_rhs))).into_rc_dyn()
+
+    // choice!(
+        // seq!(&NAME, python_literal(":"), &expression, opt(seq!(python_literal("="), &annotated_rhs))),
+        // seq!(choice!(seq!(python_literal("("), &single_target, python_literal(")")), &single_subscript_attribute_target), python_literal(":"), &expression, opt(seq!(python_literal("="), &annotated_rhs))),
+        // seq!(&star_targets, python_literal("="), opt(repeat1(seq!(&star_targets, python_literal("=")))), choice!(&yield_expr, &star_expressions), opt(&TYPE_COMMENT)),
+        // seq!(&single_target, &augassign, cut(), choice!(&yield_expr, &star_expressions)),
+        // &invalid_assignment
+    // ).into_rc_dyn()
+
+    // invalid_assignment.into_rc_dyn()
+
+    // choice!(
+        // seq!(&invalid_ann_assign_target, python_literal(":"), &expression),
+        // seq!(choice!(seq!(python_literal("*"), &bitwise_or), &named_expression), python_literal(","), opt(repeat1(&star_named_expressions)), python_literal(":"), &expression),
+        // seq!(choice!(&invalid_expression, &invalid_legacy_expression, seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), python_literal(":"), &expression),
+        // seq!(opt(seq!(&star_target, opt(seq!(opt(repeat1(seq!(python_literal(","), &star_target))), opt(python_literal(",")))), python_literal("="), opt(repeat1(seq!(&star_target, opt(seq!(opt(repeat1(seq!(python_literal(","), &star_target))), opt(python_literal(",")))), python_literal("=")))))), choice!(seq!(&star_expressions, python_literal("=")), seq!(&yield_expr, python_literal("=")))),
+        // seq!(&star_expression, opt(choice!(seq!(repeat1(seq!(python_literal(","), &star_expression)), opt(python_literal(","))), python_literal(","))), &augassign, &annotated_rhs)
+    // ).into_rc_dyn()
+
+    // choice!(
+        // seq!(python_literal("*"), &bitwise_or),
+        // &invalid_expression,
+        // &invalid_legacy_expression,
+        // seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))),
+        // &lambdef
+    // ).into_rc_dyn()
+
+    // invalid_legacy_expression.into_rc_dyn()
+
+    forward_decls!(X);
+    X.set(seq!(&NAME, &X));
+    X.into_rc_dyn()
+
+    // repeat1(&NAME).into_rc_dyn()
 }
