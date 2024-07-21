@@ -10,6 +10,14 @@ pub struct ParseResults {
 }
 
 impl ParseResults {
+    pub fn no_match() -> Self {
+        ParseResults {
+            right_data_vec: vec![],
+            up_data_vec: vec![],
+            cut: false,
+        }
+    }
+
     pub(crate) fn combine(&mut self, mut p0: ParseResults) {
         self.right_data_vec.append(&mut p0.right_data_vec);
         self.up_data_vec.append(&mut p0.up_data_vec);
