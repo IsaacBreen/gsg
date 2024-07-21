@@ -757,9 +757,9 @@ pub fn python_file() -> Rc<DynCombinator> {
 
     // invalid_legacy_expression.into_rc_dyn()
 
-    forward_decls!(X);
-    X.set(seq!(&NAME, &X));
-    X.into_rc_dyn()
+    // forward_decls!(X);
+    // X.set(seq!(&NAME, &X));
+    // X.into_rc_dyn()
 
-    // repeat1(&NAME).into_rc_dyn()
+    repeat1(&NAME).into_rc_dyn()
 }
