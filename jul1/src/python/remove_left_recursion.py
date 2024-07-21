@@ -179,7 +179,7 @@ class Seq(Node):
 
     def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
         if len(self.children) == 0:
-            return self, self
+            return self, fail()
         else:
             first, recursive = self.children[0].decompose_on_left_recursion(ref)
             return Seq([first, *self.children[1:]]), Seq([recursive, *self.children[1:]])
