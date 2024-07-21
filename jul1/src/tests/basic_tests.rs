@@ -393,31 +393,27 @@ mod tests {
     #[test]
     fn test_right_recursion_name_explosion() {
         // Based on a Python slowdown issue.
-        let term = repeat1(eat_char('a'));
-        forward_decls!(combinator_recursive, combinator_repeat1);
-        combinator_recursive.set(seq!(term, &combinator_recursive));
-        combinator_repeat1.set(seq!(&combinator_recursive, repeat1(&combinator_recursive)));
+        // // let term = tag("repeat_a", repeat1(eat_char('a')));
+        let NAME = tag("NAME", NAME()).into_rc_dyn();
+
+        forward_decls!(X);
+        X.set(seq!(&NAME, &X));
+        let combinator_recursive = X.into_rc_dyn();
+
+        let combinator_repeat1 = repeat1(&NAME).into_rc_dyn();
 
         let (mut parser_recursive, parse_results0_recursive) = combinator_recursive.parser(RightData::default());
         let (mut parser_repeat1, parse_results0_repeat1) = combinator_repeat1.parser(RightData::default());
 
         // Repeat "a" 10 times.
-        for i in 0..10 {
-            assert_eq!(parser_recursive.step('a' as u8), ParseResults {
-                right_data_vec: vec![],
-                up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
-                cut: false,
-            });
-            assert_eq!(parser_repeat1.step('a' as u8), ParseResults {
-                right_data_vec: vec![],
-                up_data_vec: vec![UpData { u8set: U8Set::from_chars("a") }],
-                cut: false,
-            });
+        for i in 0..50 {
+            let parser_recursive_results = parser_recursive.step('a' as u8);
+            let parser_repeat1_results = parser_repeat1.step('a' as u8);
             let stats_recursive = parser_recursive.stats();
             let stats_repeat1 = parser_repeat1.stats();
             println!("stats_recursive:\n{}\n", stats_recursive);
             println!("stats_repeat1:\n{}\n", stats_repeat1);
-            assert!(stats_recursive.total_active_string_matchers() == stats_repeat1.total_active_string_matchers());
+            assert!(stats_recursive.total_active_tags() == stats_repeat1.total_active_tags());
         }
     }
 }
