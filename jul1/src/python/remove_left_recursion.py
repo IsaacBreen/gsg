@@ -536,3 +536,9 @@ if __name__ == '__main__':
     )
     print(expr)
     print(expr.simplify())
+
+    rules = make_rules(
+        A=seq(opt(ref('B')), term('a')),
+    )
+    prettify_rules(rules)
+    prettify_rules(resolve_left_recursion(rules))
