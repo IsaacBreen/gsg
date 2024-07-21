@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 use std::hash::{Hash, Hasher};
-use crate::{FrameStack, U8Set};
+use crate::{FrameStack, GreedOrder, U8Set};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseResults {
@@ -36,6 +36,7 @@ pub struct RightData {
     pub indents: Vec<Vec<u8>>,
     pub dedents: usize,
     pub scope_count: usize,
+    pub greed_order: GreedOrder,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -50,6 +51,7 @@ impl Default for RightData {
             indents: vec![],
             dedents: 0,
             scope_count: 0,
+            greed_order: GreedOrder::default(),
         }
     }
 }
