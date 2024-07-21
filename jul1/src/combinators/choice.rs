@@ -144,7 +144,7 @@ where
 
 #[macro_export]
 macro_rules! choice {
-    ($a1:expr $(,)?) => {($a1)};
+    ($a1:expr $(,)?) => {$a1};
     ($a1:expr, $a2:expr $(,)?) => {$crate::choice2($a1, $a2)};
     ($a1:expr, $a2:expr, $a3:expr $(,)?) => {$crate::choice2($a1, $crate::choice2($a2, $a3))};
     ($a1:expr, $a2:expr, $a3:expr, $a4:expr $(,)?) => {$crate::choice2($crate::choice2($a1, $a2), $crate::choice2($a3, $a4))};
