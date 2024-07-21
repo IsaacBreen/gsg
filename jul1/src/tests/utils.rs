@@ -10,8 +10,8 @@ macro_rules! assert_parses {
         for &byte in kdam::tqdm!($input.as_bytes().into_iter(), animation = "fillup") {
             let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data, cut} = parser.step(byte);
             parser.gc();
-            // println!("Stats:");
-            // println!("{}", parser.stats());
+            println!("Stats:");
+            println!("{}", parser.stats());
             if cut {
                 println!("cut!");
                 println!()
@@ -41,8 +41,8 @@ macro_rules! assert_fails {
         for &byte in kdam::tqdm!($input.as_bytes().into_iter(), animation = "fillup") {
             let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data, cut} = parser.step(byte);
             parser.gc();
-            // println!("Stats:");
-            // println!("{}", parser.stats());
+            println!("Stats:");
+            println!("{}", parser.stats());
             if cut {
                 println!("cut!");
                 println!()
