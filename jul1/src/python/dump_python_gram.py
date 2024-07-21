@@ -25,7 +25,7 @@ def parse_grammar(text: str) -> pegen.grammar.Grammar:
         grammar = parser.start()
         return grammar
 
-def pegen_to_custom(grammar: pegen.grammar.Grammar) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
+def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = False) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
     def rhs_to_node(rhs: pegen.grammar.Rhs) -> remove_left_recursion.Node:
         if len(rhs.alts) == 1:
             return alt_to_node(rhs.alts[0])
@@ -42,7 +42,7 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar) -> dict[remove_left_recursio
     def item_to_node(item) -> remove_left_recursion.Node:
         if isinstance(item, pegen.grammar.NameLeaf):
             value = item.value
-            if value.startswith('invalid_'):
+            if ignore_invalid and value.startswith('invalid_'):
                 return remove_left_recursion.fail()
             else:
                 return remove_left_recursion.ref(value)
@@ -75,7 +75,7 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar) -> dict[remove_left_recursio
     rules = {}
     for name, rule in grammar.rules.items():
         ref = remove_left_recursion.ref(name)
-        if not ref.name.startswith('invalid_'):
+        if not (ignore_invalid and ref.name.startswith('invalid_')):
             rules[ref] = rhs_to_node(rule.rhs)
     return rules
 
