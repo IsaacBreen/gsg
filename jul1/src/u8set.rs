@@ -107,6 +107,7 @@ impl U8Set {
     pub fn from_chars(chars: &str) -> Self {
         let mut result = Self::none();
         for c in chars.chars() {
+            assert!(c as usize <= 255, "Character {} is not a valid u8 value", c);
             result.insert(c as u8);
         }
         result
@@ -115,6 +116,7 @@ impl U8Set {
     pub fn from_chars_negation(chars: &str) -> Self {
         let mut result = Self::none();
         for c in chars.chars() {
+            assert!(c as usize <= 255, "Character {} is not a valid u8 value", c);
             result.insert(c as u8);
         }
         result.complement()
@@ -123,6 +125,7 @@ impl U8Set {
     pub fn from_str(s: &str) -> Self {
         let mut result = Self::none();
         for c in s.chars() {
+            assert!(c as usize <= 255, "Character {} is not a valid u8 value", c);
             result.insert(c as u8);
         }
         result
