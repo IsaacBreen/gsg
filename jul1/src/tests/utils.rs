@@ -3,15 +3,15 @@
 macro_rules! assert_parses {
     ($combinator:expr, $input:expr, $desc:expr) => {
         println!("beginning assert_parses {}", $desc);
-        let (mut parser, _) = $combinator.parser($crate::RightData::default());
+        let (mut parser, _) = $crate::CombinatorTrait::parser(&$combinator, $crate::RightData::default());
         println!("constructed parser");
         // println!("Stats: {:?}", parser.stats());
         let mut result = Ok(());
         for &byte in kdam::tqdm!($input.as_bytes().into_iter(), animation = "fillup") {
-            let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data, cut} = parser.step(byte);
-            parser.gc();
-            println!("Stats:");
-            println!("{}", parser.stats());
+            let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data, cut} = $crate::ParserTrait::step(&mut parser, byte);
+            // parser.gc();
+            // println!("Stats:");
+            // println!("{}", parser.stats());
             if cut {
                 println!("cut!");
                 println!()
@@ -34,15 +34,15 @@ macro_rules! assert_parses {
 macro_rules! assert_fails {
     ($combinator:expr, $input:expr, $desc:expr) => {
         println!("beginning assert_fails {}", $desc);
-        let (mut parser, _) = $combinator.parser($crate::RightData::default());
+        let (mut parser, _) = $crate::CombinatorTrait::parser(&$combinator, $crate::RightData::default());
         println!("constructed parser");
         // println!("Stats: {:?}", parser.stats());
         let mut result = Ok(());
         for &byte in kdam::tqdm!($input.as_bytes().into_iter(), animation = "fillup") {
-            let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data, cut} = parser.step(byte);
-            parser.gc();
-            println!("Stats:");
-            println!("{}", parser.stats());
+            let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data, cut} = $crate::ParserTrait::step(&mut parser, byte);
+            // parser.gc();
+            // println!("Stats:");
+            // println!("{}", parser.stats());
             if cut {
                 println!("cut!");
                 println!()

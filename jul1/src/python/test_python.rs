@@ -1,5 +1,11 @@
 use std::path::Path;
-use crate::{assert_fails, assert_parses, python_file};
+use crate::{assert_fails, assert_parses, NAME, python_file, python_literal, seq};
+
+#[test]
+fn test_trivial_ws() {
+    let combinator = seq!(&NAME(), python_literal("="));
+    assert_parses!(combinator, "x =");
+}
 
 #[test]
 fn test_simple() {

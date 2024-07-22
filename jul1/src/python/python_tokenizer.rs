@@ -42,7 +42,7 @@ pub fn non_breaking_space() -> EatU8 {
 // tokens.  Whitespace is needed between two tokens only if their concatenation
 // could otherwise be interpreted as a different token (e.g., ab is one token, but
 // a b is two tokens).
-pub fn whitespace() -> Seq2<PreventConsecutiveMatches, Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<Seq2<EatString, EatU8>, EatU8>>>> {
+pub fn whitespace() -> Box<DynCombinator> {
     seq!(
         prevent_consecutive_matches("whitespace"),
         repeat1(choice!(
@@ -55,7 +55,7 @@ pub fn whitespace() -> Seq2<PreventConsecutiveMatches, Repeat1<Choice2<Seq2<Muta
             seq!(eat_string("\\"), breaking_space()),
             non_breaking_space()
         )),
-    )
+    ).into_box_dyn()
 }
 
 pub fn python_symbol<A: CombinatorTrait>(a: A) -> Symbol<Box<DynCombinator>> {
@@ -627,8 +627,8 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
 // literal, and ends at the end of the physical line.  A comment signifies the end
 // of the logical line unless the implicit line joining rules are invoked. Comments
 // are ignored by the syntax.
-pub fn comment() -> Seq2<EatU8, Seq2<Choice2<Repeat1<EatU8>, Eps>, PreventConsecutiveMatchesClear>> {
-    seq!(eat_char('#'), repeat0(not_breaking_space()), prevent_consecutive_matches_clear())
+pub fn comment() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
+    seq!(eat_char('#'), repeat0(not_breaking_space()))
 }
 
 // .. _line-structure:
@@ -754,7 +754,7 @@ pub fn NEWLINE() -> Symbol<Rc<DynCombinator>> {
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
 pub fn INDENT() -> Symbol<Seq2<PreventConsecutiveMatches, IndentCombinator>> {
-    symbol(seq!(prevent_consecutive_matches("whitespace"), indent()))
+    symbol(seq!(prevent_consecutive_matches("whitespace2"), indent()))
 }
 
 pub fn DEDENT() -> Symbol<Seq2<PreventConsecutiveMatchesClear, IndentCombinator>> {
