@@ -68,12 +68,12 @@ where
     }
 }
 
-// pub fn tag<A>(tag: &str, a: A) -> Tagged<A::Output>
-// where
-//     A: IntoCombinator,
-// {
-//     Tagged { inner: a.into_combinator(), tag: tag.to_string() }
-// }
+pub fn tag<A>(tag: &str, a: A) -> Tagged<A::Output>
+where
+    A: IntoCombinator,
+{
+    Tagged { inner: a.into_combinator(), tag: tag.to_string() }
+}
 
 impl<A> IntoCombinator for &Tagged<A>
 where
@@ -83,12 +83,4 @@ where
     fn into_combinator(self) -> Self::Output {
         self.clone()
     }
-}
-
-
-pub fn tag<A>(tag: &str, a: A) -> A::Output
-where
-    A: IntoCombinator,
-{
-    a.into_combinator()
 }
