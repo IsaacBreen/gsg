@@ -115,7 +115,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(python_literal("{"), &annotated_rhs, opt(python_literal("=")), opt(&fstring_conversion), opt(&fstring_full_format_spec), python_literal("}"))
     ))).into_rc_dyn();
     let fstring_full_format_spec = fstring_full_format_spec.set(tag("fstring_full_format_spec", seq!(python_literal(":"), opt(repeat1(&fstring_format_spec))))).into_rc_dyn();
-    let fstring_conversion = fstring_conversion.set(tag("fstring_conversion", seq!(python_literal(""), &NAME))).into_rc_dyn();
+    let fstring_conversion = fstring_conversion.set(tag("fstring_conversion", seq!(python_literal("!"), &NAME))).into_rc_dyn();
     let fstring_replacement_field = fstring_replacement_field.set(tag("fstring_replacement_field", seq!(python_literal("{"), &annotated_rhs, opt(python_literal("=")), opt(&fstring_conversion), opt(&fstring_full_format_spec), python_literal("}")))).into_rc_dyn();
     let fstring_middle = fstring_middle.set(tag("fstring_middle", choice!(
         &fstring_replacement_field,
@@ -250,7 +250,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     ))).into_rc_dyn();
     let type_param_seq = type_param_seq.set(tag("type_param_seq", seq!(&type_param, opt(repeat1(seq!(python_literal(","), &type_param))), opt(python_literal(","))))).into_rc_dyn();
     let type_params = type_params.set(tag("type_params", seq!(python_literal("["), &type_param_seq, python_literal("]")))).into_rc_dyn();
-    let type_alias = type_alias.set(tag("type_alias", seq!(python_literal("yp"), &NAME, opt(&type_params), python_literal("="), &expression))).into_rc_dyn();
+    let type_alias = type_alias.set(tag("type_alias", seq!(python_literal("type"), &NAME, opt(&type_params), python_literal("="), &expression))).into_rc_dyn();
     let keyword_pattern = keyword_pattern.set(tag("keyword_pattern", seq!(&NAME, python_literal("="), &pattern))).into_rc_dyn();
     let keyword_patterns = keyword_patterns.set(tag("keyword_patterns", seq!(&keyword_pattern, opt(repeat1(seq!(python_literal(","), &keyword_pattern)))))).into_rc_dyn();
     let positional_patterns = positional_patterns.set(tag("positional_patterns", seq!(choice!(&as_pattern, &or_pattern), opt(repeat1(seq!(python_literal(","), &pattern)))))).into_rc_dyn();
@@ -275,7 +275,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     let name_or_attr = name_or_attr.set(tag("name_or_attr", seq!(&NAME, opt(repeat1(seq!(python_literal("."), &NAME)))))).into_rc_dyn();
     let attr = attr.set(tag("attr", seq!(&name_or_attr, python_literal("."), &NAME))).into_rc_dyn();
     let value_pattern = value_pattern.set(tag("value_pattern", &attr)).into_rc_dyn();
-    let wildcard_pattern = wildcard_pattern.set(tag("wildcard_pattern", python_literal(""))).into_rc_dyn();
+    let wildcard_pattern = wildcard_pattern.set(tag("wildcard_pattern", python_literal("_"))).into_rc_dyn();
     let pattern_capture_target = pattern_capture_target.set(tag("pattern_capture_target", &NAME)).into_rc_dyn();
     let capture_pattern = capture_pattern.set(tag("capture_pattern", &pattern_capture_target)).into_rc_dyn();
     let imaginary_number = imaginary_number.set(tag("imaginary_number", &NUMBER)).into_rc_dyn();
@@ -326,12 +326,12 @@ pub fn python_file() -> Rc<DynCombinator> {
         &pattern
     ))).into_rc_dyn();
     let guard = guard.set(tag("guard", seq!(python_literal("if"), &named_expression))).into_rc_dyn();
-    let case_block = case_block.set(tag("case_block", seq!(python_literal("as"), &patterns, opt(&guard), python_literal(":"), &block))).into_rc_dyn();
+    let case_block = case_block.set(tag("case_block", seq!(python_literal("case"), &patterns, opt(&guard), python_literal(":"), &block))).into_rc_dyn();
     let subject_expr = subject_expr.set(tag("subject_expr", choice!(
         seq!(&star_named_expression, python_literal(","), opt(&star_named_expressions)),
         &named_expression
     ))).into_rc_dyn();
-    let match_stmt = match_stmt.set(tag("match_stmt", seq!(python_literal("atc"), &subject_expr, python_literal(":"), &NEWLINE, &INDENT, repeat1(&case_block), &DEDENT))).into_rc_dyn();
+    let match_stmt = match_stmt.set(tag("match_stmt", seq!(python_literal("match"), &subject_expr, python_literal(":"), &NEWLINE, &INDENT, repeat1(&case_block), &DEDENT))).into_rc_dyn();
     let finally_block = finally_block.set(tag("finally_block", seq!(python_literal("finally"), python_literal(":"), &block))).into_rc_dyn();
     let except_star_block = except_star_block.set(tag("except_star_block", seq!(python_literal("except"), python_literal("*"), &expression, opt(seq!(python_literal("as"), &NAME)), python_literal(":"), &block))).into_rc_dyn();
     let except_block = except_block.set(tag("except_block", seq!(python_literal("except"), choice!(seq!(&expression, opt(seq!(python_literal("as"), &NAME)), python_literal(":"), &block), seq!(python_literal(":"), &block))))).into_rc_dyn();

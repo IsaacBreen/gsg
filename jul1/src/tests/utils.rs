@@ -2,12 +2,15 @@ use kdam::tqdm;
 use crate::{CombinatorTrait, RightData, ParseResults, ParserTrait};
 
 pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
-    let input = input.to_string();
+    let mut input = input.to_string();
     println!("beginning assert_parses {}", desc);
     let (mut parser, _) = T::parser(&combinator, RightData::default());
     println!("constructed parser");
 
     let mut result = Ok(());
+
+    // Remove the last char
+    input.pop();
 
     for (line_number, line) in tqdm!(input.lines().collect::<Vec<_>>().iter().enumerate(), animation = "fillup", position = 0) {
         // Add newline back in
@@ -48,12 +51,15 @@ pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, in
 }
 
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
-    let input = input.to_string();
+    let mut input = input.to_string();
     println!("beginning assert_fails {}", desc);
     let (mut parser, _) = T::parser(&combinator, RightData::default());
     println!("constructed parser");
 
     let mut result = Ok(());
+
+    // Remove the last char
+    input.pop();
 
     for (line_number, line) in tqdm!(input.lines().collect::<Vec<_>>().iter().enumerate(), animation = "fillup", position = 0) {
         // Add newline back in
