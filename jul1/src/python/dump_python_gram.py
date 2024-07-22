@@ -170,7 +170,8 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
         elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_rust(item)
         elif isinstance(item, pegen.grammar.Cut):
-            return 'cut()'
+            # return 'cut()'
+            return 'eps()'
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 

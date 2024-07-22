@@ -84,7 +84,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&kwarg_or_double_starred, opt(repeat1(seq!(python_literal(","), &kwarg_or_double_starred))))
     ))).into_rc_dyn();
     let args = args.set(tag("args", choice!(
-        seq!(choice!(&starred_expression, seq!(&NAME, python_literal(":="), cut(), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(repeat1(seq!(python_literal(","), choice!(&starred_expression, seq!(&NAME, python_literal(":="), cut(), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))), opt(seq!(python_literal(","), &kwargs))),
+        seq!(choice!(&starred_expression, seq!(&NAME, python_literal(":="), eps(), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(repeat1(seq!(python_literal(","), choice!(&starred_expression, seq!(&NAME, python_literal(":="), eps(), &expression), seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))), opt(seq!(python_literal(","), &kwargs))),
         &kwargs
     ))).into_rc_dyn();
     let arguments = arguments.set(tag("arguments", seq!(&args, opt(python_literal(","))))).into_rc_dyn();
@@ -93,8 +93,8 @@ pub fn python_file() -> Rc<DynCombinator> {
     let setcomp = setcomp.set(tag("setcomp", seq!(python_literal("{"), &named_expression, &for_if_clauses, python_literal("}")))).into_rc_dyn();
     let listcomp = listcomp.set(tag("listcomp", seq!(python_literal("["), &named_expression, &for_if_clauses, python_literal("]")))).into_rc_dyn();
     let for_if_clause = for_if_clause.set(tag("for_if_clause", choice!(
-        seq!(python_literal("async"), python_literal("for"), &star_targets, python_literal("in"), cut(), &disjunction, opt(repeat1(seq!(python_literal("if"), &disjunction)))),
-        seq!(python_literal("for"), &star_targets, python_literal("in"), cut(), &disjunction, opt(repeat1(seq!(python_literal("if"), &disjunction))))
+        seq!(python_literal("async"), python_literal("for"), &star_targets, python_literal("in"), eps(), &disjunction, opt(repeat1(seq!(python_literal("if"), &disjunction)))),
+        seq!(python_literal("for"), &star_targets, python_literal("in"), eps(), &disjunction, opt(repeat1(seq!(python_literal("if"), &disjunction))))
     ))).into_rc_dyn();
     let for_if_clauses = for_if_clauses.set(tag("for_if_clauses", repeat1(&for_if_clause))).into_rc_dyn();
     let kvpair = kvpair.set(tag("kvpair", seq!(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), python_literal(":"), &expression))).into_rc_dyn();
@@ -162,7 +162,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     ))).into_rc_dyn();
     let slice = slice.set(tag("slice", choice!(
         seq!(opt(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), python_literal(":"), opt(&expression), opt(seq!(python_literal(":"), opt(&expression)))),
-        seq!(&NAME, python_literal(":="), cut(), &expression),
+        seq!(&NAME, python_literal(":="), eps(), &expression),
         seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))),
         &lambdef
     ))).into_rc_dyn();
@@ -218,11 +218,11 @@ pub fn python_file() -> Rc<DynCombinator> {
     let conjunction = conjunction.set(tag("conjunction", seq!(&inversion, opt(repeat1(seq!(python_literal("and"), &inversion)))))).into_rc_dyn();
     let disjunction = disjunction.set(tag("disjunction", seq!(&conjunction, opt(repeat1(seq!(python_literal("or"), &conjunction)))))).into_rc_dyn();
     let named_expression = named_expression.set(tag("named_expression", choice!(
-        seq!(&NAME, python_literal(":="), cut(), &expression),
+        seq!(&NAME, python_literal(":="), eps(), &expression),
         seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))),
         &lambdef
     ))).into_rc_dyn();
-    let assignment_expression = assignment_expression.set(tag("assignment_expression", seq!(&NAME, python_literal(":="), cut(), &expression))).into_rc_dyn();
+    let assignment_expression = assignment_expression.set(tag("assignment_expression", seq!(&NAME, python_literal(":="), eps(), &expression))).into_rc_dyn();
     let star_named_expression = star_named_expression.set(tag("star_named_expression", choice!(
         seq!(python_literal("*"), &bitwise_or),
         &named_expression
@@ -342,8 +342,8 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(python_literal("async"), python_literal("with"), choice!(seq!(python_literal("("), &with_item, opt(repeat1(seq!(python_literal(","), &with_item))), opt(python_literal(",")), python_literal(")"), python_literal(":"), &block), seq!(&with_item, opt(repeat1(seq!(python_literal(","), &with_item))), python_literal(":"), opt(&TYPE_COMMENT), &block)))
     ))).into_rc_dyn();
     let for_stmt = for_stmt.set(tag("for_stmt", choice!(
-        seq!(python_literal("for"), &star_targets, python_literal("in"), cut(), &star_expressions, python_literal(":"), opt(&TYPE_COMMENT), &block, opt(&else_block)),
-        seq!(python_literal("async"), python_literal("for"), &star_targets, python_literal("in"), cut(), &star_expressions, python_literal(":"), opt(&TYPE_COMMENT), &block, opt(&else_block))
+        seq!(python_literal("for"), &star_targets, python_literal("in"), eps(), &star_expressions, python_literal(":"), opt(&TYPE_COMMENT), &block, opt(&else_block)),
+        seq!(python_literal("async"), python_literal("for"), &star_targets, python_literal("in"), eps(), &star_expressions, python_literal(":"), opt(&TYPE_COMMENT), &block, opt(&else_block))
     ))).into_rc_dyn();
     let while_stmt = while_stmt.set(tag("while_stmt", seq!(python_literal("while"), &named_expression, python_literal(":"), &block, opt(&else_block)))).into_rc_dyn();
     let else_block = else_block.set(tag("else_block", seq!(python_literal("else"), python_literal(":"), &block))).into_rc_dyn();
@@ -437,7 +437,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&NAME, python_literal(":"), &expression, opt(seq!(python_literal("="), &annotated_rhs))),
         seq!(choice!(seq!(python_literal("("), &single_target, python_literal(")")), &single_subscript_attribute_target), python_literal(":"), &expression, opt(seq!(python_literal("="), &annotated_rhs))),
         seq!(&star_targets, python_literal("="), opt(repeat1(seq!(&star_targets, python_literal("=")))), choice!(&yield_expr, &star_expressions), opt(&TYPE_COMMENT)),
-        seq!(&single_target, &augassign, cut(), choice!(&yield_expr, &star_expressions))
+        seq!(&single_target, &augassign, eps(), choice!(&yield_expr, &star_expressions))
     ))).into_rc_dyn();
     let compound_stmt = compound_stmt.set(tag("compound_stmt", choice!(
         &function_def,
