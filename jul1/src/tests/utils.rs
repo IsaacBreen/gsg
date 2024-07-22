@@ -21,6 +21,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
             if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
                 break 'outer;
             }
+
             let ParseResults {
                 right_data_vec: right_data,
                 up_data_vec: new_up_data,
