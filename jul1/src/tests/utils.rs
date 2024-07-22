@@ -1,65 +1,93 @@
+use kdam::tqdm;
+use crate::{CombinatorTrait, RightData, ParseResults, ParserTrait};
 
-#[macro_export]
-macro_rules! assert_parses {
-    ($combinator:expr, $input:expr, $desc:expr) => {
-        println!("beginning assert_parses {}", $desc);
-        let (mut parser, _) = $crate::CombinatorTrait::parser(&$combinator, $crate::RightData::default());
-        println!("constructed parser");
-        // println!("Stats: {:?}", parser.stats());
-        let mut result = Ok(());
-        for &byte in kdam::tqdm!($input.as_bytes().into_iter(), animation = "fillup") {
-            let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data, cut} = $crate::ParserTrait::step(&mut parser, byte);
-            // parser.gc();
-            // println!("Stats:");
-            // println!("{}", parser.stats());
+pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
+    let input = input.to_string();
+    println!("beginning assert_parses {}", desc);
+    let (mut parser, _) = T::parser(&combinator, RightData::default());
+    println!("constructed parser");
+
+    let mut result = Ok(());
+
+    for (line_number, line) in tqdm!(input.lines().enumerate(), animation = "fillup") {
+        for (char_number, byte) in tqdm!(line.bytes().enumerate(), animation = "fillup") {
+            let ParseResults {
+                right_data_vec: right_data,
+                up_data_vec: up_data,
+                cut,
+            } = parser.step(byte);
+
+            println!("Stats:");
+            println!("{}", parser.stats());
             if cut {
                 println!("cut!");
                 println!()
             }
-            // println!("Stats: {:?}", parser.stats());
             if right_data.is_empty() && up_data.is_empty() {
-                result = Err(format!("Parser failed at byte: {}", byte as char));
+                result = Err(format!(
+                    "Parser failed at byte: {} on line: {} at char: {}",
+                    byte as char,
+                    line_number + 1,
+                    char_number + 1
+                ));
                 break;
             }
         }
-        assert!(result.is_ok(), $desc);
-    };
+        if result.is_err() {
+            break;
+        }
+    }
 
-    ($combinator:expr, $input:expr) => {
-        assert_parses!($combinator, $input, "Parser failed unexpectedly");
-    };
+    assert!(result.is_ok(), "{}", desc);
 }
 
-#[macro_export]
-macro_rules! assert_fails {
-    ($combinator:expr, $input:expr, $desc:expr) => {
-        println!("beginning assert_fails {}", $desc);
-        let (mut parser, _) = $crate::CombinatorTrait::parser(&$combinator, $crate::RightData::default());
-        println!("constructed parser");
-        // println!("Stats: {:?}", parser.stats());
-        let mut result = Ok(());
-        for &byte in kdam::tqdm!($input.as_bytes().into_iter(), animation = "fillup") {
-            let crate::ParseResults{right_data_vec:right_data, up_data_vec:up_data, cut} = $crate::ParserTrait::step(&mut parser, byte);
-            // parser.gc();
-            // println!("Stats:");
-            // println!("{}", parser.stats());
+pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
+    assert_parses(combinator, input, "Parser failed unexpectedly");
+}
+
+pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
+    let input = input.to_string();
+    println!("beginning assert_fails {}", desc);
+    let (mut parser, _) = T::parser(&combinator, RightData::default());
+    println!("constructed parser");
+
+    let mut result = Ok(());
+
+    for (line_number, line) in tqdm!(input.lines().enumerate(), animation = "fillup") {
+        for (char_number, byte) in tqdm!(line.bytes().enumerate(), animation = "fillup") {
+            let ParseResults {
+                right_data_vec: right_data,
+                up_data_vec: up_data,
+                cut,
+            } = parser.step(byte);
+
+            println!("Stats:");
+            println!("{}", parser.stats());
             if cut {
                 println!("cut!");
                 println!()
             }
-            // println!("Stats: {:?}", parser.stats());
             if right_data.is_empty() && up_data.is_empty() {
-                result = Err(format!("Parser failed at byte: {}", byte as char));
+                result = Err(format!(
+                    "Parser failed at byte: {} on line: {} at char: {}",
+                    byte as char,
+                    line_number + 1,
+                    char_number + 1
+                ));
                 break;
             }
         }
-        match result {
-            Ok(_) => assert!(false, $desc),
-            Err(_) => (),
-        };
-    };
+        if result.is_err() {
+            break;
+        }
+    }
 
-    ($combinator:expr, $input:expr) => {
-        assert_fails!($combinator, $input, "Parser succeeded unexpectedly");
-    };
+    match result {
+        Ok(_) => assert!(false, "{}", desc),
+        Err(_) => (),
+    }
+}
+
+pub fn assert_fails_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
+    assert_fails(combinator, input, "Parser succeeded unexpectedly");
 }
