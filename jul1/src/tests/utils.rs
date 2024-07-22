@@ -9,13 +9,19 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
     let mut result = Ok(());
 
-    // Remove the last char
-    input.pop();
-
-    for (line_number, line) in tqdm!(input.lines().collect::<Vec<_>>().iter().enumerate(), animation = "fillup", position = 0) {
+    let lines = input.lines().collect::<Vec<_>>();
+    'outer: for (line_number, line) in tqdm!(lines.iter().enumerate(), animation = "fillup", position = 0) {
         // Add newline back in
         let line = format!("{}\n", line);
-        for (char_number, byte) in tqdm!(line.bytes().enumerate(), animation = "fillup", position = 1) {
+        println!("\n\n");
+        println!("line_number: {}", line_number);
+        println!("line: {:?}", line);
+        println!("\n\n");
+        let bytes = line.bytes().collect::<Vec<_>>();
+        for (char_number, byte) in tqdm!(bytes.iter().cloned().enumerate(), animation = "fillup", position = 1) {
+            if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
+                break 'outer;
+            }
             let ParseResults {
                 right_data_vec: right_data,
                 up_data_vec: up_data,
