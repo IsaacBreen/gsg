@@ -32,7 +32,7 @@ where
         let (b, parse_results_b) = self.b.parser(right_data);
         (
             Choice2Parser { a: Some(a), b: Some(b) },
-            parse_results_a.combine_inplace(parse_results_b).squashed()
+            parse_results_a.combine_inplace(parse_results_b)
         )
     }
 }
@@ -77,7 +77,7 @@ where
         }
 
         ParseResults {
-            right_data_vec: right_data.squashed(),
+            right_data_vec: right_data,
             up_data_vec: up_data,
             cut: any_cut,
         }

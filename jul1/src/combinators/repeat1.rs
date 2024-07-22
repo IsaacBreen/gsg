@@ -67,7 +67,7 @@ where
             right_data_as.extend(right_data_a);
         }
 
-        right_data_as.squash();
+        // right_data_as.squash();
 
         for right_data_a in right_data_as.clone() {
             let (a_parser, ParseResults { right_data_vec: mut right_data_a, up_data_vec: up_data_a, mut cut }) = self.a.parser(right_data_a);
@@ -87,15 +87,16 @@ where
             right_data_as.extend(right_data_a);
         }
 
-        right_data_as.squash();
+        // right_data_as.squash();
 
         self.a_parsers = new_parsers;
 
         ParseResults {
-            right_data_vec: right_data_as.squashed(),
+            right_data_vec: right_data_as,
             up_data_vec: up_data_as,
             cut: any_cut,
-        }.squashed()
+        }
+            // .squashed()
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
