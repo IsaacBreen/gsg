@@ -24,6 +24,9 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 cut,
             } = parser.step(byte);
 
+            let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));
+            assert!(byte_is_in_some_up_data, "byte {} is not in any up_data", byte as char);
+
             println!();
             println!("line:char: {line_number}:{char_number}");
             println!("Stats:");
