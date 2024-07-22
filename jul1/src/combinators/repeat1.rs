@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::rc::Rc;
 
-use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParseResults, ParserTrait, Squash, Stats};
+use crate::{Choice2, CombinatorTrait, Eps, IntoCombinator, opt, ParseResults, ParserTrait, seq, Seq2, Squash, Stats};
 use crate::parse_state::{RightData, UpData};
 
 pub struct Repeat1<A>
@@ -124,4 +124,22 @@ where
     A: IntoCombinator,
 {
     opt(repeat1(a.into_combinator()))
+}
+
+pub fn seprep1<A, B>(a: A, b: B) -> Seq2<Rc<<A as IntoCombinator>::Output>, Choice2<Repeat1<Seq2<<B as IntoCombinator>::Output, Rc<<A as IntoCombinator>::Output>>>, Eps>>
+where
+    A: IntoCombinator,
+    B: IntoCombinator,
+{
+    let a = Rc::new(a.into_combinator());
+    seq!(a.clone(), repeat0(seq!(b, a.clone())))
+}
+
+pub fn seprep0<A, B>(a: A, b: B) -> Seq2<Choice2<Repeat1<Seq2<Rc<<A as IntoCombinator>::Output>, <B as IntoCombinator>::Output>>, Eps>, Rc<<A as IntoCombinator>::Output>>
+where
+    A: IntoCombinator,
+    B: IntoCombinator,
+{
+    let a = Rc::new(a.into_combinator());
+    seq!(opt(repeat1(seq!(a.clone(), b))), a)
 }
