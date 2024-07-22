@@ -71,6 +71,25 @@ impl CombinatorTrait for PreventConsecutiveMatchesAdd {
     }
 }
 
+pub struct PreventConsecutiveMatchesCheckNot {
+    match_id: String,
+}
+
+impl CombinatorTrait for PreventConsecutiveMatchesCheckNot {
+    type Parser = FailParser;
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
+        if right_data.prevent_consecutive_matches.prev_match_ids.contains(&self.match_id) {
+            (FailParser, ParseResults::no_match())
+        } else {
+            (FailParser, ParseResults {
+                right_data_vec: vec![right_data],
+                up_data_vec: vec![],
+                cut: false,
+            })
+        }
+    }
+}
+
 pub fn prevent_consecutive_matches(match_id: &str) -> PreventConsecutiveMatches {
     PreventConsecutiveMatches { match_id: match_id.to_string() }
 }
@@ -85,4 +104,8 @@ pub fn prevent_consecutive_matches_set(match_id: &str) -> PreventConsecutiveMatc
 
 pub fn prevent_consecutive_matches_add(match_id: &str) -> PreventConsecutiveMatchesAdd {
     PreventConsecutiveMatchesAdd { match_id: match_id.to_string() }
+}
+
+pub fn prevent_consecutive_matches_check_not(match_id: &str) -> PreventConsecutiveMatchesCheckNot {
+    PreventConsecutiveMatchesCheckNot { match_id: match_id.to_string() }
 }

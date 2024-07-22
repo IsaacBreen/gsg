@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use unicode_general_category::GeneralCategory;
 
-use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice, IndentCombinator, assert_no_dedents, tag, fail, IntoCombinator, seprep0, seprep1, prevent_consecutive_matches_clear, prevent_consecutive_matches, PreventConsecutiveMatches, PreventConsecutiveMatchesClear, prevent_consecutive_matches_exception, prevent_consecutive_matches_set};
+use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice, IndentCombinator, assert_no_dedents, tag, fail, IntoCombinator, seprep0, seprep1, prevent_consecutive_matches_clear, prevent_consecutive_matches, PreventConsecutiveMatches, PreventConsecutiveMatchesClear, prevent_consecutive_matches_set, prevent_consecutive_matches_add, prevent_consecutive_matches_check_not};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn breaking_space() -> EatU8 {
@@ -589,12 +589,17 @@ pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
     let escaped_char = seq!(eat_char('\\'), eat_char_negation_choice("\n\r"));
     let regular_char = eat_char_negation_choice("{}\\");
 
-    symbol(seq!(repeat1(choice!(
-        regular_char,
-        escaped_char,
-        seq!(eat_char('{'), eat_char('{')),
-        seq!(eat_char('}'), eat_char('}'))
-    )), prevent_consecutive_matches_add("whitespace"), prevent_consecutive_matches_add("FSTRING_MIDDLE")).into_box_dyn())
+    symbol(seq!(
+        prevent_consecutive_matches_check_not("FSTRING_MIDDLE"),
+        repeat1(choice!(
+            regular_char,
+            escaped_char,
+            seq!(eat_char('{'), eat_char('{')),
+            seq!(eat_char('}'), eat_char('}'))
+        )),
+        prevent_consecutive_matches_add("whitespace"),
+        prevent_consecutive_matches_add("FSTRING_MIDDLE")
+    ).into_box_dyn())
 }
 
 pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
