@@ -142,10 +142,10 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
             return f'&{value}'
         elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
-            if value[0] == '"' and value[-1] == '"':
+            if value[0] == value[-1] in {'"', "'"}:
                 value = value[1:-1]
-            assert not value[0] == value[-1] == '"', f"Invalid string literal: {value}"
-            value = value[1:-1]
+            else:
+                raise ValueError(f"Invalid string literal: {value}")
             return f'python_literal("{value}")'
         elif isinstance(item, pegen.grammar.Group):
             logging.warning(f"Passing through group: {item}")
