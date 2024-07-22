@@ -2,6 +2,9 @@ use std::any::Any;
 use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, IntoCombinator, ParseResults, ParserTrait, repeat0, Repeat1, repeat1, RightData, seq, Seq2, Stats, U8Set, UpData};
 
 const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
+    println!("DENT_FN");
+    println!("values: {:?}", values);
+    println!("right_data: {:?}", right_data);
     let mut i = 0;
     for (indent_num, indent_chunk) in right_data.indents.iter().enumerate() {
         if i == values.len() {
