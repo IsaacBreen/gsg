@@ -823,7 +823,7 @@ pub fn comment() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
 // representing ASCII LF, is the line terminator).
 pub fn NEWLINE() -> Symbol<Rc<DynCombinator>> {
     let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
-    symbol(seq!(repeat1(blank_line), dent(), prevent_consecutive_matches_clear()).into_rc_dyn())
+    symbol(seq!(repeat1(blank_line), dent(), prevent_consecutive_matches("whitespace")).into_rc_dyn())
 }
 
 // .. _indentation:
@@ -903,12 +903,12 @@ pub fn NEWLINE() -> Symbol<Rc<DynCombinator>> {
 // (Actually, the first three errors are detected by the parser; only the last
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
-pub fn INDENT() -> Symbol<Seq2<PreventConsecutiveMatches, IndentCombinator>> {
-    symbol(seq!(prevent_consecutive_matches("whitespace"), indent()))
+pub fn INDENT() -> Symbol<IndentCombinator> {
+    symbol(indent())
 }
 
-pub fn DEDENT() -> Symbol<Seq2<PreventConsecutiveMatchesClear, IndentCombinator>> {
-    symbol(seq!(prevent_consecutive_matches_clear(), dedent()))
+pub fn DEDENT() -> Symbol<IndentCombinator> {
+    symbol(dedent())
 }
 
 pub fn ENDMARKER() -> Symbol<Seq2<PreventConsecutiveMatches, Eps>> {
