@@ -584,7 +584,7 @@ pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
 
     python_symbol(seq!(
         prefix, quote,
-        // prevent_consecutive_matches_set("whitespace")
+        prevent_consecutive_matches_set("whitespace")
     ).into_box_dyn())
 }
 
@@ -600,7 +600,7 @@ pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
             seq!(eat_char('{'), eat_char('{')),
             seq!(eat_char('}'), eat_char('}'))
         )),
-        // prevent_consecutive_matches_add("whitespace"),
+        prevent_consecutive_matches_add("whitespace"),
         prevent_consecutive_matches_add("FSTRING_MIDDLE")
     ).into_box_dyn())
 }
@@ -824,7 +824,6 @@ pub fn comment() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
 pub fn NEWLINE() -> Symbol<Rc<DynCombinator>> {
     let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
     symbol(seq!(repeat1(blank_line), dent(), prevent_consecutive_matches_set("whitespace")).into_rc_dyn())
-    // symbol(seq!(repeat1(blank_line), dent()).into_rc_dyn())
 }
 
 // .. _indentation:
