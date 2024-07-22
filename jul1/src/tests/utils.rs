@@ -19,8 +19,8 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 cut,
             } = parser.step(byte);
 
-            println!("Stats:");
-            println!("{}", parser.stats());
+            // println!("Stats:");
+            // println!("{}", parser.stats());
             if cut {
                 println!("cut!");
                 println!()
@@ -65,8 +65,8 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
                 cut,
             } = parser.step(byte);
 
-            println!("Stats:");
-            println!("{}", parser.stats());
+            // println!("Stats:");
+            // println!("{}", parser.stats());
             if cut {
                 println!("cut!");
                 println!()
