@@ -105,7 +105,7 @@ fn test_gpt4_suggestions_0() {
     assert_parses!(combinator, "1,000.00", "Input with different locale-specific formatting");
 }
 
-#[ignore]
+// #[ignore]
 #[test]
 fn test_actual_python_file() {
     let path = Path::new("src/python/remove_left_recursion.py");
@@ -129,4 +129,34 @@ fn test_indents() {
     assert_parses!(combinator, "def f():\n  pass\n", "Two space indentation");
     assert_fails!(combinator, "def f():\n if True:\n pass\n", "Indentation error");
     assert_parses!(combinator, "def f():\n if True:\n  pass\n", "Two space indentation");
+}
+
+
+#[test]
+fn test_explosion_please() {
+    let combinator = python_file();
+    let s = r#"
+if True:
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+    pass
+"#;
+    assert_parses!(combinator, s, "Two space indentation");
 }
