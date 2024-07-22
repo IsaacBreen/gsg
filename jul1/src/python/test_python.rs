@@ -135,28 +135,7 @@ fn test_indents() {
 #[test]
 fn test_explosion_please() {
     let combinator = python_file();
-    let s = r#"
-if True:
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-    pass
-"#;
-    assert_parses!(combinator, s, "Two space indentation");
+    let path = Path::new("src/tests/test_input.py");
+    let s = std::fs::read_to_string(path).unwrap();
+    assert_parses!(combinator, &s, "Test input");
 }

@@ -12,5 +12,5 @@ unicode-segmentation = "1.11.0"
 #[profile.dev]
 #opt-level = 1
 
-#[profile.test]
-#opt-level = 1
+[profile.test]
+opt-level = 1
