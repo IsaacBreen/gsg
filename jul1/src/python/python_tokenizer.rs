@@ -754,7 +754,7 @@ pub fn NEWLINE() -> Symbol<Rc<DynCombinator>> {
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
 pub fn INDENT() -> Symbol<Seq2<PreventConsecutiveMatches, IndentCombinator>> {
-    symbol(seq!(prevent_consecutive_matches("whitespace2"), indent()))
+    symbol(seq!(prevent_consecutive_matches("whitespace"), indent()))
 }
 
 pub fn DEDENT() -> Symbol<Seq2<PreventConsecutiveMatchesClear, IndentCombinator>> {
