@@ -25,6 +25,20 @@ impl CombinatorTrait for PreventConsecutiveMatches {
     }
 }
 
+pub struct PreventConsecutiveMatchesClear {}
+
+impl CombinatorTrait for PreventConsecutiveMatchesClear {
+    type Parser = EpsParser;
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
+        right_data.prevent_consecutive_matches.prev_match_id = None;
+        (EpsParser, ParseResults::no_match())
+    }
+}
+
 pub fn prevent_consecutive_matches(match_id: &str) -> PreventConsecutiveMatches {
     PreventConsecutiveMatches { match_id: match_id.to_string() }
+}
+
+pub fn prevent_consecutive_matches_clear() -> PreventConsecutiveMatchesClear {
+    PreventConsecutiveMatchesClear {}
 }
