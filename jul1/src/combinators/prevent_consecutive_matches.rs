@@ -13,14 +13,14 @@ impl CombinatorTrait for PreventConsecutiveMatches {
     type Parser = FailParser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         let maybe_prev_match_id = right_data.prevent_consecutive_matches.prev_match_id.replace(self.match_id.clone());
-        if maybe_prev_match_id.map_or(true, |prev_match_id| prev_match_id == self.match_id) {
+        if maybe_prev_match_id == Some(self.match_id.clone()) {
+            (FailParser, ParseResults::no_match())
+        } else {
             (FailParser, ParseResults {
                 right_data_vec: vec![right_data],
                 up_data_vec: vec![],
                 cut: false,
             })
-        } else {
-            (FailParser, ParseResults::no_match())
         }
     }
 }
