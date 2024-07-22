@@ -9,10 +9,10 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
     let mut result = Ok(());
 
-    for (line_number, line) in tqdm!(input.lines().enumerate(), animation = "fillup") {
+    for (line_number, line) in tqdm!(input.lines().enumerate(), animation = "fillup", position = 0) {
         // Add newline back in
         let line = format!("{}\n", line);
-        for (char_number, byte) in tqdm!(line.bytes().enumerate(), animation = "fillup") {
+        for (char_number, byte) in tqdm!(line.bytes().enumerate(), animation = "fillup", position = 1) {
             let ParseResults {
                 right_data_vec: right_data,
                 up_data_vec: up_data,
@@ -55,10 +55,10 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
 
     let mut result = Ok(());
 
-    for (line_number, line) in tqdm!(input.lines().enumerate(), animation = "fillup") {
+    for (line_number, line) in tqdm!(input.lines().enumerate(), animation = "fillup", position = 0) {
         // Add newline back in
         let line = format!("{}\n", line);
-        for (char_number, byte) in tqdm!(line.bytes().enumerate(), animation = "fillup") {
+        for (char_number, byte) in tqdm!(line.bytes().enumerate(), animation = "fillup", position = 1) {
             let ParseResults {
                 right_data_vec: right_data,
                 up_data_vec: up_data,
