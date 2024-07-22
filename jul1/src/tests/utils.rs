@@ -4,7 +4,7 @@ use crate::{CombinatorTrait, RightData, ParseResults, ParserTrait};
 pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     let mut input = input.to_string();
     println!("beginning assert_parses {}", desc);
-    let (mut parser, _) = T::parser(&combinator, RightData::default());
+    let (mut parser, ParseResults { up_data_vec: mut up_data, .. }) = T::parser(&combinator, RightData::default());
     println!("constructed parser");
 
     let mut result = Ok(());
@@ -15,22 +15,28 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         let line = format!("{}\n", line);
         let bytes = line.bytes().collect::<Vec<_>>();
         for (char_number, byte) in tqdm!(bytes.iter().cloned().enumerate(), animation = "fillup", position = 1) {
+            let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));
+            assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}", byte as char, up_data);
+
             if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
                 break 'outer;
             }
             let ParseResults {
                 right_data_vec: right_data,
-                up_data_vec: up_data,
+                up_data_vec: new_up_data,
                 cut,
             } = parser.step(byte);
 
-            let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));
-            assert!(byte_is_in_some_up_data, "byte {} is not in any up_data: {:?}", byte as char, up_data);
+            up_data = new_up_data;
 
             println!();
             println!("line:char: {line_number}:{char_number}");
+            println!("line: {line:?}");
+            println!("byte: {:?}", byte as char);
+            // println!("up_data: {up_data:?}");
             println!("Stats:");
             println!("{}", parser.stats());
+
             if cut {
                 println!("cut!");
                 println!()
