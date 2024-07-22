@@ -589,12 +589,12 @@ pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
     let escaped_char = seq!(eat_char('\\'), eat_char_negation_choice("\n\r"));
     let regular_char = eat_char_negation_choice("{}\\");
 
-    python_symbol(seq!(repeat1(choice!(
+    symbol(seq!(repeat1(choice!(
         regular_char,
         escaped_char,
         seq!(eat_char('{'), eat_char('{')),
         seq!(eat_char('}'), eat_char('}'))
-    )), prevent_consecutive_matches_clear()).into_box_dyn())
+    )), prevent_consecutive_matches("FSTRING_MIDDLE")).into_box_dyn())
 }
 
 pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
@@ -605,7 +605,7 @@ pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
         eat_string("\"\"\"")
     );
 
-    python_symbol(quote.into_box_dyn())
+    symbol(quote.into_box_dyn())
 }
 
 // .. _numbers:
