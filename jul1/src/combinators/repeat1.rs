@@ -67,7 +67,7 @@ where
             right_data_as.extend(right_data_a);
         }
 
-        // right_data_as.squash();
+        right_data_as.squash();
 
         for right_data_a in right_data_as.clone() {
             let (a_parser, ParseResults { right_data_vec: mut right_data_a, up_data_vec: up_data_a, mut cut }) = self.a.parser(right_data_a);
