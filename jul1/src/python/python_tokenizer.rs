@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use unicode_general_category::GeneralCategory;
 
-use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice, IndentCombinator, assert_no_dedents, tag, fail, IntoCombinator, seprep0, seprep1, prevent_consecutive_matches_clear};
+use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice, IndentCombinator, assert_no_dedents, tag, fail, IntoCombinator, seprep0, seprep1, prevent_consecutive_matches_clear, prevent_consecutive_matches, PreventConsecutiveMatches, PreventConsecutiveMatchesClear};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn breaking_space() -> EatU8 {
@@ -42,21 +42,24 @@ pub fn non_breaking_space() -> EatU8 {
 // tokens.  Whitespace is needed between two tokens only if their concatenation
 // could otherwise be interpreted as a different token (e.g., ab is one token, but
 // a b is two tokens).
-pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<Seq2<EatString, EatU8>, EatU8>>> {
-    repeat1(choice!(
-        // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
-        seq!(
-            mutate_right_data(|right_data| right_data.scope_count > 0),
-            breaking_space()
-        ),
-        // But we can match an escaped newline.
-        seq!(eat_string("\\"), breaking_space()),
-        non_breaking_space()
-    ))
+pub fn whitespace() -> Seq2<PreventConsecutiveMatches, Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<Seq2<EatString, EatU8>, EatU8>>>> {
+    seq!(
+        prevent_consecutive_matches("whitespace"),
+        repeat1(choice!(
+            // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
+            seq!(
+                mutate_right_data(|right_data| right_data.scope_count > 0),
+                breaking_space()
+            ),
+            // But we can match an escaped newline.
+            seq!(eat_string("\\"), breaking_space()),
+            non_breaking_space()
+        )),
+    )
 }
 
 pub fn python_symbol<A: CombinatorTrait>(a: A) -> Symbol<Box<DynCombinator>> {
-    symbol(seq!(prevent_consecutive_matches_clear(), tag("assert_no_dedents()", assert_no_dedents()), tag("opt(whitespace()))", opt(whitespace())), a).into_box_dyn())
+    symbol(seq!(tag("assert_no_dedents()", assert_no_dedents()), tag("opt(whitespace()))", opt(whitespace())), a).into_box_dyn())
 }
 
 pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
@@ -64,9 +67,9 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
     let decrement_scope_count = |right_data: &mut RightData| { right_data.scope_count -= 1; true };
 
     match s {
-        "(" | "[" | "{" => python_symbol(seq!(eat_string(s), mutate_right_data(increment_scope_count))),
-        ")" | "]" | "}" => python_symbol(seq!(eat_string(s), mutate_right_data(decrement_scope_count))),
-        _ => python_symbol(eat_string(s)),
+        "(" | "[" | "{" => python_symbol(seq!(eat_string(s), mutate_right_data(increment_scope_count), prevent_consecutive_matches_clear())),
+        ")" | "]" | "}" => python_symbol(seq!(eat_string(s), mutate_right_data(decrement_scope_count), prevent_consecutive_matches_clear())),
+        _ => python_symbol(seq!(eat_string(s), prevent_consecutive_matches_clear())),
     }
 }
 
@@ -280,7 +283,7 @@ pub fn xid_continue() -> Box<DynCombinator> {
 }
 
 pub fn NAME() -> Symbol<Box<DynCombinator>> {
-    python_symbol(seq!(xid_start(), repeat0(xid_continue())))
+    python_symbol(seq!(prevent_consecutive_matches("NAME"), xid_start(), repeat0(xid_continue())))
 }
 
 // .. _literals:
@@ -421,7 +424,7 @@ pub fn STRING() -> Symbol<Box<DynCombinator>> {
         seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_string("\"\"\""))
     );
 
-    python_symbol(seq!(opt(stringprefix), choice!(shortstring, longstring)))
+    python_symbol(seq!(opt(stringprefix), choice!(shortstring, longstring), prevent_consecutive_matches_clear()))
 }
 
 pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
@@ -438,7 +441,7 @@ pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
         seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))))
     );
 
-    python_symbol(seq!(fstringprefix, fstring_start))
+    python_symbol(seq!(fstringprefix, fstring_start, prevent_consecutive_matches_clear()))
 }
 
 pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
@@ -449,7 +452,7 @@ pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
         repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0"))))
     );
 
-    python_symbol(fstring_middle)
+    python_symbol(seq!(fstring_middle, prevent_consecutive_matches_clear()))
 }
 
 pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
@@ -460,7 +463,7 @@ pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
         seq!(repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_string("\"\"\""))
     );
 
-    python_symbol(fstring_end)
+    python_symbol(seq!(fstring_end, prevent_consecutive_matches_clear()))
 }
 
 // .. _numbers:
@@ -609,7 +612,7 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
 
     let imagnumber = seq!(choice!(floatnumber.clone(), digitpart), eat_char_choice("jJ"));
 
-    python_symbol(choice!(integer, floatnumber, imagnumber))
+    python_symbol(seq!(choice!(integer, floatnumber, imagnumber), prevent_consecutive_matches("NUMBER")))
 }
 
 // .. _comments:
@@ -624,8 +627,8 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
 // literal, and ends at the end of the physical line.  A comment signifies the end
 // of the logical line unless the implicit line joining rules are invoked. Comments
 // are ignored by the syntax.
-pub fn comment() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
-    seq!(eat_char('#'), repeat0(not_breaking_space()))
+pub fn comment() -> Seq2<EatU8, Seq2<Choice2<Repeat1<EatU8>, Eps>, PreventConsecutiveMatchesClear>> {
+    seq!(eat_char('#'), repeat0(not_breaking_space()), prevent_consecutive_matches_clear())
 }
 
 // .. _line-structure:
@@ -668,9 +671,9 @@ pub fn comment() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
 // When embedding Python, source code strings should be passed to Python APIs using
 // the standard C conventions for newline characters (the ``\n`` character,
 // representing ASCII LF, is the line terminator).
-pub fn NEWLINE() -> Symbol<Seq2<Repeat1<Seq2<Choice2<Repeat1<EatU8>, Eps>, Seq2<Choice2<Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>>, Eps>, EatU8>>>, IndentCombinator>> {
+pub fn NEWLINE() -> Symbol<Rc<DynCombinator>> {
     let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
-    symbol(seq!(repeat1(blank_line), dent()))
+    symbol(seq!(repeat1(blank_line), dent(), prevent_consecutive_matches_clear()).into_rc_dyn())
 }
 
 // .. _indentation:
@@ -750,16 +753,16 @@ pub fn NEWLINE() -> Symbol<Seq2<Repeat1<Seq2<Choice2<Repeat1<EatU8>, Eps>, Seq2<
 // (Actually, the first three errors are detected by the parser; only the last
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
-pub fn INDENT() -> Symbol<IndentCombinator> {
-    symbol(indent())
+pub fn INDENT() -> Symbol<Seq2<PreventConsecutiveMatches, IndentCombinator>> {
+    symbol(seq!(prevent_consecutive_matches("whitespace"), indent()))
 }
 
-pub fn DEDENT() -> Symbol<IndentCombinator> {
-    symbol(dedent())
+pub fn DEDENT() -> Symbol<Seq2<PreventConsecutiveMatchesClear, IndentCombinator>> {
+    symbol(seq!(prevent_consecutive_matches_clear(), dedent()))
 }
 
-pub fn ENDMARKER() -> Symbol<Eps> {
-    symbol(eps())
+pub fn ENDMARKER() -> Symbol<Seq2<PreventConsecutiveMatches, Eps>> {
+    symbol(seq!(prevent_consecutive_matches("ENDMARKER"), eps()))
 }
 
 pub fn TYPE_COMMENT() -> Symbol<Box<DynCombinator>> {

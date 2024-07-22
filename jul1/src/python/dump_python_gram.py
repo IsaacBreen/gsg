@@ -212,7 +212,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
     for token in tokens:
         expr = f'{token}()'
-        expr = f'seq!(prevent_consecutive_matches("{token}"), {expr})'
+        # expr = f'seq!(prevent_consecutive_matches("{token}"), {expr})'
         expr = f'tag("{token}", {expr})'
         expr = f'{expr}.into_rc_dyn()'
         f.write(f"    let {token} = {expr};\n")

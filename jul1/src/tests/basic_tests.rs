@@ -412,7 +412,7 @@ mod tests {
             println!("stats_recursive:{}", stats_recursive);
             println!("stats_repeat1:{}", stats_repeat1);
             if i > 5 {
-                assert!(stats_recursive.total_active_tags() == stats_repeat1.total_active_tags());
+                assert!(stats_recursive.total_active_tags() > stats_repeat1.total_active_tags());
             }
         }
     }
