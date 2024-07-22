@@ -608,7 +608,6 @@ pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
     python_symbol(quote.into_box_dyn())
 }
 
-
 // .. _numbers:
 //
 // Numeric literals
