@@ -69,7 +69,8 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True)
         elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_node(item)
         elif isinstance(item, pegen.grammar.Cut):
-            return remove_left_recursion.eps_external(item)
+            # return remove_left_recursion.eps_external(item)
+            return remove_left_recursion.eps()
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
@@ -170,8 +171,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
         elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_rust(item)
         elif isinstance(item, pegen.grammar.Cut):
-            # return 'cut()'
-            return 'eps()'
+            return 'cut()'
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
