@@ -568,46 +568,35 @@ pub fn STRING() -> Symbol<Box<DynCombinator>> {
 // Of course, as mentioned before, it is not possible to provide a precise
 // specification of how this should be done for an arbitrary tokenizer as it will
 // depend on the specific implementation and nature of the lexer to be changed.
-pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
-    let prefix = choice!(
-        eat_char_choice("fF"),
-        seq!(eat_char_choice("fF"), eat_char_choice("rR")),
-        seq!(eat_char_choice("rR"), eat_char_choice("fF"))
-    );
-
-    let quote = choice!(
-        eat_char('\''),
-        eat_char('"'),
-        eat_string("'''"),
-        eat_string("\"\"\"")
-    );
-
-    python_symbol(seq!(prefix, quote).into_box_dyn())
+pub fn FSTRING_START() -> Box<DynCombinator> {
+    choice!(
+        seq!(eat_char_choice("fF"), eat_char('\'')).into_box_dyn(),
+        seq!(eat_char_choice("fF"), eat_char('"')).into_box_dyn(),
+        seq!(eat_char_choice("fF"), eat_string("'''")).into_box_dyn(),
+        seq!(eat_char_choice("fF"), eat_string("\"\"\"")).into_box_dyn(),
+        seq!(eat_char_choice("fF"), eat_char_choice("rR"), eat_char('\'')).into_box_dyn(),
+        seq!(eat_char_choice("fF"), eat_char_choice("rR"), eat_char('"')).into_box_dyn(),
+        seq!(eat_char_choice("fF"), eat_char_choice("rR"), eat_string("'''")).into_box_dyn(),
+        seq!(eat_char_choice("fF"), eat_char_choice("rR"), eat_string("\"\"\"")).into_box_dyn()
+    ).into_box_dyn()
 }
 
-pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
-    let escaped_char = seq!(eat_char('\\'), eat_char_negation_choice("\n\r"));
-    let regular_char = eat_char_negation_choice("{}\\");
-
-    python_symbol(repeat1(choice!(
-        regular_char,
-        escaped_char,
-        seq!(eat_char('{'), eat_char('{')),
-        seq!(eat_char('}'), eat_char('}'))
-    )).into_box_dyn())
+pub fn FSTRING_MIDDLE() -> Box<DynCombinator> {
+    repeat1(choice!(
+        eat_char_negation_choice("\\{}\'\"\n"),
+        seq!(eat_char('\\'), breaking_space()),
+        seq!(eat_char('{'), eat_char('}'))
+    )).into_box_dyn()
 }
 
-pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
-    let quote = choice!(
-        eat_char('\''),
-        eat_char('"'),
-        eat_string("'''"),
-        eat_string("\"\"\"")
-    );
-
-    python_symbol(quote.into_box_dyn())
+pub fn FSTRING_END() -> Box<DynCombinator> {
+    choice!(
+        eat_char('\'').into_box_dyn(),
+        eat_char('"').into_box_dyn(),
+        eat_string("'''").into_box_dyn(),
+        eat_string("\"\"\"").into_box_dyn()
+    ).into_box_dyn()
 }
-
 
 // .. _numbers:
 //
