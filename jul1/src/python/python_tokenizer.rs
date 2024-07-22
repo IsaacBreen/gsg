@@ -415,55 +415,169 @@ pub fn STRING() -> Symbol<Box<DynCombinator>> {
     );
 
     let shortstring = choice!(
-        seq!(eat_char('\''), repeat0(choice!(eat_char_negation_choice("\\\'\n"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_char('\'')),
-        seq!(eat_char('"'), repeat0(choice!(eat_char_negation_choice("\\\"\n"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_char('"'))
+        seq!(eat_char('\''), repeat0(choice!(eat_char_negation_choice("\\\'\n"), seq!(eat_char('\\'), breaking_space()))), eat_char('\'')),
+        seq!(eat_char('"'), repeat0(choice!(eat_char_negation_choice("\\\"\n"), seq!(eat_char('\\'), breaking_space()))), eat_char('"'))
     );
 
     let longstring = choice!(
-        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_string("'''")),
-        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_string("\"\"\""))
+        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), breaking_space()))), eat_string("'''")),
+        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), breaking_space()))), eat_string("\"\"\""))
     );
 
     python_symbol(seq!(opt(stringprefix), choice!(shortstring, longstring), prevent_consecutive_matches_clear()))
 }
 
+// From https://peps.python.org/pep-0701/
+// Specification
+// =============
+//
+// The formal proposed PEG grammar specification for f-strings is (see :pep:`617`
+// for details on the syntax):
+//
+// .. code-block:: peg
+//
+//     fstring
+//         | FSTRING_START fstring_middle* FSTRING_END
+//     fstring_middle
+//         | fstring_replacement_field
+//         | FSTRING_MIDDLE
+//     fstring_replacement_field
+//         | '{' (yield_expr | star_expressions) "="? [ "!" NAME ] [ ':' fstring_format_spec* ] '}'
+//     fstring_format_spec:
+//         | FSTRING_MIDDLE
+//         | fstring_replacement_field
+//
+// ...
+//
+// New tokens
+// ----------
+//
+// Three new tokens are introduced: ``FSTRING_START``, ``FSTRING_MIDDLE`` and
+// ``FSTRING_END``. Different lexers may have different implementations that may be
+// more efficient than the ones proposed here given the context of the particular
+// implementation. However, the following definitions will be used as part of the
+// public APIs of CPython (such as the ``tokenize`` module) and are also provided
+// as a reference so that the reader can have a better understanding of the
+// proposed grammar changes and how the tokens are used:
+//
+// * ``FSTRING_START``: This token includes the f-string prefix (``f``/``F``/``fr``) and the opening quote(s).
+// * ``FSTRING_MIDDLE``: This token includes a portion of text inside the string that's not part of the
+//   expression part and isn't an opening or closing brace. This can include the text between the opening quote
+//   and the first expression brace (``{``), the text between two expression braces (``}`` and ``{``) and the text
+//   between the last expression brace (``}``) and the closing quote.
+// * ``FSTRING_END``: This token includes the closing quote.
+//
+// These tokens are always string parts and they are semantically equivalent to the
+// ``STRING`` token with the restrictions specified. These tokens must be produced by the lexer
+// when lexing f-strings.  This means that **the tokenizer cannot produce a single token for f-strings anymore**.
+// How the lexer emits this token is **not specified** as this will heavily depend on every
+// implementation (even the Python version of the lexer in the standard library is implemented
+// differently to the one used by the PEG parser).
+//
+// As an example::
+//
+//     f'some words {a+b:.3f} more words {c+d=} final words'
+//
+// will be tokenized as::
+//
+//     FSTRING_START - "f'"
+//     FSTRING_MIDDLE - 'some words '
+//     LBRACE - '{'
+//     NAME - 'a'
+//     PLUS - '+'
+//     NAME - 'b'
+//     OP - ':'
+//     FSTRING_MIDDLE - '.3f'
+//     RBRACE - '}'
+//     FSTRING_MIDDLE - ' more words '
+//     LBRACE - '{'
+//     NAME - 'c'
+//     PLUS - '+'
+//     NAME - 'd'
+//     OP - '='
+//     RBRACE - '}'
+//     FSTRING_MIDDLE - ' final words'
+//     FSTRING_END - "'"
+//
+// while ``f"""some words"""`` will be tokenized simply as::
+//
+//     FSTRING_START - 'f"""'
+//     FSTRING_MIDDLE - 'some words'
+//     FSTRING_END - '"""'
+//
+// Changes to the tokenize module
+// ------------------------------
+//
+// The :mod:`tokenize` module will be adapted to emit these tokens as described in the previous section
+// when parsing f-strings so tools can take advantage of this new tokenization schema and avoid having
+// to implement their own f-string tokenizer and parser.
+//
+// How to produce these new tokens
+// -------------------------------
+//
+// One way existing lexers can be adapted to emit these tokens is to incorporate a
+// stack of "lexer modes" or to use a stack of different lexers. This is because
+// the lexer needs to switch from "regular Python lexing" to "f-string lexing" when
+// it encounters an f-string start token and as f-strings can be nested, the
+// context needs to be preserved until the f-string closes. Also, the "lexer mode"
+// inside an f-string expression part needs to behave as a "super-set" of the
+// regular Python lexer (as it needs to be able to switch back to f-string lexing
+// when it encounters the ``}`` terminator for the expression part as well as
+// handling f-string formatting and debug expressions). For reference, here is a
+// draft of the algorithm to modify a CPython-like tokenizer to emit these new
+// tokens:
+//
+// 1. If the lexer detects that an f-string is starting (by detecting the letter
+//    'f/F' and one of the possible quotes) keep advancing until a valid quote is
+//    detected (one of ``"``, ``"""``, ``'`` or ``'''``) and emit a
+//    ``FSTRING_START`` token with the contents captured (the 'f/F' and the
+//    starting quote). Push a new tokenizer mode to the tokenizer mode stack for
+//    "F-string tokenization". Go to step 2.
+// 2. Keep consuming tokens until a one of the following is encountered:
+//
+//    * A closing quote equal to the opening quote.
+//    * If in "format specifier mode" (see step 3), an opening brace (``{``), a
+//      closing brace (``}``), or a newline token (``\n``).
+//    * If not in "format specifier mode" (see step 3), an opening brace (``{``) or
+//      a closing brace (``}``) that is not immediately followed by another opening/closing
+//      brace.
+//
+//    In all cases, if the character buffer is not empty, emit a ``FSTRING_MIDDLE``
+//    token with the contents captured so far but transform any double
+//    opening/closing braces into single opening/closing braces.  Now, proceed as
+//    follows depending on the character encountered:
+//
+//    * If a closing quote matching the opening quite is encountered go to step 4.
+//    * If an opening bracket (not immediately followed by another opening bracket)
+//      is encountered, go to step 3.
+//    * If a closing bracket (not immediately followed by another closing bracket)
+//      is encountered, emit a token for the closing bracket and go to step 2.
+// 3. Push a new tokenizer mode to the tokenizer mode stack for "Regular Python
+//    tokenization within f-string" and proceed to tokenize with it. This mode
+//    tokenizes as the "Regular Python tokenization" until a ``:`` or a ``}``
+//    character is encountered with the same level of nesting as the opening
+//    bracket token that was pushed when we enter the f-string part. Using this mode,
+//    emit tokens until one of the stop points are reached. When this happens, emit
+//    the corresponding token for the stopping character encountered and, pop the
+//    current tokenizer mode from the tokenizer mode stack and go to step 2. If the
+//    stopping point is a ``:`` character, enter step 2 in "format specifier" mode.
+// 4. Emit a ``FSTRING_END`` token with the contents captured and pop the current
+//    tokenizer mode (corresponding to "F-string tokenization") and go back to
+//    "Regular Python mode".
+//
+// Of course, as mentioned before, it is not possible to provide a precise
+// specification of how this should be done for an arbitrary tokenizer as it will
+// depend on the specific implementation and nature of the lexer to be changed.
 pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
-    let fstringprefix = choice!(
-        eat_char_choice("fF"),
-        seq!(eat_char_choice("fF"), eat_char_choice("rR")),
-        seq!(eat_char_choice("rR"), eat_char_choice("fF"))
-    );
-
-    let fstring_start = choice!(
-        seq!(eat_char('\''), repeat0(choice!(eat_char_negation_choice("\\\'{"), seq!(eat_char('\\'), eat_char_negation_choice("\0"))))),
-        seq!(eat_char('"'), repeat0(choice!(eat_char_negation_choice("\\\"{"), seq!(eat_char('\\'), eat_char_negation_choice("\0"))))),
-        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0"))))),
-        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))))
-    );
-
-    python_symbol(seq!(fstringprefix, fstring_start, prevent_consecutive_matches_clear()))
+    todo!()
 }
 
 pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
-    let fstring_middle = choice!(
-        repeat0(choice!(eat_char_negation_choice("\\\'{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))),
-        repeat0(choice!(eat_char_negation_choice("\\\"{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))),
-        repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))),
-        repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0"))))
-    );
-
-    python_symbol(seq!(fstring_middle, prevent_consecutive_matches_clear()))
+    todo!()
 }
 
 pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
-    let fstring_end = choice!(
-        seq!(repeat0(choice!(eat_char_negation_choice("\\\'{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_char('\'')),
-        seq!(repeat0(choice!(eat_char_negation_choice("\\\"{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_char('"')),
-        seq!(repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_string("'''")),
-        seq!(repeat0(choice!(eat_char_negation_choice("\\{"), seq!(eat_char('\\'), eat_char_negation_choice("\0")))), eat_string("\"\"\""))
-    );
-
-    python_symbol(seq!(fstring_end, prevent_consecutive_matches_clear()))
+    todo!()
 }
 
 // .. _numbers:

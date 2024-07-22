@@ -24,8 +24,10 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 cut,
             } = parser.step(byte);
 
-            // println!("Stats:");
-            // println!("{}", parser.stats());
+            println!();
+            println!("line:char: {line_number}:{char_number}");
+            println!("Stats:");
+            println!("{}", parser.stats());
             if cut {
                 println!("cut!");
                 println!()
