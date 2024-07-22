@@ -584,7 +584,7 @@ pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
 
     python_symbol(seq!(
         prefix, quote,
-        // prevent_consecutive_matches_set("whitespace")
+        prevent_consecutive_matches_set("whitespace")
     ).into_box_dyn())
 }
 
@@ -593,15 +593,15 @@ pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
     let regular_char = eat_char_negation_choice("{}\\");
 
     symbol(seq!(
-        // prevent_consecutive_matches_check_not("FSTRING_MIDDLE"),
+        prevent_consecutive_matches_check_not("FSTRING_MIDDLE"),
         repeat1(choice!(
             regular_char,
             escaped_char,
             seq!(eat_char('{'), eat_char('{')),
             seq!(eat_char('}'), eat_char('}'))
         )),
-        // prevent_consecutive_matches_add("whitespace"),
-        // prevent_consecutive_matches_add("FSTRING_MIDDLE")
+        prevent_consecutive_matches_add("whitespace"),
+        prevent_consecutive_matches_add("FSTRING_MIDDLE")
     ).into_box_dyn())
 }
 
