@@ -28,10 +28,14 @@ impl CombinatorTrait for PreventConsecutiveMatches {
 pub struct PreventConsecutiveMatchesClear {}
 
 impl CombinatorTrait for PreventConsecutiveMatchesClear {
-    type Parser = EpsParser;
+    type Parser = FailParser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         right_data.prevent_consecutive_matches.prev_match_id = None;
-        (EpsParser, ParseResults::no_match())
+        (FailParser, ParseResults {
+            right_data_vec: vec![right_data],
+            up_data_vec: vec![],
+            cut: false,
+        })
     }
 }
 
