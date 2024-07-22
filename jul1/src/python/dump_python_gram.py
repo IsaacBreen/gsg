@@ -181,7 +181,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, DynCombinator, CombinatorTrait, forward_decls, whitespace, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
+    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, prevent_consecutive_matches, DynCombinator, CombinatorTrait, forward_decls, whitespace, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
@@ -212,6 +212,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
     for token in tokens:
         expr = f'{token}()'
+        expr = f'seq!(prevent_consecutive_matches("{token}"), {expr})'
         expr = f'tag("{token}", {expr})'
         expr = f'{expr}.into_rc_dyn()'
         f.write(f"    let {token} = {expr};\n")

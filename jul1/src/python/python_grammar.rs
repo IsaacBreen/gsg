@@ -1,21 +1,21 @@
 use std::rc::Rc;
-use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, DynCombinator, CombinatorTrait, forward_decls, whitespace, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};
+use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, prevent_consecutive_matches, DynCombinator, CombinatorTrait, forward_decls, whitespace, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};
 use super::python_tokenizer::{NAME, TYPE_COMMENT, FSTRING_START, FSTRING_MIDDLE, FSTRING_END, NUMBER, STRING, NEWLINE, INDENT, DEDENT, ENDMARKER};
 use super::python_tokenizer::python_literal;
 use crate::{seq, repeat0, repeat1};
 
 pub fn python_file() -> Rc<DynCombinator> {
-    let NAME = tag("NAME", NAME()).into_rc_dyn();
-    let TYPE_COMMENT = tag("TYPE_COMMENT", TYPE_COMMENT()).into_rc_dyn();
-    let FSTRING_START = tag("FSTRING_START", FSTRING_START()).into_rc_dyn();
-    let FSTRING_MIDDLE = tag("FSTRING_MIDDLE", FSTRING_MIDDLE()).into_rc_dyn();
-    let FSTRING_END = tag("FSTRING_END", FSTRING_END()).into_rc_dyn();
-    let NUMBER = tag("NUMBER", NUMBER()).into_rc_dyn();
-    let STRING = tag("STRING", STRING()).into_rc_dyn();
-    let NEWLINE = tag("NEWLINE", NEWLINE()).into_rc_dyn();
-    let INDENT = tag("INDENT", INDENT()).into_rc_dyn();
-    let DEDENT = tag("DEDENT", DEDENT()).into_rc_dyn();
-    let ENDMARKER = tag("ENDMARKER", ENDMARKER()).into_rc_dyn();
+    let NAME = tag("NAME", seq!(prevent_consecutive_matches("NAME"), NAME())).into_rc_dyn();
+    let TYPE_COMMENT = tag("TYPE_COMMENT", seq!(prevent_consecutive_matches("TYPE_COMMENT"), TYPE_COMMENT())).into_rc_dyn();
+    let FSTRING_START = tag("FSTRING_START", seq!(prevent_consecutive_matches("FSTRING_START"), FSTRING_START())).into_rc_dyn();
+    let FSTRING_MIDDLE = tag("FSTRING_MIDDLE", seq!(prevent_consecutive_matches("FSTRING_MIDDLE"), FSTRING_MIDDLE())).into_rc_dyn();
+    let FSTRING_END = tag("FSTRING_END", seq!(prevent_consecutive_matches("FSTRING_END"), FSTRING_END())).into_rc_dyn();
+    let NUMBER = tag("NUMBER", seq!(prevent_consecutive_matches("NUMBER"), NUMBER())).into_rc_dyn();
+    let STRING = tag("STRING", seq!(prevent_consecutive_matches("STRING"), STRING())).into_rc_dyn();
+    let NEWLINE = tag("NEWLINE", seq!(prevent_consecutive_matches("NEWLINE"), NEWLINE())).into_rc_dyn();
+    let INDENT = tag("INDENT", seq!(prevent_consecutive_matches("INDENT"), INDENT())).into_rc_dyn();
+    let DEDENT = tag("DEDENT", seq!(prevent_consecutive_matches("DEDENT"), DEDENT())).into_rc_dyn();
+    let ENDMARKER = tag("ENDMARKER", seq!(prevent_consecutive_matches("ENDMARKER"), ENDMARKER())).into_rc_dyn();
 
     forward_decls!(expression_without_invalid, func_type_comment, type_expressions, del_t_atom, del_target, del_targets, t_lookahead, t_primary, single_subscript_attribute_target, single_target, star_atom, target_with_star_atom, star_target, star_targets_tuple_seq, star_targets_list_seq, star_targets, kwarg_or_double_starred, kwarg_or_starred, starred_expression, kwargs, args, arguments, dictcomp, genexp, setcomp, listcomp, for_if_clause, for_if_clauses, kvpair, double_starred_kvpair, double_starred_kvpairs, dict, set, tuple, list, strings, string, fstring, fstring_format_spec, fstring_full_format_spec, fstring_conversion, fstring_replacement_field, fstring_middle, lambda_param, lambda_param_maybe_default, lambda_param_with_default, lambda_param_no_default, lambda_kwds, lambda_star_etc, lambda_slash_with_default, lambda_slash_no_default, lambda_parameters, lambda_params, lambdef, group, atom, slice, slices, primary, await_primary, power, factor, term, sum, shift_expr, bitwise_and, bitwise_xor, bitwise_or, is_bitwise_or, isnot_bitwise_or, in_bitwise_or, notin_bitwise_or, gt_bitwise_or, gte_bitwise_or, lt_bitwise_or, lte_bitwise_or, noteq_bitwise_or, eq_bitwise_or, compare_op_bitwise_or_pair, comparison, inversion, conjunction, disjunction, named_expression, assignment_expression, star_named_expression, star_named_expressions, star_expression, star_expressions, yield_expr, expression, expressions, type_param_starred_default, type_param_default, type_param_bound, type_param, type_param_seq, type_params, type_alias, keyword_pattern, keyword_patterns, positional_patterns, class_pattern, double_star_pattern, key_value_pattern, items_pattern, mapping_pattern, star_pattern, maybe_star_pattern, maybe_sequence_pattern, open_sequence_pattern, sequence_pattern, group_pattern, name_or_attr, attr, value_pattern, wildcard_pattern, pattern_capture_target, capture_pattern, imaginary_number, real_number, signed_real_number, signed_number, complex_number, literal_expr, literal_pattern, closed_pattern, or_pattern, as_pattern, pattern, patterns, guard, case_block, subject_expr, match_stmt, finally_block, except_star_block, except_block, try_stmt, with_item, with_stmt, for_stmt, while_stmt, else_block, elif_stmt, if_stmt, default, star_annotation, annotation, param_star_annotation, param, param_maybe_default, param_with_default, param_no_default_star_annotation, param_no_default, kwds, star_etc, slash_with_default, slash_no_default, parameters, params, function_def_raw, function_def, class_def_raw, class_def, decorators, block, dotted_name, dotted_as_name, dotted_as_names, import_from_as_name, import_from_as_names, import_from_targets, import_from, import_name, import_stmt, assert_stmt, yield_stmt, del_stmt, nonlocal_stmt, global_stmt, raise_stmt, return_stmt, augassign, annotated_rhs, assignment, compound_stmt, simple_stmt, simple_stmts, statement_newline, statement, statements, func_type, eval, interactive, file);
 

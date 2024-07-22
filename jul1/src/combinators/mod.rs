@@ -15,6 +15,8 @@ pub use custom_fn::*;
 pub use fail::*;
 pub use cut::*;
 pub use greedy::*;
+pub use negative_lookahead::*;
+pub use prevent_consecutive_matches::*;
 
 mod choice;
 mod eat_string;
@@ -34,3 +36,4 @@ mod fail;
 mod cut;
 mod greedy;
 mod negative_lookahead;
+mod prevent_consecutive_matches;

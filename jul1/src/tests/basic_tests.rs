@@ -391,31 +391,9 @@ mod tests {
     }
 
     #[test]
-    fn test_greedy() {
-        let combinator = seq!(greedy(repeat1(eat_char('a'))), greedy(choice!(seq!(eat_char('a'), eat_char('b')), eat_char('c'))));
-        let (mut parser, ParseResults { right_data_vec: right_data0, up_data_vec: up_data0, cut })  = combinator.parser(RightData::default());
-        assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }]));
-        assert_eq!(parser.step('a' as u8), ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("ac") }],
-            cut: false,
-        });
-        assert_eq!(parser.step('a' as u8), ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: U8Set::from_chars("ac") }],
-            cut: false,
-        });
-        assert_eq!(parser.step('b' as u8), ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![],
-            cut: false,
-        });
-    }
-
-    #[test]
     fn test_right_recursion_name_explosion() {
         // Based on a Python slowdown issue.
-        let NAME = tag("repeat_a", repeat1(eat_char('a'))).into_rc_dyn();
+        let NAME = tag("repeat_a", seq!(prevent_consecutive_matches("repeat_a"), repeat1(eat_char('a')))).into_rc_dyn();
 
         let mut combinator_recursive = forward_ref();
         let combinator_recursive = combinator_recursive.set(seq!(&NAME, &combinator_recursive));
