@@ -2,26 +2,7 @@ use std::rc::Rc;
 use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, DynCombinator, CombinatorTrait, forward_decls, whitespace, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};
 use super::python_tokenizer::{NAME, TYPE_COMMENT, FSTRING_START, FSTRING_MIDDLE, FSTRING_END, NUMBER, STRING, NEWLINE, INDENT, DEDENT, ENDMARKER};
 use super::python_tokenizer::python_literal;
-
-macro_rules! seq {
-    ($($x:expr),*) => {
-        $crate::seq!(@sep whitespace(), $($x),*)
-    };
-}
-
-pub fn repeat0<A>(a: A) -> Rc<DynCombinator>
-where
-    A: IntoCombinator,
-{
-    seprep0(a, whitespace()).into_rc_dyn()
-}
-
-pub fn repeat1<A>(a: A) -> Rc<DynCombinator>
-where
-    A: IntoCombinator,
-{
-    seprep1(a, whitespace()).into_rc_dyn()
-}
+use crate::{seq, repeat0, repeat1};
 
 pub fn python_file() -> Rc<DynCombinator> {
     let NAME = tag("NAME", NAME()).into_rc_dyn();

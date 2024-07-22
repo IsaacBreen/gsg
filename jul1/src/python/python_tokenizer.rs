@@ -56,7 +56,7 @@ pub fn whitespace() -> Repeat1<Choice2<Seq2<MutateRightData, EatU8>, Choice2<Seq
 }
 
 pub fn python_symbol<A: CombinatorTrait>(a: A) -> Symbol<Box<DynCombinator>> {
-    symbol(a.into_box_dyn())
+    symbol(seq!(tag("assert_no_dedents()", assert_no_dedents()), tag("opt(whitespace()))", opt(whitespace())), a).into_box_dyn())
 }
 
 pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {

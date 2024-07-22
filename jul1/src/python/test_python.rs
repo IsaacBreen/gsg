@@ -131,7 +131,6 @@ fn test_indents() {
     assert_parses!(combinator, "def f():\n if True:\n  pass\n", "Two space indentation");
 }
 
-
 #[test]
 fn test_explosion_please() {
     let combinator = python_file();
