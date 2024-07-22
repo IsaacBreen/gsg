@@ -14,6 +14,7 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
                 let mut right_data = right_data.clone();
                 right_data.dedents = right_data.indents.len() - indent_num;
                 right_data.indents.truncate(indent_num);
+                println!("We've matched every indent chunk so far in its entirety. If there are remaining chunks, we could continue to match them, or we could match a non-whitespace character and emit dedents - one for each remaining chunk.");
                 return ParseResults {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![UpData { u8set }],
@@ -27,6 +28,7 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
                 // This could be a valid indentation, but we need more
                 let next_u8 = indent_chunk.get(values_chunk.len()).cloned().unwrap();
                 let u8set = U8Set::from_u8(next_u8);
+                println!("We have invalid indentation");
                 return ParseResults {
                     right_data_vec: vec![],
                     up_data_vec: vec![UpData { u8set }],
@@ -34,6 +36,7 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
                 };
             } else {
                 // We have invalid indentation
+                println!("We have invalid indentation");
                 return ParseResults {
                     right_data_vec: vec![],
                     up_data_vec: vec![],
@@ -41,15 +44,23 @@ const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
                 };
             }
         }
-        i += indent_chunk.len();
+        i += values_chunk.len();
+    }
+    // join the indent vecs
+    let mut full_indent = Vec::new();
+    for indent in right_data.indents.iter() {
+        full_indent.extend_from_slice(indent);
     }
     if i == values.len() {
+        assert_eq!(&full_indent, values);
+        println!("done");
         ParseResults {
             right_data_vec: vec![right_data.clone()],
             up_data_vec: vec![],
             cut: false,
         }
     } else {
+        println!("fail");
         ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
