@@ -822,7 +822,7 @@ pub fn comment() -> Seq2<EatU8, Choice2<Repeat1<EatU8>, Eps>> {
 // representing ASCII LF, is the line terminator).
 pub fn NEWLINE() -> Symbol<Rc<DynCombinator>> {
     let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
-    symbol(seq!(repeat1(blank_line), dent()).into_rc_dyn())
+    symbol(seq!(repeat1(blank_line), tag("dent()", dent())).into_rc_dyn())
 }
 
 // .. _indentation:

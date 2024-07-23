@@ -90,17 +90,24 @@ impl CombinatorTrait for IndentCombinator {
     type Parser = IndentCombinatorParser;
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
+        // println!("Indents: {:?}", right_data.indents);
         match self {
             IndentCombinator::Dent if right_data.dedents == 0  => {
                 fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Box<DynCombinator> {
                     if indents.is_empty() {
-                        return eps().into_box_dyn();
+                        return mutate_right_data(move |right_data: &mut RightData| {
+                                // println!("Done with {} dedents", total_indents);
+                                true
+                            }).into_box_dyn();
                     } else {
                         let dedents = indents.len();
                         choice!(
                             // Exit here and register dedents
                             mutate_right_data(move |right_data: &mut RightData| {
+                                // println!("Registering {} dedents", dedents);
                                 right_data.dedents = dedents;
+                                // Remove the last `dedents` indents from the indent stack
+                                right_data.indents.truncate(right_data.indents.len() - dedents);
                                 true
                             }),
                             // Or match the indent and continue
@@ -108,7 +115,6 @@ impl CombinatorTrait for IndentCombinator {
                         ).into_box_dyn()
                     }
                 }
-
                 let combinator = make_combinator(&right_data.indents, right_data.indents.len());
                 let (parser, parse_results) = combinator.parser(right_data);
 
@@ -124,6 +130,7 @@ impl CombinatorTrait for IndentCombinator {
             }
             IndentCombinator::Dedent if right_data.dedents > 0 => {
                 right_data.dedents -= 1;
+                // println!("Decremented dedents to {}", right_data.dedents);
                 (IndentCombinatorParser::Done, ParseResults {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![],

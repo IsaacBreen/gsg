@@ -883,9 +883,12 @@ if __name__ == '__main__':
     # Test forbid_follows
     rules = make_rules(
         A=seq(ref('A'), opt(ref('B')), ref('C')),
+        fstring=repeat1(ref('fstring_middle')),
+        fstring_middle=choice(ref('fstring_replacement_field'), ref('FSTRING_MIDDLE')),
     )
     forbidden_follows_table = {
         ref('A'): {ref('B')},
+        ref('FSTRING_MIDDLE'): {ref('FSTRING_MIDDLE')},
     }
     print("after forbidding follows:")
     prettify_rules(forbid_follows(rules, forbidden_follows_table))
