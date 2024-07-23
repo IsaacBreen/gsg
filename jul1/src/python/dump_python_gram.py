@@ -297,7 +297,6 @@ if __name__ == "__main__":
                 else:
                     return s
 
-            # print(f"{ansi_ljust(str(node) + ':', padding)}", end="")
             s = str(node) + ':'
             max_padding = 32
             s = ansi_ljust(s, max_padding)
@@ -307,21 +306,18 @@ if __name__ == "__main__":
             if len(terms) > 0:
                 print(" " * padding, end="")
                 s = "terms: "
-                for term in terms:
-                    s += f"\033[32m{term.value}\033[0m, "
+                print(", ".join(f"\033[32m{term.value}\033[0m" for term in terms))
                 print(s)
                 padding = max_padding
             if len(refs) > 0:
                 print(" " * padding, end="")
                 s = "refs : "
-                for ref in refs:
-                    s += f"\033[31m{ref.name}\033[0m, "
+                print(", ".join(f"\033[31m{ref.name}\033[0m" for ref in refs))
                 print(s)
                 padding = max_padding
             if len(other) > 0:
                 print(" " * padding, end="")
                 s = "other: "
-                for other in sorted(other):
-                    s += f"\033[33m{other}\033[0m, "
+                print(", ".join(f"\033[33m{other}\033[0m" for other in sorted(other)))
                 print(s)
                 padding = max_padding
