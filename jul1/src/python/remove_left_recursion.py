@@ -367,7 +367,8 @@ def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Re
     follow_sets: dict[Ref, set[Ref | Term | EpsExternal]] = {}
     nullable_rules = get_nullable_rules(rules)
     for ref, node in rules.items():
-        follow_sets |= collect_follows_for_node(node, nullable_rules)
+        for node, follow_set in collect_follows_for_node(node, nullable_rules).items():
+            follow_sets.setdefault(node, set()).update(follow_set)
     # Substitute follow sets for refs repeatedly
     while True:
         old_follow_sets = deepcopy(follow_sets)
@@ -377,8 +378,9 @@ def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Re
                 node = queue.pop()
                 if isinstance(node, Ref) and node in rules:
                     firsts = get_firsts_for_node(rules[node], nullable_rules)
-                    queue.extend(firsts - follow_set)
-                    follow_set.update(firsts)
+                    new_follows = firsts - follow_set
+                    queue.extend(new_follows)
+                    follow_set.update(new_follows)
         if old_follow_sets == follow_sets:
             break
     return follow_sets

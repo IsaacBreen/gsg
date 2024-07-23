@@ -8,6 +8,7 @@ from typing import Dict
 
 import requests
 import pegen.grammar
+from ansiwrap import ansilen
 from pegen.grammar_parser import GeneratedParser
 from pegen.tokenizer import Tokenizer
 
@@ -26,7 +27,7 @@ def parse_grammar(text: str) -> pegen.grammar.Grammar:
         grammar = parser.start()
         return grammar
 
-def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
+def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = False) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
     def rhs_to_node(rhs: pegen.grammar.Rhs) -> remove_left_recursion.Node:
         if len(rhs.alts) == 1:
             return alt_to_node(rhs.alts[0])
@@ -225,8 +226,8 @@ if __name__ == "__main__":
     # Remove left recursion
     custom_grammar = remove_left_recursion.resolve_left_recursion(custom_grammar)
 
-    # Intersperse WS
-    custom_grammar = remove_left_recursion.intersperse_separator(custom_grammar, remove_left_recursion.ref('WS'))
+    # Intersperse opt(WS)
+    custom_grammar = remove_left_recursion.intersperse_separator(custom_grammar, remove_left_recursion.opt(remove_left_recursion.ref('WS')))
 
     # Convert back to pegen format and save to Rust
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
@@ -277,11 +278,50 @@ if __name__ == "__main__":
     for ref, count in sorted(active_count.items(), key=lambda x: x[1]):
         print(f"  {ref.name}: {count}")
 
-
+    # Print follow sets
     follows = remove_left_recursion.get_follows(custom_grammar)
     print(f"Follows:")
     for node, follow_set in follows.items():
         if node not in custom_grammar:
             # Assume such a node is a token
             follow_set = follow_set - set(custom_grammar.keys())
-            print(f"  {str(node):<32}: {", ".join(str(f) for f in follow_set)}")
+            # print(f"  {str(node) + ": ":<32} {", ".join(str(f) for f in follow_set)}")
+            terms = [term for term in follow_set if isinstance(term, remove_left_recursion.Term)]
+            refs = [ref for ref in follow_set if isinstance(ref, remove_left_recursion.Ref)]
+            other = [other for other in follow_set if not isinstance(other, remove_left_recursion.Term) and not isinstance(other, remove_left_recursion.Ref)]
+
+            def ansi_ljust(s, width):
+                needed = width - ansilen(s)
+                if needed > 0:
+                    return s + ' ' * needed
+                else:
+                    return s
+
+            # print(f"{ansi_ljust(str(node) + ':', padding)}", end="")
+            s = str(node) + ':'
+            max_padding = 32
+            s = ansi_ljust(s, max_padding)
+            print(s, end="")
+            padding = 0
+
+            if len(terms) > 0:
+                print(" " * padding, end="")
+                s = "terms: "
+                for term in terms:
+                    s += f"\033[32m{term.value}\033[0m, "
+                print(s)
+                padding = max_padding
+            if len(refs) > 0:
+                print(" " * padding, end="")
+                s = "refs : "
+                for ref in refs:
+                    s += f"\033[31m{ref.name}\033[0m, "
+                print(s)
+                padding = max_padding
+            if len(other) > 0:
+                print(" " * padding, end="")
+                s = "other: "
+                for other in sorted(other):
+                    s += f"\033[33m{other}\033[0m, "
+                print(s)
+                padding = max_padding
