@@ -235,7 +235,9 @@ if __name__ == "__main__":
     forbidden_follows_table = {
         ref('FSTRING_START'): {ref('WS')},
         ref('FSTRING_MIDDLE'): {ref('FSTRING_MIDDLE'), ref('WS')},
-        ref('WS'): {ref('FSTRING_MIDDLE'), ref('FSTRING_END')},
+        ref('NEWLINE'): {ref('WS')},
+        ref('INDENT'): {ref('WS')},
+        ref('DEDENT'): {ref('WS')},
     }
     custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
 
