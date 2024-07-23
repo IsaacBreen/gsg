@@ -58,7 +58,7 @@ pub fn whitespace() -> Box<DynCombinator> {
 }
 
 pub fn WS() -> Symbol<Box<DynCombinator>> {
-    python_symbol(whitespace())
+    python_symbol(opt(whitespace()))
 }
 
 pub fn python_symbol<A: CombinatorTrait>(a: A) -> Symbol<Box<DynCombinator>> {
