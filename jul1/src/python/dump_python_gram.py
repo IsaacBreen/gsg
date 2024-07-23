@@ -285,9 +285,8 @@ if __name__ == "__main__":
         if node not in custom_grammar:
             # Assume such a node is a token
             follow_set = follow_set - set(custom_grammar.keys())
-            # print(f"  {str(node) + ": ":<32} {", ".join(str(f) for f in follow_set)}")
-            terms = [term for term in follow_set if isinstance(term, remove_left_recursion.Term)]
             refs = [ref for ref in follow_set if isinstance(ref, remove_left_recursion.Ref)]
+            terms = [term for term in follow_set if isinstance(term, remove_left_recursion.Term)]
             other = [other for other in follow_set if not isinstance(other, remove_left_recursion.Term) and not isinstance(other, remove_left_recursion.Ref)]
 
             def ansi_ljust(s, width):
@@ -303,15 +302,15 @@ if __name__ == "__main__":
             print(s, end="")
             padding = 0
 
-            if len(terms) > 0:
-                print(" " * padding, end="")
-                print("terms: ", end="")
-                print(", ".join(f"\033[32m{term.value}\033[0m" for term in terms))
-                padding = max_padding
             if len(refs) > 0:
                 print(" " * padding, end="")
                 print("refs : ", end="")
                 print(", ".join(f"\033[31m{ref.name}\033[0m" for ref in refs))
+                padding = max_padding
+            if len(terms) > 0:
+                print(" " * padding, end="")
+                print("terms: ", end="")
+                print(", ".join(f"\033[32m{term.value}\033[0m" for term in terms))
                 padding = max_padding
             if len(other) > 0:
                 print(" " * padding, end="")
