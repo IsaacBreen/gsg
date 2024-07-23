@@ -386,26 +386,6 @@ def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Re
     return follow_sets
 
 
-def forbid_firsts_for_node(node: Node, forbidden: set[Ref | Term | EpsExternal], nullable_rules: set[Ref]) -> Node:
-    match node:
-        case Ref(_) | Term(_) | EpsExternal(_):
-            if node in forbidden:
-                return fail()
-            else:
-                return node
-        case Seq(children):
-            return Seq([forbid_firsts_for_node(child, forbidden, nullable_rules) for child in children])
-        case Choice(children):
-            return Choice([forbid_firsts_for_node(child, forbidden, nullable_rules) for child in children])
-        case Repeat1(child):
-            return forbid_firsts_for_node(child, forbidden, nullable_rules)
-        case _:
-            raise ValueError(f"Unknown node type: {type(node)}")
-
-
-def forbid_follows_for_node(node: Node, firsts: set[Ref | Term | EpsExternal], forbidden_follows: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]], nullable_rules: set[Ref]) -> Node:
-
-
 @dataclass
 class Seq(Node):
     children: list[Node]
