@@ -57,6 +57,10 @@ pub fn whitespace() -> Box<DynCombinator> {
     ).into_box_dyn()
 }
 
+pub fn WHITESPACE() -> Symbol<Box<DynCombinator>> {
+    python_symbol(whitespace())
+}
+
 pub fn python_symbol<A: CombinatorTrait>(a: A) -> Symbol<Box<DynCombinator>> {
     symbol(seq!(tag("assert_no_dedents()", assert_no_dedents()), a).into_box_dyn())
 }

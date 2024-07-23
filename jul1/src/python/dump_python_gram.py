@@ -178,7 +178,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     rules = grammar.rules.items()
     rules = list(reversed(rules))
 
-    tokens = ['NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING', 'NEWLINE', 'INDENT', 'DEDENT', 'ENDMARKER']
+    tokens = ['WHITESPACE', 'NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING', 'NEWLINE', 'INDENT', 'DEDENT', 'ENDMARKER']
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
