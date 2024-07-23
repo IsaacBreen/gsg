@@ -1,76 +1,76 @@
 use std::any::Any;
-use crate::{brute_force, BruteForceFn, BruteForceParser, Choice2, CombinatorTrait, eat_char_choice, EatU8, Eps, IntoCombinator, ParseResults, ParserTrait, repeat0, Repeat1, repeat1, RightData, seq, Seq2, Stats, U8Set, UpData};
+use crate::{brute_force, BruteForceFn, BruteForceParser, choice, Choice2, CombinatorTrait, DynCombinator, eat_bytes, eat_char_choice, eat_string, EatU8, Eps, eps, IntoCombinator, mutate_right_data, ParseResults, ParserTrait, repeat0, Repeat1, repeat1, RightData, seq, Seq2, Stats, U8Set, UpData};
 
-const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
-    println!("DENT_FN");
-    println!("values: {:?}", values);
-    println!("right_data: {:?}", right_data);
-    let mut i = 0;
-    for (indent_num, indent_chunk) in right_data.indents.iter().enumerate() {
-        if i == values.len() {
-            // We've matched every indent chunk so far in its entirety.
-            // If there are remaining chunks, we could continue to match them, or we could match a
-            // non-whitespace character and emit dedents - one for each remaining chunk.
-            if indent_num < right_data.indents.len() {
-                let next_u8 = indent_chunk[values.len() - i];
-                let u8set = U8Set::from_u8(next_u8);
-                let mut right_data = right_data.clone();
-                right_data.dedents = right_data.indents.len() - indent_num;
-                right_data.indents.truncate(indent_num);
-                println!("We've matched every indent chunk so far in its entirety. If there are remaining chunks, we could continue to match them, or we could match a non-whitespace character and emit dedents - one for each remaining chunk.");
-                return ParseResults {
-                    right_data_vec: vec![right_data],
-                    up_data_vec: vec![UpData { u8set }],
-                    cut: false,
-                };
-            }
-        }
-        let values_chunk = &values[i..(i + indent_chunk.len()).min(values.len())];
-        if values_chunk != indent_chunk {
-            if indent_chunk.starts_with(values_chunk) {
-                // This could be a valid indentation, but we need more
-                let next_u8 = indent_chunk.get(values_chunk.len()).cloned().unwrap();
-                let u8set = U8Set::from_u8(next_u8);
-                println!("We have invalid indentation");
-                return ParseResults {
-                    right_data_vec: vec![],
-                    up_data_vec: vec![UpData { u8set }],
-                    cut: false,
-                };
-            } else {
-                // We have invalid indentation
-                println!("We have invalid indentation");
-                return ParseResults {
-                    right_data_vec: vec![],
-                    up_data_vec: vec![],
-                    cut: false,
-                };
-            }
-        }
-        i += values_chunk.len();
-    }
-    // join the indent vecs
-    let mut full_indent = Vec::new();
-    for indent in right_data.indents.iter() {
-        full_indent.extend_from_slice(indent);
-    }
-    if i == values.len() {
-        assert_eq!(&full_indent, values);
-        println!("done");
-        ParseResults {
-            right_data_vec: vec![right_data.clone()],
-            up_data_vec: vec![],
-            cut: false,
-        }
-    } else {
-        println!("fail");
-        ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![],
-            cut: false,
-        }
-    }
-};
+// const DENT_FN: BruteForceFn = |values: &Vec<u8>, right_data: &RightData| {
+//     println!("DENT_FN");
+//     println!("values: {:?}", values);
+//     println!("right_data: {:?}", right_data);
+//     let mut i = 0;
+//     for (indent_num, indent_chunk) in right_data.indents.iter().enumerate() {
+//         if i == values.len() {
+//             // We've matched every indent chunk so far in its entirety.
+//             // If there are remaining chunks, we could continue to match them, or we could match a
+//             // non-whitespace character and emit dedents - one for each remaining chunk.
+//             if indent_num < right_data.indents.len() {
+//                 let next_u8 = indent_chunk[values.len() - i];
+//                 let u8set = U8Set::from_u8(next_u8);
+//                 let mut right_data = right_data.clone();
+//                 right_data.dedents = right_data.indents.len() - indent_num;
+//                 right_data.indents.truncate(indent_num);
+//                 println!("We've matched every indent chunk so far in its entirety. If there are remaining chunks, we could continue to match them, or we could match a non-whitespace character and emit dedents - one for each remaining chunk.");
+//                 return ParseResults {
+//                     right_data_vec: vec![right_data],
+//                     up_data_vec: vec![UpData { u8set }],
+//                     cut: false,
+//                 };
+//             }
+//         }
+//         let values_chunk = &values[i..(i + indent_chunk.len()).min(values.len())];
+//         if values_chunk != indent_chunk {
+//             if indent_chunk.starts_with(values_chunk) {
+//                 // This could be a valid indentation, but we need more
+//                 let next_u8 = indent_chunk.get(values_chunk.len()).cloned().unwrap();
+//                 let u8set = U8Set::from_u8(next_u8);
+//                 println!("We have invalid indentation");
+//                 return ParseResults {
+//                     right_data_vec: vec![],
+//                     up_data_vec: vec![UpData { u8set }],
+//                     cut: false,
+//                 };
+//             } else {
+//                 // We have invalid indentation
+//                 println!("We have invalid indentation");
+//                 return ParseResults {
+//                     right_data_vec: vec![],
+//                     up_data_vec: vec![],
+//                     cut: false,
+//                 };
+//             }
+//         }
+//         i += values_chunk.len();
+//     }
+//     // join the indent vecs
+//     let mut full_indent = Vec::new();
+//     for indent in right_data.indents.iter() {
+//         full_indent.extend_from_slice(indent);
+//     }
+//     if i == values.len() {
+//         assert_eq!(&full_indent, values);
+//         println!("done");
+//         ParseResults {
+//             right_data_vec: vec![right_data.clone()],
+//             up_data_vec: vec![],
+//             cut: false,
+//         }
+//     } else {
+//         println!("fail");
+//         ParseResults {
+//             right_data_vec: vec![],
+//             up_data_vec: vec![],
+//             cut: false,
+//         }
+//     }
+// };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum IndentCombinator {
@@ -81,7 +81,7 @@ pub enum IndentCombinator {
 }
 
 pub enum IndentCombinatorParser {
-    DentParser(BruteForceParser),
+    DentParser(Box<dyn ParserTrait>),
     IndentParser(Option<RightData>),
     Done,
 }
@@ -92,7 +92,26 @@ impl CombinatorTrait for IndentCombinator {
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         match self {
             IndentCombinator::Dent if right_data.dedents == 0  => {
-                let (parser, parse_results) = brute_force(DENT_FN).parser(right_data);
+                fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Box<DynCombinator> {
+                    if indents.is_empty() {
+                        return eps().into_box_dyn();
+                    } else {
+                        let dedents = indents.len();
+                        choice!(
+                            // Exit here and register dedents
+                            mutate_right_data(move |right_data: &mut RightData| {
+                                right_data.dedents = dedents;
+                                true
+                            }),
+                            // Or match the indent and continue
+                            seq!(eat_bytes(&indents[0]), make_combinator(&indents[1..], total_indents))
+                        ).into_box_dyn()
+                    }
+                }
+
+                let combinator = make_combinator(&right_data.indents, right_data.indents.len());
+                let (parser, parse_results) = combinator.parser(right_data);
+
                 (IndentCombinatorParser::DentParser(parser), parse_results)
             }
             IndentCombinator::Indent if right_data.dedents == 0 => {
