@@ -187,33 +187,9 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
     f.write('\n')
-    # f.write(textwrap.dedent("""
-    # macro_rules! seq {
-    #     ($($x:expr),*) => {
-    #         $crate::seq!(@sep whitespace(), $($x),*)
-    #     };
-    # }
-    #
-    # pub fn repeat0<A>(a: A) -> Rc<DynCombinator>
-    # where
-    #     A: IntoCombinator,
-    # {
-    #     seprep0(a, whitespace()).into_rc_dyn()
-    # }
-    #
-    # pub fn repeat1<A>(a: A) -> Rc<DynCombinator>
-    # where
-    #     A: IntoCombinator,
-    # {
-    #     seprep1(a, whitespace()).into_rc_dyn()
-    # }
-    # """).strip())
-    # f.write('\n')
-    # f.write('\n')
     f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
     for token in tokens:
         expr = f'{token}()'
-        # expr = f'seq!(prevent_consecutive_matches("{token}"), {expr})'
         expr = f'tag("{token}", {expr})'
         expr = f'{expr}.into_rc_dyn()'
         f.write(f"    let {token} = {expr};\n")
