@@ -173,6 +173,43 @@ def resolve_left_recursion(rules: dict[Ref, Node]) -> dict[Ref, Node]:
     return replacements
 
 
+def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: set[Ref]) -> Node:
+    match node:
+        case Seq([]):
+            return node
+        case Seq(children):
+            first, *rest = [intersperse_separator_for_node(child, separator, nullable_rules) for child in children]
+            assert not is_nullable(first, nullable_rules)
+            return seq(first, *[inject_pefix_on_nonnull_for_node(child, separator, nullable_rules) for child in rest])
+        case Choice(children):
+            return Choice([intersperse_separator_for_node(child, separator, nullable_rules) for child in children])
+        case Repeat1(child):
+            return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
+        case Ref(_) | Term(_) | EpsExternal(_):
+            return node
+        case _:
+            raise ValueError(f"Unexpected node: {node}")
+
+
+def inject_pefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: set[Ref]) -> Node:
+    if not is_nullable(node, nullable_rules):
+        return seq(prefix, node)
+    match node:
+        case Choice(children):
+            return Choice([inject_pefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children])
+        case Seq([]):
+            return node
+        case Seq([only]):
+            return inject_pefix_on_nonnull_for_node(only, prefix, nullable_rules)
+        case _:
+            raise ValueError(f"Unexpected nullable node: {node}")
+
+
+def intersperse_separator(rules: dict[Ref, Node], separator: Node) -> dict[Ref, Node]:
+    nullable_rules = get_nullable_rules(rules)
+    return {ref: intersperse_separator_for_node(node, separator, nullable_rules) for ref, node in rules.items()}
+
+
 @dataclass
 class Seq(Node):
     children: list[Node]
@@ -542,3 +579,10 @@ if __name__ == '__main__':
     )
     prettify_rules(rules)
     prettify_rules(resolve_left_recursion(rules))
+
+    # Test interspersing separators
+    rules = make_rules(
+        A=seq(term('a'), opt(repeat1(term('b'))), term('c')),
+    )
+    prettify_rules(rules)
+    prettify_rules(intersperse_separator(rules, ref('WS')))
