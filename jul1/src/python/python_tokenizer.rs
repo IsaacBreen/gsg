@@ -57,7 +57,7 @@ pub fn whitespace() -> Box<DynCombinator> {
     ).into_box_dyn()
 }
 
-pub fn WHITESPACE() -> Symbol<Box<DynCombinator>> {
+pub fn WS() -> Symbol<Box<DynCombinator>> {
     python_symbol(whitespace())
 }
 

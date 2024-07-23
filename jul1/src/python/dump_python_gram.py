@@ -178,11 +178,11 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     rules = grammar.rules.items()
     rules = list(reversed(rules))
 
-    tokens = ['WHITESPACE', 'NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING', 'NEWLINE', 'INDENT', 'DEDENT', 'ENDMARKER']
+    tokens = ['WS', 'NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING', 'NEWLINE', 'INDENT', 'DEDENT', 'ENDMARKER']
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, prevent_consecutive_matches, DynCombinator, CombinatorTrait, forward_decls, whitespace, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
+    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, prevent_consecutive_matches, DynCombinator, CombinatorTrait, forward_decls, WS, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
@@ -225,8 +225,8 @@ if __name__ == "__main__":
     # Remove left recursion
     custom_grammar = remove_left_recursion.resolve_left_recursion(custom_grammar)
 
-    # Intersperse whitespace
-    custom_grammar = remove_left_recursion.intersperse_separator(custom_grammar, remove_left_recursion.ref('WHITESPACE'))
+    # Intersperse WS
+    custom_grammar = remove_left_recursion.intersperse_separator(custom_grammar, remove_left_recursion.ref('WS'))
 
     # Convert back to pegen format and save to Rust
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)

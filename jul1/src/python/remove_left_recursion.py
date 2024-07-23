@@ -256,6 +256,9 @@ def intersperse_separator(rules: dict[Ref, Node], separator: Node) -> dict[Ref, 
     return new_rules
 
 
+def get_follow_sets(rules: dict[Ref, Node]) -> dict[Ref, set[Ref | Term | EpsExternal]]:
+
+
 @dataclass
 class Seq(Node):
     children: list[Node]
