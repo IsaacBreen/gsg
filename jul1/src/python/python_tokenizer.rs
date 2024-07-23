@@ -62,7 +62,7 @@ pub fn WS() -> Symbol<Box<DynCombinator>> {
 }
 
 pub fn python_symbol<A: CombinatorTrait>(a: A) -> Symbol<Box<DynCombinator>> {
-    symbol(seq!(tag("assert_no_dedents()", assert_no_dedents()), a).into_box_dyn())
+    symbol(a.into_box_dyn())
 }
 
 pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
