@@ -276,3 +276,12 @@ if __name__ == "__main__":
     print("Number of rules active at the first step:")
     for ref, count in sorted(active_count.items(), key=lambda x: x[1]):
         print(f"  {ref.name}: {count}")
+
+
+    follows = remove_left_recursion.get_follows(custom_grammar)
+    print(f"Follows:")
+    for node, follow_set in follows.items():
+        if node not in custom_grammar:
+            # Assume such a node is a token
+            follow_set = follow_set - set(custom_grammar.keys())
+            print(f"  {str(node):<32}: {", ".join(str(f) for f in follow_set)}")

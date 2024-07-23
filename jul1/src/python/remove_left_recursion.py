@@ -9,6 +9,7 @@ from io import StringIO
 from typing import Self, Iterable
 
 import itertools
+from tqdm import tqdm
 
 
 class Node(abc.ABC):
@@ -257,7 +258,7 @@ def intersperse_separator(rules: dict[Ref, Node], separator: Node) -> dict[Ref, 
     return new_rules
 
 
-def get_firsts2_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExternal]:
+def get_firsts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExternal]:
     match node:
         case Ref(_):
             return {node}
@@ -268,45 +269,31 @@ def get_firsts2_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term
         case Seq(children):
             result = set()
             for child in children:
-                result.update(get_firsts2_for_node(child, nullable_rules))
+                result.update(get_firsts_for_node(child, nullable_rules))
                 if not is_nullable(child, nullable_rules):
                     break
             return result
         case Choice(children):
             result = set()
             for child in children:
-                result.update(get_firsts2_for_node(child, nullable_rules))
+                result.update(get_firsts_for_node(child, nullable_rules))
             return result
         case Repeat1(child):
-            return get_firsts2_for_node(child, nullable_rules)
+            return get_firsts_for_node(child, nullable_rules)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
-
-
-def get_firsts2(rules: dict[Ref, Node]) -> dict[Ref, set[Ref | Term | EpsExternal]]:
-    firsts: dict[Ref, set[Ref | Term | EpsExternal]] = {}
-    for ref, node in rules.items():
-        firsts[ref] = get_firsts2_for_node(node, get_nullable_rules(rules))
-    # Substitute firsts for refs repeatedly until there are no more changes
-    while True:
-        old_firsts = deepcopy(firsts)
-        for ref in firsts:
-            for first in list(firsts[ref]):
-                if isinstance(first, Ref) and first in firsts:
-                    firsts[ref].update(firsts[first])
-                    firsts[ref].update(get_firsts2_for_node(rules[first], get_nullable_rules(rules)))
-        if old_firsts == firsts:
-            break
-    return firsts
 
 
 def get_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExternal]:
     match node:
         case Ref(_):
+            assert isinstance(node, Ref)
             return {node}
         case Term(_):
+            assert isinstance(node, Term)
             return {node}
         case EpsExternal(_):
+            assert isinstance(node, EpsExternal)
             return {node}
         case Seq(children):
             result = set()
@@ -326,6 +313,23 @@ def get_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term |
             raise ValueError(f"Unknown node type: {type(node)}")
 
 
+def get_firsts2(rules: dict[Ref, Node]) -> dict[Ref, set[Ref | Term | EpsExternal]]:
+    firsts: dict[Ref, set[Ref | Term | EpsExternal]] = {}
+    nullable_rules = get_nullable_rules(rules)
+    for ref, node in tqdm(rules.items(), desc="Computing firsts"):
+        firsts[ref] = get_firsts_for_node(node, nullable_rules)
+    # Substitute firsts for refs repeatedly until there are no more changes
+    while True:
+        old_firsts = deepcopy(firsts)
+        for ref in firsts:
+            for first in list(firsts[ref]):
+                if first in firsts:
+                    firsts[ref].update(firsts[first])
+        if old_firsts == firsts:
+            break
+    return firsts
+
+
 def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]]:
     match node:
         case Ref(_):
@@ -337,11 +341,11 @@ def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref |
         case Seq(children):
             result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
             for i, child in enumerate(children):
-                lasts = get_lasts_for_node(child, nullable_rules)
+                lasts_for_child = get_lasts_for_node(child, nullable_rules)
                 rest = Seq(children[i + 1:])
-                firsts = get_firsts2_for_node(rest, nullable_rules)
-                for last in lasts:
-                    result[last] = firsts
+                firsts_for_rest = get_firsts_for_node(rest, nullable_rules)
+                for last in lasts_for_child:
+                    result[last] = firsts_for_rest
             return result
         case Choice(children):
             result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
@@ -350,7 +354,7 @@ def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref |
             return result
         case Repeat1(child):
             lasts = get_lasts_for_node(child, nullable_rules)
-            firsts = get_firsts2_for_node(child, nullable_rules)
+            firsts = get_firsts_for_node(child, nullable_rules)
             result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
             for last in lasts:
                 result[last] = firsts
@@ -361,20 +365,22 @@ def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref |
 
 def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]]:
     follow_sets: dict[Ref, set[Ref | Term | EpsExternal]] = {}
+    nullable_rules = get_nullable_rules(rules)
     for ref, node in rules.items():
-        follow_sets |= collect_follows_for_node(node, get_nullable_rules(rules))
-    firsts = get_firsts2(rules)
+        follow_sets |= collect_follows_for_node(node, nullable_rules)
     # Substitute follow sets for refs repeatedly
-    for ref, follow_set in follow_sets.items():
-        new_follow_set = set()
-        queue = list(follow_set)
-        while len(queue) > 0:
-            node = queue.pop()
-            if isinstance(node, Ref) and ref in firsts:
-                queue.extend(new_follow_set - firsts[ref])
-                new_follow_set.update(firsts[ref])
-            new_follow_set.add(node)
-        follow_sets[ref] = new_follow_set
+    while True:
+        old_follow_sets = deepcopy(follow_sets)
+        for ref, follow_set in follow_sets.items():
+            queue = list(follow_set)
+            while len(queue) > 0:
+                node = queue.pop()
+                if isinstance(node, Ref) and node in rules:
+                    firsts = get_firsts_for_node(rules[node], nullable_rules)
+                    queue.extend(firsts - follow_set)
+                    follow_set.update(firsts)
+        if old_follow_sets == follow_sets:
+            break
     return follow_sets
 
 
