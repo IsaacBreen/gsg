@@ -181,8 +181,6 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
             case Seq([]):
                 return node
             case Seq(children):
-                children = [intersperse_separator_for_node(child, separator, nullable_rules) for child in children]
-
                 # Actually, as long as we have a single non-nullable sequent, we're good.
                 try:
                     i = [is_nullable(child, nullable_rules) for child in children].index(False)
@@ -192,8 +190,12 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
 
                 # Insert a suffix for all children before i, and a prefix for all children after i.
                 for j, child in enumerate(children):
-                    if j != i:
+                    if j < i:
                         children[j] = inject_suffix_on_nonnull_for_node(child, separator, nullable_rules)
+                    elif j == i:
+                        children[j] = intersperse_separator_for_node(child, separator, nullable_rules)
+                    else:
+                        children[j] = inject_prefix_on_nonnull_for_node(child, separator, nullable_rules)
                 return seq(*children)
 
             case Choice(children):
@@ -210,39 +212,44 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
 
 
 def inject_prefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: set[Ref]) -> Node:
-    if not is_nullable(node, nullable_rules):
-        return seq(prefix, node)
-    match node:
-        case Choice(children):
-            return Choice([inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children])
-        case Seq([]):
-            return node
-        case Seq([only]):
-            return inject_prefix_on_nonnull_for_node(only, prefix, nullable_rules)
-        case _:
-            raise ValueError(f"Unexpected nullable node: {node}")
+    try:
+        if not is_nullable(node, nullable_rules):
+            return seq(prefix, intersperse_separator_for_node(node, prefix, nullable_rules))
+        match node:
+            case Choice(children):
+                return Choice([inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children])
+            case Seq(children):
+                children = [inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children]
+                return seq(*children)
+            case _:
+                raise ValueError(f"Unexpected nullable node: {node}")
+    except ValueError as e:
+        e.add_note(f"Error while adding prefix in {node}")
+        raise
 
 
 def inject_suffix_on_nonnull_for_node(node: Node, suffix: Node, nullable_rules: set[Ref]) -> Node:
-    if not is_nullable(node, nullable_rules):
-        return seq(node, suffix)
-    match node:
-        case Choice(children):
-            return Choice([inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules) for child in children])
-        case Seq([]):
-            return node
-        case Seq([only]):
-            return inject_suffix_on_nonnull_for_node(only, suffix, nullable_rules)
-        case _:
-            raise ValueError(f"Unexpected nullable node: {node}")
-
+    try:
+        if not is_nullable(node, nullable_rules):
+            return seq(intersperse_separator_for_node(node, suffix, nullable_rules), suffix)
+        match node:
+            case Choice(children):
+                return Choice([inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules) for child in children])
+            case Seq(children):
+                children = [inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules) for child in children]
+                return seq(*children)
+            case _:
+                raise ValueError(f"Unexpected nullable node: {node}")
+    except ValueError as e:
+        e.add_note(f"Error while adding suffix in {node}")
+        raise
 
 def intersperse_separator(rules: dict[Ref, Node], separator: Node) -> dict[Ref, Node]:
     nullable_rules = get_nullable_rules(rules)
     new_rules = {}
     for ref, node in rules.items():
         try:
-            new_rules[ref] = intersperse_separator_for_node(node, separator, nullable_rules)
+            new_rules[ref] = intersperse_separator_for_node(node, separator, nullable_rules).simplify()
         except ValueError as e:
             e.add_note(f"Error while interspersing separator for rule {prettify_rule(ref, node)}")
             raise
@@ -627,7 +634,7 @@ if __name__ == '__main__':
 
     # Test interspersing separators
     rules = make_rules(
-        A=seq(term('a'), opt(repeat1(term('b'))), term('c')),
+        A=seq(term('a'), seq(opt(term('b'))), opt(term('c')), term('d')),
     )
     prettify_rules(rules)
     prettify_rules(intersperse_separator(rules, ref('WS')))
