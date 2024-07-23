@@ -305,19 +305,19 @@ if __name__ == "__main__":
 
             if len(terms) > 0:
                 print(" " * padding, end="")
-                s = "terms: "
+                print("terms: ", end="")
                 print(", ".join(f"\033[32m{term.value}\033[0m" for term in terms))
                 print(s)
                 padding = max_padding
             if len(refs) > 0:
                 print(" " * padding, end="")
-                s = "refs : "
+                print("refs : ", end="")
                 print(", ".join(f"\033[31m{ref.name}\033[0m" for ref in refs))
                 print(s)
                 padding = max_padding
             if len(other) > 0:
                 print(" " * padding, end="")
-                s = "other: "
+                print("other: ", end="")
                 print(", ".join(f"\033[33m{other}\033[0m" for other in sorted(other)))
                 print(s)
                 padding = max_padding
