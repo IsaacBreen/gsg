@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections import defaultdict
+from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from io import StringIO
@@ -256,7 +257,125 @@ def intersperse_separator(rules: dict[Ref, Node], separator: Node) -> dict[Ref, 
     return new_rules
 
 
-def get_follow_sets(rules: dict[Ref, Node]) -> dict[Ref, set[Ref | Term | EpsExternal]]:
+def get_firsts2_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExternal]:
+    match node:
+        case Ref(_):
+            return {node}
+        case Term(_):
+            return {node}
+        case EpsExternal(_):
+            return {node}
+        case Seq(children):
+            result = set()
+            for child in children:
+                result.update(get_firsts2_for_node(child, nullable_rules))
+                if not is_nullable(child, nullable_rules):
+                    break
+            return result
+        case Choice(children):
+            result = set()
+            for child in children:
+                result.update(get_firsts2_for_node(child, nullable_rules))
+            return result
+        case Repeat1(child):
+            return get_firsts2_for_node(child, nullable_rules)
+        case _:
+            raise ValueError(f"Unknown node type: {type(node)}")
+
+
+def get_firsts2(rules: dict[Ref, Node]) -> dict[Ref, set[Ref | Term | EpsExternal]]:
+    firsts: dict[Ref, set[Ref | Term | EpsExternal]] = {}
+    for ref, node in rules.items():
+        firsts[ref] = get_firsts2_for_node(node, get_nullable_rules(rules))
+    # Substitute firsts for refs repeatedly until there are no more changes
+    while True:
+        old_firsts = deepcopy(firsts)
+        for ref in firsts:
+            for first in list(firsts[ref]):
+                if isinstance(first, Ref) and first in firsts:
+                    firsts[ref].update(firsts[first])
+                    firsts[ref].update(get_firsts2_for_node(rules[first], get_nullable_rules(rules)))
+        if old_firsts == firsts:
+            break
+    return firsts
+
+
+def get_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExternal]:
+    match node:
+        case Ref(_):
+            return {node}
+        case Term(_):
+            return {node}
+        case EpsExternal(_):
+            return {node}
+        case Seq(children):
+            result = set()
+            for child in reversed(children):
+                result.update(get_lasts_for_node(child, nullable_rules))
+                if not is_nullable(child, nullable_rules):
+                    break
+            return result
+        case Choice(children):
+            result = set()
+            for child in children:
+                result.update(get_lasts_for_node(child, nullable_rules))
+            return result
+        case Repeat1(child):
+            return get_lasts_for_node(child, nullable_rules)
+        case _:
+            raise ValueError(f"Unknown node type: {type(node)}")
+
+
+def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]]:
+    match node:
+        case Ref(_):
+            return {}
+        case Term(_):
+            return {}
+        case EpsExternal(_):
+            return {}
+        case Seq(children):
+            result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
+            for i, child in enumerate(children):
+                lasts = get_lasts_for_node(child, nullable_rules)
+                rest = Seq(children[i + 1:])
+                firsts = get_firsts2_for_node(rest, nullable_rules)
+                for last in lasts:
+                    result[last] = firsts
+            return result
+        case Choice(children):
+            result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
+            for child in children:
+                result.update(collect_follows_for_node(child, nullable_rules))
+            return result
+        case Repeat1(child):
+            lasts = get_lasts_for_node(child, nullable_rules)
+            firsts = get_firsts2_for_node(child, nullable_rules)
+            result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
+            for last in lasts:
+                result[last] = firsts
+            return result
+        case _:
+            raise ValueError(f"Unknown node type: {type(node)}")
+
+
+def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]]:
+    follow_sets: dict[Ref, set[Ref | Term | EpsExternal]] = {}
+    for ref, node in rules.items():
+        follow_sets |= collect_follows_for_node(node, get_nullable_rules(rules))
+    firsts = get_firsts2(rules)
+    # Substitute follow sets for refs repeatedly
+    for ref, follow_set in follow_sets.items():
+        new_follow_set = set()
+        queue = list(follow_set)
+        while len(queue) > 0:
+            node = queue.pop()
+            if isinstance(node, Ref) and ref in firsts:
+                queue.extend(new_follow_set - firsts[ref])
+                new_follow_set.update(firsts[ref])
+            new_follow_set.add(node)
+        follow_sets[ref] = new_follow_set
+    return follow_sets
 
 
 @dataclass
@@ -570,7 +689,7 @@ def prettify_rule(ref: Ref, node: Node) -> str:
 def prettify_rules(rules: dict[Ref, Node]):
     s = StringIO()
     for ref, node in rules.items():
-        s.write(prettify_rule(ref, node))
+        s.write(prettify_rule(ref, node) + '\n')
     print(s.getvalue().strip())
 
 
@@ -641,3 +760,13 @@ if __name__ == '__main__':
     )
     prettify_rules(rules)
     prettify_rules(intersperse_separator(rules, ref('WS')))
+
+    # Test get_follows
+    rules = make_rules(
+        A=seq(ref('B'), ref('C')),
+        B=choice(term('a'), term('b')),
+        C=choice(term('c'), term('d')),
+    )
+    prettify_rules(rules)
+    print("follow sets:")
+    print(get_follows(rules))
