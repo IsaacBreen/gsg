@@ -6,7 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from io import StringIO
-from typing import Self, Iterable
+from typing import Self, Iterable, Callable
 
 import itertools
 from tqdm import tqdm
@@ -384,6 +384,71 @@ def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Re
         if old_follow_sets == follow_sets:
             break
     return follow_sets
+
+
+def map_left(node: Node, f: Callable[[Node], Node], nullable_rules: set[Ref]) -> Node:
+    node = f(node)
+    match node:
+        case Seq(children):
+            for i, child in enumerate(children):
+                children[i] = map_left(child, f, nullable_rules)
+                if not is_nullable(child, nullable_rules):
+                    break
+            return Seq(children)
+        case Choice(children):
+            return Choice([map_left(child, f, nullable_rules) for child in children])
+        case Repeat1(child):
+            return Repeat1(map_left(child, f, nullable_rules))
+        case _:
+            return node
+
+
+def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidden_follows: set[Ref | Term | EpsExternal], nullable_rules: set[Ref], firsts_by_rule: dict[Ref, set[Ref | Term | EpsExternal]], follows_by_rule: dict[Ref, set[Ref | Term | EpsExternal]]) -> Node:
+    try:
+        match node:
+            case Seq(children):
+                for i, child in enumerate(children):
+                    lasts_for_child = get_lasts_for_node(child, nullable_rules)
+                    # Decide whether to trigger
+                    if first in lasts_for_child:
+                        # Forbid by replacing occurrences of first in subsequent children with fail()
+                        for j, subsequent_child in enumerate(children[i + 1:], start=i + 1):
+                            def map_fn(node: Node) -> Node:
+                                if isinstance(node, Ref | Term | EpsExternal) and node in forbidden_follows:
+                                    if len(lasts_for_child) > 1:
+                                        raise ValueError(f"Cannot forbid follows for {node} with first {first} and forbidden follows {forbidden_follows} because {lasts_for_child} has more than one last (how would we disambiguate?)")
+                                    return fail()
+                                else:
+                                    return node
+
+                            children[j] = map_left(subsequent_child, map_fn, nullable_rules)
+                            if not is_nullable(subsequent_child, nullable_rules):
+                                break
+                    children[i] = forbid_follows_for_node(children[i], first, forbidden_follows, nullable_rules, firsts_by_rule, follows_by_rule)
+                return Seq(children)
+            case Choice(children):
+                return Choice([forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, firsts_by_rule, follows_by_rule) for child in children])
+            case Repeat1(child):
+                return forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, firsts_by_rule, follows_by_rule)
+            case Ref(_) | Term(_) | EpsExternal(_):
+                return node
+            case _:
+                raise ValueError(f"Unexpected node: {node}")
+    except ValueError as e:
+        e.add_note(f"Error while forbidding follows for {node} with first {first} and forbidden follows {forbidden_follows}")
+        raise
+
+
+def forbid_follows(rules: dict[Ref, Node], forbidden_follows_table: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]]) -> dict[Ref, Node]:
+    nullable_rules = get_nullable_rules(rules)
+    firsts = get_firsts2(rules)
+    follows = get_follows(rules)
+    new_rules = {}
+    for ref in tqdm(rules.keys(), desc="Forbidding follows"):
+        for first, forbidden_follows in forbidden_follows_table.items():
+            new_rules[ref] = forbid_follows_for_node(rules[ref], first, forbidden_follows, nullable_rules, firsts, follows)
+        new_rules[ref] = new_rules[ref].simplify()
+    return new_rules
 
 
 @dataclass
@@ -778,3 +843,15 @@ if __name__ == '__main__':
     prettify_rules(rules)
     print("follow sets:")
     print(get_follows(rules))
+    print()
+
+    # Test forbid_follows
+    rules = make_rules(
+        A=seq(ref('A'), opt(ref('B')), ref('C')),
+    )
+    forbidden_follows_table = {
+        ref('A'): {ref('B')},
+    }
+    print("after forbidding follows:")
+    prettify_rules(forbid_follows(rules, forbidden_follows_table))
+    print()

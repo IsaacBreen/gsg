@@ -14,6 +14,8 @@ from pegen.tokenizer import Tokenizer
 
 import remove_left_recursion
 from remove_left_recursion import get_nullable_rules, get_firsts
+from remove_left_recursion import ref, term, opt
+
 
 def fetch_grammar(url: str) -> str:
     response = requests.get(url)
@@ -227,7 +229,15 @@ if __name__ == "__main__":
     custom_grammar = remove_left_recursion.resolve_left_recursion(custom_grammar)
 
     # Intersperse opt(WS)
-    custom_grammar = remove_left_recursion.intersperse_separator(custom_grammar, remove_left_recursion.opt(remove_left_recursion.ref('WS')))
+    custom_grammar |= remove_left_recursion.intersperse_separator(custom_grammar, opt(ref('WS')))
+
+    # Forbid some follows
+    forbidden_follows_table = {
+        ref('FSTRING_START'): {ref('WS')},
+        ref('FSTRING_MIDDLE'): {ref('FSTRING_MIDDLE'), ref('WS')},
+        ref('WS'): {ref('FSTRING_MIDDLE'), ref('FSTRING_END')},
+    }
+    custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
 
     # Convert back to pegen format and save to Rust
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
