@@ -319,4 +319,4 @@ if __name__ == "__main__":
                 print(", ".join(f"\033[33m{other}\033[0m" for other in sorted(other)))
                 padding = max_padding
             if len(terms) == len(refs) == len(other) == 0:
-                print("(nothing)")
+                print()
