@@ -7,6 +7,8 @@ from enum import Enum, auto
 from io import StringIO
 from typing import Self, Iterable
 
+import itertools
+
 
 class Node(abc.ABC):
     @abc.abstractmethod
@@ -174,40 +176,77 @@ def resolve_left_recursion(rules: dict[Ref, Node]) -> dict[Ref, Node]:
 
 
 def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: set[Ref]) -> Node:
-    match node:
-        case Seq([]):
-            return node
-        case Seq(children):
-            first, *rest = [intersperse_separator_for_node(child, separator, nullable_rules) for child in children]
-            assert not is_nullable(first, nullable_rules)
-            return seq(first, *[inject_pefix_on_nonnull_for_node(child, separator, nullable_rules) for child in rest])
-        case Choice(children):
-            return Choice([intersperse_separator_for_node(child, separator, nullable_rules) for child in children])
-        case Repeat1(child):
-            return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
-        case Ref(_) | Term(_) | EpsExternal(_):
-            return node
-        case _:
-            raise ValueError(f"Unexpected node: {node}")
+    try:
+        match node:
+            case Seq([]):
+                return node
+            case Seq(children):
+                children = [intersperse_separator_for_node(child, separator, nullable_rules) for child in children]
+
+                # Actually, as long as we have a single non-nullable sequent, we're good.
+                try:
+                    i = [is_nullable(child, nullable_rules) for child in children].index(False)
+                except ValueError as e:
+                    e.add_note(f"There must be at least one non-nullable sequent in {node}")
+                    raise
+
+                # Insert a suffix for all children before i, and a prefix for all children after i.
+                for j, child in enumerate(children):
+                    if j != i:
+                        children[j] = inject_suffix_on_nonnull_for_node(child, separator, nullable_rules)
+                return seq(*children)
+
+            case Choice(children):
+                return Choice([intersperse_separator_for_node(child, separator, nullable_rules) for child in children])
+            case Repeat1(child):
+                return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
+            case Ref(_) | Term(_) | EpsExternal(_):
+                return node
+            case _:
+                raise ValueError(f"Unexpected node: {node}")
+    except ValueError as e:
+        e.add_note(f"Error while interspersing separator in {node}")
+        raise
 
 
-def inject_pefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: set[Ref]) -> Node:
+def inject_prefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: set[Ref]) -> Node:
     if not is_nullable(node, nullable_rules):
         return seq(prefix, node)
     match node:
         case Choice(children):
-            return Choice([inject_pefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children])
+            return Choice([inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children])
         case Seq([]):
             return node
         case Seq([only]):
-            return inject_pefix_on_nonnull_for_node(only, prefix, nullable_rules)
+            return inject_prefix_on_nonnull_for_node(only, prefix, nullable_rules)
+        case _:
+            raise ValueError(f"Unexpected nullable node: {node}")
+
+
+def inject_suffix_on_nonnull_for_node(node: Node, suffix: Node, nullable_rules: set[Ref]) -> Node:
+    if not is_nullable(node, nullable_rules):
+        return seq(node, suffix)
+    match node:
+        case Choice(children):
+            return Choice([inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules) for child in children])
+        case Seq([]):
+            return node
+        case Seq([only]):
+            return inject_suffix_on_nonnull_for_node(only, suffix, nullable_rules)
         case _:
             raise ValueError(f"Unexpected nullable node: {node}")
 
 
 def intersperse_separator(rules: dict[Ref, Node], separator: Node) -> dict[Ref, Node]:
     nullable_rules = get_nullable_rules(rules)
-    return {ref: intersperse_separator_for_node(node, separator, nullable_rules) for ref, node in rules.items()}
+    new_rules = {}
+    for ref, node in rules.items():
+        try:
+            new_rules[ref] = intersperse_separator_for_node(node, separator, nullable_rules)
+        except ValueError as e:
+            e.add_note(f"Error while interspersing separator for rule {prettify_rule(ref, node)}")
+            raise
+    return new_rules
 
 
 @dataclass
@@ -496,26 +535,32 @@ def sep1(child: Node, sep: Node) -> Node: return seq(child, repeat0(seq(sep, chi
 def sep0(child: Node, sep: Node) -> Node: return opt(sep1(child, sep))
 
 
+def prettify_rule(ref: Ref, node: Node) -> str:
+    s = StringIO()
+    if isinstance(node, Choice):
+        match node:
+            case Choice([]):
+                s.write(f'{ref} -> {node}\n')
+            case Choice([Repeat1(child), Seq([])]):
+                s.write(f'{ref} -> {node}\n')
+            case Choice([Seq([x0, Choice([Repeat1(Seq([sep, x1])), Seq([])])]), Seq([])]) if x0 == x1:
+                s.write(f'{ref} -> {node}\n')
+            case Choice([child, Seq([])]):
+                s.write(f'{ref} -> {node}\n')
+            case default:
+                s.write(f'{ref} -> \u001b[33mchoice\u001b[0m(\n')
+                for child in node.children:
+                    s.write(f'    {child},\n')
+                s.write(')\n')
+    else:
+        s.write(f'{ref} -> {node}\n')
+    return s.getvalue().strip()
+
+
 def prettify_rules(rules: dict[Ref, Node]):
     s = StringIO()
     for ref, node in rules.items():
-        if isinstance(node, Choice):
-            match node:
-                case Choice([]):
-                    s.write(f'{ref} -> {node}\n')
-                case Choice([Repeat1(child), Seq([])]):
-                    s.write(f'{ref} -> {node}\n')
-                case Choice([Seq([x0, Choice([Repeat1(Seq([sep, x1])), Seq([])])]), Seq([])]) if x0 == x1:
-                    s.write(f'{ref} -> {node}\n')
-                case Choice([child, Seq([])]):
-                    s.write(f'{ref} -> {node}\n')
-                case default:
-                    s.write(f'{ref} -> \u001b[33mchoice\u001b[0m(\n')
-                    for child in node.children:
-                        s.write(f'    {child},\n')
-                    s.write(')\n')
-        else:
-            s.write(f'{ref} = {node}\n')
+        s.write(prettify_rule(ref, node))
     print(s.getvalue().strip())
 
 

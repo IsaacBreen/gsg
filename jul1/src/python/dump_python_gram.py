@@ -217,11 +217,16 @@ if __name__ == "__main__":
         f.write(grammar_text)
     pegen_grammar = parse_grammar(grammar_text)
 
-    # Convert to custom grammar format and remove left recursion
+    # Convert to custom grammar format
     custom_grammar = pegen_to_custom(pegen_grammar)
     remove_left_recursion.validate_rules(custom_grammar)
     remove_left_recursion.prettify_rules(custom_grammar)
+
+    # Remove left recursion
     custom_grammar = remove_left_recursion.resolve_left_recursion(custom_grammar)
+
+    # Intersperse whitespace
+    custom_grammar = remove_left_recursion.intersperse_separator(custom_grammar, remove_left_recursion.ref('WHITESPACE'))
 
     # Convert back to pegen format and save to Rust
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
