@@ -320,5 +320,5 @@ if __name__ == "__main__":
             if len(terms) == len(refs) == len(other) == 0:
                 print()
 
-            if node in follow_set:
-                logging.warning(f"Node can follow itself: {node}")
+            if isinstance(node, remove_left_recursion.Ref) and node in follow_set:
+                logging.warning(f"Ref can follow itself: {node}")
