@@ -153,6 +153,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         &tuple,
         &group,
         &genexp,
+        // Here's the issue. A list comp looks exactly like a list at first.
         &list,
         &listcomp,
         &dict,
