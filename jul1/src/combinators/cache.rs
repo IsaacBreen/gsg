@@ -58,6 +58,17 @@ pub struct CacheContextParser<P> {
     pub cache_data_inner: Rc<RefCell<CacheDataInner>>,
 }
 
+impl<T> CacheContextParser<T> {
+    pub fn transfer_new_parsers(&mut self) {
+        let mut cache_data_inner = self.cache_data_inner.borrow_mut();
+        let mut new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
+        new_parsers.reverse();
+        for (_, x) in new_parsers {
+            cache_data_inner.existing_parsers.push(x);
+        }
+    }
+}
+
 impl<T> CombinatorTrait for CacheContext<T>
 where
     T: CombinatorTrait,
@@ -69,6 +80,7 @@ where
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner::default()));
         right_data.cache_data.inner = Some(cache_data_inner.clone());
         let (parser, results) = self.inner.parser(right_data);
+        parser.transfer_new_parsers();
         (CacheContextParser { inner: parser, cache_data_inner }, results)
     }
 }
@@ -77,16 +89,7 @@ impl<P> ParserTrait for CacheContextParser<P>
 where
     P: ParserTrait + 'static,
 {
-    fn step(&mut self, c: u8) -> ParseResults {
-        {
-            let mut cache_data_inner = self.cache_data_inner.borrow_mut();
-            let mut new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
-            new_parsers.reverse();
-            for (_, x) in new_parsers {
-                cache_data_inner.existing_parsers.push(x);
-            }
-        }
-
+    fn step(&mut self, c: u8) -> ParseResults {s
         let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
 
         existing_parsers.reverse();
@@ -101,7 +104,9 @@ where
 
         self.cache_data_inner.borrow_mut().existing_parsers.reverse();
 
-        self.inner.step(c)
+        let parse_result = self.inner.step(c);
+        self.transfer_new_parsers();
+        parse_result
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {

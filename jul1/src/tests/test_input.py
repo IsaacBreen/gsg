@@ -1,4 +1,4 @@
 def f():
-    pass
+    x
 @x
-def f(): pass
+def f(): x
