@@ -82,8 +82,6 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True)
         ref = remove_left_recursion.ref(name)
         if not (ignore_invalid and ref.name.startswith('invalid_')):
             rules[ref] = rhs_to_node(rule.rhs)
-            if rule.memo:
-                rules[ref] = remove_left_recursion.wrapper(rules[ref], "memo")
     return rules
 
 def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion.Node]) -> pegen.grammar.Grammar:
@@ -245,8 +243,14 @@ if __name__ == "__main__":
     }
     custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
 
-    # Convert back to pegen format and save to Rust
+    # Convert back to pegen format
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
+
+    # Restore memo flags
+    for rule_name in resolved_pegen_grammar.rules:
+        resolved_pegen_grammar.rules[rule_name].memo = pegen_grammar.rules[rule_name].memo
+
+    # Save to Rust
     save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs')
 
     # Print some useful stats
