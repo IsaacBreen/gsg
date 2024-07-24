@@ -481,15 +481,4 @@ mod tests {
         let s = "[[][[][]]]";
         assert_parses(&s_combinator, s, "Test input");
     }
-
-    #[test]
-    fn test_cache3() {
-        use crate::combinators::tag;
-        use crate::combinators::cache_context;
-        // Define the grammar
-        forward_decls!(A);
-        A.set(tag("A", seq!(eat_string("["), &A, eat_string("]"))));
-        let s_combinator = cache_context(A);
-
-    }
 }
