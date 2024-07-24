@@ -13,7 +13,10 @@ pub struct CacheData {
 
 impl Hash for CacheData {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        todo!()
+        // Hash the pointer of the inner data
+        let inner = self.inner.as_ref().unwrap();
+        let ptr = Rc::as_ptr(inner) as usize;
+        ptr.hash(state);
     }
 }
 
@@ -113,11 +116,12 @@ where
 
 macro_rules! time {
     ($desc:expr, $code:block) => {
-        let start = std::time::Instant::now();
-        let r = $code;
-        let end = std::time::Instant::now();
-        println!("{}: {:?}", $desc, end - start);
-        r
+        // let start = std::time::Instant::now();
+//         let r = $code;
+//         let end = std::time::Instant::now();
+//         println!("{}: {:?}", $desc, end - start);
+//         r
+        $code
     };
 }
 
@@ -156,10 +160,6 @@ where
             for (mut parser, results) in existing_parsers.into_iter() {
                 let mut new_results = parser.step(c);
                 new_results.squash();
-                if !new_results.up_data_vec.is_empty() || !new_results.right_data_vec.is_empty() {
-                    println!("CacheContextParser.step: num up_data_vec: {}", new_results.up_data_vec.len());
-                    println!("CacheContextParser.step: num right_data_vec: {}", new_results.right_data_vec.len());
-                }
                 *results.borrow_mut() = Some(new_results);
                 self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
             }
