@@ -222,15 +222,11 @@ impl CombinatorTrait for Cached {
         let mut maybe_i = {
             let cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
             // cache_data_inner.new_parsers_i.get(&self.inner.clone().into()).cloned()
-            cache_data_inner.new_parsers_i.iter().position(|(parser, _)| std::ptr::addr_eq(&parser.0, &self.inner))
+            cache_data_inner.new_parsers_i.iter().position(|(parser, _)| Rc::ptr_eq(&parser.0, &self.inner))
         };
         if let Some(i) = maybe_i {
             let parse_results_rc_refcell = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers[i].1.clone();
             let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
-            // // Create a new parser
-            // let (parser, mut parse_results) = self.inner.parser(right_data.clone());
-            // parse_results.squash();
-
             (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
         } else {
             // Create a new parser
