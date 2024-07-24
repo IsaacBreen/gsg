@@ -222,36 +222,34 @@ impl CombinatorTrait for Cached {
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         // Try to use an already-initialized new parser
-        let mut maybe_i = {
-            let cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow();
+        // let mut maybe_i = {
+        //     let cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow();
         //     cache_data_inner.new_parsers_i.get(&self.inner.clone().into()).cloned()
         //     cache_data_inner.new_parsers_i.iter().position(|(parser, _)| Rc::ptr_eq(&parser.0, &self.inner))
-            cache_data_inner.new_parsers.iter().position(|(combinator, _)| Rc::ptr_eq(&combinator.0, &self.inner))
+        //     cache_data_inner.new_parsers.iter().position(|(combinator, _)| Rc::ptr_eq(&combinator.0, &self.inner))
         //     Some(0)
-        };
+        // };
         // maybe_i = None;
-        if let Some(i) = maybe_i {
-            let parse_results_rc_refcell = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers[i].1.1.clone();
-            let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
-
-            let (_, parse_results_gt) = self.inner.parser(right_data.clone());
-            assert_eq!(parse_results, parse_results_gt);
-
-            (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
-        } else {
-            // Create a new parser
-            let (parser, mut parse_results) = self.inner.parser(right_data.clone());
-            // parse_results.squash();
-            let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
-            let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-            // let i = cache_data_inner.new_parsers.len();
-            // cache_data_inner.new_parsers_i.insert(self.inner.clone().into(), i);
-            // cache_data_inner.new_parsers_i.push((self.inner.clone().into(), i));
-            // cache_data_inner.new_parsers.push((Box::new(parser), parse_results_rc_refcell.clone()));
-            // assert!(cache_data_inner.new_parsers_i.len() == cache_data_inner.new_parsers.len());
-            cache_data_inner.new_parsers.push((self.inner.clone().into(), (Box::new(parser), parse_results_rc_refcell.clone())));
-            (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
+        for (combinator, (parser, parse_results_rc_refcell)) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
+            if Rc::ptr_eq(&combinator.0, &self.inner) {
+                let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
+                let (_, parse_results_gt) = self.inner.parser(right_data.clone());
+                assert_eq!(parse_results, parse_results_gt);
+                return (CachedParser { parse_results: parse_results_rc_refcell.clone() }, parse_results);
+            }
         }
+        // Create a new parser
+        let (parser, mut parse_results) = self.inner.parser(right_data.clone());
+        // parse_results.squash();
+        let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
+        let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
+        // let i = cache_data_inner.new_parsers.len();
+        // cache_data_inner.new_parsers_i.insert(self.inner.clone().into(), i);
+        // cache_data_inner.new_parsers_i.push((self.inner.clone().into(), i));
+        // cache_data_inner.new_parsers.push((Box::new(parser), parse_results_rc_refcell.clone()));
+        // assert!(cache_data_inner.new_parsers_i.len() == cache_data_inner.new_parsers.len());
+        cache_data_inner.new_parsers.push((self.inner.clone().into(), (Box::new(parser), parse_results_rc_refcell.clone())));
+        (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
     }
 }
 
