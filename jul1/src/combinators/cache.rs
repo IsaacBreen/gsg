@@ -145,7 +145,7 @@ impl CombinatorTrait for Cached {
         for (combinator, (parser, parse_results_rc_refcell)) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
             if Rc::ptr_eq(combinator, &self.inner) {
                 let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
-                let (parser_gt, parse_results_gt) = parser.parser(right_data.clone());
+                let (parser_gt, parse_results_gt) = self.inner.parser(right_data.clone());
                 assert_eq!(parse_results, parse_results_gt);
                 return (CachedParser { parse_results: parse_results_rc_refcell.clone(), parser_gt: Box::new(parser_gt) }, parse_results);
             }
@@ -155,7 +155,7 @@ impl CombinatorTrait for Cached {
         let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.push((self.inner.clone(), (parser, parse_results_rc_refcell.clone())));
-        let (parser_gt, _) = parser.parser(right_data);
+        let (parser_gt, _) = self.inner.parser(right_data.clone());
         (CachedParser { parse_results: parse_results_rc_refcell, parser_gt: Box::new(parser_gt) }, parse_results)
     }
 }
