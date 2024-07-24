@@ -133,16 +133,18 @@ where
         }
         // Step existing parsers
         let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
+        existing_parsers.reverse();
         // First, clear existing results
         for (_, results) in existing_parsers.iter_mut() {
             results.borrow_mut().take();
         }
         // Second, compute new results
-        for (mut parser, results) in existing_parsers.into_iter().rev() {
+        for (mut parser, results) in existing_parsers.into_iter() {
             let new_results = parser.step(c);
             *results.borrow_mut() = Some(new_results);
             self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
         }
+        self.cache_data_inner.borrow_mut().existing_parsers.reverse();
         self.inner.step(c)
     }
 
