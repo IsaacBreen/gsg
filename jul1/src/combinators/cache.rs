@@ -24,7 +24,7 @@ pub struct CacheDataInner {
 
 impl Debug for CacheDataInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        Ok(())
     }
 }
 
@@ -152,10 +152,10 @@ impl CombinatorTrait for Cached {
         }
 
         let (parser, parse_results) = self.inner.parser(right_data.clone());
+        let (parser_gt, _) = self.inner.parser(right_data.clone());
         let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.push((self.inner.clone(), (parser, parse_results_rc_refcell.clone())));
-        let (parser_gt, _) = self.inner.parser(right_data.clone());
         (CachedParser { parse_results: parse_results_rc_refcell, parser_gt: Box::new(parser_gt) }, parse_results)
     }
 }
