@@ -135,6 +135,7 @@ pub struct Cached {
 
 pub struct CachedParser {
     pub parse_results: Rc<RefCell<Option<ParseResults>>>,
+    pub parser_gt: Box<dyn ParserTrait>,
 }
 
 impl CombinatorTrait for Cached {
@@ -144,21 +145,27 @@ impl CombinatorTrait for Cached {
         for (combinator, (parser, parse_results_rc_refcell)) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
             if Rc::ptr_eq(combinator, &self.inner) {
                 let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
-                return (CachedParser { parse_results: parse_results_rc_refcell.clone() }, parse_results);
+                let (parser_gt, parse_results_gt) = parser.parser(right_data.clone());
+                assert_eq!(parse_results, parse_results_gt);
+                return (CachedParser { parse_results: parse_results_rc_refcell.clone(), parser_gt: Box::new(parser_gt) }, parse_results);
             }
         }
 
-        let (parser, mut parse_results) = self.inner.parser(right_data.clone());
+        let (parser, parse_results) = self.inner.parser(right_data.clone());
         let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.push((self.inner.clone(), (parser, parse_results_rc_refcell.clone())));
-        (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
+        let (parser_gt, _) = parser.parser(right_data);
+        (CachedParser { parse_results: parse_results_rc_refcell, parser_gt: Box::new(parser_gt) }, parse_results)
     }
 }
 
 impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        self.parse_results.borrow().clone().expect("CachedParser.step: parse_results is None")
+        let parse_results_gt = self.parser_gt.step(c);
+        let parse_results = self.parse_results.borrow().clone().expect("CachedParser.step: parse_results is None");
+        assert_eq!(parse_results, parse_results_gt);
+        parse_results
     }
 
     fn as_any(&self) -> &dyn Any {
