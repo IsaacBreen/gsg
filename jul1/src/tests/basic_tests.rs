@@ -8,7 +8,6 @@ mod tests {
     use crate::combinators::cache_context;
     use crate::combinators::tag;
     use crate::parse_state::{RightData, UpData};
-    use crate::parse_state::RightData;
     use crate::tests::utils::assert_parses;
 
     #[test]
