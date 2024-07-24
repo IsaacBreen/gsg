@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::{FrameStack, GreedOrder, PreventConsecutiveMatchesData, U8Set};
@@ -76,7 +76,7 @@ impl Squash for Vec<RightData> {
     type Output = Vec<RightData>;
     fn squashed(self) -> Self::Output {
         if self.len() > 1 {
-            self.into_iter().collect::<BTreeSet<_>>().into_iter().collect()
+            self.into_iter().collect::<HashSet<_>>().into_iter().collect()
         } else {
             self
         }
@@ -91,16 +91,15 @@ impl Squash for Vec<RightData> {
 impl Squash for Vec<UpData> {
     type Output = Vec<UpData>;
     fn squashed(self) -> Self::Output {
-        // let mut u8set = U8Set::none();
-        // for vd in self {
-        //     u8set = u8set.union(&vd.u8set);
-        // }
-        // if u8set.is_empty() {
-        //     vec![]
-        // } else {
-        //     vec![UpData { u8set }]
-        // }
-        self
+        let mut u8set = U8Set::none();
+        for vd in self {
+            u8set = u8set.union(&vd.u8set);
+        }
+        if u8set.is_empty() {
+            vec![]
+        } else {
+            vec![UpData { u8set }]
+        }
     }
     fn squash(&mut self) {
         *self = self.clone().squashed();

@@ -150,6 +150,7 @@ where
                 results.borrow_mut().take();
             }
         });
+        println!("Number of existing parsers: {}", existing_parsers.len());
         time! ("CacheContextParser.step part 3", {
             // Second, compute new results
             for (mut parser, results) in existing_parsers.into_iter() {
