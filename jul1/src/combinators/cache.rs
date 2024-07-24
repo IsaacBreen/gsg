@@ -88,6 +88,15 @@ where
             }
         }
 
+        // Ensure no results appear more than once
+        for i in 0..self.cache_data_inner.borrow().existing_parsers.len() {
+            for j in 0..i {
+                let (parser_i, results_i) = self.cache_data_inner.borrow().existing_parsers[i].clone();
+                let (parser_j, results_j) = self.cache_data_inner.borrow().existing_parsers[j].clone();
+                assert!(!Rc::ptr_eq(&parser_i, &parser_j));
+            }
+        }
+
         let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
 
         existing_parsers.reverse();
@@ -145,8 +154,6 @@ impl CombinatorTrait for Cached {
         for (combinator, (parser, parse_results_rc_refcell)) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
             if Rc::ptr_eq(combinator, &self.inner) {
                 let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
-                let (_, parse_results_gt) = self.inner.parser(right_data.clone());
-                assert_eq!(parse_results, parse_results_gt);
                 return (CachedParser { parse_results: parse_results_rc_refcell.clone() }, parse_results);
             }
         }
@@ -154,7 +161,7 @@ impl CombinatorTrait for Cached {
         let (parser, mut parse_results) = self.inner.parser(right_data.clone());
         let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-        cache_data_inner.new_parsers.push((self.inner.clone(), (Box::new(parser), parse_results_rc_refcell.clone())));
+        cache_data_inner.new_parsers.push((self.inner.clone(), (parser, parse_results_rc_refcell.clone())));
         (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
     }
 }
