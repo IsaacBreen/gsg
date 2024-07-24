@@ -117,20 +117,12 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
             return pegen.grammar.Group(node_to_rhs(node))
         elif isinstance(node, remove_left_recursion.Repeat1):
             return pegen.grammar.Repeat1(node_to_item(node.child))
-        elif isinstance(node, remove_left_recursion.Wrapper):
-            raise NotImplementedError(f"Wrappers are not supported: {node}")
         else:
             raise ValueError(f"Unknown node type: {type(node)}")
 
     pegen_rules = {}
     for ref, node in rules.items():
-        if isinstance(node, remove_left_recursion.Wrapper) and node.data == "memo":
-            memo = True
-            node = node.child
-        else:
-            memo = False
         pegen_rules[ref.name] = pegen.grammar.Rule(ref.name, None, node_to_rhs(node.simplify()))
-        pegen_rules[ref.name].memo = memo
     return pegen.grammar.Grammar(pegen_rules.values(), {})
 
 def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
