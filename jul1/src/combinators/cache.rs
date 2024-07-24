@@ -16,18 +16,9 @@ impl Hash for CacheData {
     }
 }
 
-pub struct ComparableRc<T: ?Sized>(pub Rc<T>);
-
-
-impl From<Rc<DynCombinator>> for ComparableRc<DynCombinator> {
-    fn from(rc: Rc<DynCombinator>) -> Self {
-        ComparableRc(rc)
-    }
-}
-
 #[derive(Default)]
 pub struct CacheDataInner {
-    pub new_parsers: Vec<(ComparableRc<DynCombinator>, (Box<dyn ParserTrait>, Rc<RefCell<Option<ParseResults>>>))>,
+    pub new_parsers: Vec<(Rc<DynCombinator>, (Box<dyn ParserTrait>, Rc<RefCell<Option<ParseResults>>>))>,
     pub existing_parsers: Vec<(Box<dyn ParserTrait>, Rc<RefCell<Option<ParseResults>>>)>,
 }
 
@@ -92,7 +83,7 @@ where
             let mut cache_data_inner = self.cache_data_inner.borrow_mut();
             let mut new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
             new_parsers.reverse();
-            for (_, x) in new_parsers.into_iter() {
+            for (_, x) in new_parsers {
                 cache_data_inner.existing_parsers.push(x);
             }
         }
@@ -100,7 +91,7 @@ where
         let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
 
         existing_parsers.reverse();
-        for (_, results) in existing_parsers.iter_mut() {
+        for (_, results) in existing_parsers.iter() {
             results.borrow_mut().take();
         }
 
@@ -152,7 +143,7 @@ impl CombinatorTrait for Cached {
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         for (combinator, (parser, parse_results_rc_refcell)) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
-            if Rc::ptr_eq(&combinator.0, &self.inner) {
+            if Rc::ptr_eq(combinator, &self.inner) {
                 let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
                 let (_, parse_results_gt) = self.inner.parser(right_data.clone());
                 assert_eq!(parse_results, parse_results_gt);
@@ -163,7 +154,7 @@ impl CombinatorTrait for Cached {
         let (parser, mut parse_results) = self.inner.parser(right_data.clone());
         let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-        cache_data_inner.new_parsers.push((self.inner.clone().into(), (Box::new(parser), parse_results_rc_refcell.clone())));
+        cache_data_inner.new_parsers.push((self.inner.clone(), (Box::new(parser), parse_results_rc_refcell.clone())));
         (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
     }
 }
