@@ -23,6 +23,12 @@ impl Display for Stats {
             let mut sorted_items = items.to_vec();
             sorted_items.sort_by(|a, b| a.1.cmp(&b.1));
             for (name, count) in sorted_items {
+                let mut name = name.to_string();
+                // Trim it if it's very long
+                if name.len() > 20 {
+                    name.truncate(20);
+                    name.push_str("...");
+                }
                 writeln!(f, "    {}: {}", name, count)?;
             }
             writeln!(f, "")
