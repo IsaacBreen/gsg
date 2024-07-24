@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParseResults, ParserTrait, RightData, Stats};
+use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParseResults, ParserTrait, RightData, Squash, Stats};
 
 #[derive(Debug, Clone, PartialEq, Default, PartialOrd, Ord, Eq)]
 pub struct CacheData {
@@ -95,7 +95,7 @@ where
         }
 
         for (mut parser, results) in existing_parsers.into_iter() {
-            results.borrow_mut().replace(parser.step(c));
+            results.borrow_mut().replace(parser.step(c).squashed());
             self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
         }
 
@@ -144,14 +144,16 @@ impl CombinatorTrait for Cached {
         for (combinator, (parser, parse_results_rc_refcell)) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
             if Rc::ptr_eq(combinator, &self.inner) {
                 let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
-                let (parser_gt, parse_results_gt) = self.inner.parser(right_data.clone());
+                let (parser_gt, mut parse_results_gt) = self.inner.parser(right_data.clone());
+                parse_results_gt.squash();
                 assert_eq!(parse_results, parse_results_gt);
                 return (CachedParser { parse_results: parse_results_rc_refcell.clone(), parser_gt: Box::new(parser_gt) }, parse_results);
             }
         }
 
-        let (parser, parse_results) = self.inner.parser(right_data.clone());
+        let (parser, mut parse_results) = self.inner.parser(right_data.clone());
         let (parser_gt, _) = self.inner.parser(right_data.clone());
+        parse_results.squash();
         let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.push((self.inner.clone(), (parser, parse_results_rc_refcell.clone())));
@@ -161,7 +163,8 @@ impl CombinatorTrait for Cached {
 
 impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        let parse_results_gt = self.parser_gt.step(c);
+        let mut parse_results_gt = self.parser_gt.step(c);
+        parse_results_gt.squash();
         let parse_results = self.parse_results.borrow().clone().expect("CachedParser.step: parse_results is None");
         assert_eq!(parse_results, parse_results_gt);
         parse_results
