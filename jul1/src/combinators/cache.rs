@@ -111,12 +111,22 @@ where
     }
 }
 
+macro_rules! time {
+    ($desc:expr, $code:block) => {
+        let start = std::time::Instant::now();
+        let r = $code;
+        let end = std::time::Instant::now();
+        println!("{}: {:?}", $desc, end - start);
+        r
+    };
+}
+
 impl<P> ParserTrait for CacheContextParser<P>
 where
     P: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        {
+        time! ("CacheContextParser.step part 1", {
             // Move new parsers to existing parsers
             let mut cache_data_inner = self.cache_data_inner.borrow_mut();
             cache_data_inner.new_parsers_i.clear();
@@ -130,21 +140,26 @@ where
                 let terminated = parse_results.up_data_vec.is_empty() && parse_results.right_data_vec.is_empty();
                 !terminated
             });
-        }
-        // Step existing parsers
+        });
         let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
-        existing_parsers.reverse();
-        // First, clear existing results
-        for (_, results) in existing_parsers.iter_mut() {
-            results.borrow_mut().take();
-        }
+        time! ("CacheContextParser.step part 2", {
+            // Step existing parsers
+            existing_parsers.reverse();
+            // First, clear existing results
+            for (_, results) in existing_parsers.iter_mut() {
+                results.borrow_mut().take();
+            }
+        });
         // Second, compute new results
         for (mut parser, results) in existing_parsers.into_iter() {
             let new_results = parser.step(c);
             *results.borrow_mut() = Some(new_results);
             self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
         }
-        self.cache_data_inner.borrow_mut().existing_parsers.reverse();
+        time! ("CacheContextParser.step part 3", {
+            self.cache_data_inner.borrow_mut().existing_parsers.reverse();
+        });
+        println!("\n\n");
         self.inner.step(c)
     }
 

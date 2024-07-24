@@ -457,4 +457,24 @@ mod tests {
             assert_eq!(results.up_data_vec.len(), 0, "Expected no up data after the first step");
         }
     }
+
+    #[test]
+    fn test_cache_nested() {
+        use crate::combinators::tag;
+        use crate::combinators::cache_context;
+        use crate::parse_state::RightData;
+
+        // Define the grammar
+        forward_decls!(A);
+        A.set(tag("A", seq!(eat_string("["), &A, eat_string("]"))));
+        let s_combinator = cache_context(A);
+
+        let s = "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]";
+        let (mut parser, parse_results0) = s_combinator.parser(RightData::default());
+        for c in kdam::tqdm!(s.bytes()) {
+            let results = parser.step(c);
+            // Print stats
+            println!("{:?}", parser.stats());
+        }
+    }
 }
