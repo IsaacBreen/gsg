@@ -150,17 +150,23 @@ where
                 results.borrow_mut().take();
             }
         });
-        // Second, compute new results
-        for (mut parser, results) in existing_parsers.into_iter() {
-            let new_results = parser.step(c);
-            *results.borrow_mut() = Some(new_results);
-            self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
-        }
         time! ("CacheContextParser.step part 3", {
+            // Second, compute new results
+            for (mut parser, results) in existing_parsers.into_iter() {
+                let new_results = parser.step(c);
+                *results.borrow_mut() = Some(new_results);
+                self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
+            }
+        });
+        time! ("CacheContextParser.step part 4", {
             self.cache_data_inner.borrow_mut().existing_parsers.reverse();
         });
-        println!("\n\n");
-        self.inner.step(c)
+        let r;
+        time! ("CacheContextParser.step part 5", {
+            r = self.inner.step(c)
+        });
+        println!("\n\n\n");
+        r
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
