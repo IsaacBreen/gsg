@@ -205,7 +205,10 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
         if rule.memo:
             expr = f'cached({expr})'
         f.write(f'    let {name} = {name}.set({expr}).into_rc_dyn();\n')
-    f.write('\n    cache_context(seq!(repeat0(NEWLINE), file)).into_rc_dyn()\n')
+    if any(rule.memo for rule in rules):
+        f.write('\n    cache_context(seq!(repeat0(NEWLINE), file)).into_rc_dyn()\n')
+    else:
+        f.write('\n    seq!(repeat0(NEWLINE), file).into_rc_dyn()\n')
     f.write('}\n')
     return f.getvalue()
 
