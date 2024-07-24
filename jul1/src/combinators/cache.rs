@@ -151,6 +151,13 @@ impl CombinatorTrait for Cached {
     type Parser = CachedParser;
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
+        let mut count = 0;
+        for (combinator, (parser, parse_results_rc_refcell)) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
+            if Rc::ptr_eq(combinator, &self.inner) {
+                count += 1;
+            }
+        }
+        assert!(count <= 1, "CachedParser.parser: combinator appears more than once");
         for (combinator, (parser, parse_results_rc_refcell)) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
             if Rc::ptr_eq(combinator, &self.inner) {
                 let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
