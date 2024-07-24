@@ -416,4 +416,45 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_cache() {
+        use crate::combinators::tag;
+        use crate::combinators::cache_context;
+        use crate::parse_state::RightData;
+
+        // Define the grammar
+        let a_combinator = cached(tag("A", eat_char_choice("a")));
+        let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
+
+        // Initialize the parser
+        let (mut parser, ParseResults { right_data_vec: _, up_data_vec: _, cut }) = s_combinator.parser(RightData::default());
+
+        {
+            // Check stats
+            let stats = parser.stats();
+            assert_eq!(stats.active_tags["A"], 1, "Expected one tag 'A' to be active initially");
+
+            // Check initial cache state
+            let initial_cache_state = parser.cache_data_inner.borrow();
+            assert_eq!(initial_cache_state.new_parsers.len(), 1, "Expected one tag 'A' to be active initially");
+            assert_eq!(initial_cache_state.existing_parsers.len(), 0, "Expected no existing parsers initially");
+        }
+
+        // Perform the first parsing step
+        let results = parser.step('a' as u8);
+
+        {
+            // Check stats
+            let stats = parser.stats();
+            assert_eq!(stats.active_tags["A"], 1, "Expected one tag 'A' to be active after the first step");
+
+            // Check the cache state after the first step
+            let cache_state_after_step = parser.cache_data_inner.borrow();
+            assert_eq!(cache_state_after_step.new_parsers.len(), 0, "Expected no new parsers after the first step");
+            assert_eq!(cache_state_after_step.existing_parsers.len(), 1, "Expected one existing parser after the first step");
+            assert_eq!(results.right_data_vec.len(), 1, "Expected one right data after the first step");
+            assert_eq!(results.up_data_vec.len(), 0, "Expected no up data after the first step");
+        }
+    }
 }

@@ -1,13 +1,14 @@
+use std::any::Any;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{DynCombinator, ParseResults, ParserTrait};
+use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParseResults, ParserTrait, RightData};
 
 #[derive(Debug, Clone, PartialEq, Default, PartialOrd, Ord, Eq)]
 pub struct CacheData {
-    pub inner: Rc<RefCell<CacheDataInner>>,
+    pub inner: Option<Rc<RefCell<CacheDataInner>>>,
 }
 
 impl Hash for CacheData {
@@ -16,15 +17,49 @@ impl Hash for CacheData {
     }
 }
 
+pub struct ComparableRc<T: ?Sized>(Rc<T>);
+
+impl From<Rc<DynCombinator>> for ComparableRc<DynCombinator> {
+    fn from(rc: Rc<DynCombinator>) -> Self {
+        ComparableRc(rc)
+    }
+}
+
+impl<T: ?Sized> PartialEq for ComparableRc<T> {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl<T: ?Sized> Eq for ComparableRc<T> {}
+
+impl<T: ?Sized> PartialOrd for ComparableRc<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T: ?Sized> Ord for ComparableRc<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        Rc::as_ptr(&self.0).cmp(&Rc::as_ptr(&other.0))
+    }
+}
+
+impl<T: ?Sized> Hash for ComparableRc<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Rc::as_ptr(&self.0).hash(state);
+    }
+}
+
 #[derive(Default)]
 pub struct CacheDataInner {
-    pub memoed: BTreeMap<CachedCombinator, Rc<RefCell<ParseResults>>>,
+    pub new_parsers: HashMap<ComparableRc<DynCombinator>, (Box<dyn ParserTrait>, Rc<RefCell<ParseResults>>)>,
+    pub existing_parsers: Vec<(Box<dyn ParserTrait>, Rc<RefCell<ParseResults>>)>,
 }
 
 impl Debug for CacheDataInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "GlobalDataInner:")?;
-        Ok(())
+        todo!()
     }
 }
 
@@ -49,33 +84,120 @@ impl Ord for CacheDataInner {
     }
 }
 
+pub struct CacheContext<T> {
+    pub inner: T,
+}
+
+pub struct CacheContextParser<P> {
+    pub inner: P,
+    pub cache_data_inner: Rc<RefCell<CacheDataInner>>,
+}
+
+impl<T> CombinatorTrait for CacheContext<T>
+where
+    T: CombinatorTrait,
+{
+    type Parser = CacheContextParser<T::Parser>;
+
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
+        assert!(right_data.cache_data.inner.is_none(), "CacheContextParser already initialized");
+        let cache_data_inner = Rc::new(RefCell::new(CacheDataInner::default()));
+        right_data.cache_data.inner = Some(cache_data_inner.clone());
+        let (parser, results) = self.inner.parser(right_data);
+        (CacheContextParser { inner: parser, cache_data_inner }, results)
+    }
+}
+
+impl<P> ParserTrait for CacheContextParser<P>
+where
+    P: ParserTrait + 'static,
+{
+    fn step(&mut self, c: u8) -> ParseResults {
+        // Move new parsers to existing parsers
+        let mut cache_data_inner = self.cache_data_inner.borrow_mut();
+        for (combinator, (parser, parse_results)) in std::mem::take(&mut cache_data_inner.new_parsers) {
+            cache_data_inner.existing_parsers.push((parser, parse_results));
+        }
+        // Remove any terminated parsers
+        cache_data_inner.existing_parsers.retain(|(parser, parse_results)| {
+            let parse_results = parse_results.borrow();
+            let terminated = parse_results.up_data_vec.is_empty() && parse_results.right_data_vec.is_empty();
+            !terminated
+        });
+        // Step existing parsers
+        for (parser, results) in cache_data_inner.existing_parsers.iter_mut() {
+            *results.borrow_mut() = parser.step(c);
+        }
+        self.inner.step(c)
+    }
+
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        todo!()
+    }
+
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        todo!()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 #[derive(Clone)]
-pub struct CachedCombinator {
+pub struct Cached {
     pub(crate) inner: Rc<DynCombinator>,
 }
 
-impl Hash for CachedCombinator {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        todo!()
+pub struct CachedParser {
+    pub parse_results: Rc<RefCell<ParseResults>>,
+}
+
+impl CombinatorTrait for Cached {
+    type Parser = CachedParser;
+
+    fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
+        // Try to use an already-initialized new parser
+        let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
+        if let Some((parser, parse_results)) = cache_data_inner.new_parsers.get(&self.inner.clone().into()) {
+            (CachedParser { parse_results: parse_results.clone() }, parse_results.borrow().clone())
+        } else {
+            // Create a new parser
+            let (parser, parse_results) = self.inner.parser(right_data.clone());
+            let parse_results_rc_refcell = Rc::new(RefCell::new(parse_results.clone()));
+            cache_data_inner.new_parsers.insert(self.inner.clone().into(), (Box::new(parser), parse_results_rc_refcell.clone()));
+            (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
+        }
     }
 }
 
-impl PartialEq for CachedCombinator {
-    fn eq(&self, other: &Self) -> bool {
-        todo!()
+impl ParserTrait for CachedParser {
+    fn step(&mut self, c: u8) -> ParseResults {
+        self.parse_results.borrow().clone()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
-impl Eq for CachedCombinator {}
-
-impl PartialOrd for CachedCombinator {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+impl IntoCombinator for &Cached {
+    type Output = Cached;
+    fn into_combinator(self) -> Self::Output {
+        self.clone()
     }
 }
 
-impl Ord for CachedCombinator {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        todo!()
-    }
+pub fn cached<T>(t: T) -> Cached
+where
+    T: IntoCombinator,
+{
+    Cached { inner: t.into_combinator().into_rc_dyn() }
+}
+
+pub fn cache_context<T>(t: T) -> CacheContext<T::Output>
+where
+    T: IntoCombinator,
+{
+    CacheContext { inner: t.into_combinator() }
 }
