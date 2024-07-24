@@ -18,15 +18,15 @@ pub struct Stats
 
 impl Display for Stats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // writeln!(f, "Active Parser Types:")?;
-        // for (name, count) in &self.active_parser_type_counts {
-        //     writeln!(f, "    {}: {}", name, count)?;
-        // }
-        // writeln!(f, "")?;
-        // writeln!(f, "Active Symbols:")?;
-        // for (name, count) in &self.active_symbols {
-        //     writeln!(f, "    {}: {}", name, count)?;
-        // }
+        writeln!(f, "Active Parser Types:")?;
+        for (name, count) in &self.active_parser_type_counts {
+            writeln!(f, "    {}: {}", name, count)?;
+        }
+        writeln!(f, "")?;
+        writeln!(f, "Active Symbols:")?;
+        for (name, count) in &self.active_symbols {
+            writeln!(f, "    {}: {}", name, count)?;
+        }
         writeln!(f, "")?;
         writeln!(f, "Active Tags:")?;
         for (name, count) in &self.active_tags {
