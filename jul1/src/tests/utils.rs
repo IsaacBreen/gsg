@@ -10,9 +10,13 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     let mut result = Ok(());
 
     let lines = input.lines().collect::<Vec<_>>();
+    let num_lines = lines.len();
     'outer: for (line_number, line) in tqdm!(lines.iter().enumerate(), animation = "fillup", position = 0) {
         // Add newline back in
-        let line = format!("{}\n", line);
+        let mut line = format!("{}", line);
+        if line_number != num_lines - 1 {
+            line = format!("{}\n", line);
+        }
         let bytes = line.bytes().collect::<Vec<_>>();
         for (char_number, byte) in tqdm!(bytes.iter().cloned().enumerate(), animation = "fillup", position = 1) {
             let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));

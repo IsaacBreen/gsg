@@ -426,6 +426,8 @@ mod tests {
         let a_combinator = cached(tag("A", eat_char_choice("a")));
         let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
 
+        assert_parses(&s_combinator, "a", "Test input");
+
         // Initialize the parser
         let (mut parser, ParseResults { right_data_vec: _, up_data_vec: _, cut }) = s_combinator.parser(RightData::default());
 
@@ -458,18 +460,30 @@ mod tests {
     }
 
     #[test]
+    fn test_cache2() {
+        // Define the grammar
+        let a_combinator = cached(tag("A", eat_char_choice("a")));
+        let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
+
+        assert_parses(&s_combinator, "a", "Test input");
+    }
+
+    #[test]
     fn test_cache_nested() {
         // Define the grammar
         forward_decls!(A);
-        A.set(tag("A", seq!(eat_string("["), &A, eat_string("]"))));
+        A.set(tag("A", cached(choice!(seq!(eat_string("["), opt(seq!(&A, opt(&A))), eat_string("]"))))));
         let s_combinator = cache_context(A);
 
-        let s = "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]";
+        // let s = "[]";
+        // let s = "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]";
+        // let s = "[[][]]";
+        let s = "[[][[][]]]";
         assert_parses(&s_combinator, s, "Test input");
     }
 
     #[test]
-    fn test_cache2() {
+    fn test_cache3() {
         use crate::combinators::tag;
         use crate::combinators::cache_context;
         // Define the grammar
