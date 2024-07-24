@@ -96,7 +96,7 @@ where
         }
 
         for (mut parser, results) in existing_parsers.into_iter() {
-            *results.borrow_mut() = Some(parser.step(c));
+            results.borrow_mut().replace(parser.step(c));
             self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
         }
 
