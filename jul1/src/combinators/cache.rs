@@ -119,8 +119,9 @@ where
         {
             // Move new parsers to existing parsers
             let mut cache_data_inner = self.cache_data_inner.borrow_mut();
-            let new_parsers_i = std::mem::take(&mut cache_data_inner.new_parsers_i);
-            let new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
+            cache_data_inner.new_parsers_i.clear();
+            let mut new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
+            new_parsers.reverse();
             cache_data_inner.existing_parsers.extend(new_parsers);
             // Remove any terminated parsers
             cache_data_inner.existing_parsers.retain(|(parser, parse_results)| {
@@ -130,8 +131,11 @@ where
             });
         }
         // Step existing parsers
-        for (parser, results) in self.cache_data_inner.borrow_mut().existing_parsers.iter_mut().rev() {
-            *results.borrow_mut() = parser.step(c);
+        let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
+        for (mut parser, results) in existing_parsers.into_iter().rev() {
+            let new_results = parser.step(c);
+            *results.borrow_mut() = new_results;
+            self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
         }
         self.inner.step(c)
     }
