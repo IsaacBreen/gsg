@@ -88,11 +88,13 @@ where
     P: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        let mut cache_data_inner = self.cache_data_inner.borrow_mut();
-        let mut new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
-        new_parsers.reverse();
-        for (_, x) in new_parsers.into_iter() {
-            cache_data_inner.existing_parsers.push(x);
+        {
+            let mut cache_data_inner = self.cache_data_inner.borrow_mut();
+            let mut new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
+            new_parsers.reverse();
+            for (_, x) in new_parsers.into_iter() {
+                cache_data_inner.existing_parsers.push(x);
+            }
         }
 
         let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
@@ -103,7 +105,7 @@ where
         }
 
         for (mut parser, results) in existing_parsers.into_iter() {
-            let new_results = parser.step(c);
+            let mut new_results = parser.step(c);
             *results.borrow_mut() = Some(new_results);
             self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
         }
