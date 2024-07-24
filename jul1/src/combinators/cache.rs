@@ -53,7 +53,8 @@ impl<T: ?Sized> Hash for ComparableRc<T> {
 
 #[derive(Default)]
 pub struct CacheDataInner {
-    pub new_parsers: HashMap<ComparableRc<DynCombinator>, (Box<dyn ParserTrait>, Rc<RefCell<ParseResults>>)>,
+    pub new_parsers_i: HashMap<ComparableRc<DynCombinator>, usize>,
+    pub new_parsers: Vec<(Box<dyn ParserTrait>, Rc<RefCell<ParseResults>>)>,
     pub existing_parsers: Vec<(Box<dyn ParserTrait>, Rc<RefCell<ParseResults>>)>,
 }
 
@@ -118,9 +119,9 @@ where
         {
             // Move new parsers to existing parsers
             let mut cache_data_inner = self.cache_data_inner.borrow_mut();
-            for (combinator, (parser, parse_results)) in std::mem::take(&mut cache_data_inner.new_parsers) {
-                cache_data_inner.existing_parsers.push((parser, parse_results));
-            }
+            let new_parsers_i = std::mem::take(&mut cache_data_inner.new_parsers_i);
+            let new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
+            self.cache_data_inner.borrow_mut().existing_parsers.extend(new_parsers);
             // Remove any terminated parsers
             cache_data_inner.existing_parsers.retain(|(parser, parse_results)| {
                 let parse_results = parse_results.borrow();
@@ -147,7 +148,7 @@ where
 
     fn collect_stats(&self, stats: &mut Stats) {
         self.inner.collect_stats(stats);
-        for (_, (parser, _)) in self.cache_data_inner.borrow().new_parsers.iter() {
+        for (parser, _) in self.cache_data_inner.borrow().new_parsers.iter() {
             parser.collect_stats(stats);
         }
         for (parser, _) in self.cache_data_inner.borrow().existing_parsers.iter() {
@@ -174,13 +175,16 @@ impl CombinatorTrait for Cached {
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         // Try to use an already-initialized new parser
-        if let Some((parser, parse_results)) = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.get(&self.inner.clone().into()) {
-            (CachedParser { parse_results: parse_results.clone() }, parse_results.borrow().clone())
+        if let Some(i) = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers_i.get(&self.inner.clone().into()) {
+            let parse_results_rc_refcell = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers[*i].1.clone();
+            (CachedParser { parse_results: parse_results_rc_refcell.clone() }, parse_results_rc_refcell.clone().borrow().clone())
         } else {
             // Create a new parser
             let (parser, parse_results) = self.inner.parser(right_data.clone());
             let parse_results_rc_refcell = Rc::new(RefCell::new(parse_results.clone()));
-            right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.insert(self.inner.clone().into(), (Box::new(parser), parse_results_rc_refcell.clone()));
+            let i = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.len();
+            right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers_i.insert(self.inner.clone().into(), i);
+            right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.push((Box::new(parser), parse_results_rc_refcell.clone()));
             (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
         }
     }
