@@ -139,13 +139,13 @@ where
             let mut new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
             new_parsers.reverse();
             cache_data_inner.existing_parsers.extend(new_parsers);
-            // Remove any terminated parsers
-            cache_data_inner.existing_parsers.retain(|(parser, parse_results)| {
-                let binding = parse_results.borrow();
-                let parse_results = binding.as_ref().expect("CacheContextParser.step: parse_results is None");
-                let terminated = parse_results.up_data_vec.is_empty() && parse_results.right_data_vec.is_empty();
-                !terminated
-            });
+            // // Remove any terminated parsers
+            // cache_data_inner.existing_parsers.retain(|(parser, parse_results)| {
+            //     let binding = parse_results.borrow();
+            //     let parse_results = binding.as_ref().expect("CacheContextParser.step: parse_results is None");
+            //     let terminated = parse_results.up_data_vec.is_empty() && parse_results.right_data_vec.is_empty();
+            //     !terminated
+            // });
         });
         let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
         time! ("CacheContextParser.step part 2", {
@@ -217,7 +217,7 @@ impl CombinatorTrait for Cached {
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         // Try to use an already-initialized new parser
         let mut maybe_i = {
-            let cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
+            let cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow();
             // cache_data_inner.new_parsers_i.get(&self.inner.clone().into()).cloned()
             cache_data_inner.new_parsers_i.iter().position(|(parser, _)| Rc::ptr_eq(&parser.0, &self.inner))
         };

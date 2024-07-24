@@ -5,7 +5,11 @@
 mod tests {
     use crate::*;
     use crate::combinators::*;
+    use crate::combinators::cache_context;
+    use crate::combinators::tag;
     use crate::parse_state::{RightData, UpData};
+    use crate::parse_state::RightData;
+    use crate::tests::utils::assert_parses;
 
     #[test]
     fn test_eat_u8() {
@@ -419,10 +423,6 @@ mod tests {
 
     #[test]
     fn test_cache() {
-        use crate::combinators::tag;
-        use crate::combinators::cache_context;
-        use crate::parse_state::RightData;
-
         // Define the grammar
         let a_combinator = cached(tag("A", eat_char_choice("a")));
         let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
@@ -460,21 +460,23 @@ mod tests {
 
     #[test]
     fn test_cache_nested() {
-        use crate::combinators::tag;
-        use crate::combinators::cache_context;
-        use crate::parse_state::RightData;
-
         // Define the grammar
         forward_decls!(A);
         A.set(tag("A", seq!(eat_string("["), &A, eat_string("]"))));
         let s_combinator = cache_context(A);
 
         let s = "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]";
-        let (mut parser, parse_results0) = s_combinator.parser(RightData::default());
-        for c in kdam::tqdm!(s.bytes()) {
-            let results = parser.step(c);
-            // Print stats
-            println!("{:?}", parser.stats());
-        }
+        assert_parses(&s_combinator, s, "Test input");
+    }
+
+    #[test]
+    fn test_cache2() {
+        use crate::combinators::tag;
+        use crate::combinators::cache_context;
+        // Define the grammar
+        forward_decls!(A);
+        A.set(tag("A", seq!(eat_string("["), &A, eat_string("]"))));
+        let s_combinator = cache_context(A);
+
     }
 }
