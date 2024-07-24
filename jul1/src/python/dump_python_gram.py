@@ -243,6 +243,10 @@ if __name__ == "__main__":
         ref('NEWLINE'): {ref('WS')},
         ref('INDENT'): {ref('WS')},
         ref('DEDENT'): {ref('WS')},
+        ref('NAME'): {ref('NAME')},
+        ref('NUMBER'): {ref('NUMBER')},
+        ref('WS'): {ref('WS')},
+        # ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
     custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
 

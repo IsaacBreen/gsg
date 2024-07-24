@@ -14,9 +14,9 @@ pub struct CacheData {
 impl Hash for CacheData {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the pointer of the inner data
-        let inner = self.inner.as_ref().unwrap();
-        let ptr = Rc::as_ptr(inner) as usize;
-        ptr.hash(state);
+        // let inner = self.inner.as_ref().unwrap();
+        // let ptr = Rc::as_ptr(inner) as usize;
+        // ptr.hash(state);
     }
 }
 
@@ -44,13 +44,16 @@ impl<T: ?Sized> PartialOrd for ComparableRc<T> {
 
 impl<T: ?Sized> Ord for ComparableRc<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        Rc::as_ptr(&self.0).cmp(&Rc::as_ptr(&other.0))
+        // Compare the pointers of the inner data
+        let ptr = std::ptr::addr_of!(self.0) as *const ();
+        let other_ptr = std::ptr::addr_of!(other.0) as *const ();
+        ptr.cmp(&other_ptr)
     }
 }
 
 impl<T: ?Sized> Hash for ComparableRc<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        Rc::as_ptr(&self.0).hash(state);
+        // Rc::as_ptr(&self.0).hash(state);
     }
 }
 
@@ -84,9 +87,10 @@ impl PartialOrd for CacheDataInner {
 
 impl Ord for CacheDataInner {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let self_ptr = std::ptr::addr_of!(self) as *const ();
-        let other_ptr = std::ptr::addr_of!(other) as *const ();
-        self_ptr.cmp(&other_ptr)
+        // let self_ptr = std::ptr::addr_of!(self) as *const ();
+        // let other_ptr = std::ptr::addr_of!(other) as *const ();
+        // self_ptr.cmp(&other_ptr)
+        std::cmp::Ordering::Equal
     }
 }
 
@@ -214,16 +218,22 @@ impl CombinatorTrait for Cached {
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         // Try to use an already-initialized new parser
-        let maybe_i = {
+        let mut maybe_i = {
             let cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
             cache_data_inner.new_parsers_i.get(&self.inner.clone().into()).cloned()
         };
         if let Some(i) = maybe_i {
             let parse_results_rc_refcell = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers[i].1.clone();
-            (CachedParser { parse_results: parse_results_rc_refcell.clone() }, parse_results_rc_refcell.clone().borrow().clone().expect("CachedParser.parser: parse_results is None"))
+            let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
+            //             // Create a new parser
+            // let (parser, mut parse_results) = self.inner.parser(right_data.clone());
+            // parse_results.squash();
+
+            (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
         } else {
             // Create a new parser
-            let (parser, parse_results) = self.inner.parser(right_data.clone());
+            let (parser, mut parse_results) = self.inner.parser(right_data.clone());
+            parse_results.squash();
             let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
             let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
             let i = cache_data_inner.new_parsers.len();
