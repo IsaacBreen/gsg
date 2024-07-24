@@ -91,9 +91,9 @@ where
         // Ensure no results appear more than once
         for i in 0..self.cache_data_inner.borrow().existing_parsers.len() {
             for j in 0..i {
-                let (parser_i, results_i) = self.cache_data_inner.borrow().existing_parsers[i].clone();
-                let (parser_j, results_j) = self.cache_data_inner.borrow().existing_parsers[j].clone();
-                assert!(!Rc::ptr_eq(&parser_i, &parser_j));
+                let (parser_i, results_i) = &self.cache_data_inner.borrow().existing_parsers[i];
+                let (parser_j, results_j) = &self.cache_data_inner.borrow().existing_parsers[j];
+                assert!(!Rc::ptr_eq(results_i, results_j));
             }
         }
 
