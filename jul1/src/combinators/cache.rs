@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParseResults, ParserTrait, RightData};
+use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParseResults, ParserTrait, RightData, Stats};
 
 #[derive(Debug, Clone, PartialEq, Default, PartialOrd, Ord, Eq)]
 pub struct CacheData {
@@ -17,7 +17,7 @@ impl Hash for CacheData {
     }
 }
 
-pub struct ComparableRc<T: ?Sized>(Rc<T>);
+pub struct ComparableRc<T: ?Sized>(pub Rc<T>);
 
 impl From<Rc<DynCombinator>> for ComparableRc<DynCombinator> {
     fn from(rc: Rc<DynCombinator>) -> Self {
@@ -66,7 +66,7 @@ impl Debug for CacheDataInner {
 // #[derive(Clone, PartialEq, Default, Hash, PartialOrd, Ord, Eq)]
 impl PartialEq for CacheDataInner {
     fn eq(&self, other: &Self) -> bool {
-        todo!()
+        std::ptr::eq(self, other)
     }
 }
 
@@ -80,7 +80,9 @@ impl PartialOrd for CacheDataInner {
 
 impl Ord for CacheDataInner {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        todo!()
+        let self_ptr = std::ptr::addr_of!(self) as *const ();
+        let other_ptr = std::ptr::addr_of!(other) as *const ();
+        self_ptr.cmp(&other_ptr)
     }
 }
 
@@ -132,11 +134,23 @@ where
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
+        // Iterate over the inner parser, new parsers in the cache, and the existing parsers in the cache
         todo!()
     }
 
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
+        // Iterate over the inner parser, new parsers in the cache, and the existing parsers in the cache
         todo!()
+    }
+
+    fn collect_stats(&self, stats: &mut Stats) {
+        self.inner.collect_stats(stats);
+        for (_, (parser, _)) in self.cache_data_inner.borrow().new_parsers.iter() {
+            parser.collect_stats(stats);
+        }
+        for (parser, _) in self.cache_data_inner.borrow().existing_parsers.iter() {
+            parser.collect_stats(stats);
+        }
     }
 
     fn as_any(&self) -> &dyn Any {

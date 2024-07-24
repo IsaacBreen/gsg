@@ -442,7 +442,7 @@ mod tests {
         }
 
         // Perform the first parsing step
-        let results = parser.step('a' as u8);
+        let results = parser.step('a' as u8).squashed();
 
         {
             // Check stats
