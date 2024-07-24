@@ -1,8 +1,2 @@
-class X:
-    @d
-    def f():
-        pass
-
-    @d
-    def f():
-        pass
+def f(): pass
+def f(): pass
