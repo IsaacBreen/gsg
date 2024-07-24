@@ -29,10 +29,10 @@ impl Display for Stats {
         }
 
         write_sorted(f, "Active Parser Types:", self.active_parser_type_counts.clone().into_iter().collect::<Vec<_>>().as_slice())?;
-        write_sorted(f, "Active Symbols:", self.active_symbols.clone().into_iter().collect::<Vec<_>>().as_slice())?;
+        // write_sorted(f, "Active Symbols:", self.active_symbols.clone().into_iter().collect::<Vec<_>>().as_slice())?;
         write_sorted(f, "Active Tags:", self.active_tags.clone().into_iter().collect::<Vec<_>>().as_slice())?;
-        write_sorted(f, "Active String Matchers:", self.active_string_matchers.clone().into_iter().collect::<Vec<_>>().as_slice())?;
-        write_sorted(f, "Active U8 Matchers:", self.active_u8_matchers.clone().into_iter().collect::<Vec<_>>().as_slice())?;
+        // write_sorted(f, "Active String Matchers:", self.active_string_matchers.clone().into_iter().collect::<Vec<_>>().as_slice())?;
+        // write_sorted(f, "Active U8 Matchers:", self.active_u8_matchers.clone().into_iter().collect::<Vec<_>>().as_slice())?;
 
         Ok(())
     }
