@@ -224,9 +224,10 @@ impl CombinatorTrait for Cached {
         // Try to use an already-initialized new parser
         let mut maybe_i = {
             let cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow();
-            // cache_data_inner.new_parsers_i.get(&self.inner.clone().into()).cloned()
-            // cache_data_inner.new_parsers_i.iter().position(|(parser, _)| Rc::ptr_eq(&parser.0, &self.inner))
-            Some(0)
+        //     cache_data_inner.new_parsers_i.get(&self.inner.clone().into()).cloned()
+        //     cache_data_inner.new_parsers_i.iter().position(|(parser, _)| Rc::ptr_eq(&parser.0, &self.inner))
+            cache_data_inner.new_parsers.iter().position(|(combinator, _)| Rc::ptr_eq(&combinator.0, &self.inner))
+        //     Some(0)
         };
         // maybe_i = None;
         if let Some(i) = maybe_i {
