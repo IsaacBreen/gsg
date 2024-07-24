@@ -54,8 +54,8 @@ impl<T: ?Sized> Hash for ComparableRc<T> {
 #[derive(Default)]
 pub struct CacheDataInner {
     pub new_parsers_i: HashMap<ComparableRc<DynCombinator>, usize>,
-    pub new_parsers: Vec<(Box<dyn ParserTrait>, Rc<RefCell<ParseResults>>)>,
-    pub existing_parsers: Vec<(Box<dyn ParserTrait>, Rc<RefCell<ParseResults>>)>,
+    pub new_parsers: Vec<(Box<dyn ParserTrait>, Rc<RefCell<Option<ParseResults>>>)>,
+    pub existing_parsers: Vec<(Box<dyn ParserTrait>, Rc<RefCell<Option<ParseResults>>>)>,
 }
 
 impl Debug for CacheDataInner {
@@ -125,16 +125,22 @@ where
             cache_data_inner.existing_parsers.extend(new_parsers);
             // Remove any terminated parsers
             cache_data_inner.existing_parsers.retain(|(parser, parse_results)| {
-                let parse_results = parse_results.borrow();
+                let binding = parse_results.borrow();
+                let parse_results = binding.as_ref().expect("CacheContextParser.step: parse_results is None");
                 let terminated = parse_results.up_data_vec.is_empty() && parse_results.right_data_vec.is_empty();
                 !terminated
             });
         }
         // Step existing parsers
         let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
+        // First, clear existing results
+        for (_, results) in existing_parsers.iter_mut() {
+            results.borrow_mut().take();
+        }
+        // Second, compute new results
         for (mut parser, results) in existing_parsers.into_iter().rev() {
             let new_results = parser.step(c);
-            *results.borrow_mut() = new_results;
+            *results.borrow_mut() = Some(new_results);
             self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
         }
         self.inner.step(c)
@@ -171,7 +177,7 @@ pub struct Cached {
 }
 
 pub struct CachedParser {
-    pub parse_results: Rc<RefCell<ParseResults>>,
+    pub parse_results: Rc<RefCell<Option<ParseResults>>>,
 }
 
 impl CombinatorTrait for Cached {
@@ -185,11 +191,11 @@ impl CombinatorTrait for Cached {
         };
         if let Some(i) = maybe_i {
             let parse_results_rc_refcell = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers[i].1.clone();
-            (CachedParser { parse_results: parse_results_rc_refcell.clone() }, parse_results_rc_refcell.clone().borrow().clone())
+            (CachedParser { parse_results: parse_results_rc_refcell.clone() }, parse_results_rc_refcell.clone().borrow().clone().expect("CachedParser.parser: parse_results is None"))
         } else {
             // Create a new parser
             let (parser, parse_results) = self.inner.parser(right_data.clone());
-            let parse_results_rc_refcell = Rc::new(RefCell::new(parse_results.clone()));
+            let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
             let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
             let i = cache_data_inner.new_parsers.len();
             cache_data_inner.new_parsers_i.insert(self.inner.clone().into(), i);
@@ -201,7 +207,7 @@ impl CombinatorTrait for Cached {
 
 impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        self.parse_results.borrow().clone()
+        self.parse_results.borrow().clone().expect("CachedParser.step: parse_results is None")
     }
 
     fn as_any(&self) -> &dyn Any {
