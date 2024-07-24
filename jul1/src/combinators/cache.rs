@@ -12,7 +12,7 @@ pub struct CacheData {
 
 impl Hash for CacheData {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        
+
     }
 }
 
@@ -83,63 +83,37 @@ where
     }
 }
 
-macro_rules! time {
-    ($desc:expr, $code:block) => {
-        let start = std::time::Instant::now();
-        let r = $code;
-        let end = std::time::Instant::now();
-        println!("{}: {:?}", $desc, end - start);
-        r
-    };
-}
-
 impl<P> ParserTrait for CacheContextParser<P>
 where
     P: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        time!("CacheContextParser.step part 1", {
-            let mut cache_data_inner = self.cache_data_inner.borrow_mut();
-            let mut new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
-            new_parsers.reverse();
-            for (_, x) in new_parsers.into_iter() {
-                cache_data_inner.existing_parsers.push(x);
-            }
-        });
+        let mut cache_data_inner = self.cache_data_inner.borrow_mut();
+        let mut new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
+        new_parsers.reverse();
+        for (_, x) in new_parsers.into_iter() {
+            cache_data_inner.existing_parsers.push(x);
+        }
 
         let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
 
-        time!("CacheContextParser.step part 2", {
-            existing_parsers.reverse();
-            for (_, results) in existing_parsers.iter_mut() {
-                results.borrow_mut().take();
-            }
-        });
+        existing_parsers.reverse();
+        for (_, results) in existing_parsers.iter_mut() {
+            results.borrow_mut().take();
+        }
 
-        println!("Number of existing parsers: {}", existing_parsers.len());
+        for (mut parser, results) in existing_parsers.into_iter() {
+            let new_results = parser.step(c);
+            *results.borrow_mut() = Some(new_results);
+            self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
+        }
 
-        time!("CacheContextParser.step part 3", {
-            for (mut parser, results) in existing_parsers.into_iter() {
-                let mut new_results = parser.step(c);
-                *results.borrow_mut() = Some(new_results);
-                self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
-            }
-        });
+        self.cache_data_inner.borrow_mut().existing_parsers.reverse();
 
-        time!("CacheContextParser.step part 4", {
-            self.cache_data_inner.borrow_mut().existing_parsers.reverse();
-        });
-
-        let r;
-        time!("CacheContextParser.step part 5", {
-            r = self.inner.step(c)
-        });
-
-        println!("\n\n\n");
-        r
+        self.inner.step(c)
     }
 
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item = &'a dyn ParserTrait> + 'a> {
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
         todo!()
     }
 
