@@ -32,7 +32,8 @@ impl CombinatorTrait for EatU8 {
 impl ParserTrait for EatU8Parser {
     fn step(&mut self, c: u8) -> ParseResults {
         if self.u8set.contains(c) {
-            if let Some(right_data) = self.right_data.take() {
+            if let Some(mut right_data) = self.right_data.take() {
+                right_data.position += 1;
                 return ParseResults {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![],

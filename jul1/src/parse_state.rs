@@ -42,6 +42,7 @@ pub struct RightData {
     pub greed_order: GreedOrder,
     pub prevent_consecutive_matches: PreventConsecutiveMatchesData,
     pub cache_data: CacheData,
+    pub position: usize,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -59,6 +60,7 @@ impl Default for RightData {
             greed_order: GreedOrder::default(),
             prevent_consecutive_matches: PreventConsecutiveMatchesData::default(),
             cache_data: CacheData::default(),
+            position: 0,
         }
     }
 }

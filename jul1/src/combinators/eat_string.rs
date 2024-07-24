@@ -37,6 +37,7 @@ impl ParserTrait for EatStringParser {
                 self.index += 1;
                 if self.index == self.string.len() {
                     let mut right_data = self.right_data.take().unwrap();
+                    right_data.position += self.string.len();
                     ParseResults {
                         right_data_vec: vec![right_data],
                         up_data_vec: vec![],

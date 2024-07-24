@@ -156,6 +156,7 @@ impl ParserTrait for IndentCombinatorParser {
             IndentCombinatorParser::IndentParser(maybe_right_data) => {
                 if c == b' ' {
                     let mut right_data = maybe_right_data.as_mut().unwrap();
+                    right_data.position += 1;
                     right_data.indents.last_mut().unwrap().push(c);
                     ParseResults {
                         right_data_vec: vec![right_data.clone()],
