@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use std::any::Any;
 use std::hash::Hasher;
@@ -18,30 +18,22 @@ pub struct Stats
 
 impl Display for Stats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Active Parser Types:")?;
-        for (name, count) in &self.active_parser_type_counts {
-            writeln!(f, "    {}: {}", name, count)?;
+        fn write_sorted<S: Clone + Display>(f: &mut Formatter, title: &str, items: &[(S, usize)]) -> std::fmt::Result {
+            writeln!(f, "{}", title)?;
+            let mut sorted_items = items.to_vec();
+            sorted_items.sort_by(|a, b| a.1.cmp(&b.1));
+            for (name, count) in sorted_items {
+                writeln!(f, "    {}: {}", name, count)?;
+            }
+            writeln!(f, "")
         }
-        writeln!(f, "")?;
-        writeln!(f, "Active Symbols:")?;
-        for (name, count) in &self.active_symbols {
-            writeln!(f, "    {}: {}", name, count)?;
-        }
-        writeln!(f, "")?;
-        writeln!(f, "Active Tags:")?;
-        for (name, count) in &self.active_tags {
-            writeln!(f, "    {}: {}", name, count)?;
-        }
-        // writeln!(f, "")?;
-        // writeln!(f, "Active String Matchers:")?;
-        // for (name, count) in &self.active_string_matchers {
-        //     writeln!(f, "    {}: {}", name, count)?;
-        // }
-        // writeln!(f, "")?;
-        // writeln!(f, "Active U8 Matchers:")?;
-        // for (name, count) in &self.active_u8_matchers {
-        //     writeln!(f, "    {}: {}", name, count)?;
-        // }
+
+        write_sorted(f, "Active Parser Types:", self.active_parser_type_counts.clone().into_iter().collect::<Vec<_>>().as_slice())?;
+        write_sorted(f, "Active Symbols:", self.active_symbols.clone().into_iter().collect::<Vec<_>>().as_slice())?;
+        write_sorted(f, "Active Tags:", self.active_tags.clone().into_iter().collect::<Vec<_>>().as_slice())?;
+        write_sorted(f, "Active String Matchers:", self.active_string_matchers.clone().into_iter().collect::<Vec<_>>().as_slice())?;
+        write_sorted(f, "Active U8 Matchers:", self.active_u8_matchers.clone().into_iter().collect::<Vec<_>>().as_slice())?;
+
         Ok(())
     }
 }
