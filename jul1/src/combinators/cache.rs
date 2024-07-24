@@ -39,14 +39,13 @@ impl Eq for CacheDataInner {}
 
 impl PartialOrd for CacheDataInner {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        todo!();
         Some(self.cmp(other))
     }
 }
 
 impl Ord for CacheDataInner {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        todo!();
+        self.new_parsers.len().cmp(&other.new_parsers.len()).then_with(|| self.existing_parsers.len().cmp(&other.existing_parsers.len()))
     }
 }
 

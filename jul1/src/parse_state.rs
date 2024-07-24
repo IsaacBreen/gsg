@@ -76,7 +76,7 @@ impl Squash for Vec<RightData> {
     type Output = Vec<RightData>;
     fn squashed(self) -> Self::Output {
         if self.len() > 1 {
-            self.into_iter().collect::<HashSet<_>>().into_iter().collect()
+            self.into_iter().collect::<BTreeSet<_>>().into_iter().collect()
         } else {
             self
         }
