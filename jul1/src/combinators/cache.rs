@@ -28,34 +28,34 @@ impl From<Rc<DynCombinator>> for ComparableRc<DynCombinator> {
     }
 }
 
-impl<T: ?Sized> PartialEq for ComparableRc<T> {
-    fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
-    }
-}
+// impl<T: ?Sized> PartialEq for ComparableRc<T> {
+//     fn eq(&self, other: &Self) -> bool {
+//         Rc::ptr_eq(&self.0, &other.0)
+//     }
+// }
+//
+// impl<T: ?Sized> Eq for ComparableRc<T> {}
+//
+// impl<T: ?Sized> PartialOrd for ComparableRc<T> {
+//     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+//         Some(self.cmp(other))
+//     }
+// }
+//
+// impl<T: ?Sized> Ord for ComparableRc<T> {
+//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+//         // Compare the pointers of the inner data
+//         let ptr = std::ptr::addr_of!(self.0) as *const ();
+//         let other_ptr = std::ptr::addr_of!(other.0) as *const ();
+//         ptr.cmp(&other_ptr)
+//     }
+// }
 
-impl<T: ?Sized> Eq for ComparableRc<T> {}
-
-impl<T: ?Sized> PartialOrd for ComparableRc<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<T: ?Sized> Ord for ComparableRc<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Compare the pointers of the inner data
-        let ptr = std::ptr::addr_of!(self.0) as *const ();
-        let other_ptr = std::ptr::addr_of!(other.0) as *const ();
-        ptr.cmp(&other_ptr)
-    }
-}
-
-impl<T: ?Sized> Hash for ComparableRc<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // Rc::as_ptr(&self.0).hash(state);
-    }
-}
+// impl<T: ?Sized> Hash for ComparableRc<T> {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         // Rc::as_ptr(&self.0).hash(state);
+//     }
+// }
 
 #[derive(Default)]
 pub struct CacheDataInner {
@@ -71,9 +71,9 @@ impl Debug for CacheDataInner {
     }
 }
 
-// #[derive(Clone, PartialEq, Default, Hash, PartialOrd, Ord, Eq)]
 impl PartialEq for CacheDataInner {
     fn eq(&self, other: &Self) -> bool {
+        todo!();
         std::ptr::eq(self, other)
     }
 }
@@ -82,16 +82,14 @@ impl Eq for CacheDataInner {}
 
 impl PartialOrd for CacheDataInner {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        todo!();
         Some(self.cmp(other))
     }
 }
 
 impl Ord for CacheDataInner {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // let self_ptr = std::ptr::addr_of!(self) as *const ();
-        // let other_ptr = std::ptr::addr_of!(other) as *const ();
-        // self_ptr.cmp(&other_ptr)
-        std::cmp::Ordering::Equal
+        todo!();
     }
 }
 
@@ -121,12 +119,11 @@ where
 
 macro_rules! time {
     ($desc:expr, $code:block) => {
-        // let start = std::time::Instant::now();
-//         let r = $code;
-//         let end = std::time::Instant::now();
-//         println!("{}: {:?}", $desc, end - start);
-//         r
-        $code
+        let start = std::time::Instant::now();
+        let r = $code;
+        let end = std::time::Instant::now();
+        println!("{}: {:?}", $desc, end - start);
+        r
     };
 }
 
@@ -164,7 +161,7 @@ where
             // Second, compute new results
             for (mut parser, results) in existing_parsers.into_iter() {
                 let mut new_results = parser.step(c);
-                new_results.squash();
+                // new_results.squash();
                 *results.borrow_mut() = Some(new_results);
                 self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
             }
@@ -224,20 +221,26 @@ impl CombinatorTrait for Cached {
             // cache_data_inner.new_parsers_i.get(&self.inner.clone().into()).cloned()
             cache_data_inner.new_parsers_i.iter().position(|(parser, _)| Rc::ptr_eq(&parser.0, &self.inner))
         };
+        // maybe_i = None;
         if let Some(i) = maybe_i {
             let parse_results_rc_refcell = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers[i].1.clone();
             let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
+
+            let (_, parse_results_gt) = self.inner.parser(right_data.clone());
+            assert_eq!(parse_results, parse_results_gt);
+
             (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
         } else {
             // Create a new parser
             let (parser, mut parse_results) = self.inner.parser(right_data.clone());
-            parse_results.squash();
+            // parse_results.squash();
             let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
             let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
             let i = cache_data_inner.new_parsers.len();
             // cache_data_inner.new_parsers_i.insert(self.inner.clone().into(), i);
             cache_data_inner.new_parsers_i.push((self.inner.clone().into(), i));
             cache_data_inner.new_parsers.push((Box::new(parser), parse_results_rc_refcell.clone()));
+            assert!(cache_data_inner.new_parsers_i.len() == cache_data_inner.new_parsers.len());
             (CachedParser { parse_results: parse_results_rc_refcell }, parse_results)
         }
     }
