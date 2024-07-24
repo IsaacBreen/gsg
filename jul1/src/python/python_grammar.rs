@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, prevent_consecutive_matches, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};
+use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, cached, cache_context, prevent_consecutive_matches, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};
 use super::python_tokenizer::{WS, NAME, TYPE_COMMENT, FSTRING_START, FSTRING_MIDDLE, FSTRING_END, NUMBER, STRING, NEWLINE, INDENT, DEDENT, ENDMARKER};
 use super::python_tokenizer::python_literal;
 use crate::{seq, repeat0, repeat1};
@@ -153,7 +153,6 @@ pub fn python_file() -> Rc<DynCombinator> {
         &tuple,
         &group,
         &genexp,
-        // Here's the issue. A list comp looks exactly like a list at first.
         &list,
         &listcomp,
         &dict,
@@ -484,7 +483,5 @@ pub fn python_file() -> Rc<DynCombinator> {
     let interactive = interactive.set(tag("interactive", &statement_newline)).into_rc_dyn();
     let file = file.set(tag("file", seq!(opt(&statements), &ENDMARKER))).into_rc_dyn();
 
-    // seq!(repeat0(NEWLINE), file).into_rc_dyn()
-
-    list.into_rc_dyn()
+    cache_context(seq!(repeat0(NEWLINE), file)).into_rc_dyn()
 }

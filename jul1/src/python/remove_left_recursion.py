@@ -6,7 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from io import StringIO
-from typing import Self, Iterable, Callable
+from typing import Self, Iterable, Callable, Any
 
 import itertools
 from tqdm import tqdm
@@ -40,6 +40,8 @@ def is_nullable(node: Node, nullable_rules: set[Ref]) -> bool:
             return False
         case EpsExternal(_):
             return True
+        case Wrapper(child, _):
+            return is_nullable(child, nullable_rules)
         case Seq(children):
             return all(is_nullable(child, nullable_rules) for child in children)
         case Choice(children):
@@ -71,6 +73,8 @@ def get_firsts(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExte
         return {node}
     elif isinstance(node, EpsExternal):
         return {node}
+    elif isinstance(node, Wrapper):
+        return get_firsts(node.child, nullable_rules)
     elif isinstance(node, Seq):
         result = set()
         for child in node.children:
@@ -131,6 +135,9 @@ def iter_nodes(node: Node) -> Iterable[Node]:
             for child in children:
                 yield from iter_nodes(child)
         case Repeat1(child):
+            yield node
+            yield from iter_nodes(child)
+        case Wrapper(child, _):
             yield node
             yield from iter_nodes(child)
         case _:
@@ -204,6 +211,8 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
                 return Choice([intersperse_separator_for_node(child, separator, nullable_rules) for child in children])
             case Repeat1(child):
                 return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
+            case Wrapper(child, data):
+                return Wrapper(intersperse_separator_for_node(child, separator, nullable_rules), data)
             case Ref(_) | Term(_) | EpsExternal(_):
                 return node
             case _:
@@ -223,6 +232,9 @@ def inject_prefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: 
             case Seq(children):
                 children = [inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children]
                 return seq(*children)
+            case Wrapper(child, data):
+                assert isinstance(node, Wrapper)
+                return Wrapper(inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules), data)
             case _:
                 raise ValueError(f"Unexpected nullable node: {node}")
     except ValueError as e:
@@ -240,6 +252,9 @@ def inject_suffix_on_nonnull_for_node(node: Node, suffix: Node, nullable_rules: 
             case Seq(children):
                 children = [inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules) for child in children]
                 return seq(*children)
+            case Wrapper(child, data):
+                assert isinstance(node, Wrapper)
+                return Wrapper(inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules), data)
             case _:
                 raise ValueError(f"Unexpected nullable node: {node}")
     except ValueError as e:
@@ -261,11 +276,16 @@ def intersperse_separator(rules: dict[Ref, Node], separator: Node) -> dict[Ref, 
 def get_firsts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExternal]:
     match node:
         case Ref(_):
+            assert isinstance(node, Ref)
             return {node}
         case Term(_):
+            assert isinstance(node, Term)
             return {node}
         case EpsExternal(_):
+            assert isinstance(node, EpsExternal)
             return {node}
+        case Wrapper(child, _):
+            return get_firsts_for_node(child, nullable_rules)
         case Seq(children):
             result = set()
             for child in children:
@@ -295,6 +315,8 @@ def get_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term |
         case EpsExternal(_):
             assert isinstance(node, EpsExternal)
             return {node}
+        case Wrapper(child, _):
+            return get_lasts_for_node(child, nullable_rules)
         case Seq(children):
             result = set()
             for child in reversed(children):
@@ -355,6 +377,8 @@ def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref |
             return {}
         case EpsExternal(_):
             return {}
+        case Wrapper(child, _):
+            return collect_follows_for_node(child, nullable_rules)
         case Seq(children):
             result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
             for i, child in enumerate(children):
@@ -416,6 +440,8 @@ def map_left(node: Node, f: Callable[[Node], Node], nullable_rules: set[Ref]) ->
             return Choice([map_left(child, f, nullable_rules) for child in children])
         case Repeat1(child):
             return Repeat1(map_left(child, f, nullable_rules))
+        case Wrapper(child, data):
+            return Wrapper(map_left(child, f, nullable_rules), data)
         case _:
             return node
 
@@ -447,6 +473,8 @@ def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidd
                 return Choice([forbid_follows_for_node(child, first, forbidden_follows, nullable_rules) for child in children])
             case Repeat1(child):
                 return Repeat1(forbid_follows_for_node(child, first, forbidden_follows, nullable_rules))
+            case Wrapper(child, data):
+                return Wrapper(forbid_follows_for_node(child, first, forbidden_follows, nullable_rules), data)
             case Ref(_) | Term(_) | EpsExternal(_):
                 return node
             case _:
@@ -691,6 +719,33 @@ class Repeat1(Node):
         return f'\u001b[35mrepeat1\u001b[0m({str(self.child)})'
 
 
+@dataclass
+class Wrapper(Node):
+    child: Node
+    data: Any
+
+    def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
+        first, recursive = self.child.decompose_on_left_recursion(ref)
+        recursive = recursive.simplify()
+        if recursive != fail():
+            raise NotImplementedError("Wrappers with recursive children are not supported")
+        else:
+            return Wrapper(first, self.data), recursive
+
+    def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
+        return Wrapper(self.child.replace_left_refs(replacements), self.data)
+
+    def simplify(self) -> Node:
+        self.child = self.child.simplify()
+        return self if self.child != fail() else fail()
+
+    def copy(self) -> Self:
+        return Wrapper(self.child.copy(), self.data)
+
+    def __str__(self) -> str:
+        return f'\u001b[35mwrapper\u001b[0m({str(self.child)}, {repr(self.data)})'
+
+
 @dataclass(frozen=True)
 class Ref(Node):
     name: str
@@ -758,10 +813,10 @@ class EpsExternal[T](Node):
 def seq(*children: Node) -> Seq: return Seq(list(children))
 def choice(*children: Node) -> Choice: return Choice(list(children))
 def repeat1(child: Node) -> Repeat1: return Repeat1(child)
+def wrapper(child: Node, data: Any) -> Wrapper: return Wrapper(child, data)
 def ref(name: str) -> Ref: return Ref(name)
 def term(value: str) -> Term: return Term(value)
 def eps_external[T](data: T) -> EpsExternal[T]: return EpsExternal(data)
-
 
 # Derived combinators
 def eps() -> Seq: return Seq([])

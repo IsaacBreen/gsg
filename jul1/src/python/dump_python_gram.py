@@ -82,6 +82,8 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True)
         ref = remove_left_recursion.ref(name)
         if not (ignore_invalid and ref.name.startswith('invalid_')):
             rules[ref] = rhs_to_node(rule.rhs)
+            if rule.memo:
+                rules[ref] = remove_left_recursion.wrapper(rules[ref], "memo")
     return rules
 
 def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion.Node]) -> pegen.grammar.Grammar:
@@ -115,12 +117,20 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
             return pegen.grammar.Group(node_to_rhs(node))
         elif isinstance(node, remove_left_recursion.Repeat1):
             return pegen.grammar.Repeat1(node_to_item(node.child))
+        elif isinstance(node, remove_left_recursion.Wrapper):
+            raise NotImplementedError(f"Wrappers are not supported: {node}")
         else:
             raise ValueError(f"Unknown node type: {type(node)}")
 
     pegen_rules = {}
     for ref, node in rules.items():
+        if isinstance(node, remove_left_recursion.Wrapper) and node.data == "memo":
+            memo = True
+            node = node.child
+        else:
+            memo = False
         pegen_rules[ref.name] = pegen.grammar.Rule(ref.name, None, node_to_rhs(node.simplify()))
+        pegen_rules[ref.name].memo = memo
     return pegen.grammar.Grammar(pegen_rules.values(), {})
 
 def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
@@ -185,7 +195,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, prevent_consecutive_matches, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
+    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, cached, cache_context, prevent_consecutive_matches, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
@@ -202,8 +212,10 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     for name, rule in rules:
         expr = rhs_to_rust(rule.rhs, top_level=True)
         expr = f'tag("{name}", {expr})'
+        if rule.memo:
+            expr = f'cached({expr})'
         f.write(f'    let {name} = {name}.set({expr}).into_rc_dyn();\n')
-    f.write('\n    seq!(repeat0(NEWLINE), file).into_rc_dyn()\n')
+    f.write('\n    cache_context(seq!(repeat0(NEWLINE), file)).into_rc_dyn()\n')
     f.write('}\n')
     return f.getvalue()
 
