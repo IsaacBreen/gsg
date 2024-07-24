@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::rc::Rc;
 use std::any::Any;
-
+use std::hash::Hasher;
 use crate::parse_state::{RightData, UpData};
 use crate::{ParseResults, U8Set};
 
@@ -119,6 +119,7 @@ pub trait ParserTrait {
             false
         }
     }
+    fn dyn_hash(&self, state: &mut dyn Hasher) {}
     fn as_any(&self) -> &dyn Any;
 }
 

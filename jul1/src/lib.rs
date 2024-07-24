@@ -1,4 +1,5 @@
 #![feature(assert_matches)]
+extern crate core;
 
 pub use combinator::*;
 pub use combinators::*;

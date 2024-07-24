@@ -1,6 +1,9 @@
+use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 use crate::{FrameStack, GreedOrder, PreventConsecutiveMatchesData, U8Set};
+use crate::CacheData;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseResults {
@@ -38,6 +41,7 @@ pub struct RightData {
     pub scope_count: usize,
     pub greed_order: GreedOrder,
     pub prevent_consecutive_matches: PreventConsecutiveMatchesData,
+    pub global_data: CacheData,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -54,6 +58,7 @@ impl Default for RightData {
             scope_count: 0,
             greed_order: GreedOrder::default(),
             prevent_consecutive_matches: PreventConsecutiveMatchesData::default(),
+            global_data: CacheData::default(),
         }
     }
 }
