@@ -483,5 +483,5 @@ pub fn python_file() -> Rc<DynCombinator> {
     let interactive = interactive.set(tag("interactive", &statement_newline)).into_rc_dyn();
     let file = file.set(tag("file", seq!(opt(&statements), &ENDMARKER))).into_rc_dyn();
 
-    cache_context(seq!(repeat0(NEWLINE), file)).into_rc_dyn()
+    cache_context(file).into_rc_dyn()
 }
