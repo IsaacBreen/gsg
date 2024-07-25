@@ -27,7 +27,8 @@ pub struct CacheKey {
 
 impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.right_data.hash(state);
+        self.combinator.dyn_hash(state);
+        self.right_data.hash(state)
     }
 }
 
