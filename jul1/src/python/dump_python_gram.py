@@ -194,7 +194,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
         elif isinstance(item, pegen.grammar.Cut):
             return 'cut()'
         elif isinstance(item, Forbid):
-            return f'prevent_consecutive_matches(&[{", ".join(item.ids)}])'
+            return f'prevent_consecutive_matches(&[{", ".join(f'"{id}"' for id in item.ids)}])'
         elif isinstance(item, CheckForbidden):
             return f'prevent_consecutive_matches_check_not(&"{item.id}")'
         else:
