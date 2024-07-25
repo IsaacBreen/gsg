@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import abc
+import logging
 from collections import defaultdict
-from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from io import StringIO
@@ -142,7 +142,7 @@ def validate_rules(rules: dict[Ref, Node]) -> None:
         for child in iter_nodes(node):
             assert isinstance(child, Node)
     rule_types = infer_rule_types(rules)
-    for ref, rule_type in rule_types.items():
+    for ref, rule_type in tqdm(rule_types.items(), desc="Validating rules"):
         firsts = first_refs(rules[ref], get_nullable_rules(rules))
         def get_rule_type(ref: Ref, rule_types: dict[Ref, RuleType]) -> RuleType:
             # If it's all capitalized, assume it's a token
@@ -224,6 +224,8 @@ def inject_prefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: 
             case Seq(children):
                 children = [inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children]
                 return seq(*children)
+            case EpsExternal(_):
+                return node
             case _:
                 raise ValueError(f"Unexpected nullable node: {node}")
     except ValueError as e:
@@ -241,6 +243,8 @@ def inject_suffix_on_nonnull_for_node(node: Node, suffix: Node, nullable_rules: 
             case Seq(children):
                 children = [inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules) for child in children]
                 return seq(*children)
+            case EpsExternal(_):
+                return node
             case _:
                 raise ValueError(f"Unexpected nullable node: {node}")
     except ValueError as e:

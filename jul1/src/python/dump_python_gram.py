@@ -66,7 +66,7 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True)
         elif isinstance(item, pegen.grammar.Forced):
             return item_to_node(item.node)
         elif isinstance(item, pegen.grammar.PositiveLookahead):
-            return remove_left_recursion.eps()
+            return remove_left_recursion.eps_external(item.node)
         elif isinstance(item, pegen.grammar.NegativeLookahead):
             return remove_left_recursion.eps()
         elif isinstance(item, pegen.grammar.Rhs):
@@ -166,8 +166,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
             logging.warning(f"Passing through forced: {item}")
             return item_to_rust(item.node)
         elif isinstance(item, pegen.grammar.PositiveLookahead):
-            logging.warning(f"Doing nothing with positive lookahead: {item}")
-            return "eps()"
+            return f"lookahead({item_to_rust(item.node)})"
         elif isinstance(item, pegen.grammar.NegativeLookahead):
             logging.warning(f"Doing nothing with negative lookahead: {item}")
             return "eps()"
@@ -185,7 +184,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, cached, cache_context, prevent_consecutive_matches, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
+    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, cached, cache_context, lookahead, prevent_consecutive_matches, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
