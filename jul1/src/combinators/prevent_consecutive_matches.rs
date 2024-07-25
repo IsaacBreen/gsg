@@ -7,23 +7,19 @@ pub struct PreventConsecutiveMatchesData {
 }
 
 pub struct PreventConsecutiveMatches {
-    match_id: String,
+    match_ids: Vec<String>,
 }
 
 impl CombinatorTrait for PreventConsecutiveMatches {
     type Parser = FailParser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
-        if right_data.prevent_consecutive_matches.prev_match_ids.contains(&self.match_id) {
-            (FailParser, ParseResults::empty_finished())
-        } else {
-            right_data.prevent_consecutive_matches.prev_match_ids = vec![self.match_id.clone()];
-            (FailParser, ParseResults {
-                right_data_vec: vec![right_data],
-                up_data_vec: vec![],
-                cut: false,
-                done: true,
-            })
-        }
+        right_data.prevent_consecutive_matches.prev_match_ids = self.match_ids.clone();
+        (FailParser, ParseResults {
+            right_data_vec: vec![right_data],
+            up_data_vec: vec![],
+            cut: false,
+            done: true,
+        })
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -116,8 +112,8 @@ impl CombinatorTrait for PreventConsecutiveMatchesCheckNot {
     }
 }
 
-pub fn prevent_consecutive_matches(match_id: &str) -> PreventConsecutiveMatches {
-    PreventConsecutiveMatches { match_id: match_id.to_string() }
+pub fn prevent_consecutive_matches(match_ids: &[&str]) -> PreventConsecutiveMatches {
+    PreventConsecutiveMatches { match_ids: match_ids.iter().map(|s| s.to_string()).collect() }
 }
 
 pub fn prevent_consecutive_matches_clear() -> PreventConsecutiveMatchesClear {

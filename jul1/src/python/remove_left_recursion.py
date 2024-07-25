@@ -478,6 +478,24 @@ def map_left(node: Node, f: Callable[[Node], Node], nullable_rules: set[Ref]) ->
             return node
 
 
+def map_all_for_node(node: Node, f: Callable[[Node], Node]) -> Node:
+    match node:
+        case Seq(children):
+            node = Seq([map_all_for_node(child, f) for child in children])
+        case Choice(children):
+            node = Choice([map_all_for_node(child, f) for child in children])
+        case Repeat1(child):
+            node = Repeat1(map_all_for_node(child, f))
+        case _:
+            node = node
+    node = f(node)
+    return node
+
+
+def map_all(rules: dict[Ref, Node], f: Callable[[Node], Node]) -> dict[Ref, Node]:
+    return {ref: map_all_for_node(node, f) for ref, node in rules.items()}
+
+
 def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidden_follows: set[Ref | Term | EpsExternal], nullable_rules: set[Ref]) -> Node:
     try:
         match node:

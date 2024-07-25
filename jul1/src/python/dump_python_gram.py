@@ -2,9 +2,10 @@ import io
 import logging
 import textwrap
 import tokenize
+from dataclasses import dataclass
 from io import StringIO
 from pprint import pprint
-from typing import Dict
+from typing import Dict, List
 
 import requests
 import pegen.grammar
@@ -15,6 +16,19 @@ from pegen.tokenizer import Tokenizer
 import remove_left_recursion
 from remove_left_recursion import get_nullable_rules, get_firsts
 from remove_left_recursion import ref, term, opt
+
+
+@dataclass
+class Forbid:
+    ids: List[str]
+
+    def __hash__(self):
+        return hash(tuple(self.ids))
+
+
+@dataclass(frozen=True)
+class CheckForbidden:
+    id: str
 
 
 def fetch_grammar(url: str) -> str:
@@ -179,6 +193,10 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
             return rhs_to_rust(item)
         elif isinstance(item, pegen.grammar.Cut):
             return 'cut()'
+        elif isinstance(item, Forbid):
+            return f'prevent_consecutive_matches(&[{", ".join(item.ids)}])'
+        elif isinstance(item, CheckForbidden):
+            return f'prevent_consecutive_matches_check_not(&"{item.id}")'
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
@@ -254,6 +272,30 @@ if __name__ == "__main__":
     }
     custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
 
+    # For forbidden follows that we can't resolve analytically, use preventers
+    actual_follows = remove_left_recursion.get_follows(custom_grammar)
+    all_unresolved_follows = set()
+    for first, follow_set in forbidden_follows_table.items():
+        actual_follow_set = actual_follows[first]
+        unresolved_follow_set: set[remove_left_recursion.Ref] = follow_set - actual_follow_set
+        all_unresolved_follows |= unresolved_follow_set
+        if len(unresolved_follow_set) > 0:
+            # Replace all occurrences of first with seq(first, eps_external(Forbid(unresolved_follow_set)))
+            def map_fn(node: remove_left_recursion.Node) -> remove_left_recursion.Node:
+                if node == first:
+                    return remove_left_recursion.seq(first, remove_left_recursion.eps_external(Forbid([ref.name for ref in unresolved_follow_set])))
+                else:
+                    return node
+            custom_grammar = remove_left_recursion.map_all(custom_grammar, map_fn)
+
+    # Replace each unresolved follow with seq(eps_external(CheckForbidden(follow.name)), follow)
+    def map_fn(node: remove_left_recursion.Node) -> remove_left_recursion.Node:
+        if isinstance(node, remove_left_recursion.Ref) and node in all_unresolved_follows:
+            return remove_left_recursion.seq(remove_left_recursion.eps_external(CheckForbidden(node.name)), node)
+        else:
+            return node
+    custom_grammar = remove_left_recursion.map_all(custom_grammar, map_fn)
+
     # Convert back to pegen format
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
 
@@ -310,9 +352,9 @@ if __name__ == "__main__":
         print(f"  {ref.name}: {count}")
 
     # Print follow sets
-    follows = remove_left_recursion.get_follows(custom_grammar)
+    actual_follows = remove_left_recursion.get_follows(custom_grammar)
     print(f"Follows:")
-    for node, follow_set in sorted(follows.items(), key=lambda x: (str(type(x[0])), str(x[0])), reverse=True):
+    for node, follow_set in sorted(actual_follows.items(), key=lambda x: (str(type(x[0])), str(x[0])), reverse=True):
         if node not in custom_grammar:
             # Assume such a node is a token
             follow_set = follow_set - set(custom_grammar.keys())
