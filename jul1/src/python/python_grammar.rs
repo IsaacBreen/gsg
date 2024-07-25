@@ -367,12 +367,11 @@ pub fn python_file() -> Rc<DynCombinator> {
     let slash_with_default = slash_with_default.set(tag("slash_with_default", seq!(opt(seq!(&param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))), opt(&WS))), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))), opt(&WS), python_literal("/"), opt(seq!(opt(&WS), python_literal(",")))))).into_rc_dyn();
     let slash_no_default = slash_no_default.set(tag("slash_no_default", seq!(&param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))), opt(&WS), python_literal("/"), opt(seq!(opt(&WS), python_literal(",")))))).into_rc_dyn();
     let parameters = parameters.set(tag("parameters", choice!(
-        // seq!(&slash_no_default, opt(seq!(opt(&WS), &param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))))), opt(seq!(opt(&WS), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))))), opt(seq!(opt(&WS), &star_etc))),
-        // seq!(&slash_with_default, opt(seq!(opt(&WS), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))))), opt(seq!(opt(&WS), &star_etc))),
-        // seq!(&param_no_default),
-        // seq!(&param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))), opt(seq!(opt(&WS), &star_etc))),
-        // &star_etc
-        opt(&param)
+        seq!(&slash_no_default, opt(seq!(opt(&WS), &param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))))), opt(seq!(opt(&WS), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))))), opt(seq!(opt(&WS), &star_etc))),
+        seq!(&slash_with_default, opt(seq!(opt(&WS), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))))), opt(seq!(opt(&WS), &star_etc))),
+        seq!(&param_no_default),
+        seq!(&param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))), opt(seq!(opt(&WS), &star_etc))),
+        &star_etc
     ))).into_rc_dyn();
     let params = params.set(tag("params", &parameters)).into_rc_dyn();
     let function_def_raw = function_def_raw.set(tag("function_def_raw", choice!(
