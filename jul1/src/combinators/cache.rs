@@ -19,7 +19,7 @@ impl Hash for CacheData {
 }
 
 pub struct CacheEntry {
-    parser: Rc<RefCell<dyn ParserTrait>>,
+    parser: Box<dyn ParserTrait>,
     maybe_parse_results: Option<ParseResults>,
 }
 
@@ -123,8 +123,7 @@ pub struct Cached {
 }
 
 pub struct CachedParser {
-    pub parse_results: Rc<RefCell<Option<ParseResults>>>,
-    pub parser: Rc<RefCell<dyn ParserTrait>>,
+    pub entry: Rc<RefCell<CacheEntry>>,
     pub parser_gt: Box<dyn ParserTrait>,
 }
 
@@ -140,8 +139,7 @@ impl CombinatorTrait for Cached {
                 assert_eq!(parse_results, parse_results_gt);
                 return (
                     CachedParser {
-                        parse_results: Rc::new(RefCell::new(Some(parse_results.clone()))),
-                        parser: Rc::clone(&entry.borrow().parser),
+                        entry: entry.clone(),
                         parser_gt: Box::new(parser_gt)
                     },
                     parse_results
@@ -153,16 +151,15 @@ impl CombinatorTrait for Cached {
         let (parser_gt, _) = self.inner.parser(right_data.clone());
         parse_results.squash();
         let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
-        let parser_rc_refcell = Rc::new(RefCell::new(parser));
         let entry = Rc::new(RefCell::new(CacheEntry {
-            parser: parser_rc_refcell.clone(),
+            parser,
             maybe_parse_results: Some(parse_results.clone())
         }));
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.push((self.inner.clone(), entry.clone()));
+        cache_data_inner.maybe_parse_results.push(parse_results_rc_refcell.clone());
         (CachedParser {
-            parse_results: parse_results_rc_refcell,
-            parser: parser_rc_refcell,
+            entry,
             parser_gt: Box::new(parser_gt)
         },
         parse_results)
@@ -173,15 +170,15 @@ impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut parse_results_gt = self.parser_gt.step(c);
         parse_results_gt.squash();
-        if let Some(parse_results) = self.parse_results.borrow().clone() {
+        if let Some(parse_results) = self.entry.borrow().maybe_parse_results.clone() {
             assert_eq!(parse_results, parse_results_gt);
             parse_results
         } else {
-            let mut parser = self.parser.borrow_mut();
-            let mut parse_results = parser.step(c);
+            let mut entry = self.entry.borrow_mut();
+            let mut parse_results = entry.parser.step(c);
             parse_results.squash();
             assert_eq!(parse_results, parse_results_gt);
-            self.parse_results.borrow_mut().replace(parse_results.clone());
+            entry.maybe_parse_results.replace(parse_results.clone());
             parse_results
         }
     }
