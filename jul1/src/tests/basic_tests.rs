@@ -536,11 +536,11 @@ mod tests {
 
     #[test]
     fn test_lookahead() {
-        let a = seq!(lookahead(eat_char('a')), choice!(eat_char('a'), eat_char('b')));
+        let a = seq!(lookahead(filtered_terminal(eat_char('a'))), choice!(filtered_terminal(eat_char('a')), filtered_terminal(eat_char('b'))));
         assert_parses(&a, "a", "Test input");
         assert_fails(&a, "b", "Test input");
 
-        let a = seq!(lookahead(seq!(eat_char('a'), eat_char('b'))), seq!(eat_char('a'), choice!(eat_char('a'), eat_char('b'))));
+        let a = seq!(lookahead(seq!(filtered_terminal(eat_char('a')), filtered_terminal(eat_char('b')))), seq!(filtered_terminal(eat_char('a')), choice!(filtered_terminal(eat_char('a')), filtered_terminal(eat_char('b')))));
         assert_parses(&a, "ab", "Test input");
         assert_fails(&a, "aa", "Test input");
     }

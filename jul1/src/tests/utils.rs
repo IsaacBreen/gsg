@@ -1,3 +1,4 @@
+use std::panic::catch_unwind;
 use kdam::tqdm;
 use crate::{CombinatorTrait, RightData, ParseResults, ParserTrait};
 
@@ -88,7 +89,11 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
         let bytes = line.bytes().collect::<Vec<_>>();
         for (char_number, byte) in tqdm!(bytes.iter().cloned().enumerate(), animation = "fillup", position = 1) {
             let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));
-            assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}", byte as char, up_data);
+            // assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}", byte as char, up_data);
+            if !byte_is_in_some_up_data {
+                println!("byte {:?} is not in any up_data: {:?}", byte as char, up_data);
+                return;
+            }
 
             if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
                 break 'outer;
