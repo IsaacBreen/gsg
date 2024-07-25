@@ -119,6 +119,16 @@ where
         for entry in self.cache_data_inner.borrow_mut().entries.iter() {
             entry.borrow_mut().maybe_parse_results.take();
         }
+        let l = self.cache_data_inner.borrow().entries.len().clone();
+        for i in (0..l).rev() {
+            let mut entry = {
+                let binding = self.cache_data_inner.borrow();
+                binding.entries.get(i).unwrap().clone()
+            };
+            let mut parse_results = entry.borrow_mut().parser.step(c);
+            parse_results.squash();
+            entry.borrow_mut().maybe_parse_results.replace(parse_results.clone());
+        }
         self.inner.step(c)
     }
 
@@ -201,15 +211,7 @@ impl CombinatorTrait for Cached {
 
 impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        if let Some(parse_results) = { let binding = self.entry.borrow(); binding.maybe_parse_results.clone() } {
-            parse_results
-        } else {
-            let mut entry = self.entry.borrow_mut();
-            let mut parse_results = entry.parser.step(c);
-            parse_results.squash();
-            entry.maybe_parse_results.replace(parse_results.clone());
-            parse_results
-        }
+        self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.step: parse_results is None")
     }
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
