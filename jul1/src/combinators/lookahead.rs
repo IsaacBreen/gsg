@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{CombinatorTrait, eps, IntoCombinator, ParseResults, ParserTrait, RightData, U8Set};
+use crate::{CombinatorTrait, eps, Eps, IntoCombinator, ParseResults, ParserTrait, RightData, U8Set};
 
 #[derive(Debug, Clone, Default)]
 pub struct LookaheadData {
@@ -185,7 +185,7 @@ impl LookaheadData {
     }
 }
 
-pub fn lookahead<T>(t: T) -> Lookahead<T::Output>
+pub fn lookahead<T>(t: T) -> Eps
 where
     T: IntoCombinator,
 {
@@ -196,7 +196,7 @@ where
     eps()
 }
 
-pub fn filtered_terminal<T>(t: T) -> FilteredTerminal<T::Output>
+pub fn filtered_terminal<T>(t: T) -> Eps
 where
     T: IntoCombinator,
 {
