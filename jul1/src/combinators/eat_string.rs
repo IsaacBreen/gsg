@@ -3,12 +3,12 @@ use std::collections::{BTreeMap, HashMap};
 use crate::{choice, choice_from_vec, CombinatorTrait, DynCombinator, eat_byte, eps, opt, ParseResults, ParserTrait, seq, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct EatString {
     string: Vec<u8>,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct EatStringParser {
     string: Vec<u8>,
     index: usize,
@@ -24,6 +24,7 @@ impl CombinatorTrait for EatString {
             index: 0,
             right_data: Some(right_data),
         };
+        println!("EatStringParser: Starting {:?}", parser);
         (parser, ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![UpData { u8set: U8Set::from_u8(self.string[0]) }],
@@ -45,6 +46,7 @@ impl ParserTrait for EatStringParser {
                 if self.index == self.string.len() {
                     let mut right_data = self.right_data.take().unwrap();
                     right_data.position += self.string.len();
+                    println!("EatStringParser: Matched {:?}", self);
                     ParseResults {
                         right_data_vec: vec![right_data],
                         up_data_vec: vec![],
@@ -52,6 +54,7 @@ impl ParserTrait for EatStringParser {
                         done: true,
                     }
                 } else {
+                    println!("EatStringParser: Continuing {:?}", self);
                     ParseResults {
                         right_data_vec: vec![],
                         up_data_vec: vec![UpData { u8set: U8Set::from_u8(self.string[self.index]) }],
@@ -60,6 +63,7 @@ impl ParserTrait for EatStringParser {
                     }
                 }
             } else {
+                println!("EatStringParser: Failed {:?}", self);
                 ParseResults {
                     right_data_vec: vec![],
                     up_data_vec: vec![],
@@ -68,6 +72,7 @@ impl ParserTrait for EatStringParser {
                 }
             }
         } else {
+            println!("EatStringParser: Done {:?}", self);
             ParseResults {
                 right_data_vec: vec![],
                 up_data_vec: vec![],

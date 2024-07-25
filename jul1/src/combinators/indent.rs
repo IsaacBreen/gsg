@@ -44,6 +44,7 @@ impl CombinatorTrait for IndentCombinator {
                         ).into_box_dyn()
                     }
                 }
+                println!("Made dent parser with right_data: {:?}", right_data);
                 let combinator = make_combinator(&right_data.indents, right_data.indents.len());
                 let (parser, parse_results) = combinator.parser(right_data);
 

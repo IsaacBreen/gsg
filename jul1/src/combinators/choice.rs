@@ -51,17 +51,17 @@ where
         let mut right_data = vec![];
         let mut up_data = vec![];
         let mut any_cut = false;
-        let mut all_done = false;
+        let mut all_done = true;
 
         if let Some(a) = &mut self.a {
             let ParseResults { right_data_vec: mut right_data_a, up_data_vec: mut up_data_a, cut, done: done_a } = a.step(c);
-            all_done = done_a;
+            all_done &= done_a;
             any_cut = cut;
-            if done_a {
-                self.a = None;
-            }
-            right_data.append(&mut right_data_a);
+            // if done_a {
+            //     self.a = None;
+            // }
             up_data.append(&mut up_data_a);
+            right_data.append(&mut right_data_a);
         }
 
         if let Some(b) = &mut self.b {
@@ -69,24 +69,27 @@ where
             all_done &= done_b;
             if cut && !any_cut {
                 // Clear the 'a' combinator and any up data from 'a' if 'b' cuts and 'a' didn't
-                self.a = None;
-                up_data.clear();
-                any_cut = true;
+                // self.a = None;
+                // up_data.clear();
+                // any_cut = true;
             }
             if cut || !any_cut {
-                if done_b {
-                    self.b = None;
-                }
+                // if done_b {
+                //     self.b = None;
+                // }
                 up_data.append(&mut up_data_b);
             }
+            up_data.append(&mut up_data_b);
             right_data.append(&mut right_data_b);
         }
 
         ParseResults {
             right_data_vec: right_data,
             up_data_vec: up_data,
-            cut: any_cut,
+            // cut: any_cut,
             done: all_done,
+            cut: false,
+            // done: false,
         }
     }
 
