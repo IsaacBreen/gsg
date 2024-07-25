@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeSet, HashSet};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use derivative::Derivative;
 use crate::{FrameStack, GreedOrder, PreventConsecutiveMatchesData, U8Set};
 use crate::CacheData;
 
@@ -33,7 +34,9 @@ impl ParseResults {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Hash, PartialOrd, Ord, Eq)]
+#[derive(Derivative)]
+#[derivative(PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
 pub struct RightData {
     pub frame_stack: Option<FrameStack>,
     pub indents: Vec<Vec<u8>>,
@@ -42,6 +45,7 @@ pub struct RightData {
     pub greed_order: GreedOrder,
     pub prevent_consecutive_matches: PreventConsecutiveMatchesData,
     pub cache_data: CacheData,
+    #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub position: usize,
 }
 
