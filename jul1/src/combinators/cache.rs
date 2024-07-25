@@ -23,9 +23,14 @@ pub struct CacheEntry {
     maybe_parse_results: Option<ParseResults>,
 }
 
+pub struct CacheKey {
+    combinator: Rc<DynCombinator>,
+    right_data: RightData,
+}
+
 #[derive(Default)]
 pub struct CacheDataInner {
-    pub new_parsers: Vec<(Rc<DynCombinator>, Rc<RefCell<CacheEntry>>)>,
+    pub new_parsers: Vec<(CacheKey, Rc<RefCell<CacheEntry>>)>,
     pub entries: Vec<Rc<RefCell<CacheEntry>>>,
 }
 
@@ -134,8 +139,8 @@ impl CombinatorTrait for Cached {
     type Parser = CachedParser;
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
-        for (combinator, entry) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
-            if Rc::ptr_eq(combinator, &self.inner) {
+        for (key, entry) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
+            if Rc::ptr_eq(&key.combinator, &self.inner) && key.right_data == right_data {
                 let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
                 let (parser_gt, mut parse_results_gt) = self.inner.parser(right_data.clone());
                 parse_results_gt.squash();
@@ -157,8 +162,12 @@ impl CombinatorTrait for Cached {
             parser,
             maybe_parse_results: Some(parse_results.clone())
         }));
+        let key = CacheKey {
+            combinator: self.inner.clone(),
+            right_data: right_data.clone()
+        };
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-        cache_data_inner.new_parsers.push((self.inner.clone(), entry.clone()));
+        cache_data_inner.new_parsers.push((key, entry.clone()));
         cache_data_inner.entries.push(entry.clone());
         (CachedParser {
             entry,

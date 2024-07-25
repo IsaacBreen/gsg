@@ -33,7 +33,7 @@ impl CombinatorTrait for IndentCombinator {
                         choice!(
                             // Exit here and register dedents
                             mutate_right_data(move |right_data: &mut RightData| {
-                                // println!("Registering {} dedents", dedents);
+                                println!("Registering {} dedents", dedents);
                                 right_data.dedents = dedents;
                                 // Remove the last `dedents` indents from the indent stack
                                 right_data.indents.truncate(right_data.indents.len() - dedents);
