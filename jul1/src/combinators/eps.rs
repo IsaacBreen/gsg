@@ -17,6 +17,10 @@ impl CombinatorTrait for Eps {
             cut: false,
         })
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl ParserTrait for EpsParser {

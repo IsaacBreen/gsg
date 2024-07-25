@@ -28,6 +28,10 @@ impl CombinatorTrait for EatU8 {
             cut: false,
         })
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl ParserTrait for EatU8Parser {

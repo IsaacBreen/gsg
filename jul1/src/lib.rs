@@ -1,3 +1,4 @@
+#![allow(warnings)]
 #![feature(assert_matches)]
 extern crate core;
 

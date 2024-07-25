@@ -11,6 +11,10 @@ impl<Parser: ParserTrait + 'static> CombinatorTrait for CustomFn<Parser> {
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         (self.run)(&mut right_data)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<Parser: ParserTrait + 'static> ParserTrait for CustomFn<Parser> {

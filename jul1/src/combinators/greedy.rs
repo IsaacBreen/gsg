@@ -54,6 +54,10 @@ where
 
         (GreedyParser { parser }, parse_results.squashed())
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<P> ParserTrait for GreedyParser<P>

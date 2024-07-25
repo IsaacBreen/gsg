@@ -17,6 +17,10 @@ impl CombinatorTrait for Cut {
             cut: true,
         })
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl ParserTrait for CutParser {

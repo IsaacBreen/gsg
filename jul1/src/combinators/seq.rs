@@ -37,7 +37,7 @@ where
             _ => return false,
         };
         let bs_eq = self.bs.iter().zip(other.bs.iter()).all(|(a, b)| a.dyn_eq(b));
-        let b_eq = self.b.dyn_eq(&other.b.into_box_dyn());
+        let b_eq = self.b.dyn_eq(&other.b.clone().into_box_dyn());
         let right_data_eq = self.right_data == other.right_data;
         a_eq && bs_eq && b_eq && right_data_eq
     }
@@ -89,6 +89,10 @@ where
             up_data_vec: up_data_bs.into_iter().chain(parse_results_a.up_data_vec).collect(),
             cut: any_cut,
         })
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

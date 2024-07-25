@@ -23,6 +23,10 @@ impl<T> CombinatorTrait for Symbol<T> where T: CombinatorTrait {
         let (inner, parse_results) = self.value.parser(right_data);
         (SymbolParser { inner, symbol_value: self.value.clone() }, parse_results)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<T> ParserTrait for SymbolParser<T> where T: CombinatorTrait
@@ -41,7 +45,7 @@ impl<T> ParserTrait for SymbolParser<T> where T: CombinatorTrait
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self.symbol_value.dyn_eq(&other.symbol_value.into_box_dyn()) && self.inner.dyn_eq(&other.inner)
+            self.symbol_value.dyn_eq(&other.symbol_value.clone().into_box_dyn()) && self.inner.dyn_eq(&other.inner)
         } else {
             false
         }

@@ -12,11 +12,7 @@ pub struct CacheData {
 }
 
 impl Hash for CacheData {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        if let Some(ref inner) = self.inner {
-            inner.borrow().hash(state);
-        }
-    }
+    fn hash<H: Hasher>(&self, state: &mut H) {}
 }
 
 pub struct CacheEntry {
@@ -41,6 +37,8 @@ impl PartialEq for CacheKey {
     }
 }
 
+impl Eq for CacheKey {}
+
 #[derive(Default)]
 pub struct CacheDataInner {
     pub new_parsers: HashMap<CacheKey, Rc<RefCell<CacheEntry>>>,
@@ -55,7 +53,7 @@ impl Debug for CacheDataInner {
 
 impl PartialEq for CacheDataInner {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self, other)
+        false
     }
 }
 
@@ -103,6 +101,10 @@ where
         right_data.cache_data.inner = Some(cache_data_inner.clone());
         let (parser, results) = self.inner.parser(right_data);
         (CacheContextParser { inner: parser, cache_data_inner }, results)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -188,13 +190,17 @@ impl CombinatorTrait for Cached {
             right_data: right_data.clone()
         };
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-        cache_data_inner.new_parsers.push((key, entry.clone()));
+        cache_data_inner.new_parsers.insert(key, entry.clone());
         cache_data_inner.entries.push(entry.clone());
         (CachedParser {
             entry,
             parser_gt: Box::new(parser_gt)
         },
         parse_results)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

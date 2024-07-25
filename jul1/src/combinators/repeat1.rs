@@ -39,6 +39,10 @@ where
         };
         (Repeat1Parser { a: self.a.clone(), a_parsers, right_data }, parse_results)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<A> ParserTrait for Repeat1Parser<A>
@@ -110,7 +114,7 @@ where
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            let a_eq = CombinatorTrait::dyn_eq(&self.a, &other.a.into_box_dyn());
+            let a_eq = CombinatorTrait::dyn_eq(&self.a, &other.a.clone().into_box_dyn());
             let a_parsers_eq = self.a_parsers.iter().zip(other.a_parsers.iter()).all(|(a, b)| a.dyn_eq(b));
             let right_data_eq = self.right_data == other.right_data;
             a_eq && a_parsers_eq && right_data_eq

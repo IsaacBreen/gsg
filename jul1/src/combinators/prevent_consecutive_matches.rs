@@ -1,3 +1,4 @@
+use std::any::Any;
 use crate::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
@@ -23,6 +24,10 @@ impl CombinatorTrait for PreventConsecutiveMatches {
             })
         }
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 pub struct PreventConsecutiveMatchesClear {}
@@ -36,6 +41,10 @@ impl CombinatorTrait for PreventConsecutiveMatchesClear {
             up_data_vec: vec![],
             cut: false,
         })
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -53,6 +62,10 @@ impl CombinatorTrait for PreventConsecutiveMatchesSet {
             cut: false,
         })
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 pub struct PreventConsecutiveMatchesAdd {
@@ -68,6 +81,10 @@ impl CombinatorTrait for PreventConsecutiveMatchesAdd {
             up_data_vec: vec![],
             cut: false,
         })
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -87,6 +104,10 @@ impl CombinatorTrait for PreventConsecutiveMatchesCheckNot {
                 cut: false,
             })
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

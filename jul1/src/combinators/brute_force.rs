@@ -26,6 +26,10 @@ impl CombinatorTrait for BruteForce {
             cut,
         })
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl ParserTrait for BruteForceParser {

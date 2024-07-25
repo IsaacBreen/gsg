@@ -28,6 +28,10 @@ where
         let (a, parse_results) = self.a.parser(right_data);
         (WithNewFrameParser { a }, parse_results)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<P> ParserTrait for WithNewFrameParser<P>
@@ -134,6 +138,10 @@ where
             up_data_vec: up_data_vec,
             cut,
         })
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

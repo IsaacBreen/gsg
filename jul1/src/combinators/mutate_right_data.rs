@@ -25,6 +25,10 @@ impl<F: Fn(&mut RightData) -> bool + 'static> CombinatorTrait for MutateRightDat
             })
         }
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<F: Fn(&mut RightData) -> bool + 'static> ParserTrait for MutateRightData<F> {

@@ -76,6 +76,10 @@ impl CombinatorTrait for IndentCombinator {
             _ => (IndentCombinatorParser::Done, ParseResults::no_match()),
         }
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl ParserTrait for IndentCombinatorParser {

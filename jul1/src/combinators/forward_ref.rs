@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -14,6 +15,10 @@ impl CombinatorTrait for ForwardRef {
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         self.a.parser(right_data)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl CombinatorTrait for RefCell<Option<Rc<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>> {
@@ -21,6 +26,10 @@ impl CombinatorTrait for RefCell<Option<Rc<dyn CombinatorTrait<Parser=Box<dyn Pa
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         self.borrow().as_ref().unwrap().parser(right_data)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

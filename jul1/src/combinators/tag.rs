@@ -32,6 +32,10 @@ where
             }
         }
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<A> ParserTrait for TaggedParser<A>

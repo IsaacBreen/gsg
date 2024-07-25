@@ -36,6 +36,10 @@ where
             parse_results_a.combine_inplace(parse_results_b)
         )
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<A, B> ParserTrait for Choice2Parser<A, B>

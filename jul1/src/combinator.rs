@@ -84,9 +84,9 @@ where
     {
         Rc::new(DynWrapper(self))
     }
-    fn dyn_eq(&self, other: &DynCombinator) -> bool {todo!()}
+    fn dyn_eq(&self, other: &DynCombinator) -> bool { std::ptr::eq(self.as_any(), other.as_any()) }
     fn dyn_hash(&self, state: &mut dyn Hasher) {}
-    fn as_any(&self) -> &dyn Any {todo!()}
+    fn as_any(&self) -> &dyn Any;
 }
 
 pub trait ParserTrait {
@@ -161,6 +161,10 @@ where
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         (**self).parser(right_data)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 struct DynWrapper<T>(T);
@@ -176,6 +180,10 @@ where
         let (parser, parse_results) = self.0.parser(right_data);
         (Box::new(parser), parse_results)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl CombinatorTrait for Box<DynCombinator> {
@@ -183,6 +191,10 @@ impl CombinatorTrait for Box<DynCombinator> {
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         (**self).parser(right_data)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
