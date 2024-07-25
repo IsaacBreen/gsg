@@ -106,7 +106,7 @@ mod tests {
             right_data_vec: vec![RightData::default()],
             up_data_vec: vec![],
             cut: false,
-            done: false,
+            done: true,
         });
     }
 
@@ -223,7 +223,7 @@ mod tests {
             right_data_vec: vec![right_data.clone()],
             up_data_vec: vec![],
             cut: false,
-            done: false,
+            done: true,
         });
 
         let combinator = frame_stack_contains(eat_char_choice("b"));
@@ -232,7 +232,7 @@ mod tests {
             right_data_vec: right_data0,
             up_data_vec: up_data0,
             cut: false,
-            done: false,
+            done: true,
         }.squashed(), ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
@@ -258,7 +258,7 @@ mod tests {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
-            done: true,
+            done: false,
         });
     }
 
@@ -303,7 +303,7 @@ mod tests {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
-            done: true,
+            done: false,
         });
     }
 
@@ -368,7 +368,7 @@ mod tests {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
-            done: false,
+            done: true,
         });
     }
 
@@ -439,7 +439,7 @@ mod tests {
             right_data_vec: vec![RightData::default()],
             up_data_vec: vec![],
             cut: false,
-            done: true,
+            done: false,
         });
     }
 

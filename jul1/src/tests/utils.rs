@@ -8,8 +8,6 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     let (mut parser, ParseResults { up_data_vec: mut up_data, .. }) = T::parser(&combinator, RightData::default());
     println!("constructed parser");
 
-    let mut result = Ok(());
-
     let lines = input.lines().collect::<Vec<_>>();
     let num_lines = lines.len();
     'outer: for (line_number, line) in tqdm!(lines.iter().enumerate(), animation = "fillup", position = 0) {
@@ -48,22 +46,9 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 println!("cut!");
                 println!()
             }
-            if right_data.is_empty() && up_data.is_empty() {
-                result = Err(format!(
-                    "Parser failed at byte: {} on line: {} at char: {}",
-                    byte as char,
-                    line_number + 1,
-                    char_number + 1
-                ));
-                break;
-            }
-        }
-        if result.is_err() {
-            break;
+            assert!(!right_data.is_empty() || !up_data.is_empty(), "Parser failed at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
         }
     }
-
-    assert!(result.is_ok(), "{}", desc);
 }
 
 pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {

@@ -1,17 +1,39 @@
 use std::any::Any;
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{CombinatorTrait, IntoCombinator, ParseResults, ParserTrait, RightData, U8Set};
+use crate::{CombinatorTrait, eps, IntoCombinator, ParseResults, ParserTrait, RightData, U8Set};
 
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, Default)]
 pub struct LookaheadData {
     pub lookaheads: Vec<Rc<RefCell<LookaheadFilter>>>,
 }
 
 impl Hash for LookaheadData {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.lookaheads.len().hash(state);
+    }
+}
+
+impl PartialEq for LookaheadData {
+    fn eq(&self, other: &Self) -> bool {
+        true
+        // self.lookaheads.len() == other.lookaheads.len()
+    }
+}
+
+impl Eq for LookaheadData {}
+
+impl PartialOrd for LookaheadData {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for LookaheadData {
+    fn cmp(&self, other: &Self) -> Ordering {
+        Ordering::Equal
+        // self.lookaheads.len().cmp(&other.lookaheads.len())
     }
 }
 
@@ -167,16 +189,20 @@ pub fn lookahead<T>(t: T) -> Lookahead<T::Output>
 where
     T: IntoCombinator,
 {
-    Lookahead {
-        inner: t.into_combinator(),
-    }
+    // Lookahead {
+    //     inner: t.into_combinator(),
+    // }
+    // todo: lookaheads are not working
+    eps()
 }
 
 pub fn filtered_terminal<T>(t: T) -> FilteredTerminal<T::Output>
 where
     T: IntoCombinator,
 {
-    FilteredTerminal {
-        inner: t.into_combinator(),
-    }
+    // FilteredTerminal {
+    //     inner: t.into_combinator(),
+    // }
+    // todo: lookaheads are not working
+    eps()
 }
