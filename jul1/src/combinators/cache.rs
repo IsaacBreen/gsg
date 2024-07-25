@@ -12,25 +12,31 @@ pub struct CacheData {
 
 impl Hash for CacheData {
     fn hash<H: Hasher>(&self, state: &mut H) {
-
+        if let Some(ref inner) = self.inner {
+            inner.borrow().hash(state);
+        }
     }
+}
+
+pub struct CacheEntry {
+    parser: Rc<RefCell<dyn ParserTrait>>,
+    maybe_parse_results: Option<ParseResults>,
 }
 
 #[derive(Default)]
 pub struct CacheDataInner {
-    pub new_parsers: Vec<(Rc<DynCombinator>, (Rc<RefCell<dyn ParserTrait>>, Rc<RefCell<Option<ParseResults>>>))>,
-    pub parse_results: Vec<Rc<RefCell<Option<ParseResults>>>>,
+    pub new_parsers: Vec<(Rc<DynCombinator>, Rc<RefCell<CacheEntry>>)>,
+    pub maybe_parse_results: Vec<Rc<RefCell<Option<ParseResults>>>>,
 }
 
 impl Debug for CacheDataInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Ok(())
+        write!(f, "CacheDataInner")
     }
 }
 
 impl PartialEq for CacheDataInner {
     fn eq(&self, other: &Self) -> bool {
-        todo!();
         std::ptr::eq(self, other)
     }
 }
@@ -46,6 +52,13 @@ impl PartialOrd for CacheDataInner {
 impl Ord for CacheDataInner {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.new_parsers.len().cmp(&other.new_parsers.len())
+    }
+}
+
+impl Hash for CacheDataInner {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.new_parsers.len().hash(state);
+        self.maybe_parse_results.len().hash(state);
     }
 }
 
@@ -71,8 +84,7 @@ where
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner::default()));
         right_data.cache_data.inner = Some(cache_data_inner.clone());
         let (parser, results) = self.inner.parser(right_data);
-        let mut parser = CacheContextParser { inner: parser, cache_data_inner };
-        (parser, results)
+        (CacheContextParser { inner: parser, cache_data_inner }, results)
     }
 }
 
@@ -82,7 +94,7 @@ where
 {
     fn step(&mut self, c: u8) -> ParseResults {
         self.cache_data_inner.borrow_mut().new_parsers.clear();
-        for parse_result in self.cache_data_inner.borrow().parse_results.iter() {
+        for parse_result in self.cache_data_inner.borrow().maybe_parse_results.iter() {
             parse_result.borrow_mut().take();
         }
         self.inner.step(c)
@@ -120,13 +132,20 @@ impl CombinatorTrait for Cached {
     type Parser = CachedParser;
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
-        for (combinator, (parser, parse_results_rc_refcell)) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
+        for (combinator, entry) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
             if Rc::ptr_eq(combinator, &self.inner) {
-                let parse_results = parse_results_rc_refcell.borrow().clone().expect("CachedParser.parser: parse_results is None");
+                let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
                 let (parser_gt, mut parse_results_gt) = self.inner.parser(right_data.clone());
                 parse_results_gt.squash();
                 assert_eq!(parse_results, parse_results_gt);
-                return (CachedParser { parse_results: parse_results_rc_refcell.clone(), parser: parser.clone(), parser_gt: Box::new(parser_gt) }, parse_results);
+                return (
+                    CachedParser {
+                        parse_results: Rc::new(RefCell::new(Some(parse_results.clone()))),
+                        parser: Rc::clone(&entry.borrow().parser),
+                        parser_gt: Box::new(parser_gt)
+                    },
+                    parse_results
+                );
             }
         }
 
@@ -135,9 +154,18 @@ impl CombinatorTrait for Cached {
         parse_results.squash();
         let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
         let parser_rc_refcell = Rc::new(RefCell::new(parser));
+        let entry = Rc::new(RefCell::new(CacheEntry {
+            parser: parser_rc_refcell.clone(),
+            maybe_parse_results: Some(parse_results.clone())
+        }));
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-        cache_data_inner.new_parsers.push((self.inner.clone(), (parser_rc_refcell.clone(), parse_results_rc_refcell.clone())));
-        (CachedParser { parse_results: parse_results_rc_refcell, parser: parser_rc_refcell, parser_gt: Box::new(parser_gt) }, parse_results)
+        cache_data_inner.new_parsers.push((self.inner.clone(), entry.clone()));
+        (CachedParser {
+            parse_results: parse_results_rc_refcell,
+            parser: parser_rc_refcell,
+            parser_gt: Box::new(parser_gt)
+        },
+        parse_results)
     }
 }
 
