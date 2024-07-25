@@ -52,7 +52,7 @@ impl ParserTrait for EatU8Parser {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
-            done: false,
+            done: true,
         }
     }
     fn collect_stats(&self, stats: &mut Stats) {

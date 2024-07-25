@@ -258,7 +258,7 @@ mod tests {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
-            done: false,
+            done: true,
         });
     }
 
