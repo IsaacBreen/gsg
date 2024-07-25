@@ -152,6 +152,7 @@ impl ParserTrait for CachedParser {
             let mut parser = self.parser.borrow_mut();
             let mut parse_results = parser.step(c);
             parse_results.squash();
+            assert_eq!(parse_results, parse_results_gt);
             self.parse_results.borrow_mut().replace(parse_results.clone());
             parse_results
         }
