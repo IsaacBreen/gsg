@@ -25,7 +25,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(python_literal("lambda"), opt(seq!(opt(&WS), &lambda_params)), opt(&WS), python_literal(":"), opt(&WS), &expression)
     ))).into_rc_dyn();
     let func_type_comment = func_type_comment.set(tag("func_type_comment", choice!(
-        seq!(&NEWLINE, &TYPE_COMMENT, seq!(&NEWLINE, &INDENT)),
+        seq!(&NEWLINE, &TYPE_COMMENT, lookahead(seq!(&NEWLINE, &INDENT))),
         &TYPE_COMMENT
     ))).into_rc_dyn();
     let type_expressions = type_expressions.set(tag("type_expressions", choice!(
@@ -39,7 +39,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(python_literal("["), opt(seq!(opt(&WS), &del_targets)), opt(&WS), python_literal("]"))
     ))).into_rc_dyn();
     let del_target = del_target.set(cached(tag("del_target", choice!(
-        seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(choice!(&STRING, &FSTRING_START), &strings), &NUMBER, seq!(python_literal("("), choice!(&tuple, &group, &genexp)), seq!(python_literal("["), choice!(&list, &listcomp)), seq!(python_literal("{"), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), &t_lookahead, opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, &t_lookahead), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), &t_lookahead), seq!(&genexp, &t_lookahead), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), &t_lookahead)), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, &t_lookahead), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), &t_lookahead), seq!(&genexp, &t_lookahead), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), &t_lookahead))))))), opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]")))),
+        seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings), &NUMBER, seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)), seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)), seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(&t_lookahead), opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), lookahead(&t_lookahead)), seq!(&genexp, lookahead(&t_lookahead)), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), lookahead(&t_lookahead))), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), lookahead(&t_lookahead)), seq!(&genexp, lookahead(&t_lookahead)), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), lookahead(&t_lookahead)))))))), opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]")))),
         &del_t_atom
     )))).into_rc_dyn();
     let del_targets = del_targets.set(tag("del_targets", seq!(&del_target, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &del_target, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &del_target))))), opt(seq!(opt(&WS), python_literal(",")))))).into_rc_dyn();
@@ -48,7 +48,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         python_literal("["),
         python_literal(".")
     ))).into_rc_dyn();
-    let t_primary = t_primary.set(tag("t_primary", seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(choice!(&STRING, &FSTRING_START), &strings), &NUMBER, seq!(python_literal("("), choice!(&tuple, &group, &genexp)), seq!(python_literal("["), choice!(&list, &listcomp)), seq!(python_literal("{"), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), &t_lookahead, opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, &t_lookahead), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), &t_lookahead), seq!(&genexp, &t_lookahead), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), &t_lookahead)), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, &t_lookahead), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), &t_lookahead), seq!(&genexp, &t_lookahead), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), &t_lookahead)))))))))).into_rc_dyn();
+    let t_primary = t_primary.set(tag("t_primary", seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings), &NUMBER, seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)), seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)), seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(&t_lookahead), opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), lookahead(&t_lookahead)), seq!(&genexp, lookahead(&t_lookahead)), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), lookahead(&t_lookahead))), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), lookahead(&t_lookahead)), seq!(&genexp, lookahead(&t_lookahead)), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), lookahead(&t_lookahead))))))))))).into_rc_dyn();
     let single_subscript_attribute_target = single_subscript_attribute_target.set(tag("single_subscript_attribute_target", seq!(&t_primary, opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]")))))).into_rc_dyn();
     let single_target = single_target.set(tag("single_target", choice!(
         &single_subscript_attribute_target,
@@ -88,7 +88,7 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(choice!(&starred_expression, seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), opt(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&starred_expression, seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&starred_expression, seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef)))))), opt(seq!(opt(&WS), python_literal(","), opt(&WS), &kwargs))),
         &kwargs
     ))).into_rc_dyn();
-    let arguments = arguments.set(cached(tag("arguments", seq!(&args, opt(seq!(opt(&WS), python_literal(","))), python_literal(")"))))).into_rc_dyn();
+    let arguments = arguments.set(cached(tag("arguments", seq!(&args, opt(seq!(opt(&WS), python_literal(","))), lookahead(python_literal(")")))))).into_rc_dyn();
     let dictcomp = dictcomp.set(tag("dictcomp", seq!(python_literal("{"), opt(&WS), &kvpair, opt(&WS), &for_if_clauses, opt(&WS), python_literal("}")))).into_rc_dyn();
     let genexp = genexp.set(tag("genexp", seq!(python_literal("("), opt(&WS), choice!(&assignment_expression, &expression), opt(&WS), &for_if_clauses, opt(&WS), python_literal(")")))).into_rc_dyn();
     let setcomp = setcomp.set(tag("setcomp", seq!(python_literal("{"), opt(&WS), &named_expression, opt(&WS), &for_if_clauses, opt(&WS), python_literal("}")))).into_rc_dyn();
@@ -123,16 +123,16 @@ pub fn python_file() -> Rc<DynCombinator> {
         &FSTRING_MIDDLE
     ))).into_rc_dyn();
     let lambda_param = lambda_param.set(tag("lambda_param", &NAME)).into_rc_dyn();
-    let lambda_param_maybe_default = lambda_param_maybe_default.set(tag("lambda_param_maybe_default", seq!(&lambda_param, opt(seq!(opt(&WS), &default)), choice!(seq!(opt(&WS), python_literal(",")), python_literal(":"))))).into_rc_dyn();
-    let lambda_param_with_default = lambda_param_with_default.set(tag("lambda_param_with_default", seq!(&lambda_param, opt(&WS), &default, choice!(seq!(opt(&WS), python_literal(",")), python_literal(":"))))).into_rc_dyn();
-    let lambda_param_no_default = lambda_param_no_default.set(tag("lambda_param_no_default", seq!(&lambda_param, choice!(seq!(opt(&WS), python_literal(",")), python_literal(":"))))).into_rc_dyn();
+    let lambda_param_maybe_default = lambda_param_maybe_default.set(tag("lambda_param_maybe_default", seq!(&lambda_param, opt(seq!(opt(&WS), &default)), choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(":")))))).into_rc_dyn();
+    let lambda_param_with_default = lambda_param_with_default.set(tag("lambda_param_with_default", seq!(&lambda_param, opt(&WS), &default, choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(":")))))).into_rc_dyn();
+    let lambda_param_no_default = lambda_param_no_default.set(tag("lambda_param_no_default", seq!(&lambda_param, choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(":")))))).into_rc_dyn();
     let lambda_kwds = lambda_kwds.set(tag("lambda_kwds", seq!(python_literal("**"), opt(&WS), &lambda_param_no_default))).into_rc_dyn();
     let lambda_star_etc = lambda_star_etc.set(tag("lambda_star_etc", choice!(
         seq!(python_literal("*"), opt(&WS), choice!(seq!(&lambda_param_no_default, opt(seq!(opt(&WS), &lambda_param_maybe_default, opt(repeat1(seq!(opt(&WS), &lambda_param_maybe_default))))), opt(seq!(opt(&WS), &lambda_kwds))), seq!(python_literal(","), opt(&WS), &lambda_param_maybe_default, opt(repeat1(seq!(opt(&WS), &lambda_param_maybe_default))), opt(seq!(opt(&WS), &lambda_kwds))))),
         &lambda_kwds
     ))).into_rc_dyn();
-    let lambda_slash_with_default = lambda_slash_with_default.set(tag("lambda_slash_with_default", seq!(opt(seq!(&lambda_param_no_default, opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))), opt(&WS))), &lambda_param_with_default, opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))), opt(&WS), python_literal("/"), choice!(seq!(opt(&WS), python_literal(",")), python_literal(":"))))).into_rc_dyn();
-    let lambda_slash_no_default = lambda_slash_no_default.set(tag("lambda_slash_no_default", seq!(&lambda_param_no_default, opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))), opt(&WS), python_literal("/"), choice!(seq!(opt(&WS), python_literal(",")), python_literal(":"))))).into_rc_dyn();
+    let lambda_slash_with_default = lambda_slash_with_default.set(tag("lambda_slash_with_default", seq!(opt(seq!(&lambda_param_no_default, opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))), opt(&WS))), &lambda_param_with_default, opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))), opt(&WS), python_literal("/"), choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(":")))))).into_rc_dyn();
+    let lambda_slash_no_default = lambda_slash_no_default.set(tag("lambda_slash_no_default", seq!(&lambda_param_no_default, opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))), opt(&WS), python_literal("/"), choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(":")))))).into_rc_dyn();
     let lambda_parameters = lambda_parameters.set(tag("lambda_parameters", choice!(
         seq!(&lambda_slash_no_default, opt(seq!(opt(&WS), &lambda_param_no_default, opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))))), opt(seq!(opt(&WS), &lambda_param_with_default, opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))))), opt(seq!(opt(&WS), &lambda_star_etc))),
         seq!(&lambda_slash_with_default, opt(seq!(opt(&WS), &lambda_param_with_default, opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))))), opt(seq!(opt(&WS), &lambda_star_etc))),
@@ -148,11 +148,11 @@ pub fn python_file() -> Rc<DynCombinator> {
         python_literal("True"),
         python_literal("False"),
         python_literal("None"),
-        seq!(choice!(&STRING, &FSTRING_START), &strings),
+        seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings),
         &NUMBER,
-        seq!(python_literal("("), choice!(&tuple, &group, &genexp)),
-        seq!(python_literal("["), choice!(&list, &listcomp)),
-        seq!(python_literal("{"), choice!(&dict, &set, &dictcomp, &setcomp)),
+        seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)),
+        seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)),
+        seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)),
         python_literal("...")
     ))).into_rc_dyn();
     let slice = slice.set(tag("slice", choice!(
@@ -331,7 +331,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     let except_star_block = except_star_block.set(tag("except_star_block", seq!(python_literal("except"), opt(&WS), python_literal("*"), opt(&WS), &expression, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &NAME)), opt(&WS), python_literal(":"), opt(&WS), &block))).into_rc_dyn();
     let except_block = except_block.set(tag("except_block", seq!(python_literal("except"), opt(&WS), choice!(seq!(&expression, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &NAME)), opt(&WS), python_literal(":"), opt(&WS), &block), seq!(python_literal(":"), opt(&WS), &block))))).into_rc_dyn();
     let try_stmt = try_stmt.set(tag("try_stmt", seq!(python_literal("try"), opt(&WS), python_literal(":"), opt(&WS), &block, choice!(&finally_block, seq!(repeat1(&except_block), opt(&else_block), opt(&finally_block)), seq!(repeat1(&except_star_block), opt(&else_block), opt(&finally_block)))))).into_rc_dyn();
-    let with_item = with_item.set(tag("with_item", seq!(&expression, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &star_target, choice!(python_literal(","), python_literal(")"), python_literal(":"))))))).into_rc_dyn();
+    let with_item = with_item.set(tag("with_item", seq!(&expression, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &star_target, lookahead(choice!(python_literal(","), python_literal(")"), python_literal(":")))))))).into_rc_dyn();
     let with_stmt = with_stmt.set(tag("with_stmt", choice!(
         seq!(python_literal("with"), opt(&WS), choice!(seq!(python_literal("("), opt(&WS), &with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal(")"), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block), seq!(&with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block))),
         seq!(python_literal("async"), opt(&WS), python_literal("with"), opt(&WS), choice!(seq!(python_literal("("), opt(&WS), &with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal(")"), opt(&WS), python_literal(":"), opt(&WS), &block), seq!(&with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block)))
@@ -349,17 +349,17 @@ pub fn python_file() -> Rc<DynCombinator> {
     let annotation = annotation.set(tag("annotation", seq!(python_literal(":"), opt(&WS), &expression))).into_rc_dyn();
     let param_star_annotation = param_star_annotation.set(tag("param_star_annotation", seq!(&NAME, opt(&WS), &star_annotation))).into_rc_dyn();
     let param = param.set(tag("param", seq!(&NAME, opt(seq!(opt(&WS), &annotation))))).into_rc_dyn();
-    let param_maybe_default = param_maybe_default.set(tag("param_maybe_default", seq!(&param, opt(seq!(opt(&WS), &default)), choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), python_literal(")")))))).into_rc_dyn();
-    let param_with_default = param_with_default.set(tag("param_with_default", seq!(&param, opt(&WS), &default, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), python_literal(")")))))).into_rc_dyn();
-    let param_no_default_star_annotation = param_no_default_star_annotation.set(tag("param_no_default_star_annotation", seq!(&param_star_annotation, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), python_literal(")")))))).into_rc_dyn();
-    let param_no_default = param_no_default.set(tag("param_no_default", seq!(&param, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), python_literal(")")))))).into_rc_dyn();
+    let param_maybe_default = param_maybe_default.set(tag("param_maybe_default", seq!(&param, opt(seq!(opt(&WS), &default)), choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(python_literal(")"))))))).into_rc_dyn();
+    let param_with_default = param_with_default.set(tag("param_with_default", seq!(&param, opt(&WS), &default, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(python_literal(")"))))))).into_rc_dyn();
+    let param_no_default_star_annotation = param_no_default_star_annotation.set(tag("param_no_default_star_annotation", seq!(&param_star_annotation, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(python_literal(")"))))))).into_rc_dyn();
+    let param_no_default = param_no_default.set(tag("param_no_default", seq!(&param, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(python_literal(")"))))))).into_rc_dyn();
     let kwds = kwds.set(tag("kwds", seq!(python_literal("**"), opt(&WS), &param_no_default))).into_rc_dyn();
     let star_etc = star_etc.set(tag("star_etc", choice!(
         seq!(python_literal("*"), opt(&WS), choice!(seq!(&param_no_default, opt(seq!(opt(&WS), &param_maybe_default, opt(repeat1(seq!(opt(&WS), &param_maybe_default))))), opt(seq!(opt(&WS), &kwds))), seq!(&param_no_default_star_annotation, opt(seq!(opt(&WS), &param_maybe_default, opt(repeat1(seq!(opt(&WS), &param_maybe_default))))), opt(seq!(opt(&WS), &kwds))), seq!(python_literal(","), opt(&WS), &param_maybe_default, opt(repeat1(seq!(opt(&WS), &param_maybe_default))), opt(seq!(opt(&WS), &kwds))))),
         &kwds
     ))).into_rc_dyn();
-    let slash_with_default = slash_with_default.set(tag("slash_with_default", seq!(opt(seq!(&param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))), opt(&WS))), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))), opt(&WS), python_literal("/"), choice!(seq!(opt(&WS), python_literal(",")), python_literal(")"))))).into_rc_dyn();
-    let slash_no_default = slash_no_default.set(tag("slash_no_default", seq!(&param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))), opt(&WS), python_literal("/"), choice!(seq!(opt(&WS), python_literal(",")), python_literal(")"))))).into_rc_dyn();
+    let slash_with_default = slash_with_default.set(tag("slash_with_default", seq!(opt(seq!(&param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))), opt(&WS))), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))), opt(&WS), python_literal("/"), choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(")")))))).into_rc_dyn();
+    let slash_no_default = slash_no_default.set(tag("slash_no_default", seq!(&param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))), opt(&WS), python_literal("/"), choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(")")))))).into_rc_dyn();
     let parameters = parameters.set(tag("parameters", choice!(
         seq!(&slash_no_default, opt(seq!(opt(&WS), &param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))))), opt(seq!(opt(&WS), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))))), opt(seq!(opt(&WS), &star_etc))),
         seq!(&slash_with_default, opt(seq!(opt(&WS), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))))), opt(seq!(opt(&WS), &star_etc))),
@@ -404,7 +404,7 @@ pub fn python_file() -> Rc<DynCombinator> {
     ))).into_rc_dyn();
     let assert_stmt = assert_stmt.set(tag("assert_stmt", seq!(python_literal("assert"), opt(&WS), &expression, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &expression))))).into_rc_dyn();
     let yield_stmt = yield_stmt.set(tag("yield_stmt", &yield_expr)).into_rc_dyn();
-    let del_stmt = del_stmt.set(tag("del_stmt", seq!(python_literal("del"), opt(&WS), &del_targets, choice!(python_literal(";"), &NEWLINE)))).into_rc_dyn();
+    let del_stmt = del_stmt.set(tag("del_stmt", seq!(python_literal("del"), opt(&WS), &del_targets, lookahead(choice!(python_literal(";"), &NEWLINE))))).into_rc_dyn();
     let nonlocal_stmt = nonlocal_stmt.set(tag("nonlocal_stmt", seq!(python_literal("nonlocal"), opt(&WS), &NAME, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME)))))))).into_rc_dyn();
     let global_stmt = global_stmt.set(tag("global_stmt", seq!(python_literal("global"), opt(&WS), &NAME, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME)))))))).into_rc_dyn();
     let raise_stmt = raise_stmt.set(tag("raise_stmt", seq!(python_literal("raise"), opt(seq!(opt(&WS), &expression, opt(seq!(opt(&WS), python_literal("from"), opt(&WS), &expression))))))).into_rc_dyn();
@@ -435,30 +435,30 @@ pub fn python_file() -> Rc<DynCombinator> {
         seq!(&single_target, opt(&WS), &augassign, opt(&WS), choice!(&yield_expr, &star_expressions))
     ))).into_rc_dyn();
     let compound_stmt = compound_stmt.set(tag("compound_stmt", choice!(
-        seq!(choice!(python_literal("def"), python_literal("@"), python_literal("async")), &function_def),
-        seq!(python_literal("if"), &if_stmt),
-        seq!(choice!(python_literal("class"), python_literal("@")), &class_def),
-        seq!(choice!(python_literal("with"), python_literal("async")), &with_stmt),
-        seq!(choice!(python_literal("for"), python_literal("async")), &for_stmt),
-        seq!(python_literal("try"), &try_stmt),
-        seq!(python_literal("while"), &while_stmt),
+        seq!(lookahead(choice!(python_literal("def"), python_literal("@"), python_literal("async"))), &function_def),
+        seq!(lookahead(python_literal("if")), &if_stmt),
+        seq!(lookahead(choice!(python_literal("class"), python_literal("@"))), &class_def),
+        seq!(lookahead(choice!(python_literal("with"), python_literal("async"))), &with_stmt),
+        seq!(lookahead(choice!(python_literal("for"), python_literal("async"))), &for_stmt),
+        seq!(lookahead(python_literal("try")), &try_stmt),
+        seq!(lookahead(python_literal("while")), &while_stmt),
         &match_stmt
     ))).into_rc_dyn();
     let simple_stmt = simple_stmt.set(cached(tag("simple_stmt", choice!(
         &assignment,
-        seq!(python_literal("type"), &type_alias),
+        seq!(lookahead(python_literal("type")), &type_alias),
         &star_expressions,
-        seq!(python_literal("return"), &return_stmt),
-        seq!(choice!(python_literal("import"), python_literal("from")), &import_stmt),
-        seq!(python_literal("raise"), &raise_stmt),
+        seq!(lookahead(python_literal("return")), &return_stmt),
+        seq!(lookahead(choice!(python_literal("import"), python_literal("from"))), &import_stmt),
+        seq!(lookahead(python_literal("raise")), &raise_stmt),
         python_literal("pass"),
-        seq!(python_literal("del"), &del_stmt),
-        seq!(python_literal("yield"), &yield_stmt),
-        seq!(python_literal("assert"), &assert_stmt),
+        seq!(lookahead(python_literal("del")), &del_stmt),
+        seq!(lookahead(python_literal("yield")), &yield_stmt),
+        seq!(lookahead(python_literal("assert")), &assert_stmt),
         python_literal("break"),
         python_literal("continue"),
-        seq!(python_literal("global"), &global_stmt),
-        seq!(python_literal("nonlocal"), &nonlocal_stmt)
+        seq!(lookahead(python_literal("global")), &global_stmt),
+        seq!(lookahead(python_literal("nonlocal")), &nonlocal_stmt)
     )))).into_rc_dyn();
     let simple_stmts = simple_stmts.set(tag("simple_stmts", seq!(&simple_stmt, opt(&WS), choice!(&NEWLINE, seq!(opt(seq!(python_literal(";"), opt(&WS), &simple_stmt, opt(repeat1(seq!(opt(&WS), python_literal(";"), opt(&WS), &simple_stmt))), opt(&WS))), opt(seq!(python_literal(";"), opt(&WS))), &NEWLINE))))).into_rc_dyn();
     let statement_newline = statement_newline.set(tag("statement_newline", choice!(

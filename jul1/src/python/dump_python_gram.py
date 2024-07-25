@@ -66,7 +66,7 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True)
         elif isinstance(item, pegen.grammar.Forced):
             return item_to_node(item.node)
         elif isinstance(item, pegen.grammar.PositiveLookahead):
-            return remove_left_recursion.eps_external(item.node)
+            return remove_left_recursion.lookahead(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.NegativeLookahead):
             return remove_left_recursion.eps()
         elif isinstance(item, pegen.grammar.Rhs):
@@ -103,6 +103,8 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
             return pegen.grammar.NameLeaf(node.name)
         elif isinstance(node, remove_left_recursion.EpsExternal):
             return node.data
+        elif isinstance(node, remove_left_recursion.Lookahead):
+            return pegen.grammar.PositiveLookahead(node_to_item(node.child))
         elif isinstance(node, remove_left_recursion.Seq):
             assert len(node.children) > 0
             return pegen.grammar.Group(node_to_rhs(node))

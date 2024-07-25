@@ -6,7 +6,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum, auto
 from io import StringIO
-from typing import Self, Iterable, Callable
+from typing import Self, Iterable, Callable, Any
 
 import itertools
 from tqdm import tqdm
@@ -39,6 +39,8 @@ def is_nullable(node: Node, nullable_rules: set[Ref]) -> bool:
         case Term(_):
             return False
         case EpsExternal(_):
+            return True
+        case Lookahead(child):
             return True
         case Seq(children):
             return all(is_nullable(child, nullable_rules) for child in children)
@@ -87,6 +89,8 @@ def get_firsts(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExte
         return {node}
     elif isinstance(node, EpsExternal):
         return {node}
+    elif isinstance(node, Lookahead):
+        return set()
     elif isinstance(node, Seq):
         result = set()
         for child in node.children:
@@ -150,6 +154,8 @@ def iter_nodes(node: Node) -> Iterable[Node]:
             yield from iter_nodes(child)
         case EpsExternal(_) | Term(_) | Ref(_):
             pass
+        case Lookahead(child):
+            yield from iter_nodes(child)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -223,6 +229,8 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
                 return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
             case Ref(_) | Term(_) | EpsExternal(_):
                 return node
+            case Lookahead(child):
+                return lookahead(intersperse_separator_for_node(child, separator, nullable_rules))
             case _:
                 raise ValueError(f"Unexpected node: {node}")
     except ValueError as e:
@@ -242,6 +250,8 @@ def inject_prefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: 
                 return seq(*children)
             case EpsExternal(_):
                 return node
+            case Lookahead(child):
+                return node
             case _:
                 raise ValueError(f"Unexpected nullable node: {node}")
     except ValueError as e:
@@ -260,6 +270,8 @@ def inject_suffix_on_nonnull_for_node(node: Node, suffix: Node, nullable_rules: 
                 children = [inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules) for child in children]
                 return seq(*children)
             case EpsExternal(_):
+                return node
+            case Lookahead(child):
                 return node
             case _:
                 raise ValueError(f"Unexpected nullable node: {node}")
@@ -287,6 +299,8 @@ def get_firsts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term 
             return {node}
         case EpsExternal(_):
             return {node}
+        case Lookahead(child):
+            return set()
         case Seq(children):
             result = set()
             for child in children:
@@ -316,6 +330,8 @@ def get_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term |
         case EpsExternal(_):
             assert isinstance(node, EpsExternal)
             return {node}
+        case Lookahead(child):
+            return set()
         case Seq(children):
             result = set()
             for child in reversed(children):
@@ -375,6 +391,8 @@ def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref |
         case Term(_):
             return {}
         case EpsExternal(_):
+            return {}
+        case Lookahead(child):
             return {}
         case Seq(children):
             result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
@@ -472,8 +490,8 @@ def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidd
                         for j, subsequent_child in enumerate(children[i + 1:], start=i + 1):
                             def map_fn(node: Node) -> Node:
                                 if isinstance(node, Ref | Term | EpsExternal) and node in forbidden_follows:
-                                    if len(lasts_for_child) > 1:
-                                        raise ValueError(f"Cannot forbid follows for {node} with first {first} and forbidden follows {forbidden_follows} because {lasts_for_child} has more than one last (how would we disambiguate?)")
+                                    # if len(lasts_for_child) > 1:
+                                    #     raise ValueError(f"Cannot forbid follows for {node} with first {first} and forbidden follows {forbidden_follows} because {lasts_for_child} has more than one last (how would we disambiguate?)")
                                     return fail()
                                 else:
                                     return node
@@ -488,6 +506,8 @@ def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidd
             case Repeat1(child):
                 return Repeat1(forbid_follows_for_node(child, first, forbidden_follows, nullable_rules))
             case Ref(_) | Term(_) | EpsExternal(_):
+                return node
+            case Lookahead(_):
                 return node
             case _:
                 raise ValueError(f"Unexpected node: {node}")
@@ -794,6 +814,26 @@ class EpsExternal[T](Node):
         return f'eps(\u001b[36m{repr(self.data)}\u001b[0m)'
 
 
+@dataclass
+class Lookahead(Node):
+    child: Node
+
+    def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
+        return self, fail()
+
+    def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
+        return self
+
+    def simplify(self) -> Node:
+        self.child = self.child.simplify()
+        return self if self.child != fail() else fail()
+
+    def copy(self) -> Self:
+        return Lookahead(self.child.copy())
+
+    def __str__(self) -> str:
+        return f'\u001b[35mlookahead\u001b[0m({str(self.child)})'
+
 # Core combinators
 def seq(*children: Node) -> Seq: return Seq(list(children))
 def choice(*children: Node) -> Choice: return Choice(list(children))
@@ -801,6 +841,7 @@ def repeat1(child: Node) -> Repeat1: return Repeat1(child)
 def ref(name: str) -> Ref: return Ref(name)
 def term(value: str) -> Term: return Term(value)
 def eps_external[T](data: T) -> EpsExternal[T]: return EpsExternal(data)
+def lookahead(child: Node) -> Lookahead: return Lookahead(child)
 
 
 # Derived combinators
