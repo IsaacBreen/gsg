@@ -65,7 +65,7 @@ where
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self == other
+            self.tag == other.tag && self.inner.dyn_eq(&other.inner)
         } else {
             false
         }

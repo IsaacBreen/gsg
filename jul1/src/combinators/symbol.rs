@@ -41,7 +41,7 @@ impl<T> ParserTrait for SymbolParser<T> where T: CombinatorTrait
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self == other
+            self.symbol_value.dyn_eq(&other.symbol_value.into_box_dyn()) && self.inner.dyn_eq(&other.inner)
         } else {
             false
         }

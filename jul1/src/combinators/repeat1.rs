@@ -23,7 +23,7 @@ where
 
 impl<A> CombinatorTrait for Repeat1<A>
 where
-    A: CombinatorTrait + std::cmp::PartialEq,
+    A: CombinatorTrait,
 {
     type Parser = Repeat1Parser<A>;
 
@@ -43,7 +43,7 @@ where
 
 impl<A> ParserTrait for Repeat1Parser<A>
 where
-    A: CombinatorTrait + std::cmp::PartialEq,
+    A: CombinatorTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut right_data_as = vec![];
@@ -110,7 +110,7 @@ where
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            let a_eq = self.a == other.a;
+            let a_eq = CombinatorTrait::dyn_eq(&self.a, &other.a.into_box_dyn());
             let a_parsers_eq = self.a_parsers.iter().zip(other.a_parsers.iter()).all(|(a, b)| a.dyn_eq(b));
             let right_data_eq = self.right_data == other.right_data;
             a_eq && a_parsers_eq && right_data_eq
@@ -134,7 +134,6 @@ where
 pub fn repeat0<A>(a: A) -> Choice2<Repeat1<A::Output>, Eps>
 where
     A: IntoCombinator,
-    A::Output: std::cmp::PartialEq,
 {
     opt(repeat1(a.into_combinator()))
 }
@@ -143,8 +142,6 @@ pub fn seprep1<A, B>(a: A, b: B) -> Seq2<Rc<<A as IntoCombinator>::Output>, Choi
 where
     A: IntoCombinator,
     B: IntoCombinator,
-    A::Output: std::cmp::PartialEq,
-    B::Output: std::cmp::PartialEq,
 {
     let a = Rc::new(a.into_combinator());
     seq!(a.clone(), repeat0(seq!(b, a.clone())))
@@ -154,8 +151,6 @@ pub fn seprep0<A, B>(a: A, b: B) -> Seq2<Choice2<Repeat1<Seq2<Rc<<A as IntoCombi
 where
     A: IntoCombinator,
     B: IntoCombinator,
-    A::Output: std::cmp::PartialEq,
-    B::Output: std::cmp::PartialEq,
 {
     let a = Rc::new(a.into_combinator());
     seq!(opt(repeat1(seq!(a.clone(), b))), a)

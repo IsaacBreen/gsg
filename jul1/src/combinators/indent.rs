@@ -108,7 +108,12 @@ impl ParserTrait for IndentCombinatorParser {
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self == other
+            match (self, other) {
+                (IndentCombinatorParser::DentParser(a), IndentCombinatorParser::DentParser(b)) => a.dyn_eq(b),
+                (IndentCombinatorParser::IndentParser(right_data_a), IndentCombinatorParser::IndentParser(right_data_b)) => right_data_a == right_data_b,
+                (IndentCombinatorParser::Done, IndentCombinatorParser::Done) => true,
+                _ => false,
+            }
         } else {
             false
         }

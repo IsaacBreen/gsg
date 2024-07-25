@@ -84,6 +84,9 @@ where
     {
         Rc::new(DynWrapper(self))
     }
+    fn dyn_eq(&self, other: &DynCombinator) -> bool {todo!()}
+    fn dyn_hash(&self, state: &mut dyn Hasher) {}
+    fn as_any(&self) -> &dyn Any {todo!()}
 }
 
 pub trait ParserTrait {

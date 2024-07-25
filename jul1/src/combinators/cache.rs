@@ -135,7 +135,7 @@ where
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self == other
+            self.inner.dyn_eq(&other.inner)
         } else {
             false
         }
@@ -217,7 +217,7 @@ impl ParserTrait for CachedParser {
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self == other
+            Rc::ptr_eq(&self.entry, &other.entry)
         } else {
             false
         }

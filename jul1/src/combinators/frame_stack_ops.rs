@@ -1,6 +1,7 @@
 use std::any::Any;
 use crate::{CombinatorTrait, FrameStack, IntoCombinator, ParseResults, ParserTrait, RightData, Stats, UpData};
 
+#[derive(PartialEq)]
 pub struct WithNewFrame<A>
 where
     A: CombinatorTrait,
@@ -8,6 +9,7 @@ where
     pub a: A,
 }
 
+#[derive(PartialEq)]
 pub struct WithNewFrameParser<P>
 where
     P: ParserTrait,
@@ -54,7 +56,7 @@ where
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self == other
+            self.a.dyn_eq(&other.a)
         } else {
             false
         }
@@ -201,7 +203,7 @@ where
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self == other
+            self.op_type == other.op_type && self.a.dyn_eq(&other.a)
         } else {
             false
         }

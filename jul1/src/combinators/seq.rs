@@ -28,7 +28,7 @@ where
 impl<B, ParserA> PartialEq for Seq2Parser<B, ParserA>
 where
     ParserA: ParserTrait,
-    B: CombinatorTrait + std::cmp::PartialEq,
+    B: CombinatorTrait,
 {
     fn eq(&self, other: &Self) -> bool {
         let a_eq = match (&self.a, &other.a) {
@@ -37,7 +37,7 @@ where
             _ => return false,
         };
         let bs_eq = self.bs.iter().zip(other.bs.iter()).all(|(a, b)| a.dyn_eq(b));
-        let b_eq = self.b == other.b;
+        let b_eq = self.b.dyn_eq(&other.b.into_box_dyn());
         let right_data_eq = self.right_data == other.right_data;
         a_eq && bs_eq && b_eq && right_data_eq
     }
@@ -46,7 +46,7 @@ where
 impl<A, B> CombinatorTrait for Seq2<A, B>
 where
     A: CombinatorTrait,
-    B: CombinatorTrait + std::cmp::PartialEq,
+    B: CombinatorTrait,
 {
     type Parser = Seq2Parser<B, A::Parser>;
 
@@ -95,7 +95,7 @@ where
 impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA>
 where
     ParserA: ParserTrait + 'static,
-    B: CombinatorTrait + std::cmp::PartialEq,
+    B: CombinatorTrait,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut any_cut = false;
