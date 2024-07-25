@@ -125,16 +125,17 @@ def infer_rule_types(rules: dict[Ref, Node]) -> dict[Ref, RuleType]:
 
 
 def iter_nodes(node: Node) -> Iterable[Node]:
+    yield node
     match node:
         case Seq(children) | Choice(children):
-            yield node
             for child in children:
                 yield from iter_nodes(child)
         case Repeat1(child):
-            yield node
             yield from iter_nodes(child)
+        case EpsExternal(_) | Term(_) | Ref(_):
+            pass
         case _:
-            yield node
+            raise ValueError(f"Unknown node type: {type(node)}")
 
 def validate_rules(rules: dict[Ref, Node]) -> None:
     for ref, node in rules.items():
@@ -380,12 +381,25 @@ def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref |
             raise ValueError(f"Unknown node type: {type(node)}")
 
 
+def gather_all_leaves(rules: dict[Ref, Node]) -> set[Ref | Term | EpsExternal]:
+    result = set()
+    for ref, node in rules.items():
+        result.add(ref)
+        result.update(x for x in iter_nodes(node) if isinstance(x, Ref | Term | EpsExternal))
+    return result
+
 def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]]:
     follow_sets: dict[Ref, set[Ref | Term | EpsExternal]] = {}
     nullable_rules = get_nullable_rules(rules)
     for ref, node in rules.items():
         for node, follow_set in collect_follows_for_node(node, nullable_rules).items():
             follow_sets.setdefault(node, set()).update(follow_set)
+    firsts_for_node = {}
+    for ref, node in rules.items():
+        firsts_for_node[ref] = get_firsts_for_node(node, nullable_rules)
+    for leaf in gather_all_leaves(rules):
+        follow_sets.setdefault(leaf, set())
+        firsts_for_node.setdefault(leaf, set())
     # Substitute follow sets for refs repeatedly
     while True:
         old_follow_sets = deepcopy(follow_sets)
@@ -394,10 +408,16 @@ def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Re
             while len(queue) > 0:
                 node = queue.pop()
                 if isinstance(node, Ref) and node in rules:
-                    firsts = get_firsts_for_node(rules[node], nullable_rules)
+                    firsts = firsts_for_node[node]
                     new_follows = firsts - follow_set
                     queue.extend(new_follows)
                     follow_set.update(new_follows)
+        for ref, node in rules.items():
+            # The follow set of a rule should inherit the follow set of its lasts and vice versa
+            lasts_for_rule = get_lasts_for_node(node, nullable_rules)
+            for last in lasts_for_rule:
+                follow_sets[last].add(ref)
+                follow_sets[ref].add(last)
         if old_follow_sets == follow_sets:
             break
     return follow_sets
@@ -468,7 +488,7 @@ def forbid_follows(rules: dict[Ref, Node], forbidden_follows_table: dict[Ref | T
             for ref, last_set in lasts.items():
                 if first in last_set:
                     # if len(last_set) > 1:
-                    #     raise ValueError(f"Cannot forbid follows for {ref} with first {first} and forbidden follows {forbidden_follows} because {last_set} has more than one last (how would we disambiguate?)")
+                    #     raise ValueError(f"Cannot forbid follows for {ref} with first {first} and forbidden follows {forbidden_follows} because the last set {last_set} for this rule has more than one last (how would we disambiguate?)")
                     # The rule for ref can end with the first for this row in the forbidden follows table.
                     # Any follows that are forbidden ƒor this first must also be forbidden for this ref.
                     forbidden_follows_table.setdefault(ref, set()).update(forbidden_follows)
@@ -892,4 +912,16 @@ if __name__ == '__main__':
     }
     print("after forbidding follows:")
     prettify_rules(forbid_follows(rules, forbidden_follows_table))
+    print()
+
+    # Test get_follows more
+    rules = make_rules(
+        params=repeat1(ref('param')),
+        param=ref('NAME'),
+    )
+    prettify_rules(rules)
+    print("follow sets:")
+    for ref, follow_set in get_follows(rules).items():
+        print(f'{ref} -> {follow_set}')
+    assert ref('NAME') in get_follows(rules)[ref('NAME')]
     print()
