@@ -308,7 +308,7 @@ if __name__ == "__main__":
     # Print follow sets
     follows = remove_left_recursion.get_follows(custom_grammar)
     print(f"Follows:")
-    for node, follow_set in sorted(follows.items(), key=lambda x: (str(type(x[0])), str(x[0]))):
+    for node, follow_set in sorted(follows.items(), key=lambda x: (str(type(x[0])), str(x[0])), reverse=True):
         if node not in custom_grammar:
             # Assume such a node is a token
             follow_set = follow_set - set(custom_grammar.keys())
