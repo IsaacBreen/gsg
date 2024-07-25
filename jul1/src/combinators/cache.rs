@@ -104,6 +104,8 @@ where
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner::default()));
         right_data.cache_data.inner = Some(cache_data_inner.clone());
         let (parser, results) = self.inner.parser(right_data);
+        // Reverse the order of entries
+        cache_data_inner.borrow_mut().entries.reverse();
         (CacheContextParser { inner: parser, cache_data_inner }, results)
     }
 
@@ -121,11 +123,8 @@ where
         for entry in self.cache_data_inner.borrow_mut().entries.iter() {
             entry.borrow_mut().maybe_parse_results.take();
         }
-        for (i, entry) in self.cache_data_inner.borrow().entries.iter().enumerate() {
-            assert_eq!(entry.borrow().num, i);
-        }
-        let l = self.cache_data_inner.borrow().entries.len().clone();
-        for i in (0..l).rev() {
+        let num_entries_initial = self.cache_data_inner.borrow().entries.len().clone();
+        for i in (0..num_entries_initial).rev() {
             let mut entry = {
                 let binding = self.cache_data_inner.borrow();
                 binding.entries[i].clone()
@@ -134,7 +133,12 @@ where
             parse_results.squash();
             entry.borrow_mut().maybe_parse_results.replace(parse_results.clone());
         }
-        self.inner.step(c)
+        let parse_result = self.inner.step(c);
+        // Reverse the order of new entries
+        let mut new_entries = self.cache_data_inner.borrow_mut().entries.split_off(num_entries_initial);
+        new_entries.reverse();
+        self.cache_data_inner.borrow_mut().entries.append(&mut new_entries);
+        parse_result
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
@@ -201,15 +205,15 @@ impl CombinatorTrait for Cached {
             combinator: self.inner.clone(),
             right_data: right_data.clone()
         };
+
+        let (parser, mut parse_results) = self.inner.parser(right_data.clone());
+        parse_results.squash();
         {
             let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
             cache_data_inner.new_parsers.insert(key, entry.clone());
             entry.borrow_mut().num = cache_data_inner.entries.len();
             cache_data_inner.entries.push(entry.clone());
         }
-
-        let (parser, mut parse_results) = self.inner.parser(right_data.clone());
-        parse_results.squash();
         entry.borrow_mut().parser = Some(parser);
         entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
         let num = entry.borrow().num;
