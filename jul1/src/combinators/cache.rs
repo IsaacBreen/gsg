@@ -93,7 +93,7 @@ where
     P: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        for entry in self.cache_data_inner.borrow_mut().entries.clone().iter() {
+        for entry in self.cache_data_inner.borrow_mut().entries.iter() {
             entry.borrow_mut().maybe_parse_results.take();
         }
         self.inner.step(c)
@@ -172,7 +172,7 @@ impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut parse_results_gt = self.parser_gt.step(c);
         parse_results_gt.squash();
-        if let Some(parse_results) = self.entry.borrow().maybe_parse_results.clone() {
+        if let Some(parse_results) = { let binding = self.entry.borrow(); binding.maybe_parse_results.clone() } {
             assert_eq!(parse_results, parse_results_gt);
             parse_results
         } else {
