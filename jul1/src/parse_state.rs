@@ -50,7 +50,6 @@ pub struct RightData {
     pub scope_count: usize,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub greed_order: GreedOrder,
-    // #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub prevent_consecutive_matches: PreventConsecutiveMatchesData,
     pub cache_data: CacheData,
     pub lookahead_data: LookaheadData,

@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::ops::Not;
 use std::rc::Rc;
 
 use crate::*;
@@ -53,11 +54,7 @@ where
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         let (a, mut parse_results_a) = self.a.parser(right_data.clone());
         // parse_results_a.right_data_vec.squash();
-        let mut a = if parse_results_a.up_data_vec.is_empty() && parse_results_a.right_data_vec.is_empty() {
-            None
-        } else {
-            Some(a)
-        };
+        let mut a = parse_results_a.done.not().then_some(a);
         let (mut bs, mut right_data_bs, mut up_data_bs) = (vec![], vec![], vec![]);
         for right_data_b in parse_results_a.right_data_vec {
             let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, done }) = self.b.parser(right_data_b);

@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::ops::Not;
 use crate::{CombinatorTrait, DynCombinator, eps, fail, IntoCombinator, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::{RightData, UpData};
 
@@ -32,7 +33,7 @@ where
         let (a, parse_results_a) = self.a.parser(right_data.clone());
         let (b, parse_results_b) = self.b.parser(right_data);
         (
-            Choice2Parser { a: Some(a), b: Some(b) },
+            Choice2Parser { a: parse_results_a.done.not().then_some(a), b: parse_results_b.done.not().then_some(b) },
             parse_results_a.combine_inplace(parse_results_b)
         )
     }

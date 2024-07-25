@@ -46,7 +46,11 @@ impl ParserTrait for EatU8Parser {
                 };
             }
         }
-        panic!("EatU8Parser already consumed")
+        if let Some(mut right_data) = self.right_data.take() {
+            return ParseResults::empty_finished()
+        } else {
+            panic!("EatU8Parser already consumed")
+        }
     }
     fn collect_stats(&self, stats: &mut Stats) {
         stats.active_parser_type_counts.entry("EatU8Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);
