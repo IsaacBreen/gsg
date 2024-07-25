@@ -16,7 +16,7 @@ impl Hash for CacheData {
 }
 
 pub struct CacheEntry {
-    parser: Box<dyn ParserTrait>,
+    parser: Option<Box<dyn ParserTrait>>,
     maybe_parse_results: Option<ParseResults>,
 }
 
@@ -125,7 +125,7 @@ where
                 let binding = self.cache_data_inner.borrow();
                 binding.entries.get(i).unwrap().clone()
             };
-            let mut parse_results = entry.borrow_mut().parser.step(c);
+            let mut parse_results = entry.borrow_mut().parser.as_mut().unwrap().step(c);
             parse_results.squash();
             entry.borrow_mut().maybe_parse_results.replace(parse_results.clone());
         }
@@ -143,7 +143,7 @@ where
     fn collect_stats(&self, stats: &mut Stats) {
         self.inner.collect_stats(stats);
         for entry in self.cache_data_inner.borrow().entries.iter() {
-            entry.borrow().parser.collect_stats(stats);
+            entry.borrow().parser.as_ref().unwrap().collect_stats(stats);
         }
     }
 
@@ -185,23 +185,25 @@ impl CombinatorTrait for Cached {
             }
         }
 
-        let (parser, mut parse_results) = self.inner.parser(right_data.clone());
-        parse_results.squash();
         let entry = Rc::new(RefCell::new(CacheEntry {
-            parser,
-            maybe_parse_results: Some(parse_results.clone())
+            parser: None,
+            maybe_parse_results: None,
         }));
         let key = CacheKey {
             combinator: self.inner.clone(),
             right_data: right_data.clone()
         };
-        let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-        cache_data_inner.new_parsers.insert(key, entry.clone());
-        cache_data_inner.entries.push(entry.clone());
-        (CachedParser {
-            entry,
-        },
-        parse_results)
+        {
+            let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
+            cache_data_inner.new_parsers.insert(key, entry.clone());
+            cache_data_inner.entries.push(entry.clone());
+        }
+
+        let (parser, mut parse_results) = self.inner.parser(right_data.clone());
+        parse_results.squash();
+        entry.borrow_mut().parser = Some(parser);
+        entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
+        (CachedParser { entry }, parse_results)
     }
 
     fn as_any(&self) -> &dyn Any {
