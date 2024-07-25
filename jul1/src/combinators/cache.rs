@@ -93,6 +93,7 @@ where
     P: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
+        self.cache_data_inner.borrow_mut().new_parsers.clear();
         for entry in self.cache_data_inner.borrow_mut().entries.iter() {
             entry.borrow_mut().maybe_parse_results.take();
         }
