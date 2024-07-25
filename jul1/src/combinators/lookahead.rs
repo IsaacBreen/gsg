@@ -118,9 +118,7 @@ impl<T: CombinatorTrait> CombinatorTrait for FilteredTerminal<T> {
         let (inner, mut parse_results) = self.inner.parser(right_data.clone());
         let filter = lookahead_data.get_u8set();
         let mut merged = filter.clone();
-        dbg!(&filter);
         for up_data in &mut parse_results.up_data_vec {
-            dbg!(&up_data.u8set);
             up_data.u8set = up_data.u8set.intersection(&filter);
             merged |= up_data.u8set;
         }

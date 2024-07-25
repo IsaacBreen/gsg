@@ -18,7 +18,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         }
         let bytes = line.bytes().collect::<Vec<_>>();
         for (char_number, byte) in tqdm!(bytes.iter().cloned().enumerate(), animation = "fillup", position = 1) {
-            println!("byte: {:?}\n\n\n\n", byte as char);
+            // println!("byte: {:?}\n\n\n\n", byte as char);
             let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));
             assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}", byte as char, up_data);
 
@@ -34,13 +34,13 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
             up_data = new_up_data;
 
-            println!();
-            println!("line:char: {line_number}:{char_number}");
-            println!("line: {line:?}");
-            println!("byte: {:?}", byte as char);
-            // println!("up_data: {up_data:?}");
-            println!("Stats:");
-            println!("{}", parser.stats());
+            // println!();
+            // println!("line:char: {line_number}:{char_number}");
+            // println!("line: {line:?}");
+            // println!("byte: {:?}", byte as char);
+            // // println!("up_data: {up_data:?}");
+            // println!("Stats:");
+            // println!("{}", parser.stats());
 
             assert!(!right_data.is_empty() || !up_data.is_empty(), "Parser failed at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
         }
