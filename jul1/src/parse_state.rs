@@ -36,6 +36,7 @@ impl ParseResults {
         self.right_data_vec.append(&mut p0.right_data_vec);
         self.up_data_vec.append(&mut p0.up_data_vec);
         self.cut |= p0.cut;
+        self.done &= p0.done;
     }
 
     pub(crate) fn combine_inplace(mut self, p0: ParseResults) -> Self {

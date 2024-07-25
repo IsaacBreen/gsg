@@ -48,49 +48,14 @@ where
     B: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        let mut right_data = vec![];
-        let mut up_data = vec![];
-        let mut any_cut = false;
-        let mut all_done = true;
-
+        let mut parse_result = ParseResults::empty_finished();
         if let Some(a) = &mut self.a {
-            let ParseResults { right_data_vec: mut right_data_a, up_data_vec: mut up_data_a, cut, done: done_a } = a.step(c);
-            all_done &= done_a;
-            any_cut = cut;
-            // if done_a {
-            //     self.a = None;
-            // }
-            up_data.append(&mut up_data_a);
-            right_data.append(&mut right_data_a);
+            parse_result.combine(a.step(c));
         }
-
         if let Some(b) = &mut self.b {
-            let ParseResults { right_data_vec: mut right_data_b, up_data_vec: mut up_data_b, cut, done: done_b } = b.step(c);
-            all_done &= done_b;
-            if cut && !any_cut {
-                // Clear the 'a' combinator and any up data from 'a' if 'b' cuts and 'a' didn't
-                // self.a = None;
-                // up_data.clear();
-                // any_cut = true;
-            }
-            if cut || !any_cut {
-                // if done_b {
-                //     self.b = None;
-                // }
-                up_data.append(&mut up_data_b);
-            }
-            up_data.append(&mut up_data_b);
-            right_data.append(&mut right_data_b);
+            parse_result.combine(b.step(c));
         }
-
-        ParseResults {
-            right_data_vec: right_data,
-            up_data_vec: up_data,
-            // cut: any_cut,
-            done: all_done,
-            cut: false,
-            // done: false,
-        }
+        parse_result
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
