@@ -56,7 +56,7 @@ where
         let mut new_parsers = vec![];
 
         for mut a_parser in self.a_parsers.drain(..) {
-            let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, cut } = a_parser.step(c);
+            let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, cut, done} = a_parser.step(c);
                 if cut && !any_cut {
                     // Clear any parsers and up data up to this point, but not right data
                     new_parsers.clear();
@@ -64,7 +64,7 @@ where
                     any_cut = true;
                 }
             if cut || !any_cut {
-                if !right_data_a.is_empty() || !up_data_a.is_empty() {
+                if !done {
                     new_parsers.push(a_parser);
                 }
                 up_data_as.extend(up_data_a);
@@ -75,7 +75,7 @@ where
         right_data_as.squash();
 
         for right_data_a in right_data_as.clone() {
-            let (a_parser, ParseResults { right_data_vec: mut right_data_a, up_data_vec: up_data_a, mut cut }) = self.a.parser(right_data_a);
+            let (a_parser, ParseResults { right_data_vec: mut right_data_a, up_data_vec: up_data_a, mut cut, done }) = self.a.parser(right_data_a);
             assert!(right_data_a.is_empty());
             // right_data_a.clear();
             // cut |= right_data_a.is_empty();
@@ -100,6 +100,7 @@ where
             right_data_vec: right_data_as,
             up_data_vec: up_data_as,
             cut: any_cut,
+            done: self.a_parsers.is_empty(),
         }
             // .squashed()
     }

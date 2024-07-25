@@ -45,6 +45,7 @@ impl<T: CombinatorTrait> CombinatorTrait for Lookahead<T> {
             up_data_vec: vec![],
             right_data_vec: vec![right_data],
             cut: parse_result.cut,
+            done: true,
         })
     }
 
@@ -53,7 +54,7 @@ impl<T: CombinatorTrait> CombinatorTrait for Lookahead<T> {
     }
 }
 
-impl<P> ParserTrait for LookaheadParser<P> {
+impl<P: ParserTrait + 'static> ParserTrait for LookaheadParser<P> {
     fn step(&mut self, c: u8) -> ParseResults {
         let parse_results = self.inner.step(c);
         let mut u8set = U8Set::none();
@@ -61,7 +62,7 @@ impl<P> ParserTrait for LookaheadParser<P> {
             u8set |= up_data.u8set;
         }
         self.filter.borrow_mut().u8set |= u8set;
-        ParseResults::no_match()
+        ParseResults::finished()
     }
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {

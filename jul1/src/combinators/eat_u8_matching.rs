@@ -26,6 +26,7 @@ impl CombinatorTrait for EatU8 {
                 u8set: self.u8set.clone(),
             }],
             cut: false,
+            done: false,
         })
     }
 
@@ -43,6 +44,7 @@ impl ParserTrait for EatU8Parser {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![],
                     cut: false,
+                    done: true,
                 };
             }
         }
@@ -50,6 +52,7 @@ impl ParserTrait for EatU8Parser {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
+            done: false,
         }
     }
     fn collect_stats(&self, stats: &mut Stats) {

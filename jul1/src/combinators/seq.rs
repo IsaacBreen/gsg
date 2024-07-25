@@ -61,7 +61,7 @@ where
         let (mut bs, mut right_data_bs, mut up_data_bs) = (vec![], vec![], vec![]);
         let mut any_cut = parse_results_a.cut;
         for right_data_b in parse_results_a.right_data_vec {
-            let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut }) = self.b.parser(right_data_b);
+            let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut, done }) = self.b.parser(right_data_b);
             if cut && !any_cut {
                 // Clear any combinators and up data up to this point, but not right data.
                 a = None;
@@ -84,10 +84,12 @@ where
             b: self.b.clone(),
             right_data,
         };
+        let done = parser.a.is_none() && parser.bs.is_empty();
         (parser, ParseResults {
             right_data_vec: right_data_bs,
             up_data_vec: up_data_bs.into_iter().chain(parse_results_a.up_data_vec).collect(),
             cut: any_cut,
+            done,
         })
     }
 
@@ -107,11 +109,11 @@ where
         let mut up_data_a = vec![];
 
         if let Some(a) = &mut self.a {
-            let ParseResults { right_data_vec, up_data_vec, cut } = a.step(c);
+            let ParseResults { right_data_vec, up_data_vec, cut, done: done_a } = a.step(c);
             right_data_a = right_data_vec;
             up_data_a = up_data_vec;
             any_cut = cut;
-            if right_data_a.is_empty() && up_data_a.is_empty() {
+            if done_a {
                 self.a = None;
             }
         }
@@ -121,7 +123,7 @@ where
         let mut new_bs = vec![];
 
         for mut b in self.bs.drain(..) {
-            let ParseResults { right_data_vec, up_data_vec, cut } = b.step(c);
+            let ParseResults { right_data_vec, up_data_vec, cut, done } = b.step(c);
             if cut && !any_cut {
                 // Clear any combinators and up data up to this point, but not right data.
                 self.a = None;
@@ -131,7 +133,7 @@ where
                 any_cut = true;
             }
             if cut || !any_cut {
-                if !right_data_vec.is_empty() || !up_data_vec.is_empty() {
+                if !done {
                     new_bs.push(b);
                 }
                 up_data_bs.extend(up_data_vec);
@@ -142,7 +144,7 @@ where
         // right_data_a.squash();
 
         for right_data_b in right_data_a {
-            let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut }) = self.b.parser(right_data_b);
+            let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, cut , done}) = self.b.parser(right_data_b);
             if cut && !any_cut {
                 // Clear any combinators and up data up to this point, but not right data.
                 self.a = None;
@@ -152,7 +154,7 @@ where
                 any_cut = true;
             }
             if cut || !any_cut {
-                if !right_data_b.is_empty() || !up_data_b.is_empty() {
+                if !done {
                     new_bs.push(b);
                 }
                 up_data_bs.extend(up_data_b);
@@ -168,6 +170,7 @@ where
             right_data_vec: right_data_bs,
             up_data_vec: up_data_bs.into_iter().chain(up_data_a).collect(),
             cut: any_cut,
+            done: self.a.is_none() && self.bs.is_empty(),
         }
         // .squashed()
     }

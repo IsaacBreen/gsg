@@ -11,14 +11,16 @@ pub struct ParseResults {
     pub right_data_vec: Vec<RightData>,
     pub up_data_vec: Vec<UpData>,
     pub cut: bool,
+    pub done: bool,
 }
 
 impl ParseResults {
-    pub fn no_match() -> Self {
+    pub fn finished() -> Self {
         ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
+            done: true,
         }
     }
 
@@ -122,6 +124,7 @@ impl Squash for ParseResults {
             right_data_vec: self.right_data_vec.squashed(),
             up_data_vec: self.up_data_vec.squashed(),
             cut: self.cut,
+            done: self.done,
         }
     }
     fn squash(&mut self) {

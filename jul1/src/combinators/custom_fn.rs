@@ -23,6 +23,7 @@ impl<Parser: ParserTrait + 'static> ParserTrait for CustomFn<Parser> {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
+            done: true,
         }
     }
 

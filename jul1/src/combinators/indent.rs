@@ -55,6 +55,7 @@ impl CombinatorTrait for IndentCombinator {
                     right_data_vec: vec![],
                     up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
                     cut: false,
+                    done: false,
                 })
             }
             IndentCombinator::Dedent if right_data.dedents > 0 => {
@@ -64,6 +65,7 @@ impl CombinatorTrait for IndentCombinator {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![],
                     cut: false,
+                    done: true,
                 })
             }
             IndentCombinator::AssertNoDedents if right_data.dedents == 0 => {
@@ -71,9 +73,10 @@ impl CombinatorTrait for IndentCombinator {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![],
                     cut: false,
+                    done: true,
                 })
             }
-            _ => (IndentCombinatorParser::Done, ParseResults::no_match()),
+            _ => (IndentCombinatorParser::Done, ParseResults::finished()),
         }
     }
 
@@ -95,6 +98,7 @@ impl ParserTrait for IndentCombinatorParser {
                         right_data_vec: vec![right_data.clone()],
                         up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
                         cut: false,
+                        done: false,
                     }
                 } else {
                     // Fail. Purge the right data to poison the parser.
@@ -103,10 +107,11 @@ impl ParserTrait for IndentCombinatorParser {
                         right_data_vec: vec![],
                         up_data_vec: vec![],
                         cut: false,
+                        done: true,
                     }
                 }
             }
-            IndentCombinatorParser::Done => ParseResults::no_match(),
+            IndentCombinatorParser::Done => ParseResults::finished(),
         }
     }
 

@@ -15,6 +15,7 @@ impl CombinatorTrait for Fail {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
+            done: true,
         })
     }
 
@@ -29,6 +30,7 @@ impl ParserTrait for FailParser {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
+            done: true,
         }
     }
 

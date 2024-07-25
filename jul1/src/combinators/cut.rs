@@ -15,6 +15,7 @@ impl CombinatorTrait for Cut {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
             cut: true,
+            done: true,
         })
     }
 
@@ -29,6 +30,7 @@ impl ParserTrait for CutParser {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
+            done: true,
         }
     }
 

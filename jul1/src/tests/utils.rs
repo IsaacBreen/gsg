@@ -30,6 +30,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 right_data_vec: right_data,
                 up_data_vec: new_up_data,
                 cut,
+                done,
             } = parser.step(byte);
 
             up_data = new_up_data;
@@ -87,6 +88,7 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
                 right_data_vec: right_data,
                 up_data_vec: up_data,
                 cut,
+                done,
             } = parser.step(byte);
 
             // println!("Stats:");

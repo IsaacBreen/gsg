@@ -14,13 +14,14 @@ impl CombinatorTrait for PreventConsecutiveMatches {
     type Parser = FailParser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         if right_data.prevent_consecutive_matches.prev_match_ids.contains(&self.match_id) {
-            (FailParser, ParseResults::no_match())
+            (FailParser, ParseResults::finished())
         } else {
             right_data.prevent_consecutive_matches.prev_match_ids = vec![self.match_id.clone()];
             (FailParser, ParseResults {
                 right_data_vec: vec![right_data],
                 up_data_vec: vec![],
                 cut: false,
+                done: true,
             })
         }
     }
@@ -40,6 +41,7 @@ impl CombinatorTrait for PreventConsecutiveMatchesClear {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
             cut: false,
+            done: true,
         })
     }
 
@@ -60,6 +62,7 @@ impl CombinatorTrait for PreventConsecutiveMatchesSet {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
             cut: false,
+            done: true,
         })
     }
 
@@ -80,6 +83,7 @@ impl CombinatorTrait for PreventConsecutiveMatchesAdd {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
             cut: false,
+            done: true,
         })
     }
 
@@ -96,12 +100,13 @@ impl CombinatorTrait for PreventConsecutiveMatchesCheckNot {
     type Parser = FailParser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         if right_data.prevent_consecutive_matches.prev_match_ids.contains(&self.match_id) {
-            (FailParser, ParseResults::no_match())
+            (FailParser, ParseResults::finished())
         } else {
             (FailParser, ParseResults {
                 right_data_vec: vec![right_data],
                 up_data_vec: vec![],
                 cut: false,
+                done: true,
             })
         }
     }
