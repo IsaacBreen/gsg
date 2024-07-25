@@ -50,6 +50,22 @@ def is_nullable(node: Node, nullable_rules: set[Ref]) -> bool:
             raise ValueError(f"Unknown node type: {type(node)}")
 
 
+def update_dict(original: dict, updates: dict) -> bool:
+    changed = False
+    for key, value in updates.items():
+        if key not in original or original[key] != value:
+            original[key] = value
+            changed = True
+    return changed
+
+
+def add_to_set(s: set, element) -> bool:
+    if element not in s:
+        s.add(element)
+        return True
+    return False
+
+
 def get_nullable_rules(rules: dict[Ref, Node]) -> set[Ref]:
     # Assume all rules are nullable
     nullable_rules = set(rules.keys())
@@ -325,12 +341,12 @@ def get_firsts2(rules: dict[Ref, Node]) -> dict[Ref, set[Ref | Term | EpsExterna
         firsts[ref] = get_firsts_for_node(node, nullable_rules)
     # Substitute firsts for refs repeatedly until there are no more changes
     while True:
-        old_firsts = deepcopy(firsts)
+        old_firsts = firsts.copy()
         for ref in firsts:
             for first in list(firsts[ref]):
                 if first in firsts:
                     firsts[ref].update(firsts[first])
-        if old_firsts == firsts:
+        if not update_dict(firsts, old_firsts):
             break
     return firsts
 
@@ -342,12 +358,12 @@ def get_lasts(rules: dict[Ref, Node]) -> dict[Ref, set[Ref | Term | EpsExternal]
         lasts[ref] = get_lasts_for_node(node, nullable_rules)
     # Substitute lasts for refs repeatedly
     while True:
-        old_lasts = deepcopy(lasts)
+        old_lasts = lasts.copy()
         for ref in lasts:
             for last in list(lasts[ref]):
                 if last in lasts:
                     lasts[ref].update(lasts[last])
-        if old_lasts == lasts:
+        if not update_dict(lasts, old_lasts):
             break
     return lasts
 
@@ -406,7 +422,7 @@ def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Re
         firsts_for_node.setdefault(leaf, set())
     # Substitute follow sets for refs repeatedly
     while True:
-        old_follow_sets = deepcopy(follow_sets)
+        old_follow_sets = follow_sets.copy()
         for ref, follow_set in follow_sets.items():
             queue = list(follow_set)
             while len(queue) > 0:
@@ -487,7 +503,7 @@ def forbid_follows(rules: dict[Ref, Node], forbidden_follows_table: dict[Ref | T
 
     # Expand the forbidden follows table
     while True:
-        old_forbidden_follows_table = deepcopy(forbidden_follows_table)
+        old_forbidden_follows_table = forbidden_follows_table.copy()
         for first, forbidden_follows in list(forbidden_follows_table.items()):
             for ref, last_set in lasts.items():
                 if first in last_set:
