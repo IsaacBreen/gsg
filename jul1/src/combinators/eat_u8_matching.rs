@@ -25,7 +25,6 @@ impl CombinatorTrait for EatU8 {
             up_data_vec: vec![UpData {
                 u8set: self.u8set.clone(),
             }],
-            cut: false,
             done: false,
         })
     }
@@ -43,7 +42,6 @@ impl ParserTrait for EatU8Parser {
                 return ParseResults {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![],
-                    cut: false,
                     done: true,
                 };
             }
@@ -51,7 +49,6 @@ impl ParserTrait for EatU8Parser {
         ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
-            cut: false,
             done: true,
         }
     }

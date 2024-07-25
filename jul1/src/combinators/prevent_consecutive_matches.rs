@@ -17,7 +17,6 @@ impl CombinatorTrait for PreventConsecutiveMatches {
         (FailParser, ParseResults {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
-            cut: false,
             done: true,
         })
     }
@@ -36,7 +35,6 @@ impl CombinatorTrait for PreventConsecutiveMatchesClear {
         (FailParser, ParseResults {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
-            cut: false,
             done: true,
         })
     }
@@ -57,7 +55,6 @@ impl CombinatorTrait for PreventConsecutiveMatchesSet {
         (FailParser, ParseResults {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
-            cut: false,
             done: true,
         })
     }
@@ -78,7 +75,6 @@ impl CombinatorTrait for PreventConsecutiveMatchesAdd {
         (FailParser, ParseResults {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
-            cut: false,
             done: true,
         })
     }
@@ -101,7 +97,6 @@ impl CombinatorTrait for PreventConsecutiveMatchesCheckNot {
             (FailParser, ParseResults {
                 right_data_vec: vec![right_data],
                 up_data_vec: vec![],
-                cut: false,
                 done: true,
             })
         }

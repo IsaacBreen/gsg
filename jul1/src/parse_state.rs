@@ -10,7 +10,6 @@ use crate::CacheData;
 pub struct ParseResults {
     pub right_data_vec: Vec<RightData>,
     pub up_data_vec: Vec<UpData>,
-    pub cut: bool,
     pub done: bool,
 }
 
@@ -19,7 +18,6 @@ impl ParseResults {
         ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
-            cut: false,
             done: false,
         }
     }
@@ -27,7 +25,6 @@ impl ParseResults {
         ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
-            cut: false,
             done: true,
         }
     }
@@ -35,7 +32,6 @@ impl ParseResults {
     pub(crate) fn combine(&mut self, mut p0: ParseResults) {
         self.right_data_vec.append(&mut p0.right_data_vec);
         self.up_data_vec.append(&mut p0.up_data_vec);
-        self.cut |= p0.cut;
         self.done &= p0.done;
     }
 
@@ -132,7 +128,6 @@ impl Squash for ParseResults {
         ParseResults {
             right_data_vec: self.right_data_vec.squashed(),
             up_data_vec: self.up_data_vec.squashed(),
-            cut: self.cut,
             done: self.done,
         }
     }

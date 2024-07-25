@@ -28,7 +28,6 @@ impl CombinatorTrait for EatString {
         (parser, ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![UpData { u8set: U8Set::from_u8(self.string[0]) }],
-            cut: false,
             done: false,
         })
     }
@@ -50,7 +49,6 @@ impl ParserTrait for EatStringParser {
                     ParseResults {
                         right_data_vec: vec![right_data],
                         up_data_vec: vec![],
-                        cut: false,
                         done: true,
                     }
                 } else {
@@ -58,7 +56,6 @@ impl ParserTrait for EatStringParser {
                     ParseResults {
                         right_data_vec: vec![],
                         up_data_vec: vec![UpData { u8set: U8Set::from_u8(self.string[self.index]) }],
-                        cut: false,
                         done: false,
                     }
                 }
@@ -67,7 +64,6 @@ impl ParserTrait for EatStringParser {
                 ParseResults {
                     right_data_vec: vec![],
                     up_data_vec: vec![],
-                        cut: false,
                         done: true,
                 }
             }
@@ -76,7 +72,6 @@ impl ParserTrait for EatStringParser {
             ParseResults {
                 right_data_vec: vec![],
                 up_data_vec: vec![],
-                        cut: false,
                         done: true,
             }
         }

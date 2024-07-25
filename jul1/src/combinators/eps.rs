@@ -14,7 +14,6 @@ impl CombinatorTrait for Eps {
         (EpsParser, ParseResults {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
-            cut: false,
             done: true,
         })
     }
@@ -29,7 +28,6 @@ impl ParserTrait for EpsParser {
         ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
-            cut: false,
             done: true,
         }
     }

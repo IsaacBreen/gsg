@@ -31,7 +31,6 @@ where
         let (a, mut parse_results) = self.a.parser(right_data.clone());
         assert!(parse_results.right_data_vec.is_empty());
         // parse_results.right_data_vec.clear();
-        // parse_results.cut |= parse_results.right_data_vec.is_empty();
         let a_parsers = if !parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty() {
             vec![a]
         } else {
@@ -52,43 +51,23 @@ where
     fn step(&mut self, c: u8) -> ParseResults {
         let mut right_data_as = vec![];
         let mut up_data_as = vec![];
-        let mut any_cut = false;
         let mut new_parsers = vec![];
 
         for mut a_parser in self.a_parsers.drain(..) {
-            let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, cut, done} = a_parser.step(c);
-                if cut && !any_cut {
-                    // Clear any parsers and up data up to this point, but not right data
-                    new_parsers.clear();
-                    up_data_as.clear();
-                    any_cut = true;
-                }
-            if cut || !any_cut {
-                if !done {
-                    new_parsers.push(a_parser);
-                }
-                up_data_as.extend(up_data_a);
+            let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, done} = a_parser.step(c);
+            if !done {
+                new_parsers.push(a_parser);
             }
+            up_data_as.extend(up_data_a);
             right_data_as.extend(right_data_a);
         }
 
         right_data_as.squash();
 
         for right_data_a in right_data_as.clone() {
-            let (a_parser, ParseResults { right_data_vec: mut right_data_a, up_data_vec: up_data_a, mut cut, done }) = self.a.parser(right_data_a);
-            assert!(right_data_a.is_empty());
-            // right_data_a.clear();
-            // cut |= right_data_a.is_empty();
-            if cut && !any_cut {
-                // Clear any parsers and up data up to this point, but not right data
-                new_parsers.clear();
-                up_data_as.clear();
-                any_cut = true;
-            }
-            if cut || !any_cut {
-                up_data_as.extend(up_data_a);
-                new_parsers.push(a_parser);
-            }
+            let (a_parser, ParseResults { right_data_vec: mut right_data_a, up_data_vec: up_data_a, mut done }) = self.a.parser(right_data_a);
+            new_parsers.push(a_parser);
+            up_data_as.extend(up_data_a);
             right_data_as.extend(right_data_a);
         }
 
@@ -99,7 +78,6 @@ where
         ParseResults {
             right_data_vec: right_data_as,
             up_data_vec: up_data_as,
-            cut: any_cut,
             done: self.a_parsers.is_empty(),
         }
             // .squashed()

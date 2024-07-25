@@ -56,7 +56,6 @@ impl CombinatorTrait for IndentCombinator {
                 (IndentCombinatorParser::IndentParser(Some(right_data)), ParseResults {
                     right_data_vec: vec![],
                     up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
-                    cut: false,
                     done: false,
                 })
             }
@@ -66,7 +65,6 @@ impl CombinatorTrait for IndentCombinator {
                 (IndentCombinatorParser::Done, ParseResults {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![],
-                    cut: false,
                     done: true,
                 })
             }
@@ -74,7 +72,6 @@ impl CombinatorTrait for IndentCombinator {
                 (IndentCombinatorParser::Done, ParseResults {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![],
-                    cut: false,
                     done: true,
                 })
             }
@@ -100,7 +97,6 @@ impl ParserTrait for IndentCombinatorParser {
                     ParseResults {
                         right_data_vec: vec![right_data.clone()],
                         up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
-                        cut: false,
                         done: false,
                     }
                 } else {
@@ -109,7 +105,6 @@ impl ParserTrait for IndentCombinatorParser {
                     ParseResults {
                         right_data_vec: vec![],
                         up_data_vec: vec![],
-                        cut: false,
                         done: true,
                     }
                 }

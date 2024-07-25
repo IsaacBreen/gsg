@@ -29,7 +29,6 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
             let ParseResults {
                 right_data_vec: right_data,
                 up_data_vec: new_up_data,
-                cut,
                 done,
             } = parser.step(byte);
 
@@ -43,10 +42,6 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
             println!("Stats:");
             println!("{}", parser.stats());
 
-            if cut {
-                println!("cut!");
-                println!()
-            }
             assert!(!right_data.is_empty() || !up_data.is_empty(), "Parser failed at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
         }
     }
@@ -89,7 +84,6 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
             let ParseResults {
                 right_data_vec: right_data,
                 up_data_vec: new_up_data,
-                cut,
                 done,
             } = parser.step(byte);
 
@@ -103,10 +97,6 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
             println!("Stats:");
             println!("{}", parser.stats());
 
-            if cut {
-                println!("cut!");
-                println!()
-            }
             if !right_data.is_empty() || !up_data.is_empty() {
                 result = Err(format!(
                     "Parser succeeded at byte: {} on line: {} at char: {}",

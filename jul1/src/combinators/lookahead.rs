@@ -77,7 +77,6 @@ impl<T: CombinatorTrait> CombinatorTrait for Lookahead<T> {
         (LookaheadParser { inner, filter: filter_rc_refcell }, ParseResults {
             up_data_vec: vec![],
             right_data_vec: vec![right_data],
-            cut: parse_result.cut,
             done: true,
         })
     }

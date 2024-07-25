@@ -19,11 +19,10 @@ impl CombinatorTrait for BruteForce {
     type Parser = BruteForceParser;
 
     fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
-        let ParseResults { right_data_vec: right_data2, up_data_vec: up_data, cut, done } = (self.f)(&Vec::new(), &right_data);
+        let ParseResults { right_data_vec: right_data2, up_data_vec: up_data, done } = (self.f)(&Vec::new(), &right_data);
         (BruteForceParser { f: self.f.clone(), values: Vec::new(), right_data }, ParseResults {
             right_data_vec: right_data2,
             up_data_vec: up_data,
-            cut,
             done,
         })
     }
@@ -36,11 +35,10 @@ impl CombinatorTrait for BruteForce {
 impl ParserTrait for BruteForceParser {
     fn step(&mut self, c: u8) -> ParseResults {
         self.values.push(c);
-        let ParseResults { right_data_vec: right_data2, up_data_vec: up_data, cut, done } = (self.f)(&self.values, &self.right_data);
+        let ParseResults { right_data_vec: right_data2, up_data_vec: up_data, done } = (self.f)(&self.values, &self.right_data);
         ParseResults {
             right_data_vec: right_data2,
             up_data_vec: up_data,
-            cut,
             done,
         }
     }

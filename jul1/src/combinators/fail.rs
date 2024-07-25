@@ -14,7 +14,6 @@ impl CombinatorTrait for Fail {
         (FailParser, ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
-            cut: false,
             done: true,
         })
     }
@@ -29,7 +28,6 @@ impl ParserTrait for FailParser {
         ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],
-            cut: false,
             done: true,
         }
     }

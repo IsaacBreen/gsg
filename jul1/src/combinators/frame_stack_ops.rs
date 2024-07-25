@@ -39,14 +39,13 @@ where
     P: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, cut, done } = self.a.step(c);
+        let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, done } = self.a.step(c);
         for right_data in right_data_vec.iter_mut() {
             right_data.frame_stack.as_mut().unwrap().pop();
         }
         ParseResults {
             right_data_vec: right_data_vec,
             up_data_vec: up_data_vec,
-            cut,
             done,
         }
     }
@@ -105,7 +104,7 @@ where
 
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         let frame_stack = right_data.frame_stack.take().unwrap();
-        let (a, ParseResults { right_data_vec: mut right_data_vec, up_data_vec: mut up_data_vec, cut , done}) = self.a.parser(right_data);
+        let (a, ParseResults { right_data_vec: mut right_data_vec, up_data_vec: mut up_data_vec, done}) = self.a.parser(right_data);
         let parser = FrameStackOpParser {
             op_type: self.op_type,
             frame_stack,
@@ -137,7 +136,6 @@ where
         (parser, ParseResults {
             right_data_vec: right_data_vec,
             up_data_vec: up_data_vec,
-            cut,
             done,
         })
     }
@@ -155,7 +153,7 @@ where
         self.values.push(c);
         match self.op_type {
             FrameStackOpType::PushToFrame => {
-                let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, cut, done } = self.a.step(c);
+                let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, done } = self.a.step(c);
                 for right_data in right_data_vec.iter_mut() {
                     let mut frame_stack = self.frame_stack.clone();
                     frame_stack.push_name(&self.values);
@@ -164,12 +162,11 @@ where
                 ParseResults {
                     right_data_vec: right_data_vec,
                     up_data_vec: up_data_vec,
-                    cut,
                     done,
                 }
             }
             FrameStackOpType::PopFromFrame => {
-                let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, cut, done } = self.a.step(c);
+                let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, done } = self.a.step(c);
                 for right_data in right_data_vec.iter_mut() {
                     let mut frame_stack = self.frame_stack.clone();
                     frame_stack.pop_name(&self.values);
@@ -178,13 +175,12 @@ where
                 ParseResults {
                     right_data_vec: right_data_vec,
                     up_data_vec: up_data_vec,
-                    cut,
                     done,
                 }
             }
             FrameStackOpType::FrameStackContains => {
                 let (u8set, is_complete) = self.frame_stack.next_u8_given_contains_u8slice(&self.values);
-                let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: mut up_data_vec, cut, done } = self.a.step(c);
+                let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: mut up_data_vec, done } = self.a.step(c);
                 for up_data in up_data_vec.iter_mut() {
                     up_data.u8set = up_data.u8set.intersection(&u8set);
                 }
@@ -199,7 +195,6 @@ where
                 ParseResults {
                     right_data_vec: right_data_vec,
                     up_data_vec: up_data_vec,
-                    cut,
                     done,
                 }
             }
