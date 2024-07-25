@@ -35,14 +35,15 @@ impl ParseResults {
 }
 
 #[derive(Derivative)]
-#[derivative(PartialEq, Eq)]
-#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
+#[derivative(Debug, Clone, Hash, PartialOrd, Ord, PartialEq, Eq)]
 pub struct RightData {
     pub frame_stack: Option<FrameStack>,
     pub indents: Vec<Vec<u8>>,
     pub dedents: usize,
     pub scope_count: usize,
+    #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub greed_order: GreedOrder,
+    #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub prevent_consecutive_matches: PreventConsecutiveMatchesData,
     pub cache_data: CacheData,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]

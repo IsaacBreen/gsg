@@ -6,7 +6,7 @@ use std::hash::Hasher;
 use crate::parse_state::{RightData, UpData};
 use crate::{ParseResults, U8Set};
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct Stats
 {
     pub active_parser_type_counts: BTreeMap<String, usize>,
