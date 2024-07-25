@@ -109,6 +109,9 @@ where
 
     fn collect_stats(&self, stats: &mut Stats) {
         self.inner.collect_stats(stats);
+        for entry in self.cache_data_inner.borrow().entries.iter() {
+            entry.borrow().parser.collect_stats(stats);
+        }
     }
 
     fn as_any(&self) -> &dyn Any {
