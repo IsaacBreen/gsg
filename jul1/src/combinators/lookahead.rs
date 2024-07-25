@@ -62,7 +62,7 @@ impl<P: ParserTrait + 'static> ParserTrait for LookaheadParser<P> {
             u8set |= up_data.u8set;
         }
         self.filter.borrow_mut().u8set |= u8set;
-        ParseResults::finished()
+        ParseResults::empty_unfinished()
     }
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {

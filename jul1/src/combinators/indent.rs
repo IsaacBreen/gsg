@@ -76,7 +76,7 @@ impl CombinatorTrait for IndentCombinator {
                     done: true,
                 })
             }
-            _ => (IndentCombinatorParser::Done, ParseResults::finished()),
+            _ => (IndentCombinatorParser::Done, ParseResults::empty_finished()),
         }
     }
 
@@ -111,7 +111,7 @@ impl ParserTrait for IndentCombinatorParser {
                     }
                 }
             }
-            IndentCombinatorParser::Done => ParseResults::finished(),
+            IndentCombinatorParser::Done => ParseResults::empty_finished(),
         }
     }
 
