@@ -13,4 +13,4 @@ from __future__ import annotations
 
 class Node:
     @d
-    def f(self): pass
+          def f(self): pass

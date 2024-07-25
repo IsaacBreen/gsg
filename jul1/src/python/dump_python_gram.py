@@ -228,7 +228,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     if any(rule.memo for name, rule in rules):
         f.write('\n    cache_context(seq!(repeat0(NEWLINE), file)).into_rc_dyn()\n')
     else:
-        f.write('\n    seq!(repeat0(NEWLINE), file).into_rc_dyn()\n')
+        f.write('\n    seq!(opt(NEWLINE), file).into_rc_dyn()\n')
     f.write('}\n')
     return f.getvalue()
 
