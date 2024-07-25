@@ -121,6 +121,9 @@ where
         for entry in self.cache_data_inner.borrow_mut().entries.iter() {
             entry.borrow_mut().maybe_parse_results.take();
         }
+        for (i, entry) in self.cache_data_inner.borrow().entries.iter().enumerate() {
+            assert_eq!(entry.borrow().num, i);
+        }
         let l = self.cache_data_inner.borrow().entries.len().clone();
         for i in (0..l).rev() {
             let mut entry = {
@@ -169,6 +172,7 @@ pub struct Cached {
 
 pub struct CachedParser {
     pub entry: Rc<RefCell<CacheEntry>>,
+    pub num: usize,
 }
 
 impl CombinatorTrait for Cached {
@@ -181,6 +185,7 @@ impl CombinatorTrait for Cached {
                 return (
                     CachedParser {
                         entry: entry.clone(),
+                        num: entry.borrow().num,
                     },
                     parse_results
                 );
@@ -207,7 +212,8 @@ impl CombinatorTrait for Cached {
         parse_results.squash();
         entry.borrow_mut().parser = Some(parser);
         entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
-        (CachedParser { entry }, parse_results)
+        let num = entry.borrow().num;
+        (CachedParser { entry, num }, parse_results)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -217,7 +223,7 @@ impl CombinatorTrait for Cached {
 
 impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        self.entry.borrow().maybe_parse_results.clone().expect(format!("CachedParser.step: parse_results is None for entry number {}", self.entry.borrow().num).as_str())
+        self.entry.borrow().maybe_parse_results.clone().expect(format!("CachedParser.step: parse_results is None for entry number {} (self.num = {})", self.entry.borrow().num, self.num).as_str())
     }
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
