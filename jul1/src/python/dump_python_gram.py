@@ -214,12 +214,13 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         all_unresolved_follows |= follow_set
     for token in tokens:
         expr = f'{token}()'
-        if token in all_unresolved_follows and token in unresolved_follows_table:
-            expr = f'seq!(prevent_consecutive_matches_check_not("{token}"), {expr}, prevent_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table[token])}]))'
-        elif token in all_unresolved_follows:
+        token_ref = remove_left_recursion.ref(token)
+        if token_ref in all_unresolved_follows and token_ref in unresolved_follows_table:
+            expr = f'seq!(prevent_consecutive_matches_check_not("{token}"), {expr}, prevent_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table[token_ref])}]))'
+        elif token_ref in all_unresolved_follows:
             expr = f'seq!(prevent_consecutive_matches_check_not("{token}"), {expr})'
-        elif token in unresolved_follows_table:
-            expr = f'seq!({expr}, prevent_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table[token])}]))'
+        elif token_ref in unresolved_follows_table:
+            expr = f'seq!({expr}, prevent_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table[token_ref])}]))'
         expr = f'tag("{token}", {expr})'
         expr = f'{expr}.into_rc_dyn()'
         f.write(f"    let {token} = {expr};\n")
@@ -285,7 +286,8 @@ if __name__ == "__main__":
         actual_follow_set = actual_follows[first]
         unresolved_follow_set: set[remove_left_recursion.Ref] = follow_set - actual_follow_set
         all_unresolved_follows |= unresolved_follow_set
-        unresolved_follows_table[first] = unresolved_follow_set
+        if unresolved_follow_set:
+            unresolved_follows_table[first] = unresolved_follow_set
         # if len(unresolved_follow_set) > 0:
         #     # Replace all occurrences of first with seq(first, eps_external(Forbid(unresolved_follow_set)))
         #     def map_fn(node: remove_left_recursion.Node) -> remove_left_recursion.Node:
