@@ -34,7 +34,8 @@ impl Hash for CacheKey {
 
 impl PartialEq for CacheKey {
     fn eq(&self, other: &Self) -> bool {
-        self.combinator.dyn_eq(&other.combinator) && self.right_data == other.right_data
+        // self.combinator.dyn_eq(&other.combinator) && self.right_data == other.right_data
+        Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
     }
 }
 
