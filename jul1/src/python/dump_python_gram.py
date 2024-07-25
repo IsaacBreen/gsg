@@ -29,7 +29,7 @@ def parse_grammar(text: str) -> pegen.grammar.Grammar:
         grammar = parser.start()
         return grammar
 
-def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
+def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True, ignore_lookaheads: bool = True) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
     def rhs_to_node(rhs: pegen.grammar.Rhs) -> remove_left_recursion.Node:
         if len(rhs.alts) == 1:
             return alt_to_node(rhs.alts[0])
@@ -66,7 +66,10 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True)
         elif isinstance(item, pegen.grammar.Forced):
             return item_to_node(item.node)
         elif isinstance(item, pegen.grammar.PositiveLookahead):
-            return remove_left_recursion.lookahead(item_to_node(item.node))
+            if ignore_lookaheads:
+                return remove_left_recursion.eps()
+            else:
+                return remove_left_recursion.lookahead(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.NegativeLookahead):
             return remove_left_recursion.eps()
         elif isinstance(item, pegen.grammar.Rhs):
