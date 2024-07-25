@@ -142,7 +142,7 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
         pegen_rules[ref.name] = pegen.grammar.Rule(ref.name, None, node_to_rhs(node.simplify()))
     return pegen.grammar.Grammar(pegen_rules.values(), {})
 
-def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
+def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: dict[remove_left_recursion.Ref, set[remove_left_recursion.Ref]]) -> str:
     def rhs_to_rust(rhs: pegen.grammar.Rhs, top_level: bool = False) -> str:
         if len(rhs.alts) == 1:
             return alt_to_rust(rhs.alts[0])
@@ -193,10 +193,6 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
             return rhs_to_rust(item)
         elif isinstance(item, pegen.grammar.Cut):
             return 'cut()'
-        elif isinstance(item, Forbid):
-            return f'prevent_consecutive_matches(&[{", ".join(f'"{id}"' for id in item.ids)}])'
-        elif isinstance(item, CheckForbidden):
-            return f'prevent_consecutive_matches_check_not(&"{item.id}")'
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
@@ -213,8 +209,17 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     f.write('use crate::{seq, repeat0, repeat1};\n')
     f.write('\n')
     f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
+    all_unresolved_follows = set()
+    for first, follow_set in unresolved_follows_table.items():
+        all_unresolved_follows |= follow_set
     for token in tokens:
         expr = f'{token}()'
+        if token in all_unresolved_follows and token in unresolved_follows_table:
+            expr = f'seq!(prevent_consecutive_matches_check_not("{token}"), {expr}, prevent_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table[token])}]))'
+        elif token in all_unresolved_follows:
+            expr = f'seq!(prevent_consecutive_matches_check_not("{token}"), {expr})'
+        elif token in unresolved_follows_table:
+            expr = f'seq!({expr}, prevent_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table[token])}]))'
         expr = f'tag("{token}", {expr})'
         expr = f'{expr}.into_rc_dyn()'
         f.write(f"    let {token} = {expr};\n")
@@ -234,8 +239,8 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar) -> str:
     f.write('}\n')
     return f.getvalue()
 
-def save_grammar_to_rust(grammar: pegen.grammar.Grammar, filename: str) -> None:
-    rust_code = grammar_to_rust(grammar)
+def save_grammar_to_rust(grammar: pegen.grammar.Grammar, filename: str, unresolved_follows_table: dict[remove_left_recursion.Ref, set[remove_left_recursion.Ref]]) -> None:
+    rust_code = grammar_to_rust(grammar, unresolved_follows_table)
     with open(filename, 'w') as f:
         f.write(rust_code)
 
@@ -275,26 +280,28 @@ if __name__ == "__main__":
     # For forbidden follows that we can't resolve analytically, use preventers
     actual_follows = remove_left_recursion.get_follows(custom_grammar)
     all_unresolved_follows = set()
+    unresolved_follows_table = {}
     for first, follow_set in forbidden_follows_table.items():
         actual_follow_set = actual_follows[first]
         unresolved_follow_set: set[remove_left_recursion.Ref] = follow_set - actual_follow_set
         all_unresolved_follows |= unresolved_follow_set
-        if len(unresolved_follow_set) > 0:
-            # Replace all occurrences of first with seq(first, eps_external(Forbid(unresolved_follow_set)))
-            def map_fn(node: remove_left_recursion.Node) -> remove_left_recursion.Node:
-                if node == first:
-                    return remove_left_recursion.seq(first, remove_left_recursion.eps_external(Forbid([ref.name for ref in unresolved_follow_set])))
-                else:
-                    return node
-            custom_grammar = remove_left_recursion.map_all(custom_grammar, map_fn)
+        unresolved_follows_table[first] = unresolved_follow_set
+        # if len(unresolved_follow_set) > 0:
+        #     # Replace all occurrences of first with seq(first, eps_external(Forbid(unresolved_follow_set)))
+        #     def map_fn(node: remove_left_recursion.Node) -> remove_left_recursion.Node:
+        #         if node == first:
+        #             return remove_left_recursion.seq(first, remove_left_recursion.eps_external(Forbid([ref.name for ref in unresolved_follow_set])))
+        #         else:
+        #             return node
+        #     custom_grammar = remove_left_recursion.map_all(custom_grammar, map_fn)
 
     # Replace each unresolved follow with seq(eps_external(CheckForbidden(follow.name)), follow)
-    def map_fn(node: remove_left_recursion.Node) -> remove_left_recursion.Node:
-        if isinstance(node, remove_left_recursion.Ref) and node in all_unresolved_follows:
-            return remove_left_recursion.seq(remove_left_recursion.eps_external(CheckForbidden(node.name)), node)
-        else:
-            return node
-    custom_grammar = remove_left_recursion.map_all(custom_grammar, map_fn)
+    # def map_fn(node: remove_left_recursion.Node) -> remove_left_recursion.Node:
+    #     if isinstance(node, remove_left_recursion.Ref) and node in all_unresolved_follows:
+    #         return remove_left_recursion.seq(remove_left_recursion.eps_external(CheckForbidden(node.name)), node)
+    #     else:
+    #         return node
+    # custom_grammar = remove_left_recursion.map_all(custom_grammar, map_fn)
 
     # Convert back to pegen format
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
@@ -304,7 +311,7 @@ if __name__ == "__main__":
         resolved_pegen_grammar.rules[rule_name].memo = pegen_grammar.rules[rule_name].memo
 
     # Save to Rust
-    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs')
+    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs', unresolved_follows_table)
 
     # Print some useful stats
     nullable_rules = get_nullable_rules(custom_grammar)

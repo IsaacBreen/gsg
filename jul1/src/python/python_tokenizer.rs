@@ -70,9 +70,9 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
     let decrement_scope_count = |right_data: &mut RightData| { right_data.scope_count -= 1; true };
 
     match s {
-        "(" | "[" | "{" => python_symbol(seq!(eat_string(s), mutate_right_data(increment_scope_count))),
-        ")" | "]" | "}" => python_symbol(seq!(eat_string(s), mutate_right_data(decrement_scope_count))),
-        _ => python_symbol(seq!(eat_string(s))),
+        "(" | "[" | "{" => python_symbol(seq!(eat_string(s), mutate_right_data(increment_scope_count), prevent_consecutive_matches_clear())),
+        ")" | "]" | "}" => python_symbol(seq!(eat_string(s), mutate_right_data(decrement_scope_count), prevent_consecutive_matches_clear())),
+        _ => python_symbol(seq!(eat_string(s), prevent_consecutive_matches_clear())),
     }
 }
 
