@@ -24,7 +24,7 @@ impl CombinatorTrait for EatString {
             index: 0,
             right_data: Some(right_data),
         };
-        println!("EatStringParser: Starting {:?}", parser);
+        // println!("EatStringParser: Starting {:?}", parser);
         (parser, ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![UpData { u8set: U8Set::from_u8(self.string[0]) }],
@@ -45,14 +45,14 @@ impl ParserTrait for EatStringParser {
                 if self.index == self.string.len() {
                     let mut right_data = self.right_data.take().unwrap();
                     right_data.position += self.string.len();
-                    println!("EatStringParser: Matched {:?}", self);
+                    // println!("EatStringParser: Matched {:?}", self);
                     ParseResults {
                         right_data_vec: vec![right_data],
                         up_data_vec: vec![],
                         done: true,
                     }
                 } else {
-                    println!("EatStringParser: Continuing {:?}", self);
+                    // println!("EatStringParser: Continuing {:?}", self);
                     ParseResults {
                         right_data_vec: vec![],
                         up_data_vec: vec![UpData { u8set: U8Set::from_u8(self.string[self.index]) }],
@@ -60,7 +60,7 @@ impl ParserTrait for EatStringParser {
                     }
                 }
             } else {
-                println!("EatStringParser: Failed {:?}", self);
+                // println!("EatStringParser: Failed {:?}", self);
                 ParseResults {
                     right_data_vec: vec![],
                     up_data_vec: vec![],
@@ -68,7 +68,7 @@ impl ParserTrait for EatStringParser {
                 }
             }
         } else {
-            println!("EatStringParser: Done {:?}", self);
+            // println!("EatStringParser: Done {:?}", self);
             ParseResults {
                 right_data_vec: vec![],
                 up_data_vec: vec![],
