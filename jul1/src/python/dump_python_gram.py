@@ -203,24 +203,16 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, cached, cache_context, lookahead, prevent_consecutive_matches, prevent_consecutive_matches_check_not, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
+    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, cut, tag, cached, cache_context, lookahead, prevent_consecutive_matches, prevent_consecutive_matches_clear, prevent_consecutive_matches_check_not, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
     f.write('\n')
     f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
-    all_unresolved_follows = set()
-    for first, follow_set in unresolved_follows_table.items():
-        all_unresolved_follows |= follow_set
     for token in tokens:
         expr = f'{token}()'
         token_ref = remove_left_recursion.ref(token)
-        if token_ref in all_unresolved_follows and token_ref in unresolved_follows_table:
-            expr = f'seq!(prevent_consecutive_matches_check_not("{token}"), {expr}, prevent_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table[token_ref])}]))'
-        elif token_ref in all_unresolved_follows:
-            expr = f'seq!(prevent_consecutive_matches_check_not("{token}"), {expr})'
-        elif token_ref in unresolved_follows_table:
-            expr = f'seq!({expr}, prevent_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table[token_ref])}]))'
+        expr = f'seq!(prevent_consecutive_matches_check_not("{token}"), {expr}, prevent_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table.get(token_ref, []))}]))'
         expr = f'tag("{token}", {expr})'
         expr = f'{expr}.into_rc_dyn()'
         f.write(f"    let {token} = {expr};\n")
