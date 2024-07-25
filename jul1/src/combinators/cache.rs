@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 use crate::{CombinatorTrait, DynCombinator, IntoCombinator, ParseResults, ParserTrait, RightData, Squash, Stats};
 
@@ -18,6 +19,7 @@ impl Hash for CacheData {
 pub struct CacheEntry {
     parser: Option<Box<dyn ParserTrait>>,
     maybe_parse_results: Option<ParseResults>,
+    num: usize,
 }
 
 pub struct CacheKey {
@@ -123,9 +125,9 @@ where
         for i in (0..l).rev() {
             let mut entry = {
                 let binding = self.cache_data_inner.borrow();
-                binding.entries.get(i).unwrap().clone()
+                binding.entries[i].clone()
             };
-            let mut parse_results = entry.borrow_mut().parser.as_mut().unwrap().step(c);
+            let mut parse_results = catch_unwind(AssertUnwindSafe(|| entry.borrow_mut().parser.as_mut().unwrap().step(c))).expect(format!("CacheContextParser.step: parse_results is None for entry number {} at index {}", entry.borrow().num, i).as_str());
             parse_results.squash();
             entry.borrow_mut().maybe_parse_results.replace(parse_results.clone());
         }
@@ -188,6 +190,7 @@ impl CombinatorTrait for Cached {
         let entry = Rc::new(RefCell::new(CacheEntry {
             parser: None,
             maybe_parse_results: None,
+            num: 0
         }));
         let key = CacheKey {
             combinator: self.inner.clone(),
@@ -196,6 +199,7 @@ impl CombinatorTrait for Cached {
         {
             let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
             cache_data_inner.new_parsers.insert(key, entry.clone());
+            entry.borrow_mut().num = cache_data_inner.entries.len();
             cache_data_inner.entries.push(entry.clone());
         }
 
@@ -213,7 +217,7 @@ impl CombinatorTrait for Cached {
 
 impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.step: parse_results is None")
+        self.entry.borrow().maybe_parse_results.clone().expect(format!("CachedParser.step: parse_results is None for entry number {}", self.entry.borrow().num).as_str())
     }
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
