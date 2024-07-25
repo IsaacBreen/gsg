@@ -439,7 +439,6 @@ mod tests {
             // Check initial cache state
             let initial_cache_state = parser.cache_data_inner.borrow();
             assert_eq!(initial_cache_state.new_parsers.len(), 1, "Expected one tag 'A' to be active initially");
-            assert_eq!(initial_cache_state.existing_parsers.len(), 0, "Expected no existing parsers initially");
         }
 
         // Perform the first parsing step
@@ -453,7 +452,6 @@ mod tests {
             // Check the cache state after the first step
             let cache_state_after_step = parser.cache_data_inner.borrow();
             assert_eq!(cache_state_after_step.new_parsers.len(), 0, "Expected no new parsers after the first step");
-            assert_eq!(cache_state_after_step.existing_parsers.len(), 1, "Expected one existing parser after the first step");
             assert_eq!(results.right_data_vec.len(), 1, "Expected one right data after the first step");
             assert_eq!(results.up_data_vec.len(), 0, "Expected no up data after the first step");
         }

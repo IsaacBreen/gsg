@@ -18,8 +18,8 @@ impl Hash for CacheData {
 
 #[derive(Default)]
 pub struct CacheDataInner {
-    pub new_parsers: Vec<(Rc<DynCombinator>, (Box<dyn ParserTrait>, Rc<RefCell<Option<ParseResults>>>))>,
-    pub existing_parsers: Vec<(Box<dyn ParserTrait>, Rc<RefCell<Option<ParseResults>>>)>,
+    pub new_parsers: Vec<(Rc<DynCombinator>, (Rc<RefCell<dyn ParserTrait>>, Rc<RefCell<Option<ParseResults>>>))>,
+    pub parse_results: Vec<Rc<RefCell<Option<ParseResults>>>>,
 }
 
 impl Debug for CacheDataInner {
@@ -45,7 +45,7 @@ impl PartialOrd for CacheDataInner {
 
 impl Ord for CacheDataInner {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.new_parsers.len().cmp(&other.new_parsers.len()).then_with(|| self.existing_parsers.len().cmp(&other.existing_parsers.len()))
+        self.new_parsers.len().cmp(&other.new_parsers.len())
     }
 }
 
@@ -58,16 +58,7 @@ pub struct CacheContextParser<P> {
     pub cache_data_inner: Rc<RefCell<CacheDataInner>>,
 }
 
-impl<T> CacheContextParser<T> {
-    pub fn transfer_new_parsers(&mut self) {
-        let mut cache_data_inner = self.cache_data_inner.borrow_mut();
-        let mut new_parsers = std::mem::take(&mut cache_data_inner.new_parsers);
-        new_parsers.reverse();
-        for (_, x) in new_parsers {
-            cache_data_inner.existing_parsers.push(x);
-        }
-    }
-}
+impl<T> CacheContextParser<T> {}
 
 impl<T> CombinatorTrait for CacheContext<T>
 where
@@ -80,8 +71,8 @@ where
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner::default()));
         right_data.cache_data.inner = Some(cache_data_inner.clone());
         let (parser, results) = self.inner.parser(right_data);
-        parser.transfer_new_parsers();
-        (CacheContextParser { inner: parser, cache_data_inner }, results)
+        let mut parser = CacheContextParser { inner: parser, cache_data_inner };
+        (parser, results)
     }
 }
 
@@ -89,24 +80,12 @@ impl<P> ParserTrait for CacheContextParser<P>
 where
     P: ParserTrait + 'static,
 {
-    fn step(&mut self, c: u8) -> ParseResults {s
-        let mut existing_parsers = std::mem::take(&mut self.cache_data_inner.borrow_mut().existing_parsers);
-
-        existing_parsers.reverse();
-        for (_, results) in existing_parsers.iter() {
-            results.borrow_mut().take();
+    fn step(&mut self, c: u8) -> ParseResults {
+        self.cache_data_inner.borrow_mut().new_parsers.clear();
+        for parse_result in self.cache_data_inner.borrow().parse_results.iter() {
+            parse_result.borrow_mut().take();
         }
-
-        for (mut parser, results) in existing_parsers.into_iter() {
-            results.borrow_mut().replace(parser.step(c).squashed());
-            self.cache_data_inner.borrow_mut().existing_parsers.push((parser, results));
-        }
-
-        self.cache_data_inner.borrow_mut().existing_parsers.reverse();
-
-        let parse_result = self.inner.step(c);
-        self.transfer_new_parsers();
-        parse_result
+        self.inner.step(c)
     }
 
     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
@@ -119,12 +98,6 @@ where
 
     fn collect_stats(&self, stats: &mut Stats) {
         self.inner.collect_stats(stats);
-        for (_, (parser, _)) in self.cache_data_inner.borrow().new_parsers.iter() {
-            parser.collect_stats(stats);
-        }
-        for (parser, _) in self.cache_data_inner.borrow().existing_parsers.iter() {
-            parser.collect_stats(stats);
-        }
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -139,6 +112,7 @@ pub struct Cached {
 
 pub struct CachedParser {
     pub parse_results: Rc<RefCell<Option<ParseResults>>>,
+    pub parser: Rc<RefCell<dyn ParserTrait>>,
     pub parser_gt: Box<dyn ParserTrait>,
 }
 
@@ -152,7 +126,7 @@ impl CombinatorTrait for Cached {
                 let (parser_gt, mut parse_results_gt) = self.inner.parser(right_data.clone());
                 parse_results_gt.squash();
                 assert_eq!(parse_results, parse_results_gt);
-                return (CachedParser { parse_results: parse_results_rc_refcell.clone(), parser_gt: Box::new(parser_gt) }, parse_results);
+                return (CachedParser { parse_results: parse_results_rc_refcell.clone(), parser: parser.clone(), parser_gt: Box::new(parser_gt) }, parse_results);
             }
         }
 
@@ -160,9 +134,10 @@ impl CombinatorTrait for Cached {
         let (parser_gt, _) = self.inner.parser(right_data.clone());
         parse_results.squash();
         let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
+        let parser_rc_refcell = Rc::new(RefCell::new(parser));
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-        cache_data_inner.new_parsers.push((self.inner.clone(), (parser, parse_results_rc_refcell.clone())));
-        (CachedParser { parse_results: parse_results_rc_refcell, parser_gt: Box::new(parser_gt) }, parse_results)
+        cache_data_inner.new_parsers.push((self.inner.clone(), (parser_rc_refcell.clone(), parse_results_rc_refcell.clone())));
+        (CachedParser { parse_results: parse_results_rc_refcell, parser: parser_rc_refcell, parser_gt: Box::new(parser_gt) }, parse_results)
     }
 }
 
@@ -170,9 +145,16 @@ impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut parse_results_gt = self.parser_gt.step(c);
         parse_results_gt.squash();
-        let parse_results = self.parse_results.borrow().clone().expect("CachedParser.step: parse_results is None");
-        assert_eq!(parse_results, parse_results_gt);
-        parse_results
+        if let Some(parse_results) = self.parse_results.borrow().clone() {
+            assert_eq!(parse_results, parse_results_gt);
+            parse_results
+        } else {
+            let mut parser = self.parser.borrow_mut();
+            let mut parse_results = parser.step(c);
+            parse_results.squash();
+            self.parse_results.borrow_mut().replace(parse_results.clone());
+            parse_results
+        }
     }
 
     fn as_any(&self) -> &dyn Any {
