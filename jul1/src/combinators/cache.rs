@@ -26,7 +26,7 @@ pub struct CacheEntry {
 #[derive(Default)]
 pub struct CacheDataInner {
     pub new_parsers: Vec<(Rc<DynCombinator>, Rc<RefCell<CacheEntry>>)>,
-    pub maybe_parse_results: Vec<Rc<RefCell<Option<ParseResults>>>>,
+    pub entries: Vec<Rc<RefCell<CacheEntry>>>,
 }
 
 impl Debug for CacheDataInner {
@@ -58,7 +58,7 @@ impl Ord for CacheDataInner {
 impl Hash for CacheDataInner {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.new_parsers.len().hash(state);
-        self.maybe_parse_results.len().hash(state);
+        self.entries.len().hash(state);
     }
 }
 
@@ -93,9 +93,8 @@ where
     P: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        self.cache_data_inner.borrow_mut().new_parsers.clear();
-        for parse_result in self.cache_data_inner.borrow().maybe_parse_results.iter() {
-            parse_result.borrow_mut().take();
+        for entry in self.cache_data_inner.borrow_mut().entries.iter() {
+            entry.borrow_mut().maybe_parse_results.take();
         }
         self.inner.step(c)
     }
@@ -157,7 +156,7 @@ impl CombinatorTrait for Cached {
         }));
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.push((self.inner.clone(), entry.clone()));
-        cache_data_inner.maybe_parse_results.push(parse_results_rc_refcell.clone());
+        cache_data_inner.entries.push(entry.clone());
         (CachedParser {
             entry,
             parser_gt: Box::new(parser_gt)
