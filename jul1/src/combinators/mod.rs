@@ -18,6 +18,7 @@ pub use greedy::*;
 pub use negative_lookahead::*;
 pub use prevent_consecutive_matches::*;
 pub use cache::*;
+pub use lookahead::*;
 
 mod choice;
 mod eat_string;
@@ -39,3 +40,4 @@ mod greedy;
 mod negative_lookahead;
 mod prevent_consecutive_matches;
 mod cache;
+mod lookahead;

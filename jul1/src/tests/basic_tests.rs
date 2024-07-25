@@ -9,6 +9,7 @@ mod tests {
     use crate::combinators::tag;
     use crate::parse_state::{RightData, UpData};
     use crate::tests::utils::assert_parses;
+    use crate::utils::{assert_fails, assert_fails_default};
 
     #[test]
     fn test_eat_u8() {
@@ -482,5 +483,16 @@ mod tests {
         let s = "[[][[][]]]";
         assert_parses(&s_combinator, s, "Test input");
 
+    }
+
+    #[test]
+    fn test_lookahead() {
+        let a = seq!(lookahead(eat_char('a')), choice!(eat_char('a'), eat_char('b')));
+        assert_parses(&a, "a", "Test input");
+        assert_fails(&a, "b", "Test input");
+
+        let a = seq!(lookahead(seq!(eat_char('a'), eat_char('b'))), seq!(eat_char('a'), choice!(eat_char('a'), eat_char('b'))));
+        assert_parses(&a, "ab", "Test input");
+        assert_fails(&a, "aa", "Test input");
     }
 }

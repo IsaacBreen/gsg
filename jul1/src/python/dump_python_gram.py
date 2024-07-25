@@ -341,7 +341,7 @@ if __name__ == "__main__":
             if len(other) > 0:
                 print(" " * padding, end="")
                 print("other: ", end="")
-                print(", ".join(f"\033[33m{other}\033[0m" for other in sorted(other)))
+                print(", ".join(f"\033[33m{other}\033[0m" for other in sorted(other, key=lambda x: str(x))))
                 padding = max_padding
             if len(terms) == len(refs) == len(other) == 0:
                 print()
