@@ -152,7 +152,6 @@ impl CombinatorTrait for Cached {
         let (parser, mut parse_results) = self.inner.parser(right_data.clone());
         let (parser_gt, _) = self.inner.parser(right_data.clone());
         parse_results.squash();
-        let parse_results_rc_refcell = Rc::new(RefCell::new(Some(parse_results.clone())));
         let entry = Rc::new(RefCell::new(CacheEntry {
             parser,
             maybe_parse_results: Some(parse_results.clone())
