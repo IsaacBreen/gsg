@@ -39,6 +39,14 @@ impl<T> ParserTrait for SymbolParser<T> where T: CombinatorTrait
         Box::new(std::iter::once(&mut self.inner as &mut dyn ParserTrait))
     }
 
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
+        }
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

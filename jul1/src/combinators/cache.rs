@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -28,9 +29,21 @@ pub struct CacheKey {
     right_data: RightData,
 }
 
+impl Hash for CacheKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.right_data.hash(state);
+    }
+}
+
+impl PartialEq for CacheKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.combinator.dyn_eq(&other.combinator) && self.right_data == other.right_data
+    }
+}
+
 #[derive(Default)]
 pub struct CacheDataInner {
-    pub new_parsers: Vec<(CacheKey, Rc<RefCell<CacheEntry>>)>,
+    pub new_parsers: HashMap<CacheKey, Rc<RefCell<CacheEntry>>>,
     pub entries: Vec<Rc<RefCell<CacheEntry>>>,
 }
 
@@ -120,6 +133,14 @@ where
         }
     }
 
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
+        }
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -191,6 +212,14 @@ impl ParserTrait for CachedParser {
             assert_eq!(parse_results, parse_results_gt);
             entry.maybe_parse_results.replace(parse_results.clone());
             parse_results
+        }
+    }
+
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
         }
     }
 

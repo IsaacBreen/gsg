@@ -63,6 +63,14 @@ where
         *stats.active_tags.entry(self.tag.clone()).and_modify(|c| *c += 1).or_insert(1);
     }
 
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
+        }
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

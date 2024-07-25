@@ -2,6 +2,7 @@ use std::any::Any;
 use crate::{CombinatorTrait, DynCombinator, eps, fail, IntoCombinator, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::{RightData, UpData};
 
+#[derive(PartialEq)]
 pub struct Choice2<A, B>
 where
     A: CombinatorTrait,
@@ -89,6 +90,24 @@ where
 
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
         Box::new(self.a.iter_mut().map(|a| a as &mut dyn ParserTrait).chain(self.b.iter_mut().map(|b| b as &mut dyn ParserTrait)))
+    }
+
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            let a_eq = match (&self.a, &other.a) {
+                (Some(a), Some(b)) => a.dyn_eq(b),
+                (None, None) => true,
+                _ => return false,
+            };
+            let b_eq = match (&self.b, &other.b) {
+                (Some(a), Some(b)) => a.dyn_eq(b),
+                (None, None) => true,
+                _ => return false,
+            };
+            a_eq && b_eq
+        } else {
+            false
+        }
     }
 
     fn as_any(&self) -> &dyn Any {

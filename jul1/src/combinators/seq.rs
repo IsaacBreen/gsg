@@ -4,6 +4,7 @@ use std::rc::Rc;
 use crate::*;
 use crate::parse_state::{RightData, UpData};
 
+#[derive(PartialEq)]
 pub struct Seq2<A, B>
 where
     A: CombinatorTrait,
@@ -24,10 +25,28 @@ where
     right_data: RightData,
 }
 
+impl<B, ParserA> PartialEq for Seq2Parser<B, ParserA>
+where
+    ParserA: ParserTrait,
+    B: CombinatorTrait + std::cmp::PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        let a_eq = match (&self.a, &other.a) {
+            (Some(a), Some(b)) => a.dyn_eq(b),
+            (None, None) => true,
+            _ => return false,
+        };
+        let bs_eq = self.bs.iter().zip(other.bs.iter()).all(|(a, b)| a.dyn_eq(b));
+        let b_eq = self.b == other.b;
+        let right_data_eq = self.right_data == other.right_data;
+        a_eq && bs_eq && b_eq && right_data_eq
+    }
+}
+
 impl<A, B> CombinatorTrait for Seq2<A, B>
 where
     A: CombinatorTrait,
-    B: CombinatorTrait,
+    B: CombinatorTrait + std::cmp::PartialEq,
 {
     type Parser = Seq2Parser<B, A::Parser>;
 
@@ -76,7 +95,7 @@ where
 impl<ParserA, B> ParserTrait for Seq2Parser<B, ParserA>
 where
     ParserA: ParserTrait + 'static,
-    B: CombinatorTrait,
+    B: CombinatorTrait + std::cmp::PartialEq,
 {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut any_cut = false;
@@ -155,6 +174,14 @@ where
 
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
         Box::new(self.a.iter_mut().map(|a| a as &mut dyn ParserTrait).chain(self.bs.iter_mut().map(|b| b as &mut dyn ParserTrait)))
+    }
+
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
+        }
     }
 
     fn as_any(&self) -> &dyn Any {

@@ -52,6 +52,14 @@ where
         Box::new(std::iter::once(&mut self.a as &mut dyn ParserTrait))
     }
 
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
+        }
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -189,6 +197,14 @@ where
 
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
         Box::new(std::iter::once(&mut self.a as &mut dyn ParserTrait))
+    }
+
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
+        }
     }
 
     fn as_any(&self) -> &dyn Any {

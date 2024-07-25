@@ -5,6 +5,7 @@ use crate::parse_state::{RightData, UpData};
 #[derive(Debug, Clone, Copy)]
 pub struct Cut;
 
+#[derive(PartialEq)]
 pub struct CutParser;
 
 impl CombinatorTrait for Cut {
@@ -24,6 +25,14 @@ impl ParserTrait for CutParser {
             right_data_vec: vec![],
             up_data_vec: vec![],
             cut: false,
+        }
+    }
+
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
         }
     }
 

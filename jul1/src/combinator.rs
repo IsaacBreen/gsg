@@ -110,25 +110,9 @@ pub trait ParserTrait {
             child.gc();
         }
     }
-    fn eq(&self, other: &dyn ParserTrait) -> bool where Self: PartialEq + Sized + 'static {
-        if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self == other
-        } else {
-            false
-        }
-    }
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool;
     fn dyn_hash(&self, state: &mut dyn Hasher) {}
     fn as_any(&self) -> &dyn Any;
-}
-
-impl<T: ParserTrait + 'static + PartialEq> ParserTrait for T {
-    fn step(&mut self, c: u8) -> ParseResults {
-        todo!()
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl ParserTrait for Box<dyn ParserTrait> {
@@ -154,6 +138,10 @@ impl ParserTrait for Box<dyn ParserTrait> {
 
     fn gc(&mut self) {
         (**self).gc()
+    }
+
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        (**self).dyn_eq(other)
     }
 
     fn as_any(&self) -> &dyn Any {

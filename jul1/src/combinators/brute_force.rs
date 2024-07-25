@@ -39,6 +39,14 @@ impl ParserTrait for BruteForceParser {
         }
     }
 
+    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Self>() {
+            self == other
+        } else {
+            false
+        }
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
