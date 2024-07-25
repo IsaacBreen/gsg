@@ -50,10 +50,18 @@ where
     fn step(&mut self, c: u8) -> ParseResults {
         let mut parse_result = ParseResults::empty_finished();
         if let Some(a) = &mut self.a {
-            parse_result.combine(a.step(c));
+            let parse_result_a = a.step(c);
+            if parse_result_a.done {
+                self.a = None;
+            }
+            parse_result.combine(parse_result_a);
         }
         if let Some(b) = &mut self.b {
-            parse_result.combine(b.step(c));
+            let parse_result_b = b.step(c);
+            if parse_result_b.done {
+                self.b = None;
+            }
+            parse_result.combine(parse_result_b);
         }
         parse_result
     }

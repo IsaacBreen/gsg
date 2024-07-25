@@ -46,11 +46,7 @@ impl ParserTrait for EatU8Parser {
                 };
             }
         }
-        ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![],
-            done: true,
-        }
+        panic!("EatU8Parser already consumed")
     }
     fn collect_stats(&self, stats: &mut Stats) {
         stats.active_parser_type_counts.entry("EatU8Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);

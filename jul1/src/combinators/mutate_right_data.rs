@@ -33,11 +33,7 @@ impl<F: Fn(&mut RightData) -> bool + 'static> CombinatorTrait for MutateRightDat
 
 impl<F: Fn(&mut RightData) -> bool + 'static> ParserTrait for MutateRightData<F> {
     fn step(&mut self, c: u8) -> ParseResults {
-        ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![],
-            done: true,
-        }
+        panic!("MutateRightData parser already consumed")
     }
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {

@@ -25,11 +25,7 @@ impl CombinatorTrait for Fail {
 
 impl ParserTrait for FailParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![],
-            done: true,
-        }
+        panic!("FailParser already consumed")
     }
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {

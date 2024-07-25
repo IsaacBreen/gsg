@@ -25,11 +25,7 @@ impl CombinatorTrait for Eps {
 
 impl ParserTrait for EpsParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![],
-            done: true,
-        }
+        panic!("EpsParser already consumed")
     }
 
     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {

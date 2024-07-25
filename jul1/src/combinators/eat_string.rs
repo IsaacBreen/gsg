@@ -61,19 +61,12 @@ impl ParserTrait for EatStringParser {
                 }
             } else {
                 // println!("EatStringParser: Failed {:?}", self);
-                ParseResults {
-                    right_data_vec: vec![],
-                    up_data_vec: vec![],
-                        done: true,
-                }
+                self.index = self.string.len();
+                ParseResults::empty_finished()
             }
         } else {
             // println!("EatStringParser: Done {:?}", self);
-            ParseResults {
-                right_data_vec: vec![],
-                up_data_vec: vec![],
-                        done: true,
-            }
+            panic!("EatStringParser already consumed")
         }
     }
     fn collect_stats(&self, stats: &mut Stats) {
