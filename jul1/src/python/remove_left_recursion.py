@@ -466,7 +466,7 @@ def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref |
                 rest = Seq(children[i + 1:])
                 firsts_for_rest = get_firsts_for_node(rest, nullable_rules)
                 for last in lasts_for_child:
-                    result[last] = firsts_for_rest
+                    result.setdefault(last, set()).update(firsts_for_rest)
             return result
         case Choice(children):
             result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
@@ -1153,3 +1153,10 @@ if __name__ == '__main__':
     # print("after forbidding follows:")
     # prettify_rules(forbid_follows(rules, forbidden_follows_table))
     # print()
+
+    rules = make_rules(
+        A=seq(opt(ref('B')), ref('B')),
+    )
+    for r, follow_set in get_follows(rules).items():
+        print(f'{r} -> {follow_set}')
+    assert ref('B') in get_follows(rules)[ref('B')]
