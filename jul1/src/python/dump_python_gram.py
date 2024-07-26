@@ -142,7 +142,7 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
         pegen_rules[ref.name] = pegen.grammar.Rule(ref.name, None, node_to_rhs(node.simplify()))
     return pegen.grammar.Grammar(pegen_rules.values(), {})
 
-def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: dict[remove_left_recursion.Ref, set[remove_left_recursion.Ref]]) -> str:
+def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: dict[remove_left_recursion.Ref, list[remove_left_recursion.Ref]]) -> str:
     def rhs_to_rust(rhs: pegen.grammar.Rhs, top_level: bool = False) -> str:
         if len(rhs.alts) == 1:
             return alt_to_rust(rhs.alts[0], top_level=top_level)
@@ -230,13 +230,13 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             expr = f'cached({expr})'
         f.write(f'    let {name} = {name}.set({expr}).into_rc_dyn();\n')
     if any(rule.memo for name, rule in rules):
-        f.write('\n    cache_context(seq!(repeat0(NEWLINE), file)).into_rc_dyn()\n')
+        f.write('\n    cache_context(seq!(NEWLINE, file)).into_rc_dyn()\n')
     else:
         f.write('\n    seq!(opt(NEWLINE), file).into_rc_dyn()\n')
     f.write('}\n')
     return f.getvalue()
 
-def save_grammar_to_rust(grammar: pegen.grammar.Grammar, filename: str, unresolved_follows_table: dict[remove_left_recursion.Ref, set[remove_left_recursion.Ref]]) -> None:
+def save_grammar_to_rust(grammar: pegen.grammar.Grammar, filename: str, unresolved_follows_table: dict[remove_left_recursion.Ref, list[remove_left_recursion.Ref]]) -> None:
     rust_code = grammar_to_rust(grammar, unresolved_follows_table)
     with open(filename, 'w') as f:
         f.write(rust_code)
@@ -283,7 +283,7 @@ if __name__ == "__main__":
         unresolved_follow_set: set[remove_left_recursion.Ref] = follow_set - actual_follow_set
         all_unresolved_follows |= unresolved_follow_set
         if unresolved_follow_set:
-            unresolved_follows_table[first] = unresolved_follow_set
+            unresolved_follows_table[first] = list(sorted(unresolved_follow_set, key=lambda x: str(x)))
         # if len(unresolved_follow_set) > 0:
         #     # Replace all occurrences of first with seq(first, eps_external(Forbid(unresolved_follow_set)))
         #     def map_fn(node: remove_left_recursion.Node) -> remove_left_recursion.Node:

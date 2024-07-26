@@ -6,10 +6,10 @@ use crate::{seq, repeat0, repeat1};
 
 pub fn python_file() -> Rc<DynCombinator> {
     let WS = tag("WS", seq!(prevent_consecutive_matches_check_not("WS"), WS(), prevent_consecutive_matches(&["WS","INDENT"]))).into_rc_dyn();
-    let NAME = tag("NAME", seq!(prevent_consecutive_matches_check_not("NAME"), NAME(), prevent_consecutive_matches(&["NAME","NUMBER"]))).into_rc_dyn();
+    let NAME = tag("NAME", seq!(prevent_consecutive_matches_check_not("NAME"), NAME(), prevent_consecutive_matches(&["NUMBER","NAME"]))).into_rc_dyn();
     let TYPE_COMMENT = tag("TYPE_COMMENT", seq!(prevent_consecutive_matches_check_not("TYPE_COMMENT"), TYPE_COMMENT(), prevent_consecutive_matches(&[]))).into_rc_dyn();
     let FSTRING_START = tag("FSTRING_START", seq!(prevent_consecutive_matches_check_not("FSTRING_START"), FSTRING_START(), prevent_consecutive_matches(&["NEWLINE"]))).into_rc_dyn();
-    let FSTRING_MIDDLE = tag("FSTRING_MIDDLE", seq!(prevent_consecutive_matches_check_not("FSTRING_MIDDLE"), FSTRING_MIDDLE(), prevent_consecutive_matches(&["FSTRING_MIDDLE","WS"]))).into_rc_dyn();
+    let FSTRING_MIDDLE = tag("FSTRING_MIDDLE", seq!(prevent_consecutive_matches_check_not("FSTRING_MIDDLE"), FSTRING_MIDDLE(), prevent_consecutive_matches(&["WS","FSTRING_MIDDLE"]))).into_rc_dyn();
     let FSTRING_END = tag("FSTRING_END", seq!(prevent_consecutive_matches_check_not("FSTRING_END"), FSTRING_END(), prevent_consecutive_matches(&[]))).into_rc_dyn();
     let NUMBER = tag("NUMBER", seq!(prevent_consecutive_matches_check_not("NUMBER"), NUMBER(), prevent_consecutive_matches(&["NUMBER"]))).into_rc_dyn();
     let STRING = tag("STRING", seq!(prevent_consecutive_matches_check_not("STRING"), STRING(), prevent_consecutive_matches(&[]))).into_rc_dyn();
@@ -756,5 +756,5 @@ pub fn python_file() -> Rc<DynCombinator> {
     let interactive = interactive.set(tag("interactive", &statement_newline)).into_rc_dyn();
     let file = file.set(tag("file", seq!(opt(seq!(&statements, opt(&WS))), &ENDMARKER))).into_rc_dyn();
 
-    cache_context(seq!(repeat0(NEWLINE), file)).into_rc_dyn()
+    cache_context(seq!(NEWLINE, file)).into_rc_dyn()
 }
