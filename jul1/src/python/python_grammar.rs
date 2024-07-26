@@ -756,5 +756,5 @@ pub fn python_file() -> Rc<DynCombinator> {
     let interactive = interactive.set(tag("interactive", &statement_newline)).into_rc_dyn();
     let file = file.set(tag("file", seq!(opt(seq!(&statements, opt(&WS))), &ENDMARKER))).into_rc_dyn();
 
-    cache_context(seq!(NEWLINE, file)).into_rc_dyn()
+    cache_context(seq!(opt(NEWLINE), file)).into_rc_dyn()
 }
