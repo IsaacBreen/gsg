@@ -491,6 +491,7 @@ def gather_all_leaves(rules: dict[Ref, Node]) -> set[Ref | Term | EpsExternal]:
         result.update(x for x in iter_nodes(node) if isinstance(x, Ref | Term | EpsExternal))
     return result
 
+
 def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]]:
     follow_sets: dict[Ref, set[Ref | Term | EpsExternal]] = {}
     nullable_rules = get_nullable_rules(rules)
@@ -562,29 +563,93 @@ def map_all(rules: dict[Ref, Node], f: Callable[[Node], Node]) -> dict[Ref, Node
     return {ref: map_all_for_node(node, f) for ref, node in rules.items()}
 
 
+def ensure_lasts_for_node(node: Node, includes: set[Ref | Term | EpsExternal], nullable_rules: set[Ref]) -> Node:
+    match node:
+        case Seq(children):
+            raise NotImplementedError
+        case Choice(children):
+            return Choice([ensure_lasts_for_node(child, includes, nullable_rules) for child in children])
+        case Repeat1(child):
+            return seq(repeat0(child), ensure_lasts_for_node(child, includes, nullable_rules))
+        case Ref(_) | Term(_) | EpsExternal(_):
+            return node
+
+
+def ensure_firsts_for_node(node: Node, includes: set[Ref | Term | EpsExternal], nullable_rules: set[Ref]) -> Node:
+    raise NotImplementedError
+
+
+def forbid_lasts_for_node(node: Node, excludes: set[Ref | Term | EpsExternal], nullable_rules: set[Ref]) -> Node:
+    all_leaves = set(leaf for leaf in iter_nodes(node) if isinstance(leaf, Ref | Term | EpsExternal))
+    includes = all_leaves - excludes
+    return ensure_lasts_for_node(node, includes, nullable_rules)
+
+
+def forbid_firsts_for_node(node: Node, excludes: set[Ref | Term | EpsExternal], nullable_rules: set[Ref]) -> Node:
+    all_leaves = set(leaf for leaf in iter_nodes(node) if isinstance(leaf, Ref | Term | EpsExternal))
+    includes = all_leaves - excludes
+    return ensure_firsts_for_node(node, includes, nullable_rules)
+
+
 def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidden_follows: set[Ref | Term | EpsExternal], nullable_rules: set[Ref], null_rules: set[Ref]) -> Node:
     try:
         match node:
             case Seq(children):
                 children = children.copy()
                 for i, child in enumerate(children):
-                    lasts_for_child = get_definite_lasts_for_node(child, null_rules)
+                    lasts_for_child = get_lasts_for_node(child, nullable_rules)
                     # Decide whether to trigger
                     if first in lasts_for_child:
-                        # Forbid by replacing occurrences of first in subsequent children with fail()
-                        for j, subsequent_child in enumerate(children[i + 1:], start=i + 1):
-                            def map_fn(node: Node) -> Node:
-                                if isinstance(node, Ref | Term | EpsExternal) and node in forbidden_follows:
-                                    # if len(lasts_for_child) > 1:
-                                    #     raise ValueError(f"Cannot forbid follows for {node} with first {first} and forbidden follows {forbidden_follows} because {lasts_for_child} has more than one last (how would we disambiguate?)")
-                                    return fail()
-                                else:
-                                    return node
+                        # Put the subsequent `children[i + 1:]` in a new sequence called `rest`, and call the current one (`children[i]`) `child`.
+                        #
+                        # Replace the rest of this node with `seq(child, rest)`.
+                        #
+                        # Rewrite `seq(child, rest)` as a `choice(seq(child0, rest0), seq(child1, rest` where:
+                        #
+                        # - `child0` is a variant of `child` that hits `first` last and `rest0` is a variant of `rest` that doesn't hit anything in `forbidden_follows` first
+                        # - `child1` is a variant of `child` that doesn't hit `first` last
+                        #
+                        # To make it clearer how this works, we can explicitly write out all four cases for `seq(child, rest)`:
+                        #
+                        # 1. `child` hits `first` last and `rest` hits anything in `forbidden_follows` first
+                        # 2. `child` hits `first` last and `rest` hits doesn't hit anything in `forbidden_follows` first
+                        # 4. `child` doesn't hit `first` last and `rest` hits anything in `forbidden_follows` first
+                        # 3. `child` doesn't hit `first` last and `rest` doesn't hit anything in `forbidden_follows` first
+                        #
+                        # The case we want to eliminate is case 1 where a `forbidden_follow` follows the `first`. So, we eliminate case 1.
+                        #
+                        # To show how case 3 and 4 can be merged, let's denote
+                        #
+                        # - '`child` hits `first` last' by 'A'
+                        # - '`child` doesn't hit `first` last' by 'not A'
+                        # - '`rest` hits anything in `forbidden_follows` first' by 'B'.
+                        # - '`rest` doesn't hit anything in `forbidden_follows` first' by 'not B'.
+                        #
+                        # Case 3 is of the form 'not A and B', while case 4 is of the form 'not A and not B', so we can merge them into a single case
+                        # of the form:
+                        #
+                        # '(not A and B) or (not A and not B)' which is equivalent to
+                        # 'not A and (B or not B)', which is equivalent to
+                        # 'not A'
+                        #
+                        # 'not A' is just '`child` doesn't hit `first` last'. So, putting our merged version of case 3 and 4 together with case 1 gives us:
+                        #
+                        # - `child0` is a variant of `child` that hits `first` last and `rest0` is a variant of `rest` that doesn't hit anything in `forbidden_follows` first
+                        # - `child1` is a variant of `child` that doesn't hit `first` last
+                        rest = Seq(children[i + 1:])
 
-                            children[j] = map_left(subsequent_child, map_fn, nullable_rules)
-                            if not is_nullable(subsequent_child, nullable_rules):
-                                break
-                    children[i] = forbid_follows_for_node(children[i], first, forbidden_follows, nullable_rules, null_rules)
+                        child0 = forbid_lasts_for_node(child, forbidden_follows, nullable_rules)
+                        child1 = ensure_lasts_for_node(child, forbidden_follows, nullable_rules)
+
+                        rest0 = ensure_firsts_for_node(rest, forbidden_follows, nullable_rules)
+
+                        new_node = choice(
+                            seq(child0, rest0),
+                            seq(child1, rest),
+                        )
+                        new_node = forbid_follows_for_node(new_node, first, forbidden_follows, nullable_rules, null_rules)
+                        children = [children[:i], new_node]
+                        return Seq(children)
                 return Seq(children)
             case Choice(children):
                 return Choice([forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, null_rules) for child in children])
