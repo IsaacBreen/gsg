@@ -556,7 +556,6 @@ def forbid_follows(rules: dict[Ref, Node], forbidden_follows_table: dict[Ref | T
         if old_forbidden_follows_table == forbidden_follows_table:
             break
 
-    rules = {}
     for ref in tqdm(rules.keys(), desc="Forbidding follows"):
         for first, forbidden_follows in forbidden_follows_table.items():
             rules[ref] = forbid_follows_for_node(rules[ref], first, forbidden_follows, nullable_rules)
