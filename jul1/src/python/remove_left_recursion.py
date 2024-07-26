@@ -52,6 +52,26 @@ def is_nullable(node: Node, nullable_rules: set[Ref]) -> bool:
             raise ValueError(f"Unknown node type: {type(node)}")
 
 
+def is_null(node: Node, null_rules: set[Ref]) -> bool:
+    match node:
+        case Ref(_):
+            return node in null_rules
+        case Term(_):
+            return False
+        case EpsExternal(_):
+            return True
+        case Lookahead(child):
+            return True
+        case Seq(children):
+            return all(is_null(child, null_rules) for child in children)
+        case Choice(children):
+            return all(is_null(child, null_rules) for child in children)
+        case Repeat1(child):
+            return is_null(child, null_rules)
+        case _:
+            raise ValueError(f"Unknown node type: {type(node)}")
+
+
 def update_dict(original: dict, updates: dict) -> bool:
     changed = False
     for key, value in updates.items():
@@ -80,6 +100,20 @@ def get_nullable_rules(rules: dict[Ref, Node]) -> set[Ref]:
         if len(nullable_rules) == prev_len:
             break
     return nullable_rules
+
+
+def get_null_rules(rules: dict[Ref, Node]) -> set[Ref]:
+    # Assume all rules are null
+    null_rules = set(rules.keys())
+    # Keep trying until we can't find anymore
+    while True:
+        prev_len = len(null_rules)
+        for ref, node in rules.items():
+            if not is_null(node, null_rules):
+                null_rules -= {ref}
+        if len(null_rules) == prev_len:
+            break
+    return null_rules
 
 
 def get_firsts(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExternal]:
@@ -350,6 +384,37 @@ def get_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term |
             raise ValueError(f"Unknown node type: {type(node)}")
 
 
+def get_definite_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExternal]:
+    match node:
+        case Ref(_):
+            assert isinstance(node, Ref)
+            return {node}
+        case Term(_):
+            assert isinstance(node, Term)
+            return {node}
+        case EpsExternal(_):
+            assert isinstance(node, EpsExternal)
+            return {node}
+        case Lookahead(child):
+            return set()
+        case Seq(children):
+            result = set()
+            for child in reversed(children):
+                result.update(get_lasts_for_node(child, nullable_rules))
+                if not is_nullable(child, nullable_rules):
+                    break
+            return result
+        case Choice(children):
+            result = set()
+            for child in children:
+                result.update(get_lasts_for_node(child, nullable_rules))
+            return result
+        case Repeat1(child):
+            return get_lasts_for_node(child, nullable_rules)
+        case _:
+            raise ValueError(f"Unknown node type: {type(node)}")
+
+
 def get_firsts2(rules: dict[Ref, Node]) -> dict[Ref, set[Ref | Term | EpsExternal]]:
     firsts: dict[Ref, set[Ref | Term | EpsExternal]] = {}
     nullable_rules = get_nullable_rules(rules)
@@ -497,13 +562,13 @@ def map_all(rules: dict[Ref, Node], f: Callable[[Node], Node]) -> dict[Ref, Node
     return {ref: map_all_for_node(node, f) for ref, node in rules.items()}
 
 
-def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidden_follows: set[Ref | Term | EpsExternal], nullable_rules: set[Ref]) -> Node:
+def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidden_follows: set[Ref | Term | EpsExternal], nullable_rules: set[Ref], null_rules: set[Ref]) -> Node:
     try:
         match node:
             case Seq(children):
                 children = children.copy()
                 for i, child in enumerate(children):
-                    lasts_for_child = get_lasts_for_node(child, nullable_rules)
+                    lasts_for_child = get_definite_lasts_for_node(child, null_rules)
                     # Decide whether to trigger
                     if first in lasts_for_child:
                         # Forbid by replacing occurrences of first in subsequent children with fail()
@@ -519,12 +584,12 @@ def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidd
                             children[j] = map_left(subsequent_child, map_fn, nullable_rules)
                             if not is_nullable(subsequent_child, nullable_rules):
                                 break
-                    children[i] = forbid_follows_for_node(children[i], first, forbidden_follows, nullable_rules)
+                    children[i] = forbid_follows_for_node(children[i], first, forbidden_follows, nullable_rules, null_rules)
                 return Seq(children)
             case Choice(children):
-                return Choice([forbid_follows_for_node(child, first, forbidden_follows, nullable_rules) for child in children])
+                return Choice([forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, null_rules) for child in children])
             case Repeat1(child):
-                return Repeat1(forbid_follows_for_node(child, first, forbidden_follows, nullable_rules))
+                return Repeat1(forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, null_rules))
             case Ref(_) | Term(_) | EpsExternal(_):
                 return node
             case Lookahead(_):
@@ -538,6 +603,7 @@ def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidd
 
 def forbid_follows(rules: dict[Ref, Node], forbidden_follows_table: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]]) -> dict[Ref, Node]:
     nullable_rules = get_nullable_rules(rules)
+    null_rules = get_null_rules(rules)
     firsts = get_firsts2(rules)
     lasts = get_lasts(rules)
 
@@ -560,7 +626,7 @@ def forbid_follows(rules: dict[Ref, Node], forbidden_follows_table: dict[Ref | T
 
     for ref in tqdm(rules.keys(), desc="Forbidding follows"):
         for first, forbidden_follows in forbidden_follows_table.items():
-            rules[ref] = forbid_follows_for_node(rules[ref], first, forbidden_follows, nullable_rules)
+            rules[ref] = forbid_follows_for_node(rules[ref], first, forbidden_follows, nullable_rules, null_rules)
         rules[ref] = rules[ref].simplify()
     return rules
 
