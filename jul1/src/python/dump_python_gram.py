@@ -251,7 +251,7 @@ if __name__ == "__main__":
 
     # Convert to custom grammar format
     custom_grammar = pegen_to_custom(pegen_grammar)
-    remove_left_recursion.validate_rules(custom_grammar)
+    # remove_left_recursion.validate_rules(custom_grammar)
 
     # Remove left recursion
     custom_grammar = remove_left_recursion.resolve_left_recursion(custom_grammar)
@@ -301,7 +301,7 @@ if __name__ == "__main__":
     #         return node
     # custom_grammar = remove_left_recursion.map_all(custom_grammar, map_fn)
 
-    remove_left_recursion.validate_rules(custom_grammar)
+    # remove_left_recursion.validate_rules(custom_grammar)
     remove_left_recursion.prettify_rules(custom_grammar)
 
     # Convert back to pegen format
