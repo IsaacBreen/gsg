@@ -91,7 +91,12 @@ pub struct CacheContextParser<P> {
     pub cache_data_inner: Rc<RefCell<CacheDataInner>>,
 }
 
-impl<T> CacheContextParser<T> {}
+impl<T> CacheContextParser<T> {
+    fn cleanup(&mut self) {
+        self.cache_data_inner.borrow_mut().new_parsers.clear();
+        self.cache_data_inner.borrow_mut().entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done);
+    }
+}
 
 impl<T> CombinatorTrait for CacheContext<T>
 where
@@ -106,7 +111,9 @@ where
         let (parser, results) = self.inner.parser(right_data);
         // Reverse the order of entries
         cache_data_inner.borrow_mut().entries.reverse();
-        (CacheContextParser { inner: parser, cache_data_inner }, results)
+        let mut cache_context_parser = CacheContextParser { inner: parser, cache_data_inner };
+        cache_context_parser.cleanup();
+        (cache_context_parser, results)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -119,7 +126,6 @@ where
     P: ParserTrait + 'static,
 {
     fn step(&mut self, c: u8) -> ParseResults {
-        self.cache_data_inner.borrow_mut().new_parsers.clear();
         for entry in self.cache_data_inner.borrow_mut().entries.iter() {
             entry.borrow_mut().maybe_parse_results.take();
         }
@@ -138,6 +144,7 @@ where
         let mut new_entries = self.cache_data_inner.borrow_mut().entries.split_off(num_entries_initial);
         new_entries.reverse();
         self.cache_data_inner.borrow_mut().entries.append(&mut new_entries);
+        self.cleanup();
         parse_result
     }
 
