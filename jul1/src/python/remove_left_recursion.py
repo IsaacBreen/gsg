@@ -454,8 +454,8 @@ def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Re
             # The follow set of a rule should inherit the follow set of its lasts and vice versa
             lasts_for_rule = get_lasts_for_node(node, nullable_rules)
             for last in lasts_for_rule:
-                follow_sets[last].add(ref)
-                follow_sets[ref].add(last)
+                follow_sets[last].update(follow_sets[ref])
+                follow_sets[ref].update(follow_sets[last])
         if old_follow_sets == follow_sets:
             break
     return follow_sets
@@ -1006,7 +1006,17 @@ if __name__ == '__main__':
     )
     prettify_rules(rules)
     print("follow sets:")
-    for ref, follow_set in get_follows(rules).items():
-        print(f'{ref} -> {follow_set}')
+    for r, follow_set in get_follows(rules).items():
+        print(f'{r} -> {follow_set}')
     assert ref('NAME') in get_follows(rules)[ref('NAME')]
+    print()
+
+    rules = make_rules(
+        block=seq(opt(ref('WS')), ref('DEDENT')),
+    )
+    forbidden_follows_table = {
+        ref('WS'): {ref('DEDENT')},
+    }
+    print("after forbidding follows:")
+    prettify_rules(forbid_follows(rules, forbidden_follows_table))
     print()
