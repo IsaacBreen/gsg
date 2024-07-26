@@ -465,6 +465,7 @@ def map_left(node: Node, f: Callable[[Node], Node], nullable_rules: set[Ref]) ->
     node = f(node)
     match node:
         case Seq(children):
+            children = children.copy()
             for i, child in enumerate(children):
                 children[i] = map_left(child, f, nullable_rules)
                 if not is_nullable(child, nullable_rules):
@@ -500,6 +501,7 @@ def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidd
     try:
         match node:
             case Seq(children):
+                children = children.copy()
                 for i, child in enumerate(children):
                     lasts_for_child = get_lasts_for_node(child, nullable_rules)
                     # Decide whether to trigger
