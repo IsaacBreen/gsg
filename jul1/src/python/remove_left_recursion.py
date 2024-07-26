@@ -556,12 +556,12 @@ def forbid_follows(rules: dict[Ref, Node], forbidden_follows_table: dict[Ref | T
         if old_forbidden_follows_table == forbidden_follows_table:
             break
 
-    new_rules = {}
+    rules = {}
     for ref in tqdm(rules.keys(), desc="Forbidding follows"):
         for first, forbidden_follows in forbidden_follows_table.items():
-            new_rules[ref] = forbid_follows_for_node(rules[ref], first, forbidden_follows, nullable_rules)
-        new_rules[ref] = new_rules[ref].simplify()
-    return new_rules
+            rules[ref] = forbid_follows_for_node(rules[ref], first, forbidden_follows, nullable_rules)
+        rules[ref] = rules[ref].simplify()
+    return rules
 
 
 @dataclass
@@ -888,6 +888,11 @@ def prettify_rule(ref: Ref, node: Node) -> str:
                 for child in node.children:
                     s.write(f'    {child},\n')
                 s.write(')\n')
+    elif isinstance(node, Seq) and len(node.children) >= 2:
+        s.write(f'{ref} -> \u001b[32mseq\u001b[0m(\n')
+        for child in node.children:
+            s.write(f'    {child},\n')
+        s.write(')\n')
     else:
         s.write(f'{ref} -> {node}\n')
     return s.getvalue().strip()

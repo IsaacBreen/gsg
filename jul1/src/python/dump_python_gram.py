@@ -145,16 +145,20 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
 def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: dict[remove_left_recursion.Ref, set[remove_left_recursion.Ref]]) -> str:
     def rhs_to_rust(rhs: pegen.grammar.Rhs, top_level: bool = False) -> str:
         if len(rhs.alts) == 1:
-            return alt_to_rust(rhs.alts[0])
+            return alt_to_rust(rhs.alts[0], top_level=top_level)
         if top_level:
             return "choice!(\n        " + ",\n        ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n    )"
         else:
             return "choice!(" + ", ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
 
-    def alt_to_rust(alt: pegen.grammar.Alt) -> str:
+    def alt_to_rust(alt: pegen.grammar.Alt, top_level: bool = False) -> str:
         if len(alt.items) == 1:
             return named_item_to_rust(alt.items[0])
-        return "seq!(" + ", ".join(named_item_to_rust(item) for item in alt.items) + ")"
+        if top_level and len(alt.items) > 4:
+            return "seq!(\n        " + ",\n        ".join(named_item_to_rust(item) for item in alt.items) + "\n    )"
+        else:
+            s = "seq!(" + ", ".join(named_item_to_rust(item) for item in alt.items) + ")"
+            return s
 
     def named_item_to_rust(item: pegen.grammar.NamedItem) -> str:
         return item_to_rust(item.item)
@@ -248,7 +252,6 @@ if __name__ == "__main__":
     # Convert to custom grammar format
     custom_grammar = pegen_to_custom(pegen_grammar)
     remove_left_recursion.validate_rules(custom_grammar)
-    remove_left_recursion.prettify_rules(custom_grammar)
 
     # Remove left recursion
     custom_grammar = remove_left_recursion.resolve_left_recursion(custom_grammar)
@@ -268,13 +271,15 @@ if __name__ == "__main__":
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
     custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
+    fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
+    assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
 
     # For forbidden follows that we can't resolve analytically, use preventers
     actual_follows = remove_left_recursion.get_follows(custom_grammar)
     all_unresolved_follows = set()
     unresolved_follows_table = {}
     for first, follow_set in forbidden_follows_table.items():
-        actual_follow_set = actual_follows[first]
+        actual_follow_set = actual_follows.get(first, set())
         unresolved_follow_set: set[remove_left_recursion.Ref] = follow_set - actual_follow_set
         all_unresolved_follows |= unresolved_follow_set
         if unresolved_follow_set:
@@ -295,6 +300,9 @@ if __name__ == "__main__":
     #     else:
     #         return node
     # custom_grammar = remove_left_recursion.map_all(custom_grammar, map_fn)
+
+    remove_left_recursion.validate_rules(custom_grammar)
+    remove_left_recursion.prettify_rules(custom_grammar)
 
     # Convert back to pegen format
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
@@ -319,7 +327,7 @@ if __name__ == "__main__":
         if len(refs) > 0:
             # Red
             print(" " * (PADDING - i), end="")
-            print("refs:  ", end="")
+            print("refs   ", end="")
             for ref in refs:
                 print(f"\033[31m{ref.name}\033[0m, ", end=" ")
             print()
@@ -330,6 +338,8 @@ if __name__ == "__main__":
             print("terms ", end="")
             for term in terms:
                 print(f"\033[32m{term.value}\033[0m, ", end=" ")
+            print()
+        if len(terms) == len(refs) == 0:
             print()
 
     print(f"Nullable rules:")
