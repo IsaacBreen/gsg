@@ -1126,9 +1126,10 @@ if __name__ == '__main__':
         ref('A'): {ref('B')},
         ref('FSTRING_MIDDLE'): {ref('FSTRING_MIDDLE')},
     }
-    print("after forbidding follows:")
-    prettify_rules(forbid_follows(rules, forbidden_follows_table))
-    print()
+    # todo: uncomment this when we've completed forbid_follows
+    # print("after forbidding follows:")
+    # prettify_rules(forbid_follows(rules, forbidden_follows_table))
+    # print()
 
     # Test get_follows more
     rules = make_rules(
@@ -1148,6 +1149,7 @@ if __name__ == '__main__':
     forbidden_follows_table = {
         ref('WS'): {ref('DEDENT')},
     }
-    print("after forbidding follows:")
-    prettify_rules(forbid_follows(rules, forbidden_follows_table))
-    print()
+    # todo: uncomment this when we've completed forbid_follows
+    # print("after forbidding follows:")
+    # prettify_rules(forbid_follows(rules, forbidden_follows_table))
+    # print()

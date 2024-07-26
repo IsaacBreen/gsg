@@ -279,9 +279,9 @@ if __name__ == "__main__":
     actual_follows = remove_left_recursion.get_follows(custom_grammar)
     all_unresolved_follows = set()
     unresolved_follows_table = {}
-    for first, follow_set in forbidden_follows_table.items():
+    for first, forbidden_follow_set in forbidden_follows_table.items():
         actual_follow_set = actual_follows.get(first, set())
-        unresolved_follow_set: set[remove_left_recursion.Ref] = follow_set - actual_follow_set
+        unresolved_follow_set: set[remove_left_recursion.Ref] = forbidden_follow_set & actual_follow_set
         all_unresolved_follows |= unresolved_follow_set
         if unresolved_follow_set:
             unresolved_follows_table[first] = list(sorted(unresolved_follow_set, key=lambda x: str(x)))
@@ -365,13 +365,13 @@ if __name__ == "__main__":
     # Print follow sets
     actual_follows = remove_left_recursion.get_follows(custom_grammar)
     print(f"Follows:")
-    for node, follow_set in sorted(actual_follows.items(), key=lambda x: (str(type(x[0])), str(x[0])), reverse=True):
+    for node, forbidden_follow_set in sorted(actual_follows.items(), key=lambda x: (str(type(x[0])), str(x[0])), reverse=True):
         if node not in custom_grammar:
             # Assume such a node is a token
-            follow_set = follow_set - set(custom_grammar.keys())
-            refs = [ref for ref in follow_set if isinstance(ref, remove_left_recursion.Ref)]
-            terms = [term for term in follow_set if isinstance(term, remove_left_recursion.Term)]
-            other = [other for other in follow_set if not isinstance(other, remove_left_recursion.Term) and not isinstance(other, remove_left_recursion.Ref)]
+            forbidden_follow_set = forbidden_follow_set - set(custom_grammar.keys())
+            refs = [ref for ref in forbidden_follow_set if isinstance(ref, remove_left_recursion.Ref)]
+            terms = [term for term in forbidden_follow_set if isinstance(term, remove_left_recursion.Term)]
+            other = [other for other in forbidden_follow_set if not isinstance(other, remove_left_recursion.Term) and not isinstance(other, remove_left_recursion.Ref)]
 
             def ansi_ljust(s, width):
                 needed = width - ansilen(s)
@@ -404,5 +404,5 @@ if __name__ == "__main__":
             if len(terms) == len(refs) == len(other) == 0:
                 print()
 
-            if isinstance(node, remove_left_recursion.Ref) and node in follow_set:
+            if isinstance(node, remove_left_recursion.Ref) and node in forbidden_follow_set:
                 logging.warning(f"Ref can follow itself: {node}")
