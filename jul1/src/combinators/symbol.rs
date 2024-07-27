@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::rc::Rc;
-use crate::{Choice2, CombinatorTrait, EatU8, Eps, IndentCombinator, IntoCombinator, ParseResults, ParserTrait, ForbidConsecutiveMatchesClear, Repeat1, RightData, Seq2, Stats, UpData};
+use crate::{Choice2, CombinatorTrait, EatU8, Eps, IndentCombinator, IntoCombinator, ParseResults, ParserTrait, ForbidFollowsClear, Repeat1, RightData, Seq2, Stats, UpData};
 
 pub struct Symbol<T> {
     pub value: Rc<T>,

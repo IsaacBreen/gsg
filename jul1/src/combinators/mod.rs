@@ -11,7 +11,7 @@ pub use symbol::*;
 pub use tag::*;
 pub use mutate_right_data::*;
 pub use fail::*;
-pub use forbid_consecutive_matches::*;
+pub use forbid_follows::*;
 pub use cache::*;
 
 mod choice;
@@ -27,5 +27,5 @@ mod symbol;
 mod tag;
 mod mutate_right_data;
 mod fail;
-mod forbid_consecutive_matches;
+mod forbid_follows;
 mod cache;

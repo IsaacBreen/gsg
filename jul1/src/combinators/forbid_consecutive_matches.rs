@@ -2,15 +2,15 @@ use std::any::Any;
 use crate::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
-pub struct ForbidConsecutiveMatchesData {
+pub struct ForbidFollowsData {
     pub prev_match_ids: Vec<String>,
 }
 
-pub struct ForbidConsecutiveMatches {
+pub struct ForbidFollows {
     match_ids: Vec<String>,
 }
 
-impl CombinatorTrait for ForbidConsecutiveMatches {
+impl CombinatorTrait for ForbidFollows {
     type Parser = FailParser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
@@ -26,9 +26,9 @@ impl CombinatorTrait for ForbidConsecutiveMatches {
     }
 }
 
-pub struct ForbidConsecutiveMatchesClear {}
+pub struct ForbidFollowsClear {}
 
-impl CombinatorTrait for ForbidConsecutiveMatchesClear {
+impl CombinatorTrait for ForbidFollowsClear {
     type Parser = FailParser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids.clear();
@@ -44,11 +44,11 @@ impl CombinatorTrait for ForbidConsecutiveMatchesClear {
     }
 }
 
-pub struct ForbidConsecutiveMatchesSet {
+pub struct ForbidFollowsSet {
     match_id: String,
 }
 
-impl CombinatorTrait for ForbidConsecutiveMatchesSet {
+impl CombinatorTrait for ForbidFollowsSet {
     type Parser = FailParser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids = vec![self.match_id.clone()];
@@ -64,11 +64,11 @@ impl CombinatorTrait for ForbidConsecutiveMatchesSet {
     }
 }
 
-pub struct ForbidConsecutiveMatchesAdd {
+pub struct ForbidFollowsAdd {
     match_id: String,
 }
 
-impl CombinatorTrait for ForbidConsecutiveMatchesAdd {
+impl CombinatorTrait for ForbidFollowsAdd {
     type Parser = FailParser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids.push(self.match_id.clone());
@@ -84,11 +84,11 @@ impl CombinatorTrait for ForbidConsecutiveMatchesAdd {
     }
 }
 
-pub struct ForbidConsecutiveMatchesCheckNot {
+pub struct ForbidFollowsCheckNot {
     match_id: String,
 }
 
-impl CombinatorTrait for ForbidConsecutiveMatchesCheckNot {
+impl CombinatorTrait for ForbidFollowsCheckNot {
     type Parser = FailParser;
     fn parser(&self, mut right_data: RightData) -> (Self::Parser, ParseResults) {
         if right_data.forbidden_consecutive_matches.prev_match_ids.contains(&self.match_id) {
@@ -107,22 +107,22 @@ impl CombinatorTrait for ForbidConsecutiveMatchesCheckNot {
     }
 }
 
-pub fn forbid_consecutive_matches(match_ids: &[&str]) -> ForbidConsecutiveMatches {
-    ForbidConsecutiveMatches { match_ids: match_ids.iter().map(|s| s.to_string()).collect() }
+pub fn forbid_follows(match_ids: &[&str]) -> ForbidFollows {
+    ForbidFollows { match_ids: match_ids.iter().map(|s| s.to_string()).collect() }
 }
 
-pub fn forbid_consecutive_matches_clear() -> ForbidConsecutiveMatchesClear {
-    ForbidConsecutiveMatchesClear {}
+pub fn forbid_follows_clear() -> ForbidFollowsClear {
+    ForbidFollowsClear {}
 }
 
-pub fn forbid_consecutive_matches_set(match_id: &str) -> ForbidConsecutiveMatchesSet {
-    ForbidConsecutiveMatchesSet { match_id: match_id.to_string() }
+pub fn forbid_follows_set(match_id: &str) -> ForbidFollowsSet {
+    ForbidFollowsSet { match_id: match_id.to_string() }
 }
 
-pub fn forbid_consecutive_matches_add(match_id: &str) -> ForbidConsecutiveMatchesAdd {
-    ForbidConsecutiveMatchesAdd { match_id: match_id.to_string() }
+pub fn forbid_follows_add(match_id: &str) -> ForbidFollowsAdd {
+    ForbidFollowsAdd { match_id: match_id.to_string() }
 }
 
-pub fn forbid_consecutive_matches_check_not(match_id: &str) -> ForbidConsecutiveMatchesCheckNot {
-    ForbidConsecutiveMatchesCheckNot { match_id: match_id.to_string() }
+pub fn forbid_follows_check_not(match_id: &str) -> ForbidFollowsCheckNot {
+    ForbidFollowsCheckNot { match_id: match_id.to_string() }
 }
