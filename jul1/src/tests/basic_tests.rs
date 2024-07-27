@@ -484,15 +484,4 @@ mod tests {
         assert_parses(&s_combinator, s, "Test input");
 
     }
-
-    #[test]
-    fn test_lookahead() {
-        let a = seq!(lookahead(filtered_terminal(eat_char('a'))), choice!(filtered_terminal(eat_char('a')), filtered_terminal(eat_char('b'))));
-        assert_parses(&a, "a", "Test input");
-        assert_fails(&a, "b", "Test input");
-
-        let a = seq!(lookahead(seq!(filtered_terminal(eat_char('a')), filtered_terminal(eat_char('b')))), seq!(filtered_terminal(eat_char('a')), choice!(filtered_terminal(eat_char('a')), filtered_terminal(eat_char('b')))));
-        assert_parses(&a, "ab", "Test input");
-        assert_fails(&a, "aa", "Test input");
-    }
 }
