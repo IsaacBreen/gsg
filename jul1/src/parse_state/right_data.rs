@@ -1,4 +1,5 @@
 use derivative::Derivative;
+use crate::{CacheData, ForbidFollowsData, FrameStack};
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialOrd, Ord, PartialEq, Eq)]

@@ -1,4 +1,5 @@
 use derivative::Derivative;
+use crate::{RightData, UpData};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseResults {
