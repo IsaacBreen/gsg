@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 
-use crate::{Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, ParseResults, RightData, Seq, SeqParser, U8Set};
+use crate::{Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ParseResults, RightData, Seq, SeqParser, U8Set};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -64,6 +64,7 @@ pub enum Combinator {
     EatU8(EatU8),
     Eps(Eps),
     EatString(EatString),
+    Fail(Fail),
 }
 
 #[derive(PartialEq)]
@@ -73,6 +74,7 @@ pub enum Parser {
     EatU8(EatU8Parser),
     EatString(EatStringParser),
     Eps(EpsParser),
+    FailParser(FailParser),
 }
 
 pub trait CombinatorTrait {
@@ -100,6 +102,7 @@ impl CombinatorTrait for Combinator {
             Combinator::EatU8(eat_u8) => eat_u8.parser(right_data),
             Combinator::EatString(eat_string) => eat_string.parser(right_data),
             Combinator::Eps(eps) => eps.parser(right_data),
+            Combinator::Fail(fail) => fail.parser(right_data),
         }
     }
 }
@@ -112,6 +115,7 @@ impl ParserTrait for Parser {
             Parser::EatU8(eat_u8) => eat_u8.step(c),
             Parser::EatString(eat_string) => eat_string.step(c),
             Parser::Eps(eps) => eps.step(c),
+            Parser::FailParser(fail) => fail.step(c),
         }
     }
 
