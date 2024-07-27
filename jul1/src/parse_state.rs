@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use derivative::Derivative;
-use crate::{FrameStack, PreventConsecutiveMatchesData, U8Set};
+use crate::{FrameStack, ForbiddenConsecutiveMatchesData, U8Set};
 use crate::CacheData;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -49,7 +49,7 @@ pub struct RightData {
     pub dedents: usize,
     pub scope_count: usize,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
-    pub prevent_consecutive_matches: PreventConsecutiveMatchesData,
+    pub forbidden_consecutive_matches: ForbiddenConsecutiveMatchesData,
     pub cache_data: CacheData,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub position: usize,
@@ -67,7 +67,7 @@ impl Default for RightData {
             indents: vec![],
             dedents: 0,
             scope_count: 0,
-            prevent_consecutive_matches: PreventConsecutiveMatchesData::default(),
+            forbidden_consecutive_matches: ForbiddenConsecutiveMatchesData::default(),
             cache_data: CacheData::default(),
             position: 0,
         }
