@@ -1,5 +1,4 @@
-use std::any::Any;
-use crate::{CombinatorTrait, ParseResults, ParserTrait, Stats, U8Set};
+use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
 #[derive(Copy, Clone, PartialEq)]
@@ -14,23 +13,18 @@ pub struct EatU8Parser {
 }
 
 impl CombinatorTrait for EatU8 {
-    type Parser = EatU8Parser;
-    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         let parser = EatU8Parser {
             u8set: self.u8set.clone(),
             right_data: Some(right_data),
         };
-        (parser, ParseResults {
+        (Parser::EatU8(parser), ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![UpData {
                 u8set: self.u8set.clone(),
             }],
             done: false,
         })
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -57,16 +51,12 @@ impl ParserTrait for EatU8Parser {
         stats.active_u8_matchers.entry(self.u8set.clone()).and_modify(|c| *c += 1).or_insert(1);
     }
 
-    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
-        if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self == other
-        } else {
-            false
-        }
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
+        todo!()
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
+        todo!()
     }
 }
 

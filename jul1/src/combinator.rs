@@ -1,14 +1,10 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
-use std::rc::Rc;
-use std::any::Any;
-use std::hash::Hasher;
-use crate::parse_state::{RightData, UpData};
-use crate::{ParseResults, U8Set};
+
+use crate::{Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, ParseResults, RightData, Seq, SeqParser, U8Set};
 
 #[derive(Default, Debug, PartialEq, Eq)]
-pub struct Stats
-{
+pub struct Stats {
     pub active_parser_type_counts: BTreeMap<String, usize>,
     pub active_symbols: BTreeMap<String, usize>,
     pub active_tags: BTreeMap<String, usize>,
@@ -17,14 +13,13 @@ pub struct Stats
 }
 
 impl Display for Stats {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         fn write_sorted<S: Clone + Display>(f: &mut Formatter, title: &str, items: &[(S, usize)]) -> std::fmt::Result {
             writeln!(f, "{}", title)?;
             let mut sorted_items = items.to_vec();
             sorted_items.sort_by(|a, b| a.1.cmp(&b.1));
             for (name, count) in sorted_items {
                 let mut name = name.to_string();
-                // Trim it if it's very long
                 if name.len() > 80 {
                     name.truncate(80);
                     name.push_str("...");
@@ -35,11 +30,7 @@ impl Display for Stats {
         }
 
         write_sorted(f, "Active Parser Types:", self.active_parser_type_counts.clone().into_iter().collect::<Vec<_>>().as_slice())?;
-        // write_sorted(f, "Active Symbols:", self.active_symbols.clone().into_iter().collect::<Vec<_>>().as_slice())?;
         write_sorted(f, "Active Tags:", self.active_tags.clone().into_iter().collect::<Vec<_>>().as_slice())?;
-        // write_sorted(f, "Active String Matchers:", self.active_string_matchers.clone().into_iter().collect::<Vec<_>>().as_slice())?;
-        // write_sorted(f, "Active U8 Matchers:", self.active_u8_matchers.clone().into_iter().collect::<Vec<_>>().as_slice())?;
-
         Ok(())
     }
 }
@@ -66,27 +57,26 @@ impl Stats {
     }
 }
 
-pub trait CombinatorTrait
-where
-    Self: 'static,
-{
-    type Parser: ParserTrait;
-    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults);
-    fn into_box_dyn(self) -> Box<DynCombinator>
-    where
-        Self: Sized,
-    {
-        Box::new(DynWrapper(self))
-    }
-    fn into_rc_dyn(self) -> Rc<DynCombinator>
-    where
-        Self: Sized,
-    {
-        Rc::new(DynWrapper(self))
-    }
-    fn dyn_eq(&self, other: &DynCombinator) -> bool { std::ptr::eq(self.as_any(), other.as_any()) }
-    fn dyn_hash(&self, state: &mut dyn Hasher) {}
-    fn as_any(&self) -> &dyn Any;
+#[derive(PartialEq)]
+pub enum Combinator {
+    Seq(Box<Seq>),
+    Choice(Box<Choice>),
+    EatU8(EatU8),
+    Eps(Eps),
+    EatString(EatString),
+}
+
+#[derive(PartialEq)]
+pub enum Parser {
+    Seq(SeqParser),
+    Choice(ChoiceParser),
+    EatU8(EatU8Parser),
+    EatString(EatStringParser),
+    Eps(EpsParser),
+}
+
+pub trait CombinatorTrait {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults);
 }
 
 pub trait ParserTrait {
@@ -96,139 +86,44 @@ pub trait ParserTrait {
         self.collect_stats(&mut stats);
         stats
     }
-    fn collect_stats(&self, stats: &mut Stats) {
-        stats.active_parser_type_counts.entry(std::any::type_name::<Self>().to_string()).and_modify(|c| *c += 1).or_insert(1);
-        for child in self.iter_children() {
-            child.collect_stats(stats);
-        }
-    }
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item = &'a dyn ParserTrait> + 'a> {
-        Box::new(std::iter::empty())
-    }
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &'a mut dyn ParserTrait> + 'a> {
-        Box::new(std::iter::empty())
-    }
-    fn gc(&mut self) {
-        for child in self.iter_children_mut() {
-            child.gc();
-        }
-    }
-    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool;
-    fn dyn_hash(&self, state: &mut dyn Hasher) {}
-    fn as_any(&self) -> &dyn Any;
+    fn collect_stats(&self, stats: &mut Stats);
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Parser> + 'a>;
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &'a mut Parser> + 'a>;
+
 }
 
-impl ParserTrait for Box<dyn ParserTrait> {
+impl CombinatorTrait for Combinator {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+        match self {
+            Combinator::Seq(seq) => seq.parser(right_data),
+            Combinator::Choice(choice) => choice.parser(right_data),
+            Combinator::EatU8(eat_u8) => eat_u8.parser(right_data),
+            Combinator::EatString(eat_string) => eat_string.parser(right_data),
+            Combinator::Eps(eps) => eps.parser(right_data),
+        }
+    }
+}
+
+impl ParserTrait for Parser {
     fn step(&mut self, c: u8) -> ParseResults {
-        (**self).step(c)
-    }
-
-    fn stats(&self) -> Stats {
-        (**self).stats()
+        match self {
+            Parser::Seq(seq) => seq.step(c),
+            Parser::Choice(choice) => choice.step(c),
+            Parser::EatU8(eat_u8) => eat_u8.step(c),
+            Parser::EatString(eat_string) => eat_string.step(c),
+            Parser::Eps(eps) => eps.step(c),
+        }
     }
 
     fn collect_stats(&self, stats: &mut Stats) {
-        (**self).collect_stats(stats)
+        todo!()
     }
 
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
-        (**self).iter_children()
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
+        todo!()
     }
 
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
-        (**self).iter_children_mut()
-    }
-
-    fn gc(&mut self) {
-        (**self).gc()
-    }
-
-    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
-        (**self).dyn_eq(other)
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl<C> CombinatorTrait for Rc<C>
-where
-    C: CombinatorTrait + ?Sized,
-{
-    type Parser = C::Parser;
-
-    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
-        (**self).parser(right_data)
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-struct DynWrapper<T>(T);
-
-impl<T, P> CombinatorTrait for DynWrapper<T>
-where
-    T: CombinatorTrait<Parser=P>,
-    P: ParserTrait + 'static,
-{
-    type Parser = Box<dyn ParserTrait>;
-
-    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
-        let (parser, parse_results) = self.0.parser(right_data);
-        (Box::new(parser), parse_results)
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl CombinatorTrait for Box<DynCombinator> {
-    type Parser = Box<dyn ParserTrait>;
-
-    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
-        (**self).parser(right_data)
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-pub type DynCombinator = dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>;
-
-pub trait IntoCombinator {
-    type Output: CombinatorTrait;
-    fn into_combinator(self) -> Self::Output;
-}
-
-impl<T> IntoCombinator for T
-where
-    T: CombinatorTrait,
-{
-    type Output = T;
-    fn into_combinator(self) -> Self::Output {
-        self
-    }
-}
-
-impl<T> IntoCombinator for &Rc<T>
-where
-    T: CombinatorTrait,
-{
-    type Output = Rc<T>;
-    fn into_combinator(self) -> Self::Output {
-        self.clone()
-    }
-}
-
-// TODO: why do we need this? Should be able to delete it, but throws an error (try it!)
-impl IntoCombinator for &Rc<DynCombinator> {
-    type Output = Rc<DynCombinator>;
-    fn into_combinator(self) -> Self::Output {
-        self.clone()
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
+        todo!()
     }
 }

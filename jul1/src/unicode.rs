@@ -1,4 +1,5 @@
 use unicode_general_category::{GeneralCategory, get_general_category};
+
 use crate::*;
 
 pub fn get_unicode_general_category_bytestrings(general_category: GeneralCategory) -> Vec<Vec<u8>> {
@@ -14,13 +15,13 @@ pub fn get_unicode_general_category_bytestrings(general_category: GeneralCategor
     result
 }
 
-pub fn get_unicode_general_category_combinator(general_category: GeneralCategory) -> Box<DynCombinator> {
+pub fn get_unicode_general_category_combinator(general_category: GeneralCategory) -> Combinator {
     let bytestrings = get_unicode_general_category_bytestrings(general_category);
 
     let mut children = Vec::new();
     for bytestring in bytestrings {
-        children.push(eat_bytes(&bytestring).into_box_dyn());
+        children.push(eat_bytes(&bytestring));
     }
 
-    choice_from_vec(children).into_box_dyn()
+    choice_from_vec(children)
 }

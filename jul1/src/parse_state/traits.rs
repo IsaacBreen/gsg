@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+
 use crate::{ParseResults, RightData, U8Set, UpData};
 
 pub trait Squash {

@@ -1,5 +1,6 @@
-use std::collections::{BTreeSet, HashSet};
-use std::hash::{Hash, Hasher};
+use std::collections::BTreeSet;
+use std::hash::Hash;
+
 use crate::U8Set;
 
 #[derive(Clone, PartialEq, Debug, Hash, PartialOrd, Ord, Eq)]

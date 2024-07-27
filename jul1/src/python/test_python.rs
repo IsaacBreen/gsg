@@ -1,10 +1,11 @@
 use std::path::Path;
+
 use crate::{eat_string, NAME, non_breaking_space, python_file, python_literal, seq, whitespace};
 use crate::utils::{assert_fails, assert_fails_default, assert_parses, assert_parses_default};
 
 #[test]
 fn test_trivial_ws() {
-    let combinator = seq!(&NAME(), python_literal("="));
+    let combinator = seq(&NAME(), python_literal("="));
     assert_parses_default(&combinator, "x =");
 }
 
@@ -16,7 +17,7 @@ fn test_trivial_adjacent_literals() {
 
 #[test]
 fn test_trivial_match() {
-    let combinator = seq!(python_literal("match"), python_literal("x"), python_literal(":"));
+    let combinator = seq(python_literal("match"), python_literal("x"), python_literal(":"));
     assert_parses_default(&combinator, "match x:");
 }
 

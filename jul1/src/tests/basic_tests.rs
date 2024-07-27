@@ -47,7 +47,7 @@ mod tests {
 
     #[test]
     fn test_seq() {
-        let combinator = seq!(eat_char_choice("a"), eat_char_choice("b"));
+        let combinator = seq(eat_char_choice("a"), eat_char_choice("b"));
         let (mut parser, ParseResults { right_data_vec: right_data0, up_data_vec: up_data0, done } ) = combinator.parser(RightData::default());
         assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }]));
         assert_eq!(parser.step('a' as u8), ParseResults {
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_choice() {
-        let combinator = choice!(eat_char_choice("a"), eat_char_choice("b"));
+        let combinator = choice(eat_char_choice("a"), eat_char_choice("b"));
         let (mut parser, ParseResults { right_data_vec: right_data0, up_data_vec: up_data0, done } ) = combinator.parser(RightData::default());
         assert_eq!((right_data0.squashed(), up_data0.squashed()), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }, UpData { u8set: U8Set::from_chars("b") }].squashed()));
         assert_eq!(parser.step('b' as u8).squashed(), ParseResults {
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_seq_choice_seq() {
-        let combinator = seq!(choice!(eat_char_choice("a"), seq!(eat_char_choice("a"), eat_char_choice("b"))), eat_char_choice("c"));
+        let combinator = seq(choice(eat_char_choice("a"), seq(eat_char_choice("a"), eat_char_choice("b"))), eat_char_choice("c"));
         let (mut parser, ParseResults { right_data_vec: right_data0, up_data_vec: up_data0, done } ) = combinator.parser(RightData::default());
         assert_eq!(Squash::squashed(ParseResults {
             right_data_vec: right_data0,
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_seq_opt() {
-        let combinator = seq!(opt(eat_char_choice("a")), eat_char_choice("b"));
+        let combinator = seq(opt(eat_char_choice("a")), eat_char_choice("b"));
         let (mut parser, ParseResults { right_data_vec: right_data0, up_data_vec: up_data0, done } ) = combinator.parser(RightData::default());
         assert_eq!(Squash::squashed(ParseResults {
             right_data_vec: right_data0,
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn test_forward_ref() {
         let mut combinator = forward_ref();
-        combinator.set(choice!(seq!(eat_char_choice("a"), &combinator), eat_char_choice("b")));
+        combinator.set(choice(seq(eat_char_choice("a"), &combinator), eat_char_choice("b")));
         let (mut parser, ParseResults { right_data_vec: right_data0, up_data_vec: up_data0, done } ) = combinator.parser(RightData::default());
         assert_eq!(Squash::squashed(ParseResults {
             right_data_vec: right_data0,
@@ -217,7 +217,7 @@ mod tests {
     fn test_frame_stack_push() {
         let mut frame_stack = FrameStack::default();
         let right_data = RightData::default();
-        let combinator = seq!(push_to_frame(eat_char_choice("a")), frame_stack_contains(choice!(eat_char_choice("b"), eat_char_choice("a"))));
+        let combinator = seq(push_to_frame(eat_char_choice("a")), frame_stack_contains(choice(eat_char_choice("b"), eat_char_choice("a"))));
         let (mut parser, ParseResults { right_data_vec: right_data0, up_data_vec: up_data0, done }) = combinator.parser(right_data.clone());
         assert_eq!((right_data0, up_data0), (vec![], vec![UpData { u8set: U8Set::from_chars("a") }]));
         assert_eq!(parser.step('a' as u8).squashed(), ParseResults {
@@ -236,9 +236,9 @@ mod tests {
     fn test_frame_stack_pop() {
         let mut frame_stack = FrameStack::default();
         let right_data = RightData::default();
-        let combinator = seq!(
+        let combinator = seq(
             push_to_frame(eat_char_choice("a")),
-            frame_stack_contains(choice!(eat_char_choice("b"), eat_char_choice("a"))),
+            frame_stack_contains(choice(eat_char_choice("b"), eat_char_choice("a"))),
             pop_from_frame(eat_char_choice("a")),
             frame_stack_contains(eat_char_choice("a"))
         );
@@ -278,9 +278,9 @@ mod tests {
     fn test_frame_stack_push_empty_frame() {
         let mut frame_stack = FrameStack::default();
         let right_data = RightData::default();
-        let combinator = seq!(
+        let combinator = seq(
             eat_char_choice("{"),
-            with_new_frame(seq!(
+            with_new_frame(seq(
                 push_to_frame(eat_char_choice("a")), eat_char_choice("="), eat_char_choice("b"), eat_char_choice(";"),
                 frame_stack_contains(eat_char_choice("a")),
             )),
@@ -333,20 +333,20 @@ mod tests {
 
     #[test]
     fn test_indents() {
-        pub fn newline() -> Seq2<Choice2<Repeat1<EatU8>, Eps>, EatU8> {
-            seq!(repeat0(eat_char_choice(" ")), eat_char_choice("\n"))
+        pub fn newline() -> Seq<Choice<Repeat1<EatU8>, Eps>, EatU8> {
+            seq(repeat0(eat_char_choice(" ")), eat_char_choice("\n"))
         }
 
-        pub fn python_newline() -> Seq2<Repeat1<Seq2<Choice2<Repeat1<EatU8>, Eps>, EatU8>>, IndentCombinator> {
-            seq!(repeat1(newline()), dent())
+        pub fn python_newline() -> Seq<Repeat1<Seq<Choice<Repeat1<EatU8>, Eps>, EatU8>>, IndentCombinator> {
+            seq(repeat1(newline()), dent())
         }
 
         let mut frame_stack = FrameStack::default();
         let parse_data = RightData::default();
-        let combinator = seq!(
+        let combinator = seq(
             eat_char_choice("a"),
             python_newline(),
-            with_indent(seq!(
+            with_indent(seq(
                 eat_char_choice("b"),
                 python_newline(),
             )),
@@ -397,10 +397,10 @@ mod tests {
     #[test]
     fn test_right_recursion_name_explosion() {
         // Based on a Python slowdown issue.
-        let NAME = tag("repeat_a", seq!(forbid_follows(&["repeat_a"]), repeat1(eat_char('a')))).into_rc_dyn();
+        let NAME = tag("repeat_a", seq(forbid_follows(&["repeat_a"]), repeat1(eat_char('a')))).into_rc_dyn();
 
         let mut combinator_recursive = forward_ref();
-        let combinator_recursive = combinator_recursive.set(seq!(&NAME, &combinator_recursive));
+        let combinator_recursive = combinator_recursive.set(seq(&NAME, &combinator_recursive));
 
         let combinator_repeat1 = repeat1(&NAME);
 
@@ -425,7 +425,7 @@ mod tests {
     fn test_cache() {
         // Define the grammar
         let a_combinator = cached(tag("A", eat_char_choice("a")));
-        let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
+        let s_combinator = cache_context(choice(&a_combinator, &a_combinator));
 
         assert_parses(&s_combinator, "a", "Test input");
 
@@ -462,7 +462,7 @@ mod tests {
     fn test_cache2() {
         // Define the grammar
         let a_combinator = cached(tag("A", eat_char_choice("a")));
-        let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
+        let s_combinator = cache_context(choice(&a_combinator, &a_combinator));
 
         assert_parses(&s_combinator, "a", "Test input");
     }
@@ -471,7 +471,7 @@ mod tests {
     fn test_cache_nested() {
         // Define the grammar
         forward_decls!(A);
-        A.set(tag("A", cached(choice!(seq!(eat_string("["), opt(seq!(&A, opt(&A))), eat_string("]"))))));
+        A.set(tag("A", cached(choice(seq(eat_string("["), opt(seq(&A, opt(&A))), eat_string("]"))))));
         let s_combinator = cache_context(A);
 
         let s = "[]";

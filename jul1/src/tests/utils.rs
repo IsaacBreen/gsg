@@ -1,6 +1,8 @@
 use std::panic::catch_unwind;
+
 use kdam::tqdm;
-use crate::{CombinatorTrait, RightData, ParseResults, ParserTrait};
+
+use crate::{CombinatorTrait, ParseResults, ParserTrait, RightData};
 
 pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     let mut input = input.to_string();

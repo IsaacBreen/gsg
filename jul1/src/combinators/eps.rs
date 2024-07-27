@@ -1,25 +1,19 @@
-use std::any::Any;
-use crate::{choice, Choice2, CombinatorTrait, IntoCombinator, ParseResults, ParserTrait, Stats};
-use crate::parse_state::{RightData, UpData};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Stats};
+use crate::parse_state::RightData;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(PartialEq)]
 pub struct Eps;
 
 #[derive(PartialEq)]
 pub struct EpsParser;
 
 impl CombinatorTrait for Eps {
-    type Parser = EpsParser;
-    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
-        (EpsParser, ParseResults {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+        (Parser::Eps(EpsParser), ParseResults {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
             done: true,
         })
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -28,26 +22,19 @@ impl ParserTrait for EpsParser {
         panic!("EpsParser already consumed")
     }
 
-    fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
-        if let Some(other) = other.as_any().downcast_ref::<Self>() {
-            self == other
-        } else {
-            false
-        }
+    fn collect_stats(&self, stats: &mut Stats) {
+        todo!()
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
+        todo!()
+    }
+
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
+        todo!()
     }
 }
 
-pub fn eps() -> Eps {
-    Eps
-}
-
-pub fn opt<A>(a: A) -> Choice2<A::Output, Eps>
-where
-    A: IntoCombinator,
-{
-    choice!(a.into_combinator(), eps())
+pub fn eps() -> Combinator {
+    Combinator::Eps(Eps)
 }
