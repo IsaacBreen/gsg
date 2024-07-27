@@ -34,12 +34,12 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
             up_data = new_up_data;
 
-            println!();
-            println!("line:char: {line_number}:{char_number}");
-            println!("line: {line:?}");
-            println!("byte: {:?}", byte as char);
-            println!("Stats:");
-            println!("{}", parser.stats());
+            // println!();
+            // println!("line:char: {line_number}:{char_number}");
+            // println!("line: {line:?}");
+            // println!("byte: {:?}", byte as char);
+            // println!("Stats:");
+            // println!("{}", parser.stats());
 
             assert!(!right_data.is_empty() || !up_data.is_empty(), "Parser failed at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
         }
