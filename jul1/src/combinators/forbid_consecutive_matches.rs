@@ -2,7 +2,7 @@ use std::any::Any;
 use crate::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
-pub struct ForbiddenConsecutiveMatchesData {
+pub struct ForbidConsecutiveMatchesData {
     pub prev_match_ids: Vec<String>,
 }
 
