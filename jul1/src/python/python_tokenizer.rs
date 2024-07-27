@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use unicode_general_category::GeneralCategory;
 
-use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice, IndentCombinator, assert_no_dedents, tag, fail, IntoCombinator, seprep0, seprep1, prevent_consecutive_matches_clear, prevent_consecutive_matches, PreventConsecutiveMatches, PreventConsecutiveMatchesClear, prevent_consecutive_matches_set, prevent_consecutive_matches_add, prevent_consecutive_matches_check_not};
+use crate::{choice, Choice2, CombinatorTrait, dedent, dent, DynCombinator, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_byte_range, eat_string, EatString, EatU8, eps, Eps, indent, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seq, Seq2, symbol, Symbol, eat_char_negation_choice, IndentCombinator, assert_no_dedents, tag, fail, IntoCombinator, seprep0, seprep1, forbid_consecutive_matches_clear, forbid_consecutive_matches, ForbidConsecutiveMatches, ForbidConsecutiveMatchesClear, forbid_consecutive_matches_set, forbid_consecutive_matches_add, forbid_consecutive_matches_check_not};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn breaking_space() -> EatU8 {
@@ -70,9 +70,9 @@ pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
     let decrement_scope_count = |right_data: &mut RightData| { right_data.scope_count -= 1; true };
 
     match s {
-        "(" | "[" | "{" => python_symbol(seq!(eat_string(s), mutate_right_data(increment_scope_count), prevent_consecutive_matches_clear())),
-        ")" | "]" | "}" => python_symbol(seq!(eat_string(s), mutate_right_data(decrement_scope_count), prevent_consecutive_matches_clear())),
-        _ => python_symbol(seq!(eat_string(s), prevent_consecutive_matches_clear())),
+        "(" | "[" | "{" => python_symbol(seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_consecutive_matches_clear())),
+        ")" | "]" | "}" => python_symbol(seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_consecutive_matches_clear())),
+        _ => python_symbol(seq!(eat_string(s), forbid_consecutive_matches_clear())),
     }
 }
 

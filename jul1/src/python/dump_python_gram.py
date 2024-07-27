@@ -207,7 +207,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, tag, cached, cache_context, prevent_consecutive_matches, prevent_consecutive_matches_clear, prevent_consecutive_matches_check_not, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
+    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, tag, cached, cache_context, forbid_consecutive_matches, forbid_consecutive_matches_clear, forbid_consecutive_matches_check_not, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq2, Choice2, Repeat1, Eps};\n')
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
@@ -216,7 +216,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     for token in tokens:
         expr = f'{token}()'
         token_ref = remove_left_recursion.ref(token)
-        expr = f'seq!(prevent_consecutive_matches_check_not("{token}"), {expr}, prevent_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table.get(token_ref, []))}]))'
+        expr = f'seq!(forbid_consecutive_matches_check_not("{token}"), {expr}, forbid_consecutive_matches(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table.get(token_ref, []))}]))'
         expr = f'tag("{token}", {expr})'
         expr = f'{expr}.into_rc_dyn()'
         f.write(f"    let {token} = {expr};\n")
