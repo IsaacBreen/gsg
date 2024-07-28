@@ -147,17 +147,17 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         if len(rhs.alts) == 1:
             return alt_to_rust(rhs.alts[0], top_level=top_level)
         if top_level:
-            return "choice(\n        " + ",\n        ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n    )"
+            return "choice!(\n        " + ",\n        ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n    )"
         else:
-            return "choice(" + ", ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
+            return "choice!(" + ", ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
 
     def alt_to_rust(alt: pegen.grammar.Alt, top_level: bool = False) -> str:
         if len(alt.items) == 1:
             return named_item_to_rust(alt.items[0])
         if top_level and len(alt.items) > 4:
-            return "seq(\n        " + ",\n        ".join(named_item_to_rust(item) for item in alt.items) + "\n    )"
+            return "seq!(\n        " + ",\n        ".join(named_item_to_rust(item) for item in alt.items) + "\n    )"
         else:
-            s = "seq(" + ", ".join(named_item_to_rust(item) for item in alt.items) + ")"
+            s = "seq!(" + ", ".join(named_item_to_rust(item) for item in alt.items) + ")"
             return s
 
     def named_item_to_rust(item: pegen.grammar.NamedItem) -> str:
@@ -166,7 +166,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     def item_to_rust(item) -> str:
         if isinstance(item, pegen.grammar.NameLeaf):
             value = item.value
-            return f'&{value}'
+            return f'{value}.clone()'
         elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
             if value[0] == value[-1] in {'"', "'"}:
@@ -207,18 +207,18 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{choice, opt, eat_char_choice, eat_string, eat_char_range, forward_ref, eps, tag, cached, cache_context, forbid_follows, forbid_follows_clear, forbid_follows_check_not, DynCombinator, CombinatorTrait, forward_decls, seprep0, seprep1, IntoCombinator, Seq, Choice, Repeat1, Eps};\n')
+    f.write('use crate::{cache_context, cached, choice, Choice, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, opt, Repeat1, seprep0, seprep1, Seq, tag};\n')
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
     f.write('\n')
-    f.write('pub fn python_file() -> Rc<DynCombinator> {\n')
+    f.write('pub fn python_file() -> Combinator {\n')
     for token in tokens:
         expr = f'{token}()'
         token_ref = remove_left_recursion.ref(token)
-        expr = f'seq(forbid_follows_check_not("{token}"), {expr}, forbid_follows(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table.get(token_ref, []))}]))'
+        expr = f'seq!(forbid_follows_check_not("{token}"), {expr}, forbid_follows(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table.get(token_ref, []))}]))'
         expr = f'tag("{token}", {expr})'
-        expr = f'{expr}.into_rc_dyn()'
+        expr = f'{expr}'
         f.write(f"    let {token} = {expr};\n")
     f.write('\n')
     f.write(f'    forward_decls!({", ".join(name for name, rule in rules)});\n')
@@ -228,11 +228,11 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         expr = f'tag("{name}", {expr})'
         if rule.memo:
             expr = f'cached({expr})'
-        f.write(f'    let {name} = {name}.set({expr}).into_rc_dyn();\n')
+        f.write(f'    let {name} = {name}.set({expr});\n')
     if any(rule.memo for name, rule in rules):
-        f.write('\n    cache_context(seq(opt(NEWLINE), file)).into_rc_dyn()\n')
+        f.write('\n    cache_context(seq!(opt(NEWLINE), file))\n')
     else:
-        f.write('\n    seq(opt(NEWLINE), file).into_rc_dyn()\n')
+        f.write('\n    seq!(opt(NEWLINE), file)\n')
     f.write('}\n')
     return f.getvalue()
 

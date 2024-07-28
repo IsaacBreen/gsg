@@ -2,18 +2,18 @@ use std::rc::Rc;
 
 use unicode_general_category::GeneralCategory;
 
-use crate::{assert_no_dedents, choice, Choice, CombinatorTrait, dedent, dent, DynCombinator, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_add, forbid_follows_check_not, forbid_follows_clear, forbid_follows_set, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, IntoCombinator, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seprep0, seprep1, seq, Seq, symbol, Symbol, tag};
+use crate::{assert_no_dedents, choice, Choice, Combinator, CombinatorTrait, dedent, dent, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seprep0, seprep1, seq, Seq, symbol, Symbol, tag};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
-pub fn breaking_space() -> EatU8 {
+pub fn breaking_space() -> Combinator {
     eat_char_choice("\n\r")
 }
 
-pub fn not_breaking_space() -> EatU8 {
+pub fn not_breaking_space() -> Combinator {
     eat_char_negation_choice("\n\r")
 }
 
-pub fn non_breaking_space() -> EatU8 {
+pub fn non_breaking_space() -> Combinator {
     eat_char_choice(" \t")
 }
 
@@ -43,37 +43,37 @@ pub fn non_breaking_space() -> EatU8 {
 // tokens.  Whitespace is needed between two tokens only if their concatenation
 // could otherwise be interpreted as a different token (e.g., ab is one token, but
 // a b is two tokens).
-pub fn whitespace() -> Box<DynCombinator> {
-    seq(
-        repeat1(choice(
+pub fn whitespace() -> Combinator {
+    seq!(
+        repeat1(choice!(
             // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
-            seq(
+            seq!(
                 mutate_right_data(|right_data| right_data.scope_count > 0),
                 breaking_space()
             ),
             // But we can match an escaped newline.
-            seq(eat_string("\\"), breaking_space()),
+            seq!(eat_string("\\"), breaking_space()),
             non_breaking_space()
         )),
-    ).into_box_dyn()
+    )
 }
 
-pub fn WS() -> Symbol<Box<DynCombinator>> {
+pub fn WS() -> Combinator {
     python_symbol(whitespace())
 }
 
-pub fn python_symbol<A: CombinatorTrait>(a: A) -> Symbol<Box<DynCombinator>> {
-    symbol(a.into_box_dyn())
+pub fn python_symbol(a: Combinator) -> Combinator {
+    symbol(a)
 }
 
-pub fn python_literal(s: &str) -> Symbol<Box<DynCombinator>> {
+pub fn python_literal(s: &str) -> Combinator {
     let increment_scope_count = |right_data: &mut RightData| { right_data.scope_count += 1; true };
     let decrement_scope_count = |right_data: &mut RightData| { right_data.scope_count -= 1; true };
 
     match s {
-        "(" | "[" | "{" => python_symbol(seq(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear())),
-        ")" | "]" | "}" => python_symbol(seq(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear())),
-        _ => python_symbol(seq(eat_string(s), forbid_follows_clear())),
+        "(" | "[" | "{" => python_symbol(seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear())),
+        ")" | "]" | "}" => python_symbol(seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear())),
+        _ => python_symbol(seq!(eat_string(s), forbid_follows_clear())),
     }
 }
 
@@ -266,28 +266,28 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
     bytestrings
 }
 
-pub fn id_start() -> Box<DynCombinator> {
-    eat_bytestring_choice(id_start_bytestrings()).into_box_dyn()
+pub fn id_start() -> Combinator {
+    eat_bytestring_choice(id_start_bytestrings())
 }
 
-pub fn id_continue() -> Box<DynCombinator> {
-    eat_bytestring_choice(id_continue_bytestrings()).into_box_dyn()
+pub fn id_continue() -> Combinator {
+    eat_bytestring_choice(id_continue_bytestrings())
 }
 
-pub fn xid_start() -> Box<DynCombinator> {
+pub fn xid_start() -> Combinator {
     // all characters in id_start whose NFKC normalization is in "id_start xid_continue*"
     // Honestly, I don't know what this means.
     id_start()
 }
 
-pub fn xid_continue() -> Box<DynCombinator> {
+pub fn xid_continue() -> Combinator {
     // all characters in id_continue whose NFKC normalization is in "id_continue*"
     // Honestly, I don't know what this means.
     id_continue()
 }
 
-pub fn NAME() -> Symbol<Box<DynCombinator>> {
-    python_symbol(seq(xid_start(), repeat0(xid_continue())))
+pub fn NAME() -> Combinator {
+    python_symbol(seq!(xid_start(), repeat0(xid_continue())))
 }
 
 // .. _literals:
@@ -409,26 +409,26 @@ pub fn NAME() -> Symbol<Box<DynCombinator>> {
 //    single: \N; escape sequence
 //    single: \u; escape sequence
 //    single: \U; escape sequence
-pub fn STRING() -> Symbol<Box<DynCombinator>> {
-    let stringprefix = choice(
+pub fn STRING() -> Combinator {
+    let stringprefix = choice!(
         eat_char_choice("ruRUfF"),
-        choice(
-            seq(eat_char_choice("fF"), eat_char_choice("rR")),
-            seq(eat_char_choice("rR"), eat_char_choice("fF"))
+        choice!(
+            seq!(eat_char_choice("fF"), eat_char_choice("rR")),
+            seq!(eat_char_choice("rR"), eat_char_choice("fF"))
         )
     );
 
-    let shortstring = choice(
-        seq(eat_char('\''), repeat0(choice(eat_char_negation_choice("\\\'\n"), seq(eat_char('\\'), breaking_space()))), eat_char('\'')),
-        seq(eat_char('"'), repeat0(choice(eat_char_negation_choice("\\\"\n"), seq(eat_char('\\'), breaking_space()))), eat_char('"'))
+    let shortstring = choice!(
+        seq!(eat_char('\''), repeat0(choice!(eat_char_negation_choice("\\\'\n"), seq!(eat_char('\\'), breaking_space()))), eat_char('\'')),
+        seq!(eat_char('"'), repeat0(choice!(eat_char_negation_choice("\\\"\n"), seq!(eat_char('\\'), breaking_space()))), eat_char('"'))
     );
 
-    let longstring = choice(
-        seq(eat_string("'''"), repeat0(choice(eat_char_negation('\\'), seq(eat_char('\\'), breaking_space()))), eat_string("'''")),
-        seq(eat_string("\"\"\""), repeat0(choice(eat_char_negation('\\'), seq(eat_char('\\'), breaking_space()))), eat_string("\"\"\""))
+    let longstring = choice!(
+        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), breaking_space()))), eat_string("'''")),
+        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), breaking_space()))), eat_string("\"\"\""))
     );
 
-    python_symbol(seq(opt(stringprefix), choice(shortstring, longstring)))
+    python_symbol(seq!(opt(stringprefix), choice!(shortstring, longstring)))
 }
 
 // From https://peps.python.org/pep-0701/
@@ -572,48 +572,48 @@ pub fn STRING() -> Symbol<Box<DynCombinator>> {
 // Of course, as mentioned before, it is not possible to provide a precise
 // specification of how this should be done for an arbitrary tokenizer as it will
 // depend on the specific implementation and nature of the lexer to be changed.
-pub fn FSTRING_START() -> Symbol<Box<DynCombinator>> {
-    let prefix = choice(
+pub fn FSTRING_START() -> Combinator {
+    let prefix = choice!(
         eat_char_choice("fF"),
-        seq(eat_char_choice("fF"), eat_char_choice("rR")),
-        seq(eat_char_choice("rR"), eat_char_choice("fF"))
+        seq!(eat_char_choice("fF"), eat_char_choice("rR")),
+        seq!(eat_char_choice("rR"), eat_char_choice("fF"))
     );
 
-    let quote = choice(
+    let quote = choice!(
         eat_char('\''),
         eat_char('"'),
         eat_string("'''"),
         eat_string("\"\"\"")
     );
 
-    python_symbol(seq(
+    python_symbol(seq!(
         prefix, quote,
-    ).into_box_dyn())
+    ))
 }
 
-pub fn FSTRING_MIDDLE() -> Symbol<Box<DynCombinator>> {
-    let escaped_char = seq(eat_char('\\'), eat_char_negation_choice("\n\r"));
+pub fn FSTRING_MIDDLE() -> Combinator {
+    let escaped_char = seq!(eat_char('\\'), eat_char_negation_choice("\n\r"));
     let regular_char = eat_char_negation_choice("{}\\");
 
-    symbol(seq(
-        repeat1(choice(
+    symbol(seq!(
+        repeat1(choice!(
             regular_char,
             escaped_char,
-            seq(eat_char('{'), eat_char('{')),
-            seq(eat_char('}'), eat_char('}'))
+            seq!(eat_char('{'), eat_char('{')),
+            seq!(eat_char('}'), eat_char('}'))
         )),
-    ).into_box_dyn())
+    ))
 }
 
-pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
-    let quote = choice(
+pub fn FSTRING_END() -> Combinator {
+    let quote = choice!(
         eat_char('\''),
         eat_char('"'),
         eat_string("'''"),
         eat_string("\"\"\"")
     );
 
-    symbol(quote.into_box_dyn())
+    symbol(quote)
 }
 
 // .. _numbers:
@@ -731,38 +731,38 @@ pub fn FSTRING_END() -> Symbol<Box<DynCombinator>> {
 // imaginary literals::
 //
 //    3.14j   10.j    10j     .001j   1e100j   3.14e-10j   3.14_15_93j
-pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
+pub fn NUMBER() -> Combinator {
     let digit = eat_byte_range(b'0', b'9');
     let nonzerodigit = eat_byte_range(b'1', b'9');
     let bindigit = eat_byte_range(b'0', b'1');
     let octdigit = eat_byte_range(b'0', b'7');
-    let hexdigit = choice(digit, eat_byte_range(b'a', b'f'), eat_byte_range(b'A', b'F'));
+    let hexdigit = choice!(digit, eat_byte_range(b'a', b'f'), eat_byte_range(b'A', b'F'));
 
-    let decinteger = choice(
-        seq(nonzerodigit, repeat0(seq(opt(eat_char('_')), digit))),
-        seq(repeat1(eat_char('0')), repeat0(seq(opt(eat_char('_')), eat_char('0'))))
+    let decinteger = choice!(
+        seq!(nonzerodigit, repeat0(seq!(opt(eat_char('_')), digit))),
+        seq!(repeat1(eat_char('0')), repeat0(seq!(opt(eat_char('_')), eat_char('0'))))
     );
-    let bininteger = seq(eat_char('0'), eat_char_choice("bB"), repeat1(seq(opt(eat_char('_')), bindigit)));
-    let octinteger = seq(eat_char('0'), eat_char_choice("oO"), repeat1(seq(opt(eat_char('_')), octdigit)));
-    let hexinteger = seq(eat_char('0'), eat_char_choice("xX"), repeat1(seq(opt(eat_char('_')), hexdigit)));
+    let bininteger = seq!(eat_char('0'), eat_char_choice("bB"), repeat1(seq!(opt(eat_char('_')), bindigit)));
+    let octinteger = seq!(eat_char('0'), eat_char_choice("oO"), repeat1(seq!(opt(eat_char('_')), octdigit)));
+    let hexinteger = seq!(eat_char('0'), eat_char_choice("xX"), repeat1(seq!(opt(eat_char('_')), hexdigit)));
 
-    let integer = choice(decinteger, bininteger, octinteger, hexinteger);
+    let integer = choice!(decinteger, bininteger, octinteger, hexinteger);
 
-    let digitpart = Rc::new(seq(digit, repeat0(seq(opt(eat_char('_')), digit))));
-    let fraction = seq(eat_char('.'), digitpart.clone());
-    let exponent = seq(eat_char_choice("eE"), opt(eat_char_choice("+-")), digitpart.clone());
+    let digitpart = seq!(digit, repeat0(seq!(opt(eat_char('_')), digit)));
+    let fraction = seq!(eat_char('.'), digitpart.clone());
+    let exponent = seq!(eat_char_choice("eE"), opt(eat_char_choice("+-")), digitpart.clone());
 
-    let pointfloat = Rc::new(choice(
-        seq(opt(digitpart.clone()), fraction),
-        seq(digitpart.clone(), eat_char('.'))
-    ));
-    let exponentfloat = seq(choice(digitpart.clone(), pointfloat.clone()), exponent);
+    let pointfloat = choice!(
+        seq!(opt(digitpart.clone()), fraction),
+        seq!(digitpart.clone(), eat_char('.'))
+    );
+    let exponentfloat = seq!(choice!(digitpart.clone(), pointfloat.clone()), exponent);
 
-    let floatnumber = Rc::new(choice(pointfloat, exponentfloat));
+    let floatnumber = choice!(pointfloat, exponentfloat);
 
-    let imagnumber = seq(choice(floatnumber.clone(), digitpart), eat_char_choice("jJ"));
+    let imagnumber = seq!(choice!(floatnumber.clone(), digitpart), eat_char_choice("jJ"));
 
-    python_symbol(seq(choice(integer, floatnumber, imagnumber)))
+    python_symbol(seq!(choice!(integer, floatnumber, imagnumber)))
 }
 
 // .. _comments:
@@ -777,8 +777,8 @@ pub fn NUMBER() -> Symbol<Box<DynCombinator>> {
 // literal, and ends at the end of the physical line.  A comment signifies the end
 // of the logical line unless the implicit line joining rules are invoked. Comments
 // are ignored by the syntax.
-pub fn comment() -> Seq<EatU8, Choice<Repeat1<EatU8>, Eps>> {
-    seq(eat_char('#'), repeat0(not_breaking_space()))
+pub fn comment() -> Combinator {
+    seq!(eat_char('#'), repeat0(not_breaking_space()))
 }
 
 // .. _line-structure:
@@ -821,9 +821,9 @@ pub fn comment() -> Seq<EatU8, Choice<Repeat1<EatU8>, Eps>> {
 // When embedding Python, source code strings should be passed to Python APIs using
 // the standard C conventions for newline characters (the ``\n`` character,
 // representing ASCII LF, is the line terminator).
-pub fn NEWLINE() -> Symbol<Rc<DynCombinator>> {
-    let blank_line = seq(repeat0(non_breaking_space()), opt(comment()), breaking_space());
-    symbol(seq(repeat1(blank_line), tag("dent()", dent())).into_rc_dyn())
+pub fn NEWLINE() -> Combinator{
+    let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
+    symbol(seq!(repeat1(blank_line), tag("dent()", dent())))
 }
 
 // .. _indentation:
@@ -903,19 +903,19 @@ pub fn NEWLINE() -> Symbol<Rc<DynCombinator>> {
 // (Actually, the first three errors are detected by the parser; only the last
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
-pub fn INDENT() -> Symbol<IndentCombinator> {
+pub fn INDENT() -> Combinator {
     symbol(indent())
 }
 
-pub fn DEDENT() -> Symbol<IndentCombinator> {
+pub fn DEDENT() -> Combinator {
     symbol(dedent())
 }
 
-pub fn ENDMARKER() -> Symbol<Eps> {
-    symbol(seq(eps()))
+pub fn ENDMARKER() -> Combinator {
+    symbol(seq!(eps()))
 }
 
-pub fn TYPE_COMMENT() -> Symbol<Box<DynCombinator>> {
-    // python_symbol(seq(eat_string("#"), opt(whitespace()), eat_string("type:"), opt(whitespace()), repeat0(eat_char_negation_choice("\n\r"))))
-    symbol(fail().into_box_dyn())
+pub fn TYPE_COMMENT() -> Combinator {
+    // python_symbol(seq!(eat_string("#"), opt(whitespace()), eat_string("type:"), opt(whitespace()), repeat0(eat_char_negation_choice("\n\r"))))
+    symbol(fail())
 }
