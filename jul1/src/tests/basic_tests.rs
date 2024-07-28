@@ -468,20 +468,20 @@ mod tests {
         assert_parses(&s_combinator, "a", "Test input");
     }
 
-    // #[test]
-    // fn test_cache_nested() {
-    //     // Define the grammar
-    //     forward_decls!(A);
-    //     A.set(tag("A", cached(choice!(seq!(eat_string("["), opt(seq!(&A, opt(A.clone()))), eat_string("]"))))));
-    //     let s_combinator = cache_context(A);
-    //
-    //     let s = "[]";
-    //     assert_parses(&s_combinator, s, "Test input");
-    //     let s = "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]";
-    //     assert_parses(&s_combinator, s, "Test input");
-    //     let s = "[[][]]";
-    //     assert_parses(&s_combinator, s, "Test input");
-    //     let s = "[[][[][]]]";
-    //     assert_parses(&s_combinator, s, "Test input");
-    // }
+    #[test]
+    fn test_cache_nested() {
+        // Define the grammar
+        forward_decls!(A);
+        A.set(tag("A", cached(choice!(seq!(eat_string("["), opt(seq!(&A, opt(A.clone()))), eat_string("]"))))));
+        let s_combinator = cache_context(A);
+
+        let s = "[]";
+        assert_parses(&s_combinator, s, "Test input");
+        let s = "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]";
+        assert_parses(&s_combinator, s, "Test input");
+        let s = "[[][]]";
+        assert_parses(&s_combinator, s, "Test input");
+        let s = "[[][[][]]]";
+        assert_parses(&s_combinator, s, "Test input");
+    }
 }

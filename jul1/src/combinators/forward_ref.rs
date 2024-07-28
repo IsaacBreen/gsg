@@ -5,16 +5,24 @@ use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Stats};
 use crate::parse_state::RightData;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ForwardRef {
     a: Rc<RefCell<Option<Rc<Combinator>>>>,
 }
 
 impl Hash for ForwardRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.a.borrow().as_ref().unwrap().hash(state);
+        Rc::as_ptr(&self.a).hash(state);
     }
 }
+
+impl PartialEq for ForwardRef {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.a, &other.a)
+    }
+}
+
+impl Eq for ForwardRef {}
 
 impl CombinatorTrait for ForwardRef {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
