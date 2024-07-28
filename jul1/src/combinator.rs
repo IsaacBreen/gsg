@@ -195,6 +195,9 @@ pub trait ParserTrait {
             child.collect_stats(stats);
         }
     }
+
+    fn iter_children(&self) -> Vec<&dyn ParserTrait>;
+    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait>;
 }
 
 impl CombinatorTrait for Combinator {
@@ -210,5 +213,13 @@ impl ParserTrait for Parser {
 
     fn collect_stats(&self, stats: &mut Stats) {
         match_parser!(self, inner => inner.collect_stats(stats))
+    }
+
+    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
+        match_parser!(self, inner => inner.iter_children())
+    }
+
+    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
+        match_parser!(self, inner => inner.iter_children_mut())
     }
 }
