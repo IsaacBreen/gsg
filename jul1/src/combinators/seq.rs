@@ -1,14 +1,10 @@
-use serde_with::serde_as;
 use std::rc::Rc;
-use serde::{Serialize, Deserialize};
 
 use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, RightData, Stats};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
-    #[serde_as(as = "Rc<Combinator>")]
     a: Rc<Combinator>,
-    #[serde_as(as = "Rc<Combinator>")]
     b: Rc<Combinator>,
 }
 

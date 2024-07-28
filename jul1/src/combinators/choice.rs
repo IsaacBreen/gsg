@@ -1,10 +1,9 @@
 use std::ops::Not;
-use serde::{Serialize, Deserialize};
 
 use crate::{Combinator, CombinatorTrait, fail, Parser, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::RightData;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Choice {
     pub(crate) a: Box<Combinator>,
     pub(crate) b: Box<Combinator>,

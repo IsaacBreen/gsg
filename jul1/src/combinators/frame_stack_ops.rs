@@ -1,14 +1,13 @@
 use crate::{Combinator, CombinatorTrait, FrameStack, Parser, ParseResults, ParserTrait, RightData, Stats};
-use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum FrameStackOpType {
     PushToFrame,
     PopFromFrame,
     FrameStackContains,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct WithNewFrame {
     pub a: Box<Combinator>,
 }
@@ -18,7 +17,7 @@ pub struct WithNewFrameParser {
     pub a: Option<Box<Parser>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FrameStackOp {
     pub op_type: FrameStackOpType,
     pub a: Box<Combinator>,

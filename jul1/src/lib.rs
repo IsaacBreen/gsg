@@ -8,7 +8,6 @@ pub use combinators::*;
 pub use frame_stack::Frame;
 // Re-export common types and functions
 pub use frame_stack::FrameStack;
-pub use grammar::Grammar;
 
 pub use crate::combinators::*;
 pub use crate::parse_state::*;
@@ -22,7 +21,6 @@ mod combinators;
 mod parse_state;
 mod u8set;
 mod bitset256;
-mod grammar;
 
 // Include tests
 mod tests;

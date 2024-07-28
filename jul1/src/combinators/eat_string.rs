@@ -1,11 +1,10 @@
 use std::collections::BTreeMap;
-use serde::{Serialize, Deserialize};
 
 use crate::{choice, Combinator, CombinatorTrait, eat_byte, Parser, ParseResults, ParserTrait, seq, Stats, U8Set};
 use crate::combinators::derived::opt;
 use crate::parse_state::{RightData, UpData};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatString {
     string: Vec<u8>,
 }

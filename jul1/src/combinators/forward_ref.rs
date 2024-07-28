@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use serde::{Serialize, Deserialize};
 
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Stats};
 use crate::parse_state::RightData;
@@ -9,34 +8,6 @@ use crate::parse_state::RightData;
 #[derive(Debug, Clone)]
 pub struct ForwardRef {
     a: Rc<RefCell<Option<Rc<Combinator>>>>,
-    id: usize,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct SerializableForwardRef {
-    id: usize,
-}
-
-impl Serialize for ForwardRef {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        SerializableForwardRef { id: self.id }.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for ForwardRef {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let SerializableForwardRef { id } = SerializableForwardRef::deserialize(deserializer)?;
-        Ok(ForwardRef {
-            a: Rc::new(RefCell::new(None)),
-            id,
-        })
-    }
 }
 
 impl Hash for ForwardRef {
