@@ -28,7 +28,7 @@ impl CombinatorTrait for Repeat1 {
         } else {
             vec![]
         };
-        (Parser::Repeat1(Repeat1Parser { a: self.a.clone(), a_parsers, right_data }), parse_results)
+        (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, right_data }), parse_results)
     }
 }
 

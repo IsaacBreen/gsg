@@ -9,7 +9,7 @@ pub struct EpsParser;
 
 impl CombinatorTrait for Eps {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        (Parser::Eps(EpsParser), ParseResults {
+        (Parser::EpsParser(EpsParser), ParseResults {
             right_data_vec: vec![right_data],
             up_data_vec: vec![],
             done: true,

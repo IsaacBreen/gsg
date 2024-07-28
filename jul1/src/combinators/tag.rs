@@ -19,7 +19,7 @@ impl CombinatorTrait for Tagged {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parser(right_data)));
         match result {
             Ok((parser, parse_results)) => (
-                Parser::Tagged(TaggedParser { inner: Box::new(parser), tag: self.tag.clone() }),
+                Parser::TaggedParser(TaggedParser { inner: Box::new(parser), tag: self.tag.clone() }),
                 parse_results,
             ),
             Err(err) => {

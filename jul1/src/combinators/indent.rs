@@ -45,12 +45,12 @@ impl CombinatorTrait for IndentCombinator {
                 let combinator = make_combinator(&right_data.indents, right_data.indents.len());
                 let (parser, parse_results) = combinator.parser(right_data);
 
-                (Parser::Indent(IndentCombinatorParser::DentParser(Box::new(parser))), parse_results)
+                (Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(Box::new(parser))), parse_results)
             }
             IndentCombinator::Indent if right_data.dedents == 0 => {
                 right_data.indents.push(vec![]);
                 // println!("Initialized indent parser with right_data: {:?}", right_data);
-                (Parser::Indent(IndentCombinatorParser::IndentParser(Some(right_data.clone()))), ParseResults {
+                (Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(Some(right_data.clone()))), ParseResults {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
                     done: false,
@@ -59,20 +59,20 @@ impl CombinatorTrait for IndentCombinator {
             IndentCombinator::Dedent if right_data.dedents > 0 => {
                 right_data.dedents -= 1;
                 // println!("Decremented dedents to {}", right_data.dedents);
-                (Parser::Indent(IndentCombinatorParser::Done), ParseResults {
+                (Parser::IndentCombinatorParser(IndentCombinatorParser::Done), ParseResults {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![],
                     done: true,
                 })
             }
             IndentCombinator::AssertNoDedents if right_data.dedents == 0 => {
-                (Parser::Indent(IndentCombinatorParser::Done), ParseResults {
+                (Parser::IndentCombinatorParser(IndentCombinatorParser::Done), ParseResults {
                     right_data_vec: vec![right_data],
                     up_data_vec: vec![],
                     done: true,
                 })
             }
-            _ => (Parser::Indent(IndentCombinatorParser::Done), ParseResults::empty_finished()),
+            _ => (Parser::IndentCombinatorParser(IndentCombinatorParser::Done), ParseResults::empty_finished()),
         }
     }
 }
@@ -120,19 +120,19 @@ impl ParserTrait for IndentCombinatorParser {
 }
 
 pub fn dent() -> Combinator {
-    Combinator::Indent(IndentCombinator::Dent)
+    Combinator::IndentCombinator(IndentCombinator::Dent)
 }
 
 pub fn indent() -> Combinator {
-    Combinator::Indent(IndentCombinator::Indent)
+    Combinator::IndentCombinator(IndentCombinator::Indent)
 }
 
 pub fn dedent() -> Combinator {
-    Combinator::Indent(IndentCombinator::Dedent)
+    Combinator::IndentCombinator(IndentCombinator::Dedent)
 }
 
 pub fn assert_no_dedents() -> Combinator {
-    Combinator::Indent(IndentCombinator::AssertNoDedents)
+    Combinator::IndentCombinator(IndentCombinator::AssertNoDedents)
 }
 
 pub fn with_indent(a: Combinator) -> Combinator {

@@ -34,7 +34,7 @@ pub struct FrameStackOpParser {
 impl CombinatorTrait for WithNewFrame {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         let (a, ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, done}) = self.a.parser(right_data);
-        (Parser::WithNewFrame(WithNewFrameParser { a: Some(Box::new(a)) }), ParseResults {
+        (Parser::WithNewFrameParser(WithNewFrameParser { a: Some(Box::new(a)) }), ParseResults {
             right_data_vec: right_data_vec,
             up_data_vec: up_data_vec,
             done,
@@ -100,7 +100,7 @@ impl CombinatorTrait for FrameStackOp {
                 }
             }
         }
-        (Parser::FrameStackOp(parser), ParseResults {
+        (Parser::FrameStackOpParser(parser), ParseResults {
             right_data_vec: right_data_vec,
             up_data_vec: up_data_vec,
             done,

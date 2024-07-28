@@ -1,4 +1,4 @@
-use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, Stats};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Stats};
 use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -33,4 +33,8 @@ impl ParserTrait for FailParser {
     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
         todo!()
     }
+}
+
+pub fn fail() -> Combinator {
+    Combinator::Fail(Fail)
 }

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{choice_from_vec, Combinator, CombinatorTrait, eat_byte, Parser, ParseResults, ParserTrait, seq, Stats, U8Set};
+use crate::{choice, Combinator, CombinatorTrait, eat_byte, Parser, ParseResults, ParserTrait, seq, Stats, U8Set};
 use crate::combinators::derived::opt;
 use crate::parse_state::{RightData, UpData};
 
@@ -24,7 +24,7 @@ impl CombinatorTrait for EatString {
             right_data: Some(right_data),
         };
         // println!("EatStringParser: Starting {:?}", parser);
-        (Parser::EatString(parser), ParseResults {
+        (Parser::EatStringParser(parser), ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![UpData { u8set: U8Set::from_u8(self.string[0]) }],
             done: false,
@@ -104,7 +104,7 @@ pub fn eat_bytestring_choice(mut bytestrings: Vec<Vec<u8>>) -> Combinator {
         grouped_bytestrings.entry(*first).or_default().push((*rest).to_vec());
     }
     // Create combinators for each group
-    let combinator = choice_from_vec(grouped_bytestrings.clone().into_iter().map(|(first, rests)| {
+    let combinator = choice(grouped_bytestrings.clone().into_iter().map(|(first, rests)| {
         seq(vec![Combinator::EatU8(eat_byte(first)), eat_bytestring_choice(rests)])
     }).collect());
     if any_done {

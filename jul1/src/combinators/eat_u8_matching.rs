@@ -18,7 +18,7 @@ impl CombinatorTrait for EatU8 {
             u8set: self.u8set.clone(),
             right_data: Some(right_data),
         };
-        (Parser::EatU8(parser), ParseResults {
+        (Parser::EatU8Parser(parser), ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![UpData {
                 u8set: self.u8set.clone(),

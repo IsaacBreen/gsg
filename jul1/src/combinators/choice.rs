@@ -1,6 +1,6 @@
 use std::ops::Not;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Squash, Stats};
+use crate::{Combinator, CombinatorTrait, fail, Parser, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -20,7 +20,7 @@ impl CombinatorTrait for Choice {
         let (a, parse_results_a) = self.a.parser(right_data.clone());
         let (b, parse_results_b) = self.b.parser(right_data);
         (
-            Parser::Choice(ChoiceParser { a: parse_results_a.done.not().then_some(Box::new(a)), b: parse_results_b.done.not().then_some(Box::new(b)) }),
+            Parser::ChoiceParser(ChoiceParser { a: parse_results_a.done.not().then_some(Box::new(a)), b: parse_results_b.done.not().then_some(Box::new(b)) }),
             parse_results_a.combine_inplace(parse_results_b)
         )
     }
@@ -60,10 +60,18 @@ impl ParserTrait for ChoiceParser {
     }
 }
 
-pub fn choice_from_vec(v: Vec<Combinator>) -> Combinator { todo!() }
-
-pub fn choice(v: Vec<Combinator>) -> Combinator {
-    todo!()
+pub fn choice(mut v: Vec<Combinator>) -> Combinator {
+    if v.is_empty() {
+        fail()
+    } else if v.len() == 1 {
+        v.pop().unwrap()
+    } else {
+        let b = v.split_off(v.len() / 2);
+        Combinator::Choice(Choice {
+            a: Box::new(choice(v)),
+            b: Box::new(choice(b)),
+        })
+    }
 }
 
 #[macro_export]

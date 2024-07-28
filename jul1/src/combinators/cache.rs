@@ -80,7 +80,7 @@ impl CombinatorTrait for CacheContext {
         cache_data_inner.borrow_mut().entries.reverse();
         let mut cache_context_parser = CacheContextParser { inner: Box::new(parser), cache_data_inner };
         cache_context_parser.cleanup();
-        (Parser::CacheContext(cache_context_parser), results)
+        (Parser::CacheContextParser(cache_context_parser), results)
     }
 }
 
@@ -130,7 +130,7 @@ impl CombinatorTrait for Cached {
             if Rc::ptr_eq(&key.combinator, &self.inner) && key.right_data == right_data {
                 let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
                 return (
-                    Parser::Cached(CachedParser {
+                    Parser::CachedParser(CachedParser {
                         entry: entry.clone(),
                         num: entry.borrow().num,
                     }),
@@ -160,7 +160,7 @@ impl CombinatorTrait for Cached {
         entry.borrow_mut().parser = Some(Box::new(parser));
         entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
         let num = entry.borrow().num;
-        (Parser::Cached(CachedParser { entry, num }), parse_results)
+        (Parser::CachedParser(CachedParser { entry, num }), parse_results)
     }
 }
 

@@ -23,5 +23,5 @@ pub fn get_unicode_general_category_combinator(general_category: GeneralCategory
         children.push(eat_bytes(&bytestring));
     }
 
-    choice_from_vec(children)
+    choice(children)
 }

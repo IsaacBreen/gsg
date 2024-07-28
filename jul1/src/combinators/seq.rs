@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Stats};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, RightData, Stats};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
@@ -30,7 +30,7 @@ impl CombinatorTrait for Seq {
             right_data_bs.extend(right_data_b);
         }
         let done = a.is_none() && bs.is_empty();
-        let parser = Parser::Seq(SeqParser {
+        let parser = Parser::SeqParser(SeqParser {
             a,
             bs,
             b: self.b.clone(),
@@ -108,8 +108,18 @@ impl ParserTrait for SeqParser {
     }
 }
 
-pub fn seq(v: Vec<Combinator>) -> Combinator {
-    todo!()
+pub fn seq(mut v: Vec<Combinator>) -> Combinator {
+    if v.is_empty() {
+        eps()
+    } else if v.len() == 1 {
+        v.pop().unwrap()
+    } else {
+        let b = v.split_off(v.len() / 2);
+        Combinator::Seq(Seq {
+            a: Rc::new(seq(v)),
+            b: Rc::new(seq(b)),
+        })
+    }
 }
 
 #[macro_export]

@@ -53,13 +53,13 @@ impl Debug for MutateRightDataParser {
 impl CombinatorTrait for MutateRightData {
     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
         if (self.run)(&mut right_data) {
-            (Parser::MutateRightData(MutateRightDataParser { run: self.run.clone() }), ParseResults {
+            (Parser::MutateRightDataParser(MutateRightDataParser { run: self.run.clone() }), ParseResults {
                 right_data_vec: vec![right_data],
                 up_data_vec: vec![],
                 done: true
             })
         } else {
-            (Parser::MutateRightData(MutateRightDataParser { run: self.run.clone() }), ParseResults {
+            (Parser::MutateRightDataParser(MutateRightDataParser { run: self.run.clone() }), ParseResults {
                 right_data_vec: vec![],
                 up_data_vec: vec![],
                 done: true,
