@@ -8,9 +8,7 @@ use crate::parse_state::RightData;
 
 #[derive(Debug, Clone)]
 pub struct ForwardRef {
-    #[serde(skip)]
     a: Rc<RefCell<Option<Rc<Combinator>>>>,
-    #[serde(skip)]
     id: usize,
 }
 
