@@ -391,7 +391,7 @@ mod tests {
         assert_eq!(parser.step('c' as u8).squashed(), ParseResults {
             right_data_vec: vec![RightData::default()],
             up_data_vec: vec![],
-            done: false,
+            done: true,
         });
     }
 
