@@ -51,22 +51,21 @@ impl ParserTrait for ChoiceParser {
     }
 }
 
-pub fn choice(mut v: Vec<impl Into<Combinator>>) -> Choice {
-    let v: Vec<Combinator> = v.into_iter().map(|c| c.into()).collect();
+pub fn choice(mut v: Vec<Combinator>) -> Combinator {
     if v.is_empty() {
         fail()
     } else if v.len() == 1 {
         v.pop().unwrap()
     } else {
         let b = v.split_off(v.len() / 2);
-        Choice {
+        Combinator::Choice(Choice {
             a: Box::new(choice(v)),
             b: Box::new(choice(b)),
-        }
+        })
     }
 }
 
 #[macro_export]
 macro_rules! choice {
-    ($($a:expr),* $(,)?) => {$crate::choice(vec![$($a.into()),*])};
+    ($($a:expr),* $(,)?) => {$crate::choice(vec![$($a.clone()),*])};
 }
