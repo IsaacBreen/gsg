@@ -4,12 +4,12 @@ use crate::{choice_from_vec, Combinator, CombinatorTrait, eat_byte, Parser, Pars
 use crate::combinators::derived::opt;
 use crate::parse_state::{RightData, UpData};
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatString {
     string: Vec<u8>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatStringParser {
     string: Vec<u8>,
     index: usize,
@@ -105,7 +105,7 @@ pub fn eat_bytestring_choice(mut bytestrings: Vec<Vec<u8>>) -> Combinator {
     }
     // Create combinators for each group
     let combinator = choice_from_vec(grouped_bytestrings.clone().into_iter().map(|(first, rests)| {
-        seq(Combinator::EatU8(eat_byte(first)), eat_bytestring_choice(rests))
+        seq(vec![Combinator::EatU8(eat_byte(first)), eat_bytestring_choice(rests)])
     }).collect());
     if any_done {
         assert!(grouped_bytestrings.is_empty());

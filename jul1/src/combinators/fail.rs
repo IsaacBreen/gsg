@@ -1,10 +1,10 @@
 use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, Stats};
 use crate::parse_state::RightData;
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FailParser;
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Fail;
 
 impl CombinatorTrait for Fail {

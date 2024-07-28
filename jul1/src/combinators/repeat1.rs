@@ -1,140 +1,104 @@
-// use std::any::Any;
-// use std::rc::Rc;
-//
-// use crate::{Choice, CombinatorTrait, Eps, IntoCombinator, opt, ParseResults, ParserTrait, seq, Seq, Squash, Stats};
-// use crate::parse_state::{RightData, UpData};
-//
-// #[derive(PartialEq)]
-// pub struct Repeat1<A>
-// where
-//     A: CombinatorTrait,
-// {
-//     a: Rc<A>,
-// }
-//
-// pub struct Repeat1Parser<A>
-// where
-//     A: CombinatorTrait,
-// {
-//     pub(crate) a: Rc<A>,
-//     pub(crate) a_parsers: Vec<A::Parser>,
-//     right_data: RightData,
-// }
-//
-// impl<A> CombinatorTrait for Repeat1<A>
-// where
-//     A: CombinatorTrait,
-// {
-//     type Parser = Repeat1Parser<A>;
-//
-//     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-//         let (a, mut parse_results) = self.a.parser(right_data.clone());
-//         assert!(parse_results.right_data_vec.is_empty());
-//         // parse_results.right_data_vec.clear();
-//         let a_parsers = if !parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty() {
-//             vec![a]
-//         } else {
-//             vec![]
-//         };
-//         (Repeat1Parser { a: self.a.clone(), a_parsers, right_data }, parse_results)
-//     }
-//
-//     fn as_any(&self) -> &dyn Any {
-//         self
-//     }
-// }
-//
-// impl<A> ParserTrait for Repeat1Parser<A>
-// where
-//     A: CombinatorTrait,
-// {
-//     fn step(&mut self, c: u8) -> ParseResults {
-//         let mut right_data_as = vec![];
-//         let mut up_data_as = vec![];
-//         let mut new_parsers = vec![];
-//
-//         for mut a_parser in self.a_parsers.drain(..) {
-//             let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, done} = a_parser.step(c);
-//             if !done {
-//                 new_parsers.push(a_parser);
-//             }
-//             up_data_as.extend(up_data_a);
-//             right_data_as.extend(right_data_a);
-//         }
-//
-//         right_data_as.squash();
-//
-//         for right_data_a in right_data_as.clone() {
-//             let (a_parser, ParseResults { right_data_vec: mut right_data_a, up_data_vec: up_data_a, mut done }) = self.a.parser(right_data_a);
-//             new_parsers.push(a_parser);
-//             up_data_as.extend(up_data_a);
-//             right_data_as.extend(right_data_a);
-//         }
-//
-//         // right_data_as.squash();
-//
-//         self.a_parsers = new_parsers;
-//
-//         ParseResults {
-//             right_data_vec: right_data_as,
-//             up_data_vec: up_data_as,
-//             done: self.a_parsers.is_empty(),
-//         }
-//             // .squashed()
-//     }
-//
-//     fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a dyn ParserTrait> + 'a> {
-//         Box::new(self.a_parsers.iter().map(|a| a as &dyn ParserTrait))
-//     }
-//
-//     fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut dyn ParserTrait> + 'a> {
-//         Box::new(self.a_parsers.iter_mut().map(|a| a as &mut dyn ParserTrait))
-//     }
-//
-//     fn dyn_eq(&self, other: &dyn ParserTrait) -> bool {
-//         if let Some(other) = other.as_any().downcast_ref::<Self>() {
-//             let a_eq = CombinatorTrait::dyn_eq(&self.a, &other.a.clone().into_box_dyn());
-//             let a_parsers_eq = self.a_parsers.iter().zip(other.a_parsers.iter()).all(|(a, b)| a.dyn_eq(b));
-//             let right_data_eq = self.right_data == other.right_data;
-//             a_eq && a_parsers_eq && right_data_eq
-//         } else {
-//             false
-//         }
-//     }
-//
-//     fn as_any(&self) -> &dyn Any {
-//         self
-//     }
-// }
-//
-// pub fn repeat1<A>(a: A) -> Repeat1<A::Output>
-// where
-//     A: IntoCombinator,
-// {
-//     Repeat1 { a: Rc::new(a.into_combinator()) }
-// }
-//
-// pub fn repeat0<A>(a: A) -> Choice<Repeat1<A::Output>, Eps>
-// where
-//     A: IntoCombinator,
-// {
-//     opt(repeat1(a.into_combinator()))
-// }
-//
-// pub fn seprep1<A, B>(a: A, b: B) -> Seq<Rc<<A as IntoCombinator>::Output>, Choice<Repeat1<Seq<<B as IntoCombinator>::Output, Rc<<A as IntoCombinator>::Output>>>, Eps>>
-// where
-//     A: IntoCombinator,
-//     B: IntoCombinator,
-// {
-//     let a = Rc::new(a.into_combinator());
-//     seq(a.clone(), repeat0(seq(b, a.clone())))
-// }
-//
-// pub fn seprep0<A, B>(a: A, b: B) -> Seq<Choice<Repeat1<Seq<Rc<<A as IntoCombinator>::Output>, <B as IntoCombinator>::Output>>, Eps>, Rc<<A as IntoCombinator>::Output>>
-// where
-//     A: IntoCombinator,
-//     B: IntoCombinator,
-// {
-//     let a = Rc::new(a.into_combinator());
-//     seq(opt(repeat1(seq(a.clone(), b))), a)
-// }
+use std::rc::Rc;
+
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, seq, Squash, Stats};
+use crate::combinators::derived::opt;
+use crate::parse_state::RightData;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Repeat1 {
+    a: Rc<Combinator>,
+    a_parsers: Vec<Combinator>,
+    right_data: RightData,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Repeat1Parser {
+    a: Rc<Combinator>,
+    a_parsers: Vec<Parser>,
+    right_data: RightData,
+}
+
+impl CombinatorTrait for Repeat1 {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+        let (a, mut parse_results) = self.a.parser(right_data.clone());
+        assert!(parse_results.right_data_vec.is_empty());
+        // parse_results.right_data_vec.clear();
+        let a_parsers = if !parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty() {
+            vec![a.clone()]
+        } else {
+            vec![]
+        };
+        (Parser::Repeat1(Repeat1Parser { a: self.a.clone(), a_parsers, right_data }), parse_results)
+    }
+}
+
+impl ParserTrait for Repeat1Parser {
+    fn step(&mut self, c: u8) -> ParseResults {
+        let mut right_data_as = vec![];
+        let mut up_data_as = vec![];
+        let mut new_parsers = vec![];
+
+        for mut a_parser in self.a_parsers.drain(..) {
+            let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut done} = a_parser.step(c);
+            if !done {
+                new_parsers.push(a_parser);
+            }
+            up_data_as.extend(up_data_a);
+            right_data_as.extend(right_data_a);
+        }
+
+        right_data_as.squash();
+
+        for right_data_a in right_data_as.clone() {
+            let (a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut done }) = self.a.parser(right_data_a);
+            new_parsers.push(a_parser);
+            up_data_as.extend(up_data_a);
+            right_data_as.extend(right_data_a);
+        }
+
+        // right_data_as.squash();
+
+        self.a_parsers = new_parsers;
+
+        ParseResults {
+            right_data_vec: right_data_as,
+            up_data_vec: up_data_as,
+            done: self.a_parsers.is_empty(),
+        }
+    }
+
+    fn collect_stats(&self, stats: &mut Stats) {
+        stats.active_parser_type_counts.entry("Repeat1Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);
+        for a_parser in &self.a_parsers {
+            a_parser.collect_stats(stats);
+        }
+    }
+
+    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
+        todo!()
+    }
+
+    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
+        todo!()
+    }
+}
+
+pub fn repeat1(a: Combinator) -> Combinator {
+    Combinator::Repeat1(Repeat1 {
+        a: Rc::new(a),
+        a_parsers: vec![],
+        right_data: RightData::default(),
+    })
+}
+
+pub fn repeat0(a: Combinator) -> Combinator {
+    opt(repeat1(a))
+}
+
+pub fn seprep1(a: Combinator, b: Combinator) -> Combinator {
+    seq(vec![a.clone(), repeat0(seq(vec![b, a]))])
+}
+
+pub fn seprep0(a: Combinator, b: Combinator) -> Combinator {
+    seq(vec![opt(repeat1(seq(vec![a.clone(), b]))), a])
+}

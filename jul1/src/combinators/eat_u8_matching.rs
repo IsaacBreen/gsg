@@ -1,12 +1,12 @@
-use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, Stats, U8Set};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Stats, U8Set};
 use crate::parse_state::{RightData, UpData};
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatU8 {
     u8set: U8Set,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatU8Parser {
     u8set: U8Set,
     right_data: Option<RightData>,
@@ -66,51 +66,51 @@ pub fn eat_byte(byte: u8) -> EatU8 {
     }
 }
 
-pub fn eat_char(c: char) -> EatU8 {
-    eat_byte(c as u8)
+pub fn eat_char(c: char) -> Combinator {
+    Combinator::EatU8(eat_byte(c as u8))
 }
 
-pub fn eat_char_choice(chars: &str) -> EatU8 {
-    EatU8 {
+pub fn eat_char_choice(chars: &str) -> Combinator {
+    Combinator::EatU8(EatU8 {
         u8set: U8Set::from_chars(chars),
-    }
+    })
 }
 
-pub fn eat_char_negation_choice(chars: &str) -> EatU8 {
-    EatU8 {
+pub fn eat_char_negation_choice(chars: &str) -> Combinator {
+    Combinator::EatU8(EatU8 {
         u8set: U8Set::from_chars_negation(chars),
-    }
+    })
 }
 
-pub fn eat_byte_range(start: u8, end: u8) -> EatU8 {
-    EatU8 {
+pub fn eat_byte_range(start: u8, end: u8) -> Combinator {
+    Combinator::EatU8(EatU8 {
         u8set: U8Set::from_range(start, end),
-    }
+    })
 }
 
-pub fn eat_char_negation(c: char) -> EatU8 {
-    EatU8 {
+pub fn eat_char_negation(c: char) -> Combinator {
+    Combinator::EatU8(EatU8 {
         u8set: U8Set::from_char_negation(c),
-    }
+    })
 }
 
-pub fn eat_char_range(start: char, end: char) -> EatU8 {
-    EatU8 {
+pub fn eat_char_range(start: char, end: char) -> Combinator {
+    Combinator::EatU8(EatU8 {
         u8set: U8Set::from_char_range(start, end),
-    }
+    })
 }
 
-pub fn eat_char_negation_range(start: char, end: char) -> EatU8 {
-    EatU8 {
+pub fn eat_char_negation_range(start: char, end: char) -> Combinator {
+    Combinator::EatU8(EatU8 {
         u8set: U8Set::from_char_negation_range(start, end),
-    }
+    })
 }
 
-pub fn eat_match_fn<F>(f: F) -> EatU8
+pub fn eat_match_fn<F>(f: F) -> Combinator
 where
     F: Fn(u8) -> bool,
 {
-    EatU8 {
+    Combinator::EatU8(EatU8 {
         u8set: U8Set::from_match_fn(f),
-    }
+    })
 }

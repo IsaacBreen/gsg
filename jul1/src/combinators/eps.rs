@@ -1,10 +1,10 @@
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Stats};
 use crate::parse_state::RightData;
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Eps;
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EpsParser;
 
 impl CombinatorTrait for Eps {

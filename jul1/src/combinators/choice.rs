@@ -3,13 +3,13 @@ use std::ops::Not;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::RightData;
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Choice {
     pub(crate) a: Box<Combinator>,
     pub(crate) b: Box<Combinator>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ChoiceParser {
     pub(crate) a: Option<Box<Parser>>,
     pub(crate) b: Option<Box<Parser>>,
@@ -68,5 +68,5 @@ pub fn choice(v: Vec<Combinator>) -> Combinator {
 
 #[macro_export]
 macro_rules! choice {
-    ($($a:expr),* $(,)?) => {$crate::choice_from_vec(&[$($a),*])};
+    ($($a:expr),* $(,)?) => {$crate::choice(vec![$($a.into()),*])};
 }

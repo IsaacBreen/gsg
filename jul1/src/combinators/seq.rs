@@ -2,13 +2,13 @@ use std::rc::Rc;
 
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Stats};
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
     a: Rc<Combinator>,
     b: Rc<Combinator>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
     a: Option<Box<Parser>>,
     bs: Vec<Parser>,
@@ -108,17 +108,11 @@ impl ParserTrait for SeqParser {
     }
 }
 
-pub fn seq(a: Combinator, b: Combinator) -> Combinator {
-    Combinator::Seq(Box::new(Seq {
-        a: Rc::new(a),
-        b: Rc::new(b),
-    }))
+pub fn seq(v: Vec<Combinator>) -> Combinator {
+    todo!()
 }
 
 #[macro_export]
 macro_rules! seq {
-    ($a1:expr $(,)?) => {$crate::IntoCombinator::into_combinator($a1)};
-    ($a1:expr, $a2:expr $(,)?) => {$crate::seq($a1, $a2)};
-    ($a1:expr, $a2:expr, $a3:expr $(,)?) => {$crate::seq($a1, $crate::seq($a2, $a3))};
-    // ... (rest of the macro implementations remain the same)
+    ($($a:expr),* $(,)?) => {$crate::seq(vec![$($a.into()),*])};
 }

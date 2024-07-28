@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 
-use crate::{Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ParseResults, RightData, Seq, SeqParser, U8Set};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -57,7 +57,7 @@ impl Stats {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Combinator {
     Seq(Box<Seq>),
     Choice(Box<Choice>),
@@ -65,9 +65,22 @@ pub enum Combinator {
     Eps(Eps),
     EatString(EatString),
     Fail(Fail),
+    CacheContext(CacheContext),
+    Cached(Cached),
+    Indent(IndentCombinator),
+    MutateRightData(MutateRightData),
+    Repeat1(Repeat1),
+    Symbol(Symbol),
+    Tagged(Tagged),
+    ForwardRef(ForwardRef),
+    FrameStackOp(FrameStackOp),
+    WithNewFrame(WithNewFrame),
+    ForbidFollows(ForbidFollows),
+    ForbidFollowsClear(ForbidFollowsClear),
+    ForbidFollowsCheckNot(ForbidFollowsCheckNot),
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Parser {
     Seq(SeqParser),
     Choice(ChoiceParser),
@@ -75,6 +88,15 @@ pub enum Parser {
     EatString(EatStringParser),
     Eps(EpsParser),
     FailParser(FailParser),
+    CacheContext(CacheContextParser),
+    Cached(CachedParser),
+    FrameStackOp(FrameStackOpParser),
+    MutateRightData(MutateRightDataParser),
+    Indent(IndentCombinatorParser),
+    Repeat1(Repeat1Parser),
+    Symbol(SymbolParser),
+    Tagged(TaggedParser),
+    WithNewFrame(WithNewFrameParser),
 }
 
 pub trait CombinatorTrait {
@@ -103,6 +125,19 @@ impl CombinatorTrait for Combinator {
             Combinator::EatString(eat_string) => eat_string.parser(right_data),
             Combinator::Eps(eps) => eps.parser(right_data),
             Combinator::Fail(fail) => fail.parser(right_data),
+            Combinator::CacheContext(cache_context) => cache_context.parser(right_data),
+            Combinator::Cached(cached) => cached.parser(right_data),
+            Combinator::Indent(indent) => indent.parser(right_data),
+            Combinator::MutateRightData(mutate_right_data) => mutate_right_data.parser(right_data),
+            Combinator::Repeat1(repeat1) => repeat1.parser(right_data),
+            Combinator::Symbol(symbol) => symbol.parser(right_data),
+            Combinator::Tagged(tagged) => tagged.parser(right_data),
+            Combinator::ForwardRef(forward_ref) => forward_ref.parser(right_data),
+            Combinator::FrameStackOp(frame_stack_op) => frame_stack_op.parser(right_data),
+            Combinator::WithNewFrame(with_new_frame) => with_new_frame.parser(right_data),
+            Combinator::ForbidFollows(forbid_follows) => forbid_follows.parser(right_data),
+            Combinator::ForbidFollowsClear(forbid_follows_clear) => forbid_follows_clear.parser(right_data),
+            Combinator::ForbidFollowsCheckNot(forbid_follows_check_not) => forbid_follows_check_not.parser(right_data),
         }
     }
 }
@@ -116,6 +151,15 @@ impl ParserTrait for Parser {
             Parser::EatString(eat_string) => eat_string.step(c),
             Parser::Eps(eps) => eps.step(c),
             Parser::FailParser(fail) => fail.step(c),
+            Parser::CacheContext(cache_context) => cache_context.step(c),
+            Parser::Cached(cached) => cached.step(c),
+            Parser::FrameStackOp(frame_stack_op) => frame_stack_op.step(c),
+            Parser::MutateRightData(mutate_right_data) => mutate_right_data.step(c),
+            Parser::Indent(indent) => indent.step(c),
+            Parser::Repeat1(repeat1) => repeat1.step(c),
+            Parser::Symbol(symbol) => symbol.step(c),
+            Parser::Tagged(tagged) => tagged.step(c),
+            Parser::WithNewFrame(with_new_frame) => with_new_frame.step(c),
         }
     }
 

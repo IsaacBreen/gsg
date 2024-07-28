@@ -1,6 +1,6 @@
 use crate::{RightData, UpData};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParseResults {
     pub right_data_vec: Vec<RightData>,
     pub up_data_vec: Vec<UpData>,
