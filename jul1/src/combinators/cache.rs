@@ -182,6 +182,10 @@ impl ParserTrait for CachedParser {
     }
 }
 
-pub fn cache_context(a: Combinator) -> CacheContext {
-    CacheContext { inner: Box::new(a) }
+pub fn cache_context(a: Combinator) -> Combinator {
+    Combinator::CacheContext(CacheContext { inner: Box::new(a) })
+}
+
+pub fn cached(a: Combinator) -> Combinator {
+    Combinator::Cached(Cached { inner: Rc::new(a) })
 }

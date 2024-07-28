@@ -68,5 +68,5 @@ pub fn choice(v: Vec<Combinator>) -> Combinator {
 
 #[macro_export]
 macro_rules! choice {
-    ($($a:expr),* $(,)?) => {$crate::choice(vec![$($a.into()),*])};
+    ($($a:expr),* $(,)?) => {$crate::choice(vec![$($a.clone()),*])};
 }

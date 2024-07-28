@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn test_forward_ref() {
         let mut combinator = forward_ref();
-        combinator.set(choice!(seq!(eat_char_choice("a"), &combinator), eat_char_choice("b")));
+        combinator.set(choice!(seq!(eat_char_choice("a"), combinator), eat_char_choice("b")));
 
         let (mut parser, ParseResults { right_data_vec: right_data0, up_data_vec: up_data0, done } ) = combinator.parser(RightData::default());
         assert_eq!(Squash::squashed(ParseResults {
@@ -395,94 +395,96 @@ mod tests {
         });
     }
 
-    // #[test]
-    // fn test_right_recursion_name_explosion() {
-    //     // Based on a Python slowdown issue.
-    //     let NAME = tag("repeat_a", seq!(forbid_follows(&["repeat_a"]), repeat1(eat_char('a')))).into_rc_dyn();
-    //
-    //     let mut combinator_recursive = forward_ref();
-    //     let combinator_recursive = combinator_recursive.set(seq!(&NAME, &combinator_recursive));
-    //
-    //     let combinator_repeat1 = repeat1(&NAME);
-    //
-    //     let (mut parser_recursive, parse_results0_recursive) = combinator_recursive.parser(RightData::default());
-    //     let (mut parser_repeat1, parse_results0_repeat1) = combinator_repeat1.parser(RightData::default());
-    //
-    //     // Repeat "a" 10 times.
-    //     for i in 0..10 {
-    //         let parser_recursive_results = parser_recursive.step('a' as u8);
-    //         let parser_repeat1_results = parser_repeat1.step('a' as u8);
-    //         let stats_recursive = parser_recursive.stats();
-    //         let stats_repeat1 = parser_repeat1.stats();
-    //         println!("stats_recursive:{}", stats_recursive);
-    //         println!("stats_repeat1:{}", stats_repeat1);
-    //         if i > 5 {
-    //             assert!(stats_recursive.total_active_tags() > stats_repeat1.total_active_tags());
-    //         }
-    //     }
-    // }
-    //
-    // #[test]
-    // fn test_cache() {
-    //     // Define the grammar
-    //     let a_combinator = cached(tag("A", eat_char_choice("a")));
-    //     let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
-    //
-    //     assert_parses(&s_combinator, "a", "Test input");
-    //
-    //     // Initialize the parser
-    //     let (mut parser, ParseResults { right_data_vec: _, up_data_vec: _, done }) = s_combinator.parser(RightData::default());
-    //
-    //     {
-    //         // Check stats
-    //         let stats = parser.stats();
-    //         assert_eq!(stats.active_tags["A"], 1, "Expected one tag 'A' to be active initially");
-    //
-    //         // Check initial cache state
-    //         let initial_cache_state = parser.cache_data_inner.borrow();
-    //         assert_eq!(initial_cache_state.new_parsers.len(), 1, "Expected one tag 'A' to be active initially");
-    //     }
-    //
-    //     // Perform the first parsing step
-    //     let results = parser.step('a' as u8).squashed();
-    //
-    //     {
-    //         // Check stats
-    //         let stats = parser.stats();
-    //         assert_eq!(stats.active_tags["A"], 1, "Expected one tag 'A' to be active after the first step");
-    //
-    //         // Check the cache state after the first step
-    //         let cache_state_after_step = parser.cache_data_inner.borrow();
-    //         assert_eq!(cache_state_after_step.new_parsers.len(), 0, "Expected no new parsers after the first step");
-    //         assert_eq!(results.right_data_vec.len(), 1, "Expected one right data after the first step");
-    //         assert_eq!(results.up_data_vec.len(), 0, "Expected no up data after the first step");
-    //     }
-    // }
-    //
-    // #[test]
-    // fn test_cache2() {
-    //     // Define the grammar
-    //     let a_combinator = cached(tag("A", eat_char_choice("a")));
-    //     let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
-    //
-    //     assert_parses(&s_combinator, "a", "Test input");
-    // }
-    //
-    // #[test]
-    // fn test_cache_nested() {
-    //     // Define the grammar
-    //     forward_decls!(A);
-    //     A.set(tag("A", cached(choice!(seq!(eat_string("["), opt(seq!(&A, opt(&A))), eat_string("]"))))));
-    //     let s_combinator = cache_context(A);
-    //
-    //     let s = "[]";
-    //     assert_parses(&s_combinator, s, "Test input");
-    //     let s = "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]";
-    //     assert_parses(&s_combinator, s, "Test input");
-    //     let s = "[[][]]";
-    //     assert_parses(&s_combinator, s, "Test input");
-    //     let s = "[[][[][]]]";
-    //     assert_parses(&s_combinator, s, "Test input");
-    //
-    // }
+    #[test]
+    fn test_right_recursion_name_explosion() {
+        // Based on a Python slowdown issue.
+        let NAME = tag("repeat_a", seq!(forbid_follows(&["repeat_a"]), repeat1(eat_char('a'))));
+
+        let mut combinator_recursive = forward_ref();
+        let combinator_recursive = combinator_recursive.set(seq!(&NAME, &combinator_recursive));
+
+        let combinator_repeat1 = repeat1(NAME);
+
+        let (mut parser_recursive, parse_results0_recursive) = combinator_recursive.parser(RightData::default());
+        let (mut parser_repeat1, parse_results0_repeat1) = combinator_repeat1.parser(RightData::default());
+
+        // Repeat "a" 10 times.
+        for i in 0..10 {
+            let parser_recursive_results = parser_recursive.step('a' as u8);
+            let parser_repeat1_results = parser_repeat1.step('a' as u8);
+            let stats_recursive = parser_recursive.stats();
+            let stats_repeat1 = parser_repeat1.stats();
+            println!("stats_recursive:{}", stats_recursive);
+            println!("stats_repeat1:{}", stats_repeat1);
+            if i > 5 {
+                assert!(stats_recursive.total_active_tags() > stats_repeat1.total_active_tags());
+            }
+        }
+    }
+
+    #[test]
+    fn test_cache() {
+        // Define the grammar
+        let a_combinator = cached(tag("A", eat_char_choice("a")));
+        let s_combinator = cache_context(choice!(a_combinator, a_combinator));
+
+        assert_parses(&s_combinator, "a", "Test input");
+
+        // Initialize the parser
+        let (mut parser, ParseResults { right_data_vec: _, up_data_vec: _, done }) = s_combinator.parser(RightData::default());
+
+        {
+            // Check stats
+            let stats = parser.stats();
+            assert_eq!(stats.active_tags["A"], 1, "Expected one tag 'A' to be active initially");
+
+            // Check initial cache state
+            let parser = if let Parser::CacheContext(parser) = &parser { parser } else { panic!("Expected parser to be a CacheContext") };
+            let initial_cache_state = parser.cache_data_inner.borrow();
+            assert_eq!(initial_cache_state.new_parsers.len(), 1, "Expected one tag 'A' to be active initially");
+        }
+
+        // Perform the first parsing step
+        let results = parser.step('a' as u8).squashed();
+
+        {
+            // Check stats
+            let stats = parser.stats();
+            assert_eq!(stats.active_tags["A"], 1, "Expected one tag 'A' to be active after the first step");
+
+            // Check the cache state after the first step
+            let parser = if let Parser::CacheContext(parser) = &parser { parser } else { panic!("Expected parser to be a CacheContext") };
+            let cache_state_after_step = parser.cache_data_inner.borrow();
+            assert_eq!(cache_state_after_step.new_parsers.len(), 0, "Expected no new parsers after the first step");
+            assert_eq!(results.right_data_vec.len(), 1, "Expected one right data after the first step");
+            assert_eq!(results.up_data_vec.len(), 0, "Expected no up data after the first step");
+        }
+    }
+
+    #[test]
+    fn test_cache2() {
+        // Define the grammar
+        let a_combinator = cached(tag("A", eat_char_choice("a")));
+        let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
+
+        assert_parses(&s_combinator, "a", "Test input");
+    }
+
+    #[test]
+    fn test_cache_nested() {
+        // Define the grammar
+        forward_decls!(A);
+        A.set(tag("A", cached(choice!(seq!(eat_string("["), opt(seq!(&A, opt(A.clone()))), eat_string("]"))))));
+        let s_combinator = cache_context(A);
+
+        let s = "[]";
+        assert_parses(&s_combinator, s, "Test input");
+        let s = "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]";
+        assert_parses(&s_combinator, s, "Test input");
+        let s = "[[][]]";
+        assert_parses(&s_combinator, s, "Test input");
+        let s = "[[][[][]]]";
+        assert_parses(&s_combinator, s, "Test input");
+
+    }
 }

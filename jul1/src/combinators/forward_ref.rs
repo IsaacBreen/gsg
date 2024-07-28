@@ -28,15 +28,15 @@ impl CombinatorTrait for RefCell<Option<Rc<Combinator>>> {
     }
 }
 
-pub fn forward_ref() -> ForwardRef {
-    ForwardRef { a: Rc::new(RefCell::new(None)) }
+pub fn forward_ref() -> Combinator {
+    Combinator::ForwardRef(ForwardRef { a: Rc::new(RefCell::new(None)) })
 }
 
 impl ForwardRef {
-    pub fn set(&mut self, a: Combinator) -> Rc<Combinator> {
+    pub fn set(&mut self, a: Combinator) -> Combinator {
         let a = Rc::new(a);
         *self.a.borrow_mut() = Some(a.clone());
-        a
+        Combinator::ForwardRef(self.clone())
     }
 }
 

@@ -114,5 +114,5 @@ pub fn seq(v: Vec<Combinator>) -> Combinator {
 
 #[macro_export]
 macro_rules! seq {
-    ($($a:expr),* $(,)?) => {$crate::seq(vec![$($a.into()),*])};
+    ($($a:expr),* $(,)?) => {$crate::seq(vec![$($a.clone()),*])};
 }
