@@ -223,3 +223,21 @@ impl ParserTrait for Parser {
         match_parser!(self, inner => inner.iter_children_mut())
     }
 }
+impl From<Choice> for Combinator {
+    fn from(value: Choice) -> Self {
+        Combinator::Choice(value)
+    }
+}
+
+impl From<Tagged> for Combinator {
+    fn from(value: Tagged) -> Self {
+        Combinator::Tagged(value)
+    }
+}
+
+// Add similar impls for other combinator types
+impl From<Seq> for Combinator {
+    fn from(value: Seq) -> Self {
+        Combinator::Seq(value)
+    }
+}
