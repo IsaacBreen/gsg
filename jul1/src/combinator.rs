@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
+use serde::{Serialize, Deserialize};
 
 use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser};
 
@@ -79,28 +80,28 @@ macro_rules! match_enum {
     };
 }
 
-define_enum!(
-    Combinator,
-    Seq,
-    Choice,
-    EatU8,
-    EatString,
-    Eps,
-    Fail,
-    CacheContext,
-    Cached,
-    IndentCombinator,
-    FrameStackOp,
-    MutateRightData,
-    Repeat1,
-    Symbol,
-    Tagged,
-    ForwardRef,
-    WithNewFrame,
-    ForbidFollows,
-    ForbidFollowsClear,
-    ForbidFollowsCheckNot
-);
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Combinator {
+    Seq(Seq),
+    Choice(Choice),
+    EatU8(EatU8),
+    EatString(EatString),
+    Eps(Eps),
+    Fail(Fail),
+    CacheContext(CacheContext),
+    Cached(Cached),
+    IndentCombinator(IndentCombinator),
+    FrameStackOp(FrameStackOp),
+    MutateRightData(MutateRightData),
+    Repeat1(Repeat1),
+    Symbol(Symbol),
+    Tagged(Tagged),
+    ForwardRef(ForwardRef),
+    WithNewFrame(WithNewFrame),
+    ForbidFollows(ForbidFollows),
+    ForbidFollowsClear(ForbidFollowsClear),
+    ForbidFollowsCheckNot(ForbidFollowsCheckNot)
+}
 
 define_enum!(
     Parser,
