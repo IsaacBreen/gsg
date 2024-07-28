@@ -190,9 +190,11 @@ pub trait ParserTrait {
         self.collect_stats(&mut stats);
         stats
     }
-    fn collect_stats(&self, stats: &mut Stats);
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Parser> + 'a>;
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &'a mut Parser> + 'a>;
+    fn collect_stats(&self, stats: &mut Stats) {
+        for child in self.iter_children() {
+            child.collect_stats(stats);
+        }
+    }
 }
 
 impl CombinatorTrait for Combinator {
@@ -208,13 +210,5 @@ impl ParserTrait for Parser {
 
     fn collect_stats(&self, stats: &mut Stats) {
         match_parser!(self, inner => inner.collect_stats(stats))
-    }
-
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
-        match_parser!(self, inner => inner.iter_children())
-    }
-
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
-        match_parser!(self, inner => inner.iter_children_mut())
     }
 }

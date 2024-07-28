@@ -24,18 +24,6 @@ impl ParserTrait for SymbolParser {
     fn step(&mut self, c: u8) -> ParseResults {
         self.inner.step(c)
     }
-
-    fn collect_stats(&self, stats: &mut Stats) {
-        todo!()
-    }
-
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
-        todo!()
-    }
-
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
-        todo!()
-    }
 }
 
 pub fn symbol(value: Combinator) -> Combinator {

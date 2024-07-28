@@ -73,14 +73,6 @@ impl ParserTrait for Repeat1Parser {
             a_parser.collect_stats(stats);
         }
     }
-
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
-        todo!()
-    }
-
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
-        todo!()
-    }
 }
 
 pub fn repeat1(a: Combinator) -> Combinator {

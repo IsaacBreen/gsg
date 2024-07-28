@@ -70,14 +70,6 @@ impl ParserTrait for EatStringParser {
         let string = std::str::from_utf8(&self.string).unwrap();
         stats.active_string_matchers.entry(string.to_string()).and_modify(|c| *c += 1).or_insert(1);
     }
-
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
-        todo!()
-    }
-
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
-        todo!()
-    }
 }
 
 pub fn eat_string(string: &str) -> Combinator {

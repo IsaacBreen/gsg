@@ -50,14 +50,6 @@ impl ParserTrait for EatU8Parser {
         stats.active_parser_type_counts.entry("EatU8Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);
         stats.active_u8_matchers.entry(self.u8set.clone()).and_modify(|c| *c += 1).or_insert(1);
     }
-
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
-        todo!()
-    }
-
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
-        todo!()
-    }
 }
 
 pub fn eat_byte(byte: u8) -> EatU8 {

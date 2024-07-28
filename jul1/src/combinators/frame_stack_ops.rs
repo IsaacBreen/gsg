@@ -54,18 +54,6 @@ impl ParserTrait for WithNewFrameParser {
             done,
         }
     }
-
-    fn collect_stats(&self, stats: &mut Stats) {
-        todo!()
-    }
-
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
-        todo!()
-    }
-
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
-        todo!()
-    }
 }
 
 impl CombinatorTrait for FrameStackOp {
@@ -159,18 +147,6 @@ impl ParserTrait for FrameStackOpParser {
                 }
             }
         }
-    }
-
-    fn collect_stats(&self, stats: &mut Stats) {
-        todo!()
-    }
-
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
-        todo!()
-    }
-
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
-        todo!()
     }
 }
 

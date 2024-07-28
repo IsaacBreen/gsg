@@ -114,14 +114,6 @@ impl ParserTrait for CacheContextParser {
             entry.borrow().parser.as_ref().unwrap().collect_stats(stats);
         }
     }
-
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
-        todo!()
-    }
-
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
-        todo!()
-    }
 }
 
 impl CombinatorTrait for Cached {
@@ -167,18 +159,6 @@ impl CombinatorTrait for Cached {
 impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
         self.entry.borrow().maybe_parse_results.clone().expect(format!("CachedParser.step: parse_results is None for entry number {} (self.num = {})", self.entry.borrow().num, self.num).as_str())
-    }
-
-    fn collect_stats(&self, stats: &mut Stats) {
-        todo!()
-    }
-
-    fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Parser> + 'a> {
-        todo!()
-    }
-
-    fn iter_children_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item=&'a mut Parser> + 'a> {
-        todo!()
     }
 }
 
