@@ -2,7 +2,7 @@ use std::panic::catch_unwind;
 
 use kdam::tqdm;
 
-use crate::{CombinatorTrait, ParseResults, ParserTrait, RightData};
+use crate::{CombinatorTrait, ParseResults, ParserTrait, RightData, Squash};
 
 pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     let mut input = input.to_string();
@@ -32,7 +32,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 right_data_vec: right_data,
                 up_data_vec: new_up_data,
                 done,
-            } = parser.step(byte);
+            } = parser.step(byte).squashed();
 
             up_data = new_up_data;
 
@@ -86,7 +86,7 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
                 right_data_vec: right_data,
                 up_data_vec: new_up_data,
                 done,
-            } = parser.step(byte);
+            } = parser.step(byte).squashed();
 
             up_data = new_up_data;
 
