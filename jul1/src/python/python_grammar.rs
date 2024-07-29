@@ -9,7 +9,7 @@ pub fn python_file() -> Combinator {
     let NAME = symbol(tag("NAME", seq!(forbid_follows_check_not("NAME"), NAME(), forbid_follows(&["NAME","NUMBER"]))));
     let TYPE_COMMENT = symbol(tag("TYPE_COMMENT", seq!(forbid_follows_check_not("TYPE_COMMENT"), TYPE_COMMENT(), forbid_follows(&[]))));
     let FSTRING_START = symbol(tag("FSTRING_START", seq!(forbid_follows_check_not("FSTRING_START"), FSTRING_START(), forbid_follows(&["WS"]))));
-    let FSTRING_MIDDLE = symbol(tag("FSTRING_MIDDLE", seq!(forbid_follows_check_not("FSTRING_MIDDLE"), FSTRING_MIDDLE(), forbid_follows(&["WS"]))));
+    let FSTRING_MIDDLE = symbol(tag("FSTRING_MIDDLE", seq!(forbid_follows_check_not("FSTRING_MIDDLE"), FSTRING_MIDDLE(), forbid_follows(&["FSTRING_MIDDLE","WS"]))));
     let FSTRING_END = symbol(tag("FSTRING_END", seq!(forbid_follows_check_not("FSTRING_END"), FSTRING_END(), forbid_follows(&[]))));
     let NUMBER = symbol(tag("NUMBER", seq!(forbid_follows_check_not("NUMBER"), NUMBER(), forbid_follows(&["NUMBER"]))));
     let STRING = symbol(tag("STRING", seq!(forbid_follows_check_not("STRING"), STRING(), forbid_follows(&[]))));

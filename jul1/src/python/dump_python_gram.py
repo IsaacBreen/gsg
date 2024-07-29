@@ -12,6 +12,7 @@ import pegen.grammar
 from ansiwrap import ansilen
 from pegen.grammar_parser import GeneratedParser
 from pegen.tokenizer import Tokenizer
+from tqdm import tqdm
 
 import remove_left_recursion
 from remove_left_recursion import get_nullable_rules, get_firsts
@@ -365,6 +366,13 @@ if __name__ == "__main__":
 
     # Print follow sets
     actual_follows = remove_left_recursion.get_follows(custom_grammar)
+    for _ in tqdm(range(100), desc="Checking order invariant for get_follows"):
+        # Scramble the order of the rules
+        import random
+        new_grammar = list(custom_grammar.items())
+        random.shuffle(new_grammar)
+        new_grammar = dict(new_grammar)
+        assert actual_follows == remove_left_recursion.get_follows(new_grammar)
     print(f"Follows:")
     for node, forbidden_follow_set in sorted(actual_follows.items(), key=lambda x: (str(type(x[0])), str(x[0])), reverse=True):
         if node not in custom_grammar:

@@ -492,12 +492,24 @@ def gather_all_leaves(rules: dict[Ref, Node]) -> set[Ref | Term | EpsExternal]:
     return result
 
 
+def scrambled_rules(rules: dict[Ref, Node]) -> dict[Ref, Node]:
+    new_rules = list(rules.items())
+    import random
+    random.shuffle(new_rules)
+    return dict(new_rules)
+
+def assert_order_invariant(rules: dict[Ref, Node], fn: Callable[[dict[Ref, Node]], Any]) -> None:
+    new_rules = scrambled_rules(rules)
+    for _ in tqdm(range(10), desc=f"Checking order invariant for {fn.__name__}"):
+        assert fn(rules) == fn(new_rules)
+
 def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]]:
     follow_sets: dict[Ref, set[Ref | Term | EpsExternal]] = {}
     nullable_rules = get_nullable_rules(rules)
+    assert_order_invariant(rules, get_nullable_rules)
     for ref, node in rules.items():
-        for node, follow_set in collect_follows_for_node(node, nullable_rules).items():
-            follow_sets.setdefault(node, set()).update(follow_set)
+        for leaf, follow_set in collect_follows_for_node(node, nullable_rules).items():
+            follow_sets.setdefault(leaf, set()).update(follow_set)
     firsts_for_node = {}
     for ref, node in rules.items():
         firsts_for_node[ref] = get_firsts_for_node(node, nullable_rules)
@@ -516,7 +528,7 @@ def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Re
                     new_follows = firsts - follow_set
                     queue.extend(new_follows)
                     follow_set.update(new_follows)
-        for ref, node in rules.items():
+        for ref, node in sorted(rules.items(), key=lambda x: (str(type(x[0])), str(x[0])), reverse=True):
             # The follow set of a rule should inherit the follow set of its lasts and vice versa
             lasts_for_rule = get_lasts_for_node(node, nullable_rules)
             for last in lasts_for_rule:
