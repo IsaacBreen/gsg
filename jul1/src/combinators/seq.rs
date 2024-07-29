@@ -78,7 +78,7 @@ impl ParserTrait for SeqParser {
                 all_up_data.extend(up_data_vec);
             }
 
-            current_right_data = next_right_data;
+            current_right_data = next_right_data.squashed();
         }
 
         ParseResults {
