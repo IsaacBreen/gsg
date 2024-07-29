@@ -100,21 +100,27 @@ impl ParserTrait for SeqParser {
     }
 }
 
-pub fn seq(mut v: Vec<Combinator>) -> Combinator {
+pub fn seq(mut v: Vec<impl Into<Combinator>>) -> Seq {
     if v.is_empty() {
         eps()
     } else if v.len() == 1 {
-        v.pop().unwrap()
+        v.pop().unwrap().into()
     } else {
         let b = v.split_off(v.len() / 2);
-        Combinator::Seq(Seq {
-            a: Rc::new(seq(v)),
-            b: Rc::new(seq(b)),
-        })
+        Seq {
+            a: Rc::new(seq(v).into()),
+            b: Rc::new(seq(b).into()),
+        }
     }
 }
 
 #[macro_export]
 macro_rules! seq {
-    ($($a:expr),* $(,)?) => {$crate::seq(vec![$($a.clone()),*])};
+    ($($a:expr),* $(,)?) => {$crate::seq(vec![$($a.into()),*])};
+}
+
+impl From<Seq> for Combinator {
+    fn from(value: Seq) -> Self {
+        Combinator::Seq(value)
+    }
 }

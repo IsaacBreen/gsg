@@ -26,6 +26,12 @@ impl ParserTrait for SymbolParser {
     }
 }
 
-pub fn symbol(value: Combinator) -> Combinator {
-    Combinator::Symbol(Symbol { value: Rc::new(value) })
+pub fn symbol(value: impl Into<Combinator>) -> Symbol {
+    Symbol { value: Rc::new(value.into()) }
+}
+
+impl From<Symbol> for Combinator {
+    fn from(value: Symbol) -> Self {
+        Combinator::Symbol(value)
+    }
 }

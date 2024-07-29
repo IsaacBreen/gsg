@@ -54,14 +54,32 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
     }
 }
 
-pub fn forbid_follows(match_ids: &[&str]) -> Combinator {
-    combinator::Combinator::ForbidFollows(ForbidFollows { match_ids: match_ids.iter().map(|s| s.to_string()).collect() })
+pub fn forbid_follows(match_ids: &[&str]) -> ForbidFollows {
+    ForbidFollows { match_ids: match_ids.iter().map(|s| s.to_string()).collect() }
 }
 
-pub fn forbid_follows_clear() -> Combinator {
-    combinator::Combinator::ForbidFollowsClear(ForbidFollowsClear {})
+pub fn forbid_follows_clear() -> ForbidFollowsClear {
+    ForbidFollowsClear {}
 }
 
-pub fn forbid_follows_check_not(match_id: &str) -> Combinator {
-    combinator::Combinator::ForbidFollowsCheckNot(ForbidFollowsCheckNot { match_id: match_id.to_string() })
+pub fn forbid_follows_check_not(match_id: &str) -> ForbidFollowsCheckNot {
+    ForbidFollowsCheckNot { match_id: match_id.to_string() }
+}
+
+impl From<ForbidFollows> for Combinator {
+    fn from(value: ForbidFollows) -> Self {
+        Combinator::ForbidFollows(value)
+    }
+}
+
+impl From<ForbidFollowsClear> for Combinator {
+    fn from(value: ForbidFollowsClear) -> Self {
+        Combinator::ForbidFollowsClear(value)
+    }
+}
+
+impl From<ForbidFollowsCheckNot> for Combinator {
+    fn from(value: ForbidFollowsCheckNot) -> Self {
+        Combinator::ForbidFollowsCheckNot(value)
+    }
 }

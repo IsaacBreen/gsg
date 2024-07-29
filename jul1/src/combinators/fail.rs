@@ -23,6 +23,12 @@ impl ParserTrait for FailParser {
     }
 }
 
-pub fn fail() -> Combinator {
-    Combinator::Fail(Fail)
+pub fn fail() -> Fail {
+    Fail
+}
+
+impl From<Fail> for Combinator {
+    fn from(value: Fail) -> Self {
+        Combinator::Fail(value)
+    }
 }

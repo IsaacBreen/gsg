@@ -162,10 +162,22 @@ impl ParserTrait for CachedParser {
     }
 }
 
-pub fn cache_context(a: Combinator) -> Combinator {
-    Combinator::CacheContext(CacheContext { inner: Box::new(a) })
+pub fn cache_context(a: impl Into<Combinator>) -> CacheContext {
+    CacheContext { inner: Box::new(a.into()) }
 }
 
-pub fn cached(a: Combinator) -> Combinator {
-    Combinator::Cached(Cached { inner: Rc::new(a) })
+pub fn cached(a: impl Into<Combinator>) -> Cached {
+    Cached { inner: Rc::new(a.into()) }
+}
+
+impl From<CacheContext> for Combinator {
+    fn from(value: CacheContext) -> Self {
+        Combinator::CacheContext(value)
+    }
+}
+
+impl From<Cached> for Combinator {
+    fn from(value: Cached) -> Self {
+        Combinator::Cached(value)
+    }
 }

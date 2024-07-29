@@ -150,27 +150,39 @@ impl ParserTrait for FrameStackOpParser {
     }
 }
 
-pub fn with_new_frame(a: Combinator) -> Combinator {
-    Combinator::WithNewFrame(WithNewFrame { a: Box::new(a) })
+pub fn with_new_frame(a: impl Into<Combinator>) -> WithNewFrame {
+    WithNewFrame { a: Box::new(a.into()) }
 }
 
-pub fn push_to_frame(a: Combinator) -> Combinator {
-    Combinator::FrameStackOp(FrameStackOp {
+pub fn push_to_frame(a: impl Into<Combinator>) -> FrameStackOp {
+    FrameStackOp {
         op_type: FrameStackOpType::PushToFrame,
-        a: Box::new(a),
-    })
+        a: Box::new(a.into()),
+    }
 }
 
-pub fn pop_from_frame(a: Combinator) -> Combinator {
-    Combinator::FrameStackOp(FrameStackOp {
+pub fn pop_from_frame(a: impl Into<Combinator>) -> FrameStackOp {
+    FrameStackOp {
         op_type: FrameStackOpType::PopFromFrame,
-        a: Box::new(a),
-    })
+        a: Box::new(a.into()),
+    }
 }
 
-pub fn frame_stack_contains(a: Combinator) -> Combinator {
-    Combinator::FrameStackOp(FrameStackOp {
+pub fn frame_stack_contains(a: impl Into<Combinator>) -> FrameStackOp {
+    FrameStackOp {
         op_type: FrameStackOpType::FrameStackContains,
-        a: Box::new(a),
-    })
+        a: Box::new(a.into()),
+    }
+}
+
+impl From<WithNewFrame> for Combinator {
+    fn from(value: WithNewFrame) -> Self {
+        Combinator::WithNewFrame(value)
+    }
+}
+
+impl From<FrameStackOp> for Combinator {
+    fn from(value: FrameStackOp) -> Self {
+        Combinator::FrameStackOp(value)
+    }
 }

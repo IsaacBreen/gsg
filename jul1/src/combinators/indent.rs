@@ -108,22 +108,28 @@ impl ParserTrait for IndentCombinatorParser {
     }
 }
 
-pub fn dent() -> Combinator {
-    Combinator::IndentCombinator(IndentCombinator::Dent)
+pub fn dent() -> IndentCombinator {
+    IndentCombinator::Dent
 }
 
-pub fn indent() -> Combinator {
-    Combinator::IndentCombinator(IndentCombinator::Indent)
+pub fn indent() -> IndentCombinator {
+    IndentCombinator::Indent
 }
 
-pub fn dedent() -> Combinator {
-    Combinator::IndentCombinator(IndentCombinator::Dedent)
+pub fn dedent() -> IndentCombinator {
+    IndentCombinator::Dedent
 }
 
-pub fn assert_no_dedents() -> Combinator {
-    Combinator::IndentCombinator(IndentCombinator::AssertNoDedents)
+pub fn assert_no_dedents() -> IndentCombinator {
+    IndentCombinator::AssertNoDedents
 }
 
-pub fn with_indent(a: Combinator) -> Combinator {
-    seq(vec![indent(), a, dedent()])
+pub fn with_indent(a: impl Into<Combinator>) -> Combinator {
+    seq(vec![indent(), a.into(), dedent()])
+}
+
+impl From<IndentCombinator> for Combinator {
+    fn from(value: IndentCombinator) -> Self {
+        Combinator::IndentCombinator(value)
+    }
 }

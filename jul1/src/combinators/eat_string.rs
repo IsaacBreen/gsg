@@ -9,6 +9,12 @@ pub struct EatString {
     string: Vec<u8>,
 }
 
+impl From<EatString> for Combinator {
+    fn from(value: EatString) -> Self {
+        Combinator::EatString(value)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatStringParser {
     string: Vec<u8>,
@@ -72,19 +78,19 @@ impl ParserTrait for EatStringParser {
     }
 }
 
-pub fn eat_string(string: &str) -> Combinator {
-    Combinator::EatString(EatString {
+pub fn eat_string(string: &str) -> EatString {
+    EatString {
         string: string.as_bytes().to_vec(),
-    })
+    }
 }
 
-pub fn eat_bytes(bytes: &[u8]) -> Combinator {
-    Combinator::EatString(EatString {
+pub fn eat_bytes(bytes: &[u8]) -> EatString {
+    EatString {
         string: bytes.to_vec()
-    })
+    }
 }
 
-pub fn eat_bytestring_choice(mut bytestrings: Vec<Vec<u8>>) -> Combinator {
+pub fn eat_bytestring_choice(mut bytestrings: Vec<Vec<u8>>) -> impl Into<Combinator> {
     // Group by first byte
     let mut grouped_bytestrings: BTreeMap<u8, Vec<Vec<u8>>> = BTreeMap::new();
     let mut any_done = false;
@@ -97,7 +103,7 @@ pub fn eat_bytestring_choice(mut bytestrings: Vec<Vec<u8>>) -> Combinator {
     }
     // Create combinators for each group
     let combinator = choice(grouped_bytestrings.clone().into_iter().map(|(first, rests)| {
-        seq(vec![Combinator::EatU8(eat_byte(first)), eat_bytestring_choice(rests)])
+        seq(vec![eat_byte(first), eat_bytestring_choice(rests)])
     }).collect());
     if any_done {
         assert!(grouped_bytestrings.is_empty());

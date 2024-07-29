@@ -74,6 +74,12 @@ impl ParserTrait for MutateRightDataParser {
     }
 }
 
-pub fn mutate_right_data(run: impl Fn(&mut RightData) -> bool + 'static) -> Combinator {
-    Combinator::MutateRightData(MutateRightData { run: Rc::new(run) })
+pub fn mutate_right_data(run: impl Fn(&mut RightData) -> bool + 'static) -> MutateRightData {
+    MutateRightData { run: Rc::new(run) }
+}
+
+impl From<MutateRightData> for Combinator {
+    fn from(value: MutateRightData) -> Self {
+        Combinator::MutateRightData(value)
+    }
 }

@@ -75,22 +75,28 @@ impl ParserTrait for Repeat1Parser {
     }
 }
 
-pub fn repeat1(a: Combinator) -> Combinator {
-    Combinator::Repeat1(Repeat1 {
-        a: Rc::new(a),
+pub fn repeat1(a: impl Into<Combinator>) -> Repeat1 {
+    Repeat1 {
+        a: Rc::new(a.into()),
         a_parsers: vec![],
         right_data: RightData::default(),
-    })
+    }
 }
 
-pub fn repeat0(a: Combinator) -> Combinator {
+pub fn repeat0(a: impl Into<Combinator>) -> Combinator {
     opt(repeat1(a))
 }
 
-pub fn seprep1(a: Combinator, b: Combinator) -> Combinator {
-    seq(vec![a.clone(), repeat0(seq(vec![b, a]))])
+pub fn seprep1(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
+    seq(vec![a.into(), repeat0(seq(vec![b.into(), a.into()]))])
 }
 
-pub fn seprep0(a: Combinator, b: Combinator) -> Combinator {
-    seq(vec![opt(repeat1(seq(vec![a.clone(), b]))), a])
+pub fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
+    seq(vec![opt(repeat1(seq(vec![a.clone().into(), b.into()]))), a.into()])
+}
+
+impl From<Repeat1> for Combinator {
+    fn from(value: Repeat1) -> Self {
+        Combinator::Repeat1(value)
+    }
 }
