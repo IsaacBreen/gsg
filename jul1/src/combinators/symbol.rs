@@ -35,12 +35,3 @@ impl From<&Symbol> for Combinator {
         Combinator::Symbol(value.clone())
     }
 }
-
-pub fn seprep1(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
-    let a = symbol(a);
-    seq!(&a, repeat0(seq!(b, &a)))
-}
-
-pub fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
-    opt(seprep1(a, b)).into()
-}
