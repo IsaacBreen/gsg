@@ -57,24 +57,26 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
     // Print timing results
     let mut timing_vec: Vec<(String, std::time::Duration)> = timings.into_iter().collect();
-    timing_vec.sort_by(|a, b| b.1.cmp(&a.1));
 
     let total_time: u128 = timing_vec.iter().map(|(_, dur)| dur.as_nanos()).sum();
-    let threshold = total_time * 9 / 10;
+    // Get 90th percentile
+    let mut timing_vec_sorted: Vec<(String, std::time::Duration)> = timing_vec.iter().cloned().collect();
+    timing_vec_sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    let threshold = timing_vec_sorted[timing_vec_sorted.len() / 10].1;
 
     println!("Execution time profile:");
-    let mut accumulated_time = 0;
     for (desc, duration) in timing_vec {
-        accumulated_time += duration.as_nanos();
         let duration_secs = duration.as_secs_f64();
-        let bold = if accumulated_time <= threshold { "\x1b[1m" } else { "" };
+        let emphasis = if duration > threshold { " * " } else { "   " };
+        let bold = if duration > threshold { "\x1b[1m" } else { "" };
         let reset = if bold.is_empty() { "" } else { "\x1b[0m" };
-        println!("{:<10}{}{}{}s{}",
+        println!("{}{:<10}{}{:?}{}s",
+                 emphasis,
                  format!("{:.3}s", duration_secs),
                  bold,
                  desc,
                  reset,
-                 " ".repeat((80 as usize).saturating_sub(desc.len())));
+        );
     }
 }
 
