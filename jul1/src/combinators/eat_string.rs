@@ -70,12 +70,6 @@ impl ParserTrait for EatStringParser {
             panic!("EatStringParser already consumed")
         }
     }
-
-    fn collect_stats(&self, stats: &mut Stats) {
-        stats.active_parser_type_counts.entry("EatStringParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
-        let string = std::str::from_utf8(&self.string).unwrap();
-        stats.active_string_matchers.entry(string.to_string()).and_modify(|c| *c += 1).or_insert(1);
-    }
 }
 
 pub fn eat_string(string: &str) -> EatString {
