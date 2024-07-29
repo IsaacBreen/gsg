@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{_choice, choice, Combinator, CombinatorTrait, eat_byte, eat_byte_choice, eat_char_choice, Parser, ParseResults, ParserTrait, seq, Stats, U8Set};
+use crate::{_choice, choice, Combinator, CombinatorTrait, eat_byte, eat_byte_choice, eat_char_choice, eps, fail, Parser, ParseResults, ParserTrait, seq, Stats, U8Set};
 use crate::combinators::derived::opt;
 use crate::parse_state::{RightData, UpData};
 
@@ -84,30 +84,42 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
     }
 }
 
-pub fn eat_bytestring_choice(mut bytestrings: Vec<Vec<u8>>) -> Combinator {
-    // Group by first byte
-    let mut grouped_bytestrings: BTreeMap<u8, (bool, Vec<Vec<u8>>)> = BTreeMap::new();
-    let mut any_done = false;
+pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
+    let mut first_byte_map: BTreeMap<u8, Vec<Vec<u8>>> = BTreeMap::new();
+    let mut empty_string_present = false;
+
     for bytestring in bytestrings {
-        let [first, rest @ ..] = bytestring.as_slice() else {
-            any_done = true;
-            continue
-        };
-        grouped_bytestrings.entry(*first).or_default().0 |= rest.is_empty();
-        if !rest.is_empty() {
-            grouped_bytestrings.entry(*first).or_default().1.push((*rest).to_vec());
+        if bytestring.is_empty() {
+            empty_string_present = true;
+        } else {
+            first_byte_map.entry(bytestring[0])
+                .or_default()
+                .push(bytestring[1..].to_vec());
         }
     }
-    // Create combinators for each group
-    let combinator = choice!(_choice(grouped_bytestrings.clone().into_iter().map(|(first, (done, rests))| {
-        if !rests.is_empty() { Some(seq!(eat_byte(first), eat_bytestring_choice(rests))) } else { None }
-    }).filter_map(|x| x).collect()), eat_byte_choice(grouped_bytestrings.clone().into_iter().filter_map(|(first, (done, rests))| {
-        if done { Some(first) } else { None }
-    }).collect::<Vec<_>>().as_slice()));
-    if any_done {
-        assert!(grouped_bytestrings.is_empty());
-        opt(combinator).into()
+
+    let choices: Vec<Combinator> = first_byte_map.into_iter()
+        .map(|(first_byte, rest_strings)| {
+            let rest_combinator = if rest_strings.iter().any(|s| s.is_empty()) {
+                opt(eat_bytestring_choice(rest_strings))
+            } else {
+                eat_bytestring_choice(rest_strings)
+            };
+            seq!(eat_byte(first_byte), rest_combinator)
+        })
+        .collect();
+
+    let result = if choices.is_empty() {
+        fail().into()
+    } else if choices.len() == 1 {
+        choices[0].clone()
     } else {
-        combinator
+        _choice(choices)
+    };
+
+    if empty_string_present {
+        opt(result)
+    } else {
+        result
     }
 }
