@@ -27,14 +27,18 @@ impl Squash for Vec<RightData> {
 impl Squash for Vec<UpData> {
     type Output = Vec<UpData>;
     fn squashed(self) -> Self::Output {
-        let mut u8set = U8Set::none();
-        for vd in self {
-            u8set = u8set.union(&vd.u8set);
-        }
-        if u8set.is_empty() {
-            vec![]
+        if self.len() > 1 {
+            let mut u8set = U8Set::none();
+            for vd in self {
+                u8set = u8set.union(&vd.u8set);
+            }
+            if u8set.is_empty() {
+                vec![]
+            } else {
+                vec![UpData { u8set }]
+            }
         } else {
-            vec![UpData { u8set }]
+            self
         }
     }
     fn squash(&mut self) {
