@@ -241,7 +241,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     f.write('\n')
     for name, rule in rules:
         expr = rhs_to_rust(rule.rhs, top_level=True)
-        expr = f'Combinator::from({expr}).compile()'
+        expr = f'Combinator::from({expr})'
         expr = f'tag("{name}", {expr})'
         if rule.memo:
             expr = f'cached({expr})'
