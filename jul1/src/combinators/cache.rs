@@ -1,7 +1,7 @@
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 
@@ -20,7 +20,7 @@ pub struct CacheDataInner {
     pub entries: Vec<Rc<RefCell<CacheEntry>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Eq)]
 pub struct CacheKey {
     pub combinator: Rc<Combinator>,
     pub right_data: RightData,
@@ -52,6 +52,19 @@ pub struct CachedParser {
 impl Hash for CachedParser {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.entry.borrow().num.hash(state);
+    }
+}
+
+impl Hash for CacheKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self.combinator.as_ref()).hash(state);
+        self.right_data.hash(state);
+    }
+}
+
+impl PartialEq for CacheKey {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
     }
 }
 
@@ -138,7 +151,10 @@ impl CombinatorTrait for Cached {
         parse_results.squash();
         {
             let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-            cache_data_inner.new_parsers.insert(key, entry.clone());
+            let e = entry.clone();
+            let h = key.hash(&mut DefaultHasher::default());
+            let eqq = key == key;
+            cache_data_inner.new_parsers.insert(key, e);
             entry.borrow_mut().num = cache_data_inner.entries.len();
             cache_data_inner.entries.push(entry.clone());
         }
