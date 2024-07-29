@@ -436,6 +436,7 @@ mod tests {
         {
             // Check stats
             let stats = parser.stats();
+            println!("stats:{:?}", stats);
             assert_eq!(stats.active_tags["A"], 1, "Expected one tag 'A' to be active initially, but found {}", stats.active_tags["A"]);
 
             // Check initial cache state
@@ -449,6 +450,7 @@ mod tests {
         {
             // Check stats
             let stats = parser.stats();
+            println!("stats:{:?}", stats);
             assert_eq!(stats.active_tags.len(), 0, "Expected no active tags after the first step, but found {}", stats.active_tags.len());
 
             // Check the cache state after the first step

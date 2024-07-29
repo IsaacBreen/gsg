@@ -212,10 +212,18 @@ impl Parser {
             Parser::EatStringParser(EatStringParser { string, .. }) => {
                 stats.active_string_matchers.entry(String::from_utf8_lossy(string).to_string()).or_default().add_assign(1);
             }
-            Parser::CacheContextParser(CacheContextParser { inner, .. }) |
+            Parser::CacheContextParser(CacheContextParser { inner, cache_data_inner, .. }) => {
+                inner.collect_stats(stats);
+                for entry in cache_data_inner.borrow().entries.iter() {
+                    entry.borrow().parser.as_ref().map(|p| p.collect_stats(stats));
+                }
+            }
             Parser::FrameStackOpParser(FrameStackOpParser { a: inner, .. }) |
-            Parser::SymbolParser(SymbolParser { inner, .. }) |
-            Parser::TaggedParser(TaggedParser { inner, .. }) => inner.collect_stats(stats),
+            Parser::SymbolParser(SymbolParser { inner, .. }) => inner.collect_stats(stats),
+            Parser::TaggedParser(TaggedParser { inner, tag }) => {
+                inner.collect_stats(stats);
+                stats.active_tags.entry(tag.clone()).or_default().add_assign(1);
+            }
             Parser::Repeat1Parser(Repeat1Parser { a_parsers, .. }) => {
                 a_parsers.iter().for_each(|p| p.collect_stats(stats));
             }
@@ -226,9 +234,6 @@ impl Parser {
             _ => {}
         }
         stats.active_parser_type_counts.entry(self.type_name()).or_default().add_assign(1);
-        if let Parser::TaggedParser(TaggedParser { tag, .. }) = self {
-            stats.active_tags.entry(tag.clone()).or_default().add_assign(1);
-        }
     }
 
     fn type_name(&self) -> String {
