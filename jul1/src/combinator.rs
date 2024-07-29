@@ -189,6 +189,32 @@ impl ParserTrait for Parser {
     }
 }
 
+impl Combinator {
+    pub fn type_name(&self) -> String {
+        match self {
+            Combinator::Seq(_) => "Seq",
+            Combinator::Choice(_) => "Choice",
+            Combinator::EatU8(_) => "EatU8",
+            Combinator::EatString(_) => "EatString",
+            Combinator::CacheContext(_) => "CacheContext",
+            Combinator::Cached(_) => "Cached",
+            Combinator::FrameStackOp(_) => "FrameStackOp",
+            Combinator::MutateRightData(_) => "MutateRightData",
+            Combinator::Repeat1(_) => "Repeat1",
+            Combinator::Symbol(_) => "Symbol",
+            Combinator::Tagged(_) => "Tagged",
+            Combinator::ForwardRef(_) => "ForwardRef",
+            Combinator::WithNewFrame(_) => "WithNewFrame",
+            Combinator::ForbidFollows(_) => "ForbidFollows",
+            Combinator::Eps(_) => "Eps",
+            Combinator::Fail(_) => "Fail",
+            Combinator::IndentCombinator(_) => "IndentCombinator",
+            Combinator::ForbidFollowsClear(_) => "ForbidFollowsClear",
+            Combinator::ForbidFollowsCheckNot(_) => "ForbidFollowsCheckNot",
+        }.to_string()
+    }
+}
+
 impl Parser {
     pub fn stats(&self) -> Stats {
         let mut stats = Stats::default();
