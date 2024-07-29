@@ -16,7 +16,7 @@ impl Compile for Combinator {
             Combinator::Fail(fail) => fail.compile(),
             Combinator::Repeat1(repeat1) => repeat1.compile(),
             Combinator::EatByteStringChoice(eat_bytestring_choice) => eat_bytestring_choice.compile(),
-            _ => panic!("Unsupported combinator type for compilation"),
+            _ => self,
         }
     }
 }
