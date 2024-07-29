@@ -197,6 +197,11 @@ impl Combinator {
     pub fn type_name(&self) -> String {
         match_combinator!(self, inner => std::any::type_name_of_val(&inner)).to_string()
     }
+
+    pub fn compile(self) -> Self {
+        use crate::compiler::Compile;
+        self.compile()
+    }
 }
 
 impl Parser {

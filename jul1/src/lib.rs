@@ -28,3 +28,6 @@ mod frame_stack;
 mod python;
 mod unicode;
 mod into_combinator;
+mod compiler;
+
+pub use compiler::Compile;
