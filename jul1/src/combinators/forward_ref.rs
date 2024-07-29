@@ -18,11 +18,7 @@ impl Hash for ForwardRef {
 
 impl PartialEq for ForwardRef {
     fn eq(&self, other: &Self) -> bool {
-        let binding_a = self.a.borrow();
-        let binding_b = other.a.borrow();
-        let a = binding_a.as_ref().expect("ForwardRef is not set");
-        let b = binding_b.as_ref().expect("ForwardRef is not set");
-        Rc::ptr_eq(&a, &b) || **a == **b
+        Rc::ptr_eq(&self.a, &other.a)
     }
 }
 
