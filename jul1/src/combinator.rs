@@ -1,8 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;
-use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser, EatByteStringChoice, EatByteStringChoiceParser, TrieNode};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser, EatByteStringChoice, EatByteStringChoiceParser};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -249,55 +248,5 @@ impl Parser {
 
     fn type_name(&self) -> String {
         match_parser!(self, inner => std::any::type_name_of_val(&inner)).to_string()
-    }
-}
-
-pub enum CombinatorMatcher<'a> {
-    Seq(Box<[CombinatorMatcher<'a>]>),
-    Choice(Box<[CombinatorMatcher<'a>]>),
-    EatU8(Box<[u8]>),
-    EatString(&'a [u8]),
-    Eps,
-    Fail,
-    ForbidFollows(Box<[CombinatorMatcher<'a>]>),
-    ForbidFollowsClear(Box<[CombinatorMatcher<'a>]>),
-    ForbidFollowsCheckNot(Box<[CombinatorMatcher<'a>]>),
-    WithNewFrame(Box<[CombinatorMatcher<'a>]>),
-    CacheContext(Box<[(CombinatorMatcher<'a>, CombinatorMatcher<'a>)]>),
-    Cached(Box<[(CombinatorMatcher<'a>, CombinatorMatcher<'a>)]>),
-    Repeat1(Box<[CombinatorMatcher<'a>]>),
-    Symbol(Box<[(String, CombinatorMatcher<'a>)]>),
-    Tagged(Box<[(String, CombinatorMatcher<'a>)]>),
-    MutateRightData(Box<[(String, CombinatorMatcher<'a>)]>),
-    IndentCombinator(Box<[(CombinatorMatcher<'a>, CombinatorMatcher<'a>)]>),
-    EatByteStringChoice(Box<[CombinatorMatcher<'a>]>),
-    FrameStackOp(Box<[(FrameStackOp, CombinatorMatcher<'a>)]>),
-    ForwardRef(Box<[CombinatorMatcher<'a>]>),
-}
-
-impl<'a> CombinatorMatcher<'a> {
-    pub fn to_combinator(&self) -> Combinator {
-        match self {
-            CombinatorMatcher::Seq(children) => Combinator::Seq(Seq { children: children.iter().map(|m| (None, m.to_combinator())).collect() }),
-            CombinatorMatcher::Choice(children) => Combinator::Choice(Choice { children: children.iter().map(|m| m.to_combinator()).collect() }),
-            CombinatorMatcher::EatU8(chars) => Combinator::EatU8(EatU8 { u8set: U8Set::from_slice(chars) }),
-            CombinatorMatcher::EatString(string) => Combinator::EatString(EatString { string: string.to_vec() }),
-            CombinatorMatcher::Eps => Combinator::Eps(Eps),
-            CombinatorMatcher::Fail => Combinator::Fail(Fail),
-            CombinatorMatcher::ForbidFollows(children) => Combinator::ForbidFollows(ForbidFollows { parsers: children.iter().map(|m| m.to_combinator()).collect() }),
-            CombinatorMatcher::ForbidFollowsClear(children) => Combinator::ForbidFollowsClear(ForbidFollowsClear { parsers: children.iter().map(|m| m.to_combinator()).collect() }),
-            CombinatorMatcher::ForbidFollowsCheckNot(children) => Combinator::ForbidFollowsCheckNot(ForbidFollowsCheckNot { parsers: children.iter().map(|m| m.to_combinator()).collect() }),
-            CombinatorMatcher::WithNewFrame(children) => Combinator::WithNewFrame(WithNewFrame { parsers: children.iter().map(|m| m.to_combinator()).collect() }),
-            CombinatorMatcher::CacheContext(pairs) => Combinator::CacheContext(CacheContext { pairs: pairs.iter().map(|(k, v)| (k.to_combinator(), v.to_combinator())).collect() }),
-            CombinatorMatcher::Cached(pairs) => Combinator::Cached(Cached { pairs: pairs.iter().map(|(k, v)| (k.to_combinator(), v.to_combinator())).collect() }),
-            CombinatorMatcher::Repeat1(children) => Combinator::Repeat1(Repeat1 { parsers: children.iter().map(|m| m.to_combinator()).collect() }),
-            CombinatorMatcher::Symbol(pairs) => Combinator::Symbol(Symbol { pairs: pairs.iter().map(|(s, m)| (s.clone(), m.to_combinator())).collect() }),
-            CombinatorMatcher::Tagged(pairs) => Combinator::Tagged(Tagged { pairs: pairs.iter().map(|(s, m)| (s.clone(), m.to_combinator())).collect() }),
-            CombinatorMatcher::MutateRightData(pairs) => Combinator::MutateRightData(MutateRightData { pairs: pairs.iter().map(|(s, m)| (s.clone(), m.to_combinator())).collect() }),
-            CombinatorMatcher::IndentCombinator(pairs) => Combinator::IndentCombinator(IndentCombinator { pairs: pairs.iter().map(|(k, v)| (k.to_combinator(), v.to_combinator())).collect() }),
-            CombinatorMatcher::EatByteStringChoice(children) => Combinator::EatByteStringChoice(EatByteStringChoice { parsers: children.iter().map(|m| m.to_combinator()).collect() }),
-            CombinatorMatcher::FrameStackOp(pairs) => Combinator::FrameStackOp(FrameStackOp { pairs: pairs.iter().map(|(op, m)| (op.clone(), m.to_combinator())).collect() }),
-            CombinatorMatcher::ForwardRef(children) => Combinator::ForwardRef(ForwardRef { parsers: children.iter().map(|m| m.to_combinator()).collect() }),
-        }
     }
 }

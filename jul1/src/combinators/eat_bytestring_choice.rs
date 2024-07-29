@@ -45,7 +45,7 @@ impl BuildTrieNode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TrieNode {
+struct TrieNode {
     valid_bytes: U8Set,
     is_end: bool,
     children: Vec<Rc<TrieNode>>,
