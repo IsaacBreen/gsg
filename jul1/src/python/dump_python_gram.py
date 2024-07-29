@@ -316,6 +316,7 @@ if __name__ == "__main__":
     save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs', unresolved_follows_table)
 
     # Print some useful stats
+    print("Firsts:")
     nullable_rules = get_nullable_rules(custom_grammar)
     firsts_by_rule = {ref: {first for first in get_firsts(node, nullable_rules)} for ref, node in custom_grammar.items()}
     for ref, firsts in firsts_by_rule.items():

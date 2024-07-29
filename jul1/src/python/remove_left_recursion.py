@@ -1160,3 +1160,13 @@ if __name__ == '__main__':
     for r, follow_set in get_follows(rules).items():
         print(f'{r} -> {follow_set}')
     assert ref('B') in get_follows(rules)[ref('B')]
+
+    rules = make_rules(
+        fstring=repeat1(seq(opt(ref('WS')), ref('fstring_middle'))),
+        fstring_middle=ref('FSTRING_MIDDLE'),
+    )
+    prettify_rules(rules)
+    print("follow sets:")
+    for r, follow_set in get_follows(rules).items():
+        print(f'{r} -> {follow_set}')
+    assert ref('FSTRING_MIDDLE') in get_follows(rules)[ref('fstring_middle')]
