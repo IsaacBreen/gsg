@@ -254,12 +254,14 @@ impl Parser {
             Parser::MutateRightDataParser(_) => {
                 *stats.active_parser_type_counts.entry("MutateRightDataParser".to_string()).or_insert(0) += 1;
             }
-            Parser::Repeat1Parser(Repeat1Parser { a, .. }) => {
-                a.collect_stats(stats);
+            Parser::Repeat1Parser(Repeat1Parser { a_parsers, .. }) => {
+                for a_parser in a_parsers {
+                    a_parser.collect_stats(stats);
+                }
                 *stats.active_parser_type_counts.entry("Repeat1Parser".to_string()).or_insert(0) += 1;
             }
             Parser::SymbolParser(SymbolParser { inner, .. }) => {
-                inner.collect_stats(stats);
+                inner.as_ref().collect_stats(stats);
                 *stats.active_parser_type_counts.entry("SymbolParser".to_string()).or_insert(0) += 1;
             }
             Parser::TaggedParser(TaggedParser { inner, tag, .. }) => {

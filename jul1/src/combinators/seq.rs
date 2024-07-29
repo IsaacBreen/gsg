@@ -10,8 +10,8 @@ pub struct Seq {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
-    a: Option<Box<Parser>>,
-    bs: Vec<Parser>,
+    pub(crate) a: Option<Box<Parser>>,
+    pub(crate) bs: Vec<Parser>,
     b: Rc<Combinator>,
     right_data: RightData,
 }

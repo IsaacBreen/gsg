@@ -14,7 +14,7 @@ pub struct Repeat1 {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Repeat1Parser {
     a: Rc<Combinator>,
-    a_parsers: Vec<Parser>,
+    pub(crate) a_parsers: Vec<Parser>,
     right_data: RightData,
 }
 

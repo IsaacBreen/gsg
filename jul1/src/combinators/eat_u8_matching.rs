@@ -8,7 +8,7 @@ pub struct EatU8 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatU8Parser {
-    u8set: U8Set,
+    pub(crate) u8set: U8Set,
     right_data: Option<RightData>,
 }
 
