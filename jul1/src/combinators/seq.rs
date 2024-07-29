@@ -11,7 +11,6 @@ pub struct Seq {
 pub struct SeqParser {
     pub(crate) parsers: Vec<Vec<Parser>>,
     children: Vec<Rc<Combinator>>,
-    right_data: RightData,
 }
 
 impl CombinatorTrait for Seq {
@@ -21,7 +20,7 @@ impl CombinatorTrait for Seq {
         let mut all_up_data = Vec::new();
         let mut all_done = true;
 
-        for (i, child) in self.children.iter().enumerate() {
+        for child in self.children.iter() {
             let mut child_parsers = Vec::new();
             let mut next_right_data = Vec::new();
 
@@ -34,73 +33,55 @@ impl CombinatorTrait for Seq {
                 next_right_data.extend(right_data_vec);
                 all_up_data.extend(up_data_vec);
             }
-
             parsers.push(child_parsers);
-            if i < self.children.len() - 1 {
-                current_right_data = next_right_data;
-            } else {
-                all_up_data.extend(next_right_data);
-            }
+            current_right_data = next_right_data;
         }
 
         let parser = Parser::SeqParser(SeqParser {
             parsers,
             children: self.children.clone(),
-            right_data,
         });
 
-        (parser, ParseResults {
-            right_data_vec: all_up_data,
-            up_data_vec: Vec::new(),
+        let parse_results = ParseResults {
+            right_data_vec: current_right_data,
+            up_data_vec: all_up_data,
             done: all_done,
-        })
+        };
+
+        (parser, parse_results)
     }
 }
 
 impl ParserTrait for SeqParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        let mut all_right_data = Vec::new();
+        let mut current_right_data = vec![];
         let mut all_up_data = Vec::new();
         let mut all_done = true;
 
-        for (i, parsers) in self.parsers.iter_mut().enumerate() {
+        for parsers in &mut self.parsers {
             let mut next_parsers = Vec::new();
-            let mut current_right_data = Vec::new();
+            let mut next_right_data = Vec::new();
 
-            for parser in parsers.drain(..) {
+            for mut parser in parsers.drain(..) {
                 let ParseResults { right_data_vec, up_data_vec, done } = parser.step(c);
                 if !done {
                     next_parsers.push(parser);
                     all_done = false;
                 }
-                current_right_data.extend(right_data_vec);
+                next_right_data.extend(right_data_vec);
                 all_up_data.extend(up_data_vec);
             }
 
             *parsers = next_parsers;
+            current_right_data = next_right_data;
 
-            if i < self.children.len() - 1 {
-                for right_data in current_right_data {
-                    let (new_parser, ParseResults { right_data_vec, up_data_vec, done }) =
-                        self.children[i + 1].parser(right_data);
-                    if !done {
-                        self.parsers[i + 1].push(new_parser);
-                        all_done = false;
-                    }
-                    if i == self.children.len() - 2 {
-                        all_right_data.extend(right_data_vec);
-                    } else {
-                        current_right_data = right_data_vec;
-                    }
-                    all_up_data.extend(up_data_vec);
-                }
-            } else {
-                all_right_data.extend(current_right_data);
+            if parsers.is_empty() && !current_right_data.is_empty() {
+                break;
             }
         }
 
         ParseResults {
-            right_data_vec: all_right_data,
+            right_data_vec: current_right_data,
             up_data_vec: all_up_data,
             done: all_done,
         }
