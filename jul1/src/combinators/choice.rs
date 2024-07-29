@@ -53,15 +53,9 @@ impl ParserTrait for ChoiceParser {
 }
 
 pub fn _choice(v: Vec<Combinator>) -> Combinator {
-    if v.is_empty() {
-        eps().into()
-    } else if v.len() == 1 {
-        v[0].clone()
-    } else {
-        Choice {
-            children: v.into_iter().map(Rc::new).collect(),
-        }.into()
-    }
+    Choice {
+        children: v.into_iter().map(Rc::new).collect(),
+    }.into()
 }
 
 #[macro_export]
