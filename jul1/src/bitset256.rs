@@ -77,16 +77,6 @@ impl BitSet256 {
             y: !self.y,
         }
     }
-
-    pub fn count_bits_before(&self, index: u8) -> u32 {
-        if index == 0 {
-            0
-        } else if index < 128 {
-            (self.x & ((1u128 << index) - 1)).count_ones()
-        } else {
-            self.x.count_ones() + (self.y & ((1u128 << (index - 128)) - 1)).count_ones()
-        }
-    }
 }
 
 impl BitOr for BitSet256 {
