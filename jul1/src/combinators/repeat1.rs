@@ -7,8 +7,6 @@ use crate::parse_state::RightData;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Repeat1 {
     a: Rc<Combinator>,
-    a_parsers: Vec<Combinator>,
-    right_data: RightData,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -69,8 +67,6 @@ impl ParserTrait for Repeat1Parser {
 pub fn repeat1(a: impl Into<Combinator>) -> Repeat1 {
     Repeat1 {
         a: Rc::new(a.into()),
-        a_parsers: vec![],
-        right_data: RightData::default(),
     }
 }
 
