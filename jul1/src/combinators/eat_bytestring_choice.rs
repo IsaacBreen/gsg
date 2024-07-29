@@ -2,27 +2,26 @@ use std::hash::{Hash, Hasher};
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, UpData};
 
-const ALPHABET_SIZE: usize = 256;
-
 #[derive(Clone, PartialEq, Eq)]
 struct TrieNode {
-    children: [Option<Box<TrieNode>>; ALPHABET_SIZE],
+    children: Vec<Box<TrieNode>>,
+    valid_bytes: U8Set,
     is_end: bool,
 }
 
 impl Hash for TrieNode {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.is_end.hash(state);
-        for child in &self.children {
-            child.is_some().hash(state);
-        }
+        self.valid_bytes.hash(state);
+        self.children.len().hash(state);
     }
 }
 
 impl TrieNode {
     fn new() -> Self {
         TrieNode {
-            children: [None; ALPHABET_SIZE],
+            children: Vec::new(),
+            valid_bytes: U8Set::none(),
             is_end: false,
         }
     }
@@ -30,7 +29,12 @@ impl TrieNode {
     fn insert(&mut self, bytestring: &[u8]) {
         let mut node = self;
         for &byte in bytestring {
-            node = node.children[byte as usize].get_or_insert_with(|| Box::new(TrieNode::new()));
+            if !node.valid_bytes.contains(byte) {
+                node.valid_bytes.insert(byte);
+                node.children.push(Box::new(TrieNode::new()));
+            }
+            let index = node.valid_bytes.iter().take_while(|&b| b < byte).count();
+            node = &mut node.children[index];
         }
         node.is_end = true;
     }
@@ -67,7 +71,7 @@ impl CombinatorTrait for EatByteStringChoice {
             Parser::EatByteStringChoiceParser(parser),
             ParseResults {
                 right_data_vec: vec![],
-                up_data_vec: vec![UpData { u8set: U8Set::from_match_fn(|b| self.root.children[b as usize].is_some()) }],
+                up_data_vec: vec![UpData { u8set: self.root.valid_bytes.clone() }],
                 done: false,
             }
         )
@@ -77,20 +81,23 @@ impl CombinatorTrait for EatByteStringChoice {
 impl ParserTrait for EatByteStringChoiceParser {
     fn step(&mut self, c: u8) -> ParseResults {
         unsafe {
-            if let Some(next_node) = (*self.current_node).children[c as usize].as_ref() {
-                self.current_node = &**next_node;
+            let current_node = &*self.current_node;
+            if current_node.valid_bytes.contains(c) {
+                let index = current_node.valid_bytes.iter().take_while(|&b| b < c).count();
+                let next_node = &*current_node.children[index];
+                self.current_node = next_node;
                 self.right_data.position += 1;
 
-                if (*self.current_node).is_end {
+                if next_node.is_end {
                     ParseResults {
                         right_data_vec: vec![self.right_data.clone()],
-                        up_data_vec: vec![UpData { u8set: U8Set::from_match_fn(|b| (*self.current_node).children[b as usize].is_some()) }],
-                        done: (*self.current_node).children.iter().all(|child| child.is_none()),
+                        up_data_vec: vec![UpData { u8set: next_node.valid_bytes.clone() }],
+                        done: next_node.children.is_empty(),
                     }
                 } else {
                     ParseResults {
                         right_data_vec: vec![],
-                        up_data_vec: vec![UpData { u8set: U8Set::from_match_fn(|b| (*self.current_node).children[b as usize].is_some()) }],
+                        up_data_vec: vec![UpData { u8set: next_node.valid_bytes.clone() }],
                         done: false,
                     }
                 }
