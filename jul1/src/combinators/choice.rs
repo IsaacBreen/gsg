@@ -41,18 +41,8 @@ impl ParserTrait for ChoiceParser {
     }
 }
 
-pub fn _choice(mut v: Vec<Combinator>) -> Combinator {
-    if v.is_empty() {
-        eps().into()
-    } else if v.len() == 1 {
-        v.pop().unwrap()
-    } else {
-        let b = v.split_off(v.len() / 2);
-        Choice {
-            a: Box::new(_choice(v)),
-            b: Box::new(_choice(b)),
-        }.into()
-    }
+pub fn _choice(children: Vec<Combinator>) -> Combinator {
+    Combinator::Choice(Choice { children })
 }
 
 #[macro_export]
