@@ -221,6 +221,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     f.write('\n')
     for token in tokens:
         expr = f'{token}()'
+        expr = f'{expr}.compile()'
 
         token_ref = remove_left_recursion.ref(token)
         if token_ref in unresolved_follows_table and any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):

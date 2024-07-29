@@ -896,16 +896,16 @@ pub fn NEWLINE() -> Combinator {
 // (Actually, the first three errors are detected by the parser; only the last
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
-pub fn INDENT() -> IndentCombinator {
-    indent()
+pub fn INDENT() -> Combinator {
+    indent().into()
 }
 
-pub fn DEDENT() -> IndentCombinator {
-    dedent()
+pub fn DEDENT() -> Combinator {
+    dedent().into()
 }
 
-pub fn ENDMARKER() -> Eps {
-    eps()
+pub fn ENDMARKER() -> Combinator {
+    eps().into()
 }
 
 pub fn TYPE_COMMENT() -> Combinator {
