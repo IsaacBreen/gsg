@@ -175,19 +175,6 @@ pub trait CombinatorTrait {
 
 pub trait ParserTrait {
     fn step(&mut self, c: u8) -> ParseResults;
-    fn stats(&self) -> Stats {
-        let mut stats = Stats::default();
-        self.collect_stats(&mut stats);
-        stats
-    }
-    fn collect_stats(&self, stats: &mut Stats) {
-        for child in self.iter_children() {
-            child.collect_stats(stats);
-        }
-    }
-
-    fn iter_children(&self) -> Vec<&dyn ParserTrait> { vec![] }
-    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> { vec![] }
 }
 
 impl CombinatorTrait for Combinator {
@@ -200,16 +187,26 @@ impl ParserTrait for Parser {
     fn step(&mut self, c: u8) -> ParseResults {
         match_parser!(self, inner => inner.step(c))
     }
+}
 
-    fn collect_stats(&self, stats: &mut Stats) {
-        match_parser!(self, inner => inner.collect_stats(stats))
+impl Parser {
+    pub fn stats(&self) -> Stats {
+        let mut stats = Stats::default();
+        self.collect_stats(&mut stats);
+        stats
     }
 
-    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
-        match_parser!(self, inner => inner.iter_children())
-    }
-
-    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
-        match_parser!(self, inner => inner.iter_children_mut())
+    pub fn collect_stats(&self, stats: &mut Stats) {
+        match self {
+            Parser::SeqParser(SeqParser { a, bs, .. }) => {
+                if let Some(a) = a {
+                    a.collect_stats(stats);
+                }
+                for b in bs {
+                    b.collect_stats(stats);
+                }
+            }
+            _ => { todo!() }
+        }
     }
 }
