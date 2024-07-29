@@ -32,10 +32,10 @@ impl TrieNode {
         for &byte in bytestring {
             node.valid_bytes.insert(byte);
             let child_index = node.valid_bytes.bitset.count_bits_before(byte) as usize;
-            if child_index > node.children.len() {
+            if child_index >= node.children.len() {
                 node.children.push(Rc::new(TrieNode::new()));
             }
-            node = Rc::make_mut(&mut node.children[child_index - 1]);
+            node = Rc::make_mut(&mut node.children[child_index]);
         }
         node.is_end = true;
     }
