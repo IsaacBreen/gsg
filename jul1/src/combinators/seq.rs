@@ -4,52 +4,111 @@ use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait,
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
-    pub children: Vec<Combinator>,
+    a: Rc<Combinator>,
+    b: Rc<Combinator>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
-    pub parser_vecs: Vec<Vec<Parser>>,
+    pub(crate) a: Option<Box<Parser>>,
+    pub(crate) bs: Vec<Parser>,
+    b: Rc<Combinator>,
+    right_data: RightData,
 }
 
 impl CombinatorTrait for Seq {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let mut current_right_data = right_data;
-        let mut parsers = Vec::new();
-        let mut parse_results = ParseResults::empty_finished();
-
-        for child in &self.children {
-            let (parser, results) = child.parser(current_right_data);
-            parsers.push(parser);
-            parse_results.combine_inplace(results.clone());
-            current_right_data = results.right_data_vec.first().cloned().unwrap_or_default();
+        let (a, parse_results_a) = self.a.parser(right_data.clone());
+        let mut a = (!parse_results_a.done).then_some(Box::new(a));
+        let (mut bs, mut right_data_bs, mut up_data_bs) = (vec![], vec![], vec![]);
+        for right_data_b in parse_results_a.right_data_vec {
+            let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, done }) = self.b.parser(right_data_b);
+            if !done {
+                bs.push(b);
+            }
+            up_data_bs.extend(up_data_b);
+            right_data_bs.extend(right_data_b);
         }
-
-        (Parser::SeqParser(SeqParser { parser_vecs }), parse_results)
+        let done = a.is_none() && bs.is_empty();
+        let parser = Parser::SeqParser(SeqParser {
+            a,
+            bs,
+            b: self.b.clone(),
+            right_data,
+        });
+        (parser, ParseResults {
+            right_data_vec: right_data_bs,
+            up_data_vec: up_data_bs.into_iter().chain(parse_results_a.up_data_vec).collect(),
+            done,
+        })
     }
 }
 
 impl ParserTrait for SeqParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        let mut parse_results = ParseResults::default();
+        let mut right_data_a = vec![];
+        let mut up_data_a = vec![];
 
-        for parser in &mut self.parser_vecs {
-            let results = parser.step(c);
-            parse_results.combine_inplace(results);
+        if let Some(a) = &mut self.a {
+            let ParseResults { right_data_vec, up_data_vec, done: done_a } = a.step(c);
+            right_data_a = right_data_vec;
+            up_data_a = up_data_vec;
+            if done_a {
+                self.a = None;
+            }
         }
 
-        parse_results
+        let mut right_data_bs = vec![];
+        let mut up_data_bs = vec![];
+        let mut new_bs = vec![];
+
+        for mut b in self.bs.drain(..) {
+            let ParseResults { right_data_vec, up_data_vec, done } = b.step(c);
+            if !done {
+                new_bs.push(b);
+            }
+            up_data_bs.extend(up_data_vec);
+            right_data_bs.extend(right_data_vec);
+        }
+
+        for right_data_b in right_data_a {
+            let (b, ParseResults { right_data_vec: right_data_b, up_data_vec: up_data_b, done}) = self.b.parser(right_data_b);
+            if !done {
+                new_bs.push(b);
+            }
+            up_data_bs.extend(up_data_b);
+            right_data_bs.extend(right_data_b);
+        }
+
+        self.bs = new_bs;
+
+        ParseResults {
+            right_data_vec: right_data_bs,
+            up_data_vec: up_data_bs.into_iter().chain(up_data_a).collect(),
+            done: self.a.is_none() && self.bs.is_empty(),
+        }
     }
 }
 
-pub fn _seq(children: Vec<Combinator>) -> Combinator {
-    Combinator::Seq(Seq { children })
+pub fn _seq(mut v: Vec<Combinator>) -> Combinator {
+    if v.is_empty() {
+        eps().into()
+    } else if v.len() == 1 {
+        v.pop().unwrap().into()
+    } else {
+        let b = v.split_off(v.len() / 2);
+        Seq {
+            a: Rc::new(_seq(v).into()),
+            b: Rc::new(_seq(b).into()),
+        }.into()
+    }
 }
 
 #[macro_export]
 macro_rules! seq {
-    ($($child:expr),+ $(,)?) => {
-        $crate::_seq(vec![$($child.into()),*])
+    // Ensure there's at least two sequents
+    ($a:expr, $($rest:expr),+ $(,)?) => {
+        $crate::_seq(vec![$a.into(), $($rest.into()),*])
     };
 }
 

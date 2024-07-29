@@ -5,50 +5,68 @@ use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Choice {
-    pub children: Vec<Combinator>,
+    pub(crate) a: Box<Combinator>,
+    pub(crate) b: Box<Combinator>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ChoiceParser {
-    pub parsers: Vec<Parser>,
+    pub(crate) a: Option<Box<Parser>>,
+    pub(crate) b: Option<Box<Parser>>,
 }
 
 impl CombinatorTrait for Choice {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let mut parsers = Vec::new();
-        let mut parse_results = ParseResults::empty_finished();
-
-        for child in &self.children {
-            let (parser, results) = child.parser(right_data.clone());
-            parsers.push(parser);
-            parse_results.combine_inplace(results);
-        }
-
-        (Parser::ChoiceParser(ChoiceParser { parsers }), parse_results)
+        let (a, parse_results_a) = self.a.parser(right_data.clone());
+        let (b, parse_results_b) = self.b.parser(right_data);
+        (
+            Parser::ChoiceParser(ChoiceParser { a: parse_results_a.done.not().then_some(Box::new(a)), b: parse_results_b.done.not().then_some(Box::new(b)) }),
+            parse_results_a.combine_inplace(parse_results_b)
+        )
     }
 }
 
 impl ParserTrait for ChoiceParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        let mut parse_results = ParseResults::empty_finished();
-
-        for parser in &mut self.parsers {
-            let results = parser.step(c);
-            parse_results.combine_inplace(results);
+        let mut parse_result = ParseResults::empty_finished();
+        if let Some(a) = &mut self.a {
+            let parse_result_a = a.step(c);
+            if parse_result_a.done {
+                self.a = None;
+            }
+            parse_result.combine(parse_result_a);
         }
-
-        parse_results
+        if let Some(b) = &mut self.b {
+            let parse_result_b = b.step(c);
+            if parse_result_b.done {
+                self.b = None;
+            }
+            parse_result.combine(parse_result_b);
+        }
+        parse_result.squash();
+        parse_result
     }
 }
 
-pub fn _choice(children: Vec<Combinator>) -> Combinator {
-    Combinator::Choice(Choice { children })
+pub fn _choice(mut v: Vec<Combinator>) -> Combinator {
+    if v.is_empty() {
+        eps().into()
+    } else if v.len() == 1 {
+        v.pop().unwrap()
+    } else {
+        let b = v.split_off(v.len() / 2);
+        Choice {
+            a: Box::new(_choice(v)),
+            b: Box::new(_choice(b)),
+        }.into()
+    }
 }
 
 #[macro_export]
 macro_rules! choice {
-    ($($child:expr),+ $(,)?) => {
-        $crate::_choice(vec![$($child.into()),*])
+    // Ensure there's at least two choices
+    ($a:expr, $($rest:expr),+ $(,)?) => {
+        $crate::_choice(vec![$a.into(), $($rest.into()),*])
     };
 }
 
