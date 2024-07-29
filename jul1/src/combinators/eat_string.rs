@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
+use crate::{_choice, choice, Combinator, CombinatorTrait, eat_byte, eat_byte_choice, eat_char_choice, eps, fail, Parser, ParseResults, ParserTrait, seq, Stats, U8Set};
+use crate::combinators::derived::opt;
 use crate::parse_state::{RightData, UpData};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -83,6 +84,56 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
     }
 }
 
-use crate::combinators::eat_bytestring_choice::eat_bytestring_choice;
+pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
+    let mut trie = Trie::new();
+    for bytestring in bytestrings {
+        trie.insert(&bytestring);
+    }
+    trie.to_combinator()
+}
 
-pub use crate::combinators::eat_bytestring_choice::EatByteStringChoice;
+struct Trie {
+    children: BTreeMap<u8, Trie>,
+    is_end: bool,
+}
+
+impl Trie {
+    fn new() -> Self {
+        Trie {
+            children: BTreeMap::new(),
+            is_end: false,
+        }
+    }
+
+    fn insert(&mut self, bytestring: &[u8]) {
+        let mut node = self;
+        for &byte in bytestring {
+            node = node.children.entry(byte).or_insert(Trie::new());
+        }
+        node.is_end = true;
+    }
+
+    fn to_combinator(&self) -> Combinator {
+        if self.children.is_empty() {
+            return if self.is_end { eps().into() } else { fail().into() };
+        }
+
+        let mut choices = Vec::new();
+        for (&byte, child) in &self.children {
+            let next = child.to_combinator();
+            choices.push(seq!(eat_byte(byte), next));
+        }
+
+        let result = if choices.len() == 1 {
+            choices.pop().unwrap()
+        } else {
+            _choice(choices)
+        };
+
+        if self.is_end {
+            opt(result)
+        } else {
+            result
+        }
+    }
+}
