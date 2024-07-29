@@ -22,6 +22,8 @@ mod parse_state;
 mod u8set;
 mod bitset256;
 
+pub use combinators::eat_bytestring_choice::eat_bytestring_choice;
+
 // Include tests
 mod tests;
 mod frame_stack;
