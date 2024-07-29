@@ -84,27 +84,23 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
     }
 }
 
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-
 pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
-    let mut trie = OptimizedTrie::new();
+    let mut trie = Trie::new();
     for bytestring in bytestrings {
         trie.insert(&bytestring);
     }
     trie.to_combinator()
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct OptimizedTrie {
-    children: HashMap<u8, OptimizedTrie>,
+struct Trie {
+    children: BTreeMap<u8, Trie>,
     is_end: bool,
 }
 
-impl OptimizedTrie {
+impl Trie {
     fn new() -> Self {
-        OptimizedTrie {
-            children: HashMap::new(),
+        Trie {
+            children: BTreeMap::new(),
             is_end: false,
         }
     }
@@ -112,96 +108,32 @@ impl OptimizedTrie {
     fn insert(&mut self, bytestring: &[u8]) {
         let mut node = self;
         for &byte in bytestring {
-            node = node.children.entry(byte).or_insert_with(OptimizedTrie::new);
+            node = node.children.entry(byte).or_insert(Trie::new());
         }
         node.is_end = true;
     }
 
-    fn to_combinator(&'static self) -> Combinator {
-        OptimizedByteStringChoice {
-            root: self,
-        }.into()
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct OptimizedByteStringChoice {
-    root: &'static OptimizedTrie,
-}
-
-impl CombinatorTrait for OptimizedByteStringChoice {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let parser = OptimizedByteStringChoiceParser {
-            trie: self.root,
-            right_data,
-        };
-
-        let first_bytes: U8Set = self.root.children.keys().cloned().collect();
-
-        (Parser::OptimizedByteStringChoiceParser(parser), ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![UpData { u8set: first_bytes }],
-            done: false,
-        })
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct OptimizedByteStringChoiceParser {
-    trie: &'static OptimizedTrie,
-    right_data: RightData,
-}
-
-impl Hash for OptimizedByteStringChoice {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.root.hash(state);
-    }
-}
-
-impl Hash for OptimizedByteStringChoiceParser {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.trie.hash(state);
-        self.right_data.hash(state);
-    }
-}
-
-impl ParserTrait for OptimizedByteStringChoiceParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        if let Some(next_trie) = self.trie.children.get(&c) {
-            self.trie = next_trie;
-            self.right_data.position += 1;
-
-            if self.trie.is_end {
-                if self.trie.children.is_empty() {
-                    return ParseResults {
-                        right_data_vec: vec![self.right_data.clone()],
-                        up_data_vec: vec![],
-                        done: true,
-                    };
-                } else {
-                    let next_bytes: U8Set = self.trie.children.keys().cloned().collect();
-                    return ParseResults {
-                        right_data_vec: vec![self.right_data.clone()],
-                        up_data_vec: vec![UpData { u8set: next_bytes }],
-                        done: false,
-                    };
-                }
-            } else {
-                let next_bytes: U8Set = self.trie.children.keys().cloned().collect();
-                return ParseResults {
-                    right_data_vec: vec![],
-                    up_data_vec: vec![UpData { u8set: next_bytes }],
-                    done: false,
-                };
-            }
+    fn to_combinator(&self) -> Combinator {
+        if self.children.is_empty() {
+            return if self.is_end { eps().into() } else { fail().into() };
         }
 
-        ParseResults::empty_finished()
-    }
-}
+        let mut choices = Vec::new();
+        for (&byte, child) in &self.children {
+            let next = child.to_combinator();
+            choices.push(seq!(eat_byte(byte), next));
+        }
 
-impl From<OptimizedByteStringChoice> for Combinator {
-    fn from(value: OptimizedByteStringChoice) -> Self {
-        Combinator::OptimizedByteStringChoice(value)
+        let result = if choices.len() == 1 {
+            choices.pop().unwrap()
+        } else {
+            _choice(choices)
+        };
+
+        if self.is_end {
+            opt(result)
+        } else {
+            result
+        }
     }
 }
