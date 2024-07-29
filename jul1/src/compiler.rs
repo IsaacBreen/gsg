@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::collections::HashMap;
 use crate::*;
 
 pub trait Compile {
@@ -23,17 +24,47 @@ impl Compile for Combinator {
 
 impl Compile for Seq {
     fn compile(self) -> Combinator {
-        let mut flattened_children = Vec::new();
+        let mut children = Vec::new();
         
         for child in self.children {
             let compiled_child = child.as_ref().clone().compile();
             match compiled_child {
-                Combinator::Seq(inner_seq) => flattened_children.extend(inner_seq.children),
-                _ => flattened_children.push(Rc::new(compiled_child)),
+                Combinator::Seq(inner_seq) => children.extend(inner_seq.children),
+                Combinator::Fail(_) => return Combinator::Fail(Fail),
+                Combinator::Eps(_) => {},
+                _ => children.push(Rc::new(compiled_child)),
             }
         }
         
-        Combinator::Seq(Seq { children: flattened_children })
+        // Optimize repeated patterns
+        let mut i = 0;
+        while i < children.len() - 1 {
+            if let (Some(a), Some(b)) = (children.get(i), children.get(i + 1)) {
+                match (a.as_ref(), b.as_ref()) {
+                    (a, Combinator::Choice(Choice { children: b_children })) if b_children.contains(&Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::clone(a) }))) && b_children.contains(&Rc::new(Combinator::Eps(Eps))) => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::clone(a) }));
+                        children.remove(i + 1);
+                    },
+                    (Combinator::Choice(Choice { children: a_children }), b) if a_children.contains(&Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::clone(b) }))) && a_children.contains(&Rc::new(Combinator::Eps(Eps))) => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::clone(b) }));
+                        children.remove(i + 1);
+                    },
+                    (a, b) if a == b => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::clone(a) }));
+                        children.remove(i + 1);
+                    },
+                    _ => i += 1,
+                }
+            } else {
+                break;
+            }
+        }
+        
+        match children.len() {
+            0 => Combinator::Eps(Eps),
+            1 => Rc::unwrap_or_clone(children.pop().unwrap()),
+            _ => Combinator::Seq(Seq { children }),
+        }
     }
 }
 
@@ -55,6 +86,7 @@ impl Compile for Choice {
                 Combinator::Choice(inner_choice) => {
                     other_children.extend(inner_choice.children);
                 }
+                Combinator::Fail(_) => {},
                 _ => other_children.push(Rc::new(compiled_child)),
             }
         }
@@ -69,7 +101,47 @@ impl Compile for Choice {
             other_children.push(Rc::new(Combinator::EatString(EatString { string: eat_string })));
         }
         
-        Combinator::Choice(Choice { children: other_children })
+        // Group by common prefixes
+        let mut groups: HashMap<Rc<Combinator>, Vec<Rc<Combinator>>> = HashMap::new();
+        for child in other_children {
+            if let Combinator::Seq(Seq { children }) = child.as_ref() {
+                if let Some(first) = children.first() {
+                    groups.entry(Rc::clone(first)).or_default().push(child);
+                } else {
+                    groups.entry(Rc::new(Combinator::Eps(Eps))).or_default().push(child);
+                }
+            } else {
+                groups.entry(Rc::clone(&child)).or_default().push(child);
+            }
+        }
+        
+        let mut new_children = Vec::new();
+        for (prefix, group) in groups {
+            if group.len() == 1 {
+                new_children.push(group[0].clone());
+            } else {
+                let suffixes: Vec<Rc<Combinator>> = group.into_iter()
+                    .map(|c| match c.as_ref() {
+                        Combinator::Seq(Seq { children }) if children.first() == Some(&prefix) => {
+                            Rc::new(Combinator::Seq(Seq { children: children[1..].to_vec() }))
+                        },
+                        _ => Rc::new(Combinator::Eps(Eps)),
+                    })
+                    .collect();
+                new_children.push(Rc::new(Combinator::Seq(Seq {
+                    children: vec![
+                        prefix,
+                        Rc::new(Combinator::Choice(Choice { children: suffixes })),
+                    ],
+                })));
+            }
+        }
+        
+        match new_children.len() {
+            0 => Combinator::Fail(Fail),
+            1 => Rc::unwrap_or_clone(new_children.pop().unwrap()),
+            _ => Combinator::Choice(Choice { children: new_children }),
+        }
     }
 }
 
@@ -100,7 +172,10 @@ impl Compile for Fail {
 impl Compile for Repeat1 {
     fn compile(self) -> Combinator {
         let compiled_a = self.a.as_ref().clone().compile();
-        Combinator::Repeat1(Repeat1 { a: Rc::new(compiled_a) })
+        match compiled_a {
+            Combinator::Fail(_) => Combinator::Fail(Fail),
+            _ => Combinator::Repeat1(Repeat1 { a: Rc::new(compiled_a) }),
+        }
     }
 }
 

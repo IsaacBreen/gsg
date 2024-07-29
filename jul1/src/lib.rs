@@ -31,3 +31,13 @@ mod into_combinator;
 mod compiler;
 
 pub use compiler::Compile;
+
+pub trait RcExt<T> {
+    fn unwrap_or_clone(self) -> T;
+}
+
+impl<T: Clone> RcExt<T> for Rc<T> {
+    fn unwrap_or_clone(self) -> T {
+        Rc::try_unwrap(self).unwrap_or_else(|rc| (*rc).clone())
+    }
+}
