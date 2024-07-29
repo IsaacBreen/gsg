@@ -15,6 +15,14 @@ impl BitSet256 {
         }
     }
 
+    pub fn count_bits_before(&self, index: u8) -> u32 {
+        if index < 128 {
+            (self.x & ((1u128 << index) - 1)).count_ones()
+        } else {
+            self.x.count_ones() + ((self.y & ((1u128 << (index - 128)) - 1)).count_ones())
+        }
+    }
+
     pub fn set_bit(&mut self, index: u8) {
         if index < 128 {
             self.x |= 1 << index;

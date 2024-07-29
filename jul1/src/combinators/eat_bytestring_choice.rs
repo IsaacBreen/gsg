@@ -4,21 +4,15 @@ use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Se
 use crate::parse_state::{RightData, UpData};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct TrieNode {
+struct BuildTrieNode {
     valid_bytes: U8Set,
     is_end: bool,
-    children: Vec<Option<Rc<TrieNode>>>,
+    children: Vec<Option<Rc<BuildTrieNode>>>,
 }
 
-impl Hash for TrieNode {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.valid_bytes.hash(state);
-    }
-}
-
-impl TrieNode {
+impl BuildTrieNode {
     fn new() -> Self {
-        TrieNode {
+        BuildTrieNode {
             valid_bytes: U8Set::none(),
             is_end: false,
             children: vec![None; 256],
@@ -30,11 +24,36 @@ impl TrieNode {
         for &byte in bytestring {
             node.valid_bytes.insert(byte);
             if node.children[byte as usize].is_none() {
-                node.children[byte as usize] = Some(Rc::new(TrieNode::new()));
+                node.children[byte as usize] = Some(Rc::new(BuildTrieNode::new()));
             }
             node = Rc::make_mut(node.children[byte as usize].as_mut().unwrap());
         }
         node.is_end = true;
+    }
+
+    fn to_optimized_trie_node(&self) -> TrieNode {
+        let children: Vec<Rc<TrieNode>> = self.children.iter()
+            .filter_map(|child| child.as_ref().map(|c| Rc::new(c.to_optimized_trie_node())))
+            .collect();
+
+        TrieNode {
+            valid_bytes: self.valid_bytes,
+            is_end: self.is_end,
+            children,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TrieNode {
+    valid_bytes: U8Set,
+    is_end: bool,
+    children: Vec<Rc<TrieNode>>,
+}
+
+impl Hash for TrieNode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.valid_bytes.hash(state);
     }
 }
 
@@ -45,10 +64,11 @@ pub struct EatByteStringChoice {
 
 impl EatByteStringChoice {
     pub fn new(bytestrings: Vec<Vec<u8>>) -> Self {
-        let mut root = TrieNode::new();
+        let mut build_root = BuildTrieNode::new();
         for bytestring in bytestrings {
-            root.insert(&bytestring);
+            build_root.insert(&bytestring);
         }
+        let root = build_root.to_optimized_trie_node();
         EatByteStringChoice { root: Rc::new(root) }
     }
 }
@@ -79,8 +99,9 @@ impl CombinatorTrait for EatByteStringChoice {
 impl ParserTrait for EatByteStringChoiceParser {
     fn step(&mut self, c: u8) -> ParseResults {
         if self.current_node.valid_bytes.contains(c) {
-            let next_node = &self.current_node.children[c as usize];
-            if let Some(next_node) = next_node {
+            let child_index = self.current_node.valid_bytes.bitset.count_bits_before(c) as usize;
+            if child_index < self.current_node.children.len() {
+                let next_node = &self.current_node.children[child_index];
                 self.current_node = Rc::clone(next_node);
                 self.right_data.position += 1;
 
