@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser, EatByteStringChoice, EatByteStringChoiceParser};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser, EatByteStringChoice, EatByteStringChoiceParser, CheckRightData, CheckRightDataParser};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -100,7 +100,8 @@ define_enum!(
     ForbidFollows,
     ForbidFollowsClear,
     ForbidFollowsCheckNot,
-    EatByteStringChoice
+    EatByteStringChoice,
+    CheckRightData
 );
 
 define_enum!(
@@ -120,7 +121,8 @@ define_enum!(
     SymbolParser,
     TaggedParser,
     WithNewFrameParser,
-    EatByteStringChoiceParser
+    EatByteStringChoiceParser,
+    CheckRightDataParser
 );
 
 macro_rules! match_combinator {
@@ -145,7 +147,8 @@ macro_rules! match_combinator {
             ForbidFollows,
             ForbidFollowsClear,
             ForbidFollowsCheckNot,
-            EatByteStringChoice
+            EatByteStringChoice,
+            CheckRightData
         )
     };
 }
@@ -168,7 +171,8 @@ macro_rules! match_parser {
             SymbolParser,
             TaggedParser,
             WithNewFrameParser,
-            EatByteStringChoiceParser
+            EatByteStringChoiceParser,
+            CheckRightDataParser
         )
     };
 }
