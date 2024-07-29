@@ -1,7 +1,7 @@
 pub use cache::*;
 pub use choice::*;
 pub use eat_string::*;
-pub use eat_u8_matching::*;
+pub use eat_u8::*;
 pub use eps::*;
 pub use fail::*;
 pub use forbid_follows::*;
@@ -16,7 +16,7 @@ pub use tag::*;
 
 mod choice;
 mod eat_string;
-mod eat_u8_matching;
+mod eat_u8;
 mod eps;
 mod forward_ref;
 mod repeat1;
@@ -35,7 +35,7 @@ mod eat_bytestring_choice;
 
 pub use choice::*;
 pub use eat_string::*;
-pub use eat_u8_matching::*;
+pub use eat_u8::*;
 pub use eps::*;
 pub use fail::*;
 pub use forbid_follows::*;
