@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn test_right_recursion_name_explosion() {
         // Based on a Python slowdown issue.
-        let NAME = symbol(tag("repeat_a", seq!(forbid_follows(&["repeat_a"]), repeat1(eat_char('a')))));
+        let NAME = symbol(tag("repeat_a", seq!(forbid_follows(&[0]), repeat1(eat_char('a')))));
 
         let mut combinator_recursive = forward_ref();
         let combinator_recursive = combinator_recursive.set(seq!(&NAME, &combinator_recursive));

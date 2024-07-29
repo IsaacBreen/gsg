@@ -2,12 +2,12 @@ use crate::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub struct ForbidFollowsData {
-    pub prev_match_ids: Vec<String>,
+    pub prev_match_ids: Vec<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollows {
-    match_ids: Vec<String>,
+    match_ids: Vec<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -15,7 +15,7 @@ pub struct ForbidFollowsClear {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollowsCheckNot {
-    match_id: String,
+    match_id: usize,
 }
 
 impl CombinatorTrait for ForbidFollows {
@@ -54,16 +54,16 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
     }
 }
 
-pub fn forbid_follows(match_ids: &[&str]) -> ForbidFollows {
-    ForbidFollows { match_ids: match_ids.iter().map(|s| s.to_string()).collect() }
+pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows {
+    ForbidFollows { match_ids: match_ids.to_vec() }
 }
 
 pub fn forbid_follows_clear() -> ForbidFollowsClear {
     ForbidFollowsClear {}
 }
 
-pub fn forbid_follows_check_not(match_id: &str) -> ForbidFollowsCheckNot {
-    ForbidFollowsCheckNot { match_id: match_id.to_string() }
+pub fn forbid_follows_check_not(match_id: usize) -> ForbidFollowsCheckNot {
+    ForbidFollowsCheckNot { match_id }
 }
 
 impl From<ForbidFollows> for Combinator {

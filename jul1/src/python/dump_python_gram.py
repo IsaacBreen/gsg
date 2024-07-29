@@ -214,10 +214,24 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     f.write('use crate::{seq, repeat0, repeat1};\n')
     f.write('\n')
     f.write('pub fn python_file() -> Combinator {\n')
+    f.write('    enum Forbidden {\n')
+    for token in tokens:
+        f.write(f'        {token},\n')
+    f.write('    }\n')
+    f.write('\n')
     for token in tokens:
         expr = f'{token}()'
+
         token_ref = remove_left_recursion.ref(token)
-        expr = f'seq!(forbid_follows_check_not("{token}"), {expr}, forbid_follows(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table.get(token_ref, []))}]))'
+        if token_ref in unresolved_follows_table and any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):
+            expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
+        elif token_ref in unresolved_follows_table:
+            expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
+        elif any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):
+            expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr})'
+        else:
+            expr = f'seq!({expr})'
+
         expr = f'tag("{token}", {expr})'
         expr = f'{expr}'
         f.write(f"    let {token} = symbol({expr});\n")

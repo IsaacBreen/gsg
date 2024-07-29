@@ -56,8 +56,6 @@ impl ParserTrait for Repeat1Parser {
             right_data_as.extend(right_data_a);
         }
 
-        // right_data_as.squash();
-
         self.a_parsers = new_parsers;
 
         ParseResults {
