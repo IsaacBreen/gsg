@@ -35,24 +35,42 @@ impl Compile for Seq {
                 _ => children.push(Rc::new(compiled_child)),
             }
         }
-        
+
         // Optimize repeated patterns
         let mut i = 0;
         while i < children.len() - 1 {
             if let (Some(a), Some(b)) = (children.get(i), children.get(i + 1)) {
                 match (a.as_ref(), b.as_ref()) {
-                    (a, Combinator::Choice(Choice { children: b_children })) if b_children.contains(&Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::clone(a) }))) && b_children.contains(&Rc::new(Combinator::Eps(Eps))) => {
-                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::clone(a) }));
+                    //     case (A1, Choice([Repeat1(A2), Seq([])])) if A1 == A2:
+                    //         children[ix] = Repeat1(A1)
+                    //         children.pop(iy)
+                    (a, Combinator::Choice(Choice { children: b_children })) if b_children.contains(&Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(a.clone()) }))) && b_children.contains(&Rc::new(Combinator::Eps(Eps))) => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(a.clone()) }));
                         children.remove(i + 1);
                     },
-                    (Combinator::Choice(Choice { children: a_children }), b) if a_children.contains(&Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::clone(b) }))) && a_children.contains(&Rc::new(Combinator::Eps(Eps))) => {
-                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::clone(b) }));
+                    //     case (Choice([Repeat1(A2), Seq([])]), A1) if A1 == A2:
+                    //         children[iy] = Repeat1(A1)
+                    //         children.pop(ix)
+                    (Combinator::Choice(Choice { children: a_children }), b) if a_children.contains(&Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(b.clone()) }))) && a_children.contains(&Rc::new(Combinator::Eps(Eps))) => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(b.clone()) }));
                         children.remove(i + 1);
                     },
-                    (a, b) if a == b => {
-                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::clone(a) }));
+                    //     case (A1, Repeat1(A2)) if A1 == A2:
+                    //         children[ix] = Repeat1(A1)
+                    //         children.pop(iy)
+                    (a, Combinator::Repeat1(Repeat1 { a: b })) if *a == **b => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(a.clone()) }));
                         children.remove(i + 1);
                     },
+                    //     case (Repeat1(A2), A1) if A1 == A2:
+                    //         children[iy] = Repeat1(A1)
+                    //         children.pop(ix)
+                    (Combinator::Repeat1(Repeat1 { a: a }), b) if **a == *b => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(b.clone()) }));
+                        children.remove(i + 1);
+                    },
+                    //     case _:
+                    //         continue
                     _ => i += 1,
                 }
             } else {
