@@ -57,6 +57,14 @@ impl BitSet256 {
         BitSet256 { x: 0, y: 0 }
     }
 
+    pub fn count_ones_before(&self, index: u8) -> u32 {
+        if index < 128 {
+            (self.x & ((1u128 << index) - 1)).count_ones()
+        } else {
+            self.x.count_ones() + ((self.y & ((1u128 << (index - 128)) - 1)).count_ones())
+        }
+    }
+
     pub fn union(&self, other: &Self) -> Self {
         BitSet256 {
             x: self.x | other.x,

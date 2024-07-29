@@ -33,8 +33,8 @@ impl TrieNode {
                 node.valid_bytes.insert(byte);
                 node.children.push(Box::new(TrieNode::new()));
             }
-            let index = node.valid_bytes.iter().take_while(|&b| b < byte).count();
-            node = &mut node.children[index];
+            let index = node.valid_bytes.bitset.count_ones_before(byte);
+            node = &mut node.children[index as usize];
         }
         node.is_end = true;
     }
@@ -83,7 +83,7 @@ impl ParserTrait for EatByteStringChoiceParser {
         unsafe {
             let current_node = &*self.current_node;
             if current_node.valid_bytes.contains(c) {
-                let index = current_node.valid_bytes.iter().take_while(|&b| b < c).count();
+                let index = current_node.valid_bytes.bitset.count_ones_before(c) as usize;
                 let next_node = &*current_node.children[index];
                 self.current_node = next_node;
                 self.right_data.position += 1;
