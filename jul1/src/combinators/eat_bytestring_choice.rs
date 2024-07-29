@@ -31,11 +31,11 @@ impl TrieNode {
         let mut node = self;
         for &byte in bytestring {
             node.valid_bytes.insert(byte);
-            let child_index = node.valid_bytes.bitset.count_bits_before(byte) as usize - 1;
-            if child_index == node.children.len() {
+            let child_index = node.valid_bytes.bitset.count_bits_before(byte) as usize;
+            if child_index > node.children.len() {
                 node.children.push(Rc::new(TrieNode::new()));
             }
-            node = Rc::make_mut(&mut node.children[child_index]);
+            node = Rc::make_mut(&mut node.children[child_index - 1]);
         }
         node.is_end = true;
     }
