@@ -2,6 +2,8 @@ use std::collections::HashSet;
 
 use crate::{ParseResults, RightData, U8Set, UpData};
 
+const SQUASH_THRESHOLD: usize = 1;
+
 pub trait Squash {
     type Output;
     fn squashed(self) -> Self::Output;
@@ -11,7 +13,7 @@ pub trait Squash {
 impl Squash for Vec<RightData> {
     type Output = Vec<RightData>;
     fn squashed(self) -> Self::Output {
-        if self.len() > 1 {
+        if self.len() > SQUASH_THRESHOLD {
             self.into_iter().collect::<HashSet<_>>().into_iter().collect()
         } else {
             self
@@ -27,7 +29,7 @@ impl Squash for Vec<RightData> {
 impl Squash for Vec<UpData> {
     type Output = Vec<UpData>;
     fn squashed(self) -> Self::Output {
-        if self.len() > 1 {
+        if self.len() > SQUASH_THRESHOLD {
             let mut u8set = U8Set::none();
             for vd in self {
                 u8set = u8set.union(&vd.u8set);

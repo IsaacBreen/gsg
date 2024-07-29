@@ -70,6 +70,12 @@ pub fn eat_char_negation_choice(chars: &str) -> EatU8 {
     }
 }
 
+pub fn eat_byte_choice(bytes: &[u8]) -> EatU8 {
+    EatU8 {
+        u8set: U8Set::from_bytes(bytes),
+    }
+}
+
 pub fn eat_byte_range(start: u8, end: u8) -> EatU8 {
     EatU8 {
         u8set: U8Set::from_range(start, end),
