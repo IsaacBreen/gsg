@@ -9,38 +9,35 @@ pub struct Seq {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
-    pub(crate) parsers: Vec<Vec<Parser>>,
-    children: Vec<Rc<Combinator>>,
+    pub(crate) children: Vec<(Rc<Combinator>, Vec<Parser>)>,
 }
 
 impl CombinatorTrait for Seq {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let mut parsers = Vec::new();
+        let mut children = Vec::new();
         let mut current_right_data = vec![right_data.clone()];
         let mut all_up_data = Vec::new();
         let mut all_done = true;
 
         for child in self.children.iter() {
-            let mut child_parsers = Vec::new();
-            let mut next_right_data = Vec::new();
+            let mut new_parsers = Vec::new();
+            let mut new_right_data = Vec::new();
 
-            for rd in current_right_data {
-                let (parser, ParseResults { right_data_vec, up_data_vec, done }) = child.parser(rd);
+            for right_data in current_right_data.into_iter() {
+                let (parser, ParseResults { right_data_vec, up_data_vec, done }) = child.parser(right_data);
                 if !done {
-                    child_parsers.push(parser);
+                    new_parsers.push(parser);
                     all_done = false;
                 }
-                next_right_data.extend(right_data_vec);
+                new_right_data.extend(right_data_vec);
                 all_up_data.extend(up_data_vec);
             }
-            parsers.push(child_parsers);
-            current_right_data = next_right_data;
+
+            children.push((child.clone(), new_parsers));
+            current_right_data = new_right_data;
         }
 
-        let parser = Parser::SeqParser(SeqParser {
-            parsers,
-            children: self.children.clone(),
-        });
+        let parser = Parser::SeqParser(SeqParser { children });
 
         let parse_results = ParseResults {
             right_data_vec: current_right_data,
@@ -48,7 +45,7 @@ impl CombinatorTrait for Seq {
             done: all_done,
         };
 
-        (parser, parse_results)
+        (parser.into(), parse_results)
     }
 }
 
@@ -58,26 +55,30 @@ impl ParserTrait for SeqParser {
         let mut all_up_data = Vec::new();
         let mut all_done = true;
 
-        for parsers in &mut self.parsers {
-            let mut next_parsers = Vec::new();
+        for (combinator, parsers) in &mut self.children {
             let mut next_right_data = Vec::new();
 
-            for mut parser in parsers.drain(..) {
+            parsers.retain_mut(|mut parser| {
                 let ParseResults { right_data_vec, up_data_vec, done } = parser.step(c);
                 if !done {
-                    next_parsers.push(parser);
+                    all_done = false;
+                }
+                next_right_data.extend(right_data_vec);
+                all_up_data.extend(up_data_vec);
+                !done
+            });
+
+            for right_data in current_right_data.into_iter() {
+                let (parser, ParseResults { right_data_vec, up_data_vec, done }) = combinator.parser(right_data);
+                if !done {
+                    parsers.push(parser);
                     all_done = false;
                 }
                 next_right_data.extend(right_data_vec);
                 all_up_data.extend(up_data_vec);
             }
 
-            *parsers = next_parsers;
             current_right_data = next_right_data;
-
-            if parsers.is_empty() && !current_right_data.is_empty() {
-                break;
-            }
         }
 
         ParseResults {
