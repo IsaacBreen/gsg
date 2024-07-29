@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser, EatByteStringChoice, EatByteStringChoiceParser};
+use std::rc::Rc;
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser, EatByteStringChoice, EatByteStringChoiceParser, TrieNode};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -248,5 +249,59 @@ impl Parser {
 
     fn type_name(&self) -> String {
         match_parser!(self, inner => std::any::type_name_of_val(&inner)).to_string()
+    }
+}
+
+pub enum CombinatorMatcher<'a> {
+    Seq(&'a [CombinatorMatcher<'a>]),
+    Choice(&'a [CombinatorMatcher<'a>]),
+    EatU8(&'a U8Set),
+    EatString(&'a [u8]),
+    EatByteStringChoice(&'a Rc<TrieNode>),
+    Eps,
+    Fail,
+    CacheContext(&'a CombinatorMatcher<'a>),
+    Cached(&'a CombinatorMatcher<'a>),
+    IndentCombinator(IndentCombinator),
+    FrameStackOp(&'a CombinatorMatcher<'a>),
+    MutateRightData,
+    Repeat1(&'a CombinatorMatcher<'a>),
+    Symbol(&'a CombinatorMatcher<'a>),
+    Tagged(&'a CombinatorMatcher<'a>, &'a str),
+    ForwardRef(&'a CombinatorMatcher<'a>),
+    WithNewFrame(&'a CombinatorMatcher<'a>),
+    ForbidFollows(&'a [usize]),
+    ForbidFollowsClear,
+    ForbidFollowsCheckNot(usize),
+    ForbidFollowsCheckNotClear,
+}
+
+impl Combinator {
+    pub fn matcher<'a>(&'a self) -> CombinatorMatcher<'a> {
+        match self {
+            Combinator::Seq(Seq { children }) => CombinatorMatcher::Seq(children.iter().map(|child| child.matcher()).collect::<Vec<_>>().as_slice()),
+            Combinator::Choice(Choice { children }) => CombinatorMatcher::Choice(children.iter().map(|child| child.matcher()).collect::<Vec<_>>().as_slice()),
+            Combinator::EatU8(EatU8 { u8set }) => CombinatorMatcher::EatU8(u8set),
+            Combinator::EatString(EatString { string }) => CombinatorMatcher::EatString(string),
+            Combinator::EatByteStringChoice(EatByteStringChoice { root }) => CombinatorMatcher::EatByteStringChoice(root),
+            Combinator::Eps(_) => CombinatorMatcher::Eps,
+            Combinator::Fail(_) => CombinatorMatcher::Fail,
+            Combinator::CacheContext(CacheContext { inner }) => CombinatorMatcher::CacheContext(&inner.matcher()),
+            Combinator::Cached(Cached { inner }) => CombinatorMatcher::Cached(&inner.matcher()),
+            Combinator::IndentCombinator(IndentCombinator::Dent) => CombinatorMatcher::IndentCombinator(IndentCombinator::Dent),
+            Combinator::IndentCombinator(IndentCombinator::Indent) => CombinatorMatcher::IndentCombinator(IndentCombinator::Indent),
+            Combinator::IndentCombinator(IndentCombinator::Dedent) => CombinatorMatcher::IndentCombinator(IndentCombinator::Dedent),
+            Combinator::IndentCombinator(IndentCombinator::AssertNoDedents) => CombinatorMatcher::IndentCombinator(IndentCombinator::AssertNoDedents),
+            Combinator::FrameStackOp(FrameStackOp { op_type, a }) => CombinatorMatcher::FrameStackOp(&a.matcher()),
+            Combinator::MutateRightData(_) => CombinatorMatcher::MutateRightData,
+            Combinator::Repeat1(Repeat1 { a }) => CombinatorMatcher::Repeat1(&a.matcher()),
+            Combinator::Symbol(Symbol { value }) => CombinatorMatcher::Symbol(&value.matcher()),
+            Combinator::Tagged(Tagged { inner, tag }) => CombinatorMatcher::Tagged(&inner.matcher(), tag.as_str()),
+            Combinator::ForwardRef(ForwardRef { a }) => CombinatorMatcher::ForwardRef(&a.borrow().as_ref().unwrap().matcher()),
+            Combinator::WithNewFrame(WithNewFrame { a }) => CombinatorMatcher::WithNewFrame(&a.matcher()),
+            Combinator::ForbidFollows(ForbidFollows { match_ids }) => CombinatorMatcher::ForbidFollows(match_ids),
+            Combinator::ForbidFollowsClear(_) => CombinatorMatcher::ForbidFollowsClear,
+            Combinator::ForbidFollowsCheckNot(ForbidFollowsCheckNot { match_id }) => CombinatorMatcher::ForbidFollowsCheckNot(*match_id),
+        }
     }
 }
