@@ -195,28 +195,7 @@ impl ParserTrait for Parser {
 
 impl Combinator {
     pub fn type_name(&self) -> String {
-        match self {
-            Combinator::Seq(_) => "Seq",
-            Combinator::Choice(_) => "Choice",
-            Combinator::EatU8(_) => "EatU8",
-            Combinator::EatString(_) => "EatString",
-            Combinator::CacheContext(_) => "CacheContext",
-            Combinator::Cached(_) => "Cached",
-            Combinator::FrameStackOp(_) => "FrameStackOp",
-            Combinator::MutateRightData(_) => "MutateRightData",
-            Combinator::Repeat1(_) => "Repeat1",
-            Combinator::Symbol(_) => "Symbol",
-            Combinator::Tagged(_) => "Tagged",
-            Combinator::ForwardRef(_) => "ForwardRef",
-            Combinator::WithNewFrame(_) => "WithNewFrame",
-            Combinator::ForbidFollows(_) => "ForbidFollows",
-            Combinator::Eps(_) => "Eps",
-            Combinator::Fail(_) => "Fail",
-            Combinator::IndentCombinator(_) => "IndentCombinator",
-            Combinator::ForbidFollowsClear(_) => "ForbidFollowsClear",
-            Combinator::ForbidFollowsCheckNot(_) => "ForbidFollowsCheckNot",
-            Combinator::EatByteStringChoice(_) => "EatByteStringChoice",
-        }.to_string()
+        match_combinator!(self, inner => std::any::type_name_of_val(&inner)).to_string()
     }
 }
 
@@ -268,27 +247,6 @@ impl Parser {
     }
 
     fn type_name(&self) -> String {
-        match self {
-            Parser::SeqParser(_) => "SeqParser",
-            Parser::ChoiceParser(_) => "ChoiceParser",
-            Parser::EatU8Parser(_) => "EatU8Parser",
-            Parser::EatStringParser(_) => "EatStringParser",
-            Parser::EpsParser(_) => "EpsParser",
-            Parser::FailParser(_) => "FailParser",
-            Parser::CacheContextParser(_) => "CacheContextParser",
-            Parser::CachedParser(_) => "CachedParser",
-            Parser::IndentCombinatorParser(p) => match p {
-                IndentCombinatorParser::DentParser(_) => "IndentCombinatorParser::DentParser",
-                IndentCombinatorParser::IndentParser(_) => "IndentCombinatorParser::IndentParser",
-                IndentCombinatorParser::Done => "IndentCombinatorParser::Done",
-            },
-            Parser::FrameStackOpParser(_) => "FrameStackOpParser",
-            Parser::MutateRightDataParser(_) => "MutateRightDataParser",
-            Parser::Repeat1Parser(_) => "Repeat1Parser",
-            Parser::SymbolParser(_) => "SymbolParser",
-            Parser::TaggedParser(_) => "TaggedParser",
-            Parser::WithNewFrameParser(_) => "WithNewFrameParser",
-            Parser::EatByteStringChoiceParser(_) => "EatByteStringChoiceParser",
-        }.to_string()
+        match_parser!(self, inner => std::any::type_name_of_val(&inner)).to_string()
     }
 }
