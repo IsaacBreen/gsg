@@ -42,12 +42,9 @@ impl ParserTrait for TaggedParser {
         }
     }
 
-    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
-        vec![self.inner.as_ref()]
-    }
-
-    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
-        vec![self.inner.as_mut()]
+    fn collect_stats(&self, stats: &mut Stats) {
+        stats.active_tags.entry(self.tag.clone()).and_modify(|e| *e += 1).or_insert(1);
+        self.inner.collect_stats(stats);
     }
 }
 

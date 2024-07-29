@@ -54,14 +54,6 @@ impl ParserTrait for WithNewFrameParser {
             done,
         }
     }
-
-    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
-        self.a.as_ref().map_or(vec![], |a| vec![a.as_ref()])
-    }
-
-    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
-        self.a.as_mut().map_or(vec![], |a| vec![a.as_mut()])
-    }
 }
 
 impl CombinatorTrait for FrameStackOp {
@@ -155,14 +147,6 @@ impl ParserTrait for FrameStackOpParser {
                 }
             }
         }
-    }
-
-    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
-        vec![self.a.as_ref()]
-    }
-
-    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
-        vec![self.a.as_mut()]
     }
 }
 

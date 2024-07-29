@@ -47,22 +47,7 @@ impl ParserTrait for ChoiceParser {
         parse_result
     }
 
-    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
-        match (self.a.as_ref(), self.b.as_ref()) {
-            (Some(a), Some(b)) => vec![a.as_ref(), b.as_ref()],
-            (Some(a), None) => vec![a.as_ref()],
-            (None, Some(b)) => vec![b.as_ref()],
-            (None, None) => vec![],
-        }
-    }
-
-    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
-        match (self.a.as_mut(), self.b.as_mut()) {
-            (Some(a), Some(b)) => vec![a.as_mut(), b.as_mut()],
-            (Some(a), None) => vec![a.as_mut()],
-            (None, Some(b)) => vec![b.as_mut()],
-            (None, None) => vec![],
-        }
+    fn collect_stats(&self, stats: &mut Stats) {
     }
 }
 

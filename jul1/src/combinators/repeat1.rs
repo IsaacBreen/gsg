@@ -73,14 +73,6 @@ impl ParserTrait for Repeat1Parser {
             a_parser.collect_stats(stats);
         }
     }
-
-    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
-        todo!()
-    }
-
-    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
-        todo!()
-    }
 }
 
 pub fn repeat1(a: impl Into<Combinator>) -> Repeat1 {

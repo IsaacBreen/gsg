@@ -76,14 +76,6 @@ impl ParserTrait for EatStringParser {
         let string = std::str::from_utf8(&self.string).unwrap();
         stats.active_string_matchers.entry(string.to_string()).and_modify(|c| *c += 1).or_insert(1);
     }
-
-    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
-        vec![]
-    }
-
-    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
-        vec![]
-    }
 }
 
 pub fn eat_string(string: &str) -> EatString {

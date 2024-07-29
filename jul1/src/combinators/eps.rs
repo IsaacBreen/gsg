@@ -21,14 +21,6 @@ impl ParserTrait for EpsParser {
     fn step(&mut self, c: u8) -> ParseResults {
         panic!("EpsParser already consumed")
     }
-
-    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
-        vec![]
-    }
-
-    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
-        vec![]
-    }
 }
 
 pub fn eps() -> Eps {

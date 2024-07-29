@@ -24,14 +24,6 @@ impl ParserTrait for SymbolParser {
     fn step(&mut self, c: u8) -> ParseResults {
         self.inner.step(c)
     }
-
-    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
-        vec![self.inner.as_ref()]
-    }
-
-    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
-        vec![self.inner.as_mut()]
-    }
 }
 
 pub fn symbol(value: impl Into<Combinator>) -> Symbol {
