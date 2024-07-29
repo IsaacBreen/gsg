@@ -58,10 +58,9 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     // Print timing results
     let mut timing_vec: Vec<(String, std::time::Duration)> = timings.into_iter().collect();
 
-    let total_time: u128 = timing_vec.iter().map(|(_, dur)| dur.as_nanos()).sum();
     // Get 90th percentile
     let mut timing_vec_sorted: Vec<(String, std::time::Duration)> = timing_vec.iter().cloned().collect();
-    timing_vec_sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    timing_vec_sorted.sort_by(|(line_a, duration_a), (line_b, duration_b)| (duration_b.as_secs_f64() / line_b.len() as f64).partial_cmp(&(duration_a.as_secs_f64() / line_a.len() as f64)).unwrap());
     let threshold = timing_vec_sorted[timing_vec_sorted.len() / 10].1;
 
     println!("Execution time profile:");
