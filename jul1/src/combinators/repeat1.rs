@@ -66,13 +66,6 @@ impl ParserTrait for Repeat1Parser {
             done: self.a_parsers.is_empty(),
         }
     }
-
-    fn collect_stats(&self, stats: &mut Stats) {
-        stats.active_parser_type_counts.entry("Repeat1Parser".to_string()).and_modify(|c| *c += 1).or_insert(1);
-        for a_parser in &self.a_parsers {
-            a_parser.collect_stats(stats);
-        }
-    }
 }
 
 pub fn repeat1(a: impl Into<Combinator>) -> Repeat1 {

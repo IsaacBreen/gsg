@@ -107,13 +107,6 @@ impl ParserTrait for CacheContextParser {
         self.cleanup();
         parse_result
     }
-
-    fn collect_stats(&self, stats: &mut Stats) {
-        self.inner.collect_stats(stats);
-        for entry in self.cache_data_inner.borrow().entries.iter() {
-            entry.borrow().parser.as_ref().unwrap().collect_stats(stats);
-        }
-    }
 }
 
 impl CombinatorTrait for Cached {

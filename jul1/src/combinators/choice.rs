@@ -46,9 +46,6 @@ impl ParserTrait for ChoiceParser {
         parse_result.squash();
         parse_result
     }
-
-    fn collect_stats(&self, stats: &mut Stats) {
-    }
 }
 
 pub fn _choice(mut v: Vec<Combinator>) -> Choice {

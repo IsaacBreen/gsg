@@ -88,16 +88,6 @@ impl ParserTrait for SeqParser {
             done: self.a.is_none() && self.bs.is_empty(),
         }
     }
-
-    fn collect_stats(&self, stats: &mut Stats) {
-        stats.active_parser_type_counts.entry("SeqParser".to_string()).and_modify(|c| *c += 1).or_insert(1);
-        if let Some(a) = &self.a {
-            a.collect_stats(stats);
-        }
-        for b in &self.bs {
-            b.collect_stats(stats);
-        }
-    }
 }
 
 pub fn _seq(mut v: Vec<Combinator>) -> Combinator {
