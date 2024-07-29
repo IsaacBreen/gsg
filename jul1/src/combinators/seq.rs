@@ -10,7 +10,6 @@ pub struct Seq {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
     pub(crate) children: Vec<(Rc<Combinator>, Vec<Parser>)>,
-    pub(crate) i: usize,
 }
 
 impl CombinatorTrait for Seq {
@@ -38,7 +37,7 @@ impl CombinatorTrait for Seq {
             current_right_data = new_right_data;
         }
 
-        let parser = Parser::SeqParser(SeqParser { children, i: 0 });
+        let parser = Parser::SeqParser(SeqParser { children });
 
         let parse_results = ParseResults {
             right_data_vec: current_right_data,
@@ -56,7 +55,7 @@ impl ParserTrait for SeqParser {
         let mut all_up_data = Vec::new();
         let mut all_done = true;
 
-        for (i, (combinator, parsers)) in self.children.iter_mut().enumerate() {
+        for (combinator, parsers) in &mut self.children {
             let mut next_right_data = Vec::new();
 
             parsers.retain_mut(|mut parser| {
@@ -80,10 +79,6 @@ impl ParserTrait for SeqParser {
             }
 
             current_right_data = next_right_data;
-
-            if parsers.is_empty() && self.i == i {
-                self.i += 1;
-            }
         }
 
         ParseResults {
