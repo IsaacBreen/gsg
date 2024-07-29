@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -99,7 +99,8 @@ define_enum!(
     WithNewFrame,
     ForbidFollows,
     ForbidFollowsClear,
-    ForbidFollowsCheckNot
+    ForbidFollowsCheckNot,
+    EatByteStringChoice
 );
 
 define_enum!(
@@ -118,7 +119,8 @@ define_enum!(
     Repeat1Parser,
     SymbolParser,
     TaggedParser,
-    WithNewFrameParser
+    WithNewFrameParser,
+    EatByteStringChoiceParser
 );
 
 macro_rules! match_combinator {
@@ -142,7 +144,8 @@ macro_rules! match_combinator {
             WithNewFrame,
             ForbidFollows,
             ForbidFollowsClear,
-            ForbidFollowsCheckNot
+            ForbidFollowsCheckNot,
+            EatByteStringChoice
         )
     };
 }
@@ -164,7 +167,8 @@ macro_rules! match_parser {
             Repeat1Parser,
             SymbolParser,
             TaggedParser,
-            WithNewFrameParser
+            WithNewFrameParser,
+            EatByteStringChoiceParser
         )
     };
 }
@@ -211,6 +215,7 @@ impl Combinator {
             Combinator::IndentCombinator(_) => "IndentCombinator",
             Combinator::ForbidFollowsClear(_) => "ForbidFollowsClear",
             Combinator::ForbidFollowsCheckNot(_) => "ForbidFollowsCheckNot",
+            Combinator::EatByteStringChoice(_) => "EatByteStringChoice",
         }.to_string()
     }
 }
@@ -283,6 +288,7 @@ impl Parser {
             Parser::SymbolParser(_) => "SymbolParser",
             Parser::TaggedParser(_) => "TaggedParser",
             Parser::WithNewFrameParser(_) => "WithNewFrameParser",
+            Parser::EatByteStringChoiceParser(_) => "EatByteStringChoiceParser",
         }.to_string()
     }
 }
