@@ -228,9 +228,8 @@ impl Parser {
                 a.as_ref().map(|a| a.collect_stats(stats));
                 bs.iter().for_each(|b| b.collect_stats(stats));
             }
-            Parser::ChoiceParser(ChoiceParser { a, b }) => {
-                a.as_ref().map(|a| a.collect_stats(stats));
-                b.as_ref().map(|b| b.collect_stats(stats));
+            Parser::ChoiceParser(ChoiceParser { parsers }) => {
+                parsers.iter().for_each(|p| p.collect_stats(stats));
             }
             Parser::EatU8Parser(EatU8Parser { u8set, .. }) => {
                 stats.active_u8_matchers.entry(u8set.clone()).or_default().add_assign(1);
@@ -257,7 +256,13 @@ impl Parser {
                 a.as_ref().map(|a| a.collect_stats(stats));
             }
             Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => parser.collect_stats(stats),
-            _ => {}
+            Parser::MutateRightDataParser(_) => {}
+            Parser::FailParser(_) => {}
+            Parser::EpsParser(_) => {}
+            Parser::CachedParser(_) => {}
+            Parser::WithNewFrameParser(_) => {}
+            Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(_)) => {}
+            Parser::IndentCombinatorParser(IndentCombinatorParser::Done) => {}
         }
         stats.active_parser_type_counts.entry(self.type_name()).or_default().add_assign(1);
     }
