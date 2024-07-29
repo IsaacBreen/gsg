@@ -9,14 +9,14 @@ pub struct Seq {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
-    pub parsers: Vec<Parser>,
+    pub parser_vecs: Vec<Vec<Parser>>,
 }
 
 impl CombinatorTrait for Seq {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         let mut current_right_data = right_data;
         let mut parsers = Vec::new();
-        let mut parse_results = ParseResults::default();
+        let mut parse_results = ParseResults::empty_finished();
 
         for child in &self.children {
             let (parser, results) = child.parser(current_right_data);
@@ -25,7 +25,7 @@ impl CombinatorTrait for Seq {
             current_right_data = results.right_data_vec.first().cloned().unwrap_or_default();
         }
 
-        (Parser::SeqParser(SeqParser { parsers }), parse_results)
+        (Parser::SeqParser(SeqParser { parser_vecs }), parse_results)
     }
 }
 
@@ -33,7 +33,7 @@ impl ParserTrait for SeqParser {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut parse_results = ParseResults::default();
 
-        for parser in &mut self.parsers {
+        for parser in &mut self.parser_vecs {
             let results = parser.step(c);
             parse_results.combine_inplace(results);
         }

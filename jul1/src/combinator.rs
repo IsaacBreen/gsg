@@ -224,9 +224,10 @@ impl Parser {
 
     pub fn collect_stats(&self, stats: &mut Stats) {
         match self {
-            Parser::SeqParser(SeqParser { a, bs, .. }) => {
-                a.as_ref().map(|a| a.collect_stats(stats));
-                bs.iter().for_each(|b| b.collect_stats(stats));
+            Parser::SeqParser(SeqParser { parser_vecs, .. }) => {
+                for parsers in parser_vecs.iter() {
+                    parsers.iter().for_each(|p| p.collect_stats(stats));
+                }
             }
             Parser::ChoiceParser(ChoiceParser { parsers }) => {
                 parsers.iter().for_each(|p| p.collect_stats(stats));

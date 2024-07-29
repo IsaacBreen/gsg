@@ -16,7 +16,7 @@ pub struct ChoiceParser {
 impl CombinatorTrait for Choice {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         let mut parsers = Vec::new();
-        let mut parse_results = ParseResults::default();
+        let mut parse_results = ParseResults::empty_finished();
 
         for child in &self.children {
             let (parser, results) = child.parser(right_data.clone());
@@ -30,7 +30,7 @@ impl CombinatorTrait for Choice {
 
 impl ParserTrait for ChoiceParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        let mut parse_results = ParseResults::default();
+        let mut parse_results = ParseResults::empty_finished();
 
         for parser in &mut self.parsers {
             let results = parser.step(c);
