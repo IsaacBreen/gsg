@@ -70,33 +70,33 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     });
     let threshold = timing_vec_sorted[timing_vec_sorted.len() / 10].1;
 
-    println!("Execution time profile:");
+    // println!("Execution time profile:");
     for (desc, duration) in timing_vec.clone() {
         let duration_secs = duration.as_secs_f64();
         let time_per_char = duration_secs / desc.len() as f64 * 1000.0;
         let emphasis = if duration > threshold { " * " } else { "   " };
         let bold = if duration > threshold { "\x1b[1m" } else { "" };
         let reset = if bold.is_empty() { "" } else { "\x1b[0m" };
-        println!("{}{:<15}{:<10}{}{:?}{}s",
-            emphasis,
-            format!("{:.3}ms/char", time_per_char),
-            format!("{:.3}s", duration_secs),
-            bold,
-            desc,
-            reset,
-        );
+        // println!("{}{:<15}{:<10}{}{:?}{}s",
+        //     emphasis,
+        //     format!("{:.3}ms/char", time_per_char),
+        //     format!("{:.3}s", duration_secs),
+        //     bold,
+        //     desc,
+        //     reset,
+        // );
     }
 
-    // Save to CSV
-    let mut csv_file = BufWriter::new(File::create("timings.csv").unwrap());
-    csv_file.write_all("index,text,duration\n".as_bytes()).unwrap();
-    for (i, (line, duration)) in timing_vec.iter().enumerate() {
-        // Escape quotes and newlines in the text
-        let line = line.replace("\"", "\"\"");
-        let line = line.replace("\n", "\\n");
-        csv_file.write_all(format!("{},\"{}\",{}\n", i, line, duration.as_secs_f64()).as_bytes()).unwrap();
-    }
-    println!("Saved timings to timings.csv");
+    // // Save to CSV
+    // let mut csv_file = BufWriter::new(File::create("timings.csv").unwrap());
+    // csv_file.write_all("index,text,duration\n".as_bytes()).unwrap();
+    // for (i, (line, duration)) in timing_vec.iter().enumerate() {
+    //     // Escape quotes and newlines in the text
+    //     let line = line.replace("\"", "\"\"");
+    //     let line = line.replace("\n", "\\n");
+    //     csv_file.write_all(format!("{},\"{}\",{}\n", i, line, duration.as_secs_f64()).as_bytes()).unwrap();
+    // }
+    // println!("Saved timings to timings.csv");
 }
 
 pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
