@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
-
+use std::ops::AddAssign;
 use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser};
 
 #[derive(Default, Debug, PartialEq, Eq)]
@@ -199,82 +199,59 @@ impl Parser {
     pub fn collect_stats(&self, stats: &mut Stats) {
         match self {
             Parser::SeqParser(SeqParser { a, bs, .. }) => {
-                if let Some(a) = a {
-                    a.collect_stats(stats);
-                }
-                for b in bs {
-                    b.collect_stats(stats);
-                }
-                *stats.active_parser_type_counts.entry("SeqParser".to_string()).or_insert(0) += 1;
+                a.as_ref().map(|a| a.collect_stats(stats));
+                bs.iter().for_each(|b| b.collect_stats(stats));
             }
             Parser::ChoiceParser(ChoiceParser { a, b }) => {
-                if let Some(a) = a {
-                    a.collect_stats(stats);
-                }
-                if let Some(b) = b {
-                    b.collect_stats(stats);
-                }
-                *stats.active_parser_type_counts.entry("ChoiceParser".to_string()).or_insert(0) += 1;
+                a.as_ref().map(|a| a.collect_stats(stats));
+                b.as_ref().map(|b| b.collect_stats(stats));
             }
             Parser::EatU8Parser(EatU8Parser { u8set, .. }) => {
-                *stats.active_u8_matchers.entry(u8set.clone()).or_insert(0) += 1;
-                *stats.active_parser_type_counts.entry("EatU8Parser".to_string()).or_insert(0) += 1;
+                stats.active_u8_matchers.entry(u8set.clone()).or_default().add_assign(1);
             }
             Parser::EatStringParser(EatStringParser { string, .. }) => {
-                *stats.active_string_matchers.entry(String::from_utf8_lossy(string).to_string()).or_insert(0) += 1;
-                *stats.active_parser_type_counts.entry("EatStringParser".to_string()).or_insert(0) += 1;
+                stats.active_string_matchers.entry(String::from_utf8_lossy(string).to_string()).or_default().add_assign(1);
             }
-            Parser::EpsParser(_) => {
-                *stats.active_parser_type_counts.entry("EpsParser".to_string()).or_insert(0) += 1;
-            }
-            Parser::FailParser(_) => {
-                *stats.active_parser_type_counts.entry("FailParser".to_string()).or_insert(0) += 1;
-            }
-            Parser::CacheContextParser(CacheContextParser { inner, .. }) => {
-                inner.collect_stats(stats);
-                *stats.active_parser_type_counts.entry("CacheContextParser".to_string()).or_insert(0) += 1;
-            }
-            Parser::CachedParser(CachedParser { .. }) => {
-                *stats.active_parser_type_counts.entry("CachedParser".to_string()).or_insert(0) += 1;
-            }
-            Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => {
-                parser.collect_stats(stats);
-                *stats.active_parser_type_counts.entry("IndentCombinatorParser::DentParser".to_string()).or_insert(0) += 1;
-            }
-            Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(_)) => {
-                *stats.active_parser_type_counts.entry("IndentCombinatorParser::IndentParser".to_string()).or_insert(0) += 1;
-            }
-            Parser::IndentCombinatorParser(IndentCombinatorParser::Done) => {
-                *stats.active_parser_type_counts.entry("IndentCombinatorParser::Done".to_string()).or_insert(0) += 1;
-            }
-            Parser::FrameStackOpParser(FrameStackOpParser { a, .. }) => {
-                a.collect_stats(stats);
-                *stats.active_parser_type_counts.entry("FrameStackOpParser".to_string()).or_insert(0) += 1;
-            }
-            Parser::MutateRightDataParser(_) => {
-                *stats.active_parser_type_counts.entry("MutateRightDataParser".to_string()).or_insert(0) += 1;
-            }
+            Parser::CacheContextParser(CacheContextParser { inner, .. }) |
+            Parser::FrameStackOpParser(FrameStackOpParser { a: inner, .. }) |
+            Parser::SymbolParser(SymbolParser { inner, .. }) |
+            Parser::TaggedParser(TaggedParser { inner, .. }) => inner.collect_stats(stats),
             Parser::Repeat1Parser(Repeat1Parser { a_parsers, .. }) => {
-                for a_parser in a_parsers {
-                    a_parser.collect_stats(stats);
-                }
-                *stats.active_parser_type_counts.entry("Repeat1Parser".to_string()).or_insert(0) += 1;
-            }
-            Parser::SymbolParser(SymbolParser { inner, .. }) => {
-                inner.as_ref().collect_stats(stats);
-                *stats.active_parser_type_counts.entry("SymbolParser".to_string()).or_insert(0) += 1;
-            }
-            Parser::TaggedParser(TaggedParser { inner, tag, .. }) => {
-                inner.collect_stats(stats);
-                *stats.active_tags.entry(tag.clone()).or_insert(0) += 1;
-                *stats.active_parser_type_counts.entry("TaggedParser".to_string()).or_insert(0) += 1;
+                a_parsers.iter().for_each(|p| p.collect_stats(stats));
             }
             Parser::WithNewFrameParser(WithNewFrameParser { a, .. }) => {
-                if let Some(a) = a {
-                    a.collect_stats(stats);
-                }
-                *stats.active_parser_type_counts.entry("WithNewFrameParser".to_string()).or_insert(0) += 1;
+                a.as_ref().map(|a| a.collect_stats(stats));
             }
+            Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => parser.collect_stats(stats),
+            _ => {}
         }
+        stats.active_parser_type_counts.entry(self.type_name()).or_default().add_assign(1);
+        if let Parser::TaggedParser(TaggedParser { tag, .. }) = self {
+            stats.active_tags.entry(tag.clone()).or_default().add_assign(1);
+        }
+    }
+
+    fn type_name(&self) -> String {
+        match self {
+            Parser::SeqParser(_) => "SeqParser",
+            Parser::ChoiceParser(_) => "ChoiceParser",
+            Parser::EatU8Parser(_) => "EatU8Parser",
+            Parser::EatStringParser(_) => "EatStringParser",
+            Parser::EpsParser(_) => "EpsParser",
+            Parser::FailParser(_) => "FailParser",
+            Parser::CacheContextParser(_) => "CacheContextParser",
+            Parser::CachedParser(_) => "CachedParser",
+            Parser::IndentCombinatorParser(p) => match p {
+                IndentCombinatorParser::DentParser(_) => "IndentCombinatorParser::DentParser",
+                IndentCombinatorParser::IndentParser(_) => "IndentCombinatorParser::IndentParser",
+                IndentCombinatorParser::Done => "IndentCombinatorParser::Done",
+            },
+            Parser::FrameStackOpParser(_) => "FrameStackOpParser",
+            Parser::MutateRightDataParser(_) => "MutateRightDataParser",
+            Parser::Repeat1Parser(_) => "Repeat1Parser",
+            Parser::SymbolParser(_) => "SymbolParser",
+            Parser::TaggedParser(_) => "TaggedParser",
+            Parser::WithNewFrameParser(_) => "WithNewFrameParser",
+        }.to_string()
     }
 }
