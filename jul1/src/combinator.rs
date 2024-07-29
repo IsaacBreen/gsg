@@ -224,13 +224,11 @@ impl Parser {
 
     pub fn collect_stats(&self, stats: &mut Stats) {
         match self {
-            Parser::SeqParser(SeqParser { a, bs, .. }) => {
-                a.as_ref().map(|a| a.collect_stats(stats));
-                bs.iter().for_each(|b| b.collect_stats(stats));
+            Parser::SeqParser(SeqParser { parsers, .. }) => {
+                parsers.iter().flatten().for_each(|p| p.collect_stats(stats));
             }
-            Parser::ChoiceParser(ChoiceParser { a, b }) => {
-                a.as_ref().map(|a| a.collect_stats(stats));
-                b.as_ref().map(|b| b.collect_stats(stats));
+            Parser::ChoiceParser(ChoiceParser { parsers }) => {
+                parsers.iter().for_each(|p| p.collect_stats(stats));
             }
             Parser::EatU8Parser(EatU8Parser { u8set, .. }) => {
                 stats.active_u8_matchers.entry(u8set.clone()).or_default().add_assign(1);
