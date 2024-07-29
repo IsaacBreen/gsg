@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, RightData};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, RightData, Squash};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
