@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{_choice, choice, Choice, Combinator, CombinatorTrait, eat_byte, eat_byte_choice, eat_char_choice, eps, fail, Parser, ParseResults, ParserTrait, seq, Stats, U8Set};
+use crate::{_choice, choice, Combinator, CombinatorTrait, eat_byte, eat_byte_choice, eat_char_choice, eps, fail, Parser, ParseResults, ParserTrait, seq, Stats, U8Set};
 use crate::combinators::derived::opt;
 use crate::parse_state::{RightData, UpData};
 
@@ -84,9 +84,6 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
     }
 }
 
-use std::collections::HashMap;
-use std::hash::Hash;
-
 pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
     let mut trie = Trie::new();
     for bytestring in bytestrings {
@@ -95,16 +92,15 @@ pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
     trie.to_combinator()
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 struct Trie {
-    children: HashMap<u8, Box<Trie>>,
+    children: BTreeMap<u8, Trie>,
     is_end: bool,
 }
 
 impl Trie {
     fn new() -> Self {
         Trie {
-            children: HashMap::new(),
+            children: BTreeMap::new(),
             is_end: false,
         }
     }
@@ -112,7 +108,7 @@ impl Trie {
     fn insert(&mut self, bytestring: &[u8]) {
         let mut node = self;
         for &byte in bytestring {
-            node = node.children.entry(byte).or_insert_with(|| Box::new(Trie::new()));
+            node = node.children.entry(byte).or_insert(Trie::new());
         }
         node.is_end = true;
     }
@@ -122,7 +118,7 @@ impl Trie {
             return if self.is_end { eps().into() } else { fail().into() };
         }
 
-        let mut choices = Vec::with_capacity(self.children.len());
+        let mut choices = Vec::new();
         for (&byte, child) in &self.children {
             let next = child.to_combinator();
             choices.push(seq!(eat_byte(byte), next));
@@ -131,75 +127,13 @@ impl Trie {
         let result = if choices.len() == 1 {
             choices.pop().unwrap()
         } else {
-            Combinator::Choice(Choice { children: choices.into_iter().map(std::rc::Rc::new).collect() })
+            _choice(choices)
         };
 
         if self.is_end {
             opt(result)
         } else {
             result
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EatByteStringChoice {
-    trie: Box<Trie>,
-}
-
-impl Hash for EatByteStringChoice {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    }
-}
-
-impl From<EatByteStringChoice> for Combinator {
-    fn from(value: EatByteStringChoice) -> Self {
-        Combinator::EatByteStringChoice(value)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EatByteStringChoiceParser {
-    trie: Box<Trie>,
-    current_node: *const Trie,
-    right_data: RightData,
-}
-
-impl Hash for EatByteStringChoiceParser {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    }
-}
-
-impl CombinatorTrait for EatByteStringChoice {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let parser = EatByteStringChoiceParser {
-            trie: self.trie.clone(),
-            current_node: &*self.trie as *const Trie,
-            right_data,
-        };
-        (Parser::EatByteStringChoiceParser(parser), ParseResults::empty_finished())
-    }
-}
-
-impl ParserTrait for EatByteStringChoiceParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        unsafe {
-            let node = &*self.current_node;
-            if let Some(child) = node.children.get(&c) {
-                self.current_node = &**child as *const Trie;
-                self.right_data.position += 1;
-                if (*self.current_node).is_end {
-                    ParseResults {
-                        right_data_vec: vec![self.right_data.clone()],
-                        up_data_vec: vec![],
-                        done: true,
-                    }
-                } else {
-                    ParseResults::empty_finished()
-                }
-            } else {
-                ParseResults::empty_finished()
-            }
         }
     }
 }
