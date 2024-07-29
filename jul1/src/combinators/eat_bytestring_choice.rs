@@ -31,8 +31,8 @@ impl TrieNode {
         let mut node = self;
         for &byte in bytestring {
             node.valid_bytes.insert(byte);
-            let child_index = node.valid_bytes.bitset.count_bits_before(byte) as usize;
-            if child_index >= node.children.len() {
+            let child_index = node.valid_bytes.bitset.count_bits_before(byte) as usize - 1;
+            if child_index == node.children.len() {
                 node.children.push(Rc::new(TrieNode::new()));
             }
             node = Rc::make_mut(&mut node.children[child_index]);
@@ -82,7 +82,7 @@ impl CombinatorTrait for EatByteStringChoice {
 impl ParserTrait for EatByteStringChoiceParser {
     fn step(&mut self, c: u8) -> ParseResults {
         if self.current_node.valid_bytes.contains(c) {
-            let child_index = self.current_node.valid_bytes.bitset.count_bits_before(c) as usize;
+            let child_index = self.current_node.valid_bytes.bitset.count_bits_before(c) as usize - 1;
             if child_index < self.current_node.children.len() {
                 self.current_node = Rc::clone(&self.current_node.children[child_index]);
                 self.right_data.position += 1;
