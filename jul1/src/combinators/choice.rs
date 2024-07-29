@@ -36,17 +36,14 @@ impl CombinatorTrait for Choice {
 impl ParserTrait for ChoiceParser {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut parse_result = ParseResults::empty_finished();
-        let mut remaining_parsers = Vec::new();
 
-        for mut parser in self.parsers.drain(..) {
+        self.parsers.retain_mut(|mut parser| {
             let step_result = parser.step(c);
-            if !step_result.done {
-                remaining_parsers.push(parser);
-            }
+            let done = step_result.done;
             parse_result.combine(step_result);
-        }
+            !done
+        });
 
-        self.parsers = remaining_parsers;
         parse_result.squash();
         parse_result
     }
