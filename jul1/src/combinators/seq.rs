@@ -4,7 +4,7 @@ use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait,
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
-    children: Vec<Rc<Combinator>>,
+    pub(crate) children: Vec<Rc<Combinator>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

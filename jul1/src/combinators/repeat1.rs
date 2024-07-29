@@ -6,7 +6,7 @@ use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Repeat1 {
-    a: Rc<Combinator>,
+    pub(crate) a: Rc<Combinator>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

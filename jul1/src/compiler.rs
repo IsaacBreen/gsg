@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::*;
 
 pub trait Compile {
@@ -23,16 +24,16 @@ impl Compile for Combinator {
 impl Compile for Seq {
     fn compile(self) -> Combinator {
         let compiled_children: Vec<Combinator> = self.children.into_iter()
-            .map(|child| child.compile())
+            .map(|child| child.as_ref().clone().compile())
             .collect();
         
         // Optimization: Flatten nested Seq combinators
-        let flattened_children: Vec<Combinator> = compiled_children.into_iter()
+        let flattened_children: Vec<Rc<Combinator>> = compiled_children.into_iter()
             .flat_map(|child| {
                 if let Combinator::Seq(seq) = child {
                     seq.children.into_iter()
                 } else {
-                    vec![child].into_iter()
+                    vec![Rc::new(child)].into_iter()
                 }
             })
             .collect();
@@ -44,7 +45,7 @@ impl Compile for Seq {
 impl Compile for Choice {
     fn compile(self) -> Combinator {
         let compiled_children: Vec<Combinator> = self.children.into_iter()
-            .map(|child| child.compile())
+            .map(|child| child.as_ref().clone().compile())
             .collect();
         
         // Optimization: Merge EatU8 combinators
@@ -55,12 +56,12 @@ impl Compile for Choice {
             if let Combinator::EatU8(EatU8 { u8set }) = child {
                 merged_u8set = merged_u8set.union(&u8set);
             } else {
-                other_children.push(child);
+                other_children.push(child.into());
             }
         }
         
         if !merged_u8set.is_empty() {
-            other_children.push(Combinator::EatU8(EatU8 { u8set: merged_u8set }));
+            other_children.push(Combinator::EatU8(EatU8 { u8set: merged_u8set }).into());
         }
         
         Combinator::Choice(Choice { children: other_children })
@@ -93,7 +94,7 @@ impl Compile for Fail {
 
 impl Compile for Repeat1 {
     fn compile(self) -> Combinator {
-        let compiled_a = self.a.compile();
+        let compiled_a = self.a.as_ref().clone().compile();
         Combinator::Repeat1(Repeat1 { a: Rc::new(compiled_a) })
     }
 }
