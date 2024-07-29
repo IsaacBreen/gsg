@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use unicode_general_category::GeneralCategory;
 
-use crate::{assert_no_dedents, choice, Choice, Combinator, CombinatorTrait, dedent, dent, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seprep0, seprep1, seq, Seq, Symbol, tag};
+use crate::{assert_no_dedents, check_right_data, choice, Choice, Combinator, CombinatorTrait, dedent, dent, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seprep0, seprep1, seq, Seq, Symbol, tag};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn breaking_space() -> Combinator {
@@ -47,7 +47,7 @@ pub fn whitespace() -> Combinator {
     repeat1(choice!(
             // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
             seq!(
-                mutate_right_data(|right_data| right_data.scope_count > 0),
+                check_right_data(|right_data| right_data.scope_count > 0),
                 breaking_space()
             ),
             // But we can match an escaped newline.
