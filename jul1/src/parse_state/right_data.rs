@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use derivative::Derivative;
 
 use crate::{CacheData, ForbidFollowsData, FrameStack};
@@ -15,6 +17,8 @@ pub struct RightData {
     pub cache_data: CacheData,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub position: usize,
+    #[derivative(PartialEq = "ignore", Hash = "ignore")]
+    pub time: Rc<RefCell<u128>>,
 }
 
 impl Default for RightData {
@@ -27,6 +31,7 @@ impl Default for RightData {
             forbidden_consecutive_matches: ForbidFollowsData::default(),
             cache_data: CacheData::default(),
             position: 0,
+            time: Rc::new(RefCell::new(0)),
         }
     }
 }

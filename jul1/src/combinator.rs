@@ -179,17 +179,19 @@ pub trait ParserTrait {
 
 impl CombinatorTrait for Combinator {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+        let time = right_data.time.clone();
+        time.borrow_mut().add_assign(1);
         // If it's a terminal, display it.
         match self {
-            Combinator::EatU8(combinator) => println!("beginning parser at address {:p}: {:?}", self as *const Combinator, combinator),
-            Combinator::EatString(combinator) => println!("beginning parser at address {:p}: {:?}", self as *const Combinator, combinator),
-            _ => println!("beginning parser at address {:p}: {}", self as *const Combinator, self.type_name()),
+            Combinator::EatU8(combinator) => println!("(time: {}) beginning parser at address {:p}: {:?}", time.borrow(), self as *const Combinator, combinator),
+            Combinator::EatString(combinator) => println!("(time: {}) beginning parser at address {:p}: {:?}", time.borrow(), self as *const Combinator, combinator),
+            _ => println!("(time: {}) beginning parser at address {:p}: {}", time.borrow(), self as *const Combinator, self.type_name()),
         }
         let result = match_combinator!(self, inner => inner.parser(right_data));
         match self {
-            Combinator::EatU8(combinator) => println!("ending parser at address {:p}: {:?}", self as *const Combinator, combinator),
-            Combinator::EatString(combinator) => println!("ending parser at address {:p}: {:?}", self as *const Combinator, combinator),
-            _ => println!("ending parser at address {:p}: {}", self as *const Combinator, self.type_name()),
+            Combinator::EatU8(combinator) => println!("(time: {}) ending parser at address {:p}: {:?}", time.borrow(), self as *const Combinator, combinator),
+            Combinator::EatString(combinator) => println!("(time: {}) ending parser at address {:p}: {:?}", time.borrow(), self as *const Combinator, combinator),
+            _ => println!("(time: {}) ending parser at address {:p}: {}", time.borrow(), self as *const Combinator, self.type_name()),x
         }
         result
     }
