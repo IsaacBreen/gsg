@@ -85,41 +85,55 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
 }
 
 pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
-    let mut first_byte_map: BTreeMap<u8, Vec<Vec<u8>>> = BTreeMap::new();
-    let mut empty_string_present = false;
-
+    let mut trie = Trie::new();
     for bytestring in bytestrings {
-        if bytestring.is_empty() {
-            empty_string_present = true;
-        } else {
-            first_byte_map.entry(bytestring[0])
-                .or_default()
-                .push(bytestring[1..].to_vec());
+        trie.insert(&bytestring);
+    }
+    trie.to_combinator()
+}
+
+struct Trie {
+    children: BTreeMap<u8, Trie>,
+    is_end: bool,
+}
+
+impl Trie {
+    fn new() -> Self {
+        Trie {
+            children: BTreeMap::new(),
+            is_end: false,
         }
     }
 
-    let choices: Vec<Combinator> = first_byte_map.into_iter()
-        .map(|(first_byte, rest_strings)| {
-            let rest_combinator = if rest_strings.iter().any(|s| s.is_empty()) {
-                opt(eat_bytestring_choice(rest_strings))
-            } else {
-                eat_bytestring_choice(rest_strings)
-            };
-            seq!(eat_byte(first_byte), rest_combinator)
-        })
-        .collect();
+    fn insert(&mut self, bytestring: &[u8]) {
+        let mut node = self;
+        for &byte in bytestring {
+            node = node.children.entry(byte).or_insert(Trie::new());
+        }
+        node.is_end = true;
+    }
 
-    let result = if choices.is_empty() {
-        fail().into()
-    } else if choices.len() == 1 {
-        choices[0].clone()
-    } else {
-        _choice(choices)
-    };
+    fn to_combinator(&self) -> Combinator {
+        if self.children.is_empty() {
+            return if self.is_end { eps().into() } else { fail().into() };
+        }
 
-    if empty_string_present {
-        opt(result)
-    } else {
-        result
+        let mut choices = Vec::new();
+        for (&byte, child) in &self.children {
+            let next = child.to_combinator();
+            choices.push(seq!(eat_byte(byte), next));
+        }
+
+        let result = if choices.len() == 1 {
+            choices.pop().unwrap()
+        } else {
+            _choice(choices)
+        };
+
+        if self.is_end {
+            opt(result)
+        } else {
+            result
+        }
     }
 }
