@@ -30,6 +30,7 @@ mod fail;
 mod forbid_follows;
 mod cache;
 mod derived;
+mod eat_bytestring_choice;
 
 pub use choice::*;
 pub use eat_string::*;
@@ -47,3 +48,4 @@ pub use symbol::*;
 pub use tag::*;
 pub use cache::*;
 pub use derived::*;
+pub use eat_bytestring_choice::*;

@@ -144,7 +144,8 @@ macro_rules! match_combinator {
             WithNewFrame,
             ForbidFollows,
             ForbidFollowsClear,
-            ForbidFollowsCheckNot
+            ForbidFollowsCheckNot,
+            EatByteStringChoice
         )
     };
 }
@@ -166,7 +167,8 @@ macro_rules! match_parser {
             Repeat1Parser,
             SymbolParser,
             TaggedParser,
-            WithNewFrameParser
+            WithNewFrameParser,
+            EatByteStringChoiceParser
         )
     };
 }

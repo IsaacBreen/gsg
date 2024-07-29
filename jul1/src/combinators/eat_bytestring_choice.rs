@@ -1,12 +1,19 @@
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, UpData};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct TrieNode {
     valid_bytes: U8Set,
     is_end: bool,
     children: Vec<Option<Rc<TrieNode>>>,
+}
+
+impl Hash for TrieNode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.valid_bytes.hash(state);
+    }
 }
 
 impl TrieNode {
@@ -31,7 +38,7 @@ impl TrieNode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatByteStringChoice {
     root: Rc<TrieNode>,
 }
@@ -46,7 +53,7 @@ impl EatByteStringChoice {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatByteStringChoiceParser {
     current_node: Rc<TrieNode>,
     right_data: RightData,
