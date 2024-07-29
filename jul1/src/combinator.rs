@@ -179,7 +179,19 @@ pub trait ParserTrait {
 
 impl CombinatorTrait for Combinator {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        match_combinator!(self, inner => inner.parser(right_data))
+        // If it's a terminal, display it.
+        match self {
+            Combinator::EatU8(combinator) => println!("beginning parser at address {:p}: {:?}", self as *const Combinator, combinator),
+            Combinator::EatString(combinator) => println!("beginning parser at address {:p}: {:?}", self as *const Combinator, combinator),
+            _ => println!("beginning parser at address {:p}: {}", self as *const Combinator, self.type_name()),
+        }
+        let result = match_combinator!(self, inner => inner.parser(right_data));
+        match self {
+            Combinator::EatU8(combinator) => println!("ending parser at address {:p}: {:?}", self as *const Combinator, combinator),
+            Combinator::EatString(combinator) => println!("ending parser at address {:p}: {:?}", self as *const Combinator, combinator),
+            _ => println!("ending parser at address {:p}: {}", self as *const Combinator, self.type_name()),
+        }
+        result
     }
 }
 
