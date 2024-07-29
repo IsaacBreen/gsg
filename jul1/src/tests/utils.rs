@@ -6,12 +6,15 @@ use crate::{CombinatorTrait, ParseResults, ParserTrait, RightData, Squash};
 
 use std::time::Instant;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::iter;
 
 pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     let mut input = input.to_string();
     println!("beginning assert_parses {}", desc);
 
-    let mut timings: HashMap<String, std::time::Duration> = HashMap::new();
+    let mut timings: Vec<(String, std::time::Duration)> = Vec::new();
 
     let start = Instant::now();
     let (mut parser, ParseResults { up_data_vec: mut up_data, .. }) = T::parser(&combinator, RightData::default());
@@ -36,7 +39,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
             assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}", byte as char, up_data);
 
             if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
-                timings.insert(line.to_string(), Instant::now() - line_start);
+                timings.push((line.to_string(), Instant::now() - line_start));
                 break 'outer;
             }
 
@@ -52,7 +55,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
             assert!(!right_data.is_empty() || !up_data.is_empty(), "Parser failed at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
         }
 
-        timings.insert(line.to_string(), Instant::now() - line_start);
+        timings.push((line.to_string(), Instant::now() - line_start));
     }
 
     // Print timing results
@@ -69,21 +72,32 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     let threshold = timing_vec_sorted[timing_vec_sorted.len() / 10].1;
 
     println!("Execution time profile:");
-    for (desc, duration) in timing_vec {
+    for (desc, duration) in timing_vec.clone() {
         let duration_secs = duration.as_secs_f64();
-        let time_per_char = duration_secs / desc.len() as f64;
+        let time_per_char = duration_secs / desc.len() as f64 * 1000.0;
         let emphasis = if duration > threshold { " * " } else { "   " };
         let bold = if duration > threshold { "\x1b[1m" } else { "" };
         let reset = if bold.is_empty() { "" } else { "\x1b[0m" };
-        println!("{}{:<10}{:<10}{}{:?}{}s",
+        println!("{}{:<15}{:<10}{}{:?}{}s",
             emphasis,
-            format!("{:.3}s", duration_secs),
+            format!("{:.3}ms/char", time_per_char),
             format!("{:.3}s", duration_secs),
             bold,
             desc,
             reset,
         );
     }
+
+    // Save to CSV
+    let mut csv_file = BufWriter::new(File::create("timings.csv").unwrap());
+    csv_file.write_all("index,text,duration\n".as_bytes()).unwrap();
+    for (i, (line, duration)) in timing_vec.iter().enumerate() {
+        // Escape quotes and newlines in the text
+        let line = line.replace("\"", "\"\"");
+        let line = line.replace("\n", "\\n");
+        csv_file.write_all(format!("{},\"{}\",{}\n", i, line, duration.as_secs_f64()).as_bytes()).unwrap();
+    }
+    println!("Saved timings to timings.csv");
 }
 
 pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
