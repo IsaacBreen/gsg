@@ -83,8 +83,8 @@ impl ParserTrait for EatByteStringChoiceParser {
     fn step(&mut self, c: u8) -> ParseResults {
         if self.current_node.valid_bytes.contains(c) {
             let child_index = self.current_node.valid_bytes.bitset.count_bits_before(c) as usize;
-            if child_index > 0 && child_index <= self.current_node.children.len() {
-                self.current_node = Rc::clone(&self.current_node.children[child_index - 1]);
+            if child_index < self.current_node.children.len() {
+                self.current_node = Rc::clone(&self.current_node.children[child_index]);
                 self.right_data.position += 1;
 
                 if self.current_node.is_end {
