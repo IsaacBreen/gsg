@@ -1,6 +1,6 @@
 use std::ops::Not;
-
-use crate::{Combinator, CombinatorTrait, fail, Parser, ParseResults, ParserTrait, Squash, Stats};
+use std::rc::Rc;
+use crate::{Combinator, CombinatorTrait, eps, fail, Parser, ParseResults, ParserTrait, Squash, Stats};
 use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -48,26 +48,17 @@ impl ParserTrait for ChoiceParser {
     }
 }
 
-pub fn _choice(mut v: Vec<Combinator>) -> Choice {
-    if v.len() == 2 {
-        Choice {
-            a: Box::new(v.pop().unwrap()),
-            b: Box::new(v.pop().unwrap()),
-        }
-    } else if v.len() == 3 {
-        let c = v.pop().unwrap();
-        Choice {
-            a: Box::new(v.pop().unwrap()),
-            b: Box::new(_choice(v).into()),
-        }
-    } else if v.len() >= 4 {
+pub fn _choice(mut v: Vec<Combinator>) -> Combinator {
+    if v.is_empty() {
+        eps().into()
+    } else if v.len() == 1 {
+        v.pop().unwrap()
+    } else {
         let b = v.split_off(v.len() / 2);
         Choice {
-            a: Box::new(_choice(v).into()),
-            b: Box::new(_choice(b).into()),
+            a: Box::new(_choice(v)),
+            b: Box::new(_choice(b)),
         }.into()
-    } else {
-        panic!("choice! must have at least 2 arguments");
     }
 }
 
