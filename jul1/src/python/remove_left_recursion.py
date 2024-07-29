@@ -80,6 +80,11 @@ def update_dict(original: dict, updates: dict) -> bool:
             changed = True
     return changed
 
+def update_set(original: set, updates: set) -> bool:
+    initial_len = len(original)
+    original.update(updates)
+    return len(original) != initial_len
+
 
 def add_to_set(s: set, element) -> bool:
     if element not in s:
@@ -518,7 +523,7 @@ def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Re
         firsts_for_node.setdefault(leaf, set())
     # Substitute follow sets for refs repeatedly
     while True:
-        old_follow_sets = follow_sets.copy()
+        updated = False
         for ref, follow_set in follow_sets.items():
             queue = list(follow_set)
             while len(queue) > 0:
@@ -527,14 +532,14 @@ def get_follows(rules: dict[Ref, Node]) -> dict[Ref | Term | EpsExternal, set[Re
                     firsts = firsts_for_node[node]
                     new_follows = firsts - follow_set
                     queue.extend(new_follows)
-                    follow_set.update(new_follows)
-        for ref, node in sorted(rules.items(), key=lambda x: (str(type(x[0])), str(x[0])), reverse=True):
+                    updated |= update_set(follow_set, new_follows)
+        for ref, node in rules.items():
             # The follow set of a rule should inherit the follow set of its lasts and vice versa
             lasts_for_rule = get_lasts_for_node(node, nullable_rules)
             for last in lasts_for_rule:
-                follow_sets[last].update(follow_sets[ref])
-                follow_sets[ref].update(follow_sets[last])
-        if old_follow_sets == follow_sets:
+                updated |= update_set(follow_sets[last], follow_sets[ref])
+                updated |= update_set(follow_sets[ref], follow_sets[last])
+        if not updated:
             break
     return follow_sets
 
@@ -686,7 +691,7 @@ def forbid_follows(rules: dict[Ref, Node], forbidden_follows_table: dict[Ref | T
 
     # Expand the forbidden follows table
     while True:
-        old_forbidden_follows_table = forbidden_follows_table.copy()
+        updated = False
         for first, forbidden_follows in list(forbidden_follows_table.items()):
             for ref, last_set in lasts.items():
                 if first in last_set:
@@ -694,11 +699,11 @@ def forbid_follows(rules: dict[Ref, Node], forbidden_follows_table: dict[Ref | T
                     #     raise ValueError(f"Cannot forbid follows for {ref} with first {first} and forbidden follows {forbidden_follows} because the last set {last_set} for this rule has more than one last (how would we disambiguate?)")
                     # The rule for ref can end with the first for this row in the forbidden follows table.
                     # Any follows that are forbidden ƒor this first must also be forbidden for this ref.
-                    forbidden_follows_table.setdefault(ref, set()).update(forbidden_follows)
+                    updated |= update_set(forbidden_follows_table.setdefault(ref, set()), forbidden_follows)
             for forbidden_follow in list(forbidden_follows):
                 if forbidden_follow in firsts:
-                    forbidden_follows.update(firsts[forbidden_follow])
-        if old_forbidden_follows_table == forbidden_follows_table:
+                    updated |= update_set(forbidden_follows, firsts[forbidden_follow])
+        if not updated:
             break
 
     for ref in tqdm(rules.keys(), desc="Forbidding follows"):
