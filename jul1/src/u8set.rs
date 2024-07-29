@@ -104,6 +104,14 @@ impl U8Set {
         result
     }
 
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let mut result = Self::none();
+        for byte in bytes {
+            result.insert(*byte);
+        }
+        result
+    }
+
     pub fn from_chars(chars: &str) -> Self {
         let mut result = Self::none();
         for c in chars.chars() {
