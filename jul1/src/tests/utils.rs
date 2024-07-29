@@ -71,15 +71,17 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     println!("Execution time profile:");
     for (desc, duration) in timing_vec {
         let duration_secs = duration.as_secs_f64();
+        let time_per_char = duration_secs / desc.len() as f64;
         let emphasis = if duration > threshold { " * " } else { "   " };
         let bold = if duration > threshold { "\x1b[1m" } else { "" };
         let reset = if bold.is_empty() { "" } else { "\x1b[0m" };
-        println!("{}{:<10}{}{:?}{}s",
-                 emphasis,
-                 format!("{:.3}s", duration_secs),
-                 bold,
-                 desc,
-                 reset,
+        println!("{}{:<10}{:<10}{}{:?}{}s",
+            emphasis,
+            format!("{:.3}s", duration_secs),
+            format!("{:.3}s", duration_secs),
+            bold,
+            desc,
+            reset,
         );
     }
 }
