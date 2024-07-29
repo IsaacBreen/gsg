@@ -233,7 +233,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             expr = f'seq!({expr})'
 
         expr = f'tag("{token}", {expr})'
-        expr = f'{expr}'
+        expr = f'cached({expr})'
         f.write(f"    let {token} = symbol({expr});\n")
     f.write('\n')
     f.write(f'    forward_decls!({", ".join(name for name, rule in rules)});\n')
