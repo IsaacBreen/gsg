@@ -1,75 +1,73 @@
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, UpData};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+const ALPHABET_SIZE: usize = 256;
+
+#[derive(Clone, PartialEq, Eq)]
 struct TrieNode {
-    valid_bytes: U8Set,
+    children: [Option<Box<TrieNode>>; ALPHABET_SIZE],
     is_end: bool,
-    children: Vec<Option<Rc<TrieNode>>>,
 }
 
 impl Hash for TrieNode {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.valid_bytes.hash(state);
+        self.is_end.hash(state);
+        for child in &self.children {
+            child.is_some().hash(state);
+        }
     }
 }
 
 impl TrieNode {
     fn new() -> Self {
         TrieNode {
-            valid_bytes: U8Set::none(),
+            children: [None; ALPHABET_SIZE],
             is_end: false,
-            children: vec![None; 256],
         }
     }
 
     fn insert(&mut self, bytestring: &[u8]) {
         let mut node = self;
         for &byte in bytestring {
-            node.valid_bytes.insert(byte);
-            if node.children[byte as usize].is_none() {
-                node.children[byte as usize] = Some(Rc::new(TrieNode::new()));
-            }
-            node = Rc::make_mut(node.children[byte as usize].as_mut().unwrap());
+            node = node.children[byte as usize].get_or_insert_with(|| Box::new(TrieNode::new()));
         }
         node.is_end = true;
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct EatByteStringChoice {
-    root: Rc<TrieNode>,
+    root: Box<TrieNode>,
 }
 
 impl EatByteStringChoice {
     pub fn new(bytestrings: Vec<Vec<u8>>) -> Self {
-        let mut root = TrieNode::new();
+        let mut root = Box::new(TrieNode::new());
         for bytestring in bytestrings {
             root.insert(&bytestring);
         }
-        EatByteStringChoice { root: Rc::new(root) }
+        EatByteStringChoice { root }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct EatByteStringChoiceParser {
-    current_node: Rc<TrieNode>,
+    current_node: *const TrieNode,
     right_data: RightData,
 }
 
 impl CombinatorTrait for EatByteStringChoice {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         let parser = EatByteStringChoiceParser {
-            current_node: Rc::clone(&self.root),
+            current_node: &*self.root,
             right_data,
         };
         (
             Parser::EatByteStringChoiceParser(parser),
             ParseResults {
                 right_data_vec: vec![],
-                up_data_vec: vec![UpData { u8set: self.root.valid_bytes }],
+                up_data_vec: vec![UpData { u8set: U8Set::from_match_fn(|b| self.root.children[b as usize].is_some()) }],
                 done: false,
             }
         )
@@ -78,30 +76,27 @@ impl CombinatorTrait for EatByteStringChoice {
 
 impl ParserTrait for EatByteStringChoiceParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        if self.current_node.valid_bytes.contains(c) {
-            let next_node = &self.current_node.children[c as usize];
-            if let Some(next_node) = next_node {
-                self.current_node = Rc::clone(next_node);
+        unsafe {
+            if let Some(next_node) = (*self.current_node).children[c as usize].as_ref() {
+                self.current_node = &**next_node;
                 self.right_data.position += 1;
 
-                if self.current_node.is_end {
+                if (*self.current_node).is_end {
                     ParseResults {
                         right_data_vec: vec![self.right_data.clone()],
-                        up_data_vec: vec![UpData { u8set: self.current_node.valid_bytes }],
-                        done: self.current_node.valid_bytes.is_empty(),
+                        up_data_vec: vec![UpData { u8set: U8Set::from_match_fn(|b| (*self.current_node).children[b as usize].is_some()) }],
+                        done: (*self.current_node).children.iter().all(|child| child.is_none()),
                     }
                 } else {
                     ParseResults {
                         right_data_vec: vec![],
-                        up_data_vec: vec![UpData { u8set: self.current_node.valid_bytes }],
+                        up_data_vec: vec![UpData { u8set: U8Set::from_match_fn(|b| (*self.current_node).children[b as usize].is_some()) }],
                         done: false,
                     }
                 }
             } else {
                 ParseResults::empty_finished()
             }
-        } else {
-            ParseResults::empty_finished()
         }
     }
 }
