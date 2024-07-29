@@ -21,6 +21,14 @@ impl ParserTrait for FailParser {
     fn step(&mut self, c: u8) -> ParseResults {
         panic!("FailParser already consumed")
     }
+
+    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
+        vec![]
+    }
+
+    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
+        vec![]
+    }
 }
 
 pub fn fail() -> Fail {

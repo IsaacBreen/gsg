@@ -106,6 +106,20 @@ impl ParserTrait for IndentCombinatorParser {
             IndentCombinatorParser::Done => ParseResults::empty_finished(),
         }
     }
+
+    fn iter_children(&self) -> Vec<&dyn ParserTrait> {
+        match self {
+            IndentCombinatorParser::DentParser(parser) => vec![parser.as_ref()],
+            _ => vec![],
+        }
+    }
+
+    fn iter_children_mut(&mut self) -> Vec<&mut dyn ParserTrait> {
+        match self {
+            IndentCombinatorParser::DentParser(parser) => vec![parser.as_mut()],
+            _ => vec![],
+        }
+    }
 }
 
 pub fn dent() -> IndentCombinator {
