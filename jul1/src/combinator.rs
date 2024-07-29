@@ -205,8 +205,74 @@ impl Parser {
                 for b in bs {
                     b.collect_stats(stats);
                 }
+                *stats.active_parser_type_counts.entry("SeqParser".to_string()).or_insert(0) += 1;
             }
-            _ => { todo!() }
+            Parser::ChoiceParser(ChoiceParser { a, b }) => {
+                if let Some(a) = a {
+                    a.collect_stats(stats);
+                }
+                if let Some(b) = b {
+                    b.collect_stats(stats);
+                }
+                *stats.active_parser_type_counts.entry("ChoiceParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::EatU8Parser(EatU8Parser { u8set, .. }) => {
+                *stats.active_u8_matchers.entry(u8set.clone()).or_insert(0) += 1;
+                *stats.active_parser_type_counts.entry("EatU8Parser".to_string()).or_insert(0) += 1;
+            }
+            Parser::EatStringParser(EatStringParser { string, .. }) => {
+                *stats.active_string_matchers.entry(String::from_utf8_lossy(string).to_string()).or_insert(0) += 1;
+                *stats.active_parser_type_counts.entry("EatStringParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::EpsParser(_) => {
+                *stats.active_parser_type_counts.entry("EpsParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::FailParser(_) => {
+                *stats.active_parser_type_counts.entry("FailParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::CacheContextParser(CacheContextParser { inner, .. }) => {
+                inner.collect_stats(stats);
+                *stats.active_parser_type_counts.entry("CacheContextParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::CachedParser(CachedParser { .. }) => {
+                *stats.active_parser_type_counts.entry("CachedParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => {
+                parser.collect_stats(stats);
+                *stats.active_parser_type_counts.entry("IndentCombinatorParser::DentParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(_)) => {
+                *stats.active_parser_type_counts.entry("IndentCombinatorParser::IndentParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::IndentCombinatorParser(IndentCombinatorParser::Done) => {
+                *stats.active_parser_type_counts.entry("IndentCombinatorParser::Done".to_string()).or_insert(0) += 1;
+            }
+            Parser::FrameStackOpParser(FrameStackOpParser { a, .. }) => {
+                a.collect_stats(stats);
+                *stats.active_parser_type_counts.entry("FrameStackOpParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::MutateRightDataParser(_) => {
+                *stats.active_parser_type_counts.entry("MutateRightDataParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::Repeat1Parser(Repeat1Parser { a, .. }) => {
+                a.collect_stats(stats);
+                *stats.active_parser_type_counts.entry("Repeat1Parser".to_string()).or_insert(0) += 1;
+            }
+            Parser::SymbolParser(SymbolParser { inner, .. }) => {
+                inner.collect_stats(stats);
+                *stats.active_parser_type_counts.entry("SymbolParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::TaggedParser(TaggedParser { inner, tag, .. }) => {
+                inner.collect_stats(stats);
+                *stats.active_tags.entry(tag.clone()).or_insert(0) += 1;
+                *stats.active_parser_type_counts.entry("TaggedParser".to_string()).or_insert(0) += 1;
+            }
+            Parser::WithNewFrameParser(WithNewFrameParser { a, .. }) => {
+                if let Some(a) = a {
+                    a.collect_stats(stats);
+                }
+                *stats.active_parser_type_counts.entry("WithNewFrameParser".to_string()).or_insert(0) += 1;
+            }
         }
     }
 }
