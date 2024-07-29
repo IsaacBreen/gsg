@@ -3,7 +3,7 @@ use crate::parse_state::{RightData, UpData};
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatU8 {
-    u8set: U8Set,
+    pub(crate) u8set: U8Set,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

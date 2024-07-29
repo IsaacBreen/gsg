@@ -6,7 +6,7 @@ use crate::parse_state::{RightData, UpData};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatString {
-    string: Vec<u8>,
+    pub(crate) string: Vec<u8>,
 }
 
 impl From<EatString> for Combinator {
