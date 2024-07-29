@@ -13,7 +13,7 @@ impl TrieNode {
         TrieNode {
             valid_bytes: U8Set::none(),
             is_end: false,
-            children: Box::new([None; 256]),
+            children: Box::new([const { None }; 256]),
         }
     }
 
