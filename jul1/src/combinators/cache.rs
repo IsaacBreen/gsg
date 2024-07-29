@@ -151,10 +151,7 @@ impl CombinatorTrait for Cached {
         parse_results.squash();
         {
             let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-            let e = entry.clone();
-            let h = key.hash(&mut DefaultHasher::default());
-            let eqq = key == key;
-            cache_data_inner.new_parsers.insert(key, e);
+            cache_data_inner.new_parsers.insert(key, entry.clone());
             entry.borrow_mut().num = cache_data_inner.entries.len();
             cache_data_inner.entries.push(entry.clone());
         }
