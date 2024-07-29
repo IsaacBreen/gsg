@@ -13,12 +13,11 @@ pub struct SeqParser {
     pub(crate) a: Option<Box<Parser>>,
     pub(crate) bs: Vec<Parser>,
     b: Rc<Combinator>,
-    right_data: RightData,
 }
 
 impl CombinatorTrait for Seq {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let (a, parse_results_a) = self.a.parser(right_data.clone());
+        let (a, parse_results_a) = self.a.parser(right_data);
         let mut a = (!parse_results_a.done).then_some(Box::new(a));
         let (mut bs, mut right_data_bs, mut up_data_bs) = (vec![], vec![], vec![]);
         for right_data_b in parse_results_a.right_data_vec {
@@ -34,7 +33,6 @@ impl CombinatorTrait for Seq {
             a,
             bs,
             b: self.b.clone(),
-            right_data,
         });
         (parser, ParseResults {
             right_data_vec: right_data_bs,
