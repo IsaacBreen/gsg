@@ -2,8 +2,8 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct BitSet256 {
-    pub(crate) x: u128,
-    pub(crate) y: u128,
+    x: u128,
+    y: u128,
 }
 
 impl BitSet256 {
@@ -55,14 +55,6 @@ impl BitSet256 {
 
     pub fn none() -> Self {
         BitSet256 { x: 0, y: 0 }
-    }
-
-    pub fn count_ones_before(&self, index: u8) -> u32 {
-        if index < 128 {
-            (self.x & ((1u128 << index) - 1)).count_ones()
-        } else {
-            self.x.count_ones() + ((self.y & ((1u128 << (index - 128)) - 1)).count_ones())
-        }
     }
 
     pub fn union(&self, other: &Self) -> Self {

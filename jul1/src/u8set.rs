@@ -4,7 +4,7 @@ use crate::bitset256::BitSet256;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct U8Set {
-    pub(crate) bitset: BitSet256,
+    bitset: BitSet256,
 }
 
 impl Default for U8Set {
