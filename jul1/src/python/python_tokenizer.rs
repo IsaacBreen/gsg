@@ -2,19 +2,19 @@ use std::rc::Rc;
 
 use unicode_general_category::GeneralCategory;
 
-use crate::{assert_no_dedents, choice, Choice, Combinator, CombinatorTrait, dedent, dent, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seprep0, seprep1, seq, Seq, symbol, Symbol, tag};
+use crate::{assert_no_dedents, choice, Choice, Combinator, CombinatorTrait, dedent, dent, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seprep0, seprep1, seq, Seq, Symbol, tag};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn breaking_space() -> Combinator {
-    eat_char_choice("\n\r")
+    eat_char_choice("\n\r").into()
 }
 
 pub fn not_breaking_space() -> Combinator {
-    eat_char_negation_choice("\n\r")
+    eat_char_negation_choice("\n\r").into()
 }
 
 pub fn non_breaking_space() -> Combinator {
-    eat_char_choice(" \t")
+    eat_char_choice(" \t").into()
 }
 
 // .. _blank-lines:
@@ -44,8 +44,7 @@ pub fn non_breaking_space() -> Combinator {
 // could otherwise be interpreted as a different token (e.g., ab is one token, but
 // a b is two tokens).
 pub fn whitespace() -> Combinator {
-    seq!(
-        repeat1(choice!(
+    repeat1(choice!(
             // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
             seq!(
                 mutate_right_data(|right_data| right_data.scope_count > 0),
@@ -54,16 +53,11 @@ pub fn whitespace() -> Combinator {
             // But we can match an escaped newline.
             seq!(eat_string("\\"), breaking_space()),
             non_breaking_space()
-        )),
-    )
+        )).into()
 }
 
 pub fn WS() -> Combinator {
-    python_symbol(whitespace())
-}
-
-pub fn python_symbol(a: Combinator) -> Combinator {
-    symbol(a)
+    whitespace()
 }
 
 pub fn python_literal(s: &str) -> Combinator {
@@ -71,9 +65,9 @@ pub fn python_literal(s: &str) -> Combinator {
     let decrement_scope_count = |right_data: &mut RightData| { right_data.scope_count -= 1; true };
 
     match s {
-        "(" | "[" | "{" => python_symbol(seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear())),
-        ")" | "]" | "}" => python_symbol(seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear())),
-        _ => python_symbol(seq!(eat_string(s), forbid_follows_clear())),
+        "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear()),
+        ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear()),
+        _ => seq!(eat_string(s), forbid_follows_clear()),
     }
 }
 
@@ -287,7 +281,7 @@ pub fn xid_continue() -> Combinator {
 }
 
 pub fn NAME() -> Combinator {
-    python_symbol(seq!(xid_start(), repeat0(xid_continue())))
+    seq!(xid_start(), repeat0(xid_continue()))
 }
 
 // .. _literals:
@@ -428,7 +422,7 @@ pub fn STRING() -> Combinator {
         seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), breaking_space()))), eat_string("\"\"\""))
     );
 
-    python_symbol(seq!(opt(stringprefix), choice!(shortstring, longstring)))
+    seq!(opt(stringprefix), choice!(shortstring, longstring))
 }
 
 // From https://peps.python.org/pep-0701/
@@ -586,23 +580,22 @@ pub fn FSTRING_START() -> Combinator {
         eat_string("\"\"\"")
     );
 
-    python_symbol(seq!(
+    seq!(
         prefix, quote,
-    ))
+    )
 }
 
 pub fn FSTRING_MIDDLE() -> Combinator {
     let escaped_char = seq!(eat_char('\\'), eat_char_negation_choice("\n\r"));
     let regular_char = eat_char_negation_choice("{}\\");
 
-    symbol(seq!(
-        repeat1(choice!(
+    repeat1(choice!(
             regular_char,
             escaped_char,
             seq!(eat_char('{'), eat_char('{')),
             seq!(eat_char('}'), eat_char('}'))
-        )),
-    ))
+        )
+    ).into()
 }
 
 pub fn FSTRING_END() -> Combinator {
@@ -613,7 +606,7 @@ pub fn FSTRING_END() -> Combinator {
         eat_string("\"\"\"")
     );
 
-    symbol(quote)
+    quote.into()
 }
 
 // .. _numbers:
@@ -762,7 +755,7 @@ pub fn NUMBER() -> Combinator {
 
     let imagnumber = seq!(choice!(floatnumber.clone(), digitpart), eat_char_choice("jJ"));
 
-    python_symbol(seq!(choice!(integer, floatnumber, imagnumber)))
+    choice!(integer, floatnumber, imagnumber).into()
 }
 
 // .. _comments:
@@ -821,9 +814,9 @@ pub fn comment() -> Combinator {
 // When embedding Python, source code strings should be passed to Python APIs using
 // the standard C conventions for newline characters (the ``\n`` character,
 // representing ASCII LF, is the line terminator).
-pub fn NEWLINE() -> Combinator{
+pub fn NEWLINE() -> Combinator {
     let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
-    symbol(seq!(repeat1(blank_line), tag("dent()", dent())))
+    seq!(repeat1(blank_line), tag("dent()", dent()))
 }
 
 // .. _indentation:
@@ -903,19 +896,19 @@ pub fn NEWLINE() -> Combinator{
 // (Actually, the first three errors are detected by the parser; only the last
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
-pub fn INDENT() -> Combinator {
-    symbol(indent())
+pub fn INDENT() -> IndentCombinator {
+    indent()
 }
 
-pub fn DEDENT() -> Combinator {
-    symbol(dedent())
+pub fn DEDENT() -> IndentCombinator {
+    dedent()
 }
 
-pub fn ENDMARKER() -> Combinator {
-    symbol(seq!(eps()))
+pub fn ENDMARKER() -> Eps {
+    eps()
 }
 
 pub fn TYPE_COMMENT() -> Combinator {
-    // python_symbol(seq!(eat_string("#"), opt(whitespace()), eat_string("type:"), opt(whitespace()), repeat0(eat_char_negation_choice("\n\r"))))
-    symbol(fail())
+    // seq!(eat_string("#"), opt(whitespace()), eat_string("type:"), opt(whitespace()), repeat0(eat_char_negation_choice("\n\r")))
+    fail().into()
 }

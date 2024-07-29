@@ -51,23 +51,35 @@ impl ParserTrait for ChoiceParser {
     }
 }
 
-pub fn choice(mut v: Vec<impl Into<Combinator>>) -> Choice {
-    if v.is_empty() {
-        fail()
-    } else if v.len() == 1 {
-        v.pop().unwrap().into()
-    } else {
+pub fn _choice(mut v: Vec<Combinator>) -> Choice {
+    if v.len() == 2 {
+        Choice {
+            a: Box::new(v.pop().unwrap()),
+            b: Box::new(v.pop().unwrap()),
+        }
+    } else if v.len() == 3 {
+        let c = v.pop().unwrap();
+        Choice {
+            a: Box::new(v.pop().unwrap()),
+            b: Box::new(_choice(v).into()),
+        }
+    } else if v.len() >= 4 {
         let b = v.split_off(v.len() / 2);
         Choice {
-            a: Box::new(choice(v).into()),
-            b: Box::new(choice(b).into()),
-        }
+            a: Box::new(_choice(v).into()),
+            b: Box::new(_choice(b).into()),
+        }.into()
+    } else {
+        panic!("choice! must have at least 2 arguments");
     }
 }
 
 #[macro_export]
 macro_rules! choice {
-    ($($a:expr),* $(,)?) => {$crate::choice(vec![$($a.into()),*])};
+    // Ensure there's at least two choices
+    ($a:expr, $($rest:expr),+ $(,)?) => {
+        $crate::_choice(vec![$a.into(), $($rest.into()),*])
+    };
 }
 
 impl From<Choice> for Combinator {

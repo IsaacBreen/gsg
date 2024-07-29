@@ -18,10 +18,10 @@ pub fn get_unicode_general_category_bytestrings(general_category: GeneralCategor
 pub fn get_unicode_general_category_combinator(general_category: GeneralCategory) -> Combinator {
     let bytestrings = get_unicode_general_category_bytestrings(general_category);
 
-    let mut children = Vec::new();
+    let mut children: Vec<Combinator> = Vec::new();
     for bytestring in bytestrings {
-        children.push(eat_bytes(&bytestring));
+        children.push(eat_bytes(&bytestring).into());
     }
 
-    choice(children)
+    _choice(children).into()
 }

@@ -100,23 +100,26 @@ impl ParserTrait for SeqParser {
     }
 }
 
-pub fn seq(mut v: Vec<impl Into<Combinator>>) -> Seq {
+pub fn _seq(mut v: Vec<Combinator>) -> Combinator {
     if v.is_empty() {
-        eps()
+        eps().into()
     } else if v.len() == 1 {
         v.pop().unwrap().into()
     } else {
         let b = v.split_off(v.len() / 2);
         Seq {
-            a: Rc::new(seq(v).into()),
-            b: Rc::new(seq(b).into()),
-        }
+            a: Rc::new(_seq(v).into()),
+            b: Rc::new(_seq(b).into()),
+        }.into()
     }
 }
 
 #[macro_export]
 macro_rules! seq {
-    ($($a:expr),* $(,)?) => {$crate::seq(vec![$($a.into()),*])};
+    // Ensure there's at least two sequents
+    ($a:expr, $($rest:expr),+ $(,)?) => {
+        $crate::_seq(vec![$a.into(), $($rest.into()),*])
+    };
 }
 
 impl From<Seq> for Combinator {

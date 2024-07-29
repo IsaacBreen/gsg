@@ -19,15 +19,15 @@ impl CombinatorTrait for IndentCombinator {
     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
             IndentCombinator::Dent if right_data.dedents == 0 => {
-                fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Combinator {
+                fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Combinator { // TODO: Make this a macro
                     if indents.is_empty() {
-                        return mutate_right_data(move |right_data: &mut RightData| {
+                        mutate_right_data(move |right_data: &mut RightData| {
                             // println!("\n\n\n!!! Done with {} dedents !!!\n\n\n", total_indents);
                             true
-                        });
+                        }).into()
                     } else {
                         let dedents = indents.len();
-                        choice(vec![
+                        choice!(
                             // Exit here and register dedents
                             mutate_right_data(move |right_data: &mut RightData| {
                                 right_data.dedents = dedents;
@@ -37,8 +37,8 @@ impl CombinatorTrait for IndentCombinator {
                                 true
                             }),
                             // Or match the indent and continue
-                            seq(vec![eat_bytes(&indents[0]), make_combinator(&indents[1..], total_indents)])
-                        ])
+                            seq!(eat_bytes(&indents[0]), make_combinator(&indents[1..], total_indents))
+                        ).into()
                     }
                 }
                 // println!("Made dent parser with right_data: {:?}", right_data);
@@ -125,7 +125,7 @@ pub fn assert_no_dedents() -> IndentCombinator {
 }
 
 pub fn with_indent(a: impl Into<Combinator>) -> Combinator {
-    seq(vec![indent(), a.into(), dedent()])
+    seq!(indent(), a, dedent())
 }
 
 impl From<IndentCombinator> for Combinator {

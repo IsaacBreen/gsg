@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, seq, Squash, Stats};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, seq, Squash, Stats, symbol};
 use crate::combinators::derived::opt;
 use crate::parse_state::RightData;
 
@@ -84,15 +84,7 @@ pub fn repeat1(a: impl Into<Combinator>) -> Repeat1 {
 }
 
 pub fn repeat0(a: impl Into<Combinator>) -> Combinator {
-    opt(repeat1(a))
-}
-
-pub fn seprep1(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
-    seq(vec![a.into(), repeat0(seq(vec![b.into(), a.into()]))])
-}
-
-pub fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
-    seq(vec![opt(repeat1(seq(vec![a.clone().into(), b.into()]))), a.into()])
+    opt(repeat1(a)).into()
 }
 
 impl From<Repeat1> for Combinator {

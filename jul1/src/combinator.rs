@@ -169,16 +169,6 @@ macro_rules! match_parser {
     };
 }
 
-impl Combinator {
-    pub fn set(&mut self, a: Combinator) -> Combinator {
-        match self {
-            Combinator::ForwardRef(forward_ref) => forward_ref.set(a),
-            _ => panic!("Cannot set a value on a non-forward_ref combinator"),
-        };
-        self.clone()
-    }
-}
-
 pub trait CombinatorTrait {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults);
 }

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Stats};
+use crate::{Combinator, CombinatorTrait, opt, Parser, ParseResults, ParserTrait, repeat0, RightData, seq, Stats};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Symbol {
@@ -30,8 +30,17 @@ pub fn symbol(value: impl Into<Combinator>) -> Symbol {
     Symbol { value: Rc::new(value.into()) }
 }
 
-impl From<Symbol> for Combinator {
-    fn from(value: Symbol) -> Self {
-        Combinator::Symbol(value)
+impl From<&Symbol> for Combinator {
+    fn from(value: &Symbol) -> Self {
+        Combinator::Symbol(value.clone())
     }
+}
+
+pub fn seprep1(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
+    let a = symbol(a);
+    seq!(&a, repeat0(seq!(b, &a)))
+}
+
+pub fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
+    opt(seprep1(a, b)).into()
 }

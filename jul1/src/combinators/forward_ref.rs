@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Stats};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Stats, Symbol, symbol};
 use crate::parse_state::RightData;
 
 #[derive(Debug, Clone)]
@@ -36,15 +36,22 @@ impl CombinatorTrait for RefCell<Option<Rc<Combinator>>> {
     }
 }
 
-pub fn forward_ref() -> Combinator {
-    Combinator::ForwardRef(ForwardRef { a: Rc::new(RefCell::new(None)) })
+impl ForwardRef {
+    pub fn set(&mut self, a: impl Into<Combinator>) -> Symbol {
+        let a: Rc<Combinator> = a.into().into();
+        *self.a.borrow_mut() = Some(a.clone());
+        Symbol { value: a }
+    }
 }
 
-impl ForwardRef {
-    pub fn set(&mut self, a: Combinator) -> Combinator {
-        let a = Rc::new(a);
-        *self.a.borrow_mut() = Some(a.clone());
-        Combinator::ForwardRef(self.clone())
+
+pub fn forward_ref() -> ForwardRef {
+    ForwardRef { a: Rc::new(RefCell::new(None)) }
+}
+
+impl From<&ForwardRef> for Combinator {
+    fn from(value: &ForwardRef) -> Self {
+        Combinator::ForwardRef(value.clone())
     }
 }
 

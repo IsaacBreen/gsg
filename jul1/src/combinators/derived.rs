@@ -1,5 +1,5 @@
-use crate::{choice, Combinator, eps};
+use crate::{choice, Choice, Combinator, eps};
 
-pub fn opt(a: Combinator) -> Combinator {
-    choice(vec![a, eps()])
+pub fn opt(a: impl Into<Combinator>) -> Choice {
+    choice!(a, eps())
 }

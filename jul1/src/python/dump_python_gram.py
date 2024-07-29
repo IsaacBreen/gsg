@@ -166,7 +166,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     def item_to_rust(item) -> str:
         if isinstance(item, pegen.grammar.NameLeaf):
             value = item.value
-            return f'{value}.clone()'
+            return f'&{value}'
         elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
             if value[0] == value[-1] in {'"', "'"}:
@@ -207,7 +207,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{cache_context, cached, choice, Choice, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, opt, Repeat1, seprep0, seprep1, Seq, tag};\n')
+    f.write('use crate::{cache_context, cached, symbol, choice, Choice, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, opt, Repeat1, seprep0, seprep1, Seq, tag};\n')
     f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
@@ -219,7 +219,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         expr = f'seq!(forbid_follows_check_not("{token}"), {expr}, forbid_follows(&[{",".join(f'"{ref.name}"' for ref in unresolved_follows_table.get(token_ref, []))}]))'
         expr = f'tag("{token}", {expr})'
         expr = f'{expr}'
-        f.write(f"    let {token} = {expr};\n")
+        f.write(f"    let {token} = symbol({expr});\n")
     f.write('\n')
     f.write(f'    forward_decls!({", ".join(name for name, rule in rules)});\n')
     f.write('\n')
@@ -230,9 +230,9 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             expr = f'cached({expr})'
         f.write(f'    let {name} = {name}.set({expr});\n')
     if any(rule.memo for name, rule in rules):
-        f.write('\n    cache_context(seq!(opt(NEWLINE), file))\n')
+        f.write('\n    cache_context(seq!(opt(&NEWLINE), &file)).into()\n')
     else:
-        f.write('\n    seq!(opt(NEWLINE), file)\n')
+        f.write('\n    seq!(opt(&NEWLINE), &file).into()\n')
     f.write('}\n')
     return f.getvalue()
 
