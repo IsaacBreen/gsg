@@ -2,8 +2,8 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct BitSet256 {
-    x: u128,
-    y: u128,
+    pub(crate) x: u128,
+    pub(crate) y: u128,
 }
 
 impl BitSet256 {
