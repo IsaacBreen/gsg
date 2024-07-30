@@ -48,7 +48,7 @@ pub struct CachedParser {
 
 impl Hash for CachedParser {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.entry.borrow().hash(state);
+        // self.entry.borrow().hash(state);
     }
 }
 
