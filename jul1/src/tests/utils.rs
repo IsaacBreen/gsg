@@ -116,6 +116,12 @@ pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, in
     assert_parses(combinator, input, "Parser failed unexpectedly");
 }
 
+pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
+    let (mut parser, _) = combinator.parser(RightData::default());
+    let parse_results = parser.steps(&input.to_string());
+    assert!(parse_results.done, "Parser failed unexpectedly");
+}
+
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     let mut input = input.to_string();
     println!("beginning assert_fails {}", desc);

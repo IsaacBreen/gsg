@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{eat_string, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, whitespace, WS};
-use crate::utils::{assert_fails, assert_fails_default, assert_parses, assert_parses_default};
+use crate::utils::{assert_fails, assert_fails_default, assert_parses, assert_parses_default, assert_parses_fast};
 
 #[test]
 fn test_trivial_ws() {
@@ -144,6 +144,22 @@ fn test_actual_python_file() {
     let path = Path::new("src/python/remove_left_recursion.py");
     let file = std::fs::read_to_string(path).unwrap();
     assert_parses(&combinator, &file, "Actual Python file");
+}
+
+#[test]
+fn test_actual_python_file_fast() {
+    let combinator = python_file();
+
+    let s = "x = 12\nx = 2\nx";
+    assert_parses(&combinator, s, "Actual Python file");
+
+    // let path = Path::new("src/python/dump_python_gram.py");
+    // let file = std::fs::read_to_string(path).unwrap();
+    // assert_parses_fast(&combinator, &file);
+    //
+    // let path = Path::new("src/python/remove_left_recursion.py");
+    // let file = std::fs::read_to_string(path).unwrap();
+    // assert_parses_fast(&combinator, &file);
 }
 
 #[test]
