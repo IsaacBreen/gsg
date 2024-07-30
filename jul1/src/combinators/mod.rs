@@ -33,6 +33,7 @@ mod cache;
 mod derived;
 mod eat_bytestring_choice;
 mod deferred;
+mod cache_first;
 
 pub use choice::*;
 pub use eat_string::*;
@@ -53,3 +54,4 @@ pub use cache::*;
 pub use derived::*;
 pub use eat_bytestring_choice::*;
 pub use deferred::*;
+pub use cache_first::*;

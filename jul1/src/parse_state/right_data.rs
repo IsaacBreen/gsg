@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use derivative::Derivative;
 
-use crate::{CacheData, ForbidFollowsData, FrameStack, PythonQuoteType};
+use crate::{CacheData, CacheFirstData, ForbidFollowsData, FrameStack, PythonQuoteType};
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
@@ -18,6 +18,8 @@ pub struct RightData {
     pub forbidden_consecutive_matches: ForbidFollowsData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub cache_data: CacheData,
+    #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
+    pub cache_first_data: CacheFirstData,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub position: usize,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
@@ -34,6 +36,7 @@ impl Default for RightData {
             fstring_start_stack: vec![],
             forbidden_consecutive_matches: ForbidFollowsData::default(),
             cache_data: CacheData::default(),
+            cache_first_data: CacheFirstData::default(),
             position: 0,
             time: Rc::new(RefCell::new(0)),
         }

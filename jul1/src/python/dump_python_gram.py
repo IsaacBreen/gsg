@@ -216,7 +216,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{cache_context, cached, symbol, Symbol, choice, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, opt, Repeat1, seprep0, seprep1, Seq, tag, Compile};\n')
+    f.write('use crate::{cache_context, cached, cache_first_context, cache_first, symbol, Symbol, choice, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, opt, Repeat1, seprep0, seprep1, Seq, tag, Compile};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
     f.write('\n')
@@ -244,6 +244,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             else:
                 expr = f'seq!(forbid_follows_clear(), {expr})'
             expr = f'tag("{token}", {expr})'
+            expr = f'cache_first({expr})'
             expr = f'cached({expr})'
             if deferred:
                 f.write('fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
@@ -285,10 +286,13 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         f.write(textwrap.indent(make_tokens(), "    "))
         f.write(textwrap.indent(make_rules(), "    "))
 
+    expr = f'seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")})'
+    expr = f'cache_first_context({expr})'
+
     if any(rule.memo for name, rule in rules):
-        f.write(f'\n    cache_context(seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")})).into()\n')
+        f.write(f'\n    cache_context({expr}).into()\n')
     else:
-        f.write(f'\n    seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")}).into()\n')
+        f.write(f'\n    seq!({expr}).into()\n')
     f.write('}\n')
     return f.getvalue()
 
