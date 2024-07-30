@@ -10,7 +10,9 @@ pub struct MutateRightData {
 }
 
 impl Hash for MutateRightData {
-    fn hash<H: Hasher>(&self, state: &mut H) {}
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.run.as_ref() as *const dyn Fn(&mut RightData) -> bool, state);
+    }
 }
 
 impl PartialEq for MutateRightData {
@@ -33,7 +35,9 @@ pub struct MutateRightDataParser {
 }
 
 impl Hash for MutateRightDataParser {
-    fn hash<H: Hasher>(&self, state: &mut H) {}
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.run.as_ref() as *const dyn Fn(&mut RightData) -> bool, state);
+    }
 }
 
 impl PartialEq for MutateRightDataParser {

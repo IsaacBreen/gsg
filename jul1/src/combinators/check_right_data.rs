@@ -10,7 +10,9 @@ pub struct CheckRightData {
 }
 
 impl Hash for CheckRightData {
-    fn hash<H: Hasher>(&self, state: &mut H) {}
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.run.as_ref() as *const dyn Fn(&RightData) -> bool, state);
+    }
 }
 
 impl PartialEq for CheckRightData {
@@ -33,7 +35,9 @@ pub struct CheckRightDataParser {
 }
 
 impl Hash for CheckRightDataParser {
-    fn hash<H: Hasher>(&self, state: &mut H) {}
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.run.as_ref() as *const dyn Fn(&RightData) -> bool, state);
+    }
 }
 
 impl PartialEq for CheckRightDataParser {
