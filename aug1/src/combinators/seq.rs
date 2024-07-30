@@ -7,12 +7,12 @@ pub struct Seq {
 }
 
 pub fn seq(combinators: Vec<Combinator>) -> Seq {
-    Seq { combinators }
+    Seq { combinators: Rc::new(combinators) }
 }
 
-impl From<Combinator> for Seq {
-    fn from(combinator: Combinator) -> Self {
-        Seq { combinators: vec![combinator] }
+impl From<Seq> for Combinator {
+    fn from(seq: Seq) -> Self {
+        Combinator::Seq(seq)
     }
 }
 

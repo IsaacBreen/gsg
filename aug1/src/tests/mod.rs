@@ -1,3 +1,5 @@
+use crate::{eat_u8, seq};
+
 mod basic_tests;
 
 #[test]

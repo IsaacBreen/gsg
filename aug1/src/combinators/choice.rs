@@ -7,12 +7,12 @@ pub struct Choice {
 }
 
 pub fn choice(combinators: Vec<Combinator>) -> Choice {
-    Choice { combinators }
+    Choice { combinators: Rc::new(combinators) }
 }
 
-impl From<Combinator> for Choice {
-    fn from(combinator: Combinator) -> Self {
-        Choice { combinators: vec![combinator] }
+impl From<Choice> for Combinator {
+    fn from(choice: Choice) -> Self {
+        Combinator::Choice(choice)
     }
 }
 
