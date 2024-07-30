@@ -58,6 +58,12 @@ pub fn eat_char(c: char) -> EatU8 {
     eat_byte(c as u8)
 }
 
+pub fn eat_any_byte() -> EatU8 {
+    EatU8 {
+        u8set: U8Set::all(),
+    }
+}
+
 pub fn eat_char_choice(chars: &str) -> EatU8 {
     EatU8 {
         u8set: U8Set::from_chars(chars),
