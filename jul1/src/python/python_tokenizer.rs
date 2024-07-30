@@ -418,8 +418,8 @@ pub fn STRING() -> Combinator {
     );
 
     let longstring = choice!(
-        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), choice!(breaking_space(), eat_char_choice("'n"))))), eat_string("'''")),
-        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), choice!(breaking_space(), eat_char_choice("'n"))))), eat_string("\"\"\""))
+        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), choice!(breaking_space(), eat_char_choice("'n"))), eat_string("\\'\\'\\'"))), eat_string("'''")),
+        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), choice!(breaking_space(), eat_char_choice("'n"))), eat_string("\\\"\\\"\\\""))), eat_string("\"\"\""))
     );
 
     seq!(opt(stringprefix), choice!(shortstring, longstring))

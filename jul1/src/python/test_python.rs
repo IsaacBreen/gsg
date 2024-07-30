@@ -127,7 +127,7 @@ fn test_gpt4_suggestions_0() {
 // #[ignore]
 #[test]
 fn test_actual_python_file() {
-    let path = Path::new("src/python/remove_left_recursion.py");
+    let path = Path::new("src/python/dump_python_gram.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses(&combinator, &file, "Actual Python file");
