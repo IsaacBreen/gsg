@@ -431,7 +431,6 @@ pub fn STRING() -> Combinator {
         seq!(eat_char('\\'), eat_char('U'), repeatn(8, eat_char_hex_digit())),
         seq!(eat_char('\\'), eat_char('N'), eat_until_terminator(';')),
         seq!(eat_char('\\'), eat_char_digit(), opt(eat_char_digit()), opt(eat_char_digit())),
-        seq!(eat_char('\\'), eat_any_byte())
     );
 
     let shortstringitem = choice!(
@@ -445,8 +444,8 @@ pub fn STRING() -> Combinator {
     );
 
     let shortstring = choice!(
-        seq!(eat_char('\''), repeat0(shortstringitem.clone()), eat_char('\'')),
-        seq!(eat_char('"'), repeat0(shortstringitem), eat_char('"'))
+        seq!(eat_char('\''), repeat0(choice!(shortstringitem.clone(), eat_string(r#"\'"#))), eat_char('\'')),
+        seq!(eat_char('"'), repeat0(choice!(shortstringitem, eat_string(r#"\""#))), eat_char('"'))
     );
 
     let longstring = choice!(
