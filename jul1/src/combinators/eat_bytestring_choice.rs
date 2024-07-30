@@ -44,17 +44,11 @@ impl BuildTrieNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct TrieNode {
     valid_bytes: U8Set,
     is_end: bool,
     children: Vec<Rc<TrieNode>>,
-}
-
-impl Hash for TrieNode {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.valid_bytes.hash(state);
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
