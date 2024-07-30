@@ -43,15 +43,15 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 break 'outer;
             }
 
-            // Print useful info
-            // - line and char number
-            // - text
-            // - stats
-            println!("line:char: {line_number}:{char_number}");
-            println!("line: {line:?}");
-            let stats = parser.stats();
-            println!("Stats:");
-            println!("{}", stats);
+            // // Print useful info
+            // // - line and char number
+            // // - text
+            // // - stats
+            // println!("line:char: {line_number}:{char_number}");
+            // println!("line: {line:?}");
+            // let stats = parser.stats();
+            // println!("Stats:");
+            // println!("{}", stats);
 
             let ParseResults {
                 right_data_vec: right_data,

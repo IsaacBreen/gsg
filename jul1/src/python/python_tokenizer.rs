@@ -632,7 +632,6 @@ pub fn FSTRING_MIDDLE() -> Combinator {
         seq!(eat_char('\\'), eat_char('U'), repeatn(8, eat_char_hex_digit())),
         seq!(eat_char('\\'), eat_char('N'), eat_until_terminator(';')),
         seq!(eat_char('\\'), eat_char_digit(), opt(eat_char_digit()), opt(eat_char_digit())),
-        seq!(eat_char('\\'), eat_any_byte())
     );
 
     let regular_char = eat_char_negation_choice("{}\\\n\r");
