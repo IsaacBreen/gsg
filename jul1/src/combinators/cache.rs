@@ -1,5 +1,5 @@
 use std::cell::{Ref, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -17,6 +17,7 @@ pub struct CacheData {
 #[derive(Debug, Clone, PartialEq, Default, Eq)]
 pub struct CacheDataInner {
     pub new_parsers: HashMap<CacheKey, Rc<RefCell<CacheEntry>>>,
+    pub keys_hit_this_step: HashSet<CacheKey>,
     pub entries: Vec<Rc<RefCell<CacheEntry>>>,
 }
 
@@ -75,6 +76,8 @@ impl CacheContextParser {
             let cloned = entry.borrow().clone();
             *entry = Rc::new(RefCell::new(cloned));
         });
+        cache_data_inner.new_parsers.clear();
+        cache_data_inner.keys_hit_this_step.clear();
         cache_data_inner.entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done);
     }
 }
@@ -125,14 +128,22 @@ impl CombinatorTrait for Cached {
             right_data: right_data.clone()
         };
 
-        if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.get(&key) {
-            let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
-            return (
-                Parser::CachedParser(CachedParser {
-                    entry: entry.clone(),
-                }),
-                parse_results
-            );
+        {
+            let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
+            let maybe_entry = cache_data_inner.new_parsers.get(&key).cloned();
+            if let Some(entry) = maybe_entry {
+                if !cache_data_inner.keys_hit_this_step.contains(&key) {
+                    cache_data_inner.keys_hit_this_step.insert(key.clone());
+                    cache_data_inner.entries.push(entry.clone());
+                }
+                let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
+                return (
+                    Parser::CachedParser(CachedParser {
+                        entry: entry.clone(),
+                    }),
+                    parse_results
+                );
+            }
         }
 
         let entry = Rc::new(RefCell::new(CacheEntry {
@@ -144,6 +155,7 @@ impl CombinatorTrait for Cached {
         parse_results.squash();
         {
             let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
+            cache_data_inner.keys_hit_this_step.insert(key.clone());
             cache_data_inner.new_parsers.insert(key, entry.clone());
             cache_data_inner.entries.push(entry.clone());
         }
