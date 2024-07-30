@@ -269,10 +269,10 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
                 f.write('fn ' + name + '() -> Combinator {\n')
                 f.write(f'{textwrap.indent(expr, "    ")}\n')
                 f.write('}\n')
+                f.write('\n')
             else:
-                expr = f'symbol({expr})'
-                f.write(f'let {name} = {expr};\n')
-            f.write('\n')
+                f.write(f'let {name} = {name}.set({expr});\n')
+        f.write('\n')
         return f.getvalue()
 
     if deferred:
