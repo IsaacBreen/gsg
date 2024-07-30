@@ -148,7 +148,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         if len(rhs.alts) == 1:
             return alt_to_rust(rhs.alts[0], top_level=top_level)
         if top_level:
-            return "choice!(\n        " + ",\n        ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n    )"
+            return "choice!(\n    " + ",\n    ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n)"
         else:
             return "choice!(" + ", ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
 
@@ -156,7 +156,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         if len(alt.items) == 1:
             return named_item_to_rust(alt.items[0])
         if top_level and len(alt.items) > 4:
-            return "seq!(\n        " + ",\n        ".join(named_item_to_rust(item) for item in alt.items) + "\n    )"
+            return "seq!(\n    " + ",\n     ".join(named_item_to_rust(item) for item in alt.items) + "\n)"
         else:
             s = "seq!(" + ", ".join(named_item_to_rust(item) for item in alt.items) + ")"
             return s
@@ -208,19 +208,20 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{cache_context, cached, symbol, choice, Choice, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, opt, Repeat1, seprep0, seprep1, Seq, tag, Compile};\n')
-    f.write('use super::python_tokenizer::{' + ", ".join(tokens) + '};\n')
+    f.write('use crate::{cache_context, cached, symbol,  Symbol, choice, Choice, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, opt, Repeat1, seprep0, seprep1, Seq, tag, Compile};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
     f.write('\n')
-    f.write('pub fn python_file() -> Combinator {\n')
-    f.write('    enum Forbidden {\n')
+
+    f.write('enum Forbidden {\n')
     for token in tokens:
-        f.write(f'        {token},\n')
-    f.write('    }\n')
+        f.write(f'    {token},\n')
+    f.write('}\n')
     f.write('\n')
+
+    f.write('use super::python_tokenizer as token;\n')
     for token in tokens:
-        expr = f'{token}()'
+        expr = f'token::{token}()'
         expr = f'{expr}.compile()'
 
         token_ref = remove_left_recursion.ref(token)
@@ -232,20 +233,25 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr})'
         else:
             expr = f'seq!({expr})'
-
         expr = f'tag("{token}", {expr})'
         expr = f'cached({expr})'
-        f.write(f"    let {token} = symbol({expr});\n")
+        f.write(f"const {token}: Symbol = symbol({expr});\n")
     f.write('\n')
-    f.write(f'    forward_decls!({", ".join(name for name, rule in rules)});\n')
-    f.write('\n')
+
     for name, rule in rules:
         expr = rhs_to_rust(rule.rhs, top_level=True)
-        expr = f'Combinator::from({expr})'
         expr = f'tag("{name}", {expr})'
         if rule.memo:
             expr = f'cached({expr})'
-        f.write(f'    let {name} = {name}.set({expr});\n')
+        expr = f'{expr}.into()'
+        f.write('fn ' + name + '() -> Combinator {\n')
+        f.write(f'{textwrap.indent(expr, "    ")}\n')
+        f.write('}\n')
+        f.write('\n')
+
+    f.write('pub fn python_file() -> Combinator {\n')
+    f.write(f'    forward_decls!({", ".join(name for name, rule in rules)});\n')
+    f.write('\n')
     if any(rule.memo for name, rule in rules):
         f.write('\n    cache_context(seq!(opt(&NEWLINE), &file)).into()\n')
     else:
