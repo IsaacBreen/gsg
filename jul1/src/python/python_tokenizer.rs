@@ -566,6 +566,14 @@ pub fn STRING() -> Combinator {
 // Of course, as mentioned before, it is not possible to provide a precise
 // specification of how this should be done for an arbitrary tokenizer as it will
 // depend on the specific implementation and nature of the lexer to be changed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PythonQuoteType {
+    OneSingle,
+    OneDouble,
+    ThreeSingle,
+    ThreeDouble,
+}
+
 pub fn FSTRING_START() -> Combinator {
     let prefix = choice!(
         eat_char_choice("fF"),
@@ -574,10 +582,10 @@ pub fn FSTRING_START() -> Combinator {
     );
 
     let quote = choice!(
-        eat_char('\''),
-        eat_char('"'),
-        eat_string("'''"),
-        eat_string("\"\"\"")
+        seq!(eat_char('\''), mutate_right_data(|right_data| { right_data.fstring_start_stack.push(PythonQuoteType::OneSingle); true })),
+        seq!(eat_char('"'), mutate_right_data(|right_data| { right_data.fstring_start_stack.push(PythonQuoteType::OneDouble); true })),
+        seq!(eat_string("'''"), mutate_right_data(|right_data| { right_data.fstring_start_stack.push(PythonQuoteType::ThreeSingle); true })),
+        seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { right_data.fstring_start_stack.push(PythonQuoteType::ThreeDouble); true }))
     );
 
     seq!(
@@ -586,12 +594,18 @@ pub fn FSTRING_START() -> Combinator {
 }
 
 pub fn FSTRING_MIDDLE() -> Combinator {
-    let escaped_char = seq!(eat_char('\\'), eat_char_negation_choice("\n\r"));
-    let regular_char = eat_char_negation_choice("{}\\");
+    let escaped_char = seq!(eat_char('\\'), eat_char_choice("\\\n\r\'\""));
+    let regular_char = eat_char_negation_choice("{}\\\n\r\'\"");
+
+    let quote = choice!(
+        seq!(eat_char('\''), mutate_right_data(|right_data| { *right_data.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle })),
+        seq!(eat_char('"'), mutate_right_data(|right_data| { *right_data.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble })),
+    );
 
     repeat1(choice!(
             regular_char,
             escaped_char,
+            quote,
             seq!(eat_char('{'), eat_char('{')),
             seq!(eat_char('}'), eat_char('}'))
         )
@@ -600,10 +614,10 @@ pub fn FSTRING_MIDDLE() -> Combinator {
 
 pub fn FSTRING_END() -> Combinator {
     let quote = choice!(
-        eat_char('\''),
-        eat_char('"'),
-        eat_string("'''"),
-        eat_string("\"\"\"")
+        seq!(eat_char('\''), mutate_right_data(|right_data| { right_data.fstring_start_stack.pop().unwrap() == PythonQuoteType::OneSingle })),
+        seq!(eat_char('"'), mutate_right_data(|right_data| { right_data.fstring_start_stack.pop().unwrap() == PythonQuoteType::OneDouble })),
+        seq!(eat_string("'''"), mutate_right_data(|right_data| { right_data.fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeSingle })),
+        seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { right_data.fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
     );
 
     quote.into()
