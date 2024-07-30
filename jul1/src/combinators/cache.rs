@@ -70,8 +70,12 @@ pub struct CacheContextParser {
 
 impl CacheContextParser {
     fn cleanup(&mut self) {
-        self.cache_data_inner.borrow_mut().new_parsers.clear();
-        self.cache_data_inner.borrow_mut().entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done);
+        let mut cache_data_inner = self.cache_data_inner.borrow_mut();
+        cache_data_inner.new_parsers.values_mut().for_each(|entry| {
+            let cloned = entry.borrow().clone();
+            *entry = Rc::new(RefCell::new(cloned));
+        });
+        cache_data_inner.entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done);
     }
 }
 
