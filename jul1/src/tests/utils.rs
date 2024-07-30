@@ -97,16 +97,16 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         // );
     }
 
-    // // Save to CSV
-    // let mut csv_file = BufWriter::new(File::create("timings.csv").unwrap());
-    // csv_file.write_all("index,text,duration\n".as_bytes()).unwrap();
-    // for (i, (line, duration)) in timing_vec.iter().enumerate() {
-    //     // Escape quotes and newlines in the text
-    //     let line = line.replace("\"", "\"\"");
-    //     let line = line.replace("\n", "\\n");
-    //     csv_file.write_all(format!("{},\"{}\",{}\n", i, line, duration.as_secs_f64()).as_bytes()).unwrap();
-    // }
-    // println!("Saved timings to timings.csv");
+    // Save to CSV
+    let mut csv_file = BufWriter::new(File::create("timings.csv").unwrap());
+    csv_file.write_all("index,text,duration\n".as_bytes()).unwrap();
+    for (i, (line, duration)) in timing_vec.iter().enumerate() {
+        // Escape quotes and newlines in the text
+        let line = line.replace("\"", "\"\"");
+        let line = line.replace("\n", "\\n");
+        csv_file.write_all(format!("{},\"{}\",{}\n", i, line, duration.as_secs_f64()).as_bytes()).unwrap();
+    }
+    println!("Saved timings to timings.csv");
 }
 
 pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
