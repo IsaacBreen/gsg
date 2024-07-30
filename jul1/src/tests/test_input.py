@@ -1,1029 +1,1071 @@
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -45,6 +45,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
         if right_data.forbidden_consecutive_matches.prev_match_ids.contains(&self.match_id) {
             (combinator::Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else {
+            right_data.forbidden_consecutive_matches.prev_match_ids.clear();
             (combinator::Parser::FailParser(FailParser), ParseResults {
                 right_data_vec: vec![right_data],
                 up_data_vec: vec![],

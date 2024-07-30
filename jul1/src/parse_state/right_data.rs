@@ -26,7 +26,7 @@ pub struct RightData {
 impl Default for RightData {
     fn default() -> Self {
         Self {
-            frame_stack: Some(FrameStack::default()),
+            frame_stack: None,
             indents: vec![],
             dedents: 0,
             scope_count: 0,
