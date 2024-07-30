@@ -1,4 +1,4 @@
-use std::panic::catch_unwind;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use kdam::tqdm;
 
@@ -36,7 +36,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
             let char_start = Instant::now();
 
             let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));
-            assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}", byte as char, up_data);
+            assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}. Line: {:?}, Char: {:?}, Text: {:?}", byte as char, up_data, line_number + 1, char_number + 1, line);
 
             if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
                 timings.push((line.to_string(), Instant::now() - line_start));
@@ -47,7 +47,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 right_data_vec: right_data,
                 up_data_vec: new_up_data,
                 done,
-            } = parser.step(byte).squashed();
+            } = catch_unwind(AssertUnwindSafe(|| parser.step(byte).squashed())).expect(format!("Parser.step: Error at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1).as_str());
 
             up_data = new_up_data;
 
