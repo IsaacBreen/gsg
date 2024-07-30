@@ -43,10 +43,13 @@ impl ParserTrait for TaggedParser {
     }
 }
 
-pub fn tag(tag: &str, a: impl Into<Combinator>) -> Combinator {
+// pub fn tag(tag: &str, a: impl Into<Combinator>) -> Combinator {
+//     a.into()
+// }
+
+pub fn tag(tag: &str, a: impl Into<Combinator>) -> Tagged {
     // TODO: ffs
-    // Tagged { inner: Box::new(a.into()), tag: tag.to_string() }
-    a.into()
+    Tagged { inner: Box::new(a.into()), tag: tag.to_string() }
 }
 
  impl From<Tagged> for Combinator {
