@@ -126,7 +126,15 @@ fn test_gpt4_suggestions_0() {
 
 // #[ignore]
 #[test]
-fn test_actual_python_file() {
+fn test_test_input() {
+    let path = Path::new("src/tests/test_input.py");
+    let file = std::fs::read_to_string(path).unwrap();
+    let combinator = python_file();
+    assert_parses(&combinator, &file, "Actual Python file");
+}
+
+#[test]
+fn test_actual_python_file2() {
     let path = Path::new("src/python/dump_python_gram.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
@@ -162,8 +170,15 @@ fn test_explosion_please() {
 fn test_string_problem() {
     let combinator = python_file();
 
-    let s = r#"return "choice!(\n    " + ",\n    ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n)""#;
+    // let s = "def f():\n  return\n"#;
+    // assert_parses(&combinator, s, "String");
+
+    // let s = "return \"choice!(\\n    \" + \",\\n    \".join(alt_to_rust(alt) for alt in rhs.alts) + \"\\n)\n";
+    let s = "return \"choice!(\\n    \" + \",\\n    \".join(alt_to_rust(alt) for alt in rhs.alts) + \"\\n)\n";
     assert_parses(&combinator, s, "String");
+
+    // let s = "return\n";
+    // assert_parses(&combinator, s, "String");
 }
 
 #[test]
