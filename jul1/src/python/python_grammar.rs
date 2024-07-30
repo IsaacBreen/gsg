@@ -18,1227 +18,862 @@ enum Forbidden {
     ENDMARKER,
 }
 
-use super::python_tokenizer as token;
-fn WS() -> Combinator { cached(tag("WS", seq!(forbid_follows_check_not(Forbidden::WS as usize), token::WS().compile(), forbid_follows(&[Forbidden::DEDENT as usize, Forbidden::INDENT as usize, Forbidden::NEWLINE as usize])))).into() }
-fn NAME() -> Combinator { cached(tag("NAME", seq!(forbid_follows_check_not(Forbidden::NAME as usize), token::NAME().compile(), forbid_follows(&[Forbidden::NAME as usize, Forbidden::NUMBER as usize])))).into() }
-fn TYPE_COMMENT() -> Combinator { cached(tag("TYPE_COMMENT", seq!(token::TYPE_COMMENT().compile()))).into() }
-fn FSTRING_START() -> Combinator { cached(tag("FSTRING_START", seq!(token::FSTRING_START().compile(), forbid_follows(&[Forbidden::WS as usize])))).into() }
-fn FSTRING_MIDDLE() -> Combinator { cached(tag("FSTRING_MIDDLE", seq!(forbid_follows_check_not(Forbidden::FSTRING_MIDDLE as usize), token::FSTRING_MIDDLE().compile(), forbid_follows(&[Forbidden::FSTRING_MIDDLE as usize, Forbidden::WS as usize])))).into() }
-fn FSTRING_END() -> Combinator { cached(tag("FSTRING_END", seq!(token::FSTRING_END().compile()))).into() }
-fn NUMBER() -> Combinator { cached(tag("NUMBER", seq!(forbid_follows_check_not(Forbidden::NUMBER as usize), token::NUMBER().compile(), forbid_follows(&[Forbidden::NUMBER as usize])))).into() }
-fn STRING() -> Combinator { cached(tag("STRING", seq!(token::STRING().compile()))).into() }
-fn NEWLINE() -> Combinator { cached(tag("NEWLINE", seq!(forbid_follows_check_not(Forbidden::NEWLINE as usize), token::NEWLINE().compile(), forbid_follows(&[Forbidden::WS as usize])))).into() }
-fn INDENT() -> Combinator { cached(tag("INDENT", seq!(forbid_follows_check_not(Forbidden::INDENT as usize), token::INDENT().compile(), forbid_follows(&[Forbidden::WS as usize])))).into() }
-fn DEDENT() -> Combinator { cached(tag("DEDENT", seq!(forbid_follows_check_not(Forbidden::DEDENT as usize), token::DEDENT().compile(), forbid_follows(&[Forbidden::WS as usize])))).into() }
-fn ENDMARKER() -> Combinator { cached(tag("ENDMARKER", seq!(token::ENDMARKER().compile()))).into() }
+pub fn python_file() -> Combinator {
+    use super::python_tokenizer as token;
+    let WS = symbol(cached(tag("WS", seq!(forbid_follows_check_not(Forbidden::WS as usize), token::WS().compile(), forbid_follows(&[Forbidden::DEDENT as usize, Forbidden::INDENT as usize, Forbidden::NEWLINE as usize])))));
+    let NAME = symbol(cached(tag("NAME", seq!(forbid_follows_check_not(Forbidden::NAME as usize), token::NAME().compile(), forbid_follows(&[Forbidden::NAME as usize, Forbidden::NUMBER as usize])))));
+    let TYPE_COMMENT = symbol(cached(tag("TYPE_COMMENT", seq!(token::TYPE_COMMENT().compile()))));
+    let FSTRING_START = symbol(cached(tag("FSTRING_START", seq!(token::FSTRING_START().compile(), forbid_follows(&[Forbidden::WS as usize])))));
+    let FSTRING_MIDDLE = symbol(cached(tag("FSTRING_MIDDLE", seq!(forbid_follows_check_not(Forbidden::FSTRING_MIDDLE as usize), token::FSTRING_MIDDLE().compile(), forbid_follows(&[Forbidden::FSTRING_MIDDLE as usize, Forbidden::WS as usize])))));
+    let FSTRING_END = symbol(cached(tag("FSTRING_END", seq!(token::FSTRING_END().compile()))));
+    let NUMBER = symbol(cached(tag("NUMBER", seq!(forbid_follows_check_not(Forbidden::NUMBER as usize), token::NUMBER().compile(), forbid_follows(&[Forbidden::NUMBER as usize])))));
+    let STRING = symbol(cached(tag("STRING", seq!(token::STRING().compile()))));
+    let NEWLINE = symbol(cached(tag("NEWLINE", seq!(forbid_follows_check_not(Forbidden::NEWLINE as usize), token::NEWLINE().compile(), forbid_follows(&[Forbidden::WS as usize])))));
+    let INDENT = symbol(cached(tag("INDENT", seq!(forbid_follows_check_not(Forbidden::INDENT as usize), token::INDENT().compile(), forbid_follows(&[Forbidden::WS as usize])))));
+    let DEDENT = symbol(cached(tag("DEDENT", seq!(forbid_follows_check_not(Forbidden::DEDENT as usize), token::DEDENT().compile(), forbid_follows(&[Forbidden::WS as usize])))));
+    let ENDMARKER = symbol(cached(tag("ENDMARKER", seq!(token::ENDMARKER().compile()))));
 
-fn expression_without_invalid() -> Combinator {
-    tag("expression_without_invalid", choice!(
-        seq!(deferred(conjunction), opt(seq!(opt(deferred(WS)), python_literal("or"), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(conjunction), opt(repeat1(seq!(opt(deferred(WS)), python_literal("or"), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(conjunction)))))), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression)))),
-        seq!(python_literal("lambda"), opt(seq!(opt(deferred(WS)), deferred(lambda_params))), opt(deferred(WS)), python_literal(":"), opt(deferred(WS)), deferred(expression))
-    )).into()
-}
+    forward_decls!(expression_without_invalid, func_type_comment, type_expressions, del_t_atom, del_target, del_targets, t_lookahead, t_primary, single_subscript_attribute_target, single_target, star_atom, target_with_star_atom, star_target, star_targets_tuple_seq, star_targets_list_seq, star_targets, kwarg_or_double_starred, kwarg_or_starred, starred_expression, kwargs, args, arguments, dictcomp, genexp, setcomp, listcomp, for_if_clause, for_if_clauses, kvpair, double_starred_kvpair, double_starred_kvpairs, dict, set, tuple, list, strings, string, fstring, fstring_format_spec, fstring_full_format_spec, fstring_conversion, fstring_replacement_field, fstring_middle, lambda_param, lambda_param_maybe_default, lambda_param_with_default, lambda_param_no_default, lambda_kwds, lambda_star_etc, lambda_slash_with_default, lambda_slash_no_default, lambda_parameters, lambda_params, lambdef, group, atom, slice, slices, primary, await_primary, power, factor, term, sum, shift_expr, bitwise_and, bitwise_xor, bitwise_or, is_bitwise_or, isnot_bitwise_or, in_bitwise_or, notin_bitwise_or, gt_bitwise_or, gte_bitwise_or, lt_bitwise_or, lte_bitwise_or, noteq_bitwise_or, eq_bitwise_or, compare_op_bitwise_or_pair, comparison, inversion, conjunction, disjunction, named_expression, assignment_expression, star_named_expression, star_named_expressions, star_expression, star_expressions, yield_expr, expression, expressions, type_param_starred_default, type_param_default, type_param_bound, type_param, type_param_seq, type_params, type_alias, keyword_pattern, keyword_patterns, positional_patterns, class_pattern, double_star_pattern, key_value_pattern, items_pattern, mapping_pattern, star_pattern, maybe_star_pattern, maybe_sequence_pattern, open_sequence_pattern, sequence_pattern, group_pattern, name_or_attr, attr, value_pattern, wildcard_pattern, pattern_capture_target, capture_pattern, imaginary_number, real_number, signed_real_number, signed_number, complex_number, literal_expr, literal_pattern, closed_pattern, or_pattern, as_pattern, pattern, patterns, guard, case_block, subject_expr, match_stmt, finally_block, except_star_block, except_block, try_stmt, with_item, with_stmt, for_stmt, while_stmt, else_block, elif_stmt, if_stmt, default, star_annotation, annotation, param_star_annotation, param, param_maybe_default, param_with_default, param_no_default_star_annotation, param_no_default, kwds, star_etc, slash_with_default, slash_no_default, parameters, params, function_def_raw, function_def, class_def_raw, class_def, decorators, block, dotted_name, dotted_as_name, dotted_as_names, import_from_as_name, import_from_as_names, import_from_targets, import_from, import_name, import_stmt, assert_stmt, yield_stmt, del_stmt, nonlocal_stmt, global_stmt, raise_stmt, return_stmt, augassign, annotated_rhs, assignment, compound_stmt, simple_stmt, simple_stmts, statement_newline, statement, statements, func_type, eval, interactive, file, );
+    let expression_without_invalid = symbol(tag("expression_without_invalid", choice!(
+        seq!(&conjunction, opt(seq!(opt(&WS), python_literal("or"), opt(&WS), opt(seq!(&WS, opt(&WS))), &conjunction, opt(repeat1(seq!(opt(&WS), python_literal("or"), opt(&WS), opt(seq!(&WS, opt(&WS))), &conjunction))))), opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))),
+        seq!(python_literal("lambda"), opt(seq!(opt(&WS), &lambda_params)), opt(&WS), python_literal(":"), opt(&WS), &expression)
+    )));
 
-fn func_type_comment() -> Combinator {
-    tag("func_type_comment", choice!(
-        seq!(deferred(NEWLINE), opt(deferred(WS)), deferred(TYPE_COMMENT)),
-        deferred(TYPE_COMMENT)
-    )).into()
-}
+    let func_type_comment = symbol(tag("func_type_comment", choice!(
+        seq!(&NEWLINE, opt(&WS), &TYPE_COMMENT),
+        &TYPE_COMMENT
+    )));
 
-fn type_expressions() -> Combinator {
-    tag("type_expressions", choice!(
-        seq!(choice!(seq!(deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression)))), deferred(lambdef)), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(expression), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(expression)))))), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), choice!(seq!(python_literal("*"), opt(deferred(WS)), deferred(expression), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), python_literal("**"), opt(deferred(WS)), deferred(expression)))), seq!(python_literal("**"), opt(deferred(WS)), deferred(expression)))))),
-        seq!(python_literal("*"), opt(deferred(WS)), deferred(expression), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), python_literal("**"), opt(deferred(WS)), deferred(expression)))),
-        seq!(python_literal("**"), opt(deferred(WS)), deferred(expression))
-    )).into()
-}
+    let type_expressions = symbol(tag("type_expressions", choice!(
+        seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), opt(seq!(opt(&WS), python_literal(","), opt(&WS), &expression, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &expression))))), opt(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(seq!(python_literal("*"), opt(&WS), &expression, opt(seq!(opt(&WS), python_literal(","), opt(&WS), python_literal("**"), opt(&WS), &expression))), seq!(python_literal("**"), opt(&WS), &expression))))),
+        seq!(python_literal("*"), opt(&WS), &expression, opt(seq!(opt(&WS), python_literal(","), opt(&WS), python_literal("**"), opt(&WS), &expression))),
+        seq!(python_literal("**"), opt(&WS), &expression)
+    )));
 
-fn del_t_atom() -> Combinator {
-    tag("del_t_atom", choice!(
-        deferred(NAME),
-        seq!(python_literal("("), opt(deferred(WS)), choice!(seq!(deferred(del_target), opt(deferred(WS)), python_literal(")")), seq!(opt(seq!(deferred(del_targets), opt(deferred(WS)))), python_literal(")")))),
-        seq!(python_literal("["), opt(seq!(opt(deferred(WS)), deferred(del_targets))), opt(deferred(WS)), python_literal("]"))
-    )).into()
-}
+    let del_t_atom = symbol(tag("del_t_atom", choice!(
+        &NAME,
+        seq!(python_literal("("), opt(&WS), choice!(seq!(&del_target, opt(&WS), python_literal(")")), seq!(opt(seq!(&del_targets, opt(&WS))), python_literal(")")))),
+        seq!(python_literal("["), opt(seq!(opt(&WS), &del_targets)), opt(&WS), python_literal("]"))
+    )));
 
-fn del_target() -> Combinator {
-    cached(tag("del_target", choice!(
-        seq!(choice!(deferred(NAME), python_literal("True"), python_literal("False"), python_literal("None"), deferred(strings), deferred(NUMBER), deferred(tuple), deferred(group), deferred(genexp), deferred(list), deferred(listcomp), deferred(dict), deferred(set), deferred(dictcomp), deferred(setcomp), python_literal("...")), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal("."), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(NAME)), seq!(python_literal("["), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(slices), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), python_literal("]")), deferred(genexp), seq!(python_literal("("), opt(seq!(opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(arguments))), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), python_literal(")"))), opt(repeat1(seq!(opt(deferred(WS)), choice!(seq!(python_literal("."), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(NAME)), seq!(python_literal("["), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(slices), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), python_literal("]")), deferred(genexp), seq!(python_literal("("), opt(seq!(opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(arguments))), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), python_literal(")")))))))), opt(deferred(WS)), choice!(seq!(python_literal("."), opt(deferred(WS)), deferred(NAME)), seq!(python_literal("["), opt(deferred(WS)), deferred(slices), opt(deferred(WS)), python_literal("]")))),
-        deferred(del_t_atom)
-    ))).into()
-}
+    let del_target = symbol(cached(tag("del_target", choice!(
+        seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), &strings, &NUMBER, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp, python_literal("...")), opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), opt(seq!(&WS, opt(&WS))), &NAME), seq!(python_literal("["), opt(&WS), opt(seq!(&WS, opt(&WS))), &slices, opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal("]")), &genexp, seq!(python_literal("("), opt(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &arguments)), opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal(")"))), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), opt(seq!(&WS, opt(&WS))), &NAME), seq!(python_literal("["), opt(&WS), opt(seq!(&WS, opt(&WS))), &slices, opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal("]")), &genexp, seq!(python_literal("("), opt(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &arguments)), opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal(")")))))))), opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]")))),
+        &del_t_atom
+    ))));
 
-fn del_targets() -> Combinator {
-    tag("del_targets", seq!(deferred(del_target), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(del_target), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(del_target)))))), opt(seq!(opt(deferred(WS)), python_literal(","))))).into()
-}
+    let del_targets = symbol(tag("del_targets", seq!(&del_target, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &del_target, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &del_target))))), opt(seq!(opt(&WS), python_literal(","))))));
 
-fn t_lookahead() -> Combinator {
-    tag("t_lookahead", choice!(
+    let t_lookahead = symbol(tag("t_lookahead", choice!(
         python_literal("("),
         python_literal("["),
         python_literal(".")
-    )).into()
-}
+    )));
 
-fn t_primary() -> Combinator {
-    tag("t_primary", seq!(choice!(deferred(NAME), python_literal("True"), python_literal("False"), python_literal("None"), deferred(strings), deferred(NUMBER), deferred(tuple), deferred(group), deferred(genexp), deferred(list), deferred(listcomp), deferred(dict), deferred(set), deferred(dictcomp), deferred(setcomp), python_literal("...")), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal("."), opt(deferred(WS)), deferred(NAME)), seq!(python_literal("["), opt(deferred(WS)), deferred(slices), opt(deferred(WS)), python_literal("]")), deferred(genexp), seq!(python_literal("("), opt(seq!(opt(deferred(WS)), deferred(arguments))), opt(deferred(WS)), python_literal(")"))), opt(repeat1(seq!(opt(deferred(WS)), choice!(seq!(python_literal("."), opt(deferred(WS)), deferred(NAME)), seq!(python_literal("["), opt(deferred(WS)), deferred(slices), opt(deferred(WS)), python_literal("]")), deferred(genexp), seq!(python_literal("("), opt(seq!(opt(deferred(WS)), deferred(arguments))), opt(deferred(WS)), python_literal(")")))))))))).into()
-}
+    let t_primary = symbol(tag("t_primary", seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), &strings, &NUMBER, &tuple, &group, &genexp, &list, &listcomp, &dict, &set, &dictcomp, &setcomp, python_literal("...")), opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]")), &genexp, seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"))), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]")), &genexp, seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")")))))))))));
 
-fn single_subscript_attribute_target() -> Combinator {
-    tag("single_subscript_attribute_target", seq!(deferred(t_primary), opt(deferred(WS)), choice!(seq!(python_literal("."), opt(deferred(WS)), deferred(NAME)), seq!(python_literal("["), opt(deferred(WS)), deferred(slices), opt(deferred(WS)), python_literal("]"))))).into()
-}
+    let single_subscript_attribute_target = symbol(tag("single_subscript_attribute_target", seq!(&t_primary, opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"))))));
 
-fn single_target() -> Combinator {
-    tag("single_target", choice!(
-        deferred(single_subscript_attribute_target),
-        deferred(NAME),
-        seq!(python_literal("("), opt(deferred(WS)), deferred(single_target), opt(deferred(WS)), python_literal(")"))
-    )).into()
-}
+    let single_target = symbol(tag("single_target", choice!(
+        &single_subscript_attribute_target,
+        &NAME,
+        seq!(python_literal("("), opt(&WS), &single_target, opt(&WS), python_literal(")"))
+    )));
 
-fn star_atom() -> Combinator {
-    tag("star_atom", choice!(
-        deferred(NAME),
-        seq!(python_literal("("), opt(deferred(WS)), choice!(seq!(deferred(target_with_star_atom), opt(deferred(WS)), python_literal(")")), seq!(opt(seq!(deferred(star_targets_tuple_seq), opt(deferred(WS)))), python_literal(")")))),
-        seq!(python_literal("["), opt(seq!(opt(deferred(WS)), deferred(star_targets_list_seq))), opt(deferred(WS)), python_literal("]"))
-    )).into()
-}
+    let star_atom = symbol(tag("star_atom", choice!(
+        &NAME,
+        seq!(python_literal("("), opt(&WS), choice!(seq!(&target_with_star_atom, opt(&WS), python_literal(")")), seq!(opt(seq!(&star_targets_tuple_seq, opt(&WS))), python_literal(")")))),
+        seq!(python_literal("["), opt(seq!(opt(&WS), &star_targets_list_seq)), opt(&WS), python_literal("]"))
+    )));
 
-fn target_with_star_atom() -> Combinator {
-    cached(tag("target_with_star_atom", choice!(
-        seq!(deferred(t_primary), opt(deferred(WS)), choice!(seq!(python_literal("."), opt(deferred(WS)), deferred(NAME)), seq!(python_literal("["), opt(deferred(WS)), deferred(slices), opt(deferred(WS)), python_literal("]")))),
-        deferred(star_atom)
-    ))).into()
-}
+    let target_with_star_atom = symbol(cached(tag("target_with_star_atom", choice!(
+        seq!(&t_primary, opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]")))),
+        &star_atom
+    ))));
 
-fn star_target() -> Combinator {
-    cached(tag("star_target", choice!(
-        seq!(python_literal("*"), opt(deferred(WS)), deferred(star_target)),
-        deferred(target_with_star_atom)
-    ))).into()
-}
+    let star_target = symbol(cached(tag("star_target", choice!(
+        seq!(python_literal("*"), opt(&WS), &star_target),
+        &target_with_star_atom
+    ))));
 
-fn star_targets_tuple_seq() -> Combinator {
-    tag("star_targets_tuple_seq", seq!(deferred(star_target), opt(deferred(WS)), python_literal(","), opt(seq!(opt(deferred(WS)), deferred(star_target), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(star_target)))), opt(seq!(opt(deferred(WS)), python_literal(","))))))).into()
-}
+    let star_targets_tuple_seq = symbol(tag("star_targets_tuple_seq", seq!(&star_target, opt(&WS), python_literal(","), opt(seq!(opt(&WS), &star_target, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target))), opt(seq!(opt(&WS), python_literal(","))))))));
 
-fn star_targets_list_seq() -> Combinator {
-    tag("star_targets_list_seq", seq!(deferred(star_target), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(star_target), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(star_target)))))), opt(seq!(opt(deferred(WS)), python_literal(","))))).into()
-}
+    let star_targets_list_seq = symbol(tag("star_targets_list_seq", seq!(&star_target, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target))))), opt(seq!(opt(&WS), python_literal(","))))));
 
-fn star_targets() -> Combinator {
-    tag("star_targets", seq!(deferred(star_target), opt(seq!(opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(star_target), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(star_target)))))), opt(seq!(opt(deferred(WS)), python_literal(","))))))).into()
-}
+    let star_targets = symbol(tag("star_targets", seq!(&star_target, opt(seq!(opt(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target))))), opt(seq!(opt(&WS), python_literal(","))))))));
 
-fn kwarg_or_double_starred() -> Combinator {
-    tag("kwarg_or_double_starred", choice!(
-        seq!(deferred(NAME), opt(deferred(WS)), python_literal("="), opt(deferred(WS)), deferred(expression)),
-        seq!(python_literal("**"), opt(deferred(WS)), deferred(expression))
-    )).into()
-}
+    let kwarg_or_double_starred = symbol(tag("kwarg_or_double_starred", choice!(
+        seq!(&NAME, opt(&WS), python_literal("="), opt(&WS), &expression),
+        seq!(python_literal("**"), opt(&WS), &expression)
+    )));
 
-fn kwarg_or_starred() -> Combinator {
-    tag("kwarg_or_starred", choice!(
-        seq!(deferred(NAME), opt(deferred(WS)), python_literal("="), opt(deferred(WS)), deferred(expression)),
-        seq!(python_literal("*"), opt(deferred(WS)), deferred(expression))
-    )).into()
-}
+    let kwarg_or_starred = symbol(tag("kwarg_or_starred", choice!(
+        seq!(&NAME, opt(&WS), python_literal("="), opt(&WS), &expression),
+        seq!(python_literal("*"), opt(&WS), &expression)
+    )));
 
-fn starred_expression() -> Combinator {
-    tag("starred_expression", seq!(python_literal("*"), opt(deferred(WS)), deferred(expression))).into()
-}
+    let starred_expression = symbol(tag("starred_expression", seq!(python_literal("*"), opt(&WS), &expression)));
 
-fn kwargs() -> Combinator {
-    tag("kwargs", choice!(
-        seq!(deferred(kwarg_or_starred), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(kwarg_or_starred), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(kwarg_or_starred)))))), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(kwarg_or_double_starred), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(kwarg_or_double_starred), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(kwarg_or_double_starred))))))))),
-        seq!(deferred(kwarg_or_double_starred), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(kwarg_or_double_starred), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(kwarg_or_double_starred)))))))
-    )).into()
-}
+    let kwargs = symbol(tag("kwargs", choice!(
+        seq!(&kwarg_or_starred, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &kwarg_or_starred, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &kwarg_or_starred))))), opt(seq!(opt(&WS), python_literal(","), opt(&WS), &kwarg_or_double_starred, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &kwarg_or_double_starred, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &kwarg_or_double_starred)))))))),
+        seq!(&kwarg_or_double_starred, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &kwarg_or_double_starred, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &kwarg_or_double_starred))))))
+    )));
 
-fn args() -> Combinator {
-    tag("args", choice!(
-        seq!(choice!(deferred(starred_expression), seq!(deferred(NAME), opt(deferred(WS)), python_literal(":="), opt(deferred(WS)), deferred(expression)), seq!(deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression)))), deferred(lambdef)), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), choice!(deferred(starred_expression), seq!(deferred(NAME), opt(deferred(WS)), python_literal(":="), opt(deferred(WS)), deferred(expression)), seq!(deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression)))), deferred(lambdef)), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), choice!(deferred(starred_expression), seq!(deferred(NAME), opt(deferred(WS)), python_literal(":="), opt(deferred(WS)), deferred(expression)), seq!(deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression)))), deferred(lambdef))))))), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(kwargs)))),
-        deferred(kwargs)
-    )).into()
-}
+    let args = symbol(tag("args", choice!(
+        seq!(choice!(&starred_expression, seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), opt(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&starred_expression, seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&starred_expression, seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef)))))), opt(seq!(opt(&WS), python_literal(","), opt(&WS), &kwargs))),
+        &kwargs
+    )));
 
-fn arguments() -> Combinator {
-    cached(tag("arguments", seq!(deferred(args), opt(seq!(opt(deferred(WS)), python_literal(",")))))).into()
-}
+    let arguments = symbol(cached(tag("arguments", seq!(&args, opt(seq!(opt(&WS), python_literal(",")))))));
 
-fn dictcomp() -> Combinator {
-    tag("dictcomp", seq!(
+    let dictcomp = symbol(tag("dictcomp", seq!(
         python_literal("{"),
-         opt(deferred(WS)),
-         deferred(kvpair),
-         opt(deferred(WS)),
-         deferred(for_if_clauses),
-         opt(deferred(WS)),
+         opt(&WS),
+         &kvpair,
+         opt(&WS),
+         &for_if_clauses,
+         opt(&WS),
          python_literal("}")
-    )).into()
-}
+    )));
 
-fn genexp() -> Combinator {
-    tag("genexp", seq!(
+    let genexp = symbol(tag("genexp", seq!(
         python_literal("("),
-         opt(deferred(WS)),
-         choice!(deferred(assignment_expression), deferred(expression)),
-         opt(deferred(WS)),
-         deferred(for_if_clauses),
-         opt(deferred(WS)),
+         opt(&WS),
+         choice!(&assignment_expression, &expression),
+         opt(&WS),
+         &for_if_clauses,
+         opt(&WS),
          python_literal(")")
-    )).into()
-}
+    )));
 
-fn setcomp() -> Combinator {
-    tag("setcomp", seq!(
+    let setcomp = symbol(tag("setcomp", seq!(
         python_literal("{"),
-         opt(deferred(WS)),
-         deferred(named_expression),
-         opt(deferred(WS)),
-         deferred(for_if_clauses),
-         opt(deferred(WS)),
+         opt(&WS),
+         &named_expression,
+         opt(&WS),
+         &for_if_clauses,
+         opt(&WS),
          python_literal("}")
-    )).into()
-}
+    )));
 
-fn listcomp() -> Combinator {
-    tag("listcomp", seq!(
+    let listcomp = symbol(tag("listcomp", seq!(
         python_literal("["),
-         opt(deferred(WS)),
-         deferred(named_expression),
-         opt(deferred(WS)),
-         deferred(for_if_clauses),
-         opt(deferred(WS)),
+         opt(&WS),
+         &named_expression,
+         opt(&WS),
+         &for_if_clauses,
+         opt(&WS),
          python_literal("]")
-    )).into()
-}
+    )));
 
-fn for_if_clause() -> Combinator {
-    tag("for_if_clause", choice!(
-        seq!(python_literal("async"), opt(deferred(WS)), python_literal("for"), opt(deferred(WS)), deferred(star_targets), opt(deferred(WS)), python_literal("in"), opt(deferred(WS)), deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(repeat1(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction))))))),
-        seq!(python_literal("for"), opt(deferred(WS)), deferred(star_targets), opt(deferred(WS)), python_literal("in"), opt(deferred(WS)), deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(repeat1(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction)))))))
-    )).into()
-}
+    let for_if_clause = symbol(tag("for_if_clause", choice!(
+        seq!(python_literal("async"), opt(&WS), python_literal("for"), opt(&WS), &star_targets, opt(&WS), python_literal("in"), opt(&WS), &disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(repeat1(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction)))))),
+        seq!(python_literal("for"), opt(&WS), &star_targets, opt(&WS), python_literal("in"), opt(&WS), &disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(repeat1(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction))))))
+    )));
 
-fn for_if_clauses() -> Combinator {
-    tag("for_if_clauses", seq!(deferred(for_if_clause), opt(repeat1(seq!(opt(deferred(WS)), deferred(for_if_clause)))))).into()
-}
+    let for_if_clauses = symbol(tag("for_if_clauses", seq!(&for_if_clause, opt(repeat1(seq!(opt(&WS), &for_if_clause))))));
 
-fn kvpair() -> Combinator {
-    tag("kvpair", seq!(
-        choice!(seq!(deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression)))), deferred(lambdef)),
-         opt(deferred(WS)),
+    let kvpair = symbol(tag("kvpair", seq!(
+        choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef),
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(expression)
-    )).into()
-}
+         opt(&WS),
+         &expression
+    )));
 
-fn double_starred_kvpair() -> Combinator {
-    tag("double_starred_kvpair", choice!(
-        seq!(python_literal("**"), opt(deferred(WS)), deferred(bitwise_or)),
-        deferred(kvpair)
-    )).into()
-}
+    let double_starred_kvpair = symbol(tag("double_starred_kvpair", choice!(
+        seq!(python_literal("**"), opt(&WS), &bitwise_or),
+        &kvpair
+    )));
 
-fn double_starred_kvpairs() -> Combinator {
-    tag("double_starred_kvpairs", seq!(deferred(double_starred_kvpair), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(double_starred_kvpair), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(double_starred_kvpair)))))), opt(seq!(opt(deferred(WS)), python_literal(","))))).into()
-}
+    let double_starred_kvpairs = symbol(tag("double_starred_kvpairs", seq!(&double_starred_kvpair, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &double_starred_kvpair, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &double_starred_kvpair))))), opt(seq!(opt(&WS), python_literal(","))))));
 
-fn dict() -> Combinator {
-    tag("dict", seq!(python_literal("{"), opt(seq!(opt(deferred(WS)), deferred(double_starred_kvpairs))), opt(deferred(WS)), python_literal("}"))).into()
-}
+    let dict = symbol(tag("dict", seq!(python_literal("{"), opt(seq!(opt(&WS), &double_starred_kvpairs)), opt(&WS), python_literal("}"))));
 
-fn set() -> Combinator {
-    tag("set", seq!(
+    let set = symbol(tag("set", seq!(
         python_literal("{"),
-         opt(deferred(WS)),
-         deferred(star_named_expressions),
-         opt(deferred(WS)),
+         opt(&WS),
+         &star_named_expressions,
+         opt(&WS),
          python_literal("}")
-    )).into()
-}
+    )));
 
-fn tuple() -> Combinator {
-    tag("tuple", seq!(python_literal("("), opt(seq!(opt(deferred(WS)), deferred(star_named_expression), opt(deferred(WS)), python_literal(","), opt(seq!(opt(deferred(WS)), deferred(star_named_expressions))))), opt(deferred(WS)), python_literal(")"))).into()
-}
+    let tuple = symbol(tag("tuple", seq!(python_literal("("), opt(seq!(opt(&WS), &star_named_expression, opt(&WS), python_literal(","), opt(seq!(opt(&WS), &star_named_expressions)))), opt(&WS), python_literal(")"))));
 
-fn list() -> Combinator {
-    tag("list", seq!(python_literal("["), opt(seq!(opt(deferred(WS)), deferred(star_named_expressions))), opt(deferred(WS)), python_literal("]"))).into()
-}
+    let list = symbol(tag("list", seq!(python_literal("["), opt(seq!(opt(&WS), &star_named_expressions)), opt(&WS), python_literal("]"))));
 
-fn strings() -> Combinator {
-    cached(tag("strings", seq!(choice!(seq!(deferred(FSTRING_START), opt(seq!(opt(deferred(WS)), deferred(fstring_middle), opt(repeat1(seq!(opt(deferred(WS)), deferred(fstring_middle)))))), opt(deferred(WS)), deferred(FSTRING_END)), deferred(STRING)), opt(repeat1(seq!(opt(deferred(WS)), choice!(seq!(deferred(FSTRING_START), opt(seq!(opt(deferred(WS)), deferred(fstring_middle), opt(repeat1(seq!(opt(deferred(WS)), deferred(fstring_middle)))))), opt(deferred(WS)), deferred(FSTRING_END)), deferred(STRING)))))))).into()
-}
+    let strings = symbol(cached(tag("strings", seq!(choice!(seq!(&FSTRING_START, opt(seq!(opt(&WS), &fstring_middle, opt(repeat1(seq!(opt(&WS), &fstring_middle))))), opt(&WS), &FSTRING_END), &STRING), opt(repeat1(seq!(opt(&WS), choice!(seq!(&FSTRING_START, opt(seq!(opt(&WS), &fstring_middle, opt(repeat1(seq!(opt(&WS), &fstring_middle))))), opt(&WS), &FSTRING_END), &STRING))))))));
 
-fn string() -> Combinator {
-    tag("string", deferred(STRING)).into()
-}
+    let string = symbol(tag("string", &STRING));
 
-fn fstring() -> Combinator {
-    tag("fstring", seq!(deferred(FSTRING_START), opt(seq!(opt(deferred(WS)), deferred(fstring_middle), opt(repeat1(seq!(opt(deferred(WS)), deferred(fstring_middle)))))), opt(deferred(WS)), deferred(FSTRING_END))).into()
-}
+    let fstring = symbol(tag("fstring", seq!(&FSTRING_START, opt(seq!(opt(&WS), &fstring_middle, opt(repeat1(seq!(opt(&WS), &fstring_middle))))), opt(&WS), &FSTRING_END)));
 
-fn fstring_format_spec() -> Combinator {
-    tag("fstring_format_spec", choice!(
-        deferred(FSTRING_MIDDLE),
-        seq!(python_literal("{"), opt(deferred(WS)), deferred(annotated_rhs), opt(seq!(opt(deferred(WS)), python_literal("="))), opt(seq!(opt(deferred(WS)), deferred(fstring_conversion))), opt(seq!(opt(deferred(WS)), deferred(fstring_full_format_spec))), opt(deferred(WS)), python_literal("}"))
-    )).into()
-}
+    let fstring_format_spec = symbol(tag("fstring_format_spec", choice!(
+        &FSTRING_MIDDLE,
+        seq!(python_literal("{"), opt(&WS), &annotated_rhs, opt(seq!(opt(&WS), python_literal("="))), opt(seq!(opt(&WS), &fstring_conversion)), opt(seq!(opt(&WS), &fstring_full_format_spec)), opt(&WS), python_literal("}"))
+    )));
 
-fn fstring_full_format_spec() -> Combinator {
-    tag("fstring_full_format_spec", seq!(python_literal(":"), opt(seq!(opt(deferred(WS)), deferred(fstring_format_spec), opt(repeat1(seq!(opt(deferred(WS)), deferred(fstring_format_spec)))))))).into()
-}
+    let fstring_full_format_spec = symbol(tag("fstring_full_format_spec", seq!(python_literal(":"), opt(seq!(opt(&WS), &fstring_format_spec, opt(repeat1(seq!(opt(&WS), &fstring_format_spec))))))));
 
-fn fstring_conversion() -> Combinator {
-    tag("fstring_conversion", seq!(python_literal("!"), opt(deferred(WS)), deferred(NAME))).into()
-}
+    let fstring_conversion = symbol(tag("fstring_conversion", seq!(python_literal("!"), opt(&WS), &NAME)));
 
-fn fstring_replacement_field() -> Combinator {
-    tag("fstring_replacement_field", seq!(
+    let fstring_replacement_field = symbol(tag("fstring_replacement_field", seq!(
         python_literal("{"),
-         opt(deferred(WS)),
-         deferred(annotated_rhs),
-         opt(seq!(opt(deferred(WS)), python_literal("="))),
-         opt(seq!(opt(deferred(WS)), deferred(fstring_conversion))),
-         opt(seq!(opt(deferred(WS)), deferred(fstring_full_format_spec))),
-         opt(deferred(WS)),
+         opt(&WS),
+         &annotated_rhs,
+         opt(seq!(opt(&WS), python_literal("="))),
+         opt(seq!(opt(&WS), &fstring_conversion)),
+         opt(seq!(opt(&WS), &fstring_full_format_spec)),
+         opt(&WS),
          python_literal("}")
-    )).into()
-}
+    )));
 
-fn fstring_middle() -> Combinator {
-    tag("fstring_middle", choice!(
-        deferred(fstring_replacement_field),
-        deferred(FSTRING_MIDDLE)
-    )).into()
-}
+    let fstring_middle = symbol(tag("fstring_middle", choice!(
+        &fstring_replacement_field,
+        &FSTRING_MIDDLE
+    )));
 
-fn lambda_param() -> Combinator {
-    tag("lambda_param", deferred(NAME)).into()
-}
+    let lambda_param = symbol(tag("lambda_param", &NAME));
 
-fn lambda_param_maybe_default() -> Combinator {
-    tag("lambda_param_maybe_default", seq!(deferred(lambda_param), opt(seq!(opt(deferred(WS)), deferred(default))), opt(seq!(opt(deferred(WS)), python_literal(","))))).into()
-}
+    let lambda_param_maybe_default = symbol(tag("lambda_param_maybe_default", seq!(&lambda_param, opt(seq!(opt(&WS), &default)), opt(seq!(opt(&WS), python_literal(","))))));
 
-fn lambda_param_with_default() -> Combinator {
-    tag("lambda_param_with_default", seq!(deferred(lambda_param), opt(deferred(WS)), deferred(default), opt(seq!(opt(deferred(WS)), python_literal(","))))).into()
-}
+    let lambda_param_with_default = symbol(tag("lambda_param_with_default", seq!(&lambda_param, opt(&WS), &default, opt(seq!(opt(&WS), python_literal(","))))));
 
-fn lambda_param_no_default() -> Combinator {
-    tag("lambda_param_no_default", seq!(deferred(lambda_param), opt(seq!(opt(deferred(WS)), python_literal(","))))).into()
-}
+    let lambda_param_no_default = symbol(tag("lambda_param_no_default", seq!(&lambda_param, opt(seq!(opt(&WS), python_literal(","))))));
 
-fn lambda_kwds() -> Combinator {
-    tag("lambda_kwds", seq!(python_literal("**"), opt(deferred(WS)), deferred(lambda_param_no_default))).into()
-}
+    let lambda_kwds = symbol(tag("lambda_kwds", seq!(python_literal("**"), opt(&WS), &lambda_param_no_default)));
 
-fn lambda_star_etc() -> Combinator {
-    tag("lambda_star_etc", choice!(
-        seq!(python_literal("*"), opt(deferred(WS)), choice!(seq!(deferred(lambda_param_no_default), opt(seq!(opt(deferred(WS)), deferred(lambda_param_maybe_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_maybe_default)))))), opt(seq!(opt(deferred(WS)), deferred(lambda_kwds)))), seq!(python_literal(","), opt(deferred(WS)), deferred(lambda_param_maybe_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_maybe_default)))), opt(seq!(opt(deferred(WS)), deferred(lambda_kwds)))))),
-        deferred(lambda_kwds)
-    )).into()
-}
+    let lambda_star_etc = symbol(tag("lambda_star_etc", choice!(
+        seq!(python_literal("*"), opt(&WS), choice!(seq!(&lambda_param_no_default, opt(seq!(opt(&WS), &lambda_param_maybe_default, opt(repeat1(seq!(opt(&WS), &lambda_param_maybe_default))))), opt(seq!(opt(&WS), &lambda_kwds))), seq!(python_literal(","), opt(&WS), &lambda_param_maybe_default, opt(repeat1(seq!(opt(&WS), &lambda_param_maybe_default))), opt(seq!(opt(&WS), &lambda_kwds))))),
+        &lambda_kwds
+    )));
 
-fn lambda_slash_with_default() -> Combinator {
-    tag("lambda_slash_with_default", seq!(
-        opt(seq!(deferred(lambda_param_no_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_no_default)))), opt(deferred(WS)))),
-         deferred(lambda_param_with_default),
-         opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_with_default)))),
-         opt(deferred(WS)),
+    let lambda_slash_with_default = symbol(tag("lambda_slash_with_default", seq!(
+        opt(seq!(&lambda_param_no_default, opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))), opt(&WS))),
+         &lambda_param_with_default,
+         opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))),
+         opt(&WS),
          python_literal("/"),
-         opt(seq!(opt(deferred(WS)), python_literal(",")))
-    )).into()
-}
+         opt(seq!(opt(&WS), python_literal(",")))
+    )));
 
-fn lambda_slash_no_default() -> Combinator {
-    tag("lambda_slash_no_default", seq!(
-        deferred(lambda_param_no_default),
-         opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_no_default)))),
-         opt(deferred(WS)),
+    let lambda_slash_no_default = symbol(tag("lambda_slash_no_default", seq!(
+        &lambda_param_no_default,
+         opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))),
+         opt(&WS),
          python_literal("/"),
-         opt(seq!(opt(deferred(WS)), python_literal(",")))
-    )).into()
-}
+         opt(seq!(opt(&WS), python_literal(",")))
+    )));
 
-fn lambda_parameters() -> Combinator {
-    tag("lambda_parameters", choice!(
-        seq!(deferred(lambda_slash_no_default), opt(seq!(opt(deferred(WS)), deferred(lambda_param_no_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_no_default)))))), opt(seq!(opt(deferred(WS)), deferred(lambda_param_with_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_with_default)))))), opt(seq!(opt(deferred(WS)), deferred(lambda_star_etc)))),
-        seq!(deferred(lambda_slash_with_default), opt(seq!(opt(deferred(WS)), deferred(lambda_param_with_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_with_default)))))), opt(seq!(opt(deferred(WS)), deferred(lambda_star_etc)))),
-        seq!(deferred(lambda_param_no_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_no_default)))), opt(seq!(opt(deferred(WS)), deferred(lambda_param_with_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_with_default)))))), opt(seq!(opt(deferred(WS)), deferred(lambda_star_etc)))),
-        seq!(deferred(lambda_param_with_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(lambda_param_with_default)))), opt(seq!(opt(deferred(WS)), deferred(lambda_star_etc)))),
-        deferred(lambda_star_etc)
-    )).into()
-}
+    let lambda_parameters = symbol(tag("lambda_parameters", choice!(
+        seq!(&lambda_slash_no_default, opt(seq!(opt(&WS), &lambda_param_no_default, opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))))), opt(seq!(opt(&WS), &lambda_param_with_default, opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))))), opt(seq!(opt(&WS), &lambda_star_etc))),
+        seq!(&lambda_slash_with_default, opt(seq!(opt(&WS), &lambda_param_with_default, opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))))), opt(seq!(opt(&WS), &lambda_star_etc))),
+        seq!(&lambda_param_no_default, opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))), opt(seq!(opt(&WS), &lambda_param_with_default, opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))))), opt(seq!(opt(&WS), &lambda_star_etc))),
+        seq!(&lambda_param_with_default, opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))), opt(seq!(opt(&WS), &lambda_star_etc))),
+        &lambda_star_etc
+    )));
 
-fn lambda_params() -> Combinator {
-    tag("lambda_params", deferred(lambda_parameters)).into()
-}
+    let lambda_params = symbol(tag("lambda_params", &lambda_parameters));
 
-fn lambdef() -> Combinator {
-    tag("lambdef", seq!(
+    let lambdef = symbol(tag("lambdef", seq!(
         python_literal("lambda"),
-         opt(seq!(opt(deferred(WS)), deferred(lambda_params))),
-         opt(deferred(WS)),
+         opt(seq!(opt(&WS), &lambda_params)),
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(expression)
-    )).into()
-}
+         opt(&WS),
+         &expression
+    )));
 
-fn group() -> Combinator {
-    tag("group", seq!(
+    let group = symbol(tag("group", seq!(
         python_literal("("),
-         opt(deferred(WS)),
-         choice!(deferred(yield_expr), deferred(named_expression)),
-         opt(deferred(WS)),
+         opt(&WS),
+         choice!(&yield_expr, &named_expression),
+         opt(&WS),
          python_literal(")")
-    )).into()
-}
+    )));
 
-fn atom() -> Combinator {
-    tag("atom", choice!(
-        deferred(NAME),
+    let atom = symbol(tag("atom", choice!(
+        &NAME,
         python_literal("True"),
         python_literal("False"),
         python_literal("None"),
-        deferred(strings),
-        deferred(NUMBER),
-        deferred(tuple),
-        deferred(group),
-        deferred(genexp),
-        deferred(list),
-        deferred(listcomp),
-        deferred(dict),
-        deferred(set),
-        deferred(dictcomp),
-        deferred(setcomp),
+        &strings,
+        &NUMBER,
+        &tuple,
+        &group,
+        &genexp,
+        &list,
+        &listcomp,
+        &dict,
+        &set,
+        &dictcomp,
+        &setcomp,
         python_literal("...")
-    )).into()
-}
+    )));
 
-fn slice() -> Combinator {
-    tag("slice", choice!(
-        seq!(opt(choice!(seq!(deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression))), opt(deferred(WS))), seq!(deferred(lambdef), opt(deferred(WS))))), python_literal(":"), opt(seq!(opt(deferred(WS)), deferred(expression))), opt(seq!(opt(deferred(WS)), python_literal(":"), opt(seq!(opt(deferred(WS)), deferred(expression)))))),
-        seq!(deferred(NAME), opt(deferred(WS)), python_literal(":="), opt(deferred(WS)), deferred(expression)),
-        seq!(deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression)))),
-        deferred(lambdef)
-    )).into()
-}
+    let slice = symbol(tag("slice", choice!(
+        seq!(opt(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression)), opt(&WS)), seq!(&lambdef, opt(&WS)))), python_literal(":"), opt(seq!(opt(&WS), &expression)), opt(seq!(opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &expression))))),
+        seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression),
+        seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))),
+        &lambdef
+    )));
 
-fn slices() -> Combinator {
-    tag("slices", choice!(
-        deferred(slice),
-        seq!(choice!(deferred(slice), deferred(starred_expression)), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), choice!(deferred(slice), deferred(starred_expression)), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), choice!(deferred(slice), deferred(starred_expression))))))), opt(seq!(opt(deferred(WS)), python_literal(","))))
-    )).into()
-}
+    let slices = symbol(tag("slices", choice!(
+        &slice,
+        seq!(choice!(&slice, &starred_expression), opt(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&slice, &starred_expression), opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&slice, &starred_expression)))))), opt(seq!(opt(&WS), python_literal(","))))
+    )));
 
-fn primary() -> Combinator {
-    tag("primary", seq!(deferred(atom), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal("."), opt(deferred(WS)), deferred(NAME)), deferred(genexp), seq!(python_literal("("), opt(seq!(opt(deferred(WS)), deferred(arguments))), opt(deferred(WS)), python_literal(")")), seq!(python_literal("["), opt(deferred(WS)), deferred(slices), opt(deferred(WS)), python_literal("]"))), opt(repeat1(seq!(opt(deferred(WS)), choice!(seq!(python_literal("."), opt(deferred(WS)), deferred(NAME)), deferred(genexp), seq!(python_literal("("), opt(seq!(opt(deferred(WS)), deferred(arguments))), opt(deferred(WS)), python_literal(")")), seq!(python_literal("["), opt(deferred(WS)), deferred(slices), opt(deferred(WS)), python_literal("]")))))))))).into()
-}
+    let primary = symbol(tag("primary", seq!(&atom, opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), &genexp, seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")")), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"))), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), &genexp, seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")")), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]")))))))))));
 
-fn await_primary() -> Combinator {
-    cached(tag("await_primary", choice!(
-        seq!(python_literal("await"), opt(deferred(WS)), deferred(primary)),
-        deferred(primary)
-    ))).into()
-}
+    let await_primary = symbol(cached(tag("await_primary", choice!(
+        seq!(python_literal("await"), opt(&WS), &primary),
+        &primary
+    ))));
 
-fn power() -> Combinator {
-    tag("power", seq!(deferred(await_primary), opt(seq!(opt(deferred(WS)), python_literal("**"), opt(deferred(WS)), deferred(factor))))).into()
-}
+    let power = symbol(tag("power", seq!(&await_primary, opt(seq!(opt(&WS), python_literal("**"), opt(&WS), &factor)))));
 
-fn factor() -> Combinator {
-    cached(tag("factor", choice!(
-        seq!(python_literal("+"), opt(deferred(WS)), deferred(factor)),
-        seq!(python_literal("-"), opt(deferred(WS)), deferred(factor)),
-        seq!(python_literal("~"), opt(deferred(WS)), deferred(factor)),
-        deferred(power)
-    ))).into()
-}
+    let factor = symbol(cached(tag("factor", choice!(
+        seq!(python_literal("+"), opt(&WS), &factor),
+        seq!(python_literal("-"), opt(&WS), &factor),
+        seq!(python_literal("~"), opt(&WS), &factor),
+        &power
+    ))));
 
-fn term() -> Combinator {
-    tag("term", seq!(deferred(factor), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal("*"), opt(deferred(WS)), deferred(factor)), seq!(python_literal("/"), opt(deferred(WS)), deferred(factor)), seq!(python_literal("//"), opt(deferred(WS)), deferred(factor)), seq!(python_literal("%"), opt(deferred(WS)), deferred(factor)), seq!(python_literal("@"), opt(deferred(WS)), deferred(factor))), opt(repeat1(seq!(opt(deferred(WS)), choice!(seq!(python_literal("*"), opt(deferred(WS)), deferred(factor)), seq!(python_literal("/"), opt(deferred(WS)), deferred(factor)), seq!(python_literal("//"), opt(deferred(WS)), deferred(factor)), seq!(python_literal("%"), opt(deferred(WS)), deferred(factor)), seq!(python_literal("@"), opt(deferred(WS)), deferred(factor)))))))))).into()
-}
+    let term = symbol(tag("term", seq!(&factor, opt(seq!(opt(&WS), choice!(seq!(python_literal("*"), opt(&WS), &factor), seq!(python_literal("/"), opt(&WS), &factor), seq!(python_literal("//"), opt(&WS), &factor), seq!(python_literal("%"), opt(&WS), &factor), seq!(python_literal("@"), opt(&WS), &factor)), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("*"), opt(&WS), &factor), seq!(python_literal("/"), opt(&WS), &factor), seq!(python_literal("//"), opt(&WS), &factor), seq!(python_literal("%"), opt(&WS), &factor), seq!(python_literal("@"), opt(&WS), &factor))))))))));
 
-fn sum() -> Combinator {
-    tag("sum", seq!(deferred(term), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal("+"), opt(deferred(WS)), deferred(term)), seq!(python_literal("-"), opt(deferred(WS)), deferred(term))), opt(repeat1(seq!(opt(deferred(WS)), choice!(seq!(python_literal("+"), opt(deferred(WS)), deferred(term)), seq!(python_literal("-"), opt(deferred(WS)), deferred(term)))))))))).into()
-}
+    let sum = symbol(tag("sum", seq!(&term, opt(seq!(opt(&WS), choice!(seq!(python_literal("+"), opt(&WS), &term), seq!(python_literal("-"), opt(&WS), &term)), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("+"), opt(&WS), &term), seq!(python_literal("-"), opt(&WS), &term))))))))));
 
-fn shift_expr() -> Combinator {
-    tag("shift_expr", seq!(deferred(sum), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal("<<"), opt(deferred(WS)), deferred(sum)), seq!(python_literal(">>"), opt(deferred(WS)), deferred(sum))), opt(repeat1(seq!(opt(deferred(WS)), choice!(seq!(python_literal("<<"), opt(deferred(WS)), deferred(sum)), seq!(python_literal(">>"), opt(deferred(WS)), deferred(sum)))))))))).into()
-}
+    let shift_expr = symbol(tag("shift_expr", seq!(&sum, opt(seq!(opt(&WS), choice!(seq!(python_literal("<<"), opt(&WS), &sum), seq!(python_literal(">>"), opt(&WS), &sum)), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("<<"), opt(&WS), &sum), seq!(python_literal(">>"), opt(&WS), &sum))))))))));
 
-fn bitwise_and() -> Combinator {
-    tag("bitwise_and", seq!(deferred(shift_expr), opt(seq!(opt(deferred(WS)), python_literal("&"), opt(deferred(WS)), deferred(shift_expr), opt(repeat1(seq!(opt(deferred(WS)), python_literal("&"), opt(deferred(WS)), deferred(shift_expr)))))))).into()
-}
+    let bitwise_and = symbol(tag("bitwise_and", seq!(&shift_expr, opt(seq!(opt(&WS), python_literal("&"), opt(&WS), &shift_expr, opt(repeat1(seq!(opt(&WS), python_literal("&"), opt(&WS), &shift_expr))))))));
 
-fn bitwise_xor() -> Combinator {
-    tag("bitwise_xor", seq!(deferred(bitwise_and), opt(seq!(opt(deferred(WS)), python_literal("^"), opt(deferred(WS)), deferred(bitwise_and), opt(repeat1(seq!(opt(deferred(WS)), python_literal("^"), opt(deferred(WS)), deferred(bitwise_and)))))))).into()
-}
+    let bitwise_xor = symbol(tag("bitwise_xor", seq!(&bitwise_and, opt(seq!(opt(&WS), python_literal("^"), opt(&WS), &bitwise_and, opt(repeat1(seq!(opt(&WS), python_literal("^"), opt(&WS), &bitwise_and))))))));
 
-fn bitwise_or() -> Combinator {
-    tag("bitwise_or", seq!(deferred(bitwise_xor), opt(seq!(opt(deferred(WS)), python_literal("|"), opt(deferred(WS)), deferred(bitwise_xor), opt(repeat1(seq!(opt(deferred(WS)), python_literal("|"), opt(deferred(WS)), deferred(bitwise_xor)))))))).into()
-}
+    let bitwise_or = symbol(tag("bitwise_or", seq!(&bitwise_xor, opt(seq!(opt(&WS), python_literal("|"), opt(&WS), &bitwise_xor, opt(repeat1(seq!(opt(&WS), python_literal("|"), opt(&WS), &bitwise_xor))))))));
 
-fn is_bitwise_or() -> Combinator {
-    tag("is_bitwise_or", seq!(python_literal("is"), opt(deferred(WS)), deferred(bitwise_or))).into()
-}
+    let is_bitwise_or = symbol(tag("is_bitwise_or", seq!(python_literal("is"), opt(&WS), &bitwise_or)));
 
-fn isnot_bitwise_or() -> Combinator {
-    tag("isnot_bitwise_or", seq!(
+    let isnot_bitwise_or = symbol(tag("isnot_bitwise_or", seq!(
         python_literal("is"),
-         opt(deferred(WS)),
+         opt(&WS),
          python_literal("not"),
-         opt(deferred(WS)),
-         deferred(bitwise_or)
-    )).into()
-}
+         opt(&WS),
+         &bitwise_or
+    )));
 
-fn in_bitwise_or() -> Combinator {
-    tag("in_bitwise_or", seq!(python_literal("in"), opt(deferred(WS)), deferred(bitwise_or))).into()
-}
+    let in_bitwise_or = symbol(tag("in_bitwise_or", seq!(python_literal("in"), opt(&WS), &bitwise_or)));
 
-fn notin_bitwise_or() -> Combinator {
-    tag("notin_bitwise_or", seq!(
+    let notin_bitwise_or = symbol(tag("notin_bitwise_or", seq!(
         python_literal("not"),
-         opt(deferred(WS)),
+         opt(&WS),
          python_literal("in"),
-         opt(deferred(WS)),
-         deferred(bitwise_or)
-    )).into()
-}
+         opt(&WS),
+         &bitwise_or
+    )));
 
-fn gt_bitwise_or() -> Combinator {
-    tag("gt_bitwise_or", seq!(python_literal(">"), opt(deferred(WS)), deferred(bitwise_or))).into()
-}
+    let gt_bitwise_or = symbol(tag("gt_bitwise_or", seq!(python_literal(">"), opt(&WS), &bitwise_or)));
 
-fn gte_bitwise_or() -> Combinator {
-    tag("gte_bitwise_or", seq!(python_literal(">="), opt(deferred(WS)), deferred(bitwise_or))).into()
-}
+    let gte_bitwise_or = symbol(tag("gte_bitwise_or", seq!(python_literal(">="), opt(&WS), &bitwise_or)));
 
-fn lt_bitwise_or() -> Combinator {
-    tag("lt_bitwise_or", seq!(python_literal("<"), opt(deferred(WS)), deferred(bitwise_or))).into()
-}
+    let lt_bitwise_or = symbol(tag("lt_bitwise_or", seq!(python_literal("<"), opt(&WS), &bitwise_or)));
 
-fn lte_bitwise_or() -> Combinator {
-    tag("lte_bitwise_or", seq!(python_literal("<="), opt(deferred(WS)), deferred(bitwise_or))).into()
-}
+    let lte_bitwise_or = symbol(tag("lte_bitwise_or", seq!(python_literal("<="), opt(&WS), &bitwise_or)));
 
-fn noteq_bitwise_or() -> Combinator {
-    tag("noteq_bitwise_or", seq!(python_literal("!="), opt(deferred(WS)), deferred(bitwise_or))).into()
-}
+    let noteq_bitwise_or = symbol(tag("noteq_bitwise_or", seq!(python_literal("!="), opt(&WS), &bitwise_or)));
 
-fn eq_bitwise_or() -> Combinator {
-    tag("eq_bitwise_or", seq!(python_literal("=="), opt(deferred(WS)), deferred(bitwise_or))).into()
-}
+    let eq_bitwise_or = symbol(tag("eq_bitwise_or", seq!(python_literal("=="), opt(&WS), &bitwise_or)));
 
-fn compare_op_bitwise_or_pair() -> Combinator {
-    tag("compare_op_bitwise_or_pair", choice!(
-        deferred(eq_bitwise_or),
-        deferred(noteq_bitwise_or),
-        deferred(lte_bitwise_or),
-        deferred(lt_bitwise_or),
-        deferred(gte_bitwise_or),
-        deferred(gt_bitwise_or),
-        deferred(notin_bitwise_or),
-        deferred(in_bitwise_or),
-        deferred(isnot_bitwise_or),
-        deferred(is_bitwise_or)
-    )).into()
-}
+    let compare_op_bitwise_or_pair = symbol(tag("compare_op_bitwise_or_pair", choice!(
+        &eq_bitwise_or,
+        &noteq_bitwise_or,
+        &lte_bitwise_or,
+        &lt_bitwise_or,
+        &gte_bitwise_or,
+        &gt_bitwise_or,
+        &notin_bitwise_or,
+        &in_bitwise_or,
+        &isnot_bitwise_or,
+        &is_bitwise_or
+    )));
 
-fn comparison() -> Combinator {
-    tag("comparison", seq!(deferred(bitwise_or), opt(seq!(opt(deferred(WS)), deferred(compare_op_bitwise_or_pair), opt(repeat1(seq!(opt(deferred(WS)), deferred(compare_op_bitwise_or_pair)))))))).into()
-}
+    let comparison = symbol(tag("comparison", seq!(&bitwise_or, opt(seq!(opt(&WS), &compare_op_bitwise_or_pair, opt(repeat1(seq!(opt(&WS), &compare_op_bitwise_or_pair))))))));
 
-fn inversion() -> Combinator {
-    cached(tag("inversion", choice!(
-        seq!(python_literal("not"), opt(deferred(WS)), deferred(inversion)),
-        deferred(comparison)
-    ))).into()
-}
+    let inversion = symbol(cached(tag("inversion", choice!(
+        seq!(python_literal("not"), opt(&WS), &inversion),
+        &comparison
+    ))));
 
-fn conjunction() -> Combinator {
-    cached(tag("conjunction", seq!(deferred(inversion), opt(seq!(opt(deferred(WS)), python_literal("and"), opt(deferred(WS)), deferred(inversion), opt(repeat1(seq!(opt(deferred(WS)), python_literal("and"), opt(deferred(WS)), deferred(inversion))))))))).into()
-}
+    let conjunction = symbol(cached(tag("conjunction", seq!(&inversion, opt(seq!(opt(&WS), python_literal("and"), opt(&WS), &inversion, opt(repeat1(seq!(opt(&WS), python_literal("and"), opt(&WS), &inversion)))))))));
 
-fn disjunction() -> Combinator {
-    cached(tag("disjunction", seq!(deferred(conjunction), opt(seq!(opt(deferred(WS)), python_literal("or"), opt(deferred(WS)), deferred(conjunction), opt(repeat1(seq!(opt(deferred(WS)), python_literal("or"), opt(deferred(WS)), deferred(conjunction))))))))).into()
-}
+    let disjunction = symbol(cached(tag("disjunction", seq!(&conjunction, opt(seq!(opt(&WS), python_literal("or"), opt(&WS), &conjunction, opt(repeat1(seq!(opt(&WS), python_literal("or"), opt(&WS), &conjunction)))))))));
 
-fn named_expression() -> Combinator {
-    tag("named_expression", choice!(
-        seq!(deferred(NAME), opt(deferred(WS)), python_literal(":="), opt(deferred(WS)), deferred(expression)),
-        seq!(deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression)))),
-        deferred(lambdef)
-    )).into()
-}
+    let named_expression = symbol(tag("named_expression", choice!(
+        seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression),
+        seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))),
+        &lambdef
+    )));
 
-fn assignment_expression() -> Combinator {
-    tag("assignment_expression", seq!(
-        deferred(NAME),
-         opt(deferred(WS)),
+    let assignment_expression = symbol(tag("assignment_expression", seq!(
+        &NAME,
+         opt(&WS),
          python_literal(":="),
-         opt(deferred(WS)),
-         deferred(expression)
-    )).into()
-}
+         opt(&WS),
+         &expression
+    )));
 
-fn star_named_expression() -> Combinator {
-    tag("star_named_expression", choice!(
-        seq!(python_literal("*"), opt(deferred(WS)), deferred(bitwise_or)),
-        deferred(named_expression)
-    )).into()
-}
+    let star_named_expression = symbol(tag("star_named_expression", choice!(
+        seq!(python_literal("*"), opt(&WS), &bitwise_or),
+        &named_expression
+    )));
 
-fn star_named_expressions() -> Combinator {
-    tag("star_named_expressions", seq!(deferred(star_named_expression), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(star_named_expression), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(star_named_expression)))))), opt(seq!(opt(deferred(WS)), python_literal(","))))).into()
-}
+    let star_named_expressions = symbol(tag("star_named_expressions", seq!(&star_named_expression, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &star_named_expression, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_named_expression))))), opt(seq!(opt(&WS), python_literal(","))))));
 
-fn star_expression() -> Combinator {
-    cached(tag("star_expression", choice!(
-        seq!(python_literal("*"), opt(deferred(WS)), deferred(bitwise_or)),
-        seq!(deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression)))),
-        deferred(lambdef)
-    ))).into()
-}
+    let star_expression = symbol(cached(tag("star_expression", choice!(
+        seq!(python_literal("*"), opt(&WS), &bitwise_or),
+        seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))),
+        &lambdef
+    ))));
 
-fn star_expressions() -> Combinator {
-    tag("star_expressions", seq!(deferred(star_expression), opt(seq!(opt(deferred(WS)), python_literal(","), opt(seq!(opt(deferred(WS)), deferred(star_expression), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(star_expression)))), opt(seq!(opt(deferred(WS)), python_literal(","))))))))).into()
-}
+    let star_expressions = symbol(tag("star_expressions", seq!(&star_expression, opt(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &star_expression, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_expression))), opt(seq!(opt(&WS), python_literal(","))))))))));
 
-fn yield_expr() -> Combinator {
-    tag("yield_expr", seq!(python_literal("yield"), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal("from"), opt(deferred(WS)), deferred(expression)), deferred(star_expressions)))))).into()
-}
+    let yield_expr = symbol(tag("yield_expr", seq!(python_literal("yield"), opt(seq!(opt(&WS), choice!(seq!(python_literal("from"), opt(&WS), &expression), &star_expressions))))));
 
-fn expression() -> Combinator {
-    cached(tag("expression", choice!(
-        seq!(deferred(disjunction), opt(seq!(opt(deferred(WS)), python_literal("if"), opt(deferred(WS)), deferred(disjunction), opt(deferred(WS)), python_literal("else"), opt(deferred(WS)), deferred(expression)))),
-        deferred(lambdef)
-    ))).into()
-}
+    let expression = symbol(cached(tag("expression", choice!(
+        seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))),
+        &lambdef
+    ))));
 
-fn expressions() -> Combinator {
-    tag("expressions", seq!(deferred(expression), opt(seq!(opt(deferred(WS)), python_literal(","), opt(seq!(opt(deferred(WS)), deferred(expression), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(expression)))), opt(seq!(opt(deferred(WS)), python_literal(","))))))))).into()
-}
+    let expressions = symbol(tag("expressions", seq!(&expression, opt(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &expression, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &expression))), opt(seq!(opt(&WS), python_literal(","))))))))));
 
-fn type_param_starred_default() -> Combinator {
-    tag("type_param_starred_default", seq!(python_literal("="), opt(deferred(WS)), deferred(star_expression))).into()
-}
+    let type_param_starred_default = symbol(tag("type_param_starred_default", seq!(python_literal("="), opt(&WS), &star_expression)));
 
-fn type_param_default() -> Combinator {
-    tag("type_param_default", seq!(python_literal("="), opt(deferred(WS)), deferred(expression))).into()
-}
+    let type_param_default = symbol(tag("type_param_default", seq!(python_literal("="), opt(&WS), &expression)));
 
-fn type_param_bound() -> Combinator {
-    tag("type_param_bound", seq!(python_literal(":"), opt(deferred(WS)), deferred(expression))).into()
-}
+    let type_param_bound = symbol(tag("type_param_bound", seq!(python_literal(":"), opt(&WS), &expression)));
 
-fn type_param() -> Combinator {
-    cached(tag("type_param", choice!(
-        seq!(deferred(NAME), opt(seq!(opt(deferred(WS)), deferred(type_param_bound))), opt(seq!(opt(deferred(WS)), deferred(type_param_default)))),
-        seq!(python_literal("*"), opt(deferred(WS)), deferred(NAME), opt(seq!(opt(deferred(WS)), deferred(type_param_starred_default)))),
-        seq!(python_literal("**"), opt(deferred(WS)), deferred(NAME), opt(seq!(opt(deferred(WS)), deferred(type_param_default))))
-    ))).into()
-}
+    let type_param = symbol(cached(tag("type_param", choice!(
+        seq!(&NAME, opt(seq!(opt(&WS), &type_param_bound)), opt(seq!(opt(&WS), &type_param_default))),
+        seq!(python_literal("*"), opt(&WS), &NAME, opt(seq!(opt(&WS), &type_param_starred_default))),
+        seq!(python_literal("**"), opt(&WS), &NAME, opt(seq!(opt(&WS), &type_param_default)))
+    ))));
 
-fn type_param_seq() -> Combinator {
-    tag("type_param_seq", seq!(deferred(type_param), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(type_param), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(type_param)))))), opt(seq!(opt(deferred(WS)), python_literal(","))))).into()
-}
+    let type_param_seq = symbol(tag("type_param_seq", seq!(&type_param, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &type_param, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &type_param))))), opt(seq!(opt(&WS), python_literal(","))))));
 
-fn type_params() -> Combinator {
-    tag("type_params", seq!(
+    let type_params = symbol(tag("type_params", seq!(
         python_literal("["),
-         opt(deferred(WS)),
-         deferred(type_param_seq),
-         opt(deferred(WS)),
+         opt(&WS),
+         &type_param_seq,
+         opt(&WS),
          python_literal("]")
-    )).into()
-}
+    )));
 
-fn type_alias() -> Combinator {
-    tag("type_alias", seq!(
+    let type_alias = symbol(tag("type_alias", seq!(
         python_literal("type"),
-         opt(deferred(WS)),
-         deferred(NAME),
-         opt(seq!(opt(deferred(WS)), deferred(type_params))),
-         opt(deferred(WS)),
+         opt(&WS),
+         &NAME,
+         opt(seq!(opt(&WS), &type_params)),
+         opt(&WS),
          python_literal("="),
-         opt(deferred(WS)),
-         deferred(expression)
-    )).into()
-}
+         opt(&WS),
+         &expression
+    )));
 
-fn keyword_pattern() -> Combinator {
-    tag("keyword_pattern", seq!(
-        deferred(NAME),
-         opt(deferred(WS)),
+    let keyword_pattern = symbol(tag("keyword_pattern", seq!(
+        &NAME,
+         opt(&WS),
          python_literal("="),
-         opt(deferred(WS)),
-         deferred(pattern)
-    )).into()
-}
+         opt(&WS),
+         &pattern
+    )));
 
-fn keyword_patterns() -> Combinator {
-    tag("keyword_patterns", seq!(deferred(keyword_pattern), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(keyword_pattern), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(keyword_pattern)))))))).into()
-}
+    let keyword_patterns = symbol(tag("keyword_patterns", seq!(&keyword_pattern, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &keyword_pattern, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &keyword_pattern))))))));
 
-fn positional_patterns() -> Combinator {
-    tag("positional_patterns", seq!(choice!(deferred(as_pattern), deferred(or_pattern)), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(pattern), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(pattern)))))))).into()
-}
+    let positional_patterns = symbol(tag("positional_patterns", seq!(choice!(&as_pattern, &or_pattern), opt(seq!(opt(&WS), python_literal(","), opt(&WS), &pattern, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &pattern))))))));
 
-fn class_pattern() -> Combinator {
-    tag("class_pattern", seq!(
-        deferred(NAME),
-         opt(seq!(opt(deferred(WS)), python_literal("."), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(NAME), opt(repeat1(seq!(opt(deferred(WS)), python_literal("."), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(NAME)))))),
-         opt(deferred(WS)),
+    let class_pattern = symbol(tag("class_pattern", seq!(
+        &NAME,
+         opt(seq!(opt(&WS), python_literal("."), opt(&WS), opt(seq!(&WS, opt(&WS))), &NAME, opt(repeat1(seq!(opt(&WS), python_literal("."), opt(&WS), opt(seq!(&WS, opt(&WS))), &NAME))))),
+         opt(&WS),
          python_literal("("),
-         opt(deferred(WS)),
-         choice!(python_literal(")"), seq!(deferred(positional_patterns), opt(deferred(WS)), choice!(seq!(opt(seq!(python_literal(","), opt(deferred(WS)))), python_literal(")")), seq!(python_literal(","), opt(deferred(WS)), deferred(keyword_patterns), opt(seq!(opt(deferred(WS)), python_literal(","))), opt(deferred(WS)), python_literal(")")))), seq!(deferred(keyword_patterns), opt(seq!(opt(deferred(WS)), python_literal(","))), opt(deferred(WS)), python_literal(")")))
-    )).into()
-}
+         opt(&WS),
+         choice!(python_literal(")"), seq!(&positional_patterns, opt(&WS), choice!(seq!(opt(seq!(python_literal(","), opt(&WS))), python_literal(")")), seq!(python_literal(","), opt(&WS), &keyword_patterns, opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal(")")))), seq!(&keyword_patterns, opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal(")")))
+    )));
 
-fn double_star_pattern() -> Combinator {
-    tag("double_star_pattern", seq!(python_literal("**"), opt(deferred(WS)), deferred(pattern_capture_target))).into()
-}
+    let double_star_pattern = symbol(tag("double_star_pattern", seq!(python_literal("**"), opt(&WS), &pattern_capture_target)));
 
-fn key_value_pattern() -> Combinator {
-    tag("key_value_pattern", seq!(
-        choice!(deferred(signed_number), deferred(complex_number), deferred(strings), python_literal("None"), python_literal("True"), python_literal("False"), seq!(deferred(name_or_attr), opt(deferred(WS)), python_literal("."), opt(deferred(WS)), deferred(NAME))),
-         opt(deferred(WS)),
+    let key_value_pattern = symbol(tag("key_value_pattern", seq!(
+        choice!(&signed_number, &complex_number, &strings, python_literal("None"), python_literal("True"), python_literal("False"), seq!(&name_or_attr, opt(&WS), python_literal("."), opt(&WS), &NAME)),
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(pattern)
-    )).into()
-}
+         opt(&WS),
+         &pattern
+    )));
 
-fn items_pattern() -> Combinator {
-    tag("items_pattern", seq!(deferred(key_value_pattern), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(key_value_pattern), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(key_value_pattern)))))))).into()
-}
+    let items_pattern = symbol(tag("items_pattern", seq!(&key_value_pattern, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &key_value_pattern, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &key_value_pattern))))))));
 
-fn mapping_pattern() -> Combinator {
-    tag("mapping_pattern", seq!(python_literal("{"), opt(deferred(WS)), choice!(python_literal("}"), seq!(deferred(double_star_pattern), opt(seq!(opt(deferred(WS)), python_literal(","))), opt(deferred(WS)), python_literal("}")), seq!(deferred(items_pattern), opt(deferred(WS)), choice!(seq!(python_literal(","), opt(deferred(WS)), deferred(double_star_pattern), opt(seq!(opt(deferred(WS)), python_literal(","))), opt(deferred(WS)), python_literal("}")), seq!(opt(seq!(python_literal(","), opt(deferred(WS)))), python_literal("}"))))))).into()
-}
+    let mapping_pattern = symbol(tag("mapping_pattern", seq!(python_literal("{"), opt(&WS), choice!(python_literal("}"), seq!(&double_star_pattern, opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal("}")), seq!(&items_pattern, opt(&WS), choice!(seq!(python_literal(","), opt(&WS), &double_star_pattern, opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal("}")), seq!(opt(seq!(python_literal(","), opt(&WS))), python_literal("}"))))))));
 
-fn star_pattern() -> Combinator {
-    cached(tag("star_pattern", seq!(python_literal("*"), opt(deferred(WS)), choice!(deferred(pattern_capture_target), deferred(wildcard_pattern))))).into()
-}
+    let star_pattern = symbol(cached(tag("star_pattern", seq!(python_literal("*"), opt(&WS), choice!(&pattern_capture_target, &wildcard_pattern)))));
 
-fn maybe_star_pattern() -> Combinator {
-    tag("maybe_star_pattern", choice!(
-        deferred(star_pattern),
-        deferred(as_pattern),
-        deferred(or_pattern)
-    )).into()
-}
+    let maybe_star_pattern = symbol(tag("maybe_star_pattern", choice!(
+        &star_pattern,
+        &as_pattern,
+        &or_pattern
+    )));
 
-fn maybe_sequence_pattern() -> Combinator {
-    tag("maybe_sequence_pattern", seq!(deferred(maybe_star_pattern), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(maybe_star_pattern), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(maybe_star_pattern)))))), opt(seq!(opt(deferred(WS)), python_literal(","))))).into()
-}
+    let maybe_sequence_pattern = symbol(tag("maybe_sequence_pattern", seq!(&maybe_star_pattern, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &maybe_star_pattern, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &maybe_star_pattern))))), opt(seq!(opt(&WS), python_literal(","))))));
 
-fn open_sequence_pattern() -> Combinator {
-    tag("open_sequence_pattern", seq!(deferred(maybe_star_pattern), opt(deferred(WS)), python_literal(","), opt(seq!(opt(deferred(WS)), deferred(maybe_sequence_pattern))))).into()
-}
+    let open_sequence_pattern = symbol(tag("open_sequence_pattern", seq!(&maybe_star_pattern, opt(&WS), python_literal(","), opt(seq!(opt(&WS), &maybe_sequence_pattern)))));
 
-fn sequence_pattern() -> Combinator {
-    tag("sequence_pattern", choice!(
-        seq!(python_literal("["), opt(seq!(opt(deferred(WS)), deferred(maybe_sequence_pattern))), opt(deferred(WS)), python_literal("]")),
-        seq!(python_literal("("), opt(seq!(opt(deferred(WS)), deferred(open_sequence_pattern))), opt(deferred(WS)), python_literal(")"))
-    )).into()
-}
+    let sequence_pattern = symbol(tag("sequence_pattern", choice!(
+        seq!(python_literal("["), opt(seq!(opt(&WS), &maybe_sequence_pattern)), opt(&WS), python_literal("]")),
+        seq!(python_literal("("), opt(seq!(opt(&WS), &open_sequence_pattern)), opt(&WS), python_literal(")"))
+    )));
 
-fn group_pattern() -> Combinator {
-    tag("group_pattern", seq!(
+    let group_pattern = symbol(tag("group_pattern", seq!(
         python_literal("("),
-         opt(deferred(WS)),
-         deferred(pattern),
-         opt(deferred(WS)),
+         opt(&WS),
+         &pattern,
+         opt(&WS),
          python_literal(")")
-    )).into()
-}
+    )));
 
-fn name_or_attr() -> Combinator {
-    tag("name_or_attr", seq!(deferred(NAME), opt(seq!(opt(deferred(WS)), python_literal("."), opt(deferred(WS)), deferred(NAME), opt(repeat1(seq!(opt(deferred(WS)), python_literal("."), opt(deferred(WS)), deferred(NAME)))))))).into()
-}
+    let name_or_attr = symbol(tag("name_or_attr", seq!(&NAME, opt(seq!(opt(&WS), python_literal("."), opt(&WS), &NAME, opt(repeat1(seq!(opt(&WS), python_literal("."), opt(&WS), &NAME))))))));
 
-fn attr() -> Combinator {
-    tag("attr", seq!(
-        deferred(name_or_attr),
-         opt(deferred(WS)),
+    let attr = symbol(tag("attr", seq!(
+        &name_or_attr,
+         opt(&WS),
          python_literal("."),
-         opt(deferred(WS)),
-         deferred(NAME)
-    )).into()
-}
+         opt(&WS),
+         &NAME
+    )));
 
-fn value_pattern() -> Combinator {
-    tag("value_pattern", deferred(attr)).into()
-}
+    let value_pattern = symbol(tag("value_pattern", &attr));
 
-fn wildcard_pattern() -> Combinator {
-    tag("wildcard_pattern", python_literal("_")).into()
-}
+    let wildcard_pattern = symbol(tag("wildcard_pattern", python_literal("_")));
 
-fn pattern_capture_target() -> Combinator {
-    tag("pattern_capture_target", deferred(NAME)).into()
-}
+    let pattern_capture_target = symbol(tag("pattern_capture_target", &NAME));
 
-fn capture_pattern() -> Combinator {
-    tag("capture_pattern", deferred(pattern_capture_target)).into()
-}
+    let capture_pattern = symbol(tag("capture_pattern", &pattern_capture_target));
 
-fn imaginary_number() -> Combinator {
-    tag("imaginary_number", deferred(NUMBER)).into()
-}
+    let imaginary_number = symbol(tag("imaginary_number", &NUMBER));
 
-fn real_number() -> Combinator {
-    tag("real_number", deferred(NUMBER)).into()
-}
+    let real_number = symbol(tag("real_number", &NUMBER));
 
-fn signed_real_number() -> Combinator {
-    tag("signed_real_number", choice!(
-        deferred(real_number),
-        seq!(python_literal("-"), opt(deferred(WS)), deferred(real_number))
-    )).into()
-}
+    let signed_real_number = symbol(tag("signed_real_number", choice!(
+        &real_number,
+        seq!(python_literal("-"), opt(&WS), &real_number)
+    )));
 
-fn signed_number() -> Combinator {
-    tag("signed_number", choice!(
-        deferred(NUMBER),
-        seq!(python_literal("-"), opt(deferred(WS)), deferred(NUMBER))
-    )).into()
-}
+    let signed_number = symbol(tag("signed_number", choice!(
+        &NUMBER,
+        seq!(python_literal("-"), opt(&WS), &NUMBER)
+    )));
 
-fn complex_number() -> Combinator {
-    tag("complex_number", seq!(deferred(signed_real_number), opt(deferred(WS)), choice!(seq!(python_literal("+"), opt(deferred(WS)), deferred(imaginary_number)), seq!(python_literal("-"), opt(deferred(WS)), deferred(imaginary_number))))).into()
-}
+    let complex_number = symbol(tag("complex_number", seq!(&signed_real_number, opt(&WS), choice!(seq!(python_literal("+"), opt(&WS), &imaginary_number), seq!(python_literal("-"), opt(&WS), &imaginary_number)))));
 
-fn literal_expr() -> Combinator {
-    tag("literal_expr", choice!(
-        deferred(signed_number),
-        deferred(complex_number),
-        deferred(strings),
+    let literal_expr = symbol(tag("literal_expr", choice!(
+        &signed_number,
+        &complex_number,
+        &strings,
         python_literal("None"),
         python_literal("True"),
         python_literal("False")
-    )).into()
-}
+    )));
 
-fn literal_pattern() -> Combinator {
-    tag("literal_pattern", choice!(
-        deferred(signed_number),
-        deferred(complex_number),
-        deferred(strings),
+    let literal_pattern = symbol(tag("literal_pattern", choice!(
+        &signed_number,
+        &complex_number,
+        &strings,
         python_literal("None"),
         python_literal("True"),
         python_literal("False")
-    )).into()
-}
+    )));
 
-fn closed_pattern() -> Combinator {
-    cached(tag("closed_pattern", choice!(
-        deferred(literal_pattern),
-        deferred(capture_pattern),
-        deferred(wildcard_pattern),
-        deferred(value_pattern),
-        deferred(group_pattern),
-        deferred(sequence_pattern),
-        deferred(mapping_pattern),
-        deferred(class_pattern)
-    ))).into()
-}
+    let closed_pattern = symbol(cached(tag("closed_pattern", choice!(
+        &literal_pattern,
+        &capture_pattern,
+        &wildcard_pattern,
+        &value_pattern,
+        &group_pattern,
+        &sequence_pattern,
+        &mapping_pattern,
+        &class_pattern
+    ))));
 
-fn or_pattern() -> Combinator {
-    tag("or_pattern", seq!(deferred(closed_pattern), opt(seq!(opt(deferred(WS)), python_literal("|"), opt(deferred(WS)), deferred(closed_pattern), opt(repeat1(seq!(opt(deferred(WS)), python_literal("|"), opt(deferred(WS)), deferred(closed_pattern)))))))).into()
-}
+    let or_pattern = symbol(tag("or_pattern", seq!(&closed_pattern, opt(seq!(opt(&WS), python_literal("|"), opt(&WS), &closed_pattern, opt(repeat1(seq!(opt(&WS), python_literal("|"), opt(&WS), &closed_pattern))))))));
 
-fn as_pattern() -> Combinator {
-    tag("as_pattern", seq!(
-        deferred(or_pattern),
-         opt(deferred(WS)),
+    let as_pattern = symbol(tag("as_pattern", seq!(
+        &or_pattern,
+         opt(&WS),
          python_literal("as"),
-         opt(deferred(WS)),
-         deferred(pattern_capture_target)
-    )).into()
-}
+         opt(&WS),
+         &pattern_capture_target
+    )));
 
-fn pattern() -> Combinator {
-    tag("pattern", choice!(
-        deferred(as_pattern),
-        deferred(or_pattern)
-    )).into()
-}
+    let pattern = symbol(tag("pattern", choice!(
+        &as_pattern,
+        &or_pattern
+    )));
 
-fn patterns() -> Combinator {
-    tag("patterns", choice!(
-        deferred(open_sequence_pattern),
-        deferred(pattern)
-    )).into()
-}
+    let patterns = symbol(tag("patterns", choice!(
+        &open_sequence_pattern,
+        &pattern
+    )));
 
-fn guard() -> Combinator {
-    tag("guard", seq!(python_literal("if"), opt(deferred(WS)), deferred(named_expression))).into()
-}
+    let guard = symbol(tag("guard", seq!(python_literal("if"), opt(&WS), &named_expression)));
 
-fn case_block() -> Combinator {
-    tag("case_block", seq!(
+    let case_block = symbol(tag("case_block", seq!(
         python_literal("case"),
-         opt(deferred(WS)),
-         deferred(patterns),
-         opt(seq!(opt(deferred(WS)), deferred(guard))),
-         opt(deferred(WS)),
+         opt(&WS),
+         &patterns,
+         opt(seq!(opt(&WS), &guard)),
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(block)
-    )).into()
-}
+         opt(&WS),
+         &block
+    )));
 
-fn subject_expr() -> Combinator {
-    tag("subject_expr", choice!(
-        seq!(deferred(star_named_expression), opt(deferred(WS)), python_literal(","), opt(seq!(opt(deferred(WS)), deferred(star_named_expressions)))),
-        deferred(named_expression)
-    )).into()
-}
+    let subject_expr = symbol(tag("subject_expr", choice!(
+        seq!(&star_named_expression, opt(&WS), python_literal(","), opt(seq!(opt(&WS), &star_named_expressions))),
+        &named_expression
+    )));
 
-fn match_stmt() -> Combinator {
-    tag("match_stmt", seq!(
+    let match_stmt = symbol(tag("match_stmt", seq!(
         python_literal("match"),
-         opt(deferred(WS)),
-         deferred(subject_expr),
-         opt(deferred(WS)),
+         opt(&WS),
+         &subject_expr,
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(NEWLINE),
-         opt(deferred(WS)),
-         deferred(INDENT),
-         opt(deferred(WS)),
-         deferred(case_block),
-         opt(repeat1(seq!(opt(deferred(WS)), deferred(case_block)))),
-         opt(deferred(WS)),
-         deferred(DEDENT)
-    )).into()
-}
+         opt(&WS),
+         &NEWLINE,
+         opt(&WS),
+         &INDENT,
+         opt(&WS),
+         &case_block,
+         opt(repeat1(seq!(opt(&WS), &case_block))),
+         opt(&WS),
+         &DEDENT
+    )));
 
-fn finally_block() -> Combinator {
-    tag("finally_block", seq!(
+    let finally_block = symbol(tag("finally_block", seq!(
         python_literal("finally"),
-         opt(deferred(WS)),
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(block)
-    )).into()
-}
+         opt(&WS),
+         &block
+    )));
 
-fn except_star_block() -> Combinator {
-    tag("except_star_block", seq!(
+    let except_star_block = symbol(tag("except_star_block", seq!(
         python_literal("except"),
-         opt(deferred(WS)),
+         opt(&WS),
          python_literal("*"),
-         opt(deferred(WS)),
-         deferred(expression),
-         opt(seq!(opt(deferred(WS)), python_literal("as"), opt(deferred(WS)), deferred(NAME))),
-         opt(deferred(WS)),
+         opt(&WS),
+         &expression,
+         opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &NAME)),
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(block)
-    )).into()
-}
+         opt(&WS),
+         &block
+    )));
 
-fn except_block() -> Combinator {
-    tag("except_block", seq!(python_literal("except"), opt(deferred(WS)), choice!(seq!(deferred(expression), opt(seq!(opt(deferred(WS)), python_literal("as"), opt(deferred(WS)), deferred(NAME))), opt(deferred(WS)), python_literal(":"), opt(deferred(WS)), deferred(block)), seq!(python_literal(":"), opt(deferred(WS)), deferred(block))))).into()
-}
+    let except_block = symbol(tag("except_block", seq!(python_literal("except"), opt(&WS), choice!(seq!(&expression, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &NAME)), opt(&WS), python_literal(":"), opt(&WS), &block), seq!(python_literal(":"), opt(&WS), &block)))));
 
-fn try_stmt() -> Combinator {
-    tag("try_stmt", seq!(
+    let try_stmt = symbol(tag("try_stmt", seq!(
         python_literal("try"),
-         opt(deferred(WS)),
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(block),
-         opt(deferred(WS)),
-         choice!(deferred(finally_block), seq!(deferred(except_block), opt(repeat1(seq!(opt(deferred(WS)), deferred(except_block)))), opt(seq!(opt(deferred(WS)), deferred(else_block))), opt(seq!(opt(deferred(WS)), deferred(finally_block)))), seq!(deferred(except_star_block), opt(repeat1(seq!(opt(deferred(WS)), deferred(except_star_block)))), opt(seq!(opt(deferred(WS)), deferred(else_block))), opt(seq!(opt(deferred(WS)), deferred(finally_block)))))
-    )).into()
-}
+         opt(&WS),
+         &block,
+         opt(&WS),
+         choice!(&finally_block, seq!(&except_block, opt(repeat1(seq!(opt(&WS), &except_block))), opt(seq!(opt(&WS), &else_block)), opt(seq!(opt(&WS), &finally_block))), seq!(&except_star_block, opt(repeat1(seq!(opt(&WS), &except_star_block))), opt(seq!(opt(&WS), &else_block)), opt(seq!(opt(&WS), &finally_block))))
+    )));
 
-fn with_item() -> Combinator {
-    tag("with_item", seq!(deferred(expression), opt(seq!(opt(deferred(WS)), python_literal("as"), opt(deferred(WS)), deferred(star_target))))).into()
-}
+    let with_item = symbol(tag("with_item", seq!(&expression, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &star_target)))));
 
-fn with_stmt() -> Combinator {
-    tag("with_stmt", choice!(
-        seq!(python_literal("with"), opt(deferred(WS)), choice!(seq!(python_literal("("), opt(deferred(WS)), deferred(with_item), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(with_item), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(with_item)))))), opt(seq!(opt(deferred(WS)), python_literal(","))), opt(deferred(WS)), python_literal(")"), opt(deferred(WS)), python_literal(":"), opt(seq!(opt(deferred(WS)), deferred(TYPE_COMMENT))), opt(deferred(WS)), deferred(block)), seq!(deferred(with_item), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(with_item), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(with_item)))))), opt(deferred(WS)), python_literal(":"), opt(seq!(opt(deferred(WS)), deferred(TYPE_COMMENT))), opt(deferred(WS)), deferred(block)))),
-        seq!(python_literal("async"), opt(deferred(WS)), python_literal("with"), opt(deferred(WS)), choice!(seq!(python_literal("("), opt(deferred(WS)), deferred(with_item), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(with_item), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(with_item)))))), opt(seq!(opt(deferred(WS)), python_literal(","))), opt(deferred(WS)), python_literal(")"), opt(deferred(WS)), python_literal(":"), opt(deferred(WS)), deferred(block)), seq!(deferred(with_item), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(with_item), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(with_item)))))), opt(deferred(WS)), python_literal(":"), opt(seq!(opt(deferred(WS)), deferred(TYPE_COMMENT))), opt(deferred(WS)), deferred(block))))
-    )).into()
-}
+    let with_stmt = symbol(tag("with_stmt", choice!(
+        seq!(python_literal("with"), opt(&WS), choice!(seq!(python_literal("("), opt(&WS), &with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal(")"), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block), seq!(&with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block))),
+        seq!(python_literal("async"), opt(&WS), python_literal("with"), opt(&WS), choice!(seq!(python_literal("("), opt(&WS), &with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal(")"), opt(&WS), python_literal(":"), opt(&WS), &block), seq!(&with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block)))
+    )));
 
-fn for_stmt() -> Combinator {
-    tag("for_stmt", choice!(
-        seq!(python_literal("for"), opt(deferred(WS)), deferred(star_targets), opt(deferred(WS)), python_literal("in"), opt(deferred(WS)), deferred(star_expressions), opt(deferred(WS)), python_literal(":"), opt(seq!(opt(deferred(WS)), deferred(TYPE_COMMENT))), opt(deferred(WS)), deferred(block), opt(seq!(opt(deferred(WS)), deferred(else_block)))),
-        seq!(python_literal("async"), opt(deferred(WS)), python_literal("for"), opt(deferred(WS)), deferred(star_targets), opt(deferred(WS)), python_literal("in"), opt(deferred(WS)), deferred(star_expressions), opt(deferred(WS)), python_literal(":"), opt(seq!(opt(deferred(WS)), deferred(TYPE_COMMENT))), opt(deferred(WS)), deferred(block), opt(seq!(opt(deferred(WS)), deferred(else_block))))
-    )).into()
-}
+    let for_stmt = symbol(tag("for_stmt", choice!(
+        seq!(python_literal("for"), opt(&WS), &star_targets, opt(&WS), python_literal("in"), opt(&WS), &star_expressions, opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block, opt(seq!(opt(&WS), &else_block))),
+        seq!(python_literal("async"), opt(&WS), python_literal("for"), opt(&WS), &star_targets, opt(&WS), python_literal("in"), opt(&WS), &star_expressions, opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block, opt(seq!(opt(&WS), &else_block)))
+    )));
 
-fn while_stmt() -> Combinator {
-    tag("while_stmt", seq!(
+    let while_stmt = symbol(tag("while_stmt", seq!(
         python_literal("while"),
-         opt(deferred(WS)),
-         deferred(named_expression),
-         opt(deferred(WS)),
+         opt(&WS),
+         &named_expression,
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(block),
-         opt(seq!(opt(deferred(WS)), deferred(else_block)))
-    )).into()
-}
+         opt(&WS),
+         &block,
+         opt(seq!(opt(&WS), &else_block))
+    )));
 
-fn else_block() -> Combinator {
-    tag("else_block", seq!(
+    let else_block = symbol(tag("else_block", seq!(
         python_literal("else"),
-         opt(deferred(WS)),
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(block)
-    )).into()
-}
+         opt(&WS),
+         &block
+    )));
 
-fn elif_stmt() -> Combinator {
-    tag("elif_stmt", seq!(
+    let elif_stmt = symbol(tag("elif_stmt", seq!(
         python_literal("elif"),
-         opt(deferred(WS)),
-         deferred(named_expression),
-         opt(deferred(WS)),
+         opt(&WS),
+         &named_expression,
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(block),
-         opt(seq!(opt(deferred(WS)), choice!(deferred(elif_stmt), deferred(else_block))))
-    )).into()
-}
+         opt(&WS),
+         &block,
+         opt(seq!(opt(&WS), choice!(&elif_stmt, &else_block)))
+    )));
 
-fn if_stmt() -> Combinator {
-    tag("if_stmt", seq!(
+    let if_stmt = symbol(tag("if_stmt", seq!(
         python_literal("if"),
-         opt(deferred(WS)),
-         deferred(named_expression),
-         opt(deferred(WS)),
+         opt(&WS),
+         &named_expression,
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(block),
-         opt(seq!(opt(deferred(WS)), choice!(deferred(elif_stmt), deferred(else_block))))
-    )).into()
-}
+         opt(&WS),
+         &block,
+         opt(seq!(opt(&WS), choice!(&elif_stmt, &else_block)))
+    )));
 
-fn default() -> Combinator {
-    tag("default", seq!(python_literal("="), opt(deferred(WS)), deferred(expression))).into()
-}
+    let default = symbol(tag("default", seq!(python_literal("="), opt(&WS), &expression)));
 
-fn star_annotation() -> Combinator {
-    tag("star_annotation", seq!(python_literal(":"), opt(deferred(WS)), deferred(star_expression))).into()
-}
+    let star_annotation = symbol(tag("star_annotation", seq!(python_literal(":"), opt(&WS), &star_expression)));
 
-fn annotation() -> Combinator {
-    tag("annotation", seq!(python_literal(":"), opt(deferred(WS)), deferred(expression))).into()
-}
+    let annotation = symbol(tag("annotation", seq!(python_literal(":"), opt(&WS), &expression)));
 
-fn param_star_annotation() -> Combinator {
-    tag("param_star_annotation", seq!(deferred(NAME), opt(deferred(WS)), deferred(star_annotation))).into()
-}
+    let param_star_annotation = symbol(tag("param_star_annotation", seq!(&NAME, opt(&WS), &star_annotation)));
 
-fn param() -> Combinator {
-    tag("param", seq!(deferred(NAME), opt(seq!(opt(deferred(WS)), deferred(annotation))))).into()
-}
+    let param = symbol(tag("param", seq!(&NAME, opt(seq!(opt(&WS), &annotation)))));
 
-fn param_maybe_default() -> Combinator {
-    tag("param_maybe_default", seq!(deferred(param), opt(seq!(opt(deferred(WS)), deferred(default))), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal(","), opt(seq!(opt(deferred(WS)), deferred(TYPE_COMMENT)))), deferred(TYPE_COMMENT)))))).into()
-}
+    let param_maybe_default = symbol(tag("param_maybe_default", seq!(&param, opt(seq!(opt(&WS), &default)), opt(seq!(opt(&WS), choice!(seq!(python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), &TYPE_COMMENT))))));
 
-fn param_with_default() -> Combinator {
-    tag("param_with_default", seq!(deferred(param), opt(deferred(WS)), deferred(default), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal(","), opt(seq!(opt(deferred(WS)), deferred(TYPE_COMMENT)))), deferred(TYPE_COMMENT)))))).into()
-}
+    let param_with_default = symbol(tag("param_with_default", seq!(&param, opt(&WS), &default, opt(seq!(opt(&WS), choice!(seq!(python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), &TYPE_COMMENT))))));
 
-fn param_no_default_star_annotation() -> Combinator {
-    tag("param_no_default_star_annotation", seq!(deferred(param_star_annotation), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal(","), opt(seq!(opt(deferred(WS)), deferred(TYPE_COMMENT)))), deferred(TYPE_COMMENT)))))).into()
-}
+    let param_no_default_star_annotation = symbol(tag("param_no_default_star_annotation", seq!(&param_star_annotation, opt(seq!(opt(&WS), choice!(seq!(python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), &TYPE_COMMENT))))));
 
-fn param_no_default() -> Combinator {
-    tag("param_no_default", seq!(deferred(param), opt(seq!(opt(deferred(WS)), choice!(seq!(python_literal(","), opt(seq!(opt(deferred(WS)), deferred(TYPE_COMMENT)))), deferred(TYPE_COMMENT)))))).into()
-}
+    let param_no_default = symbol(tag("param_no_default", seq!(&param, opt(seq!(opt(&WS), choice!(seq!(python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), &TYPE_COMMENT))))));
 
-fn kwds() -> Combinator {
-    tag("kwds", seq!(python_literal("**"), opt(deferred(WS)), deferred(param_no_default))).into()
-}
+    let kwds = symbol(tag("kwds", seq!(python_literal("**"), opt(&WS), &param_no_default)));
 
-fn star_etc() -> Combinator {
-    tag("star_etc", choice!(
-        seq!(python_literal("*"), opt(deferred(WS)), choice!(seq!(deferred(param_no_default), opt(seq!(opt(deferred(WS)), deferred(param_maybe_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(param_maybe_default)))))), opt(seq!(opt(deferred(WS)), deferred(kwds)))), seq!(deferred(param_no_default_star_annotation), opt(seq!(opt(deferred(WS)), deferred(param_maybe_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(param_maybe_default)))))), opt(seq!(opt(deferred(WS)), deferred(kwds)))), seq!(python_literal(","), opt(deferred(WS)), deferred(param_maybe_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(param_maybe_default)))), opt(seq!(opt(deferred(WS)), deferred(kwds)))))),
-        deferred(kwds)
-    )).into()
-}
+    let star_etc = symbol(tag("star_etc", choice!(
+        seq!(python_literal("*"), opt(&WS), choice!(seq!(&param_no_default, opt(seq!(opt(&WS), &param_maybe_default, opt(repeat1(seq!(opt(&WS), &param_maybe_default))))), opt(seq!(opt(&WS), &kwds))), seq!(&param_no_default_star_annotation, opt(seq!(opt(&WS), &param_maybe_default, opt(repeat1(seq!(opt(&WS), &param_maybe_default))))), opt(seq!(opt(&WS), &kwds))), seq!(python_literal(","), opt(&WS), &param_maybe_default, opt(repeat1(seq!(opt(&WS), &param_maybe_default))), opt(seq!(opt(&WS), &kwds))))),
+        &kwds
+    )));
 
-fn slash_with_default() -> Combinator {
-    tag("slash_with_default", seq!(
-        opt(seq!(deferred(param_no_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(param_no_default)))), opt(deferred(WS)))),
-         deferred(param_with_default),
-         opt(repeat1(seq!(opt(deferred(WS)), deferred(param_with_default)))),
-         opt(deferred(WS)),
+    let slash_with_default = symbol(tag("slash_with_default", seq!(
+        opt(seq!(&param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))), opt(&WS))),
+         &param_with_default,
+         opt(repeat1(seq!(opt(&WS), &param_with_default))),
+         opt(&WS),
          python_literal("/"),
-         opt(seq!(opt(deferred(WS)), python_literal(",")))
-    )).into()
-}
+         opt(seq!(opt(&WS), python_literal(",")))
+    )));
 
-fn slash_no_default() -> Combinator {
-    tag("slash_no_default", seq!(
-        deferred(param_no_default),
-         opt(repeat1(seq!(opt(deferred(WS)), deferred(param_no_default)))),
-         opt(deferred(WS)),
+    let slash_no_default = symbol(tag("slash_no_default", seq!(
+        &param_no_default,
+         opt(repeat1(seq!(opt(&WS), &param_no_default))),
+         opt(&WS),
          python_literal("/"),
-         opt(seq!(opt(deferred(WS)), python_literal(",")))
-    )).into()
-}
+         opt(seq!(opt(&WS), python_literal(",")))
+    )));
 
-fn parameters() -> Combinator {
-    tag("parameters", choice!(
-        seq!(deferred(slash_no_default), opt(seq!(opt(deferred(WS)), deferred(param_no_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(param_no_default)))))), opt(seq!(opt(deferred(WS)), deferred(param_with_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(param_with_default)))))), opt(seq!(opt(deferred(WS)), deferred(star_etc)))),
-        seq!(deferred(slash_with_default), opt(seq!(opt(deferred(WS)), deferred(param_with_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(param_with_default)))))), opt(seq!(opt(deferred(WS)), deferred(star_etc)))),
-        seq!(deferred(param_no_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(param_no_default)))), opt(seq!(opt(deferred(WS)), deferred(param_with_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(param_with_default)))))), opt(seq!(opt(deferred(WS)), deferred(star_etc)))),
-        seq!(deferred(param_with_default), opt(repeat1(seq!(opt(deferred(WS)), deferred(param_with_default)))), opt(seq!(opt(deferred(WS)), deferred(star_etc)))),
-        deferred(star_etc)
-    )).into()
-}
+    let parameters = symbol(tag("parameters", choice!(
+        seq!(&slash_no_default, opt(seq!(opt(&WS), &param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))))), opt(seq!(opt(&WS), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))))), opt(seq!(opt(&WS), &star_etc))),
+        seq!(&slash_with_default, opt(seq!(opt(&WS), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))))), opt(seq!(opt(&WS), &star_etc))),
+        seq!(&param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))), opt(seq!(opt(&WS), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))))), opt(seq!(opt(&WS), &star_etc))),
+        seq!(&param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))), opt(seq!(opt(&WS), &star_etc))),
+        &star_etc
+    )));
 
-fn params() -> Combinator {
-    tag("params", deferred(parameters)).into()
-}
+    let params = symbol(tag("params", &parameters));
 
-fn function_def_raw() -> Combinator {
-    tag("function_def_raw", choice!(
-        seq!(python_literal("def"), opt(deferred(WS)), deferred(NAME), opt(seq!(opt(deferred(WS)), deferred(type_params))), opt(deferred(WS)), python_literal("("), opt(seq!(opt(deferred(WS)), deferred(params))), opt(deferred(WS)), python_literal(")"), opt(seq!(opt(deferred(WS)), python_literal("->"), opt(deferred(WS)), deferred(expression))), opt(deferred(WS)), python_literal(":"), opt(seq!(opt(deferred(WS)), deferred(func_type_comment))), opt(deferred(WS)), deferred(block)),
-        seq!(python_literal("async"), opt(deferred(WS)), python_literal("def"), opt(deferred(WS)), deferred(NAME), opt(seq!(opt(deferred(WS)), deferred(type_params))), opt(deferred(WS)), python_literal("("), opt(seq!(opt(deferred(WS)), deferred(params))), opt(deferred(WS)), python_literal(")"), opt(seq!(opt(deferred(WS)), python_literal("->"), opt(deferred(WS)), deferred(expression))), opt(deferred(WS)), python_literal(":"), opt(seq!(opt(deferred(WS)), deferred(func_type_comment))), opt(deferred(WS)), deferred(block))
-    )).into()
-}
+    let function_def_raw = symbol(tag("function_def_raw", choice!(
+        seq!(python_literal("def"), opt(&WS), &NAME, opt(seq!(opt(&WS), &type_params)), opt(&WS), python_literal("("), opt(seq!(opt(&WS), &params)), opt(&WS), python_literal(")"), opt(seq!(opt(&WS), python_literal("->"), opt(&WS), &expression)), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &func_type_comment)), opt(&WS), &block),
+        seq!(python_literal("async"), opt(&WS), python_literal("def"), opt(&WS), &NAME, opt(seq!(opt(&WS), &type_params)), opt(&WS), python_literal("("), opt(seq!(opt(&WS), &params)), opt(&WS), python_literal(")"), opt(seq!(opt(&WS), python_literal("->"), opt(&WS), &expression)), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &func_type_comment)), opt(&WS), &block)
+    )));
 
-fn function_def() -> Combinator {
-    tag("function_def", choice!(
-        seq!(python_literal("@"), opt(deferred(WS)), deferred(named_expression), opt(deferred(WS)), deferred(NEWLINE), opt(seq!(opt(deferred(WS)), python_literal("@"), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), opt(seq!(deferred(WS), opt(seq!(opt(deferred(WS)), deferred(WS))), opt(deferred(WS)))), deferred(named_expression), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), opt(seq!(deferred(WS), opt(seq!(opt(deferred(WS)), deferred(WS))), opt(deferred(WS)))), deferred(NEWLINE), opt(repeat1(seq!(opt(deferred(WS)), python_literal("@"), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), opt(seq!(deferred(WS), opt(seq!(opt(deferred(WS)), deferred(WS))), opt(deferred(WS)))), deferred(named_expression), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), opt(seq!(deferred(WS), opt(seq!(opt(deferred(WS)), deferred(WS))), opt(deferred(WS)))), deferred(NEWLINE)))))), opt(deferred(WS)), deferred(function_def_raw)),
-        deferred(function_def_raw)
-    )).into()
-}
+    let function_def = symbol(tag("function_def", choice!(
+        seq!(python_literal("@"), opt(&WS), &named_expression, opt(&WS), &NEWLINE, opt(seq!(opt(&WS), python_literal("@"), opt(&WS), opt(seq!(&WS, opt(&WS))), opt(seq!(&WS, opt(seq!(opt(&WS), &WS)), opt(&WS))), &named_expression, opt(&WS), opt(seq!(&WS, opt(&WS))), opt(seq!(&WS, opt(seq!(opt(&WS), &WS)), opt(&WS))), &NEWLINE, opt(repeat1(seq!(opt(&WS), python_literal("@"), opt(&WS), opt(seq!(&WS, opt(&WS))), opt(seq!(&WS, opt(seq!(opt(&WS), &WS)), opt(&WS))), &named_expression, opt(&WS), opt(seq!(&WS, opt(&WS))), opt(seq!(&WS, opt(seq!(opt(&WS), &WS)), opt(&WS))), &NEWLINE))))), opt(&WS), &function_def_raw),
+        &function_def_raw
+    )));
 
-fn class_def_raw() -> Combinator {
-    tag("class_def_raw", seq!(
+    let class_def_raw = symbol(tag("class_def_raw", seq!(
         python_literal("class"),
-         opt(deferred(WS)),
-         deferred(NAME),
-         opt(seq!(opt(deferred(WS)), deferred(type_params))),
-         opt(seq!(opt(deferred(WS)), python_literal("("), opt(seq!(opt(deferred(WS)), deferred(arguments))), opt(deferred(WS)), python_literal(")"))),
-         opt(deferred(WS)),
+         opt(&WS),
+         &NAME,
+         opt(seq!(opt(&WS), &type_params)),
+         opt(seq!(opt(&WS), python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"))),
+         opt(&WS),
          python_literal(":"),
-         opt(deferred(WS)),
-         deferred(block)
-    )).into()
-}
+         opt(&WS),
+         &block
+    )));
 
-fn class_def() -> Combinator {
-    tag("class_def", choice!(
-        seq!(python_literal("@"), opt(deferred(WS)), deferred(named_expression), opt(deferred(WS)), deferred(NEWLINE), opt(seq!(opt(deferred(WS)), python_literal("@"), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(named_expression), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(NEWLINE), opt(repeat1(seq!(opt(deferred(WS)), python_literal("@"), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(named_expression), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(NEWLINE)))))), opt(deferred(WS)), deferred(class_def_raw)),
-        deferred(class_def_raw)
-    )).into()
-}
+    let class_def = symbol(tag("class_def", choice!(
+        seq!(python_literal("@"), opt(&WS), &named_expression, opt(&WS), &NEWLINE, opt(seq!(opt(&WS), python_literal("@"), opt(&WS), opt(seq!(&WS, opt(&WS))), &named_expression, opt(&WS), opt(seq!(&WS, opt(&WS))), &NEWLINE, opt(repeat1(seq!(opt(&WS), python_literal("@"), opt(&WS), opt(seq!(&WS, opt(&WS))), &named_expression, opt(&WS), opt(seq!(&WS, opt(&WS))), &NEWLINE))))), opt(&WS), &class_def_raw),
+        &class_def_raw
+    )));
 
-fn decorators() -> Combinator {
-    tag("decorators", seq!(
+    let decorators = symbol(tag("decorators", seq!(
         python_literal("@"),
-         opt(deferred(WS)),
-         deferred(named_expression),
-         opt(deferred(WS)),
-         deferred(NEWLINE),
-         opt(seq!(opt(deferred(WS)), python_literal("@"), opt(deferred(WS)), deferred(named_expression), opt(deferred(WS)), deferred(NEWLINE), opt(repeat1(seq!(opt(deferred(WS)), python_literal("@"), opt(deferred(WS)), deferred(named_expression), opt(deferred(WS)), deferred(NEWLINE))))))
-    )).into()
-}
+         opt(&WS),
+         &named_expression,
+         opt(&WS),
+         &NEWLINE,
+         opt(seq!(opt(&WS), python_literal("@"), opt(&WS), &named_expression, opt(&WS), &NEWLINE, opt(repeat1(seq!(opt(&WS), python_literal("@"), opt(&WS), &named_expression, opt(&WS), &NEWLINE)))))
+    )));
 
-fn block() -> Combinator {
-    cached(tag("block", choice!(
-        seq!(deferred(NEWLINE), opt(deferred(WS)), deferred(INDENT), opt(deferred(WS)), deferred(statements), opt(deferred(WS)), deferred(DEDENT)),
-        seq!(deferred(simple_stmt), opt(deferred(WS)), choice!(deferred(NEWLINE), seq!(opt(seq!(python_literal(";"), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(simple_stmt), opt(repeat1(seq!(opt(deferred(WS)), python_literal(";"), opt(deferred(WS)), opt(seq!(deferred(WS), opt(deferred(WS)))), deferred(simple_stmt)))), opt(deferred(WS)))), opt(seq!(python_literal(";"), opt(deferred(WS)))), deferred(NEWLINE))))
-    ))).into()
-}
+    let block = symbol(cached(tag("block", choice!(
+        seq!(&NEWLINE, opt(&WS), &INDENT, opt(&WS), &statements, opt(&WS), &DEDENT),
+        seq!(&simple_stmt, opt(&WS), choice!(&NEWLINE, seq!(opt(seq!(python_literal(";"), opt(&WS), opt(seq!(&WS, opt(&WS))), &simple_stmt, opt(repeat1(seq!(opt(&WS), python_literal(";"), opt(&WS), opt(seq!(&WS, opt(&WS))), &simple_stmt))), opt(&WS))), opt(seq!(python_literal(";"), opt(&WS))), &NEWLINE)))
+    ))));
 
-fn dotted_name() -> Combinator {
-    tag("dotted_name", seq!(deferred(NAME), opt(seq!(opt(deferred(WS)), python_literal("."), opt(deferred(WS)), deferred(NAME), opt(repeat1(seq!(opt(deferred(WS)), python_literal("."), opt(deferred(WS)), deferred(NAME)))))))).into()
-}
+    let dotted_name = symbol(tag("dotted_name", seq!(&NAME, opt(seq!(opt(&WS), python_literal("."), opt(&WS), &NAME, opt(repeat1(seq!(opt(&WS), python_literal("."), opt(&WS), &NAME))))))));
 
-fn dotted_as_name() -> Combinator {
-    tag("dotted_as_name", seq!(deferred(dotted_name), opt(seq!(opt(deferred(WS)), python_literal("as"), opt(deferred(WS)), deferred(NAME))))).into()
-}
+    let dotted_as_name = symbol(tag("dotted_as_name", seq!(&dotted_name, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &NAME)))));
 
-fn dotted_as_names() -> Combinator {
-    tag("dotted_as_names", seq!(deferred(dotted_as_name), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(dotted_as_name), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(dotted_as_name)))))))).into()
-}
+    let dotted_as_names = symbol(tag("dotted_as_names", seq!(&dotted_as_name, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &dotted_as_name, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &dotted_as_name))))))));
 
-fn import_from_as_name() -> Combinator {
-    tag("import_from_as_name", seq!(deferred(NAME), opt(seq!(opt(deferred(WS)), python_literal("as"), opt(deferred(WS)), deferred(NAME))))).into()
-}
+    let import_from_as_name = symbol(tag("import_from_as_name", seq!(&NAME, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &NAME)))));
 
-fn import_from_as_names() -> Combinator {
-    tag("import_from_as_names", seq!(deferred(import_from_as_name), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(import_from_as_name), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(import_from_as_name)))))))).into()
-}
+    let import_from_as_names = symbol(tag("import_from_as_names", seq!(&import_from_as_name, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &import_from_as_name, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &import_from_as_name))))))));
 
-fn import_from_targets() -> Combinator {
-    tag("import_from_targets", choice!(
-        seq!(python_literal("("), opt(deferred(WS)), deferred(import_from_as_names), opt(seq!(opt(deferred(WS)), python_literal(","))), opt(deferred(WS)), python_literal(")")),
-        deferred(import_from_as_names),
+    let import_from_targets = symbol(tag("import_from_targets", choice!(
+        seq!(python_literal("("), opt(&WS), &import_from_as_names, opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal(")")),
+        &import_from_as_names,
         python_literal("*")
-    )).into()
-}
+    )));
 
-fn import_from() -> Combinator {
-    tag("import_from", seq!(python_literal("from"), opt(deferred(WS)), choice!(seq!(opt(seq!(choice!(python_literal("."), python_literal("...")), opt(repeat1(seq!(opt(deferred(WS)), choice!(python_literal("."), python_literal("..."))))), opt(deferred(WS)))), deferred(dotted_name), opt(deferred(WS)), python_literal("import"), opt(deferred(WS)), deferred(import_from_targets)), seq!(choice!(python_literal("."), python_literal("...")), opt(repeat1(seq!(opt(deferred(WS)), choice!(python_literal("."), python_literal("..."))))), opt(deferred(WS)), python_literal("import"), opt(deferred(WS)), deferred(import_from_targets))))).into()
-}
+    let import_from = symbol(tag("import_from", seq!(python_literal("from"), opt(&WS), choice!(seq!(opt(seq!(choice!(python_literal("."), python_literal("...")), opt(repeat1(seq!(opt(&WS), choice!(python_literal("."), python_literal("..."))))), opt(&WS))), &dotted_name, opt(&WS), python_literal("import"), opt(&WS), &import_from_targets), seq!(choice!(python_literal("."), python_literal("...")), opt(repeat1(seq!(opt(&WS), choice!(python_literal("."), python_literal("..."))))), opt(&WS), python_literal("import"), opt(&WS), &import_from_targets)))));
 
-fn import_name() -> Combinator {
-    tag("import_name", seq!(python_literal("import"), opt(deferred(WS)), deferred(dotted_as_names))).into()
-}
+    let import_name = symbol(tag("import_name", seq!(python_literal("import"), opt(&WS), &dotted_as_names)));
 
-fn import_stmt() -> Combinator {
-    tag("import_stmt", choice!(
-        deferred(import_name),
-        deferred(import_from)
-    )).into()
-}
+    let import_stmt = symbol(tag("import_stmt", choice!(
+        &import_name,
+        &import_from
+    )));
 
-fn assert_stmt() -> Combinator {
-    tag("assert_stmt", seq!(python_literal("assert"), opt(deferred(WS)), deferred(expression), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(expression))))).into()
-}
+    let assert_stmt = symbol(tag("assert_stmt", seq!(python_literal("assert"), opt(&WS), &expression, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &expression)))));
 
-fn yield_stmt() -> Combinator {
-    tag("yield_stmt", deferred(yield_expr)).into()
-}
+    let yield_stmt = symbol(tag("yield_stmt", &yield_expr));
 
-fn del_stmt() -> Combinator {
-    tag("del_stmt", seq!(python_literal("del"), opt(deferred(WS)), deferred(del_targets))).into()
-}
+    let del_stmt = symbol(tag("del_stmt", seq!(python_literal("del"), opt(&WS), &del_targets)));
 
-fn nonlocal_stmt() -> Combinator {
-    tag("nonlocal_stmt", seq!(python_literal("nonlocal"), opt(deferred(WS)), deferred(NAME), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(NAME), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(NAME)))))))).into()
-}
+    let nonlocal_stmt = symbol(tag("nonlocal_stmt", seq!(python_literal("nonlocal"), opt(&WS), &NAME, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME))))))));
 
-fn global_stmt() -> Combinator {
-    tag("global_stmt", seq!(python_literal("global"), opt(deferred(WS)), deferred(NAME), opt(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(NAME), opt(repeat1(seq!(opt(deferred(WS)), python_literal(","), opt(deferred(WS)), deferred(NAME)))))))).into()
-}
+    let global_stmt = symbol(tag("global_stmt", seq!(python_literal("global"), opt(&WS), &NAME, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME))))))));
 
-fn raise_stmt() -> Combinator {
-    tag("raise_stmt", seq!(python_literal("raise"), opt(seq!(opt(deferred(WS)), deferred(expression), opt(seq!(opt(deferred(WS)), python_literal("from"), opt(deferred(WS)), deferred(expression))))))).into()
-}
+    let raise_stmt = symbol(tag("raise_stmt", seq!(python_literal("raise"), opt(seq!(opt(&WS), &expression, opt(seq!(opt(&WS), python_literal("from"), opt(&WS), &expression)))))));
 
-fn return_stmt() -> Combinator {
-    tag("return_stmt", seq!(python_literal("return"), opt(seq!(opt(deferred(WS)), deferred(star_expressions))))).into()
-}
+    let return_stmt = symbol(tag("return_stmt", seq!(python_literal("return"), opt(seq!(opt(&WS), &star_expressions)))));
 
-fn augassign() -> Combinator {
-    tag("augassign", choice!(
+    let augassign = symbol(tag("augassign", choice!(
         python_literal("+="),
         python_literal("-="),
         python_literal("*="),
@@ -1252,110 +887,84 @@ fn augassign() -> Combinator {
         python_literal(">>="),
         python_literal("**="),
         python_literal("//=")
-    )).into()
-}
+    )));
 
-fn annotated_rhs() -> Combinator {
-    tag("annotated_rhs", choice!(
-        deferred(yield_expr),
-        deferred(star_expressions)
-    )).into()
-}
+    let annotated_rhs = symbol(tag("annotated_rhs", choice!(
+        &yield_expr,
+        &star_expressions
+    )));
 
-fn assignment() -> Combinator {
-    tag("assignment", choice!(
-        seq!(deferred(NAME), opt(deferred(WS)), python_literal(":"), opt(deferred(WS)), deferred(expression), opt(seq!(opt(deferred(WS)), python_literal("="), opt(deferred(WS)), deferred(annotated_rhs)))),
-        seq!(choice!(seq!(python_literal("("), opt(deferred(WS)), deferred(single_target), opt(deferred(WS)), python_literal(")")), deferred(single_subscript_attribute_target)), opt(deferred(WS)), python_literal(":"), opt(deferred(WS)), deferred(expression), opt(seq!(opt(deferred(WS)), python_literal("="), opt(deferred(WS)), deferred(annotated_rhs)))),
-        seq!(deferred(star_targets), opt(deferred(WS)), python_literal("="), opt(seq!(opt(deferred(WS)), deferred(star_targets), opt(deferred(WS)), python_literal("="), opt(repeat1(seq!(opt(deferred(WS)), deferred(star_targets), opt(deferred(WS)), python_literal("=")))))), opt(deferred(WS)), choice!(deferred(yield_expr), deferred(star_expressions)), opt(seq!(opt(deferred(WS)), deferred(TYPE_COMMENT)))),
-        seq!(deferred(single_target), opt(deferred(WS)), deferred(augassign), opt(deferred(WS)), choice!(deferred(yield_expr), deferred(star_expressions)))
-    )).into()
-}
+    let assignment = symbol(tag("assignment", choice!(
+        seq!(&NAME, opt(&WS), python_literal(":"), opt(&WS), &expression, opt(seq!(opt(&WS), python_literal("="), opt(&WS), &annotated_rhs))),
+        seq!(choice!(seq!(python_literal("("), opt(&WS), &single_target, opt(&WS), python_literal(")")), &single_subscript_attribute_target), opt(&WS), python_literal(":"), opt(&WS), &expression, opt(seq!(opt(&WS), python_literal("="), opt(&WS), &annotated_rhs))),
+        seq!(&star_targets, opt(&WS), python_literal("="), opt(seq!(opt(&WS), &star_targets, opt(&WS), python_literal("="), opt(repeat1(seq!(opt(&WS), &star_targets, opt(&WS), python_literal("=")))))), opt(&WS), choice!(&yield_expr, &star_expressions), opt(seq!(opt(&WS), &TYPE_COMMENT))),
+        seq!(&single_target, opt(&WS), &augassign, opt(&WS), choice!(&yield_expr, &star_expressions))
+    )));
 
-fn compound_stmt() -> Combinator {
-    tag("compound_stmt", choice!(
-        deferred(function_def),
-        deferred(if_stmt),
-        deferred(class_def),
-        deferred(with_stmt),
-        deferred(for_stmt),
-        deferred(try_stmt),
-        deferred(while_stmt),
-        deferred(match_stmt)
-    )).into()
-}
+    let compound_stmt = symbol(tag("compound_stmt", choice!(
+        &function_def,
+        &if_stmt,
+        &class_def,
+        &with_stmt,
+        &for_stmt,
+        &try_stmt,
+        &while_stmt,
+        &match_stmt
+    )));
 
-fn simple_stmt() -> Combinator {
-    cached(tag("simple_stmt", choice!(
-        deferred(assignment),
-        deferred(type_alias),
-        deferred(star_expressions),
-        deferred(return_stmt),
-        deferred(import_stmt),
-        deferred(raise_stmt),
+    let simple_stmt = symbol(cached(tag("simple_stmt", choice!(
+        &assignment,
+        &type_alias,
+        &star_expressions,
+        &return_stmt,
+        &import_stmt,
+        &raise_stmt,
         python_literal("pass"),
-        deferred(del_stmt),
-        deferred(yield_stmt),
-        deferred(assert_stmt),
+        &del_stmt,
+        &yield_stmt,
+        &assert_stmt,
         python_literal("break"),
         python_literal("continue"),
-        deferred(global_stmt),
-        deferred(nonlocal_stmt)
-    ))).into()
-}
+        &global_stmt,
+        &nonlocal_stmt
+    ))));
 
-fn simple_stmts() -> Combinator {
-    tag("simple_stmts", seq!(deferred(simple_stmt), opt(deferred(WS)), choice!(deferred(NEWLINE), seq!(opt(seq!(python_literal(";"), opt(deferred(WS)), deferred(simple_stmt), opt(repeat1(seq!(opt(deferred(WS)), python_literal(";"), opt(deferred(WS)), deferred(simple_stmt)))), opt(deferred(WS)))), opt(seq!(python_literal(";"), opt(deferred(WS)))), deferred(NEWLINE))))).into()
-}
+    let simple_stmts = symbol(tag("simple_stmts", seq!(&simple_stmt, opt(&WS), choice!(&NEWLINE, seq!(opt(seq!(python_literal(";"), opt(&WS), &simple_stmt, opt(repeat1(seq!(opt(&WS), python_literal(";"), opt(&WS), &simple_stmt))), opt(&WS))), opt(seq!(python_literal(";"), opt(&WS))), &NEWLINE)))));
 
-fn statement_newline() -> Combinator {
-    tag("statement_newline", choice!(
-        seq!(deferred(compound_stmt), opt(deferred(WS)), deferred(NEWLINE)),
-        deferred(simple_stmts),
-        deferred(NEWLINE),
-        deferred(ENDMARKER)
-    )).into()
-}
+    let statement_newline = symbol(tag("statement_newline", choice!(
+        seq!(&compound_stmt, opt(&WS), &NEWLINE),
+        &simple_stmts,
+        &NEWLINE,
+        &ENDMARKER
+    )));
 
-fn statement() -> Combinator {
-    tag("statement", choice!(
-        deferred(compound_stmt),
-        deferred(simple_stmts)
-    )).into()
-}
+    let statement = symbol(tag("statement", choice!(
+        &compound_stmt,
+        &simple_stmts
+    )));
 
-fn statements() -> Combinator {
-    tag("statements", seq!(deferred(statement), opt(repeat1(seq!(opt(deferred(WS)), deferred(statement)))))).into()
-}
+    let statements = symbol(tag("statements", seq!(&statement, opt(repeat1(seq!(opt(&WS), &statement))))));
 
-fn func_type() -> Combinator {
-    tag("func_type", seq!(
+    let func_type = symbol(tag("func_type", seq!(
         python_literal("("),
-         opt(seq!(opt(deferred(WS)), deferred(type_expressions))),
-         opt(deferred(WS)),
+         opt(seq!(opt(&WS), &type_expressions)),
+         opt(&WS),
          python_literal(")"),
-         opt(deferred(WS)),
+         opt(&WS),
          python_literal("->"),
-         opt(deferred(WS)),
-         deferred(expression),
-         opt(seq!(opt(deferred(WS)), deferred(NEWLINE), opt(repeat1(seq!(opt(deferred(WS)), deferred(NEWLINE)))))),
-         opt(deferred(WS)),
-         deferred(ENDMARKER)
-    )).into()
-}
+         opt(&WS),
+         &expression,
+         opt(seq!(opt(&WS), &NEWLINE, opt(repeat1(seq!(opt(&WS), &NEWLINE))))),
+         opt(&WS),
+         &ENDMARKER
+    )));
 
-fn eval() -> Combinator {
-    tag("eval", seq!(deferred(expressions), opt(seq!(opt(deferred(WS)), deferred(NEWLINE), opt(repeat1(seq!(opt(deferred(WS)), deferred(NEWLINE)))))), opt(deferred(WS)), deferred(ENDMARKER))).into()
-}
+    let eval = symbol(tag("eval", seq!(&expressions, opt(seq!(opt(&WS), &NEWLINE, opt(repeat1(seq!(opt(&WS), &NEWLINE))))), opt(&WS), &ENDMARKER)));
 
-fn interactive() -> Combinator {
-    tag("interactive", deferred(statement_newline)).into()
-}
+    let interactive = symbol(tag("interactive", &statement_newline));
 
-fn file() -> Combinator {
-    tag("file", seq!(opt(seq!(deferred(statements), opt(deferred(WS)))), deferred(ENDMARKER))).into()
-}
+    let file = symbol(tag("file", seq!(opt(seq!(&statements, opt(&WS))), &ENDMARKER)));
 
-pub fn python_file() -> Combinator {
 
-    cache_context(seq!(opt(deferred(NEWLINE)), deferred(file))).into()
+    cache_context(seq!(opt(&NEWLINE), &file)).into()
 }

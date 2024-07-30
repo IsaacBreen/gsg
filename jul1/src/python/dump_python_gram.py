@@ -164,9 +164,6 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     def named_item_to_rust(item: pegen.grammar.NamedItem) -> str:
         return item_to_rust(item.item)
 
-    def name_to_rust(name: str) -> str:
-        return f'deferred({name})'
-
     def item_to_rust(item) -> str:
         if isinstance(item, pegen.grammar.NameLeaf):
             value = item.value
@@ -204,6 +201,14 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
+    def name_to_rust(name: str) -> str:
+        if deferred:
+            return f'deferred({name})'
+        else:
+            return f'&{name}'
+
+    deferred = False
+
     rules = grammar.rules.items()
     rules = list(reversed(rules))
 
@@ -222,38 +227,64 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     f.write('}\n')
     f.write('\n')
 
-    f.write('use super::python_tokenizer as token;\n')
-    for token in tokens:
-        expr = f'token::{token}()'
-        expr = f'{expr}.compile()'
+    def make_tokens() -> str:
+        f = io.StringIO()
+        f.write('use super::python_tokenizer as token;\n')
+        for token in tokens:
+            expr = f'token::{token}()'
+            expr = f'{expr}.compile()'
 
-        token_ref = remove_left_recursion.ref(token)
-        if token_ref in unresolved_follows_table and any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):
-            expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-        elif token_ref in unresolved_follows_table:
-            expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
-        elif any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):
-            expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr})'
-        else:
-            expr = f'seq!({expr})'
-        expr = f'tag("{token}", {expr})'
-        expr = f'cached({expr})'
-        # expr = f'symbol({expr})'
-        f.write('fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
-    f.write('\n')
-
-    for name, rule in rules:
-        expr = rhs_to_rust(rule.rhs, top_level=True)
-        expr = f'tag("{name}", {expr})'
-        if rule.memo:
+            token_ref = remove_left_recursion.ref(token)
+            if token_ref in unresolved_follows_table and any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):
+                expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
+            elif token_ref in unresolved_follows_table:
+                expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
+            elif any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):
+                expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr})'
+            else:
+                expr = f'seq!({expr})'
+            expr = f'tag("{token}", {expr})'
             expr = f'cached({expr})'
-        expr = f'{expr}.into()'
-        f.write('fn ' + name + '() -> Combinator {\n')
-        f.write(f'{textwrap.indent(expr, "    ")}\n')
-        f.write('}\n')
+            if deferred:
+                f.write('fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
+            else:
+                expr = f'symbol({expr})'
+                f.write(f'let {token} = {expr};\n')
         f.write('\n')
+        return f.getvalue()
+
+    def make_rules() -> str:
+        f = io.StringIO()
+        f.write('forward_decls!(')
+        for name, rule in rules:
+            f.write(f'{name}, ')
+        f.write(');\n')
+        for name, rule in rules:
+            expr = rhs_to_rust(rule.rhs, top_level=True)
+            expr = f'tag("{name}", {expr})'
+            if rule.memo:
+                expr = f'cached({expr})'
+            if deferred:
+                expr = f'{expr}.into()'
+                f.write('fn ' + name + '() -> Combinator {\n')
+                f.write(f'{textwrap.indent(expr, "    ")}\n')
+                f.write('}\n')
+            else:
+                expr = f'symbol({expr})'
+                f.write(f'let {name} = {expr};\n')
+            f.write('\n')
+        return f.getvalue()
+
+    if deferred:
+        f.write(make_tokens())
+        f.write(make_rules())
 
     f.write('pub fn python_file() -> Combinator {\n')
+
+    if not deferred:
+        f.write(textwrap.indent(make_tokens(), "    "))
+        f.write(textwrap.indent(make_rules(), "    "))
+
     if any(rule.memo for name, rule in rules):
         f.write(f'\n    cache_context(seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")})).into()\n')
     else:
