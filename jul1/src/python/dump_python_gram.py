@@ -242,7 +242,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             elif any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):
                 expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr})'
             else:
-                expr = f'seq!({expr})'
+                expr = f'seq!(forbid_follows_clear(), {expr})'
             expr = f'tag("{token}", {expr})'
             expr = f'cached({expr})'
             if deferred:
