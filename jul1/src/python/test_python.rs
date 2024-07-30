@@ -159,6 +159,14 @@ fn test_explosion_please() {
 }
 
 #[test]
+fn test_string_problem() {
+    let combinator = python_file();
+
+    let s = r#"return "choice!(\n    " + ",\n    ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n)""#;
+    assert_parses(&combinator, s, "String");
+}
+
+#[test]
 fn test_string() {
     let combinator = STRING();
 
