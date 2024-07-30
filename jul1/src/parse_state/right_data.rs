@@ -11,7 +11,6 @@ pub struct RightData {
     pub indents: Vec<Vec<u8>>, 
     pub dedents: usize,
     pub scope_count: usize,
-    #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub forbidden_consecutive_matches: ForbidFollowsData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub cache_data: CacheData,
