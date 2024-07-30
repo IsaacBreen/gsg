@@ -62,7 +62,7 @@ def plot_timing_distribution(data):
     plt.savefig('tokens_per_second.png')
     plt.close()
 
-    # Dunno why these are unreadable. The bars turn out white.
+    # # Dunno why these are unreadable. The bars turn out white.
     # # Bar plot for characters per second over time
     # plt.figure(figsize=(12, 6))
     # plt.bar(data.index, chars_per_second, color='blue')
