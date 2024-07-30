@@ -14,7 +14,6 @@ pub struct RightData {
     pub forbidden_consecutive_matches: ForbidFollowsData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub cache_data: CacheData,
-    #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub position: usize,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub time: Rc<RefCell<u128>>,
