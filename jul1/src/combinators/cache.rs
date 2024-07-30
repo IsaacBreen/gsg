@@ -72,10 +72,11 @@ pub struct CacheContextParser {
 impl CacheContextParser {
     fn cleanup(&mut self) {
         let mut cache_data_inner = self.cache_data_inner.borrow_mut();
-        cache_data_inner.new_parsers.values_mut().for_each(|entry| {
-            let cloned = entry.borrow().clone();
-            *entry = Rc::new(RefCell::new(cloned));
-        });
+        // TODO: HERE'S THE ISSUE. entry contains a parser. we clone that. but that parser contains cached parsers, and those are tied to a previous position.
+        // cache_data_inner.new_parsers.values_mut().for_each(|entry| {
+        //     let cloned = entry.borrow().clone();
+        //     *entry = Rc::new(RefCell::new(cloned));
+        // });
         cache_data_inner.new_parsers.clear();
         cache_data_inner.keys_hit_this_step.clear();
         cache_data_inner.entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done);
