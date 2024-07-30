@@ -18,7 +18,6 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
     let mut timings: Vec<(String, std::time::Duration)> = Vec::new();
 
-    let start = Instant::now();
     let (mut parser, ParseResults { up_data_vec: mut up_data, .. }) = T::parser(&combinator, RightData::default());
 
     let lines = input.lines().collect::<Vec<_>>();
