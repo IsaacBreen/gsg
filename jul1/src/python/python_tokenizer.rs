@@ -444,8 +444,8 @@ pub fn STRING() -> Combinator {
     );
 
     let shortstring = choice!(
-        seq!(eat_char('\''), repeat0(choice!(shortstringitem.clone(), eat_string(r#"\'"#))), eat_char('\'')),
-        seq!(eat_char('"'), repeat0(choice!(shortstringitem, eat_string(r#"\""#))), eat_char('"'))
+        seq!(eat_char('\''), repeat0(choice!(shortstringitem.clone(), eat_char('"'), eat_string(r#"\'"#))), eat_char('\'')),
+        seq!(eat_char('"'), repeat0(choice!(shortstringitem, eat_char('\''), eat_string(r#"\""#))), eat_char('"'))
     );
 
     let longstring = choice!(
