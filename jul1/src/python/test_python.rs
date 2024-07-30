@@ -134,7 +134,7 @@ fn test_test_input() {
 }
 
 #[test]
-fn test_actual_python_file2() {
+fn test_actual_python_file() {
     let path = Path::new("src/python/dump_python_gram.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
