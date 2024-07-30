@@ -116,26 +116,25 @@ impl ParserTrait for CacheContextParser {
 
 impl CombinatorTrait for Cached {
     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
-        for (key, entry) in right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.iter() {
-            if Rc::ptr_eq(&key.combinator, &self.inner) && key.right_data == right_data {
-                let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
-                return (
-                    Parser::CachedParser(CachedParser {
-                        entry: entry.clone(),
-                    }),
-                    parse_results
-                );
-            }
+        let key = CacheKey {
+            combinator: self.inner.clone(),
+            right_data: right_data.clone()
+        };
+
+        if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.get(&key) {
+            let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
+            return (
+                Parser::CachedParser(CachedParser {
+                    entry: entry.clone(),
+                }),
+                parse_results
+            );
         }
 
         let entry = Rc::new(RefCell::new(CacheEntry {
             parser: None,
             maybe_parse_results: None,
         }));
-        let key = CacheKey {
-            combinator: self.inner.clone(),
-            right_data: right_data.clone()
-        };
 
         let (parser, mut parse_results) = self.inner.parser(right_data.clone());
         parse_results.squash();
