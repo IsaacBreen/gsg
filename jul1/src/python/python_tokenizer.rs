@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use unicode_general_category::GeneralCategory;
 
-use crate::{assert_no_dedents, check_right_data, choice, Choice, Combinator, CombinatorTrait, dedent, dent, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, RightData, seprep0, seprep1, seq, Seq, Symbol, tag};
+use crate::{assert_no_dedents, check_right_data, choice, Choice, Combinator, CombinatorTrait, dedent, dent, eat_any_byte, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, repeatn, RightData, seprep0, seprep1, seq, Seq, Symbol, tag};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn breaking_space() -> Combinator {
@@ -403,26 +403,58 @@ pub fn NAME() -> Combinator {
 //    single: \N; escape sequence
 //    single: \u; escape sequence
 //    single: \U; escape sequence
+pub fn eat_char_hex_digit() -> EatU8 {
+    eat_char_choice("0123456789abcdefABCDEF")
+}
+
+pub fn eat_char_digit() -> EatU8 {
+    eat_char_choice("0123456789")
+}
+
+pub fn eat_until_terminator(terminator: char) -> Repeat1 {
+    repeat1(eat_char_negation(terminator))
+}
+
 pub fn STRING() -> Combinator {
-    let stringprefix = choice!(
+    let stringprefix = opt(choice!(
         eat_char_choice("ruRUfF"),
         choice!(
             seq!(eat_char_choice("fF"), eat_char_choice("rR")),
             seq!(eat_char_choice("rR"), eat_char_choice("fF"))
         )
+    ));
+
+    let stringescapeseq = choice!(
+        seq!(eat_char('\\'), eat_char_choice("\\'\"abfnrtv")),
+        seq!(eat_char('\\'), eat_char('x'), repeatn(2, eat_char_hex_digit())),
+        seq!(eat_char('\\'), eat_char('u'), repeatn(4, eat_char_hex_digit())),
+        seq!(eat_char('\\'), eat_char('U'), repeatn(8, eat_char_hex_digit())),
+        seq!(eat_char('\\'), eat_char('N'), eat_until_terminator(';')),
+        seq!(eat_char('\\'), eat_char_digit(), opt(eat_char_digit()), opt(eat_char_digit())),
+        seq!(eat_char('\\'), eat_any_byte())
+    );
+
+    let shortstringitem = choice!(
+        eat_char_negation_choice("\\'\n"),
+        stringescapeseq.clone()
+    );
+
+    let longstringitem = choice!(
+        eat_char_negation('\\'),
+        stringescapeseq
     );
 
     let shortstring = choice!(
-        seq!(eat_char('\''), repeat0(choice!(eat_char_negation_choice("\\'\n"), seq!(eat_char('\\'), choice!(breaking_space(), eat_char_choice("\"\'n\\"))))), eat_char('\'')),
-        seq!(eat_char('"'), repeat0(choice!(eat_char_negation_choice("\\\"\n"), seq!(eat_char('\\'), choice!(breaking_space(), eat_char_choice("\"\'n\\"))))), eat_char('"'))
+        seq!(eat_char('\''), repeat0(shortstringitem.clone()), eat_char('\'')),
+        seq!(eat_char('"'), repeat0(shortstringitem), eat_char('"'))
     );
 
     let longstring = choice!(
-        seq!(eat_string("'''"), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), choice!(breaking_space(), eat_char_choice("\"\'n\\"))))), eat_string("'''")),
-        seq!(eat_string("\"\"\""), repeat0(choice!(eat_char_negation('\\'), seq!(eat_char('\\'), choice!(breaking_space(), eat_char_choice("\"\'n\\"))))), eat_string("\"\"\""))
+        seq!(eat_string("'''"), repeat0(longstringitem.clone()), eat_string("'''")),
+        seq!(eat_string("\"\"\""), repeat0(longstringitem), eat_string("\"\"\""))
     );
 
-    seq!(opt(stringprefix), choice!(shortstring, longstring))
+    seq!(stringprefix, choice!(shortstring, longstring))
 }
 
 // From https://peps.python.org/pep-0701/
@@ -594,8 +626,17 @@ pub fn FSTRING_START() -> Combinator {
 }
 
 pub fn FSTRING_MIDDLE() -> Combinator {
-    let escaped_char = seq!(eat_char('\\'), eat_char_choice("\\\n\r\'\""));
-    let regular_char = eat_char_negation_choice("{}\\\n\r\'\"");
+    let stringescapeseq = choice!(
+        seq!(eat_char('\\'), eat_char_choice("\\'\"abfnrtv")),
+        seq!(eat_char('\\'), eat_char('x'), repeatn(2, eat_char_hex_digit())),
+        seq!(eat_char('\\'), eat_char('u'), repeatn(4, eat_char_hex_digit())),
+        seq!(eat_char('\\'), eat_char('U'), repeatn(8, eat_char_hex_digit())),
+        seq!(eat_char('\\'), eat_char('N'), eat_until_terminator(';')),
+        seq!(eat_char('\\'), eat_char_digit(), opt(eat_char_digit()), opt(eat_char_digit())),
+        seq!(eat_char('\\'), eat_any_byte())
+    );
+
+    let regular_char = eat_char_negation_choice("{}\\\n\r");
 
     let quote = choice!(
         seq!(eat_char('\''), mutate_right_data(|right_data| { *right_data.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle })),
@@ -604,7 +645,7 @@ pub fn FSTRING_MIDDLE() -> Combinator {
 
     repeat1(choice!(
             regular_char,
-            escaped_char,
+            stringescapeseq,
             quote,
             seq!(eat_char('{'), eat_char('{')),
             seq!(eat_char('}'), eat_char('}'))
