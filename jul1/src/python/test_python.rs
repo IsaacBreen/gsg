@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{eat_string, NAME, non_breaking_space, opt, python_file, python_literal, seq, whitespace, WS};
+use crate::{eat_string, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, whitespace, WS};
 use crate::utils::{assert_fails, assert_fails_default, assert_parses, assert_parses_default};
 
 #[test]
@@ -156,4 +156,15 @@ fn test_explosion_please() {
     let path = Path::new("src/tests/test_input.py");
     let s = std::fs::read_to_string(path).unwrap();
     assert_parses(&combinator, &s, "Test input");
+}
+
+#[test]
+fn test_string() {
+    let combinator = STRING();
+
+    let s = r#""choice!(\n    ""#;
+    assert_parses(&combinator, s, "String");
+
+    let s = r#""\n)""#;
+    assert_parses(&combinator, s, "String");
 }
