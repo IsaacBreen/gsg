@@ -121,7 +121,7 @@ impl ParserTrait for EatByteStringChoiceParser {
     }
 }
 
-pub const fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
+pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
     EatByteStringChoice::new(bytestrings).into()
 }
 
