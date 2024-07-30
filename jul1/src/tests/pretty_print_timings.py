@@ -62,23 +62,24 @@ def plot_timing_distribution(data):
     plt.savefig('tokens_per_second.png')
     plt.close()
 
-    # Bar plot for characters per second over time
-    plt.figure(figsize=(12, 6))
-    plt.bar(data.index, chars_per_second, color='blue')
-    plt.title('Characters per Second Over Time')
-    plt.xlabel('Line Index')
-    plt.ylabel('Characters per Second')
-    plt.savefig('chars_per_second_over_time.png')
-    plt.close()
-
-    # Bar plot for tokens per second over time
-    plt.figure(figsize=(12, 6))
-    plt.bar(data.index, tokens_per_second, color='red')
-    plt.title('Tokens per Second Over Time')
-    plt.xlabel('Line Index')
-    plt.ylabel('Tokens per Second')
-    plt.savefig('tokens_per_second_over_time.png')
-    plt.close()
+    # Dunno why these are unreadable. The bars turn out white.
+    # # Bar plot for characters per second over time
+    # plt.figure(figsize=(12, 6))
+    # plt.bar(data.index, chars_per_second, color='blue')
+    # plt.title('Characters per Second Over Time')
+    # plt.xlabel('Line Index')
+    # plt.ylabel('Characters per Second')
+    # plt.savefig('chars_per_second_over_time.png')
+    # plt.close()
+    #
+    # # Bar plot for tokens per second over time
+    # plt.figure(figsize=(12, 6))
+    # plt.bar(data.index, tokens_per_second, color='red')
+    # plt.title('Tokens per Second Over Time')
+    # plt.xlabel('Line Index')
+    # plt.ylabel('Tokens per Second')
+    # plt.savefig('tokens_per_second_over_time.png')
+    # plt.close()
 
 # Pretty print the data
 def pretty_print_data(data):
