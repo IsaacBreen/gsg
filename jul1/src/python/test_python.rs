@@ -190,4 +190,6 @@ fn test_string() {
 
     let s = r#""\n)""#;
     assert_parses(&combinator, s, "String");
+
+    // todo: Escpae sequences in both f-strings and regular strings
 }
