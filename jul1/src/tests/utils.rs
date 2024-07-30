@@ -10,6 +10,8 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::iter;
 
+const VERBOSE: bool = false;
+
 pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     let mut input = input.to_string();
     println!("beginning assert_parses {}", desc);
@@ -32,9 +34,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         }
         let bytes = line.bytes().collect::<Vec<_>>();
 
-        for (char_number, byte) in tqdm!(bytes.iter().cloned().enumerate(), animation = "fillup", position = 1) {
-            let char_start = Instant::now();
-
+        for (char_number, byte) in bytes.iter().cloned().enumerate() {
             let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));
             assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}. Line: {:?}, Char: {:?}, Text: {:?}", byte as char, up_data, line_number + 1, char_number + 1, line);
 
@@ -43,15 +43,14 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 break 'outer;
             }
 
-            // // Print useful info
-            // // - line and char number
-            // // - text
-            // // - stats
-            // println!("line:char: {line_number}:{char_number}");
-            // println!("line: {line:?}");
-            // let stats = parser.stats();
-            // println!("Stats:");
-            // println!("{}", stats);
+            if VERBOSE {
+                // Print useful info
+                println!("line:char: {line_number}:{char_number}");
+                println!("line: {line:?}");
+                let stats = parser.stats();
+                println!("Stats:");
+                println!("{}", stats);
+            }
 
             let ParseResults {
                 right_data_vec: right_data,
@@ -61,7 +60,8 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
             up_data = new_up_data;
 
-            assert!(!right_data.is_empty() || !up_data.is_empty(), "Parser failed at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
+            assert!(!right_data.is_empty() || !up_data.is_empty(), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
+            assert!(!done, "Parser finished prematurely at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
         }
 
         timings.push((line.to_string(), Instant::now() - line_start));
@@ -80,21 +80,23 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     });
     let threshold = timing_vec_sorted[timing_vec_sorted.len() / 10].1;
 
-    // println!("Execution time profile:");
-    for (desc, duration) in timing_vec.clone() {
-        let duration_secs = duration.as_secs_f64();
-        let time_per_char = duration_secs / desc.len() as f64 * 1000.0;
-        let emphasis = if duration > threshold { " * " } else { "   " };
-        let bold = if duration > threshold { "\x1b[1m" } else { "" };
-        let reset = if bold.is_empty() { "" } else { "\x1b[0m" };
-        // println!("{}{:<15}{:<10}{}{:?}{}s",
-        //     emphasis,
-        //     format!("{:.3}ms/char", time_per_char),
-        //     format!("{:.3}s", duration_secs),
-        //     bold,
-        //     desc,
-        //     reset,
-        // );
+    if VERBOSE {
+        println!("Execution time profile:");
+        for (desc, duration) in timing_vec.clone() {
+            let duration_secs = duration.as_secs_f64();
+            let time_per_char = duration_secs / desc.len() as f64 * 1000.0;
+            let emphasis = if duration > threshold { " * " } else { "   " };
+            let bold = if duration > threshold { "\x1b[1m" } else { "" };
+            let reset = if bold.is_empty() { "" } else { "\x1b[0m" };
+            println!("{}{:<15}{:<10}{}{:?}{}s",
+                     emphasis,
+                     format!("{:.3}ms/char", time_per_char),
+                     format!("{:.3}s", duration_secs),
+                     bold,
+                     desc,
+                     reset,
+            );
+        }
     }
 
     // Save to CSV
@@ -106,7 +108,9 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         let line = line.replace("\n", "\\n");
         csv_file.write_all(format!("{},\"{}\",{}\n", i, line, duration.as_secs_f64()).as_bytes()).unwrap();
     }
-    println!("Saved timings to timings.csv");
+    if VERBOSE {
+        println!("Saved timings to timings.csv");
+    }
 }
 
 pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
