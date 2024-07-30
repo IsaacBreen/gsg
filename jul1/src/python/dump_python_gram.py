@@ -164,10 +164,13 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     def named_item_to_rust(item: pegen.grammar.NamedItem) -> str:
         return item_to_rust(item.item)
 
+    def name_to_rust(name: str) -> str:
+        return f'deferred({name})'
+
     def item_to_rust(item) -> str:
         if isinstance(item, pegen.grammar.NameLeaf):
             value = item.value
-            return f'&{value}'
+            return name_to_rust(value)
         elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
             if value[0] == value[-1] in {'"', "'"}:
@@ -208,7 +211,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{cache_context, cached, symbol,  Symbol, choice, Choice, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, opt, Repeat1, seprep0, seprep1, Seq, tag, Compile};\n')
+    f.write('use crate::{cache_context, cached, symbol, Symbol, choice, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, opt, Repeat1, seprep0, seprep1, Seq, tag, Compile};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::{seq, repeat0, repeat1};\n')
     f.write('\n')
@@ -235,7 +238,8 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             expr = f'seq!({expr})'
         expr = f'tag("{token}", {expr})'
         expr = f'cached({expr})'
-        f.write(f"const {token}: Symbol = symbol({expr});\n")
+        # expr = f'symbol({expr})'
+        f.write('fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
     f.write('\n')
 
     for name, rule in rules:
@@ -250,12 +254,10 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         f.write('\n')
 
     f.write('pub fn python_file() -> Combinator {\n')
-    f.write(f'    forward_decls!({", ".join(name for name, rule in rules)});\n')
-    f.write('\n')
     if any(rule.memo for name, rule in rules):
-        f.write('\n    cache_context(seq!(opt(&NEWLINE), &file)).into()\n')
+        f.write(f'\n    cache_context(seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")})).into()\n')
     else:
-        f.write('\n    seq!(opt(&NEWLINE), &file).into()\n')
+        f.write(f'\n    seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")}).into()\n')
     f.write('}\n')
     return f.getvalue()
 
