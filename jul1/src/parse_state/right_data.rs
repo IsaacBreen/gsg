@@ -7,10 +7,13 @@ use crate::{CacheData, ForbidFollowsData, FrameStack};
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct RightData {
+    #[derivative(Hash = "ignore")]
     pub frame_stack: Option<FrameStack>,
+    #[derivative(Hash = "ignore")]
     pub indents: Vec<Vec<u8>>,
     pub dedents: usize,
     pub scope_count: usize,
+    #[derivative(Hash = "ignore")]
     pub forbidden_consecutive_matches: ForbidFollowsData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub cache_data: CacheData,
