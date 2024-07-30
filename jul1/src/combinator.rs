@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser, EatByteStringChoice, EatByteStringChoiceParser, CheckRightData, CheckRightDataParser};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, Choice, ChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, MutateRightData, MutateRightDataParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, WithNewFrame, WithNewFrameParser, EatByteStringChoice, EatByteStringChoiceParser, CheckRightData, CheckRightDataParser, Deferred};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -101,7 +101,8 @@ define_enum!(
     ForbidFollowsClear,
     ForbidFollowsCheckNot,
     EatByteStringChoice,
-    CheckRightData
+    CheckRightData,
+    Deferred
 );
 
 define_enum!(
@@ -148,7 +149,8 @@ macro_rules! match_combinator {
             ForbidFollowsClear,
             ForbidFollowsCheckNot,
             EatByteStringChoice,
-            CheckRightData
+            CheckRightData,
+            Deferred
         )
     };
 }

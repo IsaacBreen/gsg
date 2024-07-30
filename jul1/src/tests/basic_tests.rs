@@ -486,4 +486,14 @@ mod tests {
         let s = "[[][[][]]]";
         assert_parses(&s_combinator, s, "Test input");
     }
+
+    #[test]
+    fn test_from_fn() {
+        fn A() -> Combinator {
+            choice!(seq!(eat_char('a'), &A as &dyn Fn() -> Combinator), eat_char('b'))
+        }
+
+        let S: Combinator = From::<&dyn Fn() -> Combinator>::from(&A);
+        assert_parses(&S, "a", "Test input");
+    }
 }
