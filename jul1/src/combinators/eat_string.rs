@@ -72,13 +72,13 @@ impl ParserTrait for EatStringParser {
     }
 }
 
-pub fn eat_string(string: &str) -> EatString {
+pub const fn eat_string(string: &str) -> EatString {
     EatString {
         string: string.as_bytes().to_vec(),
     }
 }
 
-pub fn eat_bytes(bytes: &[u8]) -> EatString {
+pub const fn eat_bytes(bytes: &[u8]) -> EatString {
     EatString {
         string: bytes.to_vec()
     }

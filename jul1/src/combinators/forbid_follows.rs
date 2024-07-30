@@ -54,15 +54,15 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
     }
 }
 
-pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows {
+pub const fn forbid_follows(match_ids: &[usize]) -> ForbidFollows {
     ForbidFollows { match_ids: match_ids.to_vec() }
 }
 
-pub fn forbid_follows_clear() -> ForbidFollowsClear {
+pub const fn forbid_follows_clear() -> ForbidFollowsClear {
     ForbidFollowsClear {}
 }
 
-pub fn forbid_follows_check_not(match_id: usize) -> ForbidFollowsCheckNot {
+pub const fn forbid_follows_check_not(match_id: usize) -> ForbidFollowsCheckNot {
     ForbidFollowsCheckNot { match_id }
 }
 

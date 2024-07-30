@@ -89,7 +89,7 @@ impl ParserTrait for SeqParser {
     }
 }
 
-pub fn _seq(v: Vec<Combinator>) -> Combinator {
+pub const fn _seq(v: Vec<Combinator>) -> Combinator {
     Seq {
         children: v.into_iter().map(Rc::new).collect(),
     }.into()

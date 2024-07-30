@@ -49,7 +49,7 @@ impl ParserTrait for ChoiceParser {
     }
 }
 
-pub fn _choice(v: Vec<Combinator>) -> Combinator {
+pub const fn _choice(v: Vec<Combinator>) -> Combinator {
     Choice {
         children: v.into_iter().map(Rc::new).collect(),
     }.into()
