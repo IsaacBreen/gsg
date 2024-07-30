@@ -244,7 +244,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             else:
                 expr = f'seq!(forbid_follows_clear(), {expr})'
             expr = f'tag("{token}", {expr})'
-            expr = f'cache_first({expr})'
+            # expr = f'cache_first({expr})'
             expr = f'cached({expr})'
             if deferred:
                 f.write('fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
