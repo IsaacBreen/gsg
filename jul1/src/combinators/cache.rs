@@ -20,7 +20,7 @@ pub struct CacheDataInner {
     pub entries: Vec<Rc<RefCell<CacheEntry>>>,
 }
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheKey {
     pub combinator: Rc<Combinator>,
     pub right_data: RightData,
@@ -46,12 +46,11 @@ pub struct Cached {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CachedParser {
     pub entry: Rc<RefCell<CacheEntry>>,
-    pub num: usize,
 }
 
 impl Hash for CachedParser {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.entry.borrow().num.hash(state);
+        self.entry.borrow().hash(state);
     }
 }
 
@@ -59,12 +58,6 @@ impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::mem::discriminant(self.combinator.as_ref()).hash(state);
         self.right_data.hash(state);
-    }
-}
-
-impl PartialEq for CacheKey {
-    fn eq(&self, other: &Self) -> bool {
-        (Rc::ptr_eq(&self.combinator, &other.combinator) || self.combinator == other.combinator) && self.right_data == other.right_data
     }
 }
 
@@ -130,7 +123,6 @@ impl CombinatorTrait for Cached {
                 return (
                     Parser::CachedParser(CachedParser {
                         entry: entry.clone(),
-                        num: entry.borrow().num,
                     }),
                     parse_results
                 );
@@ -157,14 +149,13 @@ impl CombinatorTrait for Cached {
         }
         entry.borrow_mut().parser = Some(Box::new(parser));
         entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
-        let num = entry.borrow().num;
-        (Parser::CachedParser(CachedParser { entry, num }), parse_results)
+        (Parser::CachedParser(CachedParser { entry }), parse_results)
     }
 }
 
 impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        self.entry.borrow().maybe_parse_results.clone().expect(format!("CachedParser.step: parse_results is None for entry number {} (self.num = {})", self.entry.borrow().num, self.num).as_str())
+        self.entry.borrow().maybe_parse_results.clone().expect(format!("CachedParser.step: parse_results is None for entry number {}", self.entry.borrow().num).as_str())
     }
 }
 
