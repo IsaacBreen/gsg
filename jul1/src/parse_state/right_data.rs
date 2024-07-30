@@ -8,7 +8,7 @@ use crate::{CacheData, ForbidFollowsData, FrameStack};
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct RightData {
     pub frame_stack: Option<FrameStack>,
-    pub indents: Vec<Vec<u8>>, 
+    pub indents: Vec<Vec<u8>>,
     pub dedents: usize,
     pub scope_count: usize,
     pub forbidden_consecutive_matches: ForbidFollowsData,
