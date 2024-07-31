@@ -13,41 +13,53 @@ mod tests {
     #[test]
     fn test_eat_u8() {
         assert_parses_default(&eat_char_choice("a"), "a");
+        assert_parses_fast(&eat_char_choice("a"), "a");
     }
 
     #[test]
     fn test_eat_string() {
         assert_parses_default(&eat_string("abc"), "abc");
+        assert_parses_fast(&eat_string("abc"), "abc");
     }
 
     #[test]
     fn test_seq() {
         assert_parses_default(&seq!(eat_char_choice("a"), eat_char_choice("b")), "ab");
+        assert_parses_fast(&seq!(eat_char_choice("a"), eat_char_choice("b")), "ab");
     }
 
     #[test]
     fn test_repeat1() {
         assert_parses_default(&repeat1(eat_char_choice("a")), "a");
+        assert_parses_fast(&repeat1(eat_char_choice("a")), "a");
         assert_parses_default(&repeat1(eat_char_choice("a")), "aa");
+        assert_parses_fast(&repeat1(eat_char_choice("a")), "aa");
         assert_parses_default(&repeat1(eat_char_choice("a")), "aaa");
+        assert_parses_fast(&repeat1(eat_char_choice("a")), "aaa");
     }
 
     #[test]
     fn test_choice() {
         assert_parses_default(&choice!(eat_char_choice("a"), eat_char_choice("b")), "a");
+        assert_parses_fast(&choice!(eat_char_choice("a"), eat_char_choice("b")), "a");
         assert_parses_default(&choice!(eat_char_choice("a"), eat_char_choice("b")), "b");
+        assert_parses_fast(&choice!(eat_char_choice("a"), eat_char_choice("b")), "b");
     }
 
     #[test]
     fn test_seq_choice_seq() {
         assert_parses_default(&seq!(choice!(eat_char_choice("a"), seq!(eat_char_choice("a"), eat_char_choice("b"))), eat_char_choice("c")), "ac");
+        assert_parses_fast(&seq!(choice!(eat_char_choice("a"), seq!(eat_char_choice("a"), eat_char_choice("b"))), eat_char_choice("c")), "ac");
         assert_parses_default(&seq!(choice!(eat_char_choice("a"), seq!(eat_char_choice("a"), eat_char_choice("b"))), eat_char_choice("c")), "abc");
+        assert_parses_fast(&seq!(choice!(eat_char_choice("a"), seq!(eat_char_choice("a"), eat_char_choice("b"))), eat_char_choice("c")), "abc");
     }
 
     #[test]
     fn test_seq_opt() {
         assert_parses_default(&seq!(opt(eat_char_choice("a")), eat_char_choice("b")), "ab");
+        assert_parses_fast(&seq!(opt(eat_char_choice("a")), eat_char_choice("b")), "ab");
         assert_parses_default(&seq!(opt(eat_char_choice("a")), eat_char_choice("b")), "b");
+        assert_parses_fast(&seq!(opt(eat_char_choice("a")), eat_char_choice("b")), "b");
     }
 
     #[test]
@@ -55,9 +67,15 @@ mod tests {
         let mut combinator = forward_ref();
         combinator.set(choice!(seq!(eat_char_choice("a"), &combinator), eat_char_choice("b")));
         assert_parses_default(&combinator, "b");
+        assert_parses_fast(&combinator, "b");
+        assert_parses_fast(&combinator, "b");
         assert_parses_default(&combinator, "ab");
+        assert_parses_fast(&combinator, "ab");
+        assert_parses_fast(&combinator, "ab");
         assert_parses_default(&combinator, "aab");
+        assert_parses_fast(&combinator, "aab");
         assert_parses_default(&combinator, "aaab");
+        assert_parses_fast(&combinator, "aaab");
     }
 
     #[test]
@@ -66,9 +84,11 @@ mod tests {
         right_data.frame_stack.as_mut().unwrap().push_name(b"a");
         let combinator = frame_stack_contains(eat_char_choice("a"));
         assert_parses(&combinator, "a", "Frame stack contains 'a'");
+        assert_parses_fast(&combinator, "a");
 
         let combinator = frame_stack_contains(eat_char_choice("b"));
         assert_fails(&combinator, "b", "Frame stack does not contain 'b'");
+        assert_parses_fast(&combinator, "b");
     }
 
     #[test]
@@ -86,6 +106,7 @@ mod tests {
             frame_stack_contains(eat_char_choice("a"))
         );
         assert_fails_default(&combinator, "aaa");
+        assert_parses_fast(&combinator, "aaa");
     }
 
     #[test]
@@ -100,6 +121,7 @@ mod tests {
             frame_stack_contains(eat_char_choice("a")),
         );
         assert_fails_default(&combinator, "{a=b;}a");
+        assert_parses_fast(&combinator, "{a=b;}a");
     }
 
     #[test]
@@ -122,6 +144,7 @@ mod tests {
             eat_char_choice("c"),
         );
         assert_parses_default(&combinator, "a\n b\nc");
+        assert_parses_fast(&combinator, "a\n b\nc");
     }
 
     #[test]
@@ -155,6 +178,7 @@ mod tests {
         let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
 
         assert_parses_default(&s_combinator, "a");
+        assert_parses_fast(&s_combinator, "a");
 
         let (mut parser, _) = s_combinator.parser(RightData::default());
 
@@ -185,9 +209,13 @@ mod tests {
         let s_combinator = cache_context(&A);
 
         assert_parses_default(&s_combinator, "[]");
+        assert_parses_fast(&s_combinator, "[]");
         assert_parses_default(&s_combinator, "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]");
+        assert_parses_fast(&s_combinator, "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]");
         assert_parses_default(&s_combinator, "[[][]]");
+        assert_parses_fast(&s_combinator, "[[][]]");
         assert_parses_default(&s_combinator, "[[][[][]]]");
+        assert_parses_fast(&s_combinator, "[[][[][]]]");
     }
 
     #[test]
@@ -198,6 +226,7 @@ mod tests {
 
         let S: Combinator = From::<&dyn Fn() -> Combinator>::from(&A);
         assert_parses_default(&S, "a");
+        assert_parses_fast(&S, "a");
     }
 
     #[test]
@@ -207,7 +236,9 @@ mod tests {
             repeat0(eat_char_choice("b")),
             eat_char_choice("c"),
         );
+        assert_parses_default(&combinator, "abc");
         assert_parses_fast(&combinator, "abc");
+        assert_parses_default(&combinator, "abbbbbbbc");
         assert_parses_fast(&combinator, "abbbbbbbc");
     }
 }
