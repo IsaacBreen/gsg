@@ -41,3 +41,10 @@ impl Default for RightData {
         }
     }
 }
+
+impl RightData {
+    pub fn with_position(mut self, position: usize) -> Self {
+        self.position = position;
+        self
+    }
+}
