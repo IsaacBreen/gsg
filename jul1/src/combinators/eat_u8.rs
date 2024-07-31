@@ -47,20 +47,8 @@ impl ParserTrait for EatU8Parser {
         }
     }
 
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {  
-        let mut right_data_vec = Vec::new();  
-        for i in 0..bytes.len() {  
-            let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec, done } = self.step(bytes[i]);  
-            right_data_vec.append(&mut new_right_data_vec);  
-            if done || i == bytes.len() - 1 {  
-                return ParseResults {  
-                    right_data_vec,  
-                    up_data_vec,  
-                    done,  
-                };  
-            }  
-        }  
-        unreachable!();  
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        self.step(bytes[0])
     }
 }
 
