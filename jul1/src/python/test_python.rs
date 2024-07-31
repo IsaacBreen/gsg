@@ -2,7 +2,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use crate::{eat_string, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, whitespace, WS};
-use crate::utils::{assert_fails, assert_fails_default, assert_parses, assert_parses_default, assert_parses_fast};
+use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast};
 
 #[test]
 fn test_trivial_ws() {
@@ -148,6 +148,23 @@ fn test_actual_python_file() {
 }
 
 #[test]
+fn test_fails_fast() {
+    let combinator = python_file();
+
+    let test_casts = [
+        ("double ampersand", "&&"),
+        ("double identifier", "x x"),
+    ];
+
+    for (name, content) in test_casts.iter() {
+        let start = Instant::now();
+        assert_fails_fast(&combinator, content);
+        let duration = start.elapsed();
+        println!("{:<25} parsed in {:?}", name, duration);
+    }
+}
+
+#[test]
 fn test_actual_python_file_fast() {
     let combinator = python_file();
 
@@ -155,6 +172,7 @@ fn test_actual_python_file_fast() {
         ("Simple string", "x = 12\nx = 2\nx"),
         ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
         ("remove_left_recursion.py", include_str!("../python/remove_left_recursion.py")),
+        ("test_input.py", include_str!("../tests/test_input.py")),
     ];
 
     for (name, content) in test_cases.iter() {

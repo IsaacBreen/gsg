@@ -8,7 +8,7 @@ mod tests {
     use crate::combinators::tag;
     use crate::parse_state::{RightData, UpData};
     use crate::tests::utils::{assert_parses, assert_parses_default};
-    use crate::utils::{assert_fails, assert_fails_default, assert_parses_fast};
+    use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses_fast};
 
     #[test]
     fn test_eat_u8() {
@@ -238,5 +238,15 @@ mod tests {
         assert_parses_fast(&combinator, "abc");
         assert_parses_default(&combinator, "abbbbbbbc");
         assert_parses_fast(&combinator, "abbbbbbbc");
+    }
+
+    #[test]
+    fn test_fast_fail() {
+        let combinator = seq!(
+            eat_char_choice("a"),
+            repeat0(eat_char_choice("b")),
+            eat_char_choice("c"),
+        );
+        assert_fails_fast(&combinator, "d");
     }
 }
