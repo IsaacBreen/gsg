@@ -15,7 +15,11 @@ impl CombinatorTrait for Repeat1 {
         for waiting_continuation in parse_results.waiting_continuations.iter_mut() {
             waiting_continuation.tail.push(self.clone().into());
         }
-        parse_results
+        ParseResults {
+            states: parse_results.states,
+            continuations: parse_results.continuations,
+            waiting_continuations: parse_results.waiting_continuations,
+        }
     }
 }
 

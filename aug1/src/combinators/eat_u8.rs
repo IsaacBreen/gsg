@@ -22,9 +22,15 @@ impl CombinatorTrait for EatU8 {
 impl ParserTrait for EatU8Parser {
     fn step(self, c: u8) -> ParseResults {
         if c == self.u8 {
-            ParseResults { continuations: vec![], waiting_continuations: vec![], states: vec![self.state] }
+            ParseResults {
+                states: vec![self.state],
+                ..Default::default()
+            }
         } else {
-            ParseResults { continuations: vec![], waiting_continuations: vec![], states: vec![] }
+            ParseResults {
+                states: vec![],
+                ..Default::default()
+            }
         }
     }
 }

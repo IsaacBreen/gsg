@@ -15,7 +15,11 @@ impl CombinatorTrait for Seq {
         let mut parse_results = head.init_parser(state);
         // Add the rest of the combinators to the tail
         parse_results.extend_tail(tail);
-        parse_results
+        ParseResults {
+            states: parse_results.states,
+            continuations: parse_results.continuations,
+            waiting_continuations: parse_results.waiting_continuations,
+        }
     }
 }
 

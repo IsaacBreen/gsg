@@ -12,7 +12,11 @@ impl CombinatorTrait for Choice {
         for combinator in self.combinators.iter().cloned() {
             parse_results.merge(combinator.init_parser(state.clone()));
         }
-        parse_results
+        ParseResults {
+            states: parse_results.states,
+            continuations: parse_results.continuations,
+            waiting_continuations: parse_results.waiting_continuations,
+        }
     }
 }
 
