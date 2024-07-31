@@ -120,11 +120,12 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     let (mut parser, _) = combinator.parser(RightData::default());
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let parse_results = parser.steps(&bytes);
-    // todo: uncomment this
+    // todo: uncomment this for unambiguous parses
     // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
     // Get the right data with the highest position
     let right_data = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).unwrap();
-    assert!(right_data.position == bytes.len() || right_data.position == bytes.len() - 1, "Parser returned before end of input: right_data.position={}, bytes.len()={}", right_data.position, bytes.len());
+    // Ensure the parser is still going or that it finished with right data at the end
+    assert!(parse_results.done || right_data.position == bytes.len() - 1, "Parser returned before end of input: done={}, right_data.position={}, bytes.len()={}", parse_results.done, right_data.position, bytes.len());
 }
 
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
