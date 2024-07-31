@@ -6,9 +6,8 @@ pub struct Eps;
 impl CombinatorTrait for Eps {
     fn init_parser(&self, state: ParseState) -> ParseResults {
         ParseResults {
-            continuations: vec![],
-            waiting_continuations: vec![],
             states: vec![state],
+            ..Default::default()
         }
     }
 }

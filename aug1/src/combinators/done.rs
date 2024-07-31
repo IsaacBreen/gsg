@@ -6,9 +6,8 @@ pub struct Done;
 impl CombinatorTrait for Done {
     fn init_parser(&self, _state: ParseState) -> ParseResults {
         ParseResults {
-            continuations: vec![],
-            waiting_continuations: vec![],
             states: vec![ParseState::default()],
+            ..Default::default()
         }
     }
 }
