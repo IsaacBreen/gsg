@@ -25,7 +25,7 @@ impl Compile for Combinator {
 impl Compile for Seq {
     fn compile(self) -> Combinator {
         let mut children = Vec::new();
-        
+
         for child in self.children {
             let compiled_child = child.as_ref().clone().compile();
             match compiled_child {
@@ -77,7 +77,7 @@ impl Compile for Seq {
                 break;
             }
         }
-        
+
         match children.len() {
             0 => Combinator::Eps(Eps),
             1 => Rc::unwrap_or_clone(children.pop().unwrap()),
@@ -91,7 +91,7 @@ impl Compile for Choice {
         let mut merged_u8set = U8Set::none();
         let mut other_children = Vec::new();
         let mut eat_strings = Vec::new();
-        
+
         for child in self.children {
             let compiled_child = child.as_ref().clone().compile();
             match compiled_child {
@@ -108,17 +108,17 @@ impl Compile for Choice {
                 _ => other_children.push(Rc::new(compiled_child)),
             }
         }
-        
+
         if !merged_u8set.is_empty() {
             other_children.push(Rc::new(Combinator::EatU8(EatU8 { u8set: merged_u8set })));
         }
-        
+
         if eat_strings.len() > 1 {
             other_children.push(Rc::new(Combinator::EatByteStringChoice(EatByteStringChoice::new(eat_strings))));
         } else if let Some(eat_string) = eat_strings.pop() {
             other_children.push(Rc::new(Combinator::EatString(EatString { string: eat_string })));
         }
-        
+
         // Group by common prefixes
         let mut groups: HashMap<Rc<Combinator>, Vec<Rc<Combinator>>> = HashMap::new();
         for child in other_children {
@@ -132,7 +132,7 @@ impl Compile for Choice {
                 groups.entry(Rc::clone(&child)).or_default().push(child);
             }
         }
-        
+
         let mut new_children = Vec::new();
         for (prefix, group) in groups {
             if group.len() == 1 {
@@ -154,7 +154,7 @@ impl Compile for Choice {
                 })));
             }
         }
-        
+
         match new_children.len() {
             0 => Combinator::Fail(Fail),
             1 => Rc::unwrap_or_clone(new_children.pop().unwrap()),
