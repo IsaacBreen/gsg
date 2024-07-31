@@ -193,21 +193,7 @@ pub trait CombinatorTrait {
 
 pub trait ParserTrait {
     fn step(&mut self, c: u8) -> ParseResults;
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut right_data_vec = Vec::new();
-        for i in 0..bytes.len() {
-            let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec, done } = self.step(bytes[i]);
-            right_data_vec.append(&mut new_right_data_vec);
-            if done || i == bytes.len() - 1 {
-                return ParseResults {
-                    right_data_vec,
-                    up_data_vec,
-                    done,
-                };
-            }
-        }
-        unreachable!();
-    }
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults;
 }
 
 impl CombinatorTrait for Combinator {
@@ -219,6 +205,10 @@ impl CombinatorTrait for Combinator {
 impl ParserTrait for Parser {
     fn step(&mut self, c: u8) -> ParseResults {
         match_parser!(self, inner => inner.step(c))
+    }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        match_parser!(self, inner => inner.steps(bytes))
     }
 }
 
