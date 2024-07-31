@@ -198,7 +198,18 @@ mod tests {
         let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
 
         assert_parses_default(&s_combinator, "a");
+        assert_parses_fast(&s_combinator, "a");
     }
+
+    #[test]
+    fn test_cache3() {
+        let a_combinator = symbol(cached(tag("A", eat_string("aa"))));
+        let s_combinator = cache_context(seq!(eat_char('b'), choice!(&a_combinator, &a_combinator), eat_char('c')));
+
+        // assert_parses_default(&s_combinator, "baac");
+        assert_parses_fast(&s_combinator, "baac");
+    }
+
 
     #[test]
     fn test_cache_nested() {
