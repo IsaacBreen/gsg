@@ -114,7 +114,7 @@ impl ParserTrait for CacheContextParser {
         let num_entries_initial = self.cache_data_inner.borrow().entries.len().clone();
         for i in (0..num_entries_initial).rev() {
             let entry = self.cache_data_inner.borrow().entries[i].clone();
-            let parse_results = catch_unwind(AssertUnwindSafe(|| entry.borrow_mut().parser.as_mut().unwrap().steps(bytes))).expect("CacheContextParser.step: parse_results is None");
+            let parse_results = catch_unwind(AssertUnwindSafe(|| entry.borrow_mut().parser.as_mut().unwrap().steps(bytes))).expect("CacheContextParser.steps: parse_results is None");
             entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
         }
         let parse_result = self.inner.steps(bytes);
