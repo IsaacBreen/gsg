@@ -125,7 +125,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     // Get the right data with the highest position
     let right_data = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).unwrap();
     // Ensure the parser is still going or that it finished with right data at the end
-    assert!(parse_results.done || right_data.position == bytes.len() - 1, "Parser returned before end of input: done={}, right_data.position={}, bytes.len()={}", parse_results.done, right_data.position, bytes.len());
+    assert!(!parse_results.done || right_data.position == bytes.len(), "Parser returned before end of input: done={}, right_data.position={}, bytes.len()={}", parse_results.done, right_data.position, bytes.len());
 }
 
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
