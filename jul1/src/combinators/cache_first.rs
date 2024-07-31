@@ -133,12 +133,20 @@ impl ParserTrait for CacheFirstParser {
     }
 }
 
-pub fn cache_first_context(a: impl Into<Combinator>) -> CacheFirstContext {
-    CacheFirstContext { inner: Box::new(a.into()) }
+// pub fn cache_first_context(a: impl Into<Combinator>) -> CacheFirstContext {
+//     CacheFirstContext { inner: Box::new(a.into()) }
+// }
+//
+// pub fn cache_first(a: impl Into<Combinator>) -> CacheFirst {
+//     CacheFirst { inner: Rc::new(a.into()) }
+// }
+
+pub fn cache_first_context<A: Into<Combinator>>(a: A) -> Combinator {
+    a.into()
 }
 
-pub fn cache_first(a: impl Into<Combinator>) -> CacheFirst {
-    CacheFirst { inner: Rc::new(a.into()) }
+pub fn cache_first<A: Into<Combinator>>(a: A) -> Combinator {
+    a.into()
 }
 
 impl From<CacheFirstContext> for Combinator {

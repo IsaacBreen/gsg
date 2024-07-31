@@ -157,13 +157,21 @@ impl ParserTrait for CachedParser {
         self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.steps: parse_results is None")
     }
 }
+//
+// pub fn cache_context(a: impl Into<Combinator>) -> CacheContext {
+//     CacheContext { inner: Box::new(a.into()) }
+// }
+//
+// pub fn cached(a: impl Into<Combinator>) -> Cached {
+//     Cached { inner: Rc::new(a.into()) }
+// }
 
-pub fn cache_context(a: impl Into<Combinator>) -> CacheContext {
-    CacheContext { inner: Box::new(a.into()) }
+pub fn cache_context<A: Into<Combinator>>(a: A) -> Combinator {
+    a.into()
 }
 
-pub fn cached(a: impl Into<Combinator>) -> Cached {
-    Cached { inner: Rc::new(a.into()) }
+pub fn cached<A: Into<Combinator>>(a: A) -> Combinator {
+    a.into()
 }
 
 impl From<CacheContext> for Combinator {
