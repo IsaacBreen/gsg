@@ -148,6 +148,58 @@ impl ParserTrait for FrameStackOpParser {
             }
         }
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        self.values.extend_from_slice(bytes);
+        match self.op_type {
+            FrameStackOpType::PushToFrame => {
+                let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, done } = self.a.steps(bytes);
+                for right_data in right_data_vec.iter_mut() {
+                    let mut frame_stack = self.frame_stack.clone();
+                    frame_stack.push_name(&self.values);
+                    right_data.frame_stack = Some(frame_stack);
+                }
+                ParseResults {
+                    right_data_vec: right_data_vec,
+                    up_data_vec: up_data_vec,
+                    done,
+                }
+            }
+            FrameStackOpType::PopFromFrame => {
+                let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, done } = self.a.steps(bytes);
+                for right_data in right_data_vec.iter_mut() {
+                    let mut frame_stack = self.frame_stack.clone();
+                    frame_stack.pop_name(&self.values);
+                    right_data.frame_stack = Some(frame_stack);
+                }
+                ParseResults {
+                    right_data_vec: right_data_vec,
+                    up_data_vec: up_data_vec,
+                    done,
+                }
+            }
+            FrameStackOpType::FrameStackContains => {
+                let (u8set, is_complete) = self.frame_stack.next_u8_given_contains_u8slice(&self.values);
+                let ParseResults { right_data_vec: mut right_data_vec, up_data_vec: mut up_data_vec, done } = self.a.steps(bytes);
+                for up_data in up_data_vec.iter_mut() {
+                    up_data.u8set = up_data.u8set.intersection(&u8set);
+                }
+                if !is_complete {
+                    // Empty right data
+                    right_data_vec = vec![];
+                } else {
+                    for right_data in right_data_vec.iter_mut() {
+                        right_data.frame_stack = Some(self.frame_stack.clone());
+                    }
+                }
+                ParseResults {
+                    right_data_vec: right_data_vec,
+                    up_data_vec: up_data_vec,
+                    done,
+                }
+            }
+        }
+    }
 }
 
 pub fn with_new_frame(a: impl Into<Combinator>) -> WithNewFrame {
