@@ -168,14 +168,6 @@ pub fn cache_context(a: impl Into<Combinator>) -> CacheContext {
 pub fn cached(a: impl Into<Combinator>) -> Cached {
     Cached { inner: Rc::new(a.into()) }
 }
-//
-// pub fn cache_context<A: Into<Combinator>>(a: A) -> Combinator {
-//     a.into()
-// }
-//
-// pub fn cached<A: Into<Combinator>>(a: A) -> Combinator {
-//     a.into()
-// }
 
 impl From<CacheContext> for Combinator {
     fn from(value: CacheContext) -> Self {
