@@ -125,7 +125,6 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     // Get the right data with the highest position
     // Ensure the parser is still going or that it finished with right data at the end
     assert!(!parse_results.done || parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position == bytes.len(), "Expected parser to finish with right data at the end. parse_results: {:?}", parse_results);
-    println!("Final results: {:?}", parse_results);
 }
 
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
@@ -201,5 +200,4 @@ pub fn assert_fails_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input:
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let parse_results = parser.steps(&bytes);
     assert!(parse_results.done && parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).map_or(true, |right_data| right_data.position == bytes.len()), "Expected parser to fail at the end. parse_results: {:?}", parse_results);
-    println!("Final results: {:?}", parse_results);
 }
