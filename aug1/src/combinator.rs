@@ -1,16 +1,21 @@
 use crate::{Choice, EatU8, EatU8Parser, ParseResults, ParseState};
-use crate::combinators::Seq;
+use crate::combinators::{Seq, Repeat1, Eps, Done, EatString, EatStringParser};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Combinator {
     Seq(Seq),
     Choice(Choice),
     EatU8(EatU8),
+    Repeat1(Repeat1),
+    Eps(Eps),
+    Done(Done),
+    EatString(EatString),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Parser {
     EatU8Parser(EatU8Parser),
+    EatStringParser(EatStringParser),
 }
 
 pub trait CombinatorTrait {
