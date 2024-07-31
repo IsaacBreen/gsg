@@ -25,7 +25,10 @@ impl ParserTrait for EatStringParser {
     fn step(self, c: u8) -> ParseResults {
         if self.index < self.string.len() && c == self.string[self.index] {
             if self.index == self.string.len() - 1 {
-                ParseResults { continuations: vec![], waiting_continuations: vec![], states: vec![self.state] }
+                ParseResults {
+                    states: vec![self.state],
+                    ..Default::default()
+                }
             } else {
                 let parser = EatStringParser { string: self.string, index: self.index + 1, state: self.state };
                 let continuation = Continuation { head: parser.into(), tail: vec![] };
