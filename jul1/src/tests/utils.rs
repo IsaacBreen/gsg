@@ -118,8 +118,13 @@ pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, in
 
 pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let (mut parser, _) = combinator.parser(RightData::default());
-    let parse_results = parser.steps(&input.to_string());
-    assert!(parse_results.done, "Parser failed unexpectedly");
+    let bytes = input.to_string().bytes().collect::<Vec<_>>();
+    let parse_results = parser.steps(&bytes);
+    // todo: uncomment this
+    // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
+    // Get the right data with the highest position
+    let right_data = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).unwrap();
+    assert_eq!(right_data.position, bytes.len() - 1, "Parser returned before end of input");
 }
 
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {

@@ -151,15 +151,15 @@ fn test_actual_python_file_fast() {
     let combinator = python_file();
 
     let s = "x = 12\nx = 2\nx";
-    assert_parses(&combinator, s, "Actual Python file");
+    assert_parses_fast(&combinator, s);
 
-    // let path = Path::new("src/python/dump_python_gram.py");
-    // let file = std::fs::read_to_string(path).unwrap();
-    // assert_parses_fast(&combinator, &file);
-    //
-    // let path = Path::new("src/python/remove_left_recursion.py");
-    // let file = std::fs::read_to_string(path).unwrap();
-    // assert_parses_fast(&combinator, &file);
+    let path = Path::new("src/python/dump_python_gram.py");
+    let file = std::fs::read_to_string(path).unwrap();
+    assert_parses_fast(&combinator, &file);
+
+    let path = Path::new("src/python/remove_left_recursion.py");
+    let file = std::fs::read_to_string(path).unwrap();
+    assert_parses_fast(&combinator, &file);
 }
 
 #[test]

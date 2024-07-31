@@ -9,7 +9,7 @@ mod tests {
     use crate::combinators::tag;
     use crate::parse_state::{RightData, UpData};
     use crate::tests::utils::assert_parses;
-    use crate::utils::{assert_fails, assert_fails_default};
+    use crate::utils::{assert_fails, assert_fails_default, assert_parses_fast};
 
     #[test]
     fn test_eat_u8() {
@@ -495,5 +495,16 @@ mod tests {
 
         let S: Combinator = From::<&dyn Fn() -> Combinator>::from(&A);
         assert_parses(&S, "a", "Test input");
+    }
+
+    #[test]
+    fn test_fast_parse() {
+        let combinator = seq!(
+            eat_char_choice("a"),
+            repeat0(eat_char_choice("b")),
+            eat_char_choice("c"),
+        );
+        assert_parses_fast(&combinator, "abc");
+        assert_parses_fast(&combinator, "abbbbbbbc");
     }
 }
