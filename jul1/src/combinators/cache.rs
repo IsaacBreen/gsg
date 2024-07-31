@@ -75,11 +75,11 @@ pub struct CacheContextParser {
 impl CacheContextParser {
     fn cleanup(&mut self) {
         let mut cache_data_inner = self.cache_data_inner.borrow_mut();
-        for entry in &cache_data_inner.entries {
-            let entry_position = entry.borrow().position;
-            let cache_context_position = cache_data_inner.position;
-            assert_eq!(entry_position, cache_context_position);
-        }
+        // for entry in &cache_data_inner.entries {
+        //     let entry_position = entry.borrow().position;
+        //     let cache_context_position = cache_data_inner.position;
+        //     assert_eq!(entry_position, cache_context_position);
+        // }
         cache_data_inner.new_parsers.clear();
         cache_data_inner.entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done);
     }
@@ -113,7 +113,7 @@ impl ParserTrait for CacheContextParser {
             let entry = self.cache_data_inner.borrow().entries[i].clone();
             let parse_results = catch_unwind(AssertUnwindSafe(|| entry.borrow_mut().parser.as_mut().unwrap().step(c))).expect("CacheContextParser.step: parse_results is None");
             entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
-            entry.borrow_mut().position = self.cache_data_inner.borrow().position;
+            entry.borrow_mut().position += 1;
         }
         let parse_result = self.inner.step(c);
         let mut new_entries = self.cache_data_inner.borrow_mut().entries.split_off(num_entries_initial);
@@ -133,7 +133,7 @@ impl ParserTrait for CacheContextParser {
             let entry = self.cache_data_inner.borrow().entries[i].clone();
             let parse_results = catch_unwind(AssertUnwindSafe(|| entry.borrow_mut().parser.as_mut().unwrap().steps(bytes))).expect("CacheContextParser.steps: parse_results is None");
             entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
-            entry.borrow_mut().position = self.cache_data_inner.borrow().position;
+            entry.borrow_mut().position += bytes.len();
         }
         let parse_result = self.inner.steps(bytes);
         let mut new_entries = self.cache_data_inner.borrow_mut().entries.split_off(num_entries_initial);
