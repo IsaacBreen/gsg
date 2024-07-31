@@ -52,12 +52,12 @@ impl CombinatorTrait for Seq {
             }
             states = new_states;
         }
-        ParseResults { parsers, continuations, states }
+        ParseResults { parsers: parsers, continuations, states }
     }
 }
 
 impl ParserTrait for SeqParser {
-    fn step(&self, bytes: &[u8]) -> ParseResults {
+    fn step(&self, c: u8) -> ParseResults {
         todo!()
     }
 }

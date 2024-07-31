@@ -17,7 +17,7 @@ impl CombinatorTrait for EatU8 {
 }
 
 impl ParserTrait for EatU8Parser {
-    fn step(&self, bytes: &[u8]) -> ParseResults {
+    fn step(&self, c: u8) -> ParseResults {
         todo!()
     }
 }

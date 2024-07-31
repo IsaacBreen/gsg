@@ -23,12 +23,12 @@ impl CombinatorTrait for Choice {
             states.extend(parse_results.states);
             continuations.extend(parse_results.continuations);
         }
-        ParseResults { parsers, continuations, states }
+        ParseResults { parsers: parsers, continuations, states }
     }
 }
 
 impl ParserTrait for ChoiceParser {
-    fn step(&self, bytes: &[u8]) -> ParseResults {
+    fn step(&self, c: u8) -> ParseResults {
         todo!()
     }
 }

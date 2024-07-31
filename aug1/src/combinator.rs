@@ -20,7 +20,7 @@ pub trait CombinatorTrait {
 }
 
 pub trait ParserTrait {
-    fn step(&self, bytes: &[u8]) -> ParseResults;
+    fn step(&self, c: u8) -> ParseResults;
 }
 
 impl CombinatorTrait for Combinator {
@@ -35,9 +35,9 @@ impl CombinatorTrait for Combinator {
 }
 
 impl ParserTrait for Parser {
-    fn step(&self, bytes: &[u8]) -> ParseResults {
+    fn step(&self, c: u8) -> ParseResults {
         match self {
-            Parser::SeqParser(inner) => inner.step(bytes),
+            Parser::SeqParser(inner) => inner.step(c),
             // Parser::ChoiceParser(inner) => inner.step(bytes),
             // Parser::EatU8Parser(inner) => inner.step(bytes),
             _ => todo!()
