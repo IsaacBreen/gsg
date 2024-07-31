@@ -1,9 +1,36 @@
 use std::rc::Rc;
-use crate::Combinator;
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, ParseState};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Choice {
     pub combinators: Rc<Vec<Combinator>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ChoiceParser {
+    pub combinators: Rc<Vec<Combinator>>,
+    pub parsers: Vec<Parser>,
+}
+
+impl CombinatorTrait for Choice {
+    fn init_parser(&self, state: ParseState) -> ParseResults {
+        let mut parsers = vec![];
+        let mut states = vec![];
+        let mut continuations = vec![];
+        for combinator in self.combinators.iter().cloned() {
+            let parse_results = combinator.init_parser(state.clone());
+            parsers.extend(parse_results.parsers);
+            states.extend(parse_results.states);
+            continuations.extend(parse_results.continuations);
+        }
+        ParseResults { parsers, continuations, states }
+    }
+}
+
+impl ParserTrait for ChoiceParser {
+    fn step(&self, bytes: &[u8]) -> ParseResults {
+        todo!()
+    }
 }
 
 pub fn choice(combinators: Vec<Combinator>) -> Choice {

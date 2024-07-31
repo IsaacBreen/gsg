@@ -1,7 +1,8 @@
-use crate::{Combinator, ParseState};
+use crate::{Combinator, Parser, ParseState};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParseResults {
+    pub parsers: Vec<Parser>,
     pub continuations: Vec<Combinator>,
-    pub next_parse_states: Vec<ParseState>,
+    pub states: Vec<ParseState>,
 }

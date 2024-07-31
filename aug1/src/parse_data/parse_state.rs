@@ -2,3 +2,8 @@
 pub struct ParseState {
 }
 
+impl Default for ParseState {
+    fn default() -> Self {
+        ParseState {}
+    }
+}
