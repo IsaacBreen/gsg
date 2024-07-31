@@ -32,6 +32,10 @@ impl CombinatorTrait for Combinator {
             Combinator::Seq(inner) => inner.init_parser(state),
             Combinator::Choice(inner) => inner.init_parser(state),
             Combinator::EatU8(inner) => inner.init_parser(state),
+            Combinator::Repeat1(inner) => inner.init_parser(state),
+            Combinator::Eps(inner) => inner.init_parser(state),
+            Combinator::Done(inner) => inner.init_parser(state),
+            Combinator::EatString(inner) => inner.init_parser(state),
         }
     }
 }
@@ -40,6 +44,7 @@ impl ParserTrait for Parser {
     fn step(self, c: u8) -> ParseResults {
         match self {
             Parser::EatU8Parser(inner) => inner.step(c),
+            Parser::EatStringParser(inner) => inner.step(c),
         }
     }
 }

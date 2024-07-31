@@ -19,8 +19,8 @@ impl CombinatorTrait for Repeat1 {
     }
 }
 
-pub fn repeat1(combinator: Combinator) -> Repeat1 {
-    Repeat1 { combinator: Rc::new(combinator) }
+pub fn repeat1(combinator: impl Into<Combinator>) -> Repeat1 {
+    Repeat1 { combinator: Rc::new(combinator.into()) }
 }
 
 impl From<Repeat1> for Combinator {
