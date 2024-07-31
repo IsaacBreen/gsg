@@ -120,10 +120,9 @@ impl ParserTrait for SeqParser {
                         parsers.push(parser);
                         all_done = false;
                     }
-                } else {
-                    next_right_data.extend(right_data_vec);
-                    all_up_data.extend(up_data_vec);
                 }
+                next_right_data.extend(right_data_vec);
+                all_up_data.extend(up_data_vec);
             }
 
             current_right_data = next_right_data.squashed();
