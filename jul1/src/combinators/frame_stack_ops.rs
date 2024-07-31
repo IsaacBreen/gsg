@@ -54,6 +54,10 @@ impl ParserTrait for WithNewFrameParser {
             done,
         }
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        todo!()
+    }
 }
 
 impl CombinatorTrait for FrameStackOp {

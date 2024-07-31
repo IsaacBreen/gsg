@@ -78,6 +78,10 @@ impl ParserTrait for CacheFirstContextParser {
     fn step(&mut self, c: u8) -> ParseResults {
         self.inner.step(c)
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        self.inner.steps(bytes)
+    }
 }
 
 impl CombinatorTrait for CacheFirst {
@@ -119,7 +123,7 @@ impl ParserTrait for CacheFirstParser {
                 // Initialize the parser and step it.
                 let (mut parser, parse_results) = key.combinator.parser(key.right_data.clone());
                 *self = CacheFirstParser::Initialized { parser: Box::new(parser) };
-                parser.steps(bytes)
+                self.steps(bytes)
             }
             CacheFirstParser::Initialized { parser } => {
                 // Step the parser.
