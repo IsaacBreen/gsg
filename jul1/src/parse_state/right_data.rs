@@ -20,7 +20,6 @@ pub struct RightData {
     pub cache_data: CacheData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub cache_first_data: CacheFirstData,
-    #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub position: usize,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub time: Rc<RefCell<u128>>,
