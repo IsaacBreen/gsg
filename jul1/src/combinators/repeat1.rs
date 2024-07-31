@@ -87,6 +87,9 @@ impl ParserTrait for Repeat1Parser {
             let offset = right_data_a.position - self.position;
             let (mut a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut done }) = self.a.parser(right_data_a);
             let parse_results = a_parser.steps(bytes[offset..].as_ref());
+            // todo: ??
+            right_data_as.extend(right_data_a);
+            up_data_as.extend(up_data_a);
             if !parse_results.done {
                 new_parsers.push(a_parser);
             }
