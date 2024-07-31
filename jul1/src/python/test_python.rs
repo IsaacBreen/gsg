@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::Instant;
 
 use crate::{eat_string, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, whitespace, WS};
 use crate::utils::{assert_fails, assert_fails_default, assert_parses, assert_parses_default, assert_parses_fast};
@@ -150,16 +151,18 @@ fn test_actual_python_file() {
 fn test_actual_python_file_fast() {
     let combinator = python_file();
 
-    let s = "x = 12\nx = 2\nx";
-    assert_parses_fast(&combinator, s);
+    let test_cases = [
+        ("Simple string", "x = 12\nx = 2\nx"),
+        ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
+        ("remove_left_recursion.py", include_str!("../python/remove_left_recursion.py")),
+    ];
 
-    let path = Path::new("src/python/dump_python_gram.py");
-    let file = std::fs::read_to_string(path).unwrap();
-    assert_parses_fast(&combinator, &file);
-
-    let path = Path::new("src/python/remove_left_recursion.py");
-    let file = std::fs::read_to_string(path).unwrap();
-    assert_parses_fast(&combinator, &file);
+    for (name, content) in test_cases.iter() {
+        let start = Instant::now();
+        assert_parses_fast(&combinator, content);
+        let duration = start.elapsed();
+        println!("{:<25} parsed in {:?}", name, duration);
+    }
 }
 
 #[test]
