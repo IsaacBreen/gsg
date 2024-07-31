@@ -134,6 +134,10 @@ impl ParserTrait for CachedParser {
     fn step(&mut self, _c: u8) -> ParseResults {
         self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.step: parse_results is None")
     }
+
+    fn steps(&mut self, _bytes: &[u8]) -> ParseResults {
+        self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.steps: parse_results is None")
+    }
 }
 
 pub fn cache_context(a: impl Into<Combinator>) -> CacheContext {

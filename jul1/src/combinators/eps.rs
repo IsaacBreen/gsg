@@ -21,6 +21,10 @@ impl ParserTrait for EpsParser {
     fn step(&mut self, c: u8) -> ParseResults {
         panic!("EpsParser already consumed")
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        panic!("EpsParser already consumed")
+    }
 }
 
 pub fn eps() -> Eps {

@@ -76,6 +76,10 @@ impl ParserTrait for CheckRightDataParser {
     fn step(&mut self, c: u8) -> ParseResults {
         panic!("CheckRightData parser already consumed")
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        panic!("CheckRightData parser already consumed")
+    }
 }
 
 

@@ -87,6 +87,50 @@ impl ParserTrait for SeqParser {
             done: all_done,
         }
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        let mut current_right_data = vec![];
+        let mut all_up_data = Vec::new();
+        let mut all_done = true;
+
+        for (combinator, parsers) in &mut self.children {
+            let mut next_right_data = Vec::new();
+
+            parsers.retain_mut(|mut parser| {
+                let ParseResults { right_data_vec, up_data_vec, done } = parser.steps(bytes);
+                if !done {
+                    all_done = false;
+                }
+                next_right_data.extend(right_data_vec);
+                all_up_data.extend(up_data_vec);
+                !done
+            });
+
+            for right_data in current_right_data.into_iter() {
+                let (mut parser, ParseResults { right_data_vec, up_data_vec, done }) = combinator.parser(right_data);
+                if !done {
+                    let parse_results = parser.steps(bytes);
+                    next_right_data.extend(parse_results.right_data_vec);
+                    all_up_data.extend(parse_results.up_data_vec);
+                    if !parse_results.done {
+                        parsers.push(parser);
+                        all_done = false;
+                    }
+                } else {
+                    next_right_data.extend(right_data_vec);
+                    all_up_data.extend(up_data_vec);
+                }
+            }
+
+            current_right_data = next_right_data.squashed();
+        }
+
+        ParseResults {
+            right_data_vec: current_right_data,
+            up_data_vec: all_up_data,
+            done: all_done,
+        }
+    }
 }
 
 pub fn _seq(v: Vec<Combinator>) -> Combinator {

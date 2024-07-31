@@ -47,6 +47,20 @@ impl ParserTrait for ChoiceParser {
         parse_result.squash();
         parse_result
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        let mut parse_result = ParseResults::empty_finished();
+
+        self.parsers.retain_mut(|mut parser| {
+            let steps_result = parser.steps(bytes);
+            let done = steps_result.done;
+            parse_result.combine(steps_result);
+            !done
+        });
+
+        parse_result.squash();
+        parse_result
+    }
 }
 
 pub fn _choice(v: Vec<Combinator>) -> Combinator {

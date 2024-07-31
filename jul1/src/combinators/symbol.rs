@@ -24,6 +24,10 @@ impl ParserTrait for SymbolParser {
     fn step(&mut self, c: u8) -> ParseResults {
         self.inner.step(c)
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        self.inner.steps(bytes)
+    }
 }
 
 pub fn symbol(value: impl Into<Combinator>) -> Symbol {

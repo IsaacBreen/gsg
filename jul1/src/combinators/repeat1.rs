@@ -62,6 +62,41 @@ impl ParserTrait for Repeat1Parser {
             done: self.a_parsers.is_empty(),
         }
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        let mut right_data_as = vec![];
+        let mut up_data_as = vec![];
+        let mut new_parsers = vec![];
+
+        for mut a_parser in self.a_parsers.drain(..) {
+            let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut done} = a_parser.steps(bytes);
+            if !done {
+                new_parsers.push(a_parser);
+            }
+            up_data_as.extend(up_data_a);
+            right_data_as.extend(right_data_a);
+        }
+
+        right_data_as.squash();
+
+        for right_data_a in right_data_as.clone() {
+            let (mut a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut done }) = self.a.parser(right_data_a);
+            let parse_results = a_parser.steps(bytes);
+            if !parse_results.done {
+                new_parsers.push(a_parser);
+            }
+            up_data_as.extend(parse_results.up_data_vec);
+            right_data_as.extend(parse_results.right_data_vec);
+        }
+
+        self.a_parsers = new_parsers;
+
+        ParseResults {
+            right_data_vec: right_data_as,
+            up_data_vec: up_data_as,
+            done: self.a_parsers.is_empty(),
+        }
+    }
 }
 
 pub fn repeat1(a: impl Into<Combinator>) -> Repeat1 {

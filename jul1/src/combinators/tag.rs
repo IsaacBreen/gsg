@@ -41,6 +41,17 @@ impl ParserTrait for TaggedParser {
             }
         }
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        let result = catch_unwind(AssertUnwindSafe(|| self.inner.steps(bytes)));
+        match result {
+            Ok(parse_results) => parse_results,
+            Err(err) => {
+                eprintln!("Panic caught in steps with tag: {}", self.tag);
+                resume_unwind(err);
+            }
+        }
+    }
 }
 
 // pub fn tag(tag: &str, a: impl Into<Combinator>) -> Combinator {

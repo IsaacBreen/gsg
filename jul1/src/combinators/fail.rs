@@ -21,6 +21,10 @@ impl ParserTrait for FailParser {
     fn step(&mut self, c: u8) -> ParseResults {
         panic!("FailParser already consumed")
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        panic!("FailParser already consumed")
+    }
 }
 
 pub fn fail() -> Fail {

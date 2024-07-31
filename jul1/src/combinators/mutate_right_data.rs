@@ -76,6 +76,10 @@ impl ParserTrait for MutateRightDataParser {
     fn step(&mut self, c: u8) -> ParseResults {
         panic!("MutateRightData parser already consumed")
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        panic!("MutateRightData parser already consumed")
+    }
 }
 
 pub fn mutate_right_data(run: impl Fn(&mut RightData) -> bool + 'static) -> MutateRightData {

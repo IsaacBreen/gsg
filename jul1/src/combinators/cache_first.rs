@@ -112,6 +112,21 @@ impl ParserTrait for CacheFirstParser {
             }
         }
     }
+
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        match self {
+            CacheFirstParser::Uninitialized { key } => {
+                // Initialize the parser and step it.
+                let (mut parser, parse_results) = key.combinator.parser(key.right_data.clone());
+                *self = CacheFirstParser::Initialized { parser: Box::new(parser) };
+                parser.steps(bytes)
+            }
+            CacheFirstParser::Initialized { parser } => {
+                // Step the parser.
+                parser.steps(bytes)
+            }
+        }
+    }
 }
 
 pub fn cache_first_context(a: impl Into<Combinator>) -> CacheFirstContext {
