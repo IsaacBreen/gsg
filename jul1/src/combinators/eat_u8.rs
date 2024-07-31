@@ -48,7 +48,9 @@ impl ParserTrait for EatU8Parser {
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        assert!(!bytes.is_empty());
+        if bytes.is_empty() {
+            return ParseResults::empty_unfinished();
+        }
         self.step(bytes[0])
     }
 }

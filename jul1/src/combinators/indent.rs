@@ -105,7 +105,9 @@ impl ParserTrait for IndentCombinatorParser {
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        assert!(!bytes.is_empty());
+        if bytes.is_empty() {
+            return ParseResults::empty_unfinished();
+        }
         let mut right_data_vec = Vec::new();
         for i in 0..bytes.len() {
             let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec, done } = self.step(bytes[i]);
