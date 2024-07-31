@@ -10,6 +10,7 @@ pub struct Seq {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
     pub(crate) children: Vec<(Rc<Combinator>, Vec<Parser>)>,
+    pub(crate) position: usize,
 }
 
 impl CombinatorTrait for Seq {
@@ -37,7 +38,7 @@ impl CombinatorTrait for Seq {
             current_right_data = new_right_data;
         }
 
-        let parser = Parser::SeqParser(SeqParser { children });
+        let parser = Parser::SeqParser(SeqParser { children, position: right_data.position });
 
         let parse_results = ParseResults {
             right_data_vec: current_right_data,
@@ -81,6 +82,8 @@ impl ParserTrait for SeqParser {
             current_right_data = next_right_data.squashed();
         }
 
+        self.position += 1;
+
         ParseResults {
             right_data_vec: current_right_data,
             up_data_vec: all_up_data,
@@ -89,7 +92,7 @@ impl ParserTrait for SeqParser {
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut current_right_data = vec![];
+        let mut current_right_data: Vec<RightData> = vec![];
         let mut all_up_data = Vec::new();
         let mut all_done = true;
 
@@ -107,9 +110,10 @@ impl ParserTrait for SeqParser {
             });
 
             for right_data in current_right_data.into_iter() {
+                let offset = right_data.position - self.position;
                 let (mut parser, ParseResults { right_data_vec, up_data_vec, done }) = combinator.parser(right_data);
                 if !done {
-                    let parse_results = parser.steps(bytes);
+                    let parse_results = parser.steps(&bytes[offset..]);
                     next_right_data.extend(parse_results.right_data_vec);
                     all_up_data.extend(parse_results.up_data_vec);
                     if !parse_results.done {
@@ -124,6 +128,8 @@ impl ParserTrait for SeqParser {
 
             current_right_data = next_right_data.squashed();
         }
+
+        self.position += bytes.len();
 
         ParseResults {
             right_data_vec: current_right_data,

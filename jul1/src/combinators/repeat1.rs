@@ -14,6 +14,7 @@ pub struct Repeat1Parser {
     a: Rc<Combinator>,
     pub(crate) a_parsers: Vec<Parser>,
     right_data: RightData,
+    position: usize,
 }
 
 impl CombinatorTrait for Repeat1 {
@@ -26,7 +27,8 @@ impl CombinatorTrait for Repeat1 {
         } else {
             vec![]
         };
-        (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, right_data }), parse_results)
+        let position = right_data.position;
+        (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, right_data, position }), parse_results)
     }
 }
 
@@ -79,17 +81,23 @@ impl ParserTrait for Repeat1Parser {
 
         right_data_as.squash();
 
-        for right_data_a in right_data_as.clone() {
+        let mut i = 0;
+        while i < right_data_as.len() {
+            let right_data_a = right_data_as[i].clone();
+            let offset = right_data_a.position - self.position;
             let (mut a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut done }) = self.a.parser(right_data_a);
-            let parse_results = a_parser.steps(bytes);
+            let parse_results = a_parser.steps(bytes[offset..].as_ref());
             if !parse_results.done {
                 new_parsers.push(a_parser);
             }
             up_data_as.extend(parse_results.up_data_vec);
             right_data_as.extend(parse_results.right_data_vec);
+            i += 1;
         }
 
         self.a_parsers = new_parsers;
+
+        self.position += bytes.len();
 
         ParseResults {
             right_data_vec: right_data_as,
