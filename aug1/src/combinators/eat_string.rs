@@ -35,7 +35,10 @@ impl ParserTrait for EatStringParser {
                 ParseResults { continuations: vec![continuation], waiting_continuations: vec![], states: vec![] }
             }
         } else {
-            ParseResults::default()
+            ParseResults {
+                states: vec![],
+                ..Default::default()
+            }
         }
     }
 }
