@@ -114,12 +114,23 @@ impl ParserTrait for Repeat1Parser {
 pub fn repeat1(a: impl Into<Combinator>) -> Repeat1 {
     Repeat1 {
         a: Rc::new(a.into()),
+        greedy: false,
+    }
+}
+
+pub fn repeat1_greedy(a: impl Into<Combinator>) -> Repeat1 {
+    Repeat1 {
+        a: Rc::new(a.into()),
         greedy: true,
     }
 }
 
 pub fn repeat0(a: impl Into<Combinator>) -> Combinator {
     opt(repeat1(a)).into()
+}
+
+pub fn repeat0_greedy(a: impl Into<Combinator>) -> Combinator {
+    opt(repeat1_greedy(a)).into()
 }
 
 impl From<Repeat1> for Combinator {

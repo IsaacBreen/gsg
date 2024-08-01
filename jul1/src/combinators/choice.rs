@@ -25,7 +25,11 @@ impl CombinatorTrait for Choice {
             if !parse_results.done {
                 parsers.push(parser);
             }
+            let discard_rest = self.greedy && !parse_results.right_data_vec.is_empty();
             combined_results = combined_results.combine_inplace(parse_results);
+            if discard_rest {
+                break;
+            }
         }
 
         (
@@ -41,11 +45,11 @@ impl ParserTrait for ChoiceParser {
         let mut discard_rest = false;
 
         self.parsers.retain_mut(|mut parser| {
-            if self.greedy && discard_rest {
+            if discard_rest {
                 return false;
             }
             let step_result = parser.step(c);
-            if !step_result.right_data_vec.is_empty() {
+            if self.greedy && !step_result.right_data_vec.is_empty() {
                 discard_rest = true;
             }
             let done = step_result.done;
@@ -62,11 +66,11 @@ impl ParserTrait for ChoiceParser {
         let mut discard_rest = false;
 
         self.parsers.retain_mut(|mut parser| {
-            if self.greedy && discard_rest {
+            if discard_rest {
                 return false;
             }
             let step_result = parser.steps(bytes);
-            if !step_result.right_data_vec.is_empty() {
+            if self.greedy && !step_result.right_data_vec.is_empty() {
                 discard_rest = true;
             }
             let done = step_result.done;
@@ -83,16 +87,30 @@ impl ParserTrait for ChoiceParser {
 pub fn _choice(v: Vec<Combinator>) -> Combinator {
     Choice {
         children: v.into_iter().map(Rc::new).collect(),
+        greedy: false,
+    }.into()
+}
+
+pub fn _choice_greedy(v: Vec<Combinator>) -> Combinator {
+    Choice {
+        children: v.into_iter().map(Rc::new).collect(),
         greedy: true,
     }.into()
 }
 
 #[macro_export]
 macro_rules! choice {
-     ($($expr:expr),+ $(,)?) => {
-         $crate::_choice(vec![$($expr.into()),+])
-     };
- }
+    ($($expr:expr),+ $(,)?) => {
+        $crate::_choice(vec![$($expr.into()),+])
+    };
+}
+
+#[macro_export]
+macro_rules! choice_greedy {
+    ($($expr:expr),+ $(,)?) => {
+        $crate::_choice_greedy(vec![$($expr.into()),+])
+    };
+}
 
 impl From<Choice> for Combinator {
     fn from(value: Choice) -> Self {
