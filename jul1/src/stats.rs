@@ -38,11 +38,15 @@ impl Display for Stats {
         lines.push("════════════".to_string());
         lines.push("".to_string());
 
+        let mut blocks_for_nested_tags = vec![];
         for block in create_nested_stats(&self.stats_by_tag) {
+            let mut lines = vec![];
             for line in block {
                 lines.push(format!("│ {}", line));
             }
+            blocks_for_nested_tags.push(lines);
         }
+        lines.extend(join_vecs_vertically_with_separator(&blocks_for_nested_tags, vec![String::new()]));
 
         write!(f, "{}", lines.join("\n"))
     }
@@ -86,8 +90,8 @@ fn create_block(title: &str, total: usize, items: &BTreeMap<impl ToString, usize
     }
     let mut lines = vec![title.to_string()];
     for (key, value) in items.iter().take(3) {
-        const padding: usize = 15;
-        lines.push(format!("▪ {:<padding$} {:>3}", truncate(&key.to_string(), padding), value));
+        const PADDING: usize = 32;
+        lines.push(format!("▪ {:<PADDING$} {:>3}", truncate(&key.to_string(), PADDING), value));
     }
     lines
 }
