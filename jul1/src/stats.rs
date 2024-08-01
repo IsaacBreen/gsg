@@ -20,7 +20,7 @@ impl Stats {
         for (tag, other_stats_vec) in self.stats_by_tag.iter() {
             for other_stats in other_stats_vec.iter() {
                 let other_stats = other_stats.accumulate_tags();
-                for (name, count) in other_stats.active_tags.iter() {
+                for (name, count) in other_stats.active_parser_type_counts.iter() {
                     stats.active_parser_type_counts.entry(name.clone()).or_default().add_assign(*count);
                 }
                 for (name, count) in other_stats.active_symbols.iter() {
@@ -50,7 +50,6 @@ impl Display for Stats {
         lines.push("══════════════".to_string());
         lines.push("".to_string());
         let accumulated_stats = self.accumulate_tags();
-
         let mut total_blocks = vec![
             create_block("Parser Types", accumulated_stats.total_active_parsers(), &accumulated_stats.active_parser_type_counts),
             create_block("Tags", accumulated_stats.total_active_tags(), &accumulated_stats.active_tags),
@@ -135,6 +134,8 @@ fn create_block(title: &str, total: usize, items: &BTreeMap<impl ToString, usize
         return vec![];
     }
     let mut lines = vec![title.to_string()];
+    let mut items: Vec<_> = items.iter().collect();
+    items.sort_by(|a, b| b.1.cmp(a.1));
     for (key, value) in items.iter().take(3) {
         const PADDING: usize = 32;
         lines.push(format!("▪ {:<PADDING$} {:>3}", truncate(&key.to_string(), PADDING), value));
