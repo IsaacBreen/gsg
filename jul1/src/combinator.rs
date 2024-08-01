@@ -14,6 +14,7 @@ macro_rules! define_enum {
     };
 }
 
+#[macro_export]
 macro_rules! match_enum {
     ($expr:expr, $enum:ident, $inner:ident => $arm:expr, $($variant:ident),*) => {
         match $expr {
@@ -77,7 +78,7 @@ define_enum!(
 
 macro_rules! match_combinator {
     ($expr:expr, $inner:ident => $arm:expr) => {
-        match_enum!($expr, Combinator, $inner => $arm,
+        $crate::match_enum!($expr, Combinator, $inner => $arm,
             Seq,
             Choice,
             EatU8,
@@ -109,7 +110,7 @@ macro_rules! match_combinator {
 #[macro_export]
 macro_rules! match_parser {
     ($expr:expr, $inner:ident => $arm:expr) => {
-        match_enum!($expr, Parser, $inner => $arm,
+        $crate::match_enum!($expr, Parser, $inner => $arm,
             SeqParser,
             ChoiceParser,
             EatU8Parser,
