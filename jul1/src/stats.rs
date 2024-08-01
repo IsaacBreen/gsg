@@ -141,7 +141,28 @@ fn create_nested_stats(stats_by_tag: &BTreeMap<String, Vec<Stats>>) -> Vec<Vec<S
 
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.len() > max_chars {
-        format!("{}...", &s[..max_chars - 3])
+        // First, split by "::" and prioritize keeping the left-most parts
+        let mut parts = s.split("::");
+        let mut truncated_parts = vec![];
+        for part in parts.by_ref() {
+            if part.len() > max_chars {
+                truncated_parts.push(&part[..max_chars - 3]);
+                break;
+            } else {
+                truncated_parts.push(part);
+            }
+        }
+        parts.for_each(|part| truncated_parts.push(part));
+
+        // Then, join the parts back together
+        let mut truncated = truncated_parts.join("::");
+
+        // If the string is still too long, truncate end
+        if truncated.len() > max_chars {
+            truncated.truncate(max_chars);
+            truncated.push_str("...");
+        }
+        truncated
     } else {
         s.to_string()
     }
