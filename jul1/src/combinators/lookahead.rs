@@ -7,7 +7,7 @@ pub struct PartialLookahead {
     pub positive: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct LookaheadData {
     pub partial_lookaheads: Vec<PartialLookahead>,
 }
@@ -27,7 +27,8 @@ impl CombinatorTrait for Lookahead {
         });
         (Parser::FailParser(FailParser), ParseResults {
             right_data_vec: vec![right_data],
-            ..ParseResults::default()
+            up_data_vec: vec![],
+            done: false,
         })
     }
 }

@@ -38,6 +38,7 @@ impl Default for RightData {
             forbidden_consecutive_matches: ForbidFollowsData::default(),
             cache_data: CacheData::default(),
             cache_first_data: CacheFirstData::default(),
+            lookahead_data: LookaheadData::default(),
             position: 0,
             time: Rc::new(RefCell::new(0)),
         }
