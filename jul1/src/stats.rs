@@ -1,4 +1,3 @@
-use std::cmp::Reverse;
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::AddAssign;
@@ -17,100 +16,7 @@ pub struct Stats {
 
 impl Display for Stats {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        writeln!(f, "Stats Overview")?;
-        writeln!(f, "│")?;
-
-        self.format_section(f, "Active Parser Types", &self.active_parser_type_counts, self.total_active_parsers(), "")?;
-        self.format_section(f, "Active Tags", &self.active_tags, self.total_active_tags(), "")?;
-        self.format_section(f, "Active Symbols", &self.active_symbols, self.total_active_symbols(), "")?;
-        self.format_section(f, "Active String Matchers", &self.active_string_matchers, self.total_active_string_matchers(), "")?;
-        self.format_section(f, "Active U8 Matchers", &self.active_u8_matchers, self.total_active_u8_matchers(), "")?;
-
-        if !self.stats_by_tag.is_empty() {
-            writeln!(f, "│")?;
-            writeln!(f, "Stats by Tag")?;
-
-            let mut tags: Vec<_> = self.stats_by_tag.iter().collect();
-            tags.sort_by_key(|(tag, _)| *tag);
-
-            for (i, (tag, stats_vec)) in tags.iter().enumerate() {
-                let is_last = i == tags.len() - 1;
-                let prefix = if is_last { "└─ " } else { "├─ " };
-                writeln!(f, "{}{}", prefix, tag)?;
-
-                for (j, stats) in stats_vec.iter().enumerate() {
-                    let is_last_stat = j == stats_vec.len() - 1;
-                    let stat_prefix = if is_last {
-                        if is_last_stat { "    " } else { "    │" }
-                    } else {
-                        if is_last_stat { "│   " } else { "│   │" }
-                    };
-
-                    self.format_sub_stats(f, stats, stat_prefix)?;
-
-                    if !is_last_stat {
-                        writeln!(f, "{}   │", stat_prefix)?;
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-}
-
-impl Stats {
-    fn format_section<T: Display>(&self, f: &mut Formatter, title: &str, items: &BTreeMap<T, usize>, total: usize, prefix: &str) -> Result {
-        writeln!(f, "{}├─ {} (Total: {})", prefix, title, total)?;
-
-        let mut sorted_items: Vec<_> = items.iter().collect();
-        sorted_items.sort_by_key(|(_, &count)| Reverse(count));
-
-        for (i, (name, count)) in sorted_items.iter().enumerate() {
-            let is_last = i == sorted_items.len() - 1;
-            let item_prefix = if is_last { "│  └─ " } else { "│  ├─ " };
-
-            let name_str = name.to_string();
-            let display_name = if name_str.len() > 80 {
-                format!("{}...", &name_str[..77])
-            } else {
-                name_str
-            };
-
-            writeln!(f, "{}{}{}:{} {}", prefix, item_prefix, display_name, " ".repeat(20_usize.saturating_sub(display_name.len())), count)?;
-        }
-
-        Ok(())
-    }
-
-    fn format_sub_stats(&self, f: &mut Formatter, stats: &Stats, prefix: &str) -> Result {
-        self.format_section(f, "Active Parser Types", &stats.active_parser_type_counts, stats.total_active_parsers(), prefix)?;
-        self.format_section(f, "Active Tags", &stats.active_tags, stats.total_active_tags(), prefix)?;
-        self.format_section(f, "Active Symbols", &stats.active_symbols, stats.total_active_symbols(), prefix)?;
-        self.format_section(f, "Active String Matchers", &stats.active_string_matchers, stats.total_active_string_matchers(), prefix)?;
-        self.format_section(f, "Active U8 Matchers", &stats.active_u8_matchers, stats.total_active_u8_matchers(), prefix)?;
-
-        Ok(())
-    }
-
-    pub fn total_active_parsers(&self) -> usize {
-        self.active_parser_type_counts.values().sum()
-    }
-
-    pub fn total_active_symbols(&self) -> usize {
-        self.active_symbols.values().sum()
-    }
-
-    pub fn total_active_tags(&self) -> usize {
-        self.active_tags.values().sum()
-    }
-
-    pub fn total_active_string_matchers(&self) -> usize {
-        self.active_string_matchers.values().sum()
-    }
-
-    pub fn total_active_u8_matchers(&self) -> usize {
-        self.active_u8_matchers.values().sum()
+        todo!()
     }
 }
 
@@ -165,5 +71,251 @@ impl Parser {
 
     fn type_name(&self) -> String {
         match_parser!(self, inner => std::any::type_name_of_val(&inner)).to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn test_stats_display() {
+        let mut stats = Stats::default();
+
+        // Top-level stats
+        stats.active_parser_type_counts = BTreeMap::from([
+            ("SeqParser".to_string(), 50),
+            ("ChoiceParser".to_string(), 30),
+            ("TaggedParser".to_string(), 20),
+        ]);
+        stats.active_tags = BTreeMap::from([
+            ("expression".to_string(), 40),
+            ("statement".to_string(), 25),
+            ("declaration".to_string(), 15),
+        ]);
+        stats.active_symbols = BTreeMap::from([
+            ("identifier".to_string(), 30),
+            ("operator".to_string(), 20),
+            ("keyword".to_string(), 10),
+        ]);
+        stats.active_string_matchers = BTreeMap::from([
+            ("function".to_string(), 20),
+            ("let".to_string(), 15),
+            ("const".to_string(), 5),
+        ]);
+        stats.active_u8_matchers = BTreeMap::from([
+            (U8Set::Range(b'a'..=b'z'), 10),
+            (U8Set::Range(b'0'..=b'9'), 8),
+            (U8Set::Range(b'A'..=b'Z'), 2),
+        ]);
+
+        // Nested stats
+        let mut expression_stats = Stats::default();
+        expression_stats.active_parser_type_counts = BTreeMap::from([
+            ("ChoiceParser".to_string(), 60),
+            ("SeqParser".to_string(), 40),
+            ("TaggedParser".to_string(), 20),
+        ]);
+        expression_stats.active_tags = BTreeMap::from([
+            ("binary_expr".to_string(), 40),
+            ("unary_expr".to_string(), 25),
+            ("literal".to_string(), 15),
+        ]);
+
+        let mut binary_expr_stats = Stats::default();
+        binary_expr_stats.active_parser_type_counts = BTreeMap::from([
+            ("SeqParser".to_string(), 30),
+            ("ChoiceParser".to_string(), 20),
+            ("TaggedParser".to_string(), 10),
+        ]);
+        binary_expr_stats.active_symbols = BTreeMap::from([
+            ("operator".to_string(), 25),
+            ("identifier".to_string(), 15),
+        ]);
+        binary_expr_stats.active_string_matchers = BTreeMap::from([
+            ("+".to_string(), 15),
+            ("-".to_string(), 10),
+            ("*".to_string(), 5),
+        ]);
+        binary_expr_stats.active_u8_matchers = BTreeMap::from([
+            (U8Set::Range(b'a'..=b'z'), 10),
+            (U8Set::Range(b'0'..=b'9'), 8),
+            (U8Set::Range(b'A'..=b'Z'), 2),
+        ]);
+
+        let mut nested_binary_stats = Stats::default();
+        nested_binary_stats.active_parser_type_counts = BTreeMap::from([
+            ("SeqParser".to_string(), 20),
+            ("TaggedParser".to_string(), 10),
+        ]);
+        nested_binary_stats.active_symbols = BTreeMap::from([
+            ("operator".to_string(), 15),
+            ("identifier".to_string(), 5),
+        ]);
+        binary_expr_stats.stats_by_tag.insert("nested_binary".to_string(), vec![nested_binary_stats]);
+
+        let mut unary_expr_stats = Stats::default();
+        unary_expr_stats.active_parser_type_counts = BTreeMap::from([
+            ("SeqParser".to_string(), 20),
+            ("TaggedParser".to_string(), 10),
+        ]);
+        unary_expr_stats.active_symbols = BTreeMap::from([
+            ("operator".to_string(), 15),
+            ("identifier".to_string(), 5),
+        ]);
+        unary_expr_stats.active_u8_matchers = BTreeMap::from([
+            (U8Set::Single(b'!'), 10),
+            (U8Set::Single(b'-'), 5),
+        ]);
+        unary_expr_stats.active_tags = BTreeMap::from([
+            ("prefix".to_string(), 7),
+            ("postfix".to_string(), 3),
+        ]);
+
+        let mut literal_stats = Stats::default();
+        literal_stats.active_string_matchers = BTreeMap::from([
+            ("true".to_string(), 15),
+            ("false".to_string(), 10),
+            ("null".to_string(), 5),
+        ]);
+
+        expression_stats.stats_by_tag.insert("binary_expr".to_string(), vec![binary_expr_stats]);
+        expression_stats.stats_by_tag.insert("unary_expr".to_string(), vec![unary_expr_stats]);
+        expression_stats.stats_by_tag.insert("literal".to_string(), vec![literal_stats]);
+
+        let mut statement_stats = Stats::default();
+        statement_stats.active_parser_type_counts = BTreeMap::from([
+            ("SeqParser".to_string(), 50),
+            ("ChoiceParser".to_string(), 30),
+            ("TaggedParser".to_string(), 10),
+        ]);
+        statement_stats.active_tags = BTreeMap::from([
+            ("if_statement".to_string(), 30),
+            ("for_loop".to_string(), 20),
+            ("while_loop".to_string(), 10),
+        ]);
+
+        let mut if_statement_stats = Stats::default();
+        if_statement_stats.active_parser_type_counts = BTreeMap::from([
+            ("SeqParser".to_string(), 25),
+            ("TaggedParser".to_string(), 15),
+        ]);
+        if_statement_stats.active_symbols = BTreeMap::from([
+            ("keyword".to_string(), 15),
+            ("operator".to_string(), 10),
+        ]);
+        if_statement_stats.active_string_matchers = BTreeMap::from([
+            ("if".to_string(), 10),
+            ("else".to_string(), 5),
+        ]);
+        statement_stats.stats_by_tag.insert("if_statement".to_string(), vec![if_statement_stats]);
+
+        let mut declaration_stats = Stats::default();
+        declaration_stats.active_parser_type_counts = BTreeMap::from([
+            ("SeqParser".to_string(), 40),
+            ("TaggedParser".to_string(), 20),
+            ("ChoiceParser".to_string(), 10),
+        ]);
+        declaration_stats.active_symbols = BTreeMap::from([
+            ("identifier".to_string(), 20),
+            ("keyword".to_string(), 10),
+        ]);
+
+        let mut variable_decl_stats = Stats::default();
+        variable_decl_stats.active_parser_type_counts = BTreeMap::from([
+            ("SeqParser".to_string(), 15),
+            ("TaggedParser".to_string(), 10),
+        ]);
+        variable_decl_stats.active_symbols = BTreeMap::from([
+            ("identifier".to_string(), 12),
+            ("operator".to_string(), 8),
+        ]);
+        variable_decl_stats.active_string_matchers = BTreeMap::from([
+            ("let".to_string(), 10),
+            ("const".to_string(), 5),
+        ]);
+        declaration_stats.stats_by_tag.insert("variable_decl".to_string(), vec![variable_decl_stats]);
+
+        stats.stats_by_tag.insert("expression".to_string(), vec![expression_stats]);
+        stats.stats_by_tag.insert("statement".to_string(), vec![statement_stats]);
+        stats.stats_by_tag.insert("declaration".to_string(), vec![declaration_stats]);
+
+        let expected_output = r#"Stats Overview
+══════════════
+
+Parser Types (100)    Tags (80)           Symbols (60)
+▪ SeqParser     50    ▪ expression   40   ▪ identifier   30
+▪ ChoiceParser  30    ▪ statement    25   ▪ operator     20
+▪ TaggedParser  20    ▪ declaration  15   ▪ keyword      10
+
+String Matchers (40)  U8 Matchers (20)
+▪ "function"    20    ▪ [a-z]        10
+▪ "let"         15    ▪ [0-9]         8
+▪ "const"        5    ▪ [A-Z]         2
+
+Nested Stats
+════════════
+
+expression (200)
+│  Parser Types (120)    │ Tags (80)
+│  ▪ ChoiceParser   60   │ ▪ binary_expr   40
+│  ▪ SeqParser      40   │ ▪ unary_expr    25
+│  ▪ TaggedParser   20   │ ▪ literal       15
+│
+├─ binary_expr (100)
+│  │ Parser Types (60)   │ Symbols (40)        │ String Matchers (30)
+│  │ ▪ SeqParser    30   │ ▪ operator     25   │ ▪ "+"             15
+│  │ ▪ ChoiceParser 20   │ ▪ identifier   15   │ ▪ "-"             10
+│  │ ▪ TaggedParser 10   │                     │ ▪ "*"              5
+│  │
+│  │ U8 Matchers (20)
+│  │ ▪ [a-z]        10
+│  │ ▪ [0-9]         8
+│  │ ▪ [A-Z]         2
+│  │
+│  ├─ nested_binary (50)
+│  │  Parser Types (30)   │ Symbols (20)
+│  │  ▪ SeqParser    20   │ ▪ operator     15
+│  │  ▪ TaggedParser 10   │ ▪ identifier    5
+│
+├─ unary_expr (50)
+│  Parser Types (30)      │ Symbols (20)        │ U8 Matchers (15)
+│  ▪ SeqParser      20    │ ▪ operator     15   │ ▪ [!]         10
+│  ▪ TaggedParser   10    │ ▪ identifier    5   │ ▪ [-]          5
+│
+│ Tags (10)
+│ ▪ prefix  7
+│ ▪ postfix 3
+│
+├─ literal (30)
+│  String Matchers (30)
+│  ▪ "true"     15
+│  ▪ "false"    10
+│  ▪ "null"      5
+
+statement (150)
+│  Parser Types (90)   │ Tags (60)
+│  ▪ SeqParser    50   │ ▪ if_statement  30
+│  ▪ ChoiceParser 30   │ ▪ for_loop      20
+│  ▪ TaggedParser 10   │ ▪ while_loop    10
+│
+├─ if_statement (80)
+│  │ Parser Types (40)   │ Symbols (25)     │ String Matchers (15)
+│  │ ▪ SeqParser    25   │ ▪ keyword   15   │ ▪ "if"     10
+│  │ ▪ TaggedParser 15   │ ▪ operator  10   │ ▪ "else"    5
+
+declaration (100)
+│  Parser Types (70)   │ Symbols (30)
+│  ▪ SeqParser    40   │ ▪ identifier    20
+│  ▪ TaggedParser 20   │ ▪ keyword       10
+│  ▪ ChoiceParser 10   │
+│
+├─ variable_decl (60)
+│  │ Parser Types (25)   │ Symbols (20)     │ String Matchers (15)
+│  │ ▪ SeqParser    15   │ ▪ identifier 12  │ ▪ "let"   10
+│  │ ▪ TaggedParser 10   │ ▪ operator   8   │ ▪ "const"  5"#;
+
+        assert_eq!(stats.to_string(), expected_output);
     }
 }
