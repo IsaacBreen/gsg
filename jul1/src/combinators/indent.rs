@@ -1,5 +1,4 @@
-use crate::{choice, Combinator, CombinatorTrait, eat_bytes, eps, mutate_right_data, Parser, ParseResults, ParserTrait, RightData, seq, Stats, U8Set, UpData};
-
+use crate::{choice, Combinator, CombinatorTrait, eat_bytes, eps, mutate_right_data, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, UpData};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IndentCombinator {
     Dent,

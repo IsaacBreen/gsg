@@ -1,6 +1,5 @@
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Stats, U8Set};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, UpData};
-
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatU8 {
     pub(crate) u8set: U8Set,

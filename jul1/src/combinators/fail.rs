@@ -1,6 +1,5 @@
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Stats};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait};
 use crate::parse_state::RightData;
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FailParser;
 

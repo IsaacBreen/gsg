@@ -1,9 +1,8 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, seq, Squash, Stats, symbol};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Squash};
 use crate::combinators::derived::opt;
 use crate::parse_state::RightData;
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Repeat1 {
     pub(crate) a: Rc<Combinator>,

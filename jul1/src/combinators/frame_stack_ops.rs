@@ -1,5 +1,4 @@
-use crate::{Combinator, CombinatorTrait, FrameStack, Parser, ParseResults, ParserTrait, RightData, Stats};
-
+use crate::{Combinator, CombinatorTrait, FrameStack, Parser, ParseResults, ParserTrait, RightData};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum FrameStackOpType {
     PushToFrame,

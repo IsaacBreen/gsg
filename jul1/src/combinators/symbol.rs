@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, opt, Parser, ParseResults, ParserTrait, repeat0, RightData, seq, Stats};
-
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Symbol {
     pub value: Rc<Combinator>,

@@ -30,4 +30,5 @@ mod frame_stack;
 mod python;
 mod unicode;
 mod compiler;
+mod stats;
 

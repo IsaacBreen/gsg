@@ -1,7 +1,4 @@
-use std::collections::BTreeMap;
-
-use crate::{_choice, choice, Combinator, CombinatorTrait, eat_byte, eat_byte_choice, eat_char_choice, eps, fail, Parser, ParseResults, ParserTrait, seq, Stats, U8Set};
-use crate::combinators::derived::opt;
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, UpData};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -103,4 +100,3 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
     }
 }
 
-use crate::combinators::eat_bytestring_choice::eat_bytestring_choice;
