@@ -16,7 +16,113 @@ pub struct Stats {
 
 impl Display for Stats {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        todo!()
+        let mut output = String::new();
+
+        // Overview section
+        output.push_str("Stats Overview\n");
+        output.push_str("══════════════\n\n");
+
+        let overview_blocks = vec![
+            create_block("Parser Types", self.total_active_parsers(), &self.active_parser_type_counts),
+            create_block("Tags", self.total_active_tags(), &self.active_tags),
+            create_block("Symbols", self.total_active_symbols(), &self.active_symbols),
+            create_block("String Matchers", self.total_active_string_matchers(), &self.active_string_matchers),
+            create_block("U8 Matchers", self.total_active_u8_matchers(), &self.active_u8_matchers),
+        ];
+
+        output.push_str(&join_vecs_vertically_with_separator(&overview_blocks, vec![String::new()]));
+        output.push_str("\nNested Stats\n");
+        output.push_str("════════════\n\n");
+
+        // Nested stats
+        output.push_str(&create_nested_stats("", &self.stats_by_tag));
+
+        write!(f, "{}", output.trim_end())
+    }
+}
+
+fn join_vecs_vertically_with_separator(vecs: &[Vec<String>], separator: Vec<String>) -> String {
+    vecs.iter()
+        .flat_map(|v| v.iter().chain(&separator))
+        .cloned()
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn join_vecs_horizontally_with_separator(vecs: &[Vec<String>], separator: &str) -> String {
+    let max_lines = vecs.iter().map(|v| v.len()).max().unwrap_or(0);
+    let padded_vecs: Vec<Vec<String>> = vecs.iter().map(|v| pad_lines(v, max_lines)).collect();
+
+    (0..max_lines)
+        .map(|i| {
+            padded_vecs
+                .iter()
+                .map(|v| &v[i])
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(separator)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn pad_lines(lines: &[String], max_lines: usize) -> Vec<String> {
+    let mut padded_lines = lines.to_vec();
+    while padded_lines.len() < max_lines {
+        padded_lines.push(String::new());
+    }
+    padded_lines
+}
+
+fn create_block(title: &str, total: usize, items: &BTreeMap<impl ToString, usize>) -> Vec<String> {
+    let mut lines = vec![format!("{}", title)];
+    for (i, (key, value)) in items.iter().rev().take(3).enumerate() {
+        lines.push(format!("▪ {:<12} {:>3}", truncate(&key.to_string(), 12), value));
+    }
+    while lines.len() < 5 {
+        lines.push(String::new());
+    }
+    lines
+}
+
+fn create_nested_stats(prefix: &str, stats_by_tag: &BTreeMap<String, Vec<Stats>>) -> String {
+    let mut output = String::new();
+
+    for (tag, stats_vec) in stats_by_tag {
+        for (i, stats) in stats_vec.iter().enumerate() {
+            output.push_str(&format!("{}{}{}", if i == 0 { "" } else { "\n" }, prefix, tag));
+
+            let blocks = vec![
+                create_block("Parser Types", stats.total_active_parsers(), &stats.active_parser_type_counts),
+                create_block("Tags", stats.total_active_tags(), &stats.active_tags),
+                create_block("Symbols", stats.total_active_symbols(), &stats.active_symbols),
+                create_block("String Matchers", stats.total_active_string_matchers(), &stats.active_string_matchers),
+                create_block("U8 Matchers", stats.total_active_u8_matchers(), &stats.active_u8_matchers),
+            ];
+
+            let formatted_blocks = join_vecs_vertically_with_separator(&blocks, vec![String::new()]);
+            for (j, line) in formatted_blocks.lines().enumerate() {
+                output.push_str(&format!("\n{}│ {}", prefix, line));
+                if j == formatted_blocks.lines().count() - 1 {
+                    output.push('\n');
+                }
+            }
+
+            if !stats.stats_by_tag.is_empty() {
+                output.push_str(&format!("{}│\n", prefix));
+                output.push_str(&create_nested_stats(&format!("{}│  ", prefix), &stats.stats_by_tag));
+            }
+        }
+    }
+
+    output
+}
+
+fn truncate(s: &str, max_chars: usize) -> String {
+    if s.len() > max_chars {
+        format!("{}...", &s[..max_chars - 3])
+    } else {
+        s.to_string()
     }
 }
 
@@ -338,6 +444,7 @@ declaration (100)
 │  │ ▪ SeqParser    15   │ ▪ identifier 12  │ ▪ "let"   10
 │  │ ▪ TaggedParser 10   │ ▪ operator   8   │ ▪ "const"  5"#;
 
+        println!("{}", stats);
         assert_eq!(stats.to_string(), expected_output);
     }
 }
