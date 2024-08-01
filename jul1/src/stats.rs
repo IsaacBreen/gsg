@@ -1,3 +1,5 @@
+use std::fmt::{Result};
+use std::cmp::Reverse;
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;
@@ -14,37 +16,81 @@ pub struct Stats {
 }
 
 impl Display for Stats {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        fn write_sorted<S: Clone + Display>(f: &mut Formatter, title: &str, items: &[(S, usize)]) -> std::fmt::Result {
-            writeln!(f, "{}", title)?;
-            let mut sorted_items = items.to_vec();
-            sorted_items.sort_by(|a, b| b.1.cmp(&a.1));
-            for (name, count) in sorted_items {
-                let mut name = name.to_string();
-                if name.len() > 80 {
-                    name.truncate(80);
-                    name.push_str("...");
-                }
-                writeln!(f, "    {}: {}", name, count)?;
-            }
-            writeln!(f, "")
-        }
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        writeln!(f, "Stats Overview")?;
+        writeln!(f, "│")?;
 
-        write_sorted(f, "Active Parser Types:", self.active_parser_type_counts.clone().into_iter().collect::<Vec<_>>().as_slice())?;
-        write_sorted(f, "Active Tags:", self.active_tags.clone().into_iter().collect::<Vec<_>>().as_slice())?;
+        self.format_section(f, "Active Parser Types", &self.active_parser_type_counts, self.total_active_parsers())?;
+        self.format_section(f, "Active Tags", &self.active_tags, self.total_active_tags())?;
+        self.format_section(f, "Active Symbols", &self.active_symbols, self.total_active_symbols())?;
+        self.format_section(f, "Active String Matchers", &self.active_string_matchers, self.total_active_string_matchers())?;
+        self.format_section(f, "Active U8 Matchers", &self.active_u8_matchers, self.total_active_u8_matchers())?;
 
         if !self.stats_by_tag.is_empty() {
-            writeln!(f, "Stats by Tag:")?;
-            for (tag, stats_vec) in &self.stats_by_tag {
-                for (i, stats) in stats_vec.iter().enumerate() {
-                    writeln!(f, "Tag {:?} ({}/{}):", tag, i + 1, stats_vec.len())?;
-                    for line in stats.to_string().lines() {
-                        writeln!(f, "    {}", line)?;
+            writeln!(f, "Stats by Tag")?;
+            writeln!(f, "│")?;
+
+            let mut tags: Vec<_> = self.stats_by_tag.iter().collect();
+            tags.sort_by_key(|(tag, _)| *tag);
+
+            for (i, (tag, stats_vec)) in tags.iter().enumerate() {
+                let is_last = i == tags.len() - 1;
+                let prefix = if is_last { "└─ " } else { "├─ " };
+                writeln!(f, "{}{}",  prefix, tag)?;
+
+                for (j, stats) in stats_vec.iter().enumerate() {
+                    let is_last_stat = j == stats_vec.len() - 1;
+                    let stat_prefix = if is_last {
+                        if is_last_stat { "   " } else { "   │" }
+                    } else {
+                        if is_last_stat { "│  " } else { "│  │" }
+                    };
+
+                    for (k, line) in stats.to_string().lines().enumerate() {
+                        if k == 0 {
+                            writeln!(f, "{}  {}", stat_prefix, line)?;
+                        } else {
+                            writeln!(f, "{}     {}", stat_prefix, line)?;
+                        }
                     }
+
+                    if !is_last_stat {
+                        writeln!(f, "{}  │", stat_prefix)?;
+                    }
+                }
+
+                if !is_last {
+                    writeln!(f, "│")?;
                 }
             }
         }
+
         Ok(())
+    }
+}
+
+impl Stats {
+    fn format_section<T: Display>(&self, f: &mut Formatter, title: &str, items: &BTreeMap<T, usize>, total: usize) -> Result {
+        writeln!(f, "├─ {} (Total: {})", title, total)?;
+
+        let mut sorted_items: Vec<_> = items.iter().collect();
+        sorted_items.sort_by_key(|(_, &count)| Reverse(count));
+
+        for (i, (name, count)) in sorted_items.iter().enumerate() {
+            let is_last = i == sorted_items.len() - 1;
+            let prefix = if is_last { "   └─ " } else { "   ├─ " };
+
+            let name_str = name.to_string();
+            let display_name = if name_str.len() > 80 {
+                format!("{}...", &name_str[..77])
+            } else {
+                name_str
+            };
+
+            writeln!(f, "{}{}:{} {}", prefix, display_name, " ".repeat(20_usize.saturating_sub(display_name.len())), count)?;
+        }
+
+        writeln!(f, "│")
     }
 }
 
