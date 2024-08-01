@@ -4,7 +4,7 @@ use std::ops::AddAssign;
 
 use crate::{CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, FrameStackOpParser, IndentCombinatorParser, match_parser, Parser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set, WithNewFrameParser};
 
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Stats {
     pub active_parser_type_counts: BTreeMap<String, usize>,
     pub active_symbols: BTreeMap<String, usize>,
@@ -16,9 +16,10 @@ pub struct Stats {
 
 impl Stats {
     pub fn accumulate_tags(&self) -> Stats {
-        let mut stats = Stats::default();
+        let mut stats: Stats = self.clone();
         for (tag, other_stats_vec) in self.stats_by_tag.iter() {
             for other_stats in other_stats_vec.iter() {
+                let other_stats = other_stats.accumulate_tags();
                 for (name, count) in other_stats.active_tags.iter() {
                     stats.active_parser_type_counts.entry(name.clone()).or_default().add_assign(*count);
                 }
