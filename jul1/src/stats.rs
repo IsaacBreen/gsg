@@ -16,57 +16,58 @@ pub struct Stats {
 
 impl Display for Stats {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let mut output = String::new();
+        let mut lines = vec![];
 
         // Overview section
-        output.push_str("Stats Overview\n");
-        output.push_str("══════════════\n\n");
+        lines.push("Stats Overview".to_string());
+        lines.push("══════════════".to_string());
+        lines.push("".to_string());
 
-        let overview_blocks = vec![
+        let mut overview_blocks = vec![
             create_block("Parser Types", self.total_active_parsers(), &self.active_parser_type_counts),
             create_block("Tags", self.total_active_tags(), &self.active_tags),
             create_block("Symbols", self.total_active_symbols(), &self.active_symbols),
             create_block("String Matchers", self.total_active_string_matchers(), &self.active_string_matchers),
             create_block("U8 Matchers", self.total_active_u8_matchers(), &self.active_u8_matchers),
         ];
+        overview_blocks.retain(|b| !b.is_empty());
 
-        output.push_str(&join_vecs_horizontally_with_separator(&overview_blocks, "   "));
-        output.push_str("\n\nNested Stats\n");
-        output.push_str("════════════\n\n");
+        lines.extend(join_vecs_horizontally_with_separator(&overview_blocks, "   "));
+        lines.push("".to_string());
+        lines.push("Nested Stats".to_string());
+        lines.push("════════════".to_string());
+        lines.push("".to_string());
 
-        // Nested stats
-        output.push_str(&create_nested_stats("", &self.stats_by_tag));
+        for block in create_nested_stats(&self.stats_by_tag) {
+            for line in block {
+                lines.push(format!("│ {}", line));
+            }
+        }
 
-        write!(f, "{}", output.trim_end())
+        write!(f, "{}", lines.join("\n"))
     }
 }
 
-fn join_vecs_vertically_with_separator(vecs: &[Vec<String>], separator: Vec<String>) -> String {
+fn join_vecs_vertically_with_separator(vecs: &[Vec<String>], separator: Vec<String>) -> Vec<String> {
     vecs.iter()
         .flat_map(|v| v.iter().chain(&separator))
         .cloned()
         .collect::<Vec<_>>()
-        .join("\n")
 }
 
-fn join_vecs_horizontally_with_separator(vecs: &[Vec<String>], separator: &str) -> String {
+fn join_vecs_horizontally_with_separator(vecs: &[Vec<String>], separator: &str) -> Vec<String> {
     let max_lines = vecs.iter().map(|v| v.len()).max().unwrap_or(0);
-    let padded_vecs: Vec<Vec<String>> = vecs.iter().map(|v| pad_lines(v, max_lines)).collect();
-
-    (0..max_lines)
-        .map(|i| {
-            padded_vecs
-                .iter()
-                .map(|v| &v[i])
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(separator)
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+    let padded_vecs: Vec<Vec<String>> = vecs.iter().map(|v| pad_lines_into_square(pad_lines_vertically(v, max_lines))).collect();
+    let mut lines = padded_vecs[0].clone();
+    for padded_vec in padded_vecs.iter().skip(1) {
+        for i in 0..max_lines {
+            lines[i] = format!("{}{}{}", lines[i], separator, padded_vec[i]);
+        }
+    }
+    lines
 }
 
-fn pad_lines(lines: &[String], max_lines: usize) -> Vec<String> {
+fn pad_lines_vertically(lines: &[String], max_lines: usize) -> Vec<String> {
     let mut padded_lines = lines.to_vec();
     while padded_lines.len() < max_lines {
         padded_lines.push(String::new());
@@ -74,45 +75,59 @@ fn pad_lines(lines: &[String], max_lines: usize) -> Vec<String> {
     padded_lines
 }
 
+fn pad_lines_into_square(lines: Vec<String>) -> Vec<String> {
+    let max_width = lines.iter().map(|l| l.len()).max().unwrap_or(0);
+    lines.iter().map(|l| format!("{:<width$}", l, width = max_width)).collect()
+}
+
 fn create_block(title: &str, total: usize, items: &BTreeMap<impl ToString, usize>) -> Vec<String> {
-    let mut lines = vec![format!("{}", title)];
+    if items.is_empty() {
+        return vec![];
+    }
+    let mut lines = vec![title.to_string()];
     for (key, value) in items.iter().take(3) {
         lines.push(format!("▪ {:<12} {:>3}", truncate(&key.to_string(), 12), value));
-    }
-    while lines.len() < 5 {
-        lines.push(String::new());
     }
     lines
 }
 
-fn create_nested_stats(prefix: &str, stats_by_tag: &BTreeMap<String, Vec<Stats>>) -> String {
-    let mut output = String::new();
+fn create_nested_stats(stats_by_tag: &BTreeMap<String, Vec<Stats>>) -> Vec<Vec<String>> {
+    let mut blocks = vec![];
 
     for (tag, stats_vec) in stats_by_tag {
-        for (i, stats) in stats_vec.iter().enumerate() {
-            output.push_str(&format!("{}{}{}", if i == 0 { "" } else { "\n" }, prefix, tag));
+        for stats in stats_vec.iter() {
+            let mut lines = vec![];
+            lines.push(tag.to_string());
 
-            let blocks = vec![
+            let mut inner_blocks_for_stats = vec![
                 create_block("Parser Types", stats.total_active_parsers(), &stats.active_parser_type_counts),
                 create_block("Tags", stats.total_active_tags(), &stats.active_tags),
                 create_block("Symbols", stats.total_active_symbols(), &stats.active_symbols),
                 create_block("String Matchers", stats.total_active_string_matchers(), &stats.active_string_matchers),
                 create_block("U8 Matchers", stats.total_active_u8_matchers(), &stats.active_u8_matchers),
             ];
+            inner_blocks_for_stats.retain(|b| !b.is_empty());
 
-            let formatted_blocks = join_vecs_horizontally_with_separator(&blocks, "   ");
-            for line in formatted_blocks.lines() {
-                output.push_str(&format!("\n{}│ {}", prefix, line));
+            lines.extend(join_vecs_horizontally_with_separator(&inner_blocks_for_stats, "   "));
+
+            // Add a vertical pipe at the start of each line
+            let mut inner_blocks_for_tags = create_nested_stats(&stats.stats_by_tag);
+            for mut block in inner_blocks_for_tags.iter_mut() {
+                for line in block.iter_mut() {
+                    *line = format!("│ {}", line);
+                }
             }
 
-            if !stats.stats_by_tag.is_empty() {
-                output.push_str(&format!("\n{}│", prefix));
-                output.push_str(&create_nested_stats(&format!("{}│  ", prefix), &stats.stats_by_tag));
+            if !inner_blocks_for_tags.is_empty() {
+                lines.push("".to_string());
+                lines.extend(join_vecs_vertically_with_separator(&inner_blocks_for_tags, vec![String::new()]));
             }
+
+            blocks.push(lines);
         }
     }
 
-    output
+    blocks
 }
 
 fn truncate(s: &str, max_chars: usize) -> String {
