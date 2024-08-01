@@ -138,13 +138,19 @@ fn test_test_input() {
 fn test_actual_python_file() {
     let combinator = python_file();
 
-    let path = Path::new("src/python/dump_python_gram.py");
-    let file = std::fs::read_to_string(path).unwrap();
-    assert_parses(&combinator, &file, "Actual Python file");
+    let test_cases = [
+        ("Simple string", "x = 12\nx = 2\nx"),
+        ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
+        ("remove_left_recursion.py", include_str!("../python/remove_left_recursion.py")),
+        ("test_input.py", include_str!("../tests/test_input.py")),
+    ];
 
-    let path = Path::new("src/python/remove_left_recursion.py");
-    let file = std::fs::read_to_string(path).unwrap();
-    assert_parses(&combinator, &file, "Actual Python file");
+    for (name, content) in test_cases.iter() {
+        let start = Instant::now();
+        assert_parses(&combinator, content, name);
+        let duration = start.elapsed();
+        println!("{:<25} parsed in {:?}", name, duration);
+    }
 }
 
 #[test]
