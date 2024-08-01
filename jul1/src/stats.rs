@@ -16,7 +16,79 @@ pub struct Stats {
 
 impl Display for Stats {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        todo!()
+        writeln!(f, "Stats Overview\n══════════════\n")?;
+
+        let total_parsers = self.total_active_parsers();
+        let total_tags = self.total_active_tags();
+        let total_symbols = self.total_active_symbols();
+        let total_string_matchers = self.total_active_string_matchers();
+        let total_u8_matchers = self.total_active_u8_matchers();
+
+        writeln!(f, "Parser Types ({})    Tags ({})           Symbols ({})", total_parsers, total_tags, total_symbols)?;
+        for (i, (parser_type, count)) in self.active_parser_type_counts.iter().enumerate().take(3) {
+            write!(f, "▪ {:<12} {:<5}", parser_type, count)?;
+            if let Some((tag, count)) = self.active_tags.iter().nth(i) {
+                write!(f, "▪ {:<12} {:<5}", tag, count)?;
+            }
+            if let Some((symbol, count)) = self.active_symbols.iter().nth(i) {
+                write!(f, "▪ {:<12} {}", symbol, count)?;
+            }
+            writeln!(f)?;
+        }
+
+        writeln!(f)?;
+        writeln!(f, "String Matchers ({})  U8 Matchers ({})", total_string_matchers, total_u8_matchers)?;
+        for (i, (string, count)) in self.active_string_matchers.iter().enumerate().take(3) {
+            write!(f, "▪ {:<12} {:<5}", format!("\"{}\"", string), count)?;
+            if let Some((u8set, count)) = self.active_u8_matchers.iter().nth(i) {
+                write!(f, "▪ {:<12} {}", u8set, count)?;
+            }
+            writeln!(f)?;
+        }
+
+        if !self.stats_by_tag.is_empty() {
+            writeln!(f, "\nNested Stats\n════════════\n")?;
+            for (tag, nested_stats) in &self.stats_by_tag {
+                self.fmt_nested_stats(f, tag, nested_stats, 0)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Stats {
+    fn fmt_nested_stats(&self, f: &mut Formatter<'_>, tag: &str, nested_stats: &[Stats], indent: usize) -> Result {
+        let indent_str = "  ".repeat(indent);
+        let total_parsers: usize = nested_stats.iter().map(|s| s.total_active_parsers()).sum();
+        writeln!(f, "{}{}{}{}({})", indent_str, tag, if indent == 0 { " " } else { "" }, if indent == 0 { "" } else { "─ " }, total_parsers)?;
+
+        for (i, stats) in nested_stats.iter().enumerate() {
+            self.fmt_section(f, &stats.active_parser_type_counts, "Parser Types", indent + if i == 0 { 1 } else { 2 })?;
+            self.fmt_section(f, &stats.active_tags, "Tags", indent + if i == 0 { 1 } else { 2 })?;
+            self.fmt_section(f, &stats.active_symbols, "Symbols", indent + if i == 0 { 1 } else { 2 })?;
+            self.fmt_section(f, &stats.active_string_matchers, "String Matchers", indent + if i == 0 { 1 } else { 2 })?;
+            self.fmt_section(f, &stats.active_u8_matchers, "U8 Matchers", indent + if i == 0 { 1 } else { 2 })?;
+
+            for (nested_tag, nested_nested_stats) in &stats.stats_by_tag {
+                self.fmt_nested_stats(f, nested_tag, nested_nested_stats, indent + if i == 0 { 1 } else { 2 })?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn fmt_section<T: Display>(&self, f: &mut Formatter<'_>, map: &BTreeMap<T, usize>, title: &str, indent: usize) -> Result {
+        if !map.is_empty() {
+            let indent_str = "  ".repeat(indent);
+            let total: usize = map.values().sum();
+            writeln!(f, "{}│ {} ({})", indent_str, title, total)?;
+            for (key, value) in map.iter().take(3) {
+                writeln!(f, "{}│ ▪ {:<12} {}", indent_str, key, value)?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
     }
 }
 
@@ -127,9 +199,9 @@ mod tests {
             ("const".to_string(), 5),
         ]);
         stats.active_u8_matchers = BTreeMap::from([
-            (U8Set::Range(b'a'..=b'z'), 10),
-            (U8Set::Range(b'0'..=b'9'), 8),
-            (U8Set::Range(b'A'..=b'Z'), 2),
+            (U8Set::from_byte_range(b'a'..=b'z'), 10),
+            (U8Set::from_byte_range(b'0'..=b'9'), 8),
+            (U8Set::from_byte_range(b'A'..=b'Z'), 2),
         ]);
 
         // Nested stats
@@ -161,9 +233,9 @@ mod tests {
             ("*".to_string(), 5),
         ]);
         binary_expr_stats.active_u8_matchers = BTreeMap::from([
-            (U8Set::Range(b'a'..=b'z'), 10),
-            (U8Set::Range(b'0'..=b'9'), 8),
-            (U8Set::Range(b'A'..=b'Z'), 2),
+            (U8Set::from_byte_range(b'a'..=b'z'), 10),
+            (U8Set::from_byte_range(b'0'..=b'9'), 8),
+            (U8Set::from_byte_range(b'A'..=b'Z'), 2),
         ]);
 
         let mut nested_binary_stats = Stats::default();
@@ -187,8 +259,8 @@ mod tests {
             ("identifier".to_string(), 5),
         ]);
         unary_expr_stats.active_u8_matchers = BTreeMap::from([
-            (U8Set::Single(b'!'), 10),
-            (U8Set::Single(b'-'), 5),
+            (U8Set::from_byte(b'!'), 10),
+            (U8Set::from_byte(b'-'), 5),
         ]);
         unary_expr_stats.active_tags = BTreeMap::from([
             ("prefix".to_string(), 7),
