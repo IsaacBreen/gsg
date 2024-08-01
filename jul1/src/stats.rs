@@ -20,6 +20,28 @@ impl Display for Stats {
     }
 }
 
+impl Stats {
+    pub fn total_active_parsers(&self) -> usize {
+        self.active_parser_type_counts.values().sum()
+    }
+
+    pub fn total_active_symbols(&self) -> usize {
+        self.active_symbols.values().sum()
+    }
+
+    pub fn total_active_tags(&self) -> usize {
+        self.active_tags.values().sum()
+    }
+
+    pub fn total_active_string_matchers(&self) -> usize {
+        self.active_string_matchers.values().sum()
+    }
+
+    pub fn total_active_u8_matchers(&self) -> usize {
+        self.active_u8_matchers.values().sum()
+    }
+}
+
 impl Parser {
     pub fn stats(&self) -> Stats {
         let mut stats = Stats::default();
