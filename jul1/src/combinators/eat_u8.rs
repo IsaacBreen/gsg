@@ -1,3 +1,4 @@
+use std::ops::RangeBounds;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, UpData};
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
@@ -100,16 +101,12 @@ pub fn eat_char_negation(c: char) -> EatU8 {
     }
 }
 
-pub fn eat_char_range(start: char, end: char) -> EatU8 {
-    EatU8 {
-        u8set: U8Set::from_char_range(start, end),
-    }
+pub fn eat_char_range(range: impl IntoIterator<Item=u8>) -> EatU8 {
+    EatU8 { u8set: U8Set::from_byte_range(range) }
 }
 
-pub fn eat_char_negation_range(start: char, end: char) -> EatU8 {
-    EatU8 {
-        u8set: U8Set::from_char_negation_range(start, end),
-    }
+pub fn eat_byte_negation_range(range: impl IntoIterator<Item=u8>) -> EatU8 {
+    EatU8 { u8set: U8Set::from_char_negation_range(range) }
 }
 
 pub fn eat_match_fn<F>(f: F) -> EatU8

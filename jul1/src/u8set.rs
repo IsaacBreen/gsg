@@ -34,20 +34,17 @@ impl U8Set {
         result.complement()
     }
 
-    pub(crate) fn from_char_range(start: char, end: char) -> U8Set {
+    pub(crate) fn from_byte_range(range: impl IntoIterator<Item=u8>) -> U8Set {
         let mut result = U8Set::none();
-        for i in start as u8..=end as u8 {
-            result.insert(i);
+        for c in range {
+            assert!(c <= 255, "Character {} is not a valid u8 value", c);
+            result.insert(c);
         }
         result
     }
 
-    pub(crate) fn from_char_negation_range(start: char, end: char) -> U8Set {
-        let mut result = U8Set::none();
-        for i in start as u8..=end as u8 {
-            result.insert(i);
-        }
-        result.complement()
+    pub(crate) fn from_char_negation_range(range: impl IntoIterator<Item=u8>) -> U8Set {
+        U8Set::from_byte_range(range).complement()
     }
 }
 
