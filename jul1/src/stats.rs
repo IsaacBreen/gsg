@@ -145,14 +145,16 @@ fn truncate(s: &str, max_chars: usize) -> String {
         let mut parts: Vec<&str> = s.split("::").collect();
         let mut truncated = parts.last().unwrap().to_string();
         for part in parts.iter().rev().skip(1) {
-            let new_truncated = format!("{}::{}", part, truncated);
-            if new_truncated.len() > max_chars {
-                truncated = new_truncated;
+            let final_truncated = format!("...::{}::{}", part, truncated);
+            if final_truncated.len() > max_chars {
                 break;
             } else {
-                truncated = new_truncated;
+                truncated = format!("{}::{}", part, truncated);
             }
         }
+
+        // Add ellipsis
+        truncated = format!("...::{}", truncated);
 
         // If the string is still too long, truncate end
         if truncated.len() > max_chars {
