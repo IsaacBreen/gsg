@@ -1,9 +1,9 @@
-use std::fmt::{Result};
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Result};
 use std::ops::AddAssign;
-use crate::{Parser, U8Set, SeqParser, ChoiceParser, EatU8Parser, EatStringParser, CacheContextParser, FrameStackOpParser, SymbolParser, TaggedParser, Repeat1Parser, WithNewFrameParser, IndentCombinatorParser, match_parser};
+
+use crate::{CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, FrameStackOpParser, IndentCombinatorParser, match_parser, Parser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set, WithNewFrameParser};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -20,15 +20,15 @@ impl Display for Stats {
         writeln!(f, "Stats Overview")?;
         writeln!(f, "│")?;
 
-        self.format_section(f, "Active Parser Types", &self.active_parser_type_counts, self.total_active_parsers())?;
-        self.format_section(f, "Active Tags", &self.active_tags, self.total_active_tags())?;
-        self.format_section(f, "Active Symbols", &self.active_symbols, self.total_active_symbols())?;
-        self.format_section(f, "Active String Matchers", &self.active_string_matchers, self.total_active_string_matchers())?;
-        self.format_section(f, "Active U8 Matchers", &self.active_u8_matchers, self.total_active_u8_matchers())?;
+        self.format_section(f, "Active Parser Types", &self.active_parser_type_counts, self.total_active_parsers(), "")?;
+        self.format_section(f, "Active Tags", &self.active_tags, self.total_active_tags(), "")?;
+        self.format_section(f, "Active Symbols", &self.active_symbols, self.total_active_symbols(), "")?;
+        self.format_section(f, "Active String Matchers", &self.active_string_matchers, self.total_active_string_matchers(), "")?;
+        self.format_section(f, "Active U8 Matchers", &self.active_u8_matchers, self.total_active_u8_matchers(), "")?;
 
         if !self.stats_by_tag.is_empty() {
-            writeln!(f, "Stats by Tag")?;
             writeln!(f, "│")?;
+            writeln!(f, "Stats by Tag")?;
 
             let mut tags: Vec<_> = self.stats_by_tag.iter().collect();
             tags.sort_by_key(|(tag, _)| *tag);
@@ -36,31 +36,21 @@ impl Display for Stats {
             for (i, (tag, stats_vec)) in tags.iter().enumerate() {
                 let is_last = i == tags.len() - 1;
                 let prefix = if is_last { "└─ " } else { "├─ " };
-                writeln!(f, "{}{}",  prefix, tag)?;
+                writeln!(f, "{}{}", prefix, tag)?;
 
                 for (j, stats) in stats_vec.iter().enumerate() {
                     let is_last_stat = j == stats_vec.len() - 1;
                     let stat_prefix = if is_last {
-                        if is_last_stat { "   " } else { "   │" }
+                        if is_last_stat { "    " } else { "    │" }
                     } else {
-                        if is_last_stat { "│  " } else { "│  │" }
+                        if is_last_stat { "│   " } else { "│   │" }
                     };
 
-                    for (k, line) in stats.to_string().lines().enumerate() {
-                        if k == 0 {
-                            writeln!(f, "{}  {}", stat_prefix, line)?;
-                        } else {
-                            writeln!(f, "{}     {}", stat_prefix, line)?;
-                        }
-                    }
+                    self.format_sub_stats(f, stats, stat_prefix)?;
 
                     if !is_last_stat {
-                        writeln!(f, "{}  │", stat_prefix)?;
+                        writeln!(f, "{}   │", stat_prefix)?;
                     }
-                }
-
-                if !is_last {
-                    writeln!(f, "│")?;
                 }
             }
         }
@@ -70,15 +60,15 @@ impl Display for Stats {
 }
 
 impl Stats {
-    fn format_section<T: Display>(&self, f: &mut Formatter, title: &str, items: &BTreeMap<T, usize>, total: usize) -> Result {
-        writeln!(f, "├─ {} (Total: {})", title, total)?;
+    fn format_section<T: Display>(&self, f: &mut Formatter, title: &str, items: &BTreeMap<T, usize>, total: usize, prefix: &str) -> Result {
+        writeln!(f, "{}├─ {} (Total: {})", prefix, title, total)?;
 
         let mut sorted_items: Vec<_> = items.iter().collect();
         sorted_items.sort_by_key(|(_, &count)| Reverse(count));
 
         for (i, (name, count)) in sorted_items.iter().enumerate() {
             let is_last = i == sorted_items.len() - 1;
-            let prefix = if is_last { "   └─ " } else { "   ├─ " };
+            let item_prefix = if is_last { "│  └─ " } else { "│  ├─ " };
 
             let name_str = name.to_string();
             let display_name = if name_str.len() > 80 {
@@ -87,14 +77,22 @@ impl Stats {
                 name_str
             };
 
-            writeln!(f, "{}{}:{} {}", prefix, display_name, " ".repeat(20_usize.saturating_sub(display_name.len())), count)?;
+            writeln!(f, "{}{}{}:{} {}", prefix, item_prefix, display_name, " ".repeat(20_usize.saturating_sub(display_name.len())), count)?;
         }
 
-        writeln!(f, "│")
+        Ok(())
     }
-}
 
-impl Stats {
+    fn format_sub_stats(&self, f: &mut Formatter, stats: &Stats, prefix: &str) -> Result {
+        self.format_section(f, "Active Parser Types", &stats.active_parser_type_counts, stats.total_active_parsers(), prefix)?;
+        self.format_section(f, "Active Tags", &stats.active_tags, stats.total_active_tags(), prefix)?;
+        self.format_section(f, "Active Symbols", &stats.active_symbols, stats.total_active_symbols(), prefix)?;
+        self.format_section(f, "Active String Matchers", &stats.active_string_matchers, stats.total_active_string_matchers(), prefix)?;
+        self.format_section(f, "Active U8 Matchers", &stats.active_u8_matchers, stats.total_active_u8_matchers(), prefix)?;
+
+        Ok(())
+    }
+
     pub fn total_active_parsers(&self) -> usize {
         self.active_parser_type_counts.values().sum()
     }
