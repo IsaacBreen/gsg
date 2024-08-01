@@ -140,7 +140,12 @@ fn create_nested_stats(stats_by_tag: &BTreeMap<String, Vec<Stats>>) -> Vec<Vec<S
 }
 
 fn truncate(s: &str, max_chars: usize) -> String {
+    const JUST_RETURN_LAST_PART: bool = true;
     if s.len() > max_chars {
+        if JUST_RETURN_LAST_PART {
+            return s.split("::").last().unwrap().to_string();
+        }
+
         // First, split by "::" and prioritize keeping the left-most parts
         let mut parts: Vec<&str> = s.split("::").collect();
         let mut truncated = parts.last().unwrap().to_string();
