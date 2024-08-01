@@ -46,7 +46,11 @@ impl Display for Stats {
             }
             blocks_for_nested_tags.push(lines);
         }
-        lines.extend(join_vecs_vertically_with_separator(&blocks_for_nested_tags, vec![String::new()]));
+
+        if !blocks_for_nested_tags.is_empty() {
+            lines.extend(join_vecs_vertically_with_separator(&blocks_for_nested_tags, vec![String::new()]));
+            lines.push("".to_string());
+        }
 
         write!(f, "{}", lines.join("\n"))
     }
