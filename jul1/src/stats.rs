@@ -86,8 +86,8 @@ fn create_block(title: &str, total: usize, items: &BTreeMap<impl ToString, usize
     }
     let mut lines = vec![title.to_string()];
     for (key, value) in items.iter().take(3) {
-        const padding: usize = 50;
-        lines.push(format!("▪ {:<padding$?} {:>3?}", truncate(&key.to_string(), padding), value));
+        const padding: usize = 15;
+        lines.push(format!("▪ {:<padding$} {:>3}", truncate(&key.to_string(), padding), value));
     }
     lines
 }

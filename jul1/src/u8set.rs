@@ -253,11 +253,11 @@ impl std::fmt::Display for U8Set {
                 output.push_str(", ");
             }
             if start == end {
-                output.push_str(&format!("{}", *start as char));
+                output.push_str(&format!("{:?}", *start as char));
             } else if end - start == 1 {
-                output.push_str(&format!("{}, {}", *start as char, *end as char));
+                output.push_str(&format!("{:?}, {:?}", *start as char, *end as char));
             } else {
-                output.push_str(&format!("{}-{}", *start as char, *end as char));
+                output.push_str(&format!("{:?}..{:?}", *start as char, *end as char));
             }
         }
 
