@@ -6,6 +6,7 @@ use crate::parse_state::RightData;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Repeat1 {
     pub(crate) a: Rc<Combinator>,
+    pub(crate) greedy: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -14,6 +15,7 @@ pub struct Repeat1Parser {
     pub(crate) a_parsers: Vec<Parser>,
     right_data: RightData,
     position: usize,
+    greedy: bool,
 }
 
 impl CombinatorTrait for Repeat1 {
@@ -27,7 +29,7 @@ impl CombinatorTrait for Repeat1 {
             vec![]
         };
         let position = right_data.position;
-        (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, right_data, position }), parse_results)
+        (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, right_data, position, greedy: self.greedy }), parse_results)
     }
 }
 
@@ -112,6 +114,7 @@ impl ParserTrait for Repeat1Parser {
 pub fn repeat1(a: impl Into<Combinator>) -> Repeat1 {
     Repeat1 {
         a: Rc::new(a.into()),
+        greedy: true,
     }
 }
 

@@ -44,29 +44,29 @@ impl Compile for Seq {
                     //     case (A1, Choice([Repeat1(A2), Seq([])])) if A1 == A2:
                     //         children[ix] = Repeat1(A1)
                     //         children.pop(iy)
-                    (a, Combinator::Choice(Choice { children: b_children })) if b_children.contains(&Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(a.clone()) }))) && b_children.contains(&Rc::new(Combinator::Eps(Eps))) => {
-                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(a.clone()) }));
+                    (a, Combinator::Choice(Choice { children: b_children, greedy })) if b_children.contains(&Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(a.clone()), greedy: *greedy }))) && b_children.contains(&Rc::new(Combinator::Eps(Eps))) => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(a.clone()), greedy: *greedy }));
                         children.remove(i + 1);
                     },
                     //     case (Choice([Repeat1(A2), Seq([])]), A1) if A1 == A2:
                     //         children[iy] = Repeat1(A1)
                     //         children.pop(ix)
-                    (Combinator::Choice(Choice { children: a_children }), b) if a_children.contains(&Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(b.clone()) }))) && a_children.contains(&Rc::new(Combinator::Eps(Eps))) => {
-                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(b.clone()) }));
+                    (Combinator::Choice(Choice { children: a_children, greedy }), b) if a_children.contains(&Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(b.clone()), greedy: *greedy }))) && a_children.contains(&Rc::new(Combinator::Eps(Eps))) => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(b.clone()), greedy: *greedy }));
                         children.remove(i + 1);
                     },
                     //     case (A1, Repeat1(A2)) if A1 == A2:
                     //         children[ix] = Repeat1(A1)
                     //         children.pop(iy)
-                    (a, Combinator::Repeat1(Repeat1 { a: b })) if *a == **b => {
-                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(a.clone()) }));
+                    (a, Combinator::Repeat1(Repeat1 { a: b, greedy })) if *a == **b => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(a.clone()), greedy: *greedy }));
                         children.remove(i + 1);
                     },
                     //     case (Repeat1(A2), A1) if A1 == A2:
                     //         children[iy] = Repeat1(A1)
                     //         children.pop(ix)
-                    (Combinator::Repeat1(Repeat1 { a: a }), b) if **a == *b => {
-                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(b.clone()) }));
+                    (Combinator::Repeat1(Repeat1 { a: a, greedy }), b) if **a == *b => {
+                        children[i] = Rc::new(Combinator::Repeat1(Repeat1 { a: Rc::new(b.clone()), greedy: *greedy }));
                         children.remove(i + 1);
                     },
                     //     case _:
@@ -149,7 +149,7 @@ impl Compile for Choice {
                 new_children.push(Rc::new(Combinator::Seq(Seq {
                     children: vec![
                         prefix,
-                        Rc::new(Combinator::Choice(Choice { children: suffixes })),
+                        Rc::new(Combinator::Choice(Choice { children: suffixes , greedy: self.greedy })),
                     ],
                 })));
             }
@@ -158,7 +158,7 @@ impl Compile for Choice {
         match new_children.len() {
             0 => Combinator::Fail(Fail),
             1 => Rc::unwrap_or_clone(new_children.pop().unwrap()),
-            _ => Combinator::Choice(Choice { children: new_children }),
+            _ => Combinator::Choice(Choice { children: new_children, greedy: self.greedy }),
         }
     }
 }
@@ -192,7 +192,7 @@ impl Compile for Repeat1 {
         let compiled_a = self.a.as_ref().clone().compile();
         match compiled_a {
             Combinator::Fail(_) => Combinator::Fail(Fail),
-            _ => Combinator::Repeat1(Repeat1 { a: Rc::new(compiled_a) }),
+            _ => Combinator::Repeat1(Repeat1 { a: Rc::new(compiled_a), greedy: self.greedy }),
         }
     }
 }

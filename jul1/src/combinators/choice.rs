@@ -6,11 +6,13 @@ use crate::parse_state::RightData;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Choice {
     pub(crate) children: Vec<Rc<Combinator>>,
+    pub(crate) greedy: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ChoiceParser {
     pub(crate) parsers: Vec<Parser>,
+    pub(crate) greedy: bool,
 }
 
 impl CombinatorTrait for Choice {
@@ -27,7 +29,7 @@ impl CombinatorTrait for Choice {
         }
 
         (
-            Parser::ChoiceParser(ChoiceParser { parsers }),
+            Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
             combined_results
         )
     }
@@ -66,6 +68,7 @@ impl ParserTrait for ChoiceParser {
 pub fn _choice(v: Vec<Combinator>) -> Combinator {
     Choice {
         children: v.into_iter().map(Rc::new).collect(),
+        greedy: true,
     }.into()
 }
 

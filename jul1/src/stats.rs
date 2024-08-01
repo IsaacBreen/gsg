@@ -251,7 +251,7 @@ impl Parser {
                     parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
                 });
             }
-            Parser::ChoiceParser(ChoiceParser { parsers }) => {
+            Parser::ChoiceParser(ChoiceParser { parsers, greedy }) => {
                 parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
             }
             Parser::EatU8Parser(EatU8Parser { u8set, .. }) => {

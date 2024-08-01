@@ -16,5 +16,5 @@ pub fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator
 
 pub fn repeatn(n: usize, a: impl Into<Combinator>) -> Combinator {
     let a = Rc::new(a.into());
-    Choice { children: vec![a.clone(); n] }.into()
+    Choice { children: vec![a.clone(); n], greedy: false }.into()
 }
