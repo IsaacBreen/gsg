@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;
-use crate::{Parser, U8Set, SeqParser, ChoiceParser, EatU8Parser, EatStringParser, CacheContextParser, FrameStackOpParser, SymbolParser, TaggedParser, Repeat1Parser, WithNewFrameParser, IndentCombinatorParser, match_parser};
+use crate::{Parser, U8Set, SeqParser, ChoiceParser, EatU8Parser, EatStringParser, CacheContextParser, FrameStackOpParser, SymbolParser, TaggedParser, Repeat1Parser, WithNewFrameParser, IndentCombinatorParser};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Stats {
