@@ -122,6 +122,7 @@ fn truncate(s: &str, max_chars: usize) -> String {
         s.to_string()
     }
 }
+
 impl Stats {
     pub fn total_active_parsers(&self) -> usize {
         self.active_parser_type_counts.values().sum()
@@ -200,8 +201,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::BTreeMap;
+
+    use super::*;
 
     #[test]
     fn test_stats_display() {
