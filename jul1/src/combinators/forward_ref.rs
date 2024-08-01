@@ -27,11 +27,19 @@ impl CombinatorTrait for ForwardRef {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         self.a.borrow().as_ref().unwrap().parser(right_data)
     }
+
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        self.a.borrow().as_ref().unwrap().parser_with_steps(right_data, bytes)
+    }
 }
 
 impl CombinatorTrait for RefCell<Option<Rc<Combinator>>> {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         self.borrow().as_ref().unwrap().parser(right_data)
+    }
+
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        self.borrow().as_ref().unwrap().parser_with_steps(right_data, bytes)
     }
 }
 

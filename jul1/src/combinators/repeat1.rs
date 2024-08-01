@@ -31,6 +31,19 @@ impl CombinatorTrait for Repeat1 {
         let position = right_data.position;
         (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, right_data, position, greedy: self.greedy }), parse_results)
     }
+
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let (a, mut parse_results) = self.a.parser_with_steps(right_data.clone(), bytes);
+        assert!(parse_results.right_data_vec.is_empty());
+        // parse_results.right_data_vec.clear();
+        let a_parsers = if !parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty() {
+            vec![a.clone()]
+        } else {
+            vec![]
+        };
+        let position = right_data.position;
+        (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, right_data, position, greedy: self.greedy }), parse_results)
+    }
 }
 
 impl ParserTrait for Repeat1Parser {
@@ -86,16 +99,13 @@ impl ParserTrait for Repeat1Parser {
         while i < right_data_as.len() {
             let right_data_a = right_data_as[i].clone();
             let offset = right_data_a.position - self.position;
-            let (mut a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut done }) = self.a.parser(right_data_a);
-            let parse_results = a_parser.steps(bytes[offset..].as_ref());
+            let (mut a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut done }) = self.a.parser_with_steps(right_data_a, &bytes[offset..]);
             // todo: ??
             right_data_as.extend(right_data_a);
             up_data_as.extend(up_data_a);
-            if !parse_results.done {
+            if !done {
                 new_parsers.push(a_parser);
             }
-            up_data_as.extend(parse_results.up_data_vec);
-            right_data_as.extend(parse_results.right_data_vec);
             i += 1;
         }
 

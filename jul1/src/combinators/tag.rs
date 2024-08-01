@@ -28,6 +28,20 @@ impl CombinatorTrait for Tagged {
             }
         }
     }
+
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parser_with_steps(right_data, bytes)));
+        match result {
+            Ok((parser, parse_results)) => (
+                Parser::TaggedParser(TaggedParser { inner: Box::new(parser), tag: self.tag.clone() }),
+                parse_results,
+            ),
+            Err(err) => {
+                eprintln!("Panic caught in parser with tag: {}", self.tag);
+                resume_unwind(err);
+            }
+        }
+    }
 }
 
 impl ParserTrait for TaggedParser {

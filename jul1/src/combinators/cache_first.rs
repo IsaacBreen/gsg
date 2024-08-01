@@ -72,6 +72,16 @@ impl CombinatorTrait for CacheFirstContext {
             cache_first_data_inner: right_data.cache_first_data.inner.clone().unwrap(),
         }), results)
     }
+
+    fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        assert!(right_data.cache_first_data.inner.is_none(), "CacheFirstContextParser already initialized");
+        right_data.cache_first_data.inner = Some(Rc::new(RefCell::new(CacheFirstDataInner::default())));
+        let (parser, results) = self.inner.parser_with_steps(right_data.clone(), bytes);
+        (Parser::CacheFirstContextParser(CacheFirstContextParser {
+            inner: Box::new(parser),
+            cache_first_data_inner: right_data.cache_first_data.inner.clone().unwrap(),
+        }), results)
+    }
 }
 
 impl ParserTrait for CacheFirstContextParser {
@@ -93,6 +103,21 @@ impl CombinatorTrait for CacheFirst {
         }
         // Initialize the parser and create a new entry
         let (parser, mut parse_results) = self.inner.parser(right_data.clone());
+        parse_results.squash();
+        let binding = right_data.cache_first_data.inner.unwrap();
+        let mut cache_first_data_inner = binding.borrow_mut();
+        cache_first_data_inner.entries.insert(key.clone(), parse_results.clone());
+        (parser, parse_results)
+    }
+
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        // Try to get the entry from the cache
+        let key = CacheFirstKey { combinator: self.inner.clone(), right_data: right_data.clone() };
+        if let Some(entry) = right_data.cache_first_data.inner.clone().unwrap().borrow().entries.get(&key).cloned() {
+            return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry);
+        }
+        // Initialize the parser and create a new entry
+        let (mut parser, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
         parse_results.squash();
         let binding = right_data.cache_first_data.inner.unwrap();
         let mut cache_first_data_inner = binding.borrow_mut();

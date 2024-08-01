@@ -14,6 +14,14 @@ impl CombinatorTrait for Fail {
             done: true,
         })
     }
+
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        (Parser::FailParser(FailParser), ParseResults {
+            right_data_vec: vec![],
+            up_data_vec: vec![],
+            done: true,
+        })
+    }
 }
 
 impl ParserTrait for FailParser {

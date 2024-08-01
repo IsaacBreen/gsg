@@ -15,7 +15,7 @@ pub enum IndentCombinatorParser {
 }
 
 impl CombinatorTrait for IndentCombinator {
-    fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
+    fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
             IndentCombinator::Dent if right_data.dedents == 0 => {
                 fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Combinator { // TODO: Make this a macro

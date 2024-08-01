@@ -31,6 +31,35 @@ impl CombinatorTrait for Lookahead {
             done: false,
         })
     }
+
+    fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        // Perform lookahead on the available bytes. Append the rest of the bytes as a partial lookahead.
+        let n = std::cmp::min(bytes.len(), self.lookahead.len());
+        let byte_slice = &bytes[..n];
+        let lookahead_slice = &self.lookahead[..n];
+        if byte_slice == lookahead_slice && self.positive || byte_slice != lookahead_slice && !self.positive {
+            let lookahead_rest = bytes[n..].to_vec();
+            if !lookahead_rest.is_empty() {
+                let partial_lookahead = PartialLookahead {
+                    position: right_data.position,
+                    lookahead: lookahead_rest,
+                    positive: self.positive,
+                };
+                right_data.lookahead_data.partial_lookaheads.push(partial_lookahead);
+            }
+            (Parser::FailParser(FailParser), ParseResults {
+                right_data_vec: vec![right_data],
+                up_data_vec: vec![],
+                done: false,
+            })
+        } else {
+            (Parser::FailParser(FailParser), ParseResults {
+                right_data_vec: vec![],
+                up_data_vec: vec![],
+                done: true,
+            })
+        }
+    }
 }
 
 pub fn lookahead(lookahead: Vec<u8>) -> Lookahead {

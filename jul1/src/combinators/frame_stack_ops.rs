@@ -39,6 +39,15 @@ impl CombinatorTrait for WithNewFrame {
             done,
         })
     }
+
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let (a, ParseResults { right_data_vec: mut right_data_vec, up_data_vec: up_data_vec, done}) = self.a.parser_with_steps(right_data, bytes);
+        (Parser::WithNewFrameParser(WithNewFrameParser { a: Some(Box::new(a)) }), ParseResults {
+            right_data_vec: right_data_vec,
+            up_data_vec: up_data_vec,
+            done,
+        })
+    }
 }
 
 impl ParserTrait for WithNewFrameParser {
@@ -60,9 +69,9 @@ impl ParserTrait for WithNewFrameParser {
 }
 
 impl CombinatorTrait for FrameStackOp {
-    fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
+    fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let frame_stack = right_data.frame_stack.take().unwrap();
-        let (a, ParseResults { right_data_vec: mut right_data_vec, up_data_vec: mut up_data_vec, done}) = self.a.parser(right_data);
+        let (a, ParseResults { right_data_vec: mut right_data_vec, up_data_vec: mut up_data_vec, done}) = self.a.parser_with_steps(right_data, bytes);
         let parser = FrameStackOpParser {
             op_type: self.op_type,
             frame_stack,
