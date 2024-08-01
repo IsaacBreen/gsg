@@ -30,8 +30,8 @@ impl Display for Stats {
             create_block("U8 Matchers", self.total_active_u8_matchers(), &self.active_u8_matchers),
         ];
 
-        output.push_str(&join_vecs_vertically_with_separator(&overview_blocks, vec![String::new()]));
-        output.push_str("\nNested Stats\n");
+        output.push_str(&join_vecs_horizontally_with_separator(&overview_blocks, "   "));
+        output.push_str("\n\nNested Stats\n");
         output.push_str("════════════\n\n");
 
         // Nested stats
@@ -76,7 +76,7 @@ fn pad_lines(lines: &[String], max_lines: usize) -> Vec<String> {
 
 fn create_block(title: &str, total: usize, items: &BTreeMap<impl ToString, usize>) -> Vec<String> {
     let mut lines = vec![format!("{}", title)];
-    for (i, (key, value)) in items.iter().rev().take(3).enumerate() {
+    for (key, value) in items.iter().take(3) {
         lines.push(format!("▪ {:<12} {:>3}", truncate(&key.to_string(), 12), value));
     }
     while lines.len() < 5 {
@@ -100,16 +100,13 @@ fn create_nested_stats(prefix: &str, stats_by_tag: &BTreeMap<String, Vec<Stats>>
                 create_block("U8 Matchers", stats.total_active_u8_matchers(), &stats.active_u8_matchers),
             ];
 
-            let formatted_blocks = join_vecs_vertically_with_separator(&blocks, vec![String::new()]);
-            for (j, line) in formatted_blocks.lines().enumerate() {
+            let formatted_blocks = join_vecs_horizontally_with_separator(&blocks, "   ");
+            for line in formatted_blocks.lines() {
                 output.push_str(&format!("\n{}│ {}", prefix, line));
-                if j == formatted_blocks.lines().count() - 1 {
-                    output.push('\n');
-                }
             }
 
             if !stats.stats_by_tag.is_empty() {
-                output.push_str(&format!("{}│\n", prefix));
+                output.push_str(&format!("\n{}│", prefix));
                 output.push_str(&create_nested_stats(&format!("{}│  ", prefix), &stats.stats_by_tag));
             }
         }
@@ -125,7 +122,6 @@ fn truncate(s: &str, max_chars: usize) -> String {
         s.to_string()
     }
 }
-
 impl Stats {
     pub fn total_active_parsers(&self) -> usize {
         self.active_parser_type_counts.values().sum()
