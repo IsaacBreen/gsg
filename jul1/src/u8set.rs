@@ -218,7 +218,7 @@ impl BitAndAssign for U8Set {
 
 impl std::fmt::Debug for U8Set {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "U8Set({:?})", self)
+        write!(f, "U8Set({})", self)
     }
 }
 
