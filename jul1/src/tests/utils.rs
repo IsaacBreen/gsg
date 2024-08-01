@@ -117,9 +117,8 @@ pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, in
 }
 
 pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
-    let (mut parser, _) = combinator.parser(RightData::default());
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
-    let parse_results = parser.steps(&bytes);
+    let (parser, parse_results) = combinator.parser_with_steps(RightData::default(), &bytes);
     // todo: uncomment this for unambiguous parses
     // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
     // Get the right data with the highest position
