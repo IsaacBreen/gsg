@@ -224,7 +224,44 @@ impl std::fmt::Debug for U8Set {
 
 impl std::fmt::Display for U8Set {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        let mut ranges = Vec::new();
+        let mut start = None;
+        let mut prev = None;
+
+        for i in self.iter() {
+            match (start, prev) {
+                (None, None) => {
+                    start = Some(i);
+                }
+                (Some(_), Some(p)) if i == p + 1 => {}
+                (Some(s), Some(p)) => {
+                    ranges.push((s, p));
+                    start = Some(i);
+                }
+                _ => unreachable!(),
+            }
+            prev = Some(i);
+        }
+
+        if let Some(s) = start {
+            ranges.push((s, prev.unwrap()));
+        }
+
+        let mut output = String::new();
+        for (i, (start, end)) in ranges.iter().enumerate() {
+            if i > 0 {
+                output.push_str(", ");
+            }
+            if start == end {
+                output.push_str(&format!("{}", *start as char));
+            } else if end - start == 1 {
+                output.push_str(&format!("{}, {}", *start as char, *end as char));
+            } else {
+                output.push_str(&format!("{}-{}", *start as char, *end as char));
+            }
+        }
+
+        write!(f, "[{}]", output)
     }
 }
 
