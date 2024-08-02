@@ -816,10 +816,11 @@ class Choice(Node):
         children = [child for child in children if child != fail()]
         _children = []
         for child in children:
-            if isinstance(child, Choice):
-                _children.extend(child.children)
-            else:
-                _children.append(child)
+            # if isinstance(child, Choice):
+            #     _children.extend(child.children)
+            # else:
+            #     _children.append(child)
+            _children.append(child)
         children = _children
         if len(children) == 1:
             return children[0]

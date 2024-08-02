@@ -250,9 +250,8 @@ pub fn python_file() -> Combinator {
         python_literal("...")
     )));
     let slice = slice.set(tag("slice", choice!(
-        seq!(opt(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression)), opt(&WS)), seq!(&lambdef, opt(&WS)))), python_literal(":"), opt(seq!(opt(&WS), &expression)), opt(seq!(opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &expression))))),
-        seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression),
-        seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(python_literal(":=")))
+        seq!(opt(seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), opt(&WS))), python_literal(":"), opt(seq!(opt(&WS), &expression)), opt(seq!(opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &expression))))),
+        choice!(seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(python_literal(":="))))
     )));
     let slices = slices.set(tag("slices", choice!(
         seq!(&slice, negative_lookahead(python_literal(","))),
@@ -335,11 +334,10 @@ pub fn python_file() -> Combinator {
     let star_named_expressions = star_named_expressions.set(tag("star_named_expressions", seq!(&star_named_expression, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &star_named_expression, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_named_expression))))), opt(seq!(opt(&WS), python_literal(","))))));
     let star_expression = star_expression.set(cached(tag("star_expression", choice!(
         seq!(python_literal("*"), opt(&WS), &bitwise_or),
-        seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))),
-        &lambdef
+        choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef)
     ))));
     let star_expressions = star_expressions.set(tag("star_expressions", seq!(&star_expression, opt(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &star_expression, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_expression))), opt(seq!(opt(&WS), python_literal(","))))))))));
-    let yield_expr = yield_expr.set(tag("yield_expr", seq!(python_literal("yield"), opt(seq!(opt(&WS), choice!(seq!(python_literal("from"), opt(&WS), &expression), &star_expressions))))));
+    let yield_expr = yield_expr.set(tag("yield_expr", seq!(python_literal("yield"), choice!(seq!(opt(&WS), python_literal("from"), opt(&WS), &expression), opt(seq!(opt(&WS), &star_expressions))))));
     let expression = expression.set(cached(tag("expression", choice!(
         seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))),
         &lambdef
@@ -390,7 +388,7 @@ pub fn python_file() -> Combinator {
     )));
     let double_star_pattern = double_star_pattern.set(tag("double_star_pattern", seq!(python_literal("**"), opt(&WS), &pattern_capture_target)));
     let key_value_pattern = key_value_pattern.set(tag("key_value_pattern", seq!(
-        choice!(seq!(&signed_number, negative_lookahead(choice!(python_literal("+"), python_literal("-")))), &complex_number, &strings, python_literal("None"), python_literal("True"), python_literal("False"), seq!(&name_or_attr, opt(&WS), python_literal("."), opt(&WS), &NAME)),
+        choice!(choice!(seq!(&signed_number, negative_lookahead(choice!(python_literal("+"), python_literal("-")))), &complex_number, &strings, python_literal("None"), python_literal("True"), python_literal("False")), seq!(&name_or_attr, opt(&WS), python_literal("."), opt(&WS), &NAME)),
          opt(&WS),
          python_literal(":"),
          opt(&WS),
@@ -401,8 +399,7 @@ pub fn python_file() -> Combinator {
     let star_pattern = star_pattern.set(cached(tag("star_pattern", seq!(python_literal("*"), opt(&WS), choice!(&pattern_capture_target, &wildcard_pattern)))));
     let maybe_star_pattern = maybe_star_pattern.set(tag("maybe_star_pattern", choice!(
         &star_pattern,
-        &as_pattern,
-        &or_pattern
+        choice!(&as_pattern, &or_pattern)
     )));
     let maybe_sequence_pattern = maybe_sequence_pattern.set(tag("maybe_sequence_pattern", seq!(&maybe_star_pattern, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &maybe_star_pattern, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &maybe_star_pattern))))), opt(seq!(opt(&WS), python_literal(","))))));
     let open_sequence_pattern = open_sequence_pattern.set(tag("open_sequence_pattern", seq!(&maybe_star_pattern, opt(&WS), python_literal(","), opt(seq!(opt(&WS), &maybe_sequence_pattern)))));
@@ -576,7 +573,7 @@ pub fn python_file() -> Combinator {
          python_literal(":"),
          opt(&WS),
          &block,
-         opt(seq!(opt(&WS), choice!(&elif_stmt, &else_block)))
+         choice!(seq!(opt(&WS), &elif_stmt), opt(seq!(opt(&WS), &else_block)))
     )));
     let if_stmt = if_stmt.set(tag("if_stmt", seq!(
         python_literal("if"),
@@ -586,7 +583,7 @@ pub fn python_file() -> Combinator {
          python_literal(":"),
          opt(&WS),
          &block,
-         opt(seq!(opt(&WS), choice!(&elif_stmt, &else_block)))
+         choice!(seq!(opt(&WS), &elif_stmt), opt(seq!(opt(&WS), &else_block)))
     )));
     let default = default.set(tag("default", seq!(python_literal("="), opt(&WS), &expression)));
     let star_annotation = star_annotation.set(tag("star_annotation", seq!(python_literal(":"), opt(&WS), &star_expression)));
