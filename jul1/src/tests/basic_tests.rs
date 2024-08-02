@@ -210,17 +210,32 @@ mod tests {
         assert_parses_fast(&s_combinator, "baac");
     }
 
+    #[test]
+    fn test_cache_nested_simple() {
+        forward_decls!(A);
+        A.set(cached(seq!(eat_char('['), opt(&A), eat_char(']'))));
+        let s_combinator = cache_context(&A);
+
+        assert_parses_default(&s_combinator, "[]");
+        assert_parses_fast(&s_combinator, "[]");
+        assert_parses_default(&s_combinator, "[[]]");
+        assert_parses_fast(&s_combinator, "[[]]");
+    }
 
     #[test]
     fn test_cache_nested() {
         forward_decls!(A);
+        // It's useful to test both eat_char and eat_string here to make sure both work under a cache
+        // A.set(tag("A", cached(seq!(eat_char('['), opt(seq!(&A, opt(&A))), eat_char(']')))));
         A.set(tag("A", cached(seq!(eat_string("["), opt(seq!(&A, opt(&A))), eat_string("]")))));
         let s_combinator = cache_context(&A);
 
         assert_parses_default(&s_combinator, "[]");
         assert_parses_fast(&s_combinator, "[]");
-        assert_parses_default(&s_combinator, "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]");
-        assert_parses_fast(&s_combinator, "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]");
+        assert_parses_default(&s_combinator, "[[]]");
+        assert_parses_fast(&s_combinator, "[[]]");
+        assert_parses_default(&s_combinator, "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]");
+        assert_parses_fast(&s_combinator, "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]");
         assert_parses_default(&s_combinator, "[[][]]");
         assert_parses_fast(&s_combinator, "[[][]]");
         assert_parses_default(&s_combinator, "[[][[][]]]");
