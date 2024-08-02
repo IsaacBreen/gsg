@@ -48,10 +48,6 @@ def is_nullable(node: Node, nullable_rules: set[Ref]) -> bool:
             return any(is_nullable(child, nullable_rules) for child in children)
         case Repeat1(child):
             return is_nullable(child, nullable_rules)
-        case OrderedChoice(children):
-            return any(is_nullable(child, nullable_rules) for child in children)
-        case GreedyRepeat1(child):
-            return is_nullable(child, nullable_rules)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -71,10 +67,6 @@ def is_null(node: Node, null_rules: set[Ref]) -> bool:
         case Choice(children):
             return all(is_null(child, null_rules) for child in children)
         case Repeat1(child):
-            return is_null(child, null_rules)
-        case OrderedChoice(children):
-            return all(is_null(child, null_rules) for child in children)
-        case GreedyRepeat1(child):
             return is_null(child, null_rules)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
@@ -154,13 +146,6 @@ def get_firsts(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExte
         return result
     elif isinstance(node, Repeat1):
         return get_firsts(node.child, nullable_rules)
-    elif isinstance(node, OrderedChoice):
-        result = set()
-        for child in node.children:
-            result.update(get_firsts(child, nullable_rules))
-        return result
-    elif isinstance(node, GreedyRepeat1):
-        return get_firsts(node.child, nullable_rules)
     else:
         raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -203,10 +188,10 @@ def infer_rule_types(rules: dict[Ref, Node]) -> dict[Ref, RuleType]:
 def iter_nodes(node: Node) -> Iterable[Node]:
     yield node
     match node:
-        case Seq(children) | Choice(children) | OrderedChoice(children):
+        case Seq(children) | Choice(children):
             for child in children:
                 yield from iter_nodes(child)
-        case Repeat1(child) | GreedyRepeat1(child):
+        case Repeat1(child):
             yield from iter_nodes(child)
         case EpsExternal(_) | Term(_) | Ref(_):
             pass
@@ -281,11 +266,7 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
 
             case Choice(children):
                 return Choice([intersperse_separator_for_node(child, separator, nullable_rules) for child in children])
-            case OrderedChoice(children):
-                return OrderedChoice([intersperse_separator_for_node(child, separator, nullable_rules) for child in children])
             case Repeat1(child):
-                return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
-            case GreedyRepeat1(child):
                 return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
             case Ref(_) | Term(_) | EpsExternal(_):
                 return node
@@ -305,8 +286,6 @@ def inject_prefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: 
         match node:
             case Choice(children):
                 return Choice([inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children])
-            case OrderedChoice(children):
-                return OrderedChoice([inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children])
             case Seq(children):
                 children = [inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules) for child in children]
                 return seq(*children)
@@ -328,8 +307,6 @@ def inject_suffix_on_nonnull_for_node(node: Node, suffix: Node, nullable_rules: 
         match node:
             case Choice(children):
                 return Choice([inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules) for child in children])
-            case OrderedChoice(children):
-                return OrderedChoice([inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules) for child in children])
             case Seq(children):
                 children = [inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules) for child in children]
                 return seq(*children)
@@ -377,14 +354,7 @@ def get_firsts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term 
             for child in children:
                 result.update(get_firsts_for_node(child, nullable_rules))
             return result
-        case OrderedChoice(children):
-            result = set()
-            for child in children:
-                result.update(get_firsts_for_node(child, nullable_rules))
-            return result
         case Repeat1(child):
-            return get_firsts_for_node(child, nullable_rules)
-        case GreedyRepeat1(child):
             return get_firsts_for_node(child, nullable_rules)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
@@ -415,14 +385,7 @@ def get_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term |
             for child in children:
                 result.update(get_lasts_for_node(child, nullable_rules))
             return result
-        case OrderedChoice(children):
-            result = set()
-            for child in children:
-                result.update(get_lasts_for_node(child, nullable_rules))
-            return result
         case Repeat1(child):
-            return get_lasts_for_node(child, nullable_rules)
-        case GreedyRepeat1(child):
             return get_lasts_for_node(child, nullable_rules)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
@@ -453,14 +416,7 @@ def get_definite_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref
             for child in children:
                 result.update(get_lasts_for_node(child, nullable_rules))
             return result
-        case OrderedChoice(children):
-            result = set()
-            for child in children:
-                result.update(get_lasts_for_node(child, nullable_rules))
-            return result
         case Repeat1(child):
-            return get_lasts_for_node(child, nullable_rules)
-        case GreedyRepeat1(child):
             return get_lasts_for_node(child, nullable_rules)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
@@ -524,19 +480,7 @@ def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref |
             for child in children:
                 result.update(collect_follows_for_node(child, nullable_rules))
             return result
-        case OrderedChoice(children):
-            result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
-            for child in children:
-                result.update(collect_follows_for_node(child, nullable_rules))
-            return result
         case Repeat1(child):
-            lasts = get_lasts_for_node(child, nullable_rules)
-            firsts = get_firsts_for_node(child, nullable_rules)
-            result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
-            for last in lasts:
-                result[last] = firsts
-            return result
-        case GreedyRepeat1(child):
             lasts = get_lasts_for_node(child, nullable_rules)
             firsts = get_firsts_for_node(child, nullable_rules)
             result: dict[Ref | Term | EpsExternal, set[Ref | Term | EpsExternal]] = {}
@@ -602,12 +546,8 @@ def map_left(node: Node, f: Callable[[Node], Node], nullable_rules: set[Ref]) ->
             return Seq(children)
         case Choice(children):
             return Choice([map_left(child, f, nullable_rules) for child in children])
-        case OrderedChoice(children):
-            return OrderedChoice([map_left(child, f, nullable_rules) for child in children])
         case Repeat1(child):
             return Repeat1(map_left(child, f, nullable_rules))
-        case GreedyRepeat1(child):
-            return GreedyRepeat1(map_left(child, f, nullable_rules))
         case _:
             return node
 
@@ -618,12 +558,8 @@ def map_all_for_node(node: Node, f: Callable[[Node], Node]) -> Node:
             node = Seq([map_all_for_node(child, f) for child in children])
         case Choice(children):
             node = Choice([map_all_for_node(child, f) for child in children])
-        case OrderedChoice(children):
-            node = OrderedChoice([map_all_for_node(child, f) for child in children])
         case Repeat1(child):
             node = Repeat1(map_all_for_node(child, f))
-        case GreedyRepeat1(child):
-            node = GreedyRepeat1(map_all_for_node(child, f))
         case _:
             node = node
     node = f(node)
@@ -640,11 +576,7 @@ def ensure_lasts_for_node(node: Node, includes: set[Ref | Term | EpsExternal], n
             raise NotImplementedError
         case Choice(children):
             return Choice([ensure_lasts_for_node(child, includes, nullable_rules) for child in children])
-        case OrderedChoice(children):
-            return OrderedChoice([ensure_lasts_for_node(child, includes, nullable_rules) for child in children])
         case Repeat1(child):
-            return seq(repeat0(child), ensure_lasts_for_node(child, includes, nullable_rules))
-        case GreedyRepeat1(child):
             return seq(repeat0(child), ensure_lasts_for_node(child, includes, nullable_rules))
         case Ref(_) | Term(_) | EpsExternal(_):
             return node
@@ -728,12 +660,8 @@ def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidd
                 return Seq(children)
             case Choice(children):
                 return Choice([forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, null_rules) for child in children])
-            case OrderedChoice(children):
-                return OrderedChoice([forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, null_rules) for child in children])
             case Repeat1(child):
                 return Repeat1(forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, null_rules))
-            case GreedyRepeat1(child):
-                return GreedyRepeat1(forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, null_rules))
             case Ref(_) | Term(_) | EpsExternal(_):
                 return node
             case Lookahead(_):
@@ -960,45 +888,6 @@ class Choice(Node):
 
 
 @dataclass
-class OrderedChoice(Node):
-    children: list[Node]
-
-    def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
-        firsts, recursives = [], []
-        for child in self.children:
-            first, recursive = child.decompose_on_left_recursion(ref)
-            firsts.append(first)
-            recursives.append(recursive)
-        return OrderedChoice(firsts), OrderedChoice(recursives)
-
-    def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
-        if len(self.children) == 0:
-            return self
-        else:
-            self.children = [child.replace_left_refs(replacements) for child in self.children]
-            return self
-
-    def simplify(self) -> Node:
-        # Simplify children
-        children = [child.simplify() for child in self.children]
-        # Remove any fail() children
-        children = [child for child in children if child != fail()]
-        if len(children) == 1:
-            return children[0]
-        return OrderedChoice(children)
-
-    def copy(self) -> Self:
-        return OrderedChoice([child.copy() for child in self.children])
-
-    def __str__(self) -> str:
-        match self:
-            case OrderedChoice([]):
-                return '\u001b[90mfail\u001b[0m()'
-            case default:
-                return f'\u001b[33mordered_choice\u001b[0m({", ".join(str(child) for child in self.children)})'
-
-
-@dataclass
 class Repeat1(Node):
     child: Node
 
@@ -1017,27 +906,6 @@ class Repeat1(Node):
 
     def __str__(self) -> str:
         return f'\u001b[35mrepeat1\u001b[0m({str(self.child)})'
-
-
-@dataclass
-class GreedyRepeat1(Node):
-    child: Node
-
-    def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
-        return seq(self.child, repeat0(self.child)).decompose_on_left_recursion(ref)
-
-    def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
-        return seq(self.child, repeat0(self.child)).replace_left_refs(replacements)
-
-    def simplify(self) -> Node:
-        self.child = self.child.simplify()
-        return self if self.child != fail() else fail()
-
-    def copy(self) -> Self:
-        return GreedyRepeat1(self.child.copy())
-
-    def __str__(self) -> str:
-        return f'\u001b[35mgreedy_repeat1\u001b[0m({str(self.child)})'
 
 
 @dataclass(frozen=True)
@@ -1130,9 +998,7 @@ class Lookahead(Node):
 # Core combinators
 def seq(*children: Node) -> Seq: return Seq(list(children))
 def choice(*children: Node) -> Choice: return Choice(list(children))
-def ordered_choice(*children: Node) -> OrderedChoice: return OrderedChoice(list(children))
 def repeat1(child: Node) -> Repeat1: return Repeat1(child)
-def greedy_repeat1(child: Node) -> GreedyRepeat1: return GreedyRepeat1(child)
 def ref(name: str) -> Ref: return Ref(name)
 def term(value: str) -> Term: return Term(value)
 def eps_external[T](data: T) -> EpsExternal[T]: return EpsExternal(data)
@@ -1151,18 +1017,21 @@ def sep0(child: Node, sep: Node) -> Node: return opt(sep1(child, sep))
 
 def prettify_rule(ref: Ref, node: Node) -> str:
     s = StringIO()
-    if isinstance(node, Choice) or isinstance(node, OrderedChoice):
+    if isinstance(node, Choice):
         match node:
-            case Choice([]) | OrderedChoice([]):
+            case Choice([]):
                 s.write(f'{ref} -> {node}\n')
-            case Choice([Repeat1(child), Seq([])]) | OrderedChoice([Repeat1(child), Seq([])]):
+            case Choice([Repeat1(child), Seq([])]):
                 s.write(f'{ref} -> {node}\n')
-            case Choice([Seq([x0, Choice([Repeat1(Seq([sep, x1])), Seq([])])]), Seq([])]) | OrderedChoice([Seq([x0, Choice([Repeat1(Seq([sep, x1])), Seq([])])]), Seq([])]) if x0 == x1:
+            case Choice([Seq([x0, Choice([Repeat1(Seq([sep, x1])), Seq([])])]), Seq([])]) if x0 == x1:
                 s.write(f'{ref} -> {node}\n')
-            case Choice([child, Seq([])]) | OrderedChoice([child, Seq([])]):
+            case Choice([child, Seq([])]):
                 s.write(f'{ref} -> {node}\n')
             case default:
-                s.write(f'{ref} -> {node}\n')
+                s.write(f'{ref} -> \u001b[33mchoice\u001b[0m(\n')
+                for child in node.children:
+                    s.write(f'    {child},\n')
+                s.write(')\n')
     elif isinstance(node, Seq) and len(node.children) >= 2:
         s.write(f'{ref} -> \u001b[32mseq\u001b[0m(\n')
         for child in node.children:
