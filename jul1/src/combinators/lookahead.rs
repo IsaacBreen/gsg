@@ -2,8 +2,7 @@ use crate::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PartialLookahead {
-    pub position: usize,
-    pub lookahead: Vec<u8>,
+    pub parser: Box<Parser>,
     pub positive: bool,
 }
 
@@ -14,66 +13,36 @@ pub struct LookaheadData {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Lookahead {
-    pub lookahead: Vec<u8>,
+    pub combinator: Box<Combinator>,
     pub positive: bool,
 }
 
 impl CombinatorTrait for Lookahead {
     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
-        right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
-            position: right_data.position,
-            lookahead: self.lookahead.clone(),
-            positive: self.positive,
-        });
-        (Parser::FailParser(FailParser), ParseResults {
-            right_data_vec: vec![right_data],
-            up_data_vec: vec![],
-            done: false,
-        })
+        self.parser_with_steps(right_data, &[])
     }
 
     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        // Perform lookahead on the available bytes. Append the rest of the bytes as a partial lookahead.
-        let n = std::cmp::min(bytes.len(), self.lookahead.len());
-        let byte_slice = &bytes[..n];
-        let lookahead_slice = &self.lookahead[..n];
-        if byte_slice == lookahead_slice && self.positive || byte_slice != lookahead_slice && !self.positive {
-            let lookahead_rest = bytes[n..].to_vec();
-            if !lookahead_rest.is_empty() {
-                let partial_lookahead = PartialLookahead {
-                    position: right_data.position,
-                    lookahead: lookahead_rest,
-                    positive: self.positive,
-                };
-                right_data.lookahead_data.partial_lookaheads.push(partial_lookahead);
-            }
-            (Parser::FailParser(FailParser), ParseResults {
+        let (mut parser, mut parse_results) = self.combinator.parser_with_steps(right_data.clone(), bytes);
+        let has_right_data = !parse_results.right_data_vec.is_empty();
+        if has_right_data && self.positive || !has_right_data && !self.positive {
+            (parser, ParseResults {
                 right_data_vec: vec![right_data],
-                up_data_vec: vec![],
-                done: false,
-            })
-        } else {
-            (Parser::FailParser(FailParser), ParseResults {
-                right_data_vec: vec![],
                 up_data_vec: vec![],
                 done: true,
             })
+        } else {
+            (Parser::FailParser(FailParser), ParseResults::empty_finished())
         }
     }
 }
 
-pub fn lookahead(lookahead: Vec<u8>) -> Lookahead {
-    Lookahead {
-        lookahead,
-        positive: true,
-    }
+pub fn lookahead(combinator: impl Into<Combinator>) -> Lookahead {
+    Lookahead { combinator: Box::new(combinator.into()), positive: true }
 }
 
-pub fn negative_lookahead(lookahead: Vec<u8>) -> Lookahead {
-    Lookahead {
-        lookahead,
-        positive: false,
-    }
+pub fn negative_lookahead(combinator: impl Into<Combinator>) -> Lookahead {
+    Lookahead { combinator: Box::new(combinator.into()), positive: false }
 }
 
 impl From<Lookahead> for Combinator {
