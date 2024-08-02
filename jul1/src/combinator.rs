@@ -137,9 +137,7 @@ macro_rules! match_parser {
 }
 
 pub trait CombinatorTrait {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        self.parser_with_steps(right_data, &[])
-    }
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults);
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
     // fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
     //     let (mut parser, mut parse_results0) = self.parser(right_data);
