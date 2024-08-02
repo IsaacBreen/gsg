@@ -21,15 +21,15 @@ impl CombinatorTrait for Choice {
         let mut combined_results = ParseResults::empty_finished();
 
         for child in &self.children {
-            let (parser, parse_results) = child.parser(right_data.clone());
+            let (parser, parse_results) = child.parser_with_steps(right_data.clone(), bytes);
             if !parse_results.done {
                 parsers.push(parser);
             }
             let discard_rest = self.greedy && !parse_results.right_data_vec.is_empty();
             combined_results = combined_results.combine_inplace(parse_results);
-            if discard_rest {
-                break;
-            }
+            // if discard_rest {
+            //     break;
+            // }
         }
 
         (

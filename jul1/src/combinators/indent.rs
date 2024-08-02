@@ -39,18 +39,31 @@ impl CombinatorTrait for IndentCombinator {
                 }
                 // println!("Made dent parser with right_data: {:?}", right_data);
                 let combinator = make_combinator(&right_data.indents, right_data.indents.len());
-                let (parser, parse_results) = combinator.parser(right_data);
+                let (parser, parse_results) = combinator.parser_with_steps(right_data, bytes);
 
                 (IndentCombinatorParser::DentParser(Box::new(parser)), parse_results)
             }
             IndentCombinator::Indent if right_data.dedents == 0 => {
-                right_data.indents.push(vec![]);
-                // println!("Initialized indent parser with right_data: {:?}", right_data);
-                (IndentCombinatorParser::IndentParser(Some(right_data)), ParseResults {
-                    right_data_vec: vec![],
-                    up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
-                    done: false,
-                })
+                if !bytes.is_empty() && bytes[0] == b' ' {
+                    (IndentCombinatorParser::Done, ParseResults {
+                        right_data_vec: vec![],
+                        up_data_vec: vec![],
+                        done: true,
+                    })
+                } else {
+                    // Consume as many spaces as possible
+                    let mut i = 0;
+                    while i < bytes.len() && bytes[i] == b' ' {
+                        i += 1;
+                    }
+                    right_data.position += i;
+                    right_data.indents.push(bytes[0..i].to_vec());
+                    (IndentCombinatorParser::IndentParser(Some(right_data)), ParseResults {
+                        right_data_vec: vec![],
+                        up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
+                        done: false,
+                    })
+                }
             }
             IndentCombinator::Dedent if right_data.dedents > 0 => {
                 right_data.dedents -= 1;

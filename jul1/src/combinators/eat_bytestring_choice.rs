@@ -90,18 +90,12 @@ impl CombinatorTrait for EatByteStringChoice {
     }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let parser = EatByteStringChoiceParser {
+        let mut parser = EatByteStringChoiceParser {
             current_node: Rc::clone(&self.root),
             right_data,
         };
-        (
-            Parser::EatByteStringChoiceParser(parser),
-            ParseResults {
-                right_data_vec: vec![],
-                up_data_vec: vec![UpData { u8set: self.root.valid_bytes }],
-                done: false,
-            }
-        )
+        let parse_results = parser.steps(bytes);
+        (Parser::EatByteStringChoiceParser(parser), parse_results)
     }
 }
 

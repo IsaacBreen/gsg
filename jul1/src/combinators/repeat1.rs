@@ -34,8 +34,6 @@ impl CombinatorTrait for Repeat1 {
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (a, mut parse_results) = self.a.parser_with_steps(right_data.clone(), bytes);
-        assert!(parse_results.right_data_vec.is_empty());
-        // parse_results.right_data_vec.clear();
         let a_parsers = if !parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty() {
             vec![a.clone()]
         } else {
