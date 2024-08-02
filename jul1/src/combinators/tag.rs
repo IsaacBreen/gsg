@@ -1,17 +1,34 @@
+use std::fmt::{Debug, Formatter};
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 
 use crate::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Tagged {
     pub inner: Box<Combinator>,
     pub tag: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TaggedParser {
     pub inner: Box<Parser>,
     pub tag: String,
+}
+
+impl Debug for Tagged {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Tagged")
+            .field("tag", &self.tag)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Debug for TaggedParser {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TaggedParser")
+            .field("tag", &self.tag)
+            .finish_non_exhaustive()
+    }
 }
 
 impl CombinatorTrait for Tagged {
