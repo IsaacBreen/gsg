@@ -190,6 +190,14 @@ fn test_actual_python_file_fast() {
 }
 
 #[test]
+fn test_lots_of_lines_fast() {
+    let combinator = python_file();
+
+    let s = "a\n".repeat(20);
+    assert_parses_fast(&combinator, &s);
+}
+
+#[test]
 fn test_simple_2() {
     let combinator = python_file();
     // assert_parses_default(&combinator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
