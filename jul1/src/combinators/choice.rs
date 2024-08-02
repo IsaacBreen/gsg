@@ -42,7 +42,7 @@ impl CombinatorTrait for Choice {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
-        for child in &self.children {
+        for (i, child) in self.children.iter().enumerate() {
             let (parser, parse_results) = child.parser_with_steps(right_data.clone(), bytes);
             if !parse_results.done {
                 parsers.push(parser);
@@ -51,6 +51,7 @@ impl CombinatorTrait for Choice {
             let discard_rest = self.greedy && !parse_results.right_data_vec.is_empty() && parse_results.right_data_vec.iter().all(|rd| rd.lookahead_data.partial_lookaheads.is_empty());
             combined_results = combined_results.combine_inplace(parse_results);
             if discard_rest {
+                println!("discarding rest: {:?}", self.children[i+1..].to_vec());
                 break;
             }
         }
