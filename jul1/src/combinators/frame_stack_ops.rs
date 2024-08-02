@@ -69,6 +69,10 @@ impl ParserTrait for WithNewFrameParser {
 }
 
 impl CombinatorTrait for FrameStackOp {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+        self.parser_with_steps(right_data, &[])
+    }
+
     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let frame_stack = right_data.frame_stack.take().unwrap();
         let (a, ParseResults { right_data_vec: mut right_data_vec, up_data_vec: mut up_data_vec, done}) = self.a.parser_with_steps(right_data, bytes);
