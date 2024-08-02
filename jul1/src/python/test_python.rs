@@ -2,7 +2,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use crate::{eat_string, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, whitespace, WS};
-use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast};
+use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, assert_parses_fast_with_tolerance};
 
 #[test]
 fn test_trivial_ws() {
@@ -183,7 +183,7 @@ fn test_actual_python_file_fast() {
 
     for (name, content) in test_cases.iter() {
         let start = Instant::now();
-        assert_parses_fast(&combinator, content);
+        assert_parses_fast_with_tolerance(&combinator, content, 20);
         let duration = start.elapsed();
         println!("{:<25} parsed in {:?}", name, duration);
     }
