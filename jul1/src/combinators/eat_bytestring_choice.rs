@@ -1,9 +1,10 @@
+use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, UpData};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 struct BuildTrieNode {
     valid_bytes: U8Set,
     is_end: bool,
@@ -44,11 +45,20 @@ impl BuildTrieNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 struct TrieNode {
     valid_bytes: U8Set,
     is_end: bool,
     children: Vec<Rc<TrieNode>>,
+}
+
+impl Debug for TrieNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TrieNode")
+            .field("valid_bytes", &self.valid_bytes)
+            .field("is_end", &self.is_end)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
