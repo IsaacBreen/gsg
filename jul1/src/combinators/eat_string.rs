@@ -35,13 +35,10 @@ impl CombinatorTrait for EatString {
     }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let mut parser = EatStringParser {
-            string: self.string.clone(),
-            index: 0,
-            right_data: Some(right_data),
-        };
-        let parse_results = parser.steps(bytes);
-        (Parser::EatStringParser(parser), parse_results)
+        let (mut parser, mut parse_results0) = self.parser(right_data);
+        let parse_results1 = parser.steps(bytes);
+        parse_results0.combine(parse_results1);
+        (parser, parse_results0)
     }
 }
 
