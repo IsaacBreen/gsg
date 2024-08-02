@@ -135,6 +135,14 @@ fn test_test_input() {
 }
 
 #[test]
+fn test_test_input_fast() {
+    let path = Path::new("src/tests/test_input.py");
+    let file = std::fs::read_to_string(path).unwrap();
+    let combinator = python_file();
+    assert_parses_fast(&combinator, &file);
+}
+
+#[test]
 fn test_actual_python_file() {
     let combinator = python_file();
 
@@ -193,7 +201,7 @@ fn test_actual_python_file_fast() {
 fn test_lots_of_lines_fast() {
     let combinator = python_file();
 
-    let s = "a\n".repeat(20);
+    let s = "a\n".repeat(10000);
     assert_parses_fast(&combinator, &s);
 }
 
