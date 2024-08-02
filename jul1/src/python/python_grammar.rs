@@ -715,21 +715,10 @@ pub fn python_file() -> Combinator {
         seq!(lookahead(python_literal("while")), &while_stmt),
         &match_stmt
     )));
-    let simple_stmt = simple_stmt.set(cached(tag("simple_stmt", crate::choice!(
+    let simple_stmt = simple_stmt.set(cached(tag("simple_stmt", choice!(
         &assignment,
-        seq!(lookahead(python_literal("type")), &type_alias),
-        &star_expressions,
-        seq!(lookahead(python_literal("return")), &return_stmt),
+        // &star_expressions,
         seq!(lookahead(choice!(python_literal("import"), python_literal("from"))), &import_stmt),
-        seq!(lookahead(python_literal("raise")), &raise_stmt),
-        python_literal("pass"),
-        seq!(lookahead(python_literal("del")), &del_stmt),
-        seq!(lookahead(python_literal("yield")), &yield_stmt),
-        seq!(lookahead(python_literal("assert")), &assert_stmt),
-        python_literal("break"),
-        python_literal("continue"),
-        seq!(lookahead(python_literal("global")), &global_stmt),
-        seq!(lookahead(python_literal("nonlocal")), &nonlocal_stmt)
     ))));
     let simple_stmts = simple_stmts.set(tag("simple_stmts", seq!(&simple_stmt, crate::opt(&WS), choice!(seq!(negative_lookahead(python_literal(";")), &NEWLINE), seq!(opt(seq!(python_literal(";"), crate::opt(&WS), &simple_stmt, opt(repeat1(seq!(crate::opt(&WS), python_literal(";"), crate::opt(&WS), &simple_stmt))), crate::opt(&WS))), opt(seq!(python_literal(";"), crate::opt(&WS))), &NEWLINE)))));
     let statement_newline = statement_newline.set(tag("statement_newline", choice!(
