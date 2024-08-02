@@ -14,6 +14,7 @@ pub use seq::*;
 pub use symbol::*;
 pub use tag::*;
 pub use lookahead::*;
+pub use negative_lookahead::*;
 
 mod choice;
 mod eat_string;
@@ -36,6 +37,7 @@ mod eat_bytestring_choice;
 mod deferred;
 mod cache_first;
 mod lookahead;
+mod negative_lookahead;
 
 pub use choice::*;
 pub use eat_string::*;
