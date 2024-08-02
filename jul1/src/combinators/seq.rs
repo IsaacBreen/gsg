@@ -56,7 +56,7 @@ impl CombinatorTrait for Seq {
         let mut all_done = true;
         let start_position = right_data.position;
 
-        for child in self.children.iter() {
+        for (i, child) in self.children.iter().enumerate() {
             let mut new_parsers = Vec::new();
             let mut new_right_data = Vec::new();
 
