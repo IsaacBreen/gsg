@@ -5,6 +5,12 @@ use crate::{eat_string, NAME, non_breaking_space, opt, python_file, python_liter
 use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, assert_parses_fast_with_tolerance};
 
 #[test]
+fn test_trivial_x() {
+    let combinator = python_file();
+    assert_parses(&combinator, "x");
+}
+
+#[test]
 fn test_trivial_ws() {
     let combinator = seq!(NAME(), WS(), python_literal("="));
     assert_parses_default(&combinator, "x =");
