@@ -30,9 +30,6 @@ pub struct CacheKey {
 pub struct CacheEntry {
     pub parser: Option<Box<Parser>>,
     pub maybe_parse_results: Option<ParseResults>,
-    #[derivative(PartialEq = "ignore", Hash = "ignore")]
-    pub cache_data: Rc<RefCell<CacheDataInner>>,
-    pub first_parse_results: Option<ParseResults>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -112,7 +109,6 @@ impl CombinatorTrait for CacheContext {
 impl ParserTrait for CacheContextParser {
     fn step(&mut self, c: u8) -> ParseResults {
         self.cache_data_inner.borrow_mut().entries.iter_mut().for_each(|entry| {
-            entry.borrow_mut().first_parse_results.take();
             entry.borrow_mut().maybe_parse_results.take();
         });
         let num_entries_initial = self.cache_data_inner.borrow().entries.len().clone();
@@ -131,7 +127,6 @@ impl ParserTrait for CacheContextParser {
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         self.cache_data_inner.borrow_mut().entries.iter_mut().for_each(|entry| {
-            entry.borrow_mut().first_parse_results.take();
             entry.borrow_mut().maybe_parse_results.take();
         });
         let num_entries_initial = self.cache_data_inner.borrow().entries.len().clone();
@@ -153,14 +148,12 @@ impl CombinatorTrait for Cached {
     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
         let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
         if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.get(&key).cloned() {
-            let parse_results = entry.borrow().first_parse_results.clone().expect("CachedParser.parser: parse_results is None");
+            let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
             return (Parser::CachedParser(CachedParser { entry }), parse_results);
         }
         let entry = Rc::new(RefCell::new(CacheEntry {
             parser: None,
             maybe_parse_results: None,
-            cache_data: right_data.cache_data.inner.as_ref().unwrap().clone(),
-            first_parse_results: None,
         }));
         let (parser, mut parse_results) = self.inner.parser(right_data.clone());
         parse_results.squash();
@@ -168,7 +161,6 @@ impl CombinatorTrait for Cached {
         cache_data_inner.new_parsers.insert(key.clone(), entry.clone());
         cache_data_inner.entries.push(entry.clone());
         entry.borrow_mut().parser = Some(Box::new(parser));
-        entry.borrow_mut().first_parse_results = Some(parse_results.clone());
         entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
         (Parser::CachedParser(CachedParser { entry }), parse_results)
     }
@@ -176,14 +168,12 @@ impl CombinatorTrait for Cached {
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
         if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.get(&key).cloned() {
-            let parse_results = entry.borrow().first_parse_results.clone().expect("CachedParser.parser: parse_results is None");
+            let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
             return (Parser::CachedParser(CachedParser { entry }), parse_results);
         }
         let entry = Rc::new(RefCell::new(CacheEntry {
             parser: None,
             maybe_parse_results: None,
-            cache_data: right_data.cache_data.inner.as_ref().unwrap().clone(),
-            first_parse_results: None,
         }));
         let (parser, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
         parse_results.squash();
@@ -191,7 +181,6 @@ impl CombinatorTrait for Cached {
         cache_data_inner.new_parsers.insert(key.clone(), entry.clone());
         cache_data_inner.entries.push(entry.clone());
         entry.borrow_mut().parser = Some(Box::new(parser));
-        entry.borrow_mut().first_parse_results = Some(parse_results.clone());
         entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
         (Parser::CachedParser(CachedParser { entry }), parse_results)
     }
@@ -199,21 +188,11 @@ impl CombinatorTrait for Cached {
 
 impl ParserTrait for CachedParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        if let Some(ref parse_results) = self.entry.borrow().maybe_parse_results {
-            return parse_results.clone();
-        }
-        let parse_results = self.entry.borrow_mut().parser.as_mut().unwrap().step(c);
-        self.entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
-        parse_results
+        self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.step: parse_results is None")
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        if let Some(ref parse_results) = self.entry.borrow().maybe_parse_results {
-            return parse_results.clone();
-        }
-        let parse_results = self.entry.borrow_mut().parser.as_mut().unwrap().steps(bytes);
-        self.entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
-        parse_results
+        self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.steps: parse_results is None")
     }
 }
 
