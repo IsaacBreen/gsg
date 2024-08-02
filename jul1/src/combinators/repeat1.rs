@@ -67,7 +67,7 @@ impl CombinatorTrait for Repeat1 {
             Parser::Repeat1Parser(Repeat1Parser {
                 a: self.a.clone(),
                 a_parsers: new_parsers,
-                right_data: right_data_as.last().unwrap().clone(),
+                right_data,
                 position,
                 greedy: self.greedy
             }),
