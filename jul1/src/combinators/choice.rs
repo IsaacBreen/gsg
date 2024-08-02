@@ -16,6 +16,28 @@ pub struct ChoiceParser {
 }
 
 impl CombinatorTrait for Choice {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+        let mut parsers = Vec::new();
+        let mut combined_results = ParseResults::empty_finished();
+
+        for child in &self.children {
+            let (parser, parse_results) = child.parser(right_data.clone());
+            if !parse_results.done {
+                parsers.push(parser);
+            }
+            let discard_rest = self.greedy && !parse_results.right_data_vec.is_empty();
+            combined_results = combined_results.combine_inplace(parse_results);
+            // if discard_rest {
+            //     break;
+            // }
+        }
+
+        (
+            Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
+            combined_results
+        )
+    }
+
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
