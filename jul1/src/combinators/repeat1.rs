@@ -37,7 +37,7 @@ impl CombinatorTrait for Repeat1 {
         let mut up_data_as = vec![];
         let mut new_parsers = vec![];
 
-        let (a, mut parse_results) = self.a.parser_with_steps(right_data.clone(), bytes);
+        let (a, parse_results) = self.a.parser_with_steps(right_data.clone(), bytes);
         right_data_as.extend(parse_results.right_data_vec);
         up_data_as.extend(parse_results.up_data_vec);
         if !parse_results.done {
@@ -48,7 +48,7 @@ impl CombinatorTrait for Repeat1 {
         while i < right_data_as.len() {
             let right_data_a = right_data_as[i].clone();
             let offset = right_data_a.position - right_data.position;
-            let (a, mut parse_results) = self.a.parser_with_steps(right_data_a, &bytes[offset..]);
+            let (a, parse_results) = self.a.parser_with_steps(right_data_a, &bytes[offset..]);
             right_data_as.extend(parse_results.right_data_vec);
             up_data_as.extend(parse_results.up_data_vec);
             if !parse_results.done {
