@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 
 use derivative::Derivative;
@@ -258,14 +258,6 @@ pub fn cache_context(a: impl Into<Combinator>) -> CacheContext {
 pub fn cached(a: impl Into<Combinator>) -> Cached {
     Cached { inner: Rc::new(a.into()) }
 }
-
-// pub fn cache_context(a: impl Into<Combinator>) -> Combinator {
-//     a.into()
-// }
-//
-// pub fn cached(a: impl Into<Combinator>) -> Combinator {
-//     a.into()
-// }
 
 impl From<CacheContext> for Combinator {
     fn from(value: CacheContext) -> Self {
