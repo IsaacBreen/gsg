@@ -7,7 +7,13 @@ use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert
 #[test]
 fn test_trivial_x() {
     let combinator = python_file();
-    assert_parses(&combinator, "x");
+    assert_parses_fast(&combinator, "x\n");
+}
+
+#[test]
+fn test_simple_import() {
+    let combinator = python_file();
+    assert_parses_fast(&combinator, "import x\n");
 }
 
 #[test]
