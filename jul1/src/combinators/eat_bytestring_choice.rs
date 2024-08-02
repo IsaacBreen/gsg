@@ -161,6 +161,10 @@ pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
     EatByteStringChoice::new(bytestrings).into()
 }
 
+pub fn eat_string_choice(strings: &[&str]) -> Combinator {
+    eat_bytestring_choice(strings.iter().map(|s| s.as_bytes().to_vec()).collect())
+}
+
 impl From<EatByteStringChoice> for Combinator {
     fn from(value: EatByteStringChoice) -> Self {
         Combinator::EatByteStringChoice(value)

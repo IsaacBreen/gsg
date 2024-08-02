@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use unicode_general_category::GeneralCategory;
 
-use crate::{assert_no_dedents, check_right_data, choice, Choice, Combinator, CombinatorTrait, dedent, dent, eat_any_byte, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, opt, repeat0, repeat1, Repeat1, repeatn, RightData, seprep0, seprep1, seq, Seq, Symbol, tag};
+use crate::{assert_no_dedents, check_right_data, choice, Choice, Combinator, CombinatorTrait, Compile, dedent, dent, eat_any_byte, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, eat_string_choice, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, negative_lookahead, opt, repeat0, repeat1, Repeat1, repeatn, RightData, seprep0, seprep1, seq, Seq, Symbol, tag};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn breaking_space() -> Combinator {
@@ -280,8 +280,87 @@ pub fn xid_continue() -> Combinator {
     id_continue()
 }
 
+// https://github.com/python/cpython/blob/3.12/Lib/keyword.py
+//
+// kwlist = [
+//     'False',
+//     'None',
+//     'True',
+//     'and',
+//     'as',
+//     'assert',
+//     'async',
+//     'await',
+//     'break',
+//     'class',
+//     'continue',
+//     'def',
+//     'del',
+//     'elif',
+//     'else',
+//     'except',
+//     'finally',
+//     'for',
+//     'from',
+//     'global',
+//     'if',
+//     'import',
+//     'in',
+//     'is',
+//     'lambda',
+//     'nonlocal',
+//     'not',
+//     'or',
+//     'pass',
+//     'raise',
+//     'return',
+//     'try',
+//     'while',
+//     'with',
+//     'yield'
+// ]
+pub fn reserved_keyword() -> Combinator {
+    eat_string_choice(&[
+        "False",
+        "None",
+        "True",
+        "and",
+        "as",
+        "assert",
+        "async",
+        "await",
+        "break",
+        "class",
+        "continue",
+        "def",
+        "del",
+        "elif",
+        "else",
+        "except",
+        "finally",
+        "for",
+        "from",
+        "global",
+        "if",
+        "import",
+        "in",
+        "is",
+        "lambda",
+        "nonlocal",
+        "not",
+        "or",
+        "pass",
+        "raise",
+        "return",
+        "try",
+        "while",
+        "with",
+        "yield",
+    ])
+}
+
 pub fn NAME() -> Combinator {
-    seq!(xid_start(), repeat0(xid_continue()))
+    seq!(negative_lookahead(reserved_keyword()), xid_start(), repeat0(xid_continue()))
 }
 
 // .. _literals:
