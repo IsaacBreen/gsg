@@ -51,14 +51,6 @@ impl CombinatorTrait for Choice {
             let discard_rest = self.greedy && !parse_results.right_data_vec.is_empty() && parse_results.right_data_vec.iter().all(|rd| rd.lookahead_data.partial_lookaheads.is_empty());
             combined_results = combined_results.combine_inplace(parse_results);
             if discard_rest {
-                if i != self.children.len() - 1 {
-                    println!(">>> discarding rest");
-                    println!("{:?}", child);
-                    println!(">>> discarded children: {:?}", self.children[i + 1..].to_vec());
-                    for (j, child) in self.children[i + 1..].iter().enumerate() {
-                        println!(">>> child {}: {:?}", j, child);
-                    }
-                }
                 break;
             }
         }
