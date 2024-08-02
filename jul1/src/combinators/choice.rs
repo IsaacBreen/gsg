@@ -51,11 +51,13 @@ impl CombinatorTrait for Choice {
             let discard_rest = self.greedy && !parse_results.right_data_vec.is_empty() && parse_results.right_data_vec.iter().all(|rd| rd.lookahead_data.partial_lookaheads.is_empty());
             combined_results = combined_results.combine_inplace(parse_results);
             if discard_rest {
-                println!(">>> discarding rest");
-                dbg!(child);
-                println!(">>> discarded children: {:?}", self.children[i+1..].to_vec());
-                for child in self.children[i+1..].iter() {
-                    println!(">>> child: {:?}", child);
+                if i != self.children.len() - 1 {
+                    println!(">>> discarding rest");
+                    println!("{:?}", child);
+                    println!(">>> discarded children: {:?}", self.children[i + 1..].to_vec());
+                    for child in self.children[i + 1..].iter() {
+                        println!(">>> child: {:?}", child);
+                    }
                 }
                 break;
             }

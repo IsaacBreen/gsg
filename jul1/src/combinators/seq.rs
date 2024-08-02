@@ -60,6 +60,8 @@ impl CombinatorTrait for Seq {
             let mut new_parsers = Vec::new();
             let mut new_right_data = Vec::new();
 
+            current_right_data.squash();
+
             for right_data in current_right_data.into_iter() {
                 let offset = right_data.position - start_position;
                 let (parser, ParseResults { right_data_vec, up_data_vec, done }) = child.parser_with_steps(right_data, &bytes[offset..]);
