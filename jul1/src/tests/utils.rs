@@ -34,6 +34,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         let bytes = line.bytes().collect::<Vec<_>>();
 
         for (char_number, byte) in bytes.iter().cloned().enumerate() {
+            up_data.squash();
             let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));
             assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}. Line: {:?}, Char: {:?}, Text: {:?}", byte as char, up_data, line_number + 1, char_number + 1, line);
 
@@ -58,7 +59,6 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
             } = catch_unwind(AssertUnwindSafe(|| parser.step(byte).squashed())).expect(format!("Parser.step: Error at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1).as_str());
 
             up_data = new_up_data;
-            up_data.squash();
 
             assert!(!right_data.is_empty() || !up_data.is_empty(), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
             assert!(!done, "Parser finished prematurely at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
