@@ -44,7 +44,7 @@ def parse_grammar(text: str) -> pegen.grammar.Grammar:
         grammar = parser.start()
         return grammar
 
-def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True, ignore_lookaheads: bool = True) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
+def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True, ignore_lookaheads: bool = False) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
     def rhs_to_node(rhs: pegen.grammar.Rhs) -> remove_left_recursion.Node:
         if len(rhs.alts) == 1:
             return alt_to_node(rhs.alts[0])
@@ -192,8 +192,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         elif isinstance(item, pegen.grammar.PositiveLookahead):
             return f"lookahead({item_to_rust(item.node)})"
         elif isinstance(item, pegen.grammar.NegativeLookahead):
-            logging.warning(f"Doing nothing with negative lookahead: {item}")
-            return "eps()"
+            return f"negative_lookahead({item_to_rust(item.node)})"
         elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_rust(item)
         elif isinstance(item, pegen.grammar.Cut):
@@ -216,11 +215,11 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{cache_context, cached, cache_first_context, cache_first, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, Repeat1, Seq, tag, Compile};\n')
+    f.write('use crate::{cache_context, cached, cache_first_context, cache_first, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, Repeat1, Seq, tag, Compile, lookahead, negative_lookahead};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::seq;\n')
-    # f.write('use crate::{' + ', '.join(f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
-    f.write('use crate::{' + ', '.join(f'{name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
+    f.write('use crate::{' + ', '.join(f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
+    # f.write('use crate::{' + ', '.join(f'{name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
     f.write('\n')
 
     f.write('enum Forbidden {\n')
