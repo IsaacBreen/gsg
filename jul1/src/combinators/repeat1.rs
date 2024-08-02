@@ -123,8 +123,12 @@ impl ParserTrait for Repeat1Parser {
             if !done {
                 new_parsers.push(a_parser);
             }
+            let discard_rest = self.greedy && !right_data_a.is_empty() && right_data_a.iter().all(|rd| rd.lookahead_data.partial_lookaheads.is_empty());
             up_data_as.extend(up_data_a);
             right_data_as.extend(right_data_a);
+            if discard_rest {
+                break;
+            }
         }
 
         right_data_as.squash();
