@@ -55,8 +55,8 @@ impl CombinatorTrait for Choice {
                     println!(">>> discarding rest");
                     println!("{:?}", child);
                     println!(">>> discarded children: {:?}", self.children[i + 1..].to_vec());
-                    for child in self.children[i + 1..].iter() {
-                        println!(">>> child: {:?}", child);
+                    for (j, child) in self.children[i + 1..].iter().enumerate() {
+                        println!(">>> child {}: {:?}", j, child);
                     }
                 }
                 break;
