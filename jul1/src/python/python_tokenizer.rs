@@ -360,7 +360,7 @@ pub fn reserved_keyword() -> Combinator {
 }
 
 pub fn NAME() -> Combinator {
-    seq!(negative_lookahead(reserved_keyword()), xid_start(), repeat0(xid_continue()))
+    seq!(xid_start(), repeat0(xid_continue()))
 }
 
 // .. _literals:

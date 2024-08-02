@@ -715,7 +715,7 @@ pub fn python_file() -> Combinator {
         seq!(lookahead(python_literal("while")), &while_stmt),
         &match_stmt
     )));
-    let simple_stmt = simple_stmt.set(cached(tag("simple_stmt", choice!(
+    let simple_stmt = simple_stmt.set(cached(tag("simple_stmt", crate::choice!(
         &assignment,
         seq!(lookahead(python_literal("type")), &type_alias),
         &star_expressions,
