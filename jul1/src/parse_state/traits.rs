@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::{ParseResults, RightData, U8Set, UpData};
 
-const SQUASH_THRESHOLD: usize = 1;
+const SQUASH_THRESHOLD: usize = 0;
 
 pub trait Squash {
     type Output;
