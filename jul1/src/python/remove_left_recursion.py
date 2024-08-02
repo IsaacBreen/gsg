@@ -974,6 +974,7 @@ class EpsExternal[T](Node):
 @dataclass
 class Lookahead(Node):
     child: Node
+    positive: bool
 
     def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
         return self, fail()
@@ -986,10 +987,13 @@ class Lookahead(Node):
         return self if self.child != fail() else fail()
 
     def copy(self) -> Self:
-        return Lookahead(self.child.copy())
+        return Lookahead(self.child.copy(), self.positive)
 
     def __str__(self) -> str:
-        return f'\u001b[35mlookahead\u001b[0m({str(self.child)})'
+        if self.positive:
+            return f'\u001b[35mlookahead\u001b[0m({str(self.child)})'
+        else:
+            return f'\u001b[35mnegative_lookahead\u001b[0m({str(self.child)})'
 
 # Core combinators
 def seq(*children: Node) -> Seq: return Seq(list(children))
@@ -998,7 +1002,8 @@ def repeat1(child: Node) -> Repeat1: return Repeat1(child)
 def ref(name: str) -> Ref: return Ref(name)
 def term(value: str) -> Term: return Term(value)
 def eps_external[T](data: T) -> EpsExternal[T]: return EpsExternal(data)
-def lookahead(child: Node) -> Lookahead: return Lookahead(child)
+def lookahead(child: Node) -> Lookahead: return Lookahead(child, True)
+def negative_lookahead(child: Node) -> Lookahead: return Lookahead(child, False)
 
 
 # Derived combinators

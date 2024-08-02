@@ -33,6 +33,9 @@ impl CombinatorTrait for Repeat1 {
     }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        // Not done -> automatically passes
+        // Not greedy -> automatically passes
+        // Greedy and done -> only passes if a new parser called on right data doesn't have a right data without lookaheads (we can call this a dominating result).
         let mut right_data_as = vec![];
         let mut up_data_as = vec![];
         let mut new_parsers = vec![];

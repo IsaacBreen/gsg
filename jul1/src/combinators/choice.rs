@@ -47,6 +47,7 @@ impl CombinatorTrait for Choice {
             if !parse_results.done {
                 parsers.push(parser);
             }
+            // TODO: can't have lookaheads if done.
             let discard_rest = self.greedy && !parse_results.right_data_vec.is_empty() && parse_results.right_data_vec.iter().all(|rd| rd.lookahead_data.partial_lookaheads.is_empty());
             combined_results = combined_results.combine_inplace(parse_results);
             if discard_rest {
