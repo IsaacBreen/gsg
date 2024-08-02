@@ -93,7 +93,7 @@ impl ParserTrait for SeqParser {
         let mut all_up_data = Vec::new();
         let mut all_done = true;
 
-        for (combinator, parsers) in &mut self.children {
+        for (i, (combinator, parsers)) in self.children.iter_mut().enumerate() {
             let mut next_right_data = Vec::new();
 
             parsers.retain_mut(|mut parser| {
