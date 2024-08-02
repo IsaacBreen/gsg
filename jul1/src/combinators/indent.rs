@@ -44,7 +44,7 @@ impl CombinatorTrait for IndentCombinator {
                 (IndentCombinatorParser::DentParser(Box::new(parser)), parse_results)
             }
             IndentCombinator::Indent if right_data.dedents == 0 => {
-                if !bytes.is_empty() && bytes[0] == b' ' {
+                if !bytes.is_empty() && bytes[0] != b' ' {
                     (IndentCombinatorParser::Done, ParseResults {
                         right_data_vec: vec![],
                         up_data_vec: vec![],
@@ -58,8 +58,8 @@ impl CombinatorTrait for IndentCombinator {
                     }
                     right_data.position += i;
                     right_data.indents.push(bytes[0..i].to_vec());
-                    (IndentCombinatorParser::IndentParser(Some(right_data)), ParseResults {
-                        right_data_vec: vec![],
+                    (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults {
+                        right_data_vec: vec![right_data],
                         up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
                         done: false,
                     })
