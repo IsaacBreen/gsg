@@ -18,7 +18,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
     let mut timings: Vec<(String, std::time::Duration)> = Vec::new();
 
-    let (mut parser, ParseResults { up_data_vec: mut up_data, .. }) = T::parser(&combinator, RightData::default());
+    let (mut parser, mut parse_results) = T::parser(&combinator, RightData::default());
 
     let lines = input.lines().collect::<Vec<_>>();
     let num_lines = lines.len();
@@ -34,9 +34,9 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         let bytes = line.bytes().collect::<Vec<_>>();
 
         for (char_number, byte) in bytes.iter().cloned().enumerate() {
-            up_data.squash();
-            let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));
-            assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}. Line: {:?}, Char: {:?}, Text: {:?}", byte as char, up_data, line_number + 1, char_number + 1, line);
+            parse_results.squash();
+            let byte_is_in_some_up_data = parse_results.up_data_vec.iter().any(|up_data| up_data.u8set.contains(byte));
+            assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}. Line: {:?}, Char: {:?}, Text: {:?}", byte as char, parse_results, line_number + 1, char_number + 1, line);
 
             if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
                 timings.push((line.to_string(), Instant::now() - line_start));
@@ -52,16 +52,10 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 println!("{}", stats);
             }
 
-            let ParseResults {
-                right_data_vec: right_data,
-                up_data_vec: new_up_data,
-                done,
-            } = catch_unwind(AssertUnwindSafe(|| parser.step(byte).squashed())).expect(format!("Parser.step: Error at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1).as_str());
+            parse_results = catch_unwind(AssertUnwindSafe(|| parser.step(byte).squashed())).expect(format!("Parser.step: Error at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1).as_str());
 
-            up_data = new_up_data;
-
-            assert!(!right_data.is_empty() || !up_data.is_empty(), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
-            assert!(!done, "Parser finished prematurely at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
+            assert!(!parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty(), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
+            assert!(!parse_results.done, "Parser finished prematurely at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
         }
 
         timings.push((line.to_string(), Instant::now() - line_start));
