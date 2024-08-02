@@ -249,8 +249,8 @@ mod tests {
         }
 
         let S: Combinator = From::<&dyn Fn() -> Combinator>::from(&A);
-        assert_parses_default(&S, "a");
-        assert_parses_fast(&S, "a");
+        assert_parses_default(&S, "ab");
+        assert_parses_fast(&S, "ab");
     }
 
     #[test]
