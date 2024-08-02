@@ -33,14 +33,50 @@ impl CombinatorTrait for Repeat1 {
     }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let mut right_data_as = vec![];
+        let mut up_data_as = vec![];
+        let mut new_parsers = vec![];
+
         let (a, mut parse_results) = self.a.parser_with_steps(right_data.clone(), bytes);
-        let a_parsers = if !parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty() {
-            vec![a.clone()]
-        } else {
-            vec![]
-        };
-        let position = right_data.position;
-        (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, right_data, position, greedy: self.greedy }), parse_results)
+        right_data_as.extend(parse_results.right_data_vec);
+        up_data_as.extend(parse_results.up_data_vec);
+        if !parse_results.done {
+            new_parsers.push(a);
+        }
+
+        let mut i = 0;
+        while i < right_data_as.len() {
+            let right_data_a = right_data_as[i].clone();
+            let offset = right_data_a.position - right_data.position;
+            let (a, mut parse_results) = self.a.parser_with_steps(right_data_a, &bytes[offset..]);
+            right_data_as.extend(parse_results.right_data_vec);
+            up_data_as.extend(parse_results.up_data_vec);
+            if !parse_results.done {
+                new_parsers.push(a);
+            }
+            i += 1;
+        }
+
+        right_data_as.squash();
+
+        let position = right_data.position + bytes.len();
+
+        let done = new_parsers.is_empty();
+
+        (
+            Parser::Repeat1Parser(Repeat1Parser {
+                a: self.a.clone(),
+                a_parsers: new_parsers,
+                right_data: right_data_as.last().unwrap().clone(),
+                position,
+                greedy: self.greedy
+            }),
+            ParseResults {
+                right_data_vec: right_data_as,
+                up_data_vec: up_data_as,
+                done,
+            }
+        )
     }
 }
 
