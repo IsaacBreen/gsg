@@ -24,9 +24,22 @@ impl CombinatorTrait for Lookahead {
 
     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (mut parser, mut parse_results) = self.combinator.parser_with_steps(right_data.clone(), bytes);
+        if !parse_results.done {
+            right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
+                parser: Box::new(parser),
+                positive: self.positive,
+            });
+        }
         let has_right_data = !parse_results.right_data_vec.is_empty();
-        if has_right_data && self.positive || !has_right_data && !self.positive {
-            (parser, ParseResults {
+        let succeeds = if self.positive {
+            // A positive lookahead succeeds if it yields right data now or it *could* yield right data later (i.e. it's not done yet)
+            has_right_data || !parse_results.done
+        } else {
+            // A negative lookahead succeeds if it yields no right data now
+            !has_right_data
+        };
+        if succeeds {
+            (Parser::FailParser(FailParser), ParseResults {
                 right_data_vec: vec![right_data],
                 up_data_vec: vec![],
                 done: true,
