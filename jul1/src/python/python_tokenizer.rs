@@ -2,7 +2,8 @@ use std::rc::Rc;
 
 use unicode_general_category::GeneralCategory;
 
-use crate::{assert_no_dedents, check_right_data, choice, Choice, Combinator, CombinatorTrait, Compile, dedent, dent, eat_any_byte, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, eat_string_choice, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, negative_lookahead, exclude_strings, opt, repeat0, repeat1, Repeat1, repeatn, RightData, seprep0, seprep1, seq, Seq, Symbol, tag};
+use crate::{assert_no_dedents, check_right_data, Choice, Combinator, CombinatorTrait, Compile, dedent, dent, eat_any_byte, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, eat_string_choice, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, negative_lookahead, exclude_strings, Repeat1, RightData, seq, Seq, Symbol, tag};
+use crate::{opt_greedy as opt, repeat0_greedy as repeat0, repeat1_greedy as repeat1, repeatn_greedy as repeatn, seprep0_greedy as seprep0, seprep1_greedy as seprep1, choice_greedy as choice};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
 
 pub fn breaking_space() -> Combinator {
