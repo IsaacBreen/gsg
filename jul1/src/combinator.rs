@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::ops::AddAssign;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, Lookahead, LookaheadContext, LookaheadContextParser, MutateRightData, MutateRightDataParser, NegativeLookahead, NegativeLookaheadParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, WithNewFrame, WithNewFrameParser};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, NegativeLookahead, NegativeLookaheadParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, WithNewFrame, WithNewFrameParser};
 use crate::stats::Stats;
 
 macro_rules! define_enum {
@@ -52,8 +52,7 @@ define_enum!(
     CheckRightData,
     Deferred,
     Lookahead,
-    NegativeLookahead,
-    LookaheadContext
+    NegativeLookahead
 );
 
 define_enum!(
@@ -77,8 +76,7 @@ define_enum!(
     WithNewFrameParser,
     EatByteStringChoiceParser,
     CheckRightDataParser,
-    NegativeLookaheadParser,
-    LookaheadContextParser
+    NegativeLookaheadParser
 );
 
 macro_rules! match_combinator {
@@ -109,8 +107,7 @@ macro_rules! match_combinator {
             CheckRightData,
             Deferred,
             Lookahead,
-            NegativeLookahead,
-            LookaheadContext
+            NegativeLookahead
         )
     };
 }
@@ -138,8 +135,7 @@ macro_rules! match_parser {
             WithNewFrameParser,
             EatByteStringChoiceParser,
             CheckRightDataParser,
-            NegativeLookaheadParser,
-            LookaheadContextParser
+            NegativeLookaheadParser
         )
     };
 }
