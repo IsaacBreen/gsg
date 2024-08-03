@@ -16,7 +16,7 @@ impl From<EatString> for Combinator {
 pub struct EatStringParser {
     pub(crate) string: Vec<u8>,
     index: usize,
-    pub(crate) right_ Option<RightData>,
+    pub(crate) right_: Option<RightData>,
 }
 
 impl CombinatorTrait for EatString {
@@ -26,7 +26,7 @@ impl CombinatorTrait for EatString {
             let mut parser = EatStringParser {
                 string: _self.string.clone(),
                 index: 0,
-                right_ Some(right_data),
+                right_: Some(right_data),
             };
             // println!("EatStringParser: Starting {:?}", parser);
             (Parser::EatStringParser(parser), ParseResults {
@@ -56,7 +56,7 @@ impl ParserTrait for EatStringParser {
                 if self.string[self.index] == byte {
                     self.index += 1;
                     if self.index == self.string.len() {
-                        if let Some(mut right_data) = self.right_data.take() {
+                        if let Some(mut right_data) = self.right_.take() {
                             right_data.position += self.string.len();
                             right_data_vec.push(right_data);
                             done = true;
