@@ -43,9 +43,9 @@ impl CombinatorTrait for ExcludeBytestrings {
         let (inner, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
         let mut exclusion_filter = U8Set::none();
         let mut bytestrings = self.bytestrings.clone();
+        bytestrings.retain(|bytestring| bytes.len() < bytestring.len());
         bytestrings.retain(|bytestring| bytestring[0..bytes.len()] == *bytes);
         let mut position = bytes.len();
-        bytestrings.retain(|bytestring| position < bytestring.len());
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &bytestrings {
             if bytestring.len() == position + 1 {
@@ -72,9 +72,9 @@ impl ParserTrait for ExcludeBytestringsParser {
     fn step(&mut self, c: u8) -> ParseResults {
         let mut parse_results = self.inner.step(c);
         let mut exclusion_filter = U8Set::none();
+        self.bytestrings.retain(|bytestring| self.position + 1 < bytestring.len());
         self.bytestrings.retain(|bytestring| bytestring[self.position] == c);
         self.position += 1;
-        self.bytestrings.retain(|bytestring| self.position < bytestring.len());
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
             if bytestring.len() == self.position + 1 {
@@ -92,9 +92,9 @@ impl ParserTrait for ExcludeBytestringsParser {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         let mut parse_results = self.inner.steps(bytes);
         let mut exclusion_filter = U8Set::none();
+        self.bytestrings.retain(|bytestring| self.position + bytes.len() < bytestring.len());
         self.bytestrings.retain(|bytestring| bytestring[self.position..self.position + bytes.len()] == *bytes);
         self.position += bytes.len();
-        self.bytestrings.retain(|bytestring| self.position < bytestring.len());
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
             if bytestring.len() == self.position + 1 {
