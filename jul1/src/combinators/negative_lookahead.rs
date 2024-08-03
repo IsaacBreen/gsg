@@ -22,7 +22,7 @@ impl CombinatorTrait for ExcludeBytestrings {
         for bytestring in &self.bytestrings {
             if bytestring.len() == position + 1 {
                 let c = bytestring[position];
-                exclusion_filter |= U8Set::from_byte(*c);
+                exclusion_filter |= U8Set::from_byte(c);
             }
         }
         exclusion_filter = exclusion_filter.complement(); dbg!(exclusion_filter);
@@ -44,7 +44,7 @@ impl CombinatorTrait for ExcludeBytestrings {
         for bytestring in &self.bytestrings {
             if bytestring.len() == position + 1 {
                 let c = bytestring[position];
-                exclusion_filter |= U8Set::from_byte(*c);
+                exclusion_filter |= U8Set::from_byte(c);
             }
         }
         exclusion_filter = exclusion_filter.complement(); dbg!(exclusion_filter);
@@ -68,7 +68,7 @@ impl ParserTrait for ExcludeBytestringsParser {
         for bytestring in &self.bytestrings {
             if bytestring.len() == self.position + 1 {
                 let c = bytestring[self.position];
-                exclusion_filter |= U8Set::from_byte(*c);
+                exclusion_filter |= U8Set::from_byte(c);
             }
         }
         exclusion_filter = exclusion_filter.complement(); dbg!(exclusion_filter);
@@ -86,7 +86,7 @@ impl ParserTrait for ExcludeBytestringsParser {
         for bytestring in &self.bytestrings {
             if bytestring.len() == self.position + 1 {
                 let c = bytestring[self.position];
-                exclusion_filter |= U8Set::from_byte(*c);
+                exclusion_filter |= U8Set::from_byte(c);
             }
         }
         exclusion_filter = exclusion_filter.complement(); dbg!(exclusion_filter);
