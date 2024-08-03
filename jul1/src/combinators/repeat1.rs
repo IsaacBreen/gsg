@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, Squash};
+use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, Squash};
 use crate::combinators::derived::opt;
 use crate::parse_state::RightData;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -194,7 +194,7 @@ pub fn repeat0(a: impl Into<Combinator>) -> Combinator {
 }
 
 pub fn repeat0_greedy(a: impl Into<Combinator>) -> Combinator {
-    opt(repeat1_greedy(a)).into()
+    opt_greedy(repeat1_greedy(a)).into()
 }
 
 impl From<Repeat1> for Combinator {
