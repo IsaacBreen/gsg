@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::AddAssign;
 
-use crate::{CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, FrameStackOpParser, IndentCombinatorParser, match_parser, Parser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set, WithNewFrameParser};
+use crate::{CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, IndentCombinatorParser, match_parser, Parser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -266,7 +266,6 @@ impl Parser {
                     entry.borrow().parser.as_ref().map(|p| p.collect_stats(stats, current_tag));
                 }
             }
-            Parser::FrameStackOpParser(FrameStackOpParser { a: inner, .. }) |
             Parser::SymbolParser(SymbolParser { inner, .. }) => inner.collect_stats(stats, current_tag),
             Parser::TaggedParser(TaggedParser { inner, tag }) => {
                 let mut tag_stats = Stats::default();
@@ -276,9 +275,6 @@ impl Parser {
             }
             Parser::Repeat1Parser(Repeat1Parser { a_parsers, .. }) => {
                 a_parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
-            }
-            Parser::WithNewFrameParser(WithNewFrameParser { a, .. }) => {
-                a.as_ref().map(|a| a.collect_stats(stats, current_tag));
             }
             Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => parser.collect_stats(stats, current_tag),
             _ => {}

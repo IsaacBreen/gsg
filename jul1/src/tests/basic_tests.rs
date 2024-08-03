@@ -79,56 +79,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn test_frame_stack_contains() {
-        let mut right_data = RightData::default();
-        right_data.frame_stack.as_mut().unwrap().push_name(b"a");
-        let combinator = frame_stack_contains(eat_char_choice("a"));
-        assert_parses(&combinator, "a", "Frame stack contains 'a'");
-        assert_parses_fast(&combinator, "a");
-
-        let combinator = frame_stack_contains(eat_char_choice("b"));
-        assert_fails(&combinator, "b", "Frame stack does not contain 'b'");
-        assert_parses_fast(&combinator, "b");
-    }
-
-    #[test]
-    #[ignore]
-    fn test_frame_stack_push() {
-        let combinator = seq!(push_to_frame(eat_char_choice("a")), frame_stack_contains(choice!(eat_char_choice("b"), eat_char_choice("a"))));
-        assert_parses_default(&combinator, "ab");
-    }
-
-    #[test]
-    #[ignore]
-    fn test_frame_stack_pop() {
-        let combinator = seq!(
-            push_to_frame(eat_char_choice("a")),
-            frame_stack_contains(choice!(eat_char_choice("b"), eat_char_choice("a"))),
-            pop_from_frame(eat_char_choice("a")),
-            frame_stack_contains(eat_char_choice("a"))
-        );
-        assert_fails_default(&combinator, "aaa");
-        assert_parses_fast(&combinator, "aaa");
-    }
-
-    #[test]
-    #[ignore]
-    fn test_frame_stack_push_empty_frame() {
-        let combinator = seq!(
-            eat_char_choice("{"),
-            with_new_frame(seq!(
-                push_to_frame(eat_char_choice("a")), eat_char_choice("="), eat_char_choice("b"), eat_char_choice(";"),
-                frame_stack_contains(eat_char_choice("a")),
-            )),
-            eat_char_choice("}"),
-            frame_stack_contains(eat_char_choice("a")),
-        );
-        assert_fails_default(&combinator, "{a=b;}a");
-        assert_parses_fast(&combinator, "{a=b;}a");
-    }
-
-    #[test]
     fn test_indents() {
         let combinator = seq!(
             eat_char_choice("a"),

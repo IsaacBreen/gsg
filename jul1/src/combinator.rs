@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, WithNewFrame, WithNewFrameParser};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser};
 use crate::stats::Stats;
 
 macro_rules! define_enum {
@@ -39,13 +39,11 @@ define_enum!(
     CacheFirstContext,
     CacheFirst,
     IndentCombinator,
-    FrameStackOp,
     MutateRightData,
     Repeat1,
     Symbol,
     Tagged,
     ForwardRef,
-    WithNewFrame,
     ForbidFollows,
     ForbidFollowsClear,
     ForbidFollowsCheckNot,
@@ -69,12 +67,10 @@ define_enum!(
     CacheFirstParser,
     CacheFirstContextParser,
     IndentCombinatorParser,
-    FrameStackOpParser,
     MutateRightDataParser,
     Repeat1Parser,
     SymbolParser,
     TaggedParser,
-    WithNewFrameParser,
     EatByteStringChoiceParser,
     CheckRightDataParser,
     ExcludeBytestringsParser
@@ -94,13 +90,11 @@ macro_rules! match_combinator {
             CacheFirstContext,
             CacheFirst,
             IndentCombinator,
-            FrameStackOp,
             MutateRightData,
             Repeat1,
             Symbol,
             Tagged,
             ForwardRef,
-            WithNewFrame,
             ForbidFollows,
             ForbidFollowsClear,
             ForbidFollowsCheckNot,
@@ -121,6 +115,7 @@ macro_rules! match_parser {
             ChoiceParser,
             EatU8Parser,
             EatStringParser,
+            EatByteStringChoiceParser,
             EpsParser,
             FailParser,
             CacheContextParser,
@@ -128,13 +123,10 @@ macro_rules! match_parser {
             CacheFirstParser,
             CacheFirstContextParser,
             IndentCombinatorParser,
-            FrameStackOpParser,
             MutateRightDataParser,
             Repeat1Parser,
             SymbolParser,
             TaggedParser,
-            WithNewFrameParser,
-            EatByteStringChoiceParser,
             CheckRightDataParser,
             ExcludeBytestringsParser
         )
@@ -226,10 +218,8 @@ impl Parser {
                     }
                 }
             }
-            Parser::FrameStackOpParser(FrameStackOpParser { a: inner, .. }) |
             Parser::SymbolParser(SymbolParser { inner, .. }) |
-            Parser::TaggedParser(TaggedParser { inner, .. }) |
-            Parser::WithNewFrameParser(WithNewFrameParser { a: Some(inner), .. }) => {
+            Parser::TaggedParser(TaggedParser { inner, .. }) => {
                 inner.map_right_data_mut(&mut f);
             }
             Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => {
@@ -255,8 +245,7 @@ impl Parser {
             }
             Parser::CheckRightDataParser(CheckRightDataParser { run }) => {}
             Parser::EatU8Parser(EatU8Parser { right_data: None, .. }) |
-            Parser::EatStringParser(EatStringParser { .. }) |
-            Parser::WithNewFrameParser(WithNewFrameParser { a: None }) => {}
+            Parser::EatStringParser(EatStringParser { .. }) => {}
         }
     }
 }
