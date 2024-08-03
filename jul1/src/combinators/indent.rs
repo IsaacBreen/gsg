@@ -85,7 +85,11 @@ impl CombinatorTrait for IndentCombinator {
 
 impl ParserTrait for IndentCombinatorParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        match self {
+            IndentCombinatorParser::DentParser(parser) => parser.get_u8set(),
+            IndentCombinatorParser::IndentParser(_) => U8Set::from_byte(b' '),
+            IndentCombinatorParser::Done => U8Set::none(),
+        }
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {

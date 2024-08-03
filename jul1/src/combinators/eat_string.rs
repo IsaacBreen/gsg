@@ -43,7 +43,11 @@ impl CombinatorTrait for EatString {
 
 impl ParserTrait for EatStringParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        if self.index < self.string.len() {
+            U8Set::from_byte(self.string[self.index])
+        } else {
+            U8Set::none()
+        }
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {

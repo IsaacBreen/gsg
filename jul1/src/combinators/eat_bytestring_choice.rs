@@ -108,7 +108,11 @@ impl CombinatorTrait for EatByteStringChoice {
 
 impl ParserTrait for EatByteStringChoiceParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        if self.current_node.valid_bytes.is_empty() {
+            U8Set::none()
+        } else {
+            self.current_node.valid_bytes.clone()
+        }
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {

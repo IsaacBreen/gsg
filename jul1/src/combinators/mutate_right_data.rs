@@ -69,7 +69,7 @@ impl CombinatorTrait for MutateRightData {
 
 impl ParserTrait for MutateRightDataParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        U8Set::none()
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {

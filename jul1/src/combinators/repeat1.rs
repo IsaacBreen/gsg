@@ -78,7 +78,11 @@ impl CombinatorTrait for Repeat1 {
 
 impl ParserTrait for Repeat1Parser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        if self.a_parsers.is_empty() {
+            U8Set::none()
+        } else {
+            self.a_parsers.iter().map(|p| p.get_u8set()).reduce(|acc, e| acc | e).unwrap_or(U8Set::none())
+        }
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
