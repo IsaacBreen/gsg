@@ -22,18 +22,15 @@ pub struct EatStringParser {
 impl CombinatorTrait for EatString {
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        fn parser(_self: &EatString, right_data: RightData) -> (Parser, ParseResults) {
-            let parser = EatStringParser {
-                string: _self.string.clone(),
-                index: 0,
-                right_data: Some(right_data),
-            };
-            (Parser::EatStringParser(parser), ParseResults {
-                right_data_vec: vec![],
-                done: false,
-            })
-        }
-        let (mut parser, mut parse_results0) = parser(self, right_data);
+        let parser1 = EatStringParser {
+            string: self.string.clone(),
+            index: 0,
+            right_data: Some(right_data),
+        };
+        let (mut parser, mut parse_results0) = (Parser::EatStringParser(parser1), ParseResults {
+            right_data_vec: vec![],
+            done: false,
+        });
         let parse_results1 = parser.parse(bytes);
         parse_results0.combine_seq(parse_results1);
         (parser, parse_results0)
