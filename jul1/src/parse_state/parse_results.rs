@@ -8,6 +8,13 @@ pub struct ParseResults {
 }
 
 impl ParseResults {
+    pub fn new(right_data: RightData, done: bool) -> Self {
+        ParseResults {
+            right_data_vec: vec![right_data],
+            up_data_vec: vec![],
+            done,
+        }
+    }
     pub fn empty_unfinished() -> Self {
         ParseResults {
             right_data_vec: vec![],
