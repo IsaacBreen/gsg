@@ -12,8 +12,8 @@ mod tests {
 
     #[test]
     fn test_eat_u8() {
-        assert_parses_default(&eat_char("a"), "a");
-        assert_parses_fast(&eat_char("a"), "a");
+        assert_parses_default(&eat_char('a'), "a");
+        assert_parses_fast(&eat_char('a'), "a");
     }
 
     #[test]
@@ -24,48 +24,48 @@ mod tests {
 
     #[test]
     fn test_seq() {
-        assert_parses_default(&seq!(eat_char("a"), eat_char("b")), "ab");
-        assert_parses_fast(&seq!(eat_char("a"), eat_char("b")), "ab");
+        assert_parses_default(&seq!(eat_char('a'), eat_char('b')), "ab");
+        assert_parses_fast(&seq!(eat_char('a'), eat_char('b')), "ab");
     }
 
     #[test]
     fn test_repeat1() {
-        assert_parses_default(&repeat1(eat_char("a")), "a");
-        assert_parses_fast(&repeat1(eat_char("a")), "a");
-        assert_parses_default(&repeat1(eat_char("a")), "aa");
-        assert_parses_fast(&repeat1(eat_char("a")), "aa");
-        assert_parses_default(&repeat1(eat_char("a")), "aaa");
-        assert_parses_fast(&repeat1(eat_char("a")), "aaa");
+        assert_parses_default(&repeat1(eat_char('a')), "a");
+        assert_parses_fast(&repeat1(eat_char('a')), "a");
+        assert_parses_default(&repeat1(eat_char('a')), "aa");
+        assert_parses_fast(&repeat1(eat_char('a')), "aa");
+        assert_parses_default(&repeat1(eat_char('a')), "aaa");
+        assert_parses_fast(&repeat1(eat_char('a')), "aaa");
     }
 
     #[test]
     fn test_choice() {
-        assert_parses_default(&choice!(eat_char("a"), eat_char("b")), "a");
-        assert_parses_fast(&choice!(eat_char("a"), eat_char("b")), "a");
-        assert_parses_default(&choice!(eat_char("a"), eat_char("b")), "b");
-        assert_parses_fast(&choice!(eat_char("a"), eat_char("b")), "b");
+        assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "a");
+        assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "a");
+        assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "b");
+        assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "b");
     }
 
     #[test]
     fn test_seq_choice_seq() {
-        assert_parses_default(&seq!(choice!(eat_char("a"), seq!(eat_char("a"), eat_char("b"))), eat_char("c")), "ac");
-        assert_parses_fast(&seq!(choice!(eat_char("a"), seq!(eat_char("a"), eat_char("b"))), eat_char("c")), "ac");
-        assert_parses_default(&seq!(choice!(eat_char("a"), seq!(eat_char("a"), eat_char("b"))), eat_char("c")), "abc");
-        assert_parses_fast(&seq!(choice!(eat_char("a"), seq!(eat_char("a"), eat_char("b"))), eat_char("c")), "abc");
+        assert_parses_default(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "ac");
+        assert_parses_fast(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "ac");
+        assert_parses_default(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "abc");
+        assert_parses_fast(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "abc");
     }
 
     #[test]
     fn test_seq_opt() {
-        assert_parses_default(&seq!(opt(eat_char("a")), eat_char("b")), "ab");
-        assert_parses_fast(&seq!(opt(eat_char("a")), eat_char("b")), "ab");
-        assert_parses_default(&seq!(opt(eat_char("a")), eat_char("b")), "b");
-        assert_parses_fast(&seq!(opt(eat_char("a")), eat_char("b")), "b");
+        assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
+        assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
+        assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "b");
+        assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "b");
     }
 
     #[test]
     fn test_forward_ref() {
         let mut combinator = forward_ref();
-        combinator.set(choice!(seq!(eat_char("a"), &combinator), eat_char("b")));
+        combinator.set(choice!(seq!(eat_char('a'), &combinator), eat_char('b')));
         assert_parses_default(&combinator, "b");
         assert_parses_fast(&combinator, "b");
         assert_parses_fast(&combinator, "b");
@@ -81,15 +81,15 @@ mod tests {
     #[test]
     fn test_indents() {
         let combinator = seq!(
-            eat_char("a"),
+            eat_char('a'),
             eat_char('\n'),
             dent(),
             indent(),
-            eat_char("b"),
+            eat_char('b'),
             eat_char('\n'),
             dent(),
             dedent(),
-            eat_char("c"),
+            eat_char('c'),
         );
         // assert_parses_default(&combinator, "a\n b\nc");
         assert_parses_fast(&combinator, "a\n b\nc");
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_cache() {
-        let a_combinator = symbol(cached(tag("A", eat_char("a"))));
+        let a_combinator = symbol(cached(tag("A", eat_char('a'))));
         let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
 
         assert_parses_default(&s_combinator, "a");
@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_cache2() {
-        let a_combinator = symbol(cached(tag("A", eat_char("a"))));
+        let a_combinator = symbol(cached(tag("A", eat_char('a'))));
         let s_combinator = cache_context(choice!(&a_combinator, &a_combinator));
 
         assert_parses_default(&s_combinator, "a");
@@ -206,9 +206,9 @@ mod tests {
     #[test]
     fn test_fast_parse() {
         let combinator = seq!(
-            eat_char("a"),
-            repeat0(eat_char("b")),
-            eat_char("c"),
+            eat_char('a'),
+            repeat0(eat_char('b')),
+            eat_char('c'),
         );
         assert_parses_default(&combinator, "abc");
         assert_parses_fast(&combinator, "abc");
@@ -219,9 +219,9 @@ mod tests {
     #[test]
     fn test_fast_fail() {
         let combinator = seq!(
-            eat_char("a"),
-            repeat0(eat_char("b")),
-            eat_char("c"),
+            eat_char('a'),
+            repeat0(eat_char('b')),
+            eat_char('c'),
         );
         assert_fails_fast(&combinator, "d");
     }
@@ -230,10 +230,10 @@ mod tests {
     fn test_ordered_choice() {
         let combinator = seq!(
             choice_greedy!(
-                eat_char("a"),
-                seq!(eat_char("a"), eat_char("a")),
+                eat_char('a'),
+                seq!(eat_char('a'), eat_char('a')),
             ),
-            eat_char("b"),
+            eat_char('b'),
         );
     }
 }
