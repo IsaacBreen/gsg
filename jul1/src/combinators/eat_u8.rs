@@ -9,7 +9,7 @@ pub struct EatU8 {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatU8Parser {
     pub(crate) u8set: U8Set,
-    right_data: Option<RightData>,
+    pub(crate) right_data: Option<RightData>,
 }
 
 impl CombinatorTrait for EatU8 {

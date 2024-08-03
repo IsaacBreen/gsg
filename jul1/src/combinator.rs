@@ -205,99 +205,80 @@ impl Combinator {
 // Parser::CacheFirstParser(inner) => todo!(),
 
 impl Parser {
-    pub fn get_right_data_mut(&mut self) -> Vec<&mut RightData> {
+    pub fn map_right_data_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut RightData),
+    {
         match self {
             Parser::SeqParser(SeqParser { children, .. }) => {
-                let mut results = Vec::new();
                 for (_, parsers) in children {
                     for p in parsers {
-                        results.append(&mut p.get_right_data_mut());
+                        p.map_right_data_mut(&mut f);
                     }
                 }
-                results
             }
             Parser::ChoiceParser(ChoiceParser { parsers, .. }) => {
-                let mut results = Vec::new();
                 for p in parsers {
-                    results.append(&mut p.get_right_data_mut());
+                    p.map_right_data_mut(&mut f);
                 }
-                results
             }
             Parser::EatU8Parser(EatU8Parser { right_data: Some(right_data), .. }) |
             Parser::EatStringParser(EatStringParser { right_data: Some(right_data), .. }) |
             Parser::EatByteStringChoiceParser(EatByteStringChoiceParser { right_data, .. }) => {
-                vec![right_data]
+                f(right_data);
             }
             Parser::EpsParser(EpsParser {}) |
-            Parser::FailParser(FailParser {}) => {
-                vec![]
-            },
+            Parser::FailParser(FailParser {}) => {}
             Parser::CacheContextParser(CacheContextParser { inner, cache_data_inner }) => {
-                let mut results = inner.get_right_data_mut();
+                inner.map_right_data_mut(&mut f);
                 for entry in cache_data_inner.borrow().entries.iter() {
                     let mut entry = entry.borrow_mut();
                     if let Some(parser) = entry.parser.as_mut() {
-                        results.append(&mut parser.get_right_data_mut());
+                        parser.map_right_data_mut(&mut f);
                     }
                 }
-                results
             }
-            Parser::CachedParser(CachedParser { entry }) => {
-                vec![]
-            }
+            Parser::CachedParser(CachedParser { entry }) => {}
             Parser::CacheFirstContextParser(CacheFirstContextParser { inner, cache_first_data_inner }) => {
-                let mut results = inner.get_right_data_mut();
-                for (key, parse_results) in cache_first_data_inner.borrow().entries.iter_mut() {
+                inner.map_right_data_mut(&mut f);
+                for (_, parse_results) in cache_first_data_inner.borrow_mut().entries.iter_mut() {
                     for right_data in &mut parse_results.right_data_vec {
-                        results.push(right_data);
+                        f(right_data);
                     }
                 }
-                results
             }
             Parser::FrameStackOpParser(FrameStackOpParser { a: inner, .. }) |
             Parser::SymbolParser(SymbolParser { inner, .. }) |
             Parser::TaggedParser(TaggedParser { inner, .. }) |
             Parser::WithNewFrameParser(WithNewFrameParser { a: Some(inner), .. }) => {
-                inner.get_right_data_mut()
+                inner.map_right_data_mut(&mut f);
             }
             Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => {
-                parser.get_right_data_mut()
+                parser.map_right_data_mut(&mut f);
             }
             Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(Some(right_data))) => {
-                vec![right_data]
+                f(right_data);
             }
             Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(None)) |
-            Parser::IndentCombinatorParser(IndentCombinatorParser::Done) => {
-                vec![]
-            }
-
-            Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }) => {
-                vec![]
-            }
+            Parser::IndentCombinatorParser(IndentCombinatorParser::Done) => {}
+            Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }) => {}
             Parser::CacheFirstParser(CacheFirstParser::Initialized { parser }) => {
-                parser.get_right_data_mut()
+                parser.map_right_data_mut(&mut f);
             }
             Parser::NegativeLookaheadParser(NegativeLookaheadParser { inner, lookahead }) => {
-                inner.get_right_data_mut()
+                inner.map_right_data_mut(&mut f);
             }
-            Parser::MutateRightDataParser(MutateRightDataParser { run }) => {
-                vec![]
-            }
-            Parser::Repeat1Parser(Repeat1Parser { a, a_parsers, right_data, position, greedy }) => {
-                let mut results = vec![right_data];
+            Parser::MutateRightDataParser(MutateRightDataParser { run }) => {}
+            Parser::Repeat1Parser(Repeat1Parser { a_parsers, right_data, .. }) => {
+                f(right_data);
                 for a_parser in a_parsers {
-                    results.append(&mut a_parser.get_right_data_mut());
+                    a_parser.map_right_data_mut(&mut f);
                 }
-                results
             }
-            Parser::CheckRightDataParser(CheckRightDataParser { run }) => {
-                vec![]
-            }
+            Parser::CheckRightDataParser(CheckRightDataParser { run }) => {}
             Parser::EatU8Parser(EatU8Parser { right_data: None, .. }) |
-            Parser::EatStringParser(EatStringParser { string: _, index: _, right_data: None }) |
-            Parser::WithNewFrameParser(WithNewFrameParser { a: None }) => {
-                vec![]
-            }
+            Parser::EatStringParser(EatStringParser { .. }) |
+            Parser::WithNewFrameParser(WithNewFrameParser { a: None }) => {}
         }
     }
 }

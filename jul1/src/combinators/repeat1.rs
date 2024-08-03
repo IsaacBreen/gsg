@@ -13,7 +13,7 @@ pub struct Repeat1 {
 pub struct Repeat1Parser {
     a: Rc<Combinator>,
     pub(crate) a_parsers: Vec<Parser>,
-    right_data: RightData,
+    pub(crate) right_data: RightData,
     position: usize,
     greedy: bool,
 }

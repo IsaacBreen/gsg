@@ -16,7 +16,7 @@ impl From<EatString> for Combinator {
 pub struct EatStringParser {
     pub(crate) string: Vec<u8>,
     index: usize,
-    right_data: Option<RightData>,
+    pub(crate) right_data: Option<RightData>,
 }
 
 impl CombinatorTrait for EatString {
