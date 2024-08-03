@@ -274,5 +274,12 @@ fn test_string() {
 fn test_debug_fail_case() {
     let combinator = python_file();
     assert_parses_default(&combinator, "f(xx=1)\n");
-    // assert_parses_fast(&combinator, "f(xx=1)\n");
+    assert_parses_fast(&combinator, "f(xx=1)\n");
+}
+
+#[test]
+fn test_debug_import() {
+    let combinator = python_file();
+    // assert_parses_default(&combinator, "import x\n");
+    assert_parses_fast(&combinator, "import x\n");
 }

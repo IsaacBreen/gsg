@@ -47,7 +47,7 @@ impl CombinatorTrait for Tagged {
     }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        if self.tag == "WHAT THE HECK" {
+        if self.tag == "NAME" {
             println!("WHAT THE HECK");
         }
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parser_with_steps(right_data, bytes)));
