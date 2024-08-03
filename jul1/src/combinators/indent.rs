@@ -89,49 +89,50 @@ impl CombinatorTrait for IndentCombinator {
 
 impl ParserTrait for IndentCombinatorParser {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        fn step(_self: &mut IndentCombinatorParser, c: u8) -> ParseResults {
-            match _self {
-                IndentCombinatorParser::DentParser(parser) => parser.steps(&[c]),
-                IndentCombinatorParser::IndentParser(maybe_right_data) => {
-                    if c == b' ' {
-                        let mut right_data = maybe_right_data.as_mut().unwrap();
-                        right_data.position += 1;
-                        right_data.indents.last_mut().unwrap().push(c);
-                        // println!("Indent parser: {:?}", right_data);
-                        ParseResults {
-                            right_data_vec: vec![right_data.clone()],
-                            up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
-                            done: false,
-                        }
-                    } else {
-                        // Fail. Purge the right data to poison the parser.
-                        maybe_right_data.take();
-                        ParseResults {
-                            right_data_vec: vec![],
-                            up_data_vec: vec![],
-                            done: true,
-                        }
-                    }
-                }
-                IndentCombinatorParser::Done => ParseResults::empty_finished(),
-            }
-        }
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
+
         let mut right_data_vec = Vec::new();
-        for i in 0..bytes.len() {
-            let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec, done } = step(self, bytes[i]);
-            right_data_vec.append(&mut new_right_data_vec);
-            if done || i == bytes.len() - 1 {
-                return ParseResults {
-                    right_data_vec,
-                    up_data_vec,
-                    done,
-                };
+        let mut up_data_vec = Vec::new();
+        let mut done = false;
+
+        for &byte in bytes {
+            match self {
+                IndentCombinatorParser::DentParser(parser) => {
+                    let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec: new_up_data_vec, done: new_done } = parser.steps(&[byte]);
+                    right_data_vec.append(&mut new_right_data_vec);
+                    up_data_vec.extend(new_up_data_vec);
+                    done = new_done;
+                    if done {
+                        break;
+                    }
+                }
+                IndentCombinatorParser::IndentParser(maybe_right_data) => {
+                    if byte == b' ' {
+                        let mut right_data = maybe_right_data.as_mut().unwrap();
+                        right_data.position += 1;
+                        right_data.indents.last_mut().unwrap().push(byte);
+                        right_data_vec.push(right_data.clone());
+                        up_data_vec.push(UpData { u8set: U8Set::from_chars(" ") });
+                    } else {
+                        maybe_right_data.take();
+                        done = true;
+                        break;
+                    }
+                }
+                IndentCombinatorParser::Done => {
+                    done = true;
+                    break;
+                }
             }
         }
-        unreachable!();
+
+        ParseResults {
+            right_data_vec,
+            up_data_vec,
+            done,
+        }
     }
 }
 

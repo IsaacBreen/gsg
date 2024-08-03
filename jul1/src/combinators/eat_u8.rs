@@ -37,27 +37,26 @@ impl CombinatorTrait for EatU8 {
 
 impl ParserTrait for EatU8Parser {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        fn step(_self: &mut EatU8Parser, c: u8) -> ParseResults {
-            if _self.u8set.contains(c) {
-                if let Some(mut right_data) = _self.right_data.take() {
-                    right_data.position += 1;
-                    return ParseResults {
-                        right_data_vec: vec![right_data],
-                        up_data_vec: vec![],
-                        done: true,
-                    };
-                }
-            }
-            if let Some(mut right_data) = _self.right_data.take() {
-                return ParseResults::empty_finished()
-            } else {
-                panic!("EatU8Parser already consumed")
-            }
-        }
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
-        step(self, bytes[0])
+
+        if self.u8set.contains(bytes[0]) {
+            if let Some(mut right_data) = self.right_data.take() {
+                right_data.position += 1;
+                return ParseResults {
+                    right_data_vec: vec![right_data],
+                    up_data_vec: vec![],
+                    done: true,
+                };
+            }
+        }
+
+        if self.right_data.is_some() {
+            return ParseResults::empty_finished();
+        } else {
+            panic!("EatU8Parser already consumed");
+        }
     }
 }
 

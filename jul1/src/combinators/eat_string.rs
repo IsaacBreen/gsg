@@ -45,53 +45,43 @@ impl CombinatorTrait for EatString {
 impl ParserTrait for EatStringParser {
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        fn step(_self: &mut EatStringParser, c: u8) -> ParseResults {
-            if _self.index < _self.string.len() {
-                if _self.string[_self.index] == c {
-                    _self.index += 1;
-                    if _self.index == _self.string.len() {
-                        let mut right_data = _self.right_data.take().unwrap();
-                        right_data.position += _self.string.len();
-                        // println!("EatStringParser: Matched {:?}", _self);
-                        ParseResults {
-                            right_data_vec: vec![right_data],
-                            up_data_vec: vec![],
-                            done: true,
-                        }
-                    } else {
-                        // println!("EatStringParser: Continuing {:?}", _self);
-                        ParseResults {
-                            right_data_vec: vec![],
-                            up_data_vec: vec![UpData { u8set: U8Set::from_u8(_self.string[_self.index]) }],
-                            done: false,
-                        }
-                    }
-                } else {
-                    // println!("EatStringParser: Failed {:?}", _self);
-                    _self.index = _self.string.len();
-                    ParseResults::empty_finished()
-                }
-            } else {
-                // println!("EatStringParser: Done {:?}", _self);
-                panic!("EatStringParser already consumed")
-            }
-        }
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
+
         let mut right_data_vec = Vec::new();
-        for i in 0..bytes.len() {
-            let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec, done } = step(self, bytes[i]);
-            right_data_vec.append(&mut new_right_data_vec);
-            if done || i == bytes.len() - 1 {
-                return ParseResults {
-                    right_data_vec,
-                    up_data_vec,
-                    done,
-                };
+        let mut up_data_vec = Vec::new();
+        let mut done = false;
+
+        for &byte in bytes {
+            if self.index < self.string.len() {
+                if self.string[self.index] == byte {
+                    self.index += 1;
+                    if self.index == self.string.len() {
+                        if let Some(mut right_data) = self.right_data.take() {
+                            right_data.position += self.string.len();
+                            right_data_vec.push(right_data);
+                            done = true;
+                            break;
+                        }
+                    } else {
+                        up_data_vec.push(UpData { u8set: U8Set::from_u8(self.string[self.index]) });
+                    }
+                } else {
+                    self.index = self.string.len();
+                    done = true;
+                    break;
+                }
+            } else {
+                panic!("EatStringParser already consumed");
             }
         }
-        unreachable!();
+
+        ParseResults {
+            right_data_vec,
+            up_data_vec,
+            done,
+        }
     }
 }
 

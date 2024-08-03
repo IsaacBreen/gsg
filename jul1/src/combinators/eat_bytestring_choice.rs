@@ -109,50 +109,44 @@ impl CombinatorTrait for EatByteStringChoice {
 
 impl ParserTrait for EatByteStringChoiceParser {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        fn step(_self: &mut EatByteStringChoiceParser, c: u8) -> ParseResults {
-            if _self.current_node.valid_bytes.contains(c) {
-                let child_index = _self.current_node.valid_bytes.bitset.count_bits_before(c) as usize;
-                if child_index < _self.current_node.children.len() {
-                    let next_node = &_self.current_node.children[child_index];
-                    _self.current_node = Rc::clone(next_node);
-                    _self.right_data.position += 1;
-
-                    if _self.current_node.is_end {
-                        ParseResults {
-                            right_data_vec: vec![_self.right_data.clone()],
-                            up_data_vec: vec![UpData { u8set: _self.current_node.valid_bytes }],
-                            done: _self.current_node.valid_bytes.is_empty(),
-                        }
-                    } else {
-                        ParseResults {
-                            right_data_vec: vec![],
-                            up_data_vec: vec![UpData { u8set: _self.current_node.valid_bytes }],
-                            done: false,
-                        }
-                    }
-                } else {
-                    ParseResults::empty_finished()
-                }
-            } else {
-                ParseResults::empty_finished()
-            }
-        }
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
+
         let mut right_data_vec = Vec::new();
-        for i in 0..bytes.len() {
-            let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec, done } = step(self, bytes[i]);
-            right_data_vec.append(&mut new_right_data_vec);
-            if done || i == bytes.len() - 1 {
-                return ParseResults {
-                    right_data_vec,
-                    up_data_vec,
-                    done,
-                };
+        let mut up_data_vec = Vec::new();
+        let mut done = false;
+
+        for &byte in bytes {
+            if self.current_node.valid_bytes.contains(byte) {
+                let child_index = self.current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
+                if child_index < self.current_node.children.len() {
+                    self.current_node = Rc::clone(&self.current_node.children[child_index]);
+                    self.right_data.position += 1;
+
+                    if self.current_node.is_end {
+                        right_data_vec.push(self.right_data.clone());
+                        up_data_vec.push(UpData { u8set: self.current_node.valid_bytes });
+                        done = self.current_node.valid_bytes.is_empty();
+                        break;
+                    } else {
+                        up_data_vec.push(UpData { u8set: self.current_node.valid_bytes });
+                    }
+                } else {
+                    done = true;
+                    break;
+                }
+            } else {
+                done = true;
+                break;
             }
         }
-        unreachable!();
+
+        ParseResults {
+            right_data_vec,
+            up_data_vec,
+            done,
+        }
     }
 }
 
