@@ -13,6 +13,17 @@ pub struct ExcludeBytestringsParser {
     pub(crate) position: usize,
 }
 
+fn common_prefix(a: &[u8], b: &[u8]) -> bool {
+    let mut i = 0;
+    while i < a.len() && i < b.len() {
+        if a[i] != b[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
 impl CombinatorTrait for ExcludeBytestrings {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         let (inner, mut parse_results) = self.inner.parser(right_data);
@@ -40,11 +51,12 @@ impl CombinatorTrait for ExcludeBytestrings {
     }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        return self.inner.parser_with_steps(right_data.clone(), bytes);
         let (inner, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
         let mut exclusion_filter = U8Set::none();
         let mut bytestrings = self.bytestrings.clone();
         bytestrings.retain(|bytestring| bytes.len() < bytestring.len());
-        bytestrings.retain(|bytestring| bytestring[0..bytes.len()] == *bytes);
+        bytestrings.retain(|bytestring| common_prefix(bytes, bytestring));
         let mut position = bytes.len();
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &bytestrings {
@@ -57,7 +69,8 @@ impl CombinatorTrait for ExcludeBytestrings {
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
-        if bytestrings.iter().any(|bytestring| bytestring == bytes) {
+        if bytestrings.iter().any(|bytestring| bytes.starts_with(bytestring)) {
+            println!("Clearing right data");
             parse_results.right_data_vec.clear();
         }
         (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
@@ -73,7 +86,6 @@ impl ParserTrait for ExcludeBytestringsParser {
         let mut parse_results = self.inner.step(c);
         let mut exclusion_filter = U8Set::none();
         self.bytestrings.retain(|bytestring| self.position + 1 < bytestring.len());
-        self.bytestrings.retain(|bytestring| bytestring[self.position] == c);
         self.position += 1;
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
@@ -86,6 +98,10 @@ impl ParserTrait for ExcludeBytestringsParser {
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
+        if self.bytestrings.iter().any(|bytestring| bytestring[self.position - 1] == c) {
+            parse_results.right_data_vec.clear();
+        }
+        self.bytestrings.retain(|bytestring| bytestring[self.position - 1] == c);
         parse_results
     }
 
@@ -93,7 +109,6 @@ impl ParserTrait for ExcludeBytestringsParser {
         let mut parse_results = self.inner.steps(bytes);
         let mut exclusion_filter = U8Set::none();
         self.bytestrings.retain(|bytestring| self.position + bytes.len() < bytestring.len());
-        self.bytestrings.retain(|bytestring| bytestring[self.position..self.position + bytes.len()] == *bytes);
         self.position += bytes.len();
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
@@ -106,6 +121,10 @@ impl ParserTrait for ExcludeBytestringsParser {
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
+        if self.bytestrings.iter().any(|bytestring| common_prefix(bytes, &bytestring[self.position - bytes.len()..])) {
+            parse_results.right_data_vec.clear();
+        }
+        self.bytestrings.retain(|bytestring| common_prefix(bytes, &bytestring[self.position - bytes.len()..]));
         parse_results
     }
 }
