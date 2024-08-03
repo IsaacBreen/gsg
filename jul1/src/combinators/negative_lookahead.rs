@@ -24,6 +24,7 @@ impl CombinatorTrait for ExcludeBytestrings {
                 exclusion_filter |= U8Set::from_byte(*c);
             }
         }
+        exclusion_filter = exclusion_filter.complement();
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
@@ -44,6 +45,7 @@ impl CombinatorTrait for ExcludeBytestrings {
                 exclusion_filter |= U8Set::from_byte(*c);
             }
         }
+        exclusion_filter = exclusion_filter.complement();
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
@@ -66,6 +68,7 @@ impl ParserTrait for ExcludeBytestringsParser {
                 exclusion_filter |= U8Set::from_byte(*c);
             }
         }
+        exclusion_filter = exclusion_filter.complement();
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
@@ -82,6 +85,7 @@ impl ParserTrait for ExcludeBytestringsParser {
                 exclusion_filter |= U8Set::from_byte(*c);
             }
         }
+        exclusion_filter = exclusion_filter.complement();
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
