@@ -115,6 +115,19 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let (parser, mut parse_results) = combinator.parser_with_steps(RightData::default(), &bytes);
     parse_results.squash();
+    // Get the line and char number of the max position
+    let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
+    let mut line_number = 0;
+    let mut char_number = 0;
+    for byte in bytes.iter().cloned() {
+        if byte == b'\n' {
+            line_number += 1;
+            char_number = 0;
+        } else {
+            char_number += 1;
+        }
+    }
+    println!("max_position: {max_position}, line_number: {line_number}, char_number: {char_number}");
     // todo: uncomment this for unambiguous parses
     // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
     // Get the right data with the highest position
@@ -126,6 +139,18 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let (parser, mut parse_results) = combinator.parser_with_steps(RightData::default(), &bytes);
     parse_results.squash();
+    // Get the line and char number of the max position
+    let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
+    let mut line_number = 0;
+    let mut char_number = 0;
+    for byte in bytes.iter().cloned() {
+        if byte == b'\n' {
+            line_number += 1;
+            char_number = 0;
+        } else {
+            char_number += 1;
+        }
+    }
     // todo: uncomment this for unambiguous parses
     // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
     // Get the right data with the highest position
