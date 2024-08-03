@@ -20,11 +20,12 @@ impl CombinatorTrait for ExcludeBytestrings {
         let mut position = 0;
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
-            if let Some(c) = bytestring.get(position) {
+            if bytestring.len() == position + 1 {
+                let c = bytestring[position];
                 exclusion_filter |= U8Set::from_byte(*c);
             }
         }
-        exclusion_filter = exclusion_filter.complement();
+        exclusion_filter = exclusion_filter.complement(); dbg!(exclusion_filter);
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
@@ -41,11 +42,12 @@ impl CombinatorTrait for ExcludeBytestrings {
         let mut position = bytes.len();
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
-            if let Some(c) = bytestring.get(position) {
+            if bytestring.len() == position + 1 {
+                let c = bytestring[position];
                 exclusion_filter |= U8Set::from_byte(*c);
             }
         }
-        exclusion_filter = exclusion_filter.complement();
+        exclusion_filter = exclusion_filter.complement(); dbg!(exclusion_filter);
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
@@ -64,11 +66,12 @@ impl ParserTrait for ExcludeBytestringsParser {
         self.position += 1;
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
-            if let Some(c) = bytestring.get(self.position) {
+            if bytestring.len() == self.position + 1 {
+                let c = bytestring[self.position];
                 exclusion_filter |= U8Set::from_byte(*c);
             }
         }
-        exclusion_filter = exclusion_filter.complement();
+        exclusion_filter = exclusion_filter.complement(); dbg!(exclusion_filter);
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
@@ -81,11 +84,12 @@ impl ParserTrait for ExcludeBytestringsParser {
         self.position += bytes.len();
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
-            if let Some(c) = bytestring.get(self.position) {
+            if bytestring.len() == self.position + 1 {
+                let c = bytestring[self.position];
                 exclusion_filter |= U8Set::from_byte(*c);
             }
         }
-        exclusion_filter = exclusion_filter.complement();
+        exclusion_filter = exclusion_filter.complement(); dbg!(exclusion_filter);
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
