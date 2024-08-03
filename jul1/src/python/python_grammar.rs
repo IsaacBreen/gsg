@@ -106,7 +106,16 @@ pub fn python_file() -> Combinator {
                 seq!(
                     choice!(
                         seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression),
-                        seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(python_literal(":=")))
+                        seq!(
+                            choice!(
+                                seq!(
+                                    &disjunction,
+                                    opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))
+                                ),
+                                &lambdef
+                            ),
+                            negative_lookahead(python_literal(":="))
+                        )
                     ),
                     negative_lookahead(python_literal("="))
                 )
