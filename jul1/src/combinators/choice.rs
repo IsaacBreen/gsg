@@ -18,10 +18,11 @@ pub struct ChoiceParser {
 impl CombinatorTrait for Choice {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         let mut parsers = Vec::new();
-        let mut combined_results = ParseResults::new();
+        let mut combined_results = ParseResults::empty_finished();
 
         for child in &self.children {
-            let (parser, parse_results) = child.parser(right_data.clone());            if !parse_results.done {
+            let (parser, parse_results) = child.parser(right_data.clone());
+            if !parse_results.done {
                 parsers.push(parser);
             }
             let discard_rest = self.greedy && !parse_results.right_data_vec.is_empty() && parse_results.right_data_vec.iter().all(|rd| rd.lookahead_data.partial_lookaheads.is_empty());
@@ -39,10 +40,11 @@ impl CombinatorTrait for Choice {
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = Vec::new();
-        let mut combined_results = ParseResults::new();
+        let mut combined_results = ParseResults::empty_finished();
 
         for (i, child) in self.children.iter().enumerate() {
-            let (parser, parse_results) = child.parser_with_steps(right_data.clone(), bytes);            if !parse_results.done {
+            let (parser, parse_results) = child.parser_with_steps(right_data.clone(), bytes);
+            if !parse_results.done {
                 parsers.push(parser);
             }
             // TODO: can't have lookaheads if done.
@@ -70,10 +72,11 @@ impl CombinatorTrait for Choice {
 
 impl ParserTrait for ChoiceParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        let mut parse_result = ParseResults::new();
+        let mut parse_result = ParseResults::empty_finished();
         let mut discard_rest = false;
 
-        self.parsers.retain_mut(|mut parser| {            if discard_rest {
+        self.parsers.retain_mut(|mut parser| {
+            if discard_rest {
                 return false;
             }
             let step_result = parser.step(c);
@@ -88,7 +91,7 @@ impl ParserTrait for ChoiceParser {
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut parse_result = ParseResults::new();
+        let mut parse_result = ParseResults::empty_finished();
         let mut discard_rest = false;
 
         self.parsers.retain_mut(|mut parser| {

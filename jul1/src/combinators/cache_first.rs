@@ -7,10 +7,11 @@ use std::rc::Rc;
 
 use derivative::Derivative;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash, U8Set, UpData};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash};
 
 #[derive(Clone, PartialEq, Default, Eq)]
-pub struct CacheFirstData {    pub inner: Option<Rc<RefCell<CacheFirstDataInner>>>,
+pub struct CacheFirstData {
+    pub inner: Option<Rc<RefCell<CacheFirstDataInner>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Eq)]
@@ -98,39 +99,39 @@ impl CombinatorTrait for CacheFirst {
         // Try to get the entry from the cache
         let key = CacheFirstKey { combinator: self.inner.clone(), right_data: right_data.clone() };
         if let Some(entry) = right_data.cache_first_data.inner.clone().unwrap().borrow().entries.get(&key).cloned() {
-            return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry.squashed());
+            return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry);
         }
         // Initialize the parser and create a new entry
-        let (mut parser, mut parse_results) = self.inner.parser(right_data.clone());
+        let (parser, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), &[]);
         parse_results.squash();
         let binding = right_data.cache_first_data.inner.unwrap();
         let mut cache_first_data_inner = binding.borrow_mut();
         cache_first_data_inner.entries.insert(key.clone(), parse_results.clone());
-        (Parser::CacheFirstParser(CacheFirstParser::Initialized { parser: Box::new(parser) }), parse_results)
+        (parser, parse_results)
     }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         // Try to get the entry from the cache
         let key = CacheFirstKey { combinator: self.inner.clone(), right_data: right_data.clone() };
         if let Some(entry) = right_data.cache_first_data.inner.clone().unwrap().borrow().entries.get(&key).cloned() {
-            return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry.squashed());
+            return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry);
         }
         // Initialize the parser and create a new entry
         let (mut parser, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
         parse_results.squash();
         let binding = right_data.cache_first_data.inner.unwrap();
         let mut cache_first_data_inner = binding.borrow_mut();
-        parse_results.squash();
         cache_first_data_inner.entries.insert(key.clone(), parse_results.clone());
-        (Parser::CacheFirstParser(CacheFirstParser::Initialized { parser: Box::new(parser) }), parse_results)
+        (parser, parse_results)
     }
 }
+
 impl ParserTrait for CacheFirstParser {
     fn step(&mut self, c: u8) -> ParseResults {
         match self {
             CacheFirstParser::Uninitialized { key } => {
                 // Initialize the parser and step it.
-                let (parser, parse_results) = key.combinator.parser_with_steps(key.right_data.clone(), &[c]);
+                let (parser, parse_results) = key.combinator.parser(key.right_data.clone());
                 *self = CacheFirstParser::Initialized { parser: Box::new(parser) };
                 self.step(c)
             }

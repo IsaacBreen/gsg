@@ -47,7 +47,11 @@ impl CombinatorTrait for Lookahead {
                     positive: self.positive,
                 });
             }
-            (Parser::FailParser(FailParser), ParseResults::finished(right_data))
+            (Parser::FailParser(FailParser), ParseResults {
+                right_data_vec: vec![right_data],
+                up_data_vec: vec![],
+                done: true,
+            })
         } else {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
         }
