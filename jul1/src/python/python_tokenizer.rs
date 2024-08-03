@@ -360,7 +360,8 @@ pub fn reserved_keywords() -> Vec<&'static str> {
 }
 
 pub fn NAME() -> Combinator {
-    exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords())
+    // exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords())
+    seq!(xid_start(), repeat0(xid_continue()))
 }
 
 // .. _literals:
