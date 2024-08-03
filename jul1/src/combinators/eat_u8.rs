@@ -1,6 +1,6 @@
 use std::ops::RangeBounds;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
-use crate::parse_state::RightData;
+use crate::parse_state::{RightData, UpData};
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatU8 {
     pub(crate) u8set: U8Set,
@@ -14,14 +14,24 @@ pub struct EatU8Parser {
 
 impl CombinatorTrait for EatU8 {
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let parser = EatU8Parser {
-            u8set: self.u8set.clone(),
-            right_data: Some(right_data),
-        };
-        (Parser::EatU8Parser(parser), ParseResults {
-            right_data_vec: vec![],
-            done: false,
-        })
+        fn parser(_self: &EatU8, right_data: RightData) -> (Parser, ParseResults) {
+            let parser = EatU8Parser {
+                u8set: _self.u8set.clone(),
+                right_data: Some(right_data),
+            };
+            (Parser::EatU8Parser(parser), ParseResults {
+                right_data_vec: vec![],
+                up_data_vec: vec![UpData {
+                    u8set: _self.u8set.clone(),
+                }],
+                done: false,
+            })
+        }
+
+        let (mut parser, mut parse_results0) = parser(self, right_data);
+        let parse_results1 = parser.steps(bytes);
+        parse_results0.combine_seq(parse_results1);
+        (parser, parse_results0)
     }
 }
 
@@ -36,6 +46,7 @@ impl ParserTrait for EatU8Parser {
                 right_data.position += 1;
                 return ParseResults {
                     right_data_vec: vec![right_data],
+                    up_data_vec: vec![],
                     done: true,
                 };
             }
@@ -46,10 +57,6 @@ impl ParserTrait for EatU8Parser {
         } else {
             panic!("EatU8Parser already consumed");
         }
-    }
-
-    fn next_u8set(&self, bytes: &[u8]) -> U8Set {
-        self.u8set.clone()
     }
 }
 

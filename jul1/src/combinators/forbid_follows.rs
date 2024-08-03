@@ -23,6 +23,7 @@ impl CombinatorTrait for ForbidFollows {
         right_data.forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
         (combinator::Parser::FailParser(FailParser), ParseResults {
             right_data_vec: vec![right_data],
+            up_data_vec: vec![],
             done: true,
         })
     }
@@ -33,6 +34,7 @@ impl CombinatorTrait for ForbidFollowsClear {
         right_data.forbidden_consecutive_matches.prev_match_ids.clear();
         (combinator::Parser::FailParser(FailParser), ParseResults {
             right_data_vec: vec![right_data],
+            up_data_vec: vec![],
             done: true,
         })
     }
@@ -46,39 +48,10 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
             right_data.forbidden_consecutive_matches.prev_match_ids.clear();
             (combinator::Parser::FailParser(FailParser), ParseResults {
                 right_data_vec: vec![right_data],
+                up_data_vec: vec![],
                 done: true,
             })
         }
-    }
-}
-
-impl ParserTrait for ForbidFollows {
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        panic!("ForbidFollows parser should not be stepped")
-    }
-
-    fn next_u8set(&self, bytes: &[u8]) -> U8Set {
-        U8Set::none()
-    }
-}
-
-impl ParserTrait for ForbidFollowsClear {
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        panic!("ForbidFollowsClear parser should not be stepped")
-    }
-
-    fn next_u8set(&self, bytes: &[u8]) -> U8Set {
-        U8Set::none()
-    }
-}
-
-impl ParserTrait for ForbidFollowsCheckNot {
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        panic!("ForbidFollowsCheckNot parser should not be stepped")
-    }
-
-    fn next_u8set(&self, bytes: &[u8]) -> U8Set {
-        U8Set::none()
     }
 }
 

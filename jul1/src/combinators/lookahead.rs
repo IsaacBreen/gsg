@@ -13,6 +13,7 @@ pub struct LookaheadData {
 
 impl Default for LookaheadData {
     fn default() -> Self {
+        // LookaheadData { partial_lookaheads: vec![PartialLookahead { parser: Box::new(Parser::FailParser(FailParser)), positive: true }] }
         LookaheadData { partial_lookaheads: vec![] }
     }
 }
@@ -36,6 +37,7 @@ impl CombinatorTrait for Lookahead {
         };
         if succeeds {
             if !parse_results.done {
+                // println!("Lookahead not done at position {}. Lookahead: {:?}", right_data.position, self);
                 right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
                     parser: Box::new(parser),
                     positive: self.positive,
@@ -43,21 +45,12 @@ impl CombinatorTrait for Lookahead {
             }
             (Parser::FailParser(FailParser), ParseResults {
                 right_data_vec: vec![right_data],
+                up_data_vec: vec![],
                 done: true,
             })
         } else {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
         }
-    }
-}
-
-impl ParserTrait for Lookahead {
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        panic!("Lookahead parser should not be stepped")
-    }
-
-    fn next_u8set(&self, bytes: &[u8]) -> U8Set {
-        panic!("Lookahead parser should not be asked for next_u8set")
     }
 }
 
@@ -73,6 +66,4 @@ impl From<Lookahead> for Combinator {
     fn from(lookahead: Lookahead) -> Self {
         Combinator::Lookahead(lookahead)
     }
-}```
-
-jul1/src/combinators/repeat1.rs
+}

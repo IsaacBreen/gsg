@@ -2,7 +2,7 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
-use crate::parse_state::RightData;
+use crate::parse_state::{RightData, UpData};
 
 #[derive(Clone, PartialEq, Eq)]
 struct BuildTrieNode {
@@ -86,17 +86,24 @@ pub struct EatByteStringChoiceParser {
 impl CombinatorTrait for EatByteStringChoice {
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let parser = EatByteStringChoiceParser {
-            current_node: Rc::clone(&self.root),
-            right_data,
-        };
-        (
-            Parser::EatByteStringChoiceParser(parser),
-            ParseResults {
-                right_data_vec: vec![],
-                done: false,
-            }
-        )
+        fn parser(_self: &EatByteStringChoice, right_data: RightData) -> (Parser, ParseResults) {
+            let parser = EatByteStringChoiceParser {
+                current_node: Rc::clone(&_self.root),
+                right_data,
+            };
+            (
+                Parser::EatByteStringChoiceParser(parser),
+                ParseResults {
+                    right_data_vec: vec![],
+                    up_data_vec: vec![UpData { u8set: _self.root.valid_bytes }],
+                    done: false,
+                }
+            )
+        }
+        let (mut parser, mut parse_results0) = parser(self, right_data);
+        let parse_results1 = parser.steps(bytes);
+        parse_results0.combine_seq(parse_results1);
+        (parser, parse_results0)
     }
 }
 
@@ -107,6 +114,7 @@ impl ParserTrait for EatByteStringChoiceParser {
         }
 
         let mut right_data_vec = Vec::new();
+        let mut up_data_vec = Vec::new();
         let mut done = false;
 
         for &byte in bytes {
@@ -118,8 +126,11 @@ impl ParserTrait for EatByteStringChoiceParser {
 
                     if self.current_node.is_end {
                         right_data_vec.push(self.right_data.clone());
+                        up_data_vec.push(UpData { u8set: self.current_node.valid_bytes });
                         done = self.current_node.valid_bytes.is_empty();
                         break;
+                    } else {
+                        up_data_vec.push(UpData { u8set: self.current_node.valid_bytes });
                     }
                 } else {
                     done = true;
@@ -133,12 +144,9 @@ impl ParserTrait for EatByteStringChoiceParser {
 
         ParseResults {
             right_data_vec,
+            up_data_vec,
             done,
         }
-    }
-
-    fn next_u8set(&self, bytes: &[u8]) -> U8Set {
-        self.current_node.valid_bytes.clone()
     }
 }
 

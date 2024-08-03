@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, Squash};
 use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -68,13 +68,6 @@ impl ParserTrait for ChoiceParser {
         parse_result
     }
 
-    fn next_u8set(&self, bytes: &[u8]) -> U8Set {
-        let mut u8set = U8Set::none();
-        for parser in &self.parsers {
-            u8set |= parser.next_u8set(bytes);
-        }
-        u8set
-    }
 }
 
 pub fn _choice(v: Vec<Combinator>) -> Combinator {

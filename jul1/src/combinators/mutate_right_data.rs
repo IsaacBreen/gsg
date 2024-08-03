@@ -61,6 +61,7 @@ impl CombinatorTrait for MutateRightData {
         } else {
             (Parser::MutateRightDataParser(MutateRightDataParser { run: self.run.clone() }), ParseResults {
                 right_data_vec: vec![],
+                up_data_vec: vec![],
                 done: true,
             })
         }
@@ -70,10 +71,6 @@ impl CombinatorTrait for MutateRightData {
 impl ParserTrait for MutateRightDataParser {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("MutateRightData parser already consumed")
-    }
-
-    fn next_u8set(&self, bytes: &[u8]) -> U8Set {
-        U8Set::none()
     }
 }
 

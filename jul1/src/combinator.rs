@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser};
 use crate::stats::Stats;
 
 macro_rules! define_enum {
@@ -139,7 +139,6 @@ pub trait CombinatorTrait {
 
 pub trait ParserTrait {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults;
-    fn next_u8set(&self, bytes: &[u8]) -> U8Set;
 }
 
 impl CombinatorTrait for Combinator {
@@ -151,10 +150,6 @@ impl CombinatorTrait for Combinator {
 impl ParserTrait for Parser {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         match_parser!(self, inner => inner.steps(bytes))
-    }
-
-    fn next_u8set(&self, bytes: &[u8]) -> U8Set {
-        match_parser!(self, inner => inner.next_u8set(bytes))
     }
 }
 
@@ -252,6 +247,4 @@ pub trait ParserTraitExt: ParserTrait {
 }
 
 impl<T: CombinatorTrait> CombinatorTraitExt for T {}
-impl<T: ParserTrait> ParserTraitExt for T {}```
-
-jul1/src/combinators/symbol.rs
+impl<T: ParserTrait> ParserTraitExt for T {}
