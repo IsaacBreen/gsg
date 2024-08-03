@@ -34,7 +34,11 @@ impl CombinatorTrait for EatU8 {
 
 impl ParserTrait for EatU8Parser {
     fn get_u8set(&self) -> U8Set {
-        self.u8set.clone()
+        if self.right_data.is_some() {
+            return self.u8set.clone();
+        } else {
+            U8Set::none()
+        }
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {

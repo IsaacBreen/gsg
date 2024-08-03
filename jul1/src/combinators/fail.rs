@@ -14,7 +14,7 @@ impl CombinatorTrait for Fail {
 
 impl ParserTrait for FailParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        U8Set::none()
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {

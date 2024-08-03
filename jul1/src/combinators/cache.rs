@@ -94,7 +94,7 @@ impl CombinatorTrait for CacheContext {
 
 impl ParserTrait for CacheContextParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        self.inner.get_u8set()
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
@@ -140,7 +140,7 @@ impl CombinatorTrait for Cached {
 
 impl ParserTrait for CachedParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        self.entry.borrow().parser.as_ref().unwrap().get_u8set()
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {

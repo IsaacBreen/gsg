@@ -53,7 +53,13 @@ impl CombinatorTrait for Seq {
 
 impl ParserTrait for SeqParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        let mut u8set = U8Set::none();
+        for (_, parsers) in &self.children {
+            for parser in parsers {
+                u8set = u8set.union(&parser.get_u8set());
+            }
+        }
+        u8set
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {

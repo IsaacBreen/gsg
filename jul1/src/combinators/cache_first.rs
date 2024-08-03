@@ -76,7 +76,7 @@ impl CombinatorTrait for CacheFirstContext {
 
 impl ParserTrait for CacheFirstContextParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        self.inner.get_u8set()
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
@@ -103,7 +103,10 @@ impl CombinatorTrait for CacheFirst {
 
 impl ParserTrait for CacheFirstParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        match self {
+            CacheFirstParser::Uninitialized { key } => U8Set::none(),
+            CacheFirstParser::Initialized { parser } => parser.get_u8set(),
+        }
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {

@@ -50,7 +50,11 @@ impl CombinatorTrait for Choice {
 
 impl ParserTrait for ChoiceParser {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        let mut u8set = U8Set::none();
+        for parser in &self.parsers {
+            u8set = u8set.union(&parser.get_u8set());
+        }
+        u8set
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
