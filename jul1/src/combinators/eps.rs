@@ -1,4 +1,4 @@
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::RightData;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Eps;
@@ -16,6 +16,10 @@ impl CombinatorTrait for Eps {
 impl ParserTrait for EpsParser {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("EpsParser already consumed")
+    }
+
+    fn next_u8set(&self, bytes: &[u8]) -> U8Set {
+        U8Set::none()
     }
 }
 
