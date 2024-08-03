@@ -51,7 +51,6 @@ impl CombinatorTrait for ExcludeBytestrings {
     }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        return self.inner.parser_with_steps(right_data.clone(), bytes);
         let (inner, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
         let mut exclusion_filter = U8Set::none();
         let mut bytestrings = self.bytestrings.clone();
@@ -98,7 +97,8 @@ impl ParserTrait for ExcludeBytestringsParser {
         for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
-        if self.bytestrings.iter().any(|bytestring| bytestring[self.position - 1] == c) {
+        if self.bytestrings.iter().any(|bytestring| bytestring[self.position - 1] == c && self.position - 1 == bytestring.len() - 1) {
+            println!("Clearing right data: bytestrings: {:?}, char: {:?}, position: {:?}", self.bytestrings, c, self.position);
             parse_results.right_data_vec.clear();
         }
         self.bytestrings.retain(|bytestring| bytestring[self.position - 1] == c);
