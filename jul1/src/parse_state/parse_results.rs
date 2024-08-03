@@ -34,6 +34,6 @@ impl ParseResults {
     pub fn combine_seq(&mut self, mut p0: ParseResults) {
         self.right_data_vec.append(&mut p0.right_data_vec);
         self.up_data_vec.append(&mut p0.up_data_vec);
-        self.done = p0.done;
+        self.done |= p0.done;
     }
 }
