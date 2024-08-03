@@ -52,6 +52,6 @@ impl RightData {
     }
 
     pub fn failable(&self) -> bool {
-        !self.failable()
+        !self.lookahead_data.partial_lookaheads.is_empty()
     }
 }
