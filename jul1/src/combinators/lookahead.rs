@@ -41,7 +41,7 @@ impl CombinatorTrait for Lookahead {
         };
         if succeeds {
             if !parse_results.done {
-                println!("Lookahead not done at position {}. Lookahead: {:?}", right_data.position, self);
+                // println!("Lookahead not done at position {}. Lookahead: {:?}", right_data.position, self);
                 right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
                     parser: Box::new(parser),
                     positive: self.positive,

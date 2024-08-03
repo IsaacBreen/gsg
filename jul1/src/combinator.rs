@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, NegativeLookahead, NegativeLookaheadParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, WithNewFrame, WithNewFrameParser};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, FrameStackOp, FrameStackOpParser, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, WithNewFrame, WithNewFrameParser};
 use crate::stats::Stats;
 
 macro_rules! define_enum {
@@ -53,7 +53,7 @@ define_enum!(
     CheckRightData,
     Deferred,
     Lookahead,
-    NegativeLookahead
+    ExcludeBytestrings
 );
 
 define_enum!(
@@ -77,7 +77,7 @@ define_enum!(
     WithNewFrameParser,
     EatByteStringChoiceParser,
     CheckRightDataParser,
-    NegativeLookaheadParser
+    ExcludeBytestringsParser
 );
 
 macro_rules! match_combinator {
@@ -108,7 +108,7 @@ macro_rules! match_combinator {
             CheckRightData,
             Deferred,
             Lookahead,
-            NegativeLookahead
+            ExcludeBytestrings
         )
     };
 }
@@ -136,7 +136,7 @@ macro_rules! match_parser {
             WithNewFrameParser,
             EatByteStringChoiceParser,
             CheckRightDataParser,
-            NegativeLookaheadParser
+            ExcludeBytestringsParser
         )
     };
 }
@@ -244,7 +244,7 @@ impl Parser {
             Parser::CacheFirstParser(CacheFirstParser::Initialized { parser }) => {
                 parser.map_right_data_mut(&mut f);
             }
-            Parser::NegativeLookaheadParser(NegativeLookaheadParser { inner, lookahead }) => {
+            Parser::ExcludeBytestringsParser(ExcludeBytestringsParser { inner, .. }) => {
                 inner.map_right_data_mut(&mut f);
             }
             Parser::MutateRightDataParser(MutateRightDataParser { run }) => {}

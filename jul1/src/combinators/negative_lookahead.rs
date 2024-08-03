@@ -1,100 +1,104 @@
 use crate::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct NegativeLookahead {
+pub struct ExcludeBytestrings {
     pub(crate) inner: Box<Combinator>,
-    pub(crate) lookahead: Box<Combinator>,
+    pub(crate) bytestrings: Vec<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct NegativeLookaheadParser {
+pub struct ExcludeBytestringsParser {
     pub(crate) inner: Box<Parser>,
-    pub(crate) lookahead: Box<Parser>,
+    pub(crate) bytestrings: Vec<Vec<u8>>,
+    pub(crate) position: usize,
 }
 
-impl CombinatorTrait for NegativeLookahead {
+impl CombinatorTrait for ExcludeBytestrings {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let (inner, mut inner_results) = self.inner.parser(right_data.clone());
-        let (lookahead, lookahead_results) = self.lookahead.parser(right_data);
+        let (inner, mut parse_results) = self.inner.parser(right_data);
         let mut exclusion_filter = U8Set::none();
-        for up_data in lookahead_results.up_data_vec.iter() {
-            exclusion_filter |= up_data.u8set;
+        let mut position = 0;
+        // Exclude character if it's the last character of a bytestring.
+        for bytestring in &self.bytestrings {
+            if let Some(c) = bytestring.get(position) {
+                exclusion_filter |= U8Set::from_byte(*c);
+            }
         }
-        for up_data in inner_results.up_data_vec.iter_mut() {
+        for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
-        if !inner_results.right_data_vec.is_empty() && !lookahead_results.right_data_vec.is_empty() {
-            inner_results.right_data_vec.clear();
-        }
-        (Parser::NegativeLookaheadParser(NegativeLookaheadParser {
+        (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
             inner: Box::new(inner),
-            lookahead: Box::new(lookahead),
-        }), inner_results)
+            bytestrings: self.bytestrings.clone(),
+            position,
+        }), parse_results)
     }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (inner, mut inner_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
-        let (lookahead, lookahead_results) = self.lookahead.parser_with_steps(right_data, bytes);
+        let (inner, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
         let mut exclusion_filter = U8Set::none();
-        for up_data in lookahead_results.up_data_vec.iter() {
-            exclusion_filter |= up_data.u8set;
+        let mut position = bytes.len();
+        // Exclude character if it's the last character of a bytestring.
+        for bytestring in &self.bytestrings {
+            if let Some(c) = bytestring.get(position) {
+                exclusion_filter |= U8Set::from_byte(*c);
+            }
         }
-        for up_data in inner_results.up_data_vec.iter_mut() {
+        for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
-        if !inner_results.right_data_vec.is_empty() && !lookahead_results.right_data_vec.is_empty() {
-            inner_results.right_data_vec.clear();
-        }
-        (Parser::NegativeLookaheadParser(NegativeLookaheadParser {
+        (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
             inner: Box::new(inner),
-            lookahead: Box::new(lookahead),
-        }), inner_results)
+            bytestrings: self.bytestrings.clone(),
+            position,
+        }), parse_results)
     }
 }
 
-impl ParserTrait for NegativeLookaheadParser {
+impl ParserTrait for ExcludeBytestringsParser {
     fn step(&mut self, c: u8) -> ParseResults {
-        let mut inner_results = self.inner.step(c);
-        let lookahead_results = self.lookahead.step(c);
+        let mut parse_results = self.inner.step(c);
         let mut exclusion_filter = U8Set::none();
-        for up_data in lookahead_results.up_data_vec.iter() {
-            exclusion_filter |= up_data.u8set;
+        self.position += 1;
+        // Exclude character if it's the last character of a bytestring.
+        for bytestring in &self.bytestrings {
+            if let Some(c) = bytestring.get(self.position) {
+                exclusion_filter |= U8Set::from_byte(*c);
+            }
         }
-        for up_data in inner_results.up_data_vec.iter_mut() {
+        for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
-        if !inner_results.right_data_vec.is_empty() && !lookahead_results.right_data_vec.is_empty() {
-            inner_results.right_data_vec.clear();
-        }
-        inner_results
+        parse_results
     }
 
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut inner_results = self.inner.steps(bytes);
-        let lookahead_results = self.lookahead.steps(bytes);
+        let mut parse_results = self.inner.steps(bytes);
         let mut exclusion_filter = U8Set::none();
-        for up_data in lookahead_results.up_data_vec.iter() {
-            exclusion_filter |= up_data.u8set;
+        self.position += bytes.len();
+        // Exclude character if it's the last character of a bytestring.
+        for bytestring in &self.bytestrings {
+            if let Some(c) = bytestring.get(self.position) {
+                exclusion_filter |= U8Set::from_byte(*c);
+            }
         }
-        for up_data in inner_results.up_data_vec.iter_mut() {
+        for up_data in parse_results.up_data_vec.iter_mut() {
             up_data.u8set &= exclusion_filter;
         }
-        if !inner_results.right_data_vec.is_empty() && !lookahead_results.right_data_vec.is_empty() {
-            inner_results.right_data_vec.clear();
-        }
-        inner_results
+        parse_results
     }
 }
 
-pub fn negative_lookahead_wrapper(inner: Combinator, lookahead: Combinator) -> Combinator {
-    Combinator::NegativeLookahead(NegativeLookahead {
+pub fn exclude_strings(inner: Combinator, bytestrings: Vec<&str>) -> Combinator {
+    let bytestrings = bytestrings.iter().map(|s| s.as_bytes().to_vec()).collect();
+    Combinator::ExcludeBytestrings(ExcludeBytestrings {
         inner: Box::new(inner),
-        lookahead: Box::new(lookahead),
+        bytestrings,
     })
 }
 
-impl From<NegativeLookahead> for Combinator {
-    fn from(negative_lookahead: NegativeLookahead) -> Self {
-        Self::NegativeLookahead(negative_lookahead)
+impl From<ExcludeBytestrings> for Combinator {
+    fn from(exclude_bytestrings: ExcludeBytestrings) -> Self {
+        Self::ExcludeBytestrings(exclude_bytestrings)
     }
 }
