@@ -109,7 +109,7 @@ pub fn python_file() -> Combinator {
                         seq!(
                             choice!(
                                 seq!(
-                                    &disjunction,
+                                    tag("WHAT THE HECK", &disjunction),
                                     opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))
                                 ),
                                 &lambdef
