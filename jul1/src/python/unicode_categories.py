@@ -1,81 +1,88 @@
 import requests
 import zipfile
-import io
+import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
-def download_and_extract_zip(url):
-    response = requests.get(url)
-    with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
-        xml_content = zip_file.read(zip_file.namelist()[0])
-    return xml_content
+# Step 1: Download the Unicode XML file
+url = 'https://www.unicode.org/Public/UCD/latest/ucdxml/ucd.all.flat.zip'
+response = requests.get(url)
+zip_path = 'ucd.all.flat.zip'
 
-def parse_xml(xml_content):
-    root = ET.fromstring(xml_content)
-    char_groups = defaultdict(list)
+with open(zip_path, 'wb') as f:
+    f.write(response.content)
 
-    for group in root.findall('.//{http://www.unicode.org/ns/2003/ucd/1.0}group'):
-        gc = group.get('gc')
-        for char in group.findall('{http://www.unicode.org/ns/2003/ucd/1.0}char'):
-            if char.get('cp') is None:
-                print(f"Warning: Ignoring character with no codepoint: {char.text}")
-                continue
-            cp = int(char.get('cp'), 16)
-            char_groups[gc].append(cp)
+# Step 2: Unzip the downloaded file
+with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    zip_ref.extractall('.')
 
-    return char_groups
+# Step 3: Parse the XML file
+xml_path = 'ucd.all.flat.xml'
+tree = ET.parse(xml_path)
+root = tree.getroot()
 
-def generate_rust_code(char_groups):
-    rust_code = """
-use std::collections::HashMap;
+# Define the namespace
+ns = {'ns': 'http://www.unicode.org/ns/2003/ucd/1.0'}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum UnicodeCategory {
+# Step 4: Extract character ranges by general category
+categories = defaultdict(list)
+
+for char in root.findall('.//ns:char', ns):
+    cp = char.get('cp')
+    first_cp = char.get('first-cp')
+    last_cp = char.get('last-cp')
+    gc = char.get('gc')
+
+    if not gc:
+        continue
+
+    if first_cp and last_cp:
+        categories[gc].append((int(first_cp, 16), int(last_cp, 16)))
+    elif cp:
+        code_point = int(cp, 16)
+        categories[gc].append((code_point, code_point))
+
+# Step 5: Generate Rust code
+rust_code = """
+#[derive(Debug, PartialEq, Eq)]
+pub enum GeneralCategory {{
+    {}
+}}
+
+pub fn get_general_category(c: char) -> Option<GeneralCategory> {{
+    let code_point = c as u32;
+    match code_point {{
+        {}
+        _ => None,
+    }}
+}}
 """
 
-    # Generate enum variants
-    for gc in sorted(key for key in char_groups.keys() if key is not None):
-        rust_code += f"    {gc},\n"
+category_variants = []
+match_arms = []
 
-    rust_code += "}\n\n"
+for category, ranges in categories.items():
+    variant = category.upper()
+    category_variants.append(variant)
 
-    # Generate lazy_static initialization
-    rust_code += """
-use lazy_static::lazy_static;
+    for start, end in ranges:
+        if start == end:
+            match_arms.append(f"{start} => Some(GeneralCategory::{variant}),")
+        else:
+            match_arms.append(f"{start}..={end} => Some(GeneralCategory::{variant}),")
 
-lazy_static! {
-    static ref UNICODE_CATEGORIES: HashMap<UnicodeCategory, Vec<char>> = {
-        let mut m = HashMap::new();
-"""
+category_variants_code = ",\n    ".join(category_variants)
+match_arms_code = "\n        ".join(match_arms)
 
-    for gc, chars in char_groups.items():
-        rust_code += f"        m.insert(UnicodeCategory::{gc}, vec![\n"
-        for chunk in [chars[i:i + 10] for i in range(0, len(chars), 10)]:
-            rust_code += "            " + ", ".join("'\\u{{{0:04X}}}'".format(c) for c in chunk) + ",\n"
-        rust_code += "        ]);\n"
+rust_code = rust_code.format(category_variants_code, match_arms_code)
 
-    rust_code += """
-        m
-    };
-}
+# Write the generated Rust code to a file
+output_path = '../unicode_general_category.rs'
+with open(output_path, 'w') as f:
+    f.write(rust_code)
 
-pub fn get_chars_in_category(category: UnicodeCategory) -> &'static [char] {
-    UNICODE_CATEGORIES.get(&category).map(|v| v.as_slice()).unwrap_or(&[])
-}
-"""
+print(f"Rust code has been generated and written to {output_path}")
 
-    return rust_code
-
-def main():
-    url = "https://www.unicode.org/Public/UCD/latest/ucdxml/ucd.all.grouped.zip"
-    xml_content = download_and_extract_zip(url)
-    char_groups = parse_xml(xml_content)
-    rust_code = generate_rust_code(char_groups)
-
-    with open("../unicode_categories.rs", "w", encoding="utf-8") as f:
-        f.write(rust_code)
-
-    print("Rust code has been generated and saved to 'unicode_categories.rs'")
-
-if __name__ == "__main__":
-    main()
+# Clean up
+os.remove(zip_path)
+os.remove(xml_path)
