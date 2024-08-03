@@ -57,7 +57,7 @@ impl CombinatorTrait for Repeat1 {
             for right_data_a in current_new_right_data {
                 let offset = right_data_a.position - right_data.position;
                 let (a, parse_results) = self.a.parser_with_steps(right_data_a, &bytes[offset..]);
-                if prev_parsers_all_done && !parse_results.right_data_vec.is_empty() {
+                if self.greedy && prev_parsers_all_done && !parse_results.right_data_vec.is_empty() {
                     // Clear all previous right and up data
                     new_right_data.clear();
                     new_up_data.clear();
