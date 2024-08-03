@@ -32,8 +32,7 @@ impl Debug for TaggedParser {
 }
 
 impl CombinatorTrait for Tagged {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parser(right_data)));
+        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parser_with_steps(right_data, &[])));
         match result {
             Ok((parser, parse_results)) => (
                 Parser::TaggedParser(TaggedParser { inner: Box::new(parser), tag: self.tag.clone() }),
