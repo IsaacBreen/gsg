@@ -1,4 +1,4 @@
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait};
 use crate::parse_state::RightData;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FailParser;
@@ -7,7 +7,7 @@ pub struct FailParser;
 pub struct Fail;
 
 impl CombinatorTrait for Fail {
-    fn parser_with_steps(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::FailParser(FailParser), ParseResults::empty_finished())
     }
 }
@@ -15,10 +15,6 @@ impl CombinatorTrait for Fail {
 impl ParserTrait for FailParser {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("FailParser already consumed")
-    }
-
-    fn valid_next_bytes(&self) -> U8Set {
-        U8Set::none()
     }
 }
 

@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, Symbol, U8Set};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, Symbol};
 use crate::parse_state::RightData;
 #[derive(Debug, Clone)]
 pub struct ForwardRef {
@@ -24,13 +24,13 @@ impl PartialEq for ForwardRef {
 impl Eq for ForwardRef {}
 
 impl CombinatorTrait for ForwardRef {
-    fn parser_with_steps(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         self.a.borrow().as_ref().unwrap().parser_with_steps(right_data, bytes)
     }
 }
 
 impl CombinatorTrait for RefCell<Option<Rc<Combinator>>> {
-    fn parser_with_steps(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         self.borrow().as_ref().unwrap().parser_with_steps(right_data, bytes)
     }
 }

@@ -139,7 +139,6 @@ pub trait CombinatorTrait {
 
 pub trait ParserTrait {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults;
-    fn valid_next_bytes(&self) -> U8Set;
 }
 
 impl CombinatorTrait for Combinator {

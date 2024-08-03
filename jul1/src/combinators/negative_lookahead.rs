@@ -25,12 +25,24 @@ fn common_prefix(a: &[u8], b: &[u8]) -> bool {
 }
 
 impl CombinatorTrait for ExcludeBytestrings {
-    fn parser_with_steps(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (inner, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
+        let mut exclusion_filter = U8Set::none();
         let mut bytestrings = self.bytestrings.clone();
         bytestrings.retain(|bytestring| bytes.len() < bytestring.len());
         bytestrings.retain(|bytestring| common_prefix(bytes, bytestring));
         let mut position = bytes.len();
+        // Exclude character if it's the last character of a bytestring.
+        for bytestring in &bytestrings {
+            if bytestring.len() == position + 1 {
+                let c = bytestring[position];
+                exclusion_filter |= U8Set::from_byte(c);
+            }
+        }
+        dbg!(exclusion_filter); exclusion_filter = exclusion_filter.complement();
+        for up_data in parse_results.up_data_vec.iter_mut() {
+            up_data.u8set &= exclusion_filter;
+        }
         if bytestrings.iter().any(|bytestring| bytes.starts_with(bytestring)) {
             println!("Clearing right data");
             parse_results.right_data_vec.clear();
@@ -46,19 +58,9 @@ impl CombinatorTrait for ExcludeBytestrings {
 impl ParserTrait for ExcludeBytestringsParser {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         let mut parse_results = self.inner.steps(bytes);
+        let mut exclusion_filter = U8Set::none();
         self.bytestrings.retain(|bytestring| self.position + bytes.len() < bytestring.len());
         self.position += bytes.len();
-        if self.bytestrings.iter().any(|bytestring| common_prefix(bytes, &bytestring[self.position - bytes.len()..])) {
-            parse_results.right_data_vec.clear();
-        }
-        self.bytestrings.retain(|bytestring| common_prefix(bytes, &bytestring[self.position - bytes.len()..]));
-        parse_results
-    }
-
-    fn valid_next_bytes(&self) -> U8Set {
-        let mut valid_bytes = self.inner.valid_next_bytes();
-        let mut exclusion_filter = U8Set::none();
-        self.bytestrings.retain(|bytestring| self.position + 1 < bytestring.len());
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
             if bytestring.len() == self.position + 1 {
@@ -66,8 +68,15 @@ impl ParserTrait for ExcludeBytestringsParser {
                 exclusion_filter |= U8Set::from_byte(c);
             }
         }
-        valid_bytes &= exclusion_filter.complement();
-        valid_bytes
+        dbg!(exclusion_filter); exclusion_filter = exclusion_filter.complement();
+        for up_data in parse_results.up_data_vec.iter_mut() {
+            up_data.u8set &= exclusion_filter;
+        }
+        if self.bytestrings.iter().any(|bytestring| common_prefix(bytes, &bytestring[self.position - bytes.len()..])) {
+            parse_results.right_data_vec.clear();
+        }
+        self.bytestrings.retain(|bytestring| common_prefix(bytes, &bytestring[self.position - bytes.len()..]));
+        parse_results
     }
 }
 
