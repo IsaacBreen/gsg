@@ -35,7 +35,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
         for (char_number, byte) in bytes.iter().cloned().enumerate() {
             parse_results.squash();
-            let byte_is_in_some_up_data = parse_results.up_data_vec.iter().any(|up_data| up_data.u8set.contains(byte));
+            let byte_is_in_some_up_data = parser.valid_next_bytes().contains(byte);
             assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}. Line: {:?}, Char: {:?}, Text: {:?}", byte as char, parse_results, line_number + 1, char_number + 1, line);
 
             if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
