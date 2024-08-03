@@ -19,57 +19,47 @@ pub struct Repeat1Parser {
 
 impl CombinatorTrait for Repeat1 {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        // Not done -> automatically passes
-        // Not greedy -> automatically passes
-        // Greedy and done -> only passes if a new parser called on right data doesn't have a right data without lookaheads (we can call this a dominating result).
-        let mut right_data_as = vec![];
-        let mut new_parsers = vec![];
-        let mut prev_parsers_all_done = true;
-
-        let (a, parse_results) = self.a.parse(right_data.clone(), bytes);
-        right_data_as.extend(parse_results.right_data_vec);
-        if !parse_results.done {
-            new_parsers.push(a);
+        let mut parsers = vec![];
+        let (a, ParseResults { mut right_data_vec, mut done }) = self.a.parse(right_data.clone(), bytes);
+        if !done {
+            parsers.push(a);
         }
-        prev_parsers_all_done &= parse_results.done;
 
-        let mut new_right_data = right_data_as.clone();
-        while new_right_data.len() > 0 {
+        let mut new_right_data = right_data_vec.clone();
+        while right_data_vec.len() > 0 {
             let current_new_right_data = new_right_data;
             new_right_data = vec![];
-            let mut current_parsers_all_done = true;
             for right_data_a in current_new_right_data {
                 let offset = right_data_a.position - right_data.position;
                 let (a, parse_results) = self.a.parse(right_data_a, &bytes[offset..]);
-                if self.greedy && prev_parsers_all_done && !parse_results.right_data_vec.is_empty() {
-                    // Clear all previous right and up data
+                if self.greedy && done && parse_results.succeeds_tentatively() {
                     new_right_data.clear();
+                    parsers.clear();
+                    done = false;
                 }
                 new_right_data.extend(parse_results.right_data_vec);
                 if !parse_results.done {
-                    new_parsers.push(a);
+                    parsers.push(a);
                 }
-                current_parsers_all_done &= parse_results.done;
             }
-            right_data_as.extend(new_right_data.clone());
-            prev_parsers_all_done &= current_parsers_all_done;
+            right_data_vec.extend(new_right_data.clone());
         }
 
-        right_data_as.squash();
+        right_data_vec.squash();
 
         let position = right_data.position + bytes.len();
 
-        let done = new_parsers.is_empty();
+        let done = parsers.is_empty();
 
         (
             Parser::Repeat1Parser(Repeat1Parser {
                 a: self.a.clone(),
-                a_parsers: new_parsers,
+                a_parsers: parsers,
                 position,
                 greedy: self.greedy
             }),
             ParseResults {
-                right_data_vec: right_data_as,
+                right_data_vec,
                 done,
             }
         )
