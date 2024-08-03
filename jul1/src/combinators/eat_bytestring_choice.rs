@@ -102,7 +102,7 @@ impl CombinatorTrait for EatByteStringChoice {
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (mut parser, mut parse_results0) = self.parser(right_data);
         let parse_results1 = parser.steps(bytes);
-        parse_results0.combine(parse_results1);
+        parse_results0.combine_seq(parse_results1);
         (parser, parse_results0)
     }
 }
