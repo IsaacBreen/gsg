@@ -1,4 +1,4 @@
-use crate::{RightData, UpData};
+use crate::{RightData};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParseResults {
@@ -7,30 +7,26 @@ pub struct ParseResults {
 }
 
 impl ParseResults {
-    pub fn new(right_data: RightData, done: bool) -> Self {
+    pub fn new(right_ RightData, done: bool) -> Self {
         ParseResults {
             right_data_vec: vec![right_data],
-            up_data_vec: vec![],
             done,
         }
     }
     pub fn empty_unfinished() -> Self {
         ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![],
             done: false,
         }
     }
     pub fn empty_finished() -> Self {
         ParseResults {
             right_data_vec: vec![],
-            up_data_vec: vec![],
             done: true,
         }
     }
     pub(crate) fn combine(&mut self, mut p0: ParseResults) {
         self.right_data_vec.append(&mut p0.right_data_vec);
-        self.up_data_vec.append(&mut p0.up_data_vec);
         self.done &= p0.done;
     }
     pub(crate) fn combine_inplace(mut self, p0: ParseResults) -> Self {
@@ -39,7 +35,6 @@ impl ParseResults {
     }
     pub fn combine_seq(&mut self, mut p0: ParseResults) {
         self.right_data_vec.append(&mut p0.right_data_vec);
-        self.up_data_vec.append(&mut p0.up_data_vec);
         self.done |= p0.done;
     }
 }

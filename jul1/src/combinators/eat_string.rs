@@ -1,5 +1,5 @@
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
-use crate::parse_state::{RightData, UpData};
+use crate::parse_state::{RightData};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatString {
@@ -16,22 +16,21 @@ impl From<EatString> for Combinator {
 pub struct EatStringParser {
     pub(crate) string: Vec<u8>,
     index: usize,
-    pub(crate) right_data: Option<RightData>,
+    pub(crate) right_ Option<RightData>,
 }
 
 impl CombinatorTrait for EatString {
 
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        fn parser(_self: &EatString, right_data: RightData) -> (Parser, ParseResults) {
+    fn parser_with_steps(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        fn parser(_self: &EatString, right_ RightData) -> (Parser, ParseResults) {
             let mut parser = EatStringParser {
                 string: _self.string.clone(),
                 index: 0,
-                right_data: Some(right_data),
+                right_ Some(right_data),
             };
             // println!("EatStringParser: Starting {:?}", parser);
             (Parser::EatStringParser(parser), ParseResults {
                 right_data_vec: vec![],
-                up_data_vec: vec![UpData { u8set: U8Set::from_u8(_self.string[0]) }],
                 done: false,
             })
         }
@@ -50,7 +49,6 @@ impl ParserTrait for EatStringParser {
         }
 
         let mut right_data_vec = Vec::new();
-        let mut up_data_vec = Vec::new();
         let mut done = false;
 
         for &byte in bytes {
@@ -64,8 +62,6 @@ impl ParserTrait for EatStringParser {
                             done = true;
                             break;
                         }
-                    } else {
-                        up_data_vec.push(UpData { u8set: U8Set::from_u8(self.string[self.index]) });
                     }
                 } else {
                     self.index = self.string.len();
@@ -79,8 +75,15 @@ impl ParserTrait for EatStringParser {
 
         ParseResults {
             right_data_vec,
-            up_data_vec,
             done,
+        }
+    }
+
+    fn valid_next_bytes(&self) -> U8Set {
+        if self.index < self.string.len() {
+            U8Set::from_u8(self.string[self.index])
+        } else {
+            U8Set::none()
         }
     }
 }
