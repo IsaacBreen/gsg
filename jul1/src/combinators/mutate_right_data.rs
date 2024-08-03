@@ -55,22 +55,6 @@ impl Debug for MutateRightDataParser {
 }
 
 impl CombinatorTrait for MutateRightData {
-    fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
-        if (self.run)(&mut right_data) {
-            (Parser::MutateRightDataParser(MutateRightDataParser { run: self.run.clone() }), ParseResults {
-                right_data_vec: vec![right_data],
-                up_data_vec: vec![],
-                done: true
-            })
-        } else {
-            (Parser::MutateRightDataParser(MutateRightDataParser { run: self.run.clone() }), ParseResults {
-                right_data_vec: vec![],
-                up_data_vec: vec![],
-                done: true,
-            })
-        }
-    }
-
     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
          if (self.run)(&mut right_data) {
             (Parser::MutateRightDataParser(MutateRightDataParser { run: self.run.clone() }), ParseResults {
@@ -89,10 +73,6 @@ impl CombinatorTrait for MutateRightData {
 }
 
 impl ParserTrait for MutateRightDataParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        panic!("MutateRightData parser already consumed")
-    }
-
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("MutateRightData parser already consumed")
     }

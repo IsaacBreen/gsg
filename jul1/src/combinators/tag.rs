@@ -32,24 +32,7 @@ impl Debug for TaggedParser {
 }
 
 impl CombinatorTrait for Tagged {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parser(right_data)));
-        match result {
-            Ok((parser, parse_results)) => (
-                Parser::TaggedParser(TaggedParser { inner: Box::new(parser), tag: self.tag.clone() }),
-                parse_results,
-            ),
-            Err(err) => {
-                eprintln!("Panic caught in parser with tag: {}", self.tag);
-                resume_unwind(err);
-            }
-        }
-    }
-
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        if self.tag == "NAME" {
-            println!("WHAT THE HECK");
-        }
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parser_with_steps(right_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (
@@ -65,17 +48,6 @@ impl CombinatorTrait for Tagged {
 }
 
 impl ParserTrait for TaggedParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        let result = catch_unwind(AssertUnwindSafe(|| self.inner.step(c)));
-        match result {
-            Ok(parse_results) => parse_results,
-            Err(err) => {
-                eprintln!("Panic caught in step with tag: {}", self.tag);
-                resume_unwind(err);
-            }
-        }
-    }
-
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.steps(bytes)));
         match result {

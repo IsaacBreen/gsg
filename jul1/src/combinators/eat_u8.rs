@@ -13,22 +13,22 @@ pub struct EatU8Parser {
 }
 
 impl CombinatorTrait for EatU8 {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let parser = EatU8Parser {
-            u8set: self.u8set.clone(),
-            right_data: Some(right_data),
-        };
-        (Parser::EatU8Parser(parser), ParseResults {
-            right_data_vec: vec![],
-            up_data_vec: vec![UpData {
-                u8set: self.u8set.clone(),
-            }],
-            done: false,
-        })
-    }
-
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (mut parser, mut parse_results0) = self.parser(right_data);
+        fn parser(_self: &EatU8, right_data: RightData) -> (Parser, ParseResults) {
+            let parser = EatU8Parser {
+                u8set: _self.u8set.clone(),
+                right_data: Some(right_data),
+            };
+            (Parser::EatU8Parser(parser), ParseResults {
+                right_data_vec: vec![],
+                up_data_vec: vec![UpData {
+                    u8set: _self.u8set.clone(),
+                }],
+                done: false,
+            })
+        }
+
+        let (mut parser, mut parse_results0) = parser(self, right_data);
         let parse_results1 = parser.steps(bytes);
         parse_results0.combine_seq(parse_results1);
         (parser, parse_results0)
@@ -36,29 +36,28 @@ impl CombinatorTrait for EatU8 {
 }
 
 impl ParserTrait for EatU8Parser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        if self.u8set.contains(c) {
-            if let Some(mut right_data) = self.right_data.take() {
-                right_data.position += 1;
-                return ParseResults {
-                    right_data_vec: vec![right_data],
-                    up_data_vec: vec![],
-                    done: true,
-                };
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        fn step(_self: &mut EatU8Parser, c: u8) -> ParseResults {
+            if _self.u8set.contains(c) {
+                if let Some(mut right_data) = _self.right_data.take() {
+                    right_data.position += 1;
+                    return ParseResults {
+                        right_data_vec: vec![right_data],
+                        up_data_vec: vec![],
+                        done: true,
+                    };
+                }
+            }
+            if let Some(mut right_data) = _self.right_data.take() {
+                return ParseResults::empty_finished()
+            } else {
+                panic!("EatU8Parser already consumed")
             }
         }
-        if let Some(mut right_data) = self.right_data.take() {
-            return ParseResults::empty_finished()
-        } else {
-            panic!("EatU8Parser already consumed")
-        }
-    }
-
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
-        self.step(bytes[0])
+        step(self, bytes[0])
     }
 }
 

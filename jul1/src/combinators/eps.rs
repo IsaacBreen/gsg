@@ -7,13 +7,6 @@ pub struct Eps;
 pub struct EpsParser;
 
 impl CombinatorTrait for Eps {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        (Parser::EpsParser(EpsParser), ParseResults {
-            right_data_vec: vec![right_data],
-            up_data_vec: vec![],
-            done: true,
-        })
-    }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::EpsParser(EpsParser), ParseResults {
@@ -25,10 +18,6 @@ impl CombinatorTrait for Eps {
 }
 
 impl ParserTrait for EpsParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        panic!("EpsParser already consumed")
-    }
-
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("EpsParser already consumed")
     }

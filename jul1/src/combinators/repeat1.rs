@@ -18,19 +18,6 @@ pub struct Repeat1Parser {
 }
 
 impl CombinatorTrait for Repeat1 {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let (a, mut parse_results) = self.a.parser(right_data.clone());
-        assert!(parse_results.right_data_vec.is_empty());
-        // parse_results.right_data_vec.clear();
-        let a_parsers = if !parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty() {
-            vec![a.clone()]
-        } else {
-            vec![]
-        };
-        let position = right_data.position;
-        (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, position, greedy: self.greedy }), parse_results)
-    }
-
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         // Not done -> automatically passes
         // Not greedy -> automatically passes
@@ -97,38 +84,6 @@ impl CombinatorTrait for Repeat1 {
 }
 
 impl ParserTrait for Repeat1Parser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        let mut right_data_as = vec![];
-        let mut up_data_as = vec![];
-        let mut new_parsers = vec![];
-
-        for mut a_parser in self.a_parsers.drain(..) {
-            let ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut done} = a_parser.step(c);
-            if !done {
-                new_parsers.push(a_parser);
-            }
-            up_data_as.extend(up_data_a);
-            right_data_as.extend(right_data_a);
-        }
-
-        right_data_as.squash();
-
-        for right_data_a in right_data_as.clone() {
-            let (a_parser, ParseResults { right_data_vec: right_data_a, up_data_vec: up_data_a, mut done }) = self.a.parser(right_data_a);
-            new_parsers.push(a_parser);
-            up_data_as.extend(up_data_a);
-            right_data_as.extend(right_data_a);
-        }
-
-        self.a_parsers = new_parsers;
-
-        ParseResults {
-            right_data_vec: right_data_as,
-            up_data_vec: up_data_as,
-            done: self.a_parsers.is_empty(),
-        }
-    }
-
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         let mut right_data_as = vec![];
         let mut up_data_as = vec![];

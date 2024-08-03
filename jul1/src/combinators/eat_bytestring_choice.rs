@@ -84,23 +84,23 @@ pub struct EatByteStringChoiceParser {
 }
 
 impl CombinatorTrait for EatByteStringChoice {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let parser = EatByteStringChoiceParser {
-            current_node: Rc::clone(&self.root),
-            right_data,
-        };
-        (
-            Parser::EatByteStringChoiceParser(parser),
-            ParseResults {
-                right_data_vec: vec![],
-                up_data_vec: vec![UpData { u8set: self.root.valid_bytes }],
-                done: false,
-            }
-        )
-    }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (mut parser, mut parse_results0) = self.parser(right_data);
+        fn parser(_self: &EatByteStringChoice, right_data: RightData) -> (Parser, ParseResults) {
+            let parser = EatByteStringChoiceParser {
+                current_node: Rc::clone(&_self.root),
+                right_data,
+            };
+            (
+                Parser::EatByteStringChoiceParser(parser),
+                ParseResults {
+                    right_data_vec: vec![],
+                    up_data_vec: vec![UpData { u8set: _self.root.valid_bytes }],
+                    done: false,
+                }
+            )
+        }
+        let (mut parser, mut parse_results0) = parser(self, right_data);
         let parse_results1 = parser.steps(bytes);
         parse_results0.combine_seq(parse_results1);
         (parser, parse_results0)
@@ -108,42 +108,41 @@ impl CombinatorTrait for EatByteStringChoice {
 }
 
 impl ParserTrait for EatByteStringChoiceParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        if self.current_node.valid_bytes.contains(c) {
-            let child_index = self.current_node.valid_bytes.bitset.count_bits_before(c) as usize;
-            if child_index < self.current_node.children.len() {
-                let next_node = &self.current_node.children[child_index];
-                self.current_node = Rc::clone(next_node);
-                self.right_data.position += 1;
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        fn step(_self: &mut EatByteStringChoiceParser, c: u8) -> ParseResults {
+            if _self.current_node.valid_bytes.contains(c) {
+                let child_index = _self.current_node.valid_bytes.bitset.count_bits_before(c) as usize;
+                if child_index < _self.current_node.children.len() {
+                    let next_node = &_self.current_node.children[child_index];
+                    _self.current_node = Rc::clone(next_node);
+                    _self.right_data.position += 1;
 
-                if self.current_node.is_end {
-                    ParseResults {
-                        right_data_vec: vec![self.right_data.clone()],
-                        up_data_vec: vec![UpData { u8set: self.current_node.valid_bytes }],
-                        done: self.current_node.valid_bytes.is_empty(),
+                    if _self.current_node.is_end {
+                        ParseResults {
+                            right_data_vec: vec![_self.right_data.clone()],
+                            up_data_vec: vec![UpData { u8set: _self.current_node.valid_bytes }],
+                            done: _self.current_node.valid_bytes.is_empty(),
+                        }
+                    } else {
+                        ParseResults {
+                            right_data_vec: vec![],
+                            up_data_vec: vec![UpData { u8set: _self.current_node.valid_bytes }],
+                            done: false,
+                        }
                     }
                 } else {
-                    ParseResults {
-                        right_data_vec: vec![],
-                        up_data_vec: vec![UpData { u8set: self.current_node.valid_bytes }],
-                        done: false,
-                    }
+                    ParseResults::empty_finished()
                 }
             } else {
                 ParseResults::empty_finished()
             }
-        } else {
-            ParseResults::empty_finished()
         }
-    }
-
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
         let mut right_data_vec = Vec::new();
         for i in 0..bytes.len() {
-            let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec, done } = self.step(bytes[i]);
+            let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec, done } = step(self, bytes[i]);
             right_data_vec.append(&mut new_right_data_vec);
             if done || i == bytes.len() - 1 {
                 return ParseResults {

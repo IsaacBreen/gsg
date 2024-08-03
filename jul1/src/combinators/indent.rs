@@ -15,10 +15,6 @@ pub enum IndentCombinatorParser {
 }
 
 impl CombinatorTrait for IndentCombinator {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        self.parser_with_steps(right_data, &[])
-    }
-
     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
             IndentCombinator::Dent if right_data.dedents == 0 => {
@@ -92,41 +88,40 @@ impl CombinatorTrait for IndentCombinator {
 }
 
 impl ParserTrait for IndentCombinatorParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        match self {
-            IndentCombinatorParser::DentParser(parser) => parser.step(c),
-            IndentCombinatorParser::IndentParser(maybe_right_data) => {
-                if c == b' ' {
-                    let mut right_data = maybe_right_data.as_mut().unwrap();
-                    right_data.position += 1;
-                    right_data.indents.last_mut().unwrap().push(c);
-                    // println!("Indent parser: {:?}", right_data);
-                    ParseResults {
-                        right_data_vec: vec![right_data.clone()],
-                        up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
-                        done: false,
-                    }
-                } else {
-                    // Fail. Purge the right data to poison the parser.
-                    maybe_right_data.take();
-                    ParseResults {
-                        right_data_vec: vec![],
-                        up_data_vec: vec![],
-                        done: true,
+    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+        fn step(_self: &mut IndentCombinatorParser, c: u8) -> ParseResults {
+            match _self {
+                IndentCombinatorParser::DentParser(parser) => parser.steps(&[c]),
+                IndentCombinatorParser::IndentParser(maybe_right_data) => {
+                    if c == b' ' {
+                        let mut right_data = maybe_right_data.as_mut().unwrap();
+                        right_data.position += 1;
+                        right_data.indents.last_mut().unwrap().push(c);
+                        // println!("Indent parser: {:?}", right_data);
+                        ParseResults {
+                            right_data_vec: vec![right_data.clone()],
+                            up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
+                            done: false,
+                        }
+                    } else {
+                        // Fail. Purge the right data to poison the parser.
+                        maybe_right_data.take();
+                        ParseResults {
+                            right_data_vec: vec![],
+                            up_data_vec: vec![],
+                            done: true,
+                        }
                     }
                 }
+                IndentCombinatorParser::Done => ParseResults::empty_finished(),
             }
-            IndentCombinatorParser::Done => ParseResults::empty_finished(),
         }
-    }
-
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
         let mut right_data_vec = Vec::new();
         for i in 0..bytes.len() {
-            let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec, done } = self.step(bytes[i]);
+            let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec, done } = step(self, bytes[i]);
             right_data_vec.append(&mut new_right_data_vec);
             if done || i == bytes.len() - 1 {
                 return ParseResults {

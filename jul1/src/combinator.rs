@@ -134,36 +134,20 @@ macro_rules! match_parser {
 }
 
 pub trait CombinatorTrait {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults);
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
-    // fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-    //     let (mut parser, mut parse_results0) = self.parser(right_data);
-    //     let parse_results1 = parser.steps(bytes);
-    //     parse_results0.combine_seq(parse_results1);
-    //     (parser, parse_results0)
-    // }
 }
 
 pub trait ParserTrait {
-    fn step(&mut self, c: u8) -> ParseResults;
     fn steps(&mut self, bytes: &[u8]) -> ParseResults;
 }
 
 impl CombinatorTrait for Combinator {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        match_combinator!(self, inner => inner.parser(right_data))
-    }
-
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         match_combinator!(self, inner => inner.parser_with_steps(right_data, bytes))
     }
 }
 
 impl ParserTrait for Parser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        match_parser!(self, inner => inner.step(c))
-    }
-
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         match_parser!(self, inner => inner.steps(bytes))
     }
@@ -249,3 +233,18 @@ impl Parser {
         }
     }
 }
+
+pub trait CombinatorTraitExt: CombinatorTrait {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+        self.parser_with_steps(right_data, &[])
+    }
+}
+
+pub trait ParserTraitExt: ParserTrait {
+    fn step(&mut self, c: u8) -> ParseResults {
+        self.steps(&[c])
+    }
+}
+
+impl<T: CombinatorTrait> CombinatorTraitExt for T {}
+impl<T: ParserTrait> ParserTraitExt for T {}

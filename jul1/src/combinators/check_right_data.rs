@@ -55,22 +55,6 @@ impl Debug for CheckRightDataParser {
 }
 
 impl CombinatorTrait for CheckRightData {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        if (self.run)(&right_data) {
-            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults {
-                right_data_vec: vec![right_data],
-                up_data_vec: vec![],
-                done: true
-            })
-        } else {
-            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults {
-                right_data_vec: vec![],
-                up_data_vec: vec![],
-                done: true,
-            })
-        }
-    }
-
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&right_data) {
             (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults {
@@ -89,10 +73,6 @@ impl CombinatorTrait for CheckRightData {
 }
 
 impl ParserTrait for CheckRightDataParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        panic!("CheckRightData parser already consumed")
-    }
-
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("CheckRightData parser already consumed")
     }

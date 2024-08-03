@@ -63,16 +63,6 @@ pub struct CacheFirstContextParser {
 }
 
 impl CombinatorTrait for CacheFirstContext {
-    fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
-        assert!(right_data.cache_first_data.inner.is_none(), "CacheFirstContextParser already initialized");
-        right_data.cache_first_data.inner = Some(Rc::new(RefCell::new(CacheFirstDataInner::default())));
-        let (parser, results) = self.inner.parser(right_data.clone());
-        (Parser::CacheFirstContextParser(CacheFirstContextParser {
-            inner: Box::new(parser),
-            cache_first_data_inner: right_data.cache_first_data.inner.clone().unwrap(),
-        }), results)
-    }
-
     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         assert!(right_data.cache_first_data.inner.is_none(), "CacheFirstContextParser already initialized");
         right_data.cache_first_data.inner = Some(Rc::new(RefCell::new(CacheFirstDataInner::default())));
@@ -85,31 +75,12 @@ impl CombinatorTrait for CacheFirstContext {
 }
 
 impl ParserTrait for CacheFirstContextParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        self.inner.step(c)
-    }
-
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         self.inner.steps(bytes)
     }
 }
 
 impl CombinatorTrait for CacheFirst {
-    fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
-        // Try to get the entry from the cache
-        let key = CacheFirstKey { combinator: self.inner.clone(), right_data: right_data.clone() };
-        if let Some(entry) = right_data.cache_first_data.inner.clone().unwrap().borrow().entries.get(&key).cloned() {
-            return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry);
-        }
-        // Initialize the parser and create a new entry
-        let (parser, mut parse_results) = self.inner.parser(right_data.clone());
-        parse_results.squash();
-        let binding = right_data.cache_first_data.inner.unwrap();
-        let mut cache_first_data_inner = binding.borrow_mut();
-        cache_first_data_inner.entries.insert(key.clone(), parse_results.clone());
-        (parser, parse_results)
-    }
-
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         // Try to get the entry from the cache
         let key = CacheFirstKey { combinator: self.inner.clone(), right_data: right_data.clone() };
@@ -127,26 +98,11 @@ impl CombinatorTrait for CacheFirst {
 }
 
 impl ParserTrait for CacheFirstParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        match self {
-            CacheFirstParser::Uninitialized { key } => {
-                // Initialize the parser and step it.
-                let (parser, parse_results) = key.combinator.parser(key.right_data.clone());
-                *self = CacheFirstParser::Initialized { parser: Box::new(parser) };
-                self.step(c)
-            }
-            CacheFirstParser::Initialized { parser } => {
-                // Step the parser.
-                parser.step(c)
-            }
-        }
-    }
-
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         match self {
             CacheFirstParser::Uninitialized { key } => {
                 // Initialize the parser and step it.
-                let (mut parser, parse_results) = key.combinator.parser(key.right_data.clone());
+                let (mut parser, parse_results) = key.combinator.parser_with_steps(key.right_data.clone(), bytes);
                 *self = CacheFirstParser::Initialized { parser: Box::new(parser) };
                 self.steps(bytes)
             }

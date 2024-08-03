@@ -25,31 +25,6 @@ fn common_prefix(a: &[u8], b: &[u8]) -> bool {
 }
 
 impl CombinatorTrait for ExcludeBytestrings {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        let (inner, mut parse_results) = self.inner.parser(right_data);
-        let mut exclusion_filter = U8Set::none();
-        let mut position = 0;
-        // Exclude character if it's the last character of a bytestring.
-        for bytestring in &self.bytestrings {
-            if bytestring.len() == position + 1 {
-                let c = bytestring[position];
-                exclusion_filter |= U8Set::from_byte(c);
-            }
-        }
-        dbg!(exclusion_filter); exclusion_filter = exclusion_filter.complement();
-        for up_data in parse_results.up_data_vec.iter_mut() {
-            up_data.u8set &= exclusion_filter;
-        }
-        if self.bytestrings.iter().any(|bytestring| bytestring.len() == 0) {
-            parse_results.right_data_vec.clear();
-        }
-        (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
-            inner: Box::new(inner),
-            bytestrings: self.bytestrings.clone(),
-            position,
-        }), parse_results)
-    }
-
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (inner, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
         let mut exclusion_filter = U8Set::none();
@@ -81,30 +56,6 @@ impl CombinatorTrait for ExcludeBytestrings {
 }
 
 impl ParserTrait for ExcludeBytestringsParser {
-    fn step(&mut self, c: u8) -> ParseResults {
-        let mut parse_results = self.inner.step(c);
-        let mut exclusion_filter = U8Set::none();
-        self.bytestrings.retain(|bytestring| self.position + 1 < bytestring.len());
-        self.position += 1;
-        // Exclude character if it's the last character of a bytestring.
-        for bytestring in &self.bytestrings {
-            if bytestring.len() == self.position + 1 {
-                let c = bytestring[self.position];
-                exclusion_filter |= U8Set::from_byte(c);
-            }
-        }
-        dbg!(exclusion_filter); exclusion_filter = exclusion_filter.complement();
-        for up_data in parse_results.up_data_vec.iter_mut() {
-            up_data.u8set &= exclusion_filter;
-        }
-        if self.bytestrings.iter().any(|bytestring| bytestring[self.position - 1] == c && self.position - 1 == bytestring.len() - 1) {
-            println!("Clearing right data: bytestrings: {:?}, char: {:?}, position: {:?}", self.bytestrings, c, self.position);
-            parse_results.right_data_vec.clear();
-        }
-        self.bytestrings.retain(|bytestring| bytestring[self.position - 1] == c);
-        parse_results
-    }
-
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         let mut parse_results = self.inner.steps(bytes);
         let mut exclusion_filter = U8Set::none();

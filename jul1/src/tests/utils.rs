@@ -2,7 +2,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use kdam::tqdm;
 
-use crate::{CombinatorTrait, ParseResults, ParserTrait, RightData, Squash};
+use crate::{CombinatorTrait, CombinatorTraitExt, ParseResults, ParserTrait, ParserTraitExt, RightData, Squash};
 
 use std::time::Instant;
 use std::collections::HashMap;
