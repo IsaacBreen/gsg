@@ -1,6 +1,6 @@
 use std::ops::RangeBounds;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
-use crate::parse_state::{RightData, UpData};
+use crate::parse_state::{RightData};
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatU8 {
     pub(crate) u8set: U8Set,
@@ -21,9 +21,6 @@ impl CombinatorTrait for EatU8 {
             };
             (Parser::EatU8Parser(parser), ParseResults {
                 right_data_vec: vec![],
-                up_data_vec: vec![UpData {
-                    u8set: _self.u8set.clone(),
-                }],
                 done: false,
             })
         }
@@ -46,7 +43,6 @@ impl ParserTrait for EatU8Parser {
                 right_data.position += 1;
                 return ParseResults {
                     right_data_vec: vec![right_data],
-                    up_data_vec: vec![],
                     done: true,
                 };
             }

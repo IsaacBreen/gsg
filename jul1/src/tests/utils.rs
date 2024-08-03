@@ -35,7 +35,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
         for (char_number, byte) in bytes.iter().cloned().enumerate() {
             parse_results.squash();
-            let byte_is_in_some_up_data = parse_results.up_data_vec.iter().any(|up_data| up_data.u8set.contains(byte));
+            let byte_is_in_some_up_data = parser.get_u8set().contains(byte);
             assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}. Line: {:?}, Char: {:?}, Text: {:?}", byte as char, parse_results, line_number + 1, char_number + 1, line);
 
             if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
@@ -54,7 +54,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
             parse_results = catch_unwind(AssertUnwindSafe(|| parser.step(byte).squashed())).expect(format!("Parser.step: Error at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1).as_str());
 
-            assert!(!parse_results.right_data_vec.is_empty() || !parse_results.up_data_vec.is_empty(), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
+            assert!(!parse_results.right_data_vec.is_empty() || !parser.get_u8set().is_empty(), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
             assert!(!parse_results.done, "Parser finished prematurely at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
         }
 
@@ -161,7 +161,7 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     let mut input = input.to_string();
     println!("beginning assert_fails {}", desc);
-    let (mut parser, ParseResults { up_data_vec: mut up_data, .. }) = T::parser(&combinator, RightData::default());
+    let (mut parser, ParseResults { .. }) = T::parser(&combinator, RightData::default());
     println!("constructed parser");
 
     let mut result = Ok(());
@@ -177,10 +177,11 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
         let bytes = line.bytes().collect::<Vec<_>>();
         for (char_number, byte) in tqdm!(bytes.iter().cloned().enumerate(), animation = "fillup", position = 1) {
             println!("byte: {:?}\n\n\n\n", byte as char);
-            let byte_is_in_some_up_data = up_data.iter().any(|up_data| up_data.u8set.contains(byte));
+            let u8set = parser.get_u8set();
+            let byte_is_in_some_up_data = u8set.contains(byte);
             // assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}", byte as char, up_data);
             if !byte_is_in_some_up_data {
-                println!("byte {:?} is not in any up_data: {:?}", byte as char, up_data);
+                println!("byte {:?} is not in the u8set: {:?}", byte as char, u8set);
                 return;
             }
 
@@ -190,11 +191,8 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
 
             let ParseResults {
                 right_data_vec: right_data,
-                up_data_vec: new_up_data,
                 done,
             } = parser.step(byte).squashed();
-
-            up_data = new_up_data;
 
             println!();
             println!("line:char: {line_number}:{char_number}");
@@ -204,7 +202,7 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
             println!("Stats:");
             println!("{}", parser.stats());
 
-            if !right_data.is_empty() || !up_data.is_empty() {
+            if !right_data.is_empty() || !parser.get_u8set().is_empty() {
                 result = Err(format!(
                     "Parser succeeded at byte: {} on line: {} at char: {}",
                     byte as char,

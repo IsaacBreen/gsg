@@ -18,3 +18,4 @@ unicode-segmentation = "1.11.0"
 opt-level = 1
 ## Keep debug info
 #debug = "full"
+

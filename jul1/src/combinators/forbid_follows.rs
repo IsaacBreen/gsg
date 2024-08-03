@@ -23,7 +23,6 @@ impl CombinatorTrait for ForbidFollows {
         right_data.forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
         (combinator::Parser::FailParser(FailParser), ParseResults {
             right_data_vec: vec![right_data],
-            up_data_vec: vec![],
             done: true,
         })
     }
@@ -34,7 +33,6 @@ impl CombinatorTrait for ForbidFollowsClear {
         right_data.forbidden_consecutive_matches.prev_match_ids.clear();
         (combinator::Parser::FailParser(FailParser), ParseResults {
             right_data_vec: vec![right_data],
-            up_data_vec: vec![],
             done: true,
         })
     }
@@ -48,7 +46,6 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
             right_data.forbidden_consecutive_matches.prev_match_ids.clear();
             (combinator::Parser::FailParser(FailParser), ParseResults {
                 right_data_vec: vec![right_data],
-                up_data_vec: vec![],
                 done: true,
             })
         }

@@ -40,9 +40,6 @@ impl CombinatorTrait for ExcludeBytestrings {
             }
         }
         dbg!(exclusion_filter); exclusion_filter = exclusion_filter.complement();
-        for up_data in parse_results.up_data_vec.iter_mut() {
-            up_data.u8set &= exclusion_filter;
-        }
         if bytestrings.iter().any(|bytestring| bytes.starts_with(bytestring)) {
             println!("Clearing right data");
             parse_results.right_data_vec.clear();
@@ -69,9 +66,6 @@ impl ParserTrait for ExcludeBytestringsParser {
             }
         }
         dbg!(exclusion_filter); exclusion_filter = exclusion_filter.complement();
-        for up_data in parse_results.up_data_vec.iter_mut() {
-            up_data.u8set &= exclusion_filter;
-        }
         if self.bytestrings.iter().any(|bytestring| common_prefix(bytes, &bytestring[self.position - bytes.len()..])) {
             parse_results.right_data_vec.clear();
         }

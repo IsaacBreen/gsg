@@ -6,7 +6,7 @@ mod tests {
     use crate::combinators::*;
     use crate::combinators::cache_context;
     use crate::combinators::tag;
-    use crate::parse_state::{RightData, UpData};
+    use crate::parse_state::{RightData};
     use crate::tests::utils::{assert_parses, assert_parses_default};
     use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses_fast};
 
@@ -139,7 +139,7 @@ mod tests {
         assert_eq!(stats.active_tags.len(), 0, "Expected no active tags after the first step");
 
         assert_eq!(results.right_data_vec.len(), 1, "Expected one right data after the first step");
-        assert_eq!(results.up_data_vec.len(), 0, "Expected no up data after the first step");
+        // assert_eq!(results.up_data_vec.len(), 0, "Expected no up data after the first step");
     }
 
     #[test]

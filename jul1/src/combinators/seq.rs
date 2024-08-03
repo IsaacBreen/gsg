@@ -17,7 +17,6 @@ impl CombinatorTrait for Seq {
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut children = Vec::new();
         let mut current_right_data = vec![right_data.clone()];
-        let mut all_up_data = Vec::new();
         let mut all_done = true;
         let start_position = right_data.position;
 
@@ -29,13 +28,12 @@ impl CombinatorTrait for Seq {
 
             for right_data in current_right_data.into_iter() {
                 let offset = right_data.position - start_position;
-                let (parser, ParseResults { right_data_vec, up_data_vec, done }) = child.parser_with_steps(right_data, &bytes[offset..]);
+                let (parser, ParseResults { right_data_vec, done }) = child.parser_with_steps(right_data, &bytes[offset..]);
                 if !done {
                     new_parsers.push(parser);
                     all_done = false;
                 }
                 new_right_data.extend(right_data_vec);
-                all_up_data.extend(up_data_vec);
             }
 
             children.push((child.clone(), new_parsers));
@@ -46,7 +44,6 @@ impl CombinatorTrait for Seq {
 
         let parse_results = ParseResults {
             right_data_vec: current_right_data,
-            up_data_vec: all_up_data,
             done: all_done,
         };
 
@@ -57,27 +54,24 @@ impl CombinatorTrait for Seq {
 impl ParserTrait for SeqParser {
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         let mut current_right_data: Vec<RightData> = vec![];
-        let mut all_up_data = Vec::new();
         let mut all_done = true;
 
         for (combinator, parsers) in &mut self.children {
             let mut next_right_data = Vec::new();
 
             parsers.retain_mut(|mut parser| {
-                let ParseResults { right_data_vec, up_data_vec, done } = parser.steps(bytes);
+                let ParseResults { right_data_vec, done } = parser.steps(bytes);
                 if !done {
                     all_done = false;
                 }
                 next_right_data.extend(right_data_vec);
-                all_up_data.extend(up_data_vec);
                 !done
             });
 
             for right_data in current_right_data.into_iter() {
                 let offset = right_data.position - self.position;
-                let (parser, ParseResults { right_data_vec, up_data_vec, done }) = combinator.parser_with_steps(right_data, &bytes[offset..]);
+                let (parser, ParseResults { right_data_vec, done }) = combinator.parser_with_steps(right_data, &bytes[offset..]);
                 next_right_data.extend(right_data_vec);
-                all_up_data.extend(up_data_vec);
                 if !done {
                     parsers.push(parser);
                     all_done = false;
@@ -91,7 +85,6 @@ impl ParserTrait for SeqParser {
 
         ParseResults {
             right_data_vec: current_right_data,
-            up_data_vec: all_up_data,
             done: all_done,
         }
     }

@@ -1,5 +1,5 @@
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
-use crate::parse_state::{RightData, UpData};
+use crate::parse_state::{RightData};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatString {
@@ -31,7 +31,6 @@ impl CombinatorTrait for EatString {
             // println!("EatStringParser: Starting {:?}", parser);
             (Parser::EatStringParser(parser), ParseResults {
                 right_data_vec: vec![],
-                up_data_vec: vec![UpData { u8set: U8Set::from_u8(_self.string[0]) }],
                 done: false,
             })
         }
@@ -50,7 +49,6 @@ impl ParserTrait for EatStringParser {
         }
 
         let mut right_data_vec = Vec::new();
-        let mut up_data_vec = Vec::new();
         let mut done = false;
 
         for &byte in bytes {
@@ -65,7 +63,6 @@ impl ParserTrait for EatStringParser {
                             break;
                         }
                     } else {
-                        up_data_vec.push(UpData { u8set: U8Set::from_u8(self.string[self.index]) });
                     }
                 } else {
                     self.index = self.string.len();
@@ -79,7 +76,6 @@ impl ParserTrait for EatStringParser {
 
         ParseResults {
             right_data_vec,
-            up_data_vec,
             done,
         }
     }

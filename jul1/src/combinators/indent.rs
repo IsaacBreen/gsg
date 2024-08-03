@@ -1,4 +1,4 @@
-use crate::{choice, Combinator, CombinatorTrait, eat_bytes, eps, mutate_right_data, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, UpData};
+use crate::{choice, Combinator, CombinatorTrait, eat_bytes, eps, mutate_right_data, Parser, ParseResults, ParserTrait, RightData, seq, U8Set};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IndentCombinator {
     Dent,
@@ -47,7 +47,6 @@ impl CombinatorTrait for IndentCombinator {
                 if !bytes.is_empty() && bytes[0] != b' ' {
                     (IndentCombinatorParser::Done, ParseResults {
                         right_data_vec: vec![],
-                        up_data_vec: vec![],
                         done: true,
                     })
                 } else {
@@ -60,7 +59,6 @@ impl CombinatorTrait for IndentCombinator {
                     right_data.indents.push(bytes[0..i].to_vec());
                     (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults {
                         right_data_vec: vec![right_data],
-                        up_data_vec: vec![UpData { u8set: U8Set::from_chars(" ") }],
                         done: false,
                     })
                 }
@@ -70,14 +68,12 @@ impl CombinatorTrait for IndentCombinator {
                 // println!("Decremented dedents to {}", right_data.dedents);
                 (IndentCombinatorParser::Done, ParseResults {
                     right_data_vec: vec![right_data],
-                    up_data_vec: vec![],
                     done: true,
                 })
             }
             IndentCombinator::AssertNoDedents if right_data.dedents == 0 => {
                 (IndentCombinatorParser::Done, ParseResults {
                     right_data_vec: vec![right_data],
-                    up_data_vec: vec![],
                     done: true,
                 })
             }
@@ -94,15 +90,13 @@ impl ParserTrait for IndentCombinatorParser {
         }
 
         let mut right_data_vec = Vec::new();
-        let mut up_data_vec = Vec::new();
         let mut done = false;
 
         for &byte in bytes {
             match self {
                 IndentCombinatorParser::DentParser(parser) => {
-                    let ParseResults { right_data_vec: mut new_right_data_vec, up_data_vec: new_up_data_vec, done: new_done } = parser.steps(&[byte]);
+                    let ParseResults { right_data_vec: mut new_right_data_vec, done: new_done } = parser.steps(&[byte]);
                     right_data_vec.append(&mut new_right_data_vec);
-                    up_data_vec.extend(new_up_data_vec);
                     done = new_done;
                     if done {
                         break;
@@ -114,7 +108,6 @@ impl ParserTrait for IndentCombinatorParser {
                         right_data.position += 1;
                         right_data.indents.last_mut().unwrap().push(byte);
                         right_data_vec.push(right_data.clone());
-                        up_data_vec.push(UpData { u8set: U8Set::from_chars(" ") });
                     } else {
                         maybe_right_data.take();
                         done = true;
@@ -130,7 +123,6 @@ impl ParserTrait for IndentCombinatorParser {
 
         ParseResults {
             right_data_vec,
-            up_data_vec,
             done,
         }
     }

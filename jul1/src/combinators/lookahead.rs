@@ -45,7 +45,6 @@ impl CombinatorTrait for Lookahead {
             }
             (Parser::FailParser(FailParser), ParseResults {
                 right_data_vec: vec![right_data],
-                up_data_vec: vec![],
                 done: true,
             })
         } else {
