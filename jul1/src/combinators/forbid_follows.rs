@@ -21,43 +21,25 @@ pub struct ForbidFollowsCheckNot {
 impl CombinatorTrait for ForbidFollows {
     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
-        (combinator::Parser::FailParser(FailParser), ParseResults {
-            right_data_vec: vec![right_data],
-            up_data_vec: vec![],
-            done: true,
-        })
+        (combinator::Parser::FailParser(FailParser), ParseResults::finished(right_data))
     }
 
     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
-        (combinator::Parser::FailParser(FailParser), ParseResults {
-            right_data_vec: vec![right_data],
-            up_data_vec: vec![],
-            done: true,
-        })
+        (combinator::Parser::FailParser(FailParser), ParseResults::finished(right_data))
     }
 }
-
 impl CombinatorTrait for ForbidFollowsClear {
     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids.clear();
-        (combinator::Parser::FailParser(FailParser), ParseResults {
-            right_data_vec: vec![right_data],
-            up_data_vec: vec![],
-            done: true,
-        })
+        (combinator::Parser::FailParser(FailParser), ParseResults::finished(right_data))
     }
 
     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids.clear();
-        (combinator::Parser::FailParser(FailParser), ParseResults {
-            right_data_vec: vec![right_data],
-            up_data_vec: vec![],
-            done: true,
-        })
+        (combinator::Parser::FailParser(FailParser), ParseResults::finished(right_data))
     }
 }
-
 impl CombinatorTrait for ForbidFollowsCheckNot {
     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
         if right_data.forbidden_consecutive_matches.prev_match_ids.contains(&self.match_id) {
@@ -65,27 +47,21 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
         } else {
             right_data.forbidden_consecutive_matches.prev_match_ids.clear();
             (combinator::Parser::FailParser(FailParser), ParseResults {
-                right_data_vec: vec![right_data],
-                up_data_vec: vec![],
-                done: true,
+                right_data_vec: vec![right_data], up_data_vec: vec![], done: true
             })
         }
     }
-
     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if right_data.forbidden_consecutive_matches.prev_match_ids.contains(&self.match_id) {
             (combinator::Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else {
             right_data.forbidden_consecutive_matches.prev_match_ids.clear();
             (combinator::Parser::FailParser(FailParser), ParseResults {
-                right_data_vec: vec![right_data],
-                up_data_vec: vec![],
-                done: true,
+                right_data_vec: vec![right_data], up_data_vec: vec![], done: true
             })
         }
     }
 }
-
 pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows {
     ForbidFollows { match_ids: match_ids.to_vec() }
 }

@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, Symbol};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, Symbol, U8Set, UpData};
 use crate::parse_state::RightData;
 #[derive(Debug, Clone)]
 pub struct ForwardRef {

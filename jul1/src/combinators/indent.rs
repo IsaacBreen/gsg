@@ -79,15 +79,10 @@ impl CombinatorTrait for IndentCombinator {
                 })
             }
             IndentCombinator::AssertNoDedents if right_data.dedents == 0 => {
-                (IndentCombinatorParser::Done, ParseResults {
-                    right_data_vec: vec![right_data],
-                    up_data_vec: vec![],
-                    done: true,
-                })
+                (IndentCombinatorParser::Done, ParseResults::finished(right_data))
             }
             _ => (IndentCombinatorParser::Done, ParseResults::empty_finished()),
-        };
-        (Parser::IndentCombinatorParser(parser), parse_results)
+        };        (Parser::IndentCombinatorParser(parser), parse_results)
     }
 }
 
@@ -109,11 +104,7 @@ impl ParserTrait for IndentCombinatorParser {
                 } else {
                     // Fail. Purge the right data to poison the parser.
                     maybe_right_data.take();
-                    ParseResults {
-                        right_data_vec: vec![],
-                        up_data_vec: vec![],
-                        done: true,
-                    }
+                    ParseResults::empty_finished()
                 }
             }
             IndentCombinatorParser::Done => ParseResults::empty_finished(),
