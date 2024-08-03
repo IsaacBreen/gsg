@@ -13,7 +13,12 @@ pub struct SymbolParser {
 }
 
 impl CombinatorTrait for Symbol {
-    fn parser_with_steps(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+        let (inner, parse_results) = self.value.parser(right_data);
+        (Parser::SymbolParser(SymbolParser { inner: Box::new(inner), symbol_value: self.value.clone() }), parse_results)
+    }
+
+    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (inner, parse_results) = self.value.parser_with_steps(right_data, bytes);
         (Parser::SymbolParser(SymbolParser { inner: Box::new(inner), symbol_value: self.value.clone() }), parse_results)
     }
