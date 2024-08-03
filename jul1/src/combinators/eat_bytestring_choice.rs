@@ -85,7 +85,7 @@ pub struct EatByteStringChoiceParser {
 
 impl CombinatorTrait for EatByteStringChoice {
 
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         fn parser(_self: &EatByteStringChoice, right_data: RightData) -> (Parser, ParseResults) {
             let parser = EatByteStringChoiceParser {
                 current_node: Rc::clone(&_self.root),
@@ -100,7 +100,7 @@ impl CombinatorTrait for EatByteStringChoice {
             )
         }
         let (mut parser, mut parse_results0) = parser(self, right_data);
-        let parse_results1 = parser.steps(bytes);
+        let parse_results1 = parser.parse(bytes);
         parse_results0.combine_seq(parse_results1);
         (parser, parse_results0)
     }
@@ -115,7 +115,7 @@ impl ParserTrait for EatByteStringChoiceParser {
         }
     }
 
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }

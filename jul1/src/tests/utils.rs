@@ -113,7 +113,7 @@ pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, in
 
 pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
-    let (parser, mut parse_results) = combinator.parser_with_steps(RightData::default(), &bytes);
+    let (parser, mut parse_results) = combinator.parse(RightData::default(), &bytes);
     parse_results.squash();
     // Get the line and char number of the max position
     let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
@@ -137,7 +137,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
 
 pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, tolerance: usize) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
-    let (parser, mut parse_results) = combinator.parser_with_steps(RightData::default(), &bytes);
+    let (parser, mut parse_results) = combinator.parse(RightData::default(), &bytes);
     parse_results.squash();
     // Get the line and char number of the max position
     let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
@@ -227,6 +227,6 @@ pub fn assert_fails_default<T: CombinatorTrait, S: ToString>(combinator: &T, inp
 pub fn assert_fails_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let (mut parser, _) = combinator.parser(RightData::default());
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
-    let parse_results = parser.steps(&bytes);
+    let parse_results = parser.parse(&bytes);
     assert!(parse_results.done && parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).map_or(true, |right_data| right_data.position == bytes.len()), "Expected parser to fail at the end. parse_results: {:?}", parse_results);
 }

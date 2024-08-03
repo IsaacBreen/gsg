@@ -55,7 +55,7 @@ impl Debug for CheckRightDataParser {
 }
 
 impl CombinatorTrait for CheckRightData {
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&right_data) {
             (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::new(right_data, true))
         } else {
@@ -72,7 +72,7 @@ impl ParserTrait for CheckRightDataParser {
         U8Set::none()
     }
 
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("CheckRightData parser already consumed")
     }
 }

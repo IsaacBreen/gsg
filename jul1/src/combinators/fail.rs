@@ -7,7 +7,7 @@ pub struct FailParser;
 pub struct Fail;
 
 impl CombinatorTrait for Fail {
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::FailParser(FailParser), ParseResults::empty_finished())
     }
 }
@@ -17,7 +17,7 @@ impl ParserTrait for FailParser {
         U8Set::none()
     }
 
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("FailParser already consumed")
     }
 }

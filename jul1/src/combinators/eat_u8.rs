@@ -13,7 +13,7 @@ pub struct EatU8Parser {
 }
 
 impl CombinatorTrait for EatU8 {
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         fn parser(_self: &EatU8, right_data: RightData) -> (Parser, ParseResults) {
             let parser = EatU8Parser {
                 u8set: _self.u8set.clone(),
@@ -26,7 +26,7 @@ impl CombinatorTrait for EatU8 {
         }
 
         let (mut parser, mut parse_results0) = parser(self, right_data);
-        let parse_results1 = parser.steps(bytes);
+        let parse_results1 = parser.parse(bytes);
         parse_results0.combine_seq(parse_results1);
         (parser, parse_results0)
     }
@@ -41,7 +41,7 @@ impl ParserTrait for EatU8Parser {
         }
     }
 
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }

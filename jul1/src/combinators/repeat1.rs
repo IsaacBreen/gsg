@@ -18,7 +18,7 @@ pub struct Repeat1Parser {
 }
 
 impl CombinatorTrait for Repeat1 {
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         // Not done -> automatically passes
         // Not greedy -> automatically passes
         // Greedy and done -> only passes if a new parser called on right data doesn't have a right data without lookaheads (we can call this a dominating result).
@@ -26,7 +26,7 @@ impl CombinatorTrait for Repeat1 {
         let mut new_parsers = vec![];
         let mut prev_parsers_all_done = true;
 
-        let (a, parse_results) = self.a.parser_with_steps(right_data.clone(), bytes);
+        let (a, parse_results) = self.a.parse(right_data.clone(), bytes);
         right_data_as.extend(parse_results.right_data_vec);
         if !parse_results.done {
             new_parsers.push(a);
@@ -40,7 +40,7 @@ impl CombinatorTrait for Repeat1 {
             let mut current_parsers_all_done = true;
             for right_data_a in current_new_right_data {
                 let offset = right_data_a.position - right_data.position;
-                let (a, parse_results) = self.a.parser_with_steps(right_data_a, &bytes[offset..]);
+                let (a, parse_results) = self.a.parse(right_data_a, &bytes[offset..]);
                 if self.greedy && prev_parsers_all_done && !parse_results.right_data_vec.is_empty() {
                     // Clear all previous right and up data
                     new_right_data.clear();
@@ -85,12 +85,12 @@ impl ParserTrait for Repeat1Parser {
         }
     }
 
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut right_data_as = vec![];
         let mut new_parsers = vec![];
 
         for mut a_parser in self.a_parsers.drain(..) {
-            let parse_results = a_parser.steps(bytes);
+            let parse_results = a_parser.parse(bytes);
             if !parse_results.done {
                 new_parsers.push(a_parser);
             }
@@ -107,7 +107,7 @@ impl ParserTrait for Repeat1Parser {
         while i < right_data_as.len() {
             let right_data_a = right_data_as[i].clone();
             let offset = right_data_a.position - self.position;
-            let (mut a_parser, ParseResults { right_data_vec: right_data_a, mut done }) = self.a.parser_with_steps(right_data_a, &bytes[offset..]);
+            let (mut a_parser, ParseResults { right_data_vec: right_data_a, mut done }) = self.a.parse(right_data_a, &bytes[offset..]);
             // todo: ??
             right_data_as.extend(right_data_a);
             if !done {

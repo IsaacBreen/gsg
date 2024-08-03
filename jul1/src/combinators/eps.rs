@@ -8,7 +8,7 @@ pub struct EpsParser;
 
 impl CombinatorTrait for Eps {
 
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::EpsParser(EpsParser), ParseResults::new(right_data, true))
     }
 }
@@ -18,7 +18,7 @@ impl ParserTrait for EpsParser {
         U8Set::none()
     }
 
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("EpsParser already consumed")
     }
 }

@@ -24,14 +24,14 @@ impl PartialEq for ForwardRef {
 impl Eq for ForwardRef {}
 
 impl CombinatorTrait for ForwardRef {
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        self.a.borrow().as_ref().unwrap().parser_with_steps(right_data, bytes)
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        self.a.borrow().as_ref().unwrap().parse(right_data, bytes)
     }
 }
 
 impl CombinatorTrait for RefCell<Option<Rc<Combinator>>> {
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        self.borrow().as_ref().unwrap().parser_with_steps(right_data, bytes)
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        self.borrow().as_ref().unwrap().parse(right_data, bytes)
     }
 }
 

@@ -25,8 +25,8 @@ fn common_prefix(a: &[u8], b: &[u8]) -> bool {
 }
 
 impl CombinatorTrait for ExcludeBytestrings {
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (inner, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let (inner, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         let mut exclusion_filter = U8Set::none();
         let mut bytestrings = self.bytestrings.clone();
         bytestrings.retain(|bytestring| bytes.len() < bytestring.len());
@@ -57,8 +57,8 @@ impl ParserTrait for ExcludeBytestringsParser {
         self.inner.get_u8set()
     }
 
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut parse_results = self.inner.steps(bytes);
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        let mut parse_results = self.inner.parse(bytes);
         let mut exclusion_filter = U8Set::none();
         self.bytestrings.retain(|bytestring| self.position + bytes.len() < bytestring.len());
         self.position += bytes.len();

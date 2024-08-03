@@ -15,7 +15,7 @@ pub enum IndentCombinatorParser {
 }
 
 impl CombinatorTrait for IndentCombinator {
-    fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
             IndentCombinator::Dent if right_data.dedents == 0 => {
                 fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Combinator { // TODO: Make this a macro
@@ -39,7 +39,7 @@ impl CombinatorTrait for IndentCombinator {
                 }
                 // println!("Made dent parser with right_data: {:?}", right_data);
                 let combinator = make_combinator(&right_data.indents, right_data.indents.len());
-                let (parser, parse_results) = combinator.parser_with_steps(right_data, bytes);
+                let (parser, parse_results) = combinator.parse(right_data, bytes);
 
                 (IndentCombinatorParser::DentParser(Box::new(parser)), parse_results)
             }
@@ -92,7 +92,7 @@ impl ParserTrait for IndentCombinatorParser {
         }
     }
 
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
@@ -103,7 +103,7 @@ impl ParserTrait for IndentCombinatorParser {
         for &byte in bytes {
             match self {
                 IndentCombinatorParser::DentParser(parser) => {
-                    let ParseResults { right_data_vec: mut new_right_data_vec, done: new_done } = parser.steps(&[byte]);
+                    let ParseResults { right_data_vec: mut new_right_data_vec, done: new_done } = parser.parse(&[byte]);
                     right_data_vec.append(&mut new_right_data_vec);
                     done = new_done;
                     if done {

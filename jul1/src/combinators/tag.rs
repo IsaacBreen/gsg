@@ -32,8 +32,8 @@ impl Debug for TaggedParser {
 }
 
 impl CombinatorTrait for Tagged {
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parser_with_steps(right_data, bytes)));
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (
                 Parser::TaggedParser(TaggedParser { inner: Box::new(parser), tag: self.tag.clone() }),
@@ -52,8 +52,8 @@ impl ParserTrait for TaggedParser {
         self.inner.get_u8set()
     }
 
-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
-        let result = catch_unwind(AssertUnwindSafe(|| self.inner.steps(bytes)));
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(bytes)));
         match result {
             Ok(parse_results) => parse_results,
             Err(err) => {
