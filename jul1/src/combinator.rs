@@ -183,27 +183,6 @@ impl Combinator {
     }
 }
 
-// Parser::SeqParser(SeqParser { children, position }) => todo!(),
-// Parser::ChoiceParser(ChoiceParser { parsers, greedy }) => todo!(),
-// Parser::EatU8Parser(EatU8Parser { u8set, right_data }) => todo!(),
-// Parser::EatStringParser(EatStringParser { string, index, right_data }) => todo!(),
-// Parser::EpsParser(EpsParser {}) => todo!(),
-// Parser::FailParser(FailParser {}) => todo!(),
-// Parser::CacheContextParser(CacheContextParser { inner, cache_data_inner }) => todo!(),
-// Parser::CachedParser(CachedParser { entry }) => todo!(),
-// Parser::CacheFirstContextParser(CacheFirstContextParser { inner, cache_first_data_inner }) => todo!(),
-// Parser::FrameStackOpParser(FrameStackOpParser { op_type, frame_stack, values, a }) => todo!(),
-// Parser::MutateRightDataParser(MutateRightDataParser { run }) => todo!(),
-// Parser::Repeat1Parser(Repeat1Parser { a, a_parsers, right_data, position, greedy }) => todo!(),
-// Parser::SymbolParser(SymbolParser { inner, symbol_value }) => todo!(),
-// Parser::TaggedParser(TaggedParser { inner, tag }) => todo!(),
-// Parser::WithNewFrameParser(WithNewFrameParser { a }) => todo!(),
-// Parser::EatByteStringChoiceParser(EatByteStringChoiceParser { current_node, right_data }) => todo!(),
-// Parser::CheckRightDataParser(CheckRightDataParser { run }) => todo!(),
-// Parser::NegativeLookaheadParser(NegativeLookaheadParser { inner, lookahead }) => todo!(),
-// Parser::IndentCombinatorParser(inner) => todo!(),
-// Parser::CacheFirstParser(inner) => todo!(),
-
 impl Parser {
     pub fn map_right_data_mut<F>(&mut self, mut f: F)
     where
