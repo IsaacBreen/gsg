@@ -38,6 +38,7 @@ impl CombinatorTrait for Repeat1 {
         let mut right_data_as = vec![];
         let mut up_data_as = vec![];
         let mut new_parsers = vec![];
+        let mut prev_parsers_all_done = true;
 
         let (a, parse_results) = self.a.parser_with_steps(right_data.clone(), bytes);
         right_data_as.extend(parse_results.right_data_vec);
@@ -45,18 +46,32 @@ impl CombinatorTrait for Repeat1 {
         if !parse_results.done {
             new_parsers.push(a);
         }
+        prev_parsers_all_done &= parse_results.done;
 
-        let mut i = 0;
-        while i < right_data_as.len() {
-            let right_data_a = right_data_as[i].clone();
-            let offset = right_data_a.position - right_data.position;
-            let (a, parse_results) = self.a.parser_with_steps(right_data_a, &bytes[offset..]);
-            right_data_as.extend(parse_results.right_data_vec);
-            up_data_as.extend(parse_results.up_data_vec);
-            if !parse_results.done {
-                new_parsers.push(a);
+        let mut new_right_data = right_data_as.clone();
+        while new_right_data.len() > 0 {
+            let current_new_right_data = new_right_data;
+            new_right_data = vec![];
+            let mut current_parsers_all_done = true;
+            let mut new_up_data = vec![];
+            for right_data_a in current_new_right_data {
+                let offset = right_data_a.position - right_data.position;
+                let (a, parse_results) = self.a.parser_with_steps(right_data_a, &bytes[offset..]);
+                if prev_parsers_all_done && !parse_results.right_data_vec.is_empty() {
+                    // Clear all previous right and up data
+                    new_right_data.clear();
+                    new_up_data.clear();
+                }
+                new_right_data.extend(parse_results.right_data_vec);
+                new_up_data.extend(parse_results.up_data_vec);
+                if !parse_results.done {
+                    new_parsers.push(a);
+                }
+                current_parsers_all_done &= parse_results.done;
             }
-            i += 1;
+            right_data_as.extend(new_right_data.clone());
+            up_data_as.extend(new_up_data);
+            prev_parsers_all_done &= current_parsers_all_done;
         }
 
         right_data_as.squash();
