@@ -26,7 +26,7 @@ impl CombinatorTrait for Choice {
                 parsers.push(parser);
             }
             // TODO: can't have lookaheads if done.
-            let discard_rest = self.greedy && !parse_results.right_data_vec.is_empty() && parse_results.right_data_vec.iter().all(|rd| rd.lookahead_data.partial_lookaheads.is_empty());
+            let discard_rest = self.greedy && parse_results.succeeds_tentatively();
             combined_results = combined_results.combine_inplace(parse_results);
             if discard_rest {
                 if i != self.children.len() - 1 {
@@ -61,10 +61,10 @@ impl ParserTrait for ChoiceParser {
             if discard_rest {
                 return false;
             }
-            let step_result = parser.steps(bytes);
-            discard_rest = self.greedy && !step_result.right_data_vec.is_empty() && step_result.right_data_vec.iter().all(|rd| rd.lookahead_data.partial_lookaheads.is_empty());
-            let done = step_result.done;
-            parse_result.combine(step_result);
+            let parse_results = parser.steps(bytes);
+            discard_rest = self.greedy && parse_results.succeeds_tentatively();
+            let done = parse_results.done;
+            parse_result.combine(parse_results);
             !done
         });
 

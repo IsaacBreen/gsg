@@ -50,4 +50,8 @@ impl RightData {
         self.position = position;
         self
     }
+
+    pub fn failable(&self) -> bool {
+        !self.failable()
+    }
 }

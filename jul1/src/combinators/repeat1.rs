@@ -90,12 +90,12 @@ impl ParserTrait for Repeat1Parser {
         let mut new_parsers = vec![];
 
         for mut a_parser in self.a_parsers.drain(..) {
-            let ParseResults { right_data_vec: right_data_a, mut done} = a_parser.steps(bytes);
-            if !done {
+            let parse_results = a_parser.steps(bytes);
+            if !parse_results.done {
                 new_parsers.push(a_parser);
             }
-            let discard_rest = self.greedy && !right_data_a.is_empty() && right_data_a.iter().all(|rd| rd.lookahead_data.partial_lookaheads.is_empty());
-            right_data_as.extend(right_data_a);
+            let discard_rest = self.greedy && parse_results.succeeds_tentatively();
+            right_data_as.extend(parse_results.right_data_vec);
             if discard_rest {
                 break;
             }
