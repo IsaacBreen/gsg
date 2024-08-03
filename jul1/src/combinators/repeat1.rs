@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, Squash};
+use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, Squash, U8Set};
 use crate::combinators::derived::opt;
 use crate::parse_state::RightData;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -77,6 +77,10 @@ impl CombinatorTrait for Repeat1 {
 }
 
 impl ParserTrait for Repeat1Parser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         let mut right_data_as = vec![];
         let mut new_parsers = vec![];

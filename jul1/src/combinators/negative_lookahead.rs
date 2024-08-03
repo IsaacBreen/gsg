@@ -53,6 +53,10 @@ impl CombinatorTrait for ExcludeBytestrings {
 }
 
 impl ParserTrait for ExcludeBytestringsParser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         let mut parse_results = self.inner.steps(bytes);
         let mut exclusion_filter = U8Set::none();

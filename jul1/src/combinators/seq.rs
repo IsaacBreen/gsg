@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, RightData, Squash};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, RightData, Squash, U8Set};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
@@ -52,6 +52,10 @@ impl CombinatorTrait for Seq {
 }
 
 impl ParserTrait for SeqParser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         let mut current_right_data: Vec<RightData> = vec![];
         let mut all_done = true;

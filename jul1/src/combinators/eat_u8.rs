@@ -33,6 +33,10 @@ impl CombinatorTrait for EatU8 {
 }
 
 impl ParserTrait for EatU8Parser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();

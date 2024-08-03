@@ -68,6 +68,10 @@ impl CombinatorTrait for MutateRightData {
 }
 
 impl ParserTrait for MutateRightDataParser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("MutateRightData parser already consumed")
     }

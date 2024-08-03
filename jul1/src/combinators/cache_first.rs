@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use derivative::Derivative;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash, U8Set};
 
 #[derive(Clone, PartialEq, Default, Eq)]
 pub struct CacheFirstData {
@@ -75,6 +75,10 @@ impl CombinatorTrait for CacheFirstContext {
 }
 
 impl ParserTrait for CacheFirstContextParser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         self.inner.steps(bytes)
     }
@@ -98,6 +102,10 @@ impl CombinatorTrait for CacheFirst {
 }
 
 impl ParserTrait for CacheFirstParser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         match self {
             CacheFirstParser::Uninitialized { key } => {

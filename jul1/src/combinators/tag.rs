@@ -48,6 +48,10 @@ impl CombinatorTrait for Tagged {
 }
 
 impl ParserTrait for TaggedParser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.steps(bytes)));
         match result {

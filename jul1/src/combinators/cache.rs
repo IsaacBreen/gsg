@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use derivative::Derivative;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash, U8Set};
 
 #[derive(Clone, PartialEq, Default, Eq)]
 pub struct CacheData {
@@ -93,6 +93,10 @@ impl CombinatorTrait for CacheContext {
 }
 
 impl ParserTrait for CacheContextParser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         self.cache_data_inner.borrow_mut().entries.iter_mut().for_each(|entry| {
             entry.borrow_mut().maybe_parse_results.take();
@@ -135,6 +139,10 @@ impl CombinatorTrait for Cached {
 }
 
 impl ParserTrait for CachedParser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.steps: parse_results is None")
     }

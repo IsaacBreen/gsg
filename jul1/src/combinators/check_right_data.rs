@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, U8Set};
 
 #[derive(Clone)]
 pub struct CheckRightData {
@@ -68,6 +68,10 @@ impl CombinatorTrait for CheckRightData {
 }
 
 impl ParserTrait for CheckRightDataParser {
+    fn get_u8set(&self) -> U8Set {
+        todo!()
+    }
+
     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("CheckRightData parser already consumed")
     }
