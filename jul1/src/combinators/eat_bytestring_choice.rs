@@ -79,8 +79,8 @@ impl EatByteStringChoice {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatByteStringChoiceParser {
-    current_node: Rc<TrieNode>,
-    right_data: RightData,
+    pub(crate) current_node: Rc<TrieNode>,
+    pub(crate) right_data: RightData,
 }
 
 impl CombinatorTrait for EatByteStringChoice {
