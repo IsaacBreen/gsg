@@ -275,4 +275,15 @@ mod tests {
         );
         assert_fails_fast(&combinator, "d");
     }
+
+    #[test]
+    fn test_ordered_choice() {
+        let combinator = seq!(
+            choice_greedy!(
+                eat_char_choice("a"),
+                seq!(eat_char_choice("a"), eat_char_choice("a")),
+            ),
+            eat_char_choice("b"),
+        );
+    }
 }
