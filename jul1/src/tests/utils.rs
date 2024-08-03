@@ -119,7 +119,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
     let mut line_number = 0;
     let mut char_number = 0;
-    for byte in bytes.iter().cloned() {
+    for byte in bytes[0..max_position].iter().cloned() {
         if byte == b'\n' {
             line_number += 1;
             char_number = 0;
@@ -143,7 +143,7 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
     let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
     let mut line_number = 0;
     let mut char_number = 0;
-    for byte in bytes.iter().cloned() {
+    for byte in bytes[0..max_position].iter().cloned() {
         if byte == b'\n' {
             line_number += 1;
             char_number = 0;
