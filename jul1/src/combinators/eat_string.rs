@@ -16,29 +16,25 @@ impl From<EatString> for Combinator {
 pub struct EatStringParser {
     pub(crate) string: Vec<u8>,
     index: usize,
-    pub(crate) right_data: Option<RightData>,
+    pub(crate) right_ Option<RightData>,
 }
 
 impl CombinatorTrait for EatString {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+    fn parser_with_steps(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatStringParser {
             string: self.string.clone(),
             index: 0,
-            right_data: Some(right_data),
+            right_ Some(right_data),
         };
         // println!("EatStringParser: Starting {:?}", parser);
-        (Parser::EatStringParser(parser), ParseResults {
+        let mut parse_results = ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![UpData { u8set: U8Set::from_u8(self.string[0]) }],
             done: false,
-        })
-    }
-
-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (mut parser, mut parse_results0) = self.parser(right_data);
+        };
         let parse_results1 = parser.steps(bytes);
-        parse_results0.combine_seq(parse_results1);
-        (parser, parse_results0)
+        parse_results.combine_seq(parse_results1);
+        (Parser::EatStringParser(parser), parse_results)
     }
 }
 
