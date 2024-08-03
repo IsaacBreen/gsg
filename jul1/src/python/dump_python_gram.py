@@ -207,9 +207,12 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             raise ValueError(f"Unknown item type: {type(item)}")
 
     def name_to_rust(name: str) -> str:
-        return f'&{name}'
+        if deferred:
+            return f'deferred({name})'
+        else:
+            return f'&{name}'
 
-    modularise = True
+    deferred = False
 
     rules = grammar.rules.items()
     rules = list(reversed(rules))
@@ -231,7 +234,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     f.write('}\n')
     f.write('\n')
 
-    def make_token_fns() -> str:
+    def make_tokens() -> str:
         f = io.StringIO()
         f.write('use super::python_tokenizer as token;\n')
         for token in tokens:
@@ -250,11 +253,15 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             expr = f'tag("{token}", {expr})'
             # expr = f'cache_first({expr})'
             expr = f'cached({expr})'
-            f.write('fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
+            if deferred:
+                f.write('fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
+            else:
+                expr = f'symbol({expr})'
+                f.write(f'let {token} = {expr};\n')
         f.write('\n')
         return f.getvalue()
 
-    def make_rule_fns() -> str:
+    def make_rules() -> str:
         f = io.StringIO()
         f.write('forward_decls!(')
         for name, rule in rules:
@@ -265,38 +272,26 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             expr = f'tag("{name}", {expr})'
             if rule.memo:
                 expr = f'cached({expr})'
-            expr = f'{expr}.into()'
-            f.write('fn ' + name + '() -> Combinator {\n')
-            f.write(f'{textwrap.indent(expr, "    ")}\n')
-            f.write('}\n')
-            f.write('\n')
+            if deferred:
+                expr = f'{expr}.into()'
+                f.write('fn ' + name + '() -> Combinator {\n')
+                f.write(f'{textwrap.indent(expr, "    ")}\n')
+                f.write('}\n')
+                f.write('\n')
+            else:
+                f.write(f'let {name} = {name}.set({expr});\n')
         f.write('\n')
         return f.getvalue()
 
-    def make_tokens() -> str:
-        f = io.StringIO()
-        for token in tokens:
-            f.write(f'let {token} = python_grammar::{token}();\n')
-        return f.getvalue()
-
-    def make_rules() -> str:
-        f = io.StringIO()
-        # Make forward declarations
-        f.write('forward_decls!(')
-        for name, rule in rules:
-            f.write(f'{name}, ')
-        f.write(');\n')
-        # Set them
-        for name, rule in rules:
-            f.write(f'let {name} = {name}.
-
-
-    f.write("mod python_grammar {\n")
-    f.write(textwrap.indent(make_token_fns(), "    "))
-    f.write(textwrap.indent(make_rule_fns(), "    "))
-    f.write('}\n')
+    if deferred:
+        f.write(make_tokens())
+        f.write(make_rules())
 
     f.write('pub fn python_file() -> Combinator {\n')
+
+    if not deferred:
+        f.write(textwrap.indent(make_tokens(), "    "))
+        f.write(textwrap.indent(make_rules(), "    "))
 
     expr = f'seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")})'
     expr = f'cache_first_context({expr})'
