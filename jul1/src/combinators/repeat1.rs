@@ -20,42 +20,36 @@ pub struct Repeat1Parser {
 impl CombinatorTrait for Repeat1 {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = vec![];
-        let (a, ParseResults { mut right_data_vec, mut done }) = self.a.parse(right_data.clone(), bytes);
+        let (parser, ParseResults { mut right_data_vec, mut done }) = self.a.parse(right_data.clone(), bytes);
         if !done {
-            parsers.push(a);
+            parsers.push(parser);
         }
 
-        let mut new_right_data = right_data_vec.clone();
-        while right_data_vec.len() > 0 {
-            let current_new_right_data = new_right_data;
-            new_right_data = vec![];
-            for right_data_a in current_new_right_data {
-                let offset = right_data_a.position - right_data.position;
-                let (a, parse_results) = self.a.parse(right_data_a, &bytes[offset..]);
+        let mut next_right_data = right_data_vec.clone();
+        while next_right_data.len() > 0 {
+            for new_right_data in std::mem::take(&mut next_right_data) {
+                let offset = new_right_data.position - right_data.position;
+                let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
+                if !parse_results.done {
+                    parsers.push(parser);
+                }
                 if self.greedy && done && parse_results.succeeds_tentatively() {
-                    new_right_data.clear();
+                    right_data_vec.clear();
                     parsers.clear();
                     done = false;
                 }
-                new_right_data.extend(parse_results.right_data_vec);
-                if !parse_results.done {
-                    parsers.push(a);
-                }
+                next_right_data.extend(parse_results.right_data_vec);
             }
-            right_data_vec.extend(new_right_data.clone());
+            right_data_vec.extend(next_right_data.clone());
         }
 
         right_data_vec.squash();
-
-        let position = right_data.position + bytes.len();
-
-        let done = parsers.is_empty();
 
         (
             Parser::Repeat1Parser(Repeat1Parser {
                 a: self.a.clone(),
                 a_parsers: parsers,
-                position,
+                position: right_data.position + bytes.len(),
                 greedy: self.greedy
             }),
             ParseResults {
@@ -77,12 +71,11 @@ impl ParserTrait for Repeat1Parser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut right_data_as = vec![];
-        let mut new_parsers = vec![];
 
-        for mut a_parser in self.a_parsers.drain(..) {
+        for mut a_parser in std::mem::take(&mut self.a_parsers) {
             let parse_results = a_parser.parse(bytes);
             if !parse_results.done {
-                new_parsers.push(a_parser);
+                self.a_parsers.push(a_parser);
             }
             let discard_rest = self.greedy && parse_results.succeeds_tentatively();
             right_data_as.extend(parse_results.right_data_vec);
@@ -97,16 +90,13 @@ impl ParserTrait for Repeat1Parser {
         while i < right_data_as.len() {
             let right_data_a = right_data_as[i].clone();
             let offset = right_data_a.position - self.position;
-            let (mut a_parser, ParseResults { right_data_vec: right_data_a, mut done }) = self.a.parse(right_data_a, &bytes[offset..]);
-            // todo: ??
+            let (a_parser, ParseResults { right_data_vec: right_data_a, mut done }) = self.a.parse(right_data_a, &bytes[offset..]);
             right_data_as.extend(right_data_a);
             if !done {
-                new_parsers.push(a_parser);
+                self.a_parsers.push(a_parser);
             }
             i += 1;
         }
-
-        self.a_parsers = new_parsers;
 
         self.position += bytes.len();
 
