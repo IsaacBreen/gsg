@@ -7,6 +7,7 @@ pub struct FailParser;
 pub struct Fail;
 
 impl CombinatorTrait for Fail {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         (Parser::FailParser(FailParser), ParseResults {
             right_data_vec: vec![],
             up_data_vec: vec![],

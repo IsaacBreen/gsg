@@ -102,7 +102,7 @@ impl CombinatorTrait for CacheFirst {
             return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry);
         }
         // Initialize the parser and create a new entry
-        let (parser, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), &[]);
+        let (parser, mut parse_results) = self.inner.parser(right_data.clone());
         parse_results.squash();
         let binding = right_data.cache_first_data.inner.unwrap();
         let mut cache_first_data_inner = binding.borrow_mut();
