@@ -13,7 +13,6 @@ pub struct Repeat1 {
 pub struct Repeat1Parser {
     a: Rc<Combinator>,
     pub(crate) a_parsers: Vec<Parser>,
-    pub(crate) right_data: RightData,
     position: usize,
     greedy: bool,
 }
@@ -29,7 +28,7 @@ impl CombinatorTrait for Repeat1 {
             vec![]
         };
         let position = right_data.position;
-        (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, right_data, position, greedy: self.greedy }), parse_results)
+        (Parser::Repeat1Parser(Repeat1Parser { a: self.a.clone(), a_parsers, position, greedy: self.greedy }), parse_results)
     }
 
     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
@@ -70,7 +69,6 @@ impl CombinatorTrait for Repeat1 {
             Parser::Repeat1Parser(Repeat1Parser {
                 a: self.a.clone(),
                 a_parsers: new_parsers,
-                right_data,
                 position,
                 greedy: self.greedy
             }),

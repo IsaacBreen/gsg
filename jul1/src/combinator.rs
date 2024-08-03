@@ -248,8 +248,7 @@ impl Parser {
                 inner.map_right_data_mut(&mut f);
             }
             Parser::MutateRightDataParser(MutateRightDataParser { run }) => {}
-            Parser::Repeat1Parser(Repeat1Parser { a_parsers, right_data, .. }) => {
-                f(right_data);
+            Parser::Repeat1Parser(Repeat1Parser { a_parsers, .. }) => {
                 for a_parser in a_parsers {
                     a_parser.map_right_data_mut(&mut f);
                 }
