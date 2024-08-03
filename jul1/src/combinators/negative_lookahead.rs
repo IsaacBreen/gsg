@@ -40,8 +40,10 @@ impl CombinatorTrait for ExcludeBytestrings {
         let (inner, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
         let mut exclusion_filter = U8Set::none();
         let mut position = bytes.len();
+        let mut bytestrings = self.bytestrings.clone();
+        bytestrings.retain(|bytestring| position < bytestring.len());
         // Exclude character if it's the last character of a bytestring.
-        for bytestring in &self.bytestrings {
+        for bytestring in &bytestrings {
             if bytestring.len() == position + 1 {
                 let c = bytestring[position];
                 exclusion_filter |= U8Set::from_byte(c);
@@ -53,7 +55,7 @@ impl CombinatorTrait for ExcludeBytestrings {
         }
         (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
             inner: Box::new(inner),
-            bytestrings: self.bytestrings.clone(),
+            bytestrings,
             position,
         }), parse_results)
     }
@@ -64,6 +66,7 @@ impl ParserTrait for ExcludeBytestringsParser {
         let mut parse_results = self.inner.step(c);
         let mut exclusion_filter = U8Set::none();
         self.position += 1;
+        self.bytestrings.retain(|bytestring| self.position < bytestring.len());
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
             if bytestring.len() == self.position + 1 {
@@ -82,6 +85,7 @@ impl ParserTrait for ExcludeBytestringsParser {
         let mut parse_results = self.inner.steps(bytes);
         let mut exclusion_filter = U8Set::none();
         self.position += bytes.len();
+        self.bytestrings.retain(|bytestring| self.position < bytestring.len());
         // Exclude character if it's the last character of a bytestring.
         for bytestring in &self.bytestrings {
             if bytestring.len() == self.position + 1 {
