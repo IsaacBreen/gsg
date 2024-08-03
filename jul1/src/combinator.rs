@@ -138,7 +138,7 @@ pub trait CombinatorTrait {
 }
 
 pub trait ParserTrait {
-    fn get_u8set(&self) -> &U8Set { todo!() }
+    fn get_u8set(&self) -> U8Set { todo!() }
     fn steps(&mut self, bytes: &[u8]) -> ParseResults;
 }
 
