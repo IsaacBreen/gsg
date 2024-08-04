@@ -359,7 +359,7 @@ pub fn reserved_keywords() -> Vec<&'static str> {
 }
 
 pub fn NAME() -> Combinator {
-    exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("'\""))), reserved_keywords())
+    exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
 }
 
 // .. _literals:
