@@ -1,112 +1,104 @@
 import requests
 import zipfile
-import io
+from io import BytesIO
 from xml.etree import ElementTree as ET
+from collections import defaultdict
 
-def main():
-    url = "https://www.unicode.org/Public/UCD/latest/ucdxml/ucd.all.flat.zip"
-    response = requests.get(url)
-    response.raise_for_status()
+# Download and extract the Unicode data
+url = "https://www.unicode.org/Public/UCD/latest/ucdxml/ucd.all.flat.zip"
+response = requests.get(url)
+response.raise_for_status()
 
-    zip_file = zipfile.ZipFile(io.BytesIO(response.content))
-    xml_content = zip_file.read("ucd.all.flat.xml").decode("utf-8")
+with zipfile.ZipFile(BytesIO(response.content)) as zf:
+    with zf.open("ucd.all.flat.xml") as xml_file:
+        tree = ET.parse(xml_file)
 
-    root = ET.fromstring(xml_content)
-    categories = {}
-    for char_element in root.findall(".//{http://www.unicode.org/ns/2003/ucd/1.0}char"):
-        codepoint_str = char_element.get("cp")
-        if codepoint_str is not None:
-            codepoint = int(codepoint_str, 16)
-            category = char_element.get("gc")
-            if category not in categories:
-                categories[category] = []
-            categories[category].append(codepoint)
+# Parse the XML data
+root = tree.getroot()
+char_data = defaultdict(list)
+general_categories = set()
 
-    rust_code = """
-// Generated from Unicode data
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+for char_element in root.findall(".//{http://www.unicode.org/ns/2003/ucd/1.0}char"):
+    cp_str = char_element.get("cp")
+    if cp_str is not None:  # Add this check
+        cp = int(cp_str, 16)
+        gc = char_element.get("gc")
+        char_data[gc].append(cp)
+        general_categories.add(gc)
+
+# Convert code points to ranges for each category
+def convert_to_ranges(code_points):
+    ranges = []
+    if code_points:
+        start = code_points[0]
+        end = start
+        for code_point in code_points[1:]:
+            if code_point == end + 1:
+                end = code_point
+            else:
+                ranges.append((start, end))
+                start = code_point
+                end = start
+        ranges.append((start, end))
+    return ranges
+
+for category in char_data:
+    char_data[category] = convert_to_ranges(sorted(char_data[category]))
+
+# Generate the Rust code
+rust_code = """
+use std::collections::HashMap;
+
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum GeneralCategory {
-    """ + ",\n    ".join([f"{category}" for category in categories]) + """
-}
+"""
 
-pub fn general_category(c: char) -> GeneralCategory {
-    let codepoint = c as u32;
-    """
+for category in sorted(general_categories):
+    rust_code += f"    {category},\n"
 
-    for category, codepoints in categories.items():
-        ranges = to_ranges(codepoints)
-        rust_code += f"    if "
-        for i, (start, end) in enumerate(ranges):
-            if i > 0:
-                rust_code += " || "
-            rust_code += f"({start}..={end}).contains(&codepoint)"
-        rust_code += f" {{\n        return GeneralCategory::{category};\n    }}\n"
-
-    rust_code += """
-    GeneralCategory::Cn
+rust_code += """
 }
 
 pub fn chars_in_general_category(category: GeneralCategory) -> Vec<char> {
-    match category {
+    let unicode_ranges = create_unicode_ranges();
+    let category_str = match category {
 """
 
-    for category, codepoints in categories.items():
-        rust_code += f"        GeneralCategory::{category} => {{\n"
-        rust_code += f"            let mut result = Vec::new();\n"
-        for codepoint in codepoints:
-            rust_code += f"            if let Some(c) = std::char::from_u32({codepoint}) {{\n"
-            rust_code += f"                result.push(c);\n"
-            rust_code += f"            }}\n"
-        rust_code += f"            result\n"
-        rust_code += f"        }},\n"
+for category in sorted(general_categories):
+    rust_code += f"        GeneralCategory::{category} => \"{category}\",\n"
 
-    rust_code += """
-    }
-}
+rust_code += """
+    };
 
-fn to_ranges(codepoints: Vec<u32>) -> Vec<(u32, u32)> {
-    let mut ranges = Vec::new();
-    if codepoints.is_empty() {
-        return ranges;
-    }
-
-    let mut start = codepoints[0];
-    let mut end = codepoints[0];
-    for &codepoint in codepoints.iter().skip(1) {
-        if codepoint == end + 1 {
-            end = codepoint;
-        } else {
-            ranges.push((start, end));
-            start = codepoint;
-            end = codepoint;
+    let mut chars = Vec::new();
+    if let Some(ranges) = unicode_ranges.get(category_str) {
+        for &(start, end) in ranges {
+            for cp in start..=end {
+                if let Some(c) = std::char::from_u32(cp as u32) {
+                    chars.push(c);
+                }
+            }
         }
     }
-    ranges.push((start, end));
-    ranges
+    chars
 }
+
+fn create_unicode_ranges() -> HashMap<&'static str, Vec<(u32, u32)>> {
+    let mut unicode_ranges: HashMap<&'static str, Vec<(u32, u32)>> = HashMap::new();
+
 """
 
-    with open("../unicode_general_category.rs", "w") as f:
-        f.write(rust_code)
+for category, ranges in char_data.items():
+    rust_code += f"    unicode_ranges.insert(\"{category}\", vec![\n"
+    for start, end in ranges:
+        rust_code += f"        (0x{start:04X}, 0x{end:04X}),\n"
+    rust_code += "    ]);\n\n"
 
+rust_code += "    unicode_ranges\n"
+rust_code += "}\n"
 
-def to_ranges(codepoints):
-    ranges = []
-    if not codepoints:
-        return ranges
+# Save the generated Rust code to a file
+with open("generated_unicode_ranges.rs", "w") as file:
+    file.write(rust_code)
 
-    start = codepoints[0]
-    end = codepoints[0]
-    for codepoint in codepoints[1:]:
-        if codepoint == end + 1:
-            end = codepoint
-        else:
-            ranges.append((start, end))
-            start = codepoint
-            end = codepoint
-    ranges.append((start, end))
-    return ranges
-
-
-if __name__ == "__main__":
-    main()
+print("Rust code has been generated and saved to generated_unicode_ranges.rs")
