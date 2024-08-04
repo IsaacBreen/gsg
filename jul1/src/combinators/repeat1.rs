@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, negative_lookahead, opt_greedy, Parser, ParseResults, ParserTrait, seq, Squash, U8Set};
 use crate::combinators::derived::opt;
 use crate::parse_state::RightData;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -111,11 +111,13 @@ pub fn repeat1(a: impl Into<Combinator>) -> Repeat1 {
     }
 }
 
-pub fn repeat1_greedy(a: impl Into<Combinator>) -> Repeat1 {
-    Repeat1 {
-        a: Rc::new(a.into()),
+pub fn repeat1_greedy(a: impl Into<Combinator>) -> Combinator {
+    let a: Combinator = a.into();
+    let combinator = Repeat1 {
+        a: Rc::new(a.clone()),
         greedy: true,
-    }
+    };
+    seq!(combinator, negative_lookahead(a))
 }
 
 pub fn repeat0(a: impl Into<Combinator>) -> Combinator {
@@ -123,7 +125,9 @@ pub fn repeat0(a: impl Into<Combinator>) -> Combinator {
 }
 
 pub fn repeat0_greedy(a: impl Into<Combinator>) -> Combinator {
-    opt_greedy(repeat1_greedy(a)).into()
+    let a: Combinator = a.into();
+    let combinator = opt_greedy(repeat1_greedy(a.clone()));
+    seq!(combinator, negative_lookahead(a))
 }
 
 impl From<Repeat1> for Combinator {

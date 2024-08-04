@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use crate::{eat_string, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, whitespace, WS};
+use crate::{choice_greedy, eat_string, FSTRING_END, FSTRING_START, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, whitespace, WS};
 use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, assert_parses_fast_with_tolerance};
 
 #[test]
@@ -302,11 +302,28 @@ fn test_debug_raise() {
 fn test_parse_fstring() {
     let combinator = python_file();
 
-    let s = "f''\n";
+    let s = "f'x'\n";
     // assert_parses_default(&combinator, s);
     assert_parses_fast(&combinator, s);
 
     // let s = "f'{x}'\n";
+    // assert_parses_default(&combinator, s);
+    // assert_parses_fast(&combinator, s);
+}
+
+#[test]
+fn test_parse_fstring_distilled() {
+    let NAME = NAME();
+    let FSTRING_START = FSTRING_START();
+    let FSTRING_END = FSTRING_END();
+    let fstring = seq!(FSTRING_START, FSTRING_END);
+    let combinator = choice_greedy!(NAME, fstring);
+
+    let s = "f''\n";
+    // assert_parses_default(&combinator, s);
+    assert_parses_fast(&combinator, s);
+
+    let s = "f'{x}'\n";
     // assert_parses_default(&combinator, s);
     // assert_parses_fast(&combinator, s);
 }
