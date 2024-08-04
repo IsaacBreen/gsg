@@ -4,101 +4,116 @@ from io import BytesIO
 from xml.etree import ElementTree as ET
 from collections import defaultdict
 
-# Download and extract the Unicode data
-url = "https://www.unicode.org/Public/UCD/latest/ucdxml/ucd.all.flat.zip"
-response = requests.get(url)
-response.raise_for_status()
 
-with zipfile.ZipFile(BytesIO(response.content)) as zf:
-    with zf.open("ucd.all.flat.xml") as xml_file:
-        tree = ET.parse(xml_file)
+def download_and_parse_unicode_data():
+    url = "https://www.unicode.org/Public/UCD/latest/ucdxml/ucd.all.flat.zip"
+    response = requests.get(url)
+    response.raise_for_status()
 
-# Parse the XML data
-root = tree.getroot()
-char_data = defaultdict(list)
-general_categories = set()
+    with zipfile.ZipFile(BytesIO(response.content)) as zf:
+        with zf.open("ucd.all.flat.xml") as xml_file:
+            tree = ET.parse(xml_file)
 
-for char_element in root.findall(".//{http://www.unicode.org/ns/2003/ucd/1.0}char"):
-    cp_str = char_element.get("cp")
-    if cp_str is not None:  # Add this check
-        cp = int(cp_str, 16)
-        gc = char_element.get("gc")
-        char_data[gc].append(cp)
-        general_categories.add(gc)
+    root = tree.getroot()
+    char_data = defaultdict(list)
+    for char_element in root.findall(".//{http://www.unicode.org/ns/2003/ucd/1.0}char"):
+        cp_str = char_element.get("cp")
+        if cp_str is not None:
+            cp = int(cp_str, 16)
+            gc = char_element.get("gc")
+            char_data[gc].append(cp)
 
-# Convert code points to ranges for each category
+    return char_data
+
+
 def convert_to_ranges(code_points):
     ranges = []
     if code_points:
-        start = code_points[0]
-        end = start
-        for code_point in code_points[1:]:
-            if code_point == end + 1:
-                end = code_point
+        start = end = code_points[0]
+        for point in code_points[1:]:
+            if point == end + 1:
+                end = point
             else:
                 ranges.append((start, end))
-                start = code_point
-                end = start
+                start = end = point
         ranges.append((start, end))
     return ranges
 
-for category in char_data:
-    char_data[category] = convert_to_ranges(sorted(char_data[category]))
 
-# Generate the Rust code
-rust_code = """
-use std::collections::HashMap;
-
-#[derive(Debug, PartialEq, Eq, Hash)]
+def generate_rust_code(char_data):
+    categories = sorted(char_data.keys())
+    rust_code = """
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum GeneralCategory {
-"""
-
-for category in sorted(general_categories):
-    rust_code += f"    {category},\n"
-
-rust_code += """
+    """ + ",\n    ".join(categories) + """
 }
 
-pub fn chars_in_general_category(category: GeneralCategory) -> Vec<char> {
-    let unicode_ranges = create_unicode_ranges();
-    let category_str = match category {
+pub fn char_ranges_in_general_category(category: GeneralCategory) -> &'static [(char, char)] {
+    match category {
 """
 
-for category in sorted(general_categories):
-    rust_code += f"        GeneralCategory::{category} => \"{category}\",\n"
+    for category in categories:
+        ranges = convert_to_ranges(sorted(char_data[category]))
+        rust_code += f"        GeneralCategory::{category} => &[\n"
+        for start, end in ranges:
+            if start == end:
+                rust_code += f"            ('\\u{{{start:04X}}}', '\\u{{{end:04X}}}'),\n"
+            else:
+                rust_code += f"            ('\\u{{{start:04X}}}', '\\u{{{end:04X}}}'),\n"
+        rust_code += "        ],\n"
 
-rust_code += """
-    };
+    rust_code += """    }
+}
 
-    let mut chars = Vec::new();
-    if let Some(ranges) = unicode_ranges.get(category_str) {
-        for &(start, end) in ranges {
-            for cp in start..=end {
-                if let Some(c) = std::char::from_u32(cp as u32) {
-                    chars.push(c);
-                }
-            }
+pub fn chars_in_general_category(category: GeneralCategory) -> &'static [char] {
+    static CHAR_CACHE: std::sync::OnceLock<std::collections::HashMap<GeneralCategory, Vec<char>>> = std::sync::OnceLock::new();
+
+    CHAR_CACHE.get_or_init(|| {
+        let mut cache = std::collections::HashMap::new();
+        for category in [""" + ", ".join(f"GeneralCategory::{cat}" for cat in categories) + """] {
+            let ranges = char_ranges_in_general_category(category);
+            let chars: Vec<char> = ranges.iter().flat_map(|&(start, end)| (start as u32..=end as u32).filter_map(std::char::from_u32)).collect();
+            cache.insert(category, chars);
         }
-    }
-    chars
+        cache
+    }).get(&category).unwrap()
 }
 
-fn create_unicode_ranges() -> HashMap<&'static str, Vec<(u32, u32)>> {
-    let mut unicode_ranges: HashMap<&'static str, Vec<(u32, u32)>> = HashMap::new();
-
+pub fn general_category_for_char(c: char) -> GeneralCategory {
+    match c as u32 {
 """
 
-for category, ranges in char_data.items():
-    rust_code += f"    unicode_ranges.insert(\"{category}\", vec![\n"
-    for start, end in ranges:
-        rust_code += f"        (0x{start:04X}, 0x{end:04X}),\n"
-    rust_code += "    ]);\n\n"
+    all_ranges = []
+    for category, points in char_data.items():
+        ranges = convert_to_ranges(sorted(points))
+        for start, end in ranges:
+            all_ranges.append((start, end, category))
 
-rust_code += "    unicode_ranges\n"
-rust_code += "}\n"
+    all_ranges.sort()
 
-# Save the generated Rust code to a file
-with open("generated_unicode_ranges.rs", "w") as file:
-    file.write(rust_code)
+    for start, end, category in all_ranges:
+        if start == end:
+            rust_code += f"        0x{start:04X} => GeneralCategory::{category},\n"
+        else:
+            rust_code += f"        0x{start:04X}..=0x{end:04X} => GeneralCategory::{category},\n"
 
-print("Rust code has been generated and saved to generated_unicode_ranges.rs")
+    rust_code += """        _ => panic!("Unknown general category for char: {}", c),
+    }
+}
+"""
+
+    return rust_code
+
+
+def main():
+    char_data = download_and_parse_unicode_data()
+    rust_code = generate_rust_code(char_data)
+
+    with open("unicode_categories.rs", "w") as f:
+        f.write(rust_code)
+
+    print("Rust code has been generated and saved to unicode_categories.rs")
+
+
+if __name__ == "__main__":
+    main()
