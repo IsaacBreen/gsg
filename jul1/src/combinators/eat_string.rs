@@ -45,22 +45,18 @@ impl ParserTrait for EatStringParser {
         let mut done = false;
 
         for &byte in bytes {
-            if self.index >= self.string.len() {
-                break;
-            }
-
             if self.string[self.index] == byte {
                 self.index += 1;
                 if self.index == self.string.len() {
-                    if let Some(mut right_data) = self.right_data.take() {
-                        right_data.position += self.string.len();
-                        right_data_vec.push(right_data);
-                        done = true;
-                        break;
-                    }
+                    let mut right_data = self.right_data.take().expect("right_data already taken");
+                    right_data.position += self.string.len();
+                    right_data_vec.push(right_data);
+                    done = true;
+                    break;
                 }
             } else {
-                self.index = self.string.len();
+                done = true;
+                self.right_data.take();
                 break;
             }
         }
