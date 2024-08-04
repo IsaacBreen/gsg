@@ -5,7 +5,7 @@ import tokenize
 from dataclasses import dataclass
 from io import StringIO
 from pprint import pprint
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 import requests
 import pegen.grammar
@@ -44,7 +44,7 @@ def parse_grammar(text: str) -> pegen.grammar.Grammar:
         grammar = parser.start()
         return grammar
 
-def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True, ignore_lookaheads: bool = False) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
+def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True, include_lookaheads: bool | Literal['positive', 'negative'] = True) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
     def rhs_to_node(rhs: pegen.grammar.Rhs) -> remove_left_recursion.Node:
         if len(rhs.alts) == 1:
             return alt_to_node(rhs.alts[0])
@@ -81,15 +81,15 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True,
         elif isinstance(item, pegen.grammar.Forced):
             return item_to_node(item.node)
         elif isinstance(item, pegen.grammar.PositiveLookahead):
-            if ignore_lookaheads:
-                return remove_left_recursion.eps()
-            else:
+            if include_lookaheads is True or include_lookaheads == 'positive':
                 return remove_left_recursion.lookahead(item_to_node(item.node))
-        elif isinstance(item, pegen.grammar.NegativeLookahead):
-            if ignore_lookaheads:
-                return remove_left_recursion.eps()
             else:
+                return remove_left_recursion.eps()
+        elif isinstance(item, pegen.grammar.NegativeLookahead):
+            if include_lookaheads is True or include_lookaheads == 'negative':
                 return remove_left_recursion.negative_lookahead(item_to_node(item.node))
+            else:
+                return remove_left_recursion.eps()
         elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_node(item)
         elif isinstance(item, pegen.grammar.Cut):
