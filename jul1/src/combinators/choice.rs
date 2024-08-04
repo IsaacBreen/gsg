@@ -62,7 +62,6 @@ impl ParserTrait for ChoiceParser {
             parse_result.merge_assign(parse_results);
             !done
         });
-        parse_result.squash_selectively();
         parse_result
     }
 
