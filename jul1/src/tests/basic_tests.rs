@@ -245,11 +245,11 @@ mod tests {
                     eat('a'),
                     eat("aa"),
                 ),
-                vec!["aa"]
+                vec!["a"]
             ),
             eat('b'),
         );
-        // assert_parses_default(&combinator, "aab");
+        assert_parses_default(&combinator, "aab");
         assert_parses_fast(&combinator, "aab");
 
         let combinator = seq!(
@@ -259,7 +259,7 @@ mod tests {
             ),
             eat('b'),
         );
-        // assert_fails_default(&combinator, "aab");
-        // assert_fails_fast(&combinator, "aab");
+        assert_fails_default(&combinator, "aab");
+        assert_fails_fast(&combinator, "aab");
     }
 }
