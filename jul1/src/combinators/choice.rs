@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile, Squash, U8Set};
 use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -77,10 +77,10 @@ pub fn _choice(v: Vec<Combinator>) -> Combinator {
 }
 
 pub fn _choice_greedy(v: Vec<Combinator>) -> Combinator {
-    Choice {
+    profile("choice", Choice {
         children: v.into_iter().map(Rc::new).collect(),
         greedy: true,
-    }.into()
+    })
 }
 
 #[macro_export]
