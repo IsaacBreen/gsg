@@ -37,12 +37,13 @@ impl Default for ProfileData {
 
 impl ProfileData {
     fn push_tag(&self, tag: String) {
-        let elapsed = self.inner.borrow_mut().start_time.elapsed();
-        if let Some(current_tag) = self.inner.borrow_mut().tag_stack.last().cloned() {
-            *self.inner.borrow_mut().timings.entry(current_tag.clone()).or_default() += elapsed;
+        let mut inner = self.inner.borrow_mut();
+        let elapsed = inner.start_time.elapsed();
+        if let Some(current_tag) = inner.tag_stack.last().cloned() {
+            *inner.timings.entry(current_tag.clone()).or_default() += elapsed;
         }
-        self.inner.borrow_mut().tag_stack.push(tag);
-        self.inner.borrow_mut().start_time = Instant::now();
+        inner.tag_stack.push(tag);
+        inner.start_time = Instant::now();
     }
 
     fn pop_tag(&self) {
