@@ -285,3 +285,13 @@ fn test_debug_import() {
     assert_parses_default(&combinator, "import x\n");
     assert_parses_fast(&combinator, "import x\n");
 }
+
+#[test]
+fn test_debug_raise() {
+    let combinator = python_file();
+    // assert_parses_default(&combinator, r#"raise ValueError(f"{x}")"#);
+    // assert_parses_fast(&combinator, r#"raise ValueError(f"{x}")"#);
+
+    assert_parses_default(&combinator, r#"raise ValueError"#);
+    assert_parses_fast(&combinator, r#"raise ValueError"#);
+}
