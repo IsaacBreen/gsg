@@ -63,7 +63,6 @@ impl ParserTrait for ChoiceParser {
             !done
         });
 
-        parse_result.squash();
         parse_result
     }
 
