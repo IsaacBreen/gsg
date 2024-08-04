@@ -22,18 +22,13 @@ pub struct EatStringParser {
 impl CombinatorTrait for EatString {
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let parser1 = EatStringParser {
+        let mut parser = EatStringParser {
             string: self.string.clone(),
             index: 0,
             right_data: Some(right_data),
         };
-        let (mut parser, mut parse_results0) = (Parser::EatStringParser(parser1), ParseResults {
-            right_data_vec: vec![],
-            done: false,
-        });
-        let parse_results1 = parser.parse(bytes);
-        parse_results0.combine_seq(parse_results1);
-        (parser, parse_results0)
+        let parse_results = parser.parse(bytes);
+        (Parser::EatStringParser(parser), parse_results)
     }
 }
 
@@ -64,8 +59,13 @@ impl ParserTrait for EatStringParser {
                             right_data_vec.push(right_data);
                             done = true;
                             break;
+                        } else {
+                            panic!("EatStringParser already consumed");
                         }
                     } else {
+                        self.right_data.take();
+                        done = true;
+                        break;
                     }
                 } else {
                     self.index = self.string.len();
