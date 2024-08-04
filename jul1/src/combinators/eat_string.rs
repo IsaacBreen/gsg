@@ -96,3 +96,8 @@ pub fn eat_bytes(bytes: &[u8]) -> EatString {
     }
 }
 
+pub fn eat(string: impl Into<String>) -> EatString {
+    EatString {
+        string: string.into().as_bytes().to_vec(),
+    }
+}
