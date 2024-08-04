@@ -213,17 +213,17 @@ fn test_actual_python_file_fast() {
 fn test_lots_of_lines() {
     let combinator = python_file();
 
-    let s = "a\n".repeat(9);
-    assert_parses_default(&combinator, &s);
-    // assert_parses_fast(&combinator, &s);
+    let s = "a\n".repeat(14);
+    // assert_parses_default(&combinator, &s);
+    assert_parses_fast(&combinator, &s);
 }
 
 #[test]
 fn test_simple_2() {
     let combinator = python_file();
     // assert_parses_default(&combinator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    assert_parses_default(&combinator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    assert_parses_fast(&combinator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    assert_parses_default(&combinator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
+    assert_parses_fast(&combinator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
 }
 
 #[test]
