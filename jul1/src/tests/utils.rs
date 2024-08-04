@@ -65,19 +65,6 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         timings.push((line.to_string(), Instant::now() - line_start));
     }
 
-    // Print profile results
-    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
-    // Sort simply by duration
-    profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
-    println!("Profile results:");
-    for (tag, duration) in profile_vec.clone() {
-        // Convert to standardized time object
-        let duration = duration;
-        let duration_secs = duration.as_secs_f64();
-        // Print just duration and tag
-        println!("{:<10} {}", format!("{:.3}s", duration_secs), tag);
-    }
-
     // Print timing results
     let mut timing_vec: Vec<(String, std::time::Duration)> = timings.into_iter().collect();
 
@@ -127,6 +114,33 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     assert_parses(combinator, input, "Parser failed unexpectedly");
 }
+
+pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
+    println!("beginning profile_parse");
+
+    let start_right_data = RightData::default();
+    let profile_data = start_right_data.profile_data.clone();
+
+    let (mut parser, mut parse_results) = T::parser(&combinator, start_right_data);
+
+    for byte in input.to_string().bytes() {
+        parser.step(byte);
+    }
+
+    // Print profile results
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    // Sort simply by duration
+    profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
+    println!("Profile results:");
+    for (tag, duration) in profile_vec.clone() {
+        // Convert to standardized time object
+        let duration = duration;
+        let duration_secs = duration.as_secs_f64();
+        // Print just duration and tag
+        println!("{:<10} {}", format!("{:.3}s", duration_secs), tag);
+    }
+}
+
 
 pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();

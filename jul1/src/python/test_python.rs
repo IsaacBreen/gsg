@@ -2,7 +2,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use crate::{choice, choice_greedy, eat, eat_string, FSTRING_END, FSTRING_START, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, whitespace, WS};
-use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, assert_parses_fast_with_tolerance};
+use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, assert_parses_fast_with_tolerance, profile_parse};
 
 #[test]
 fn test_trivial_x() {
@@ -206,6 +206,23 @@ fn test_actual_python_file_fast() {
         assert_parses_fast_with_tolerance(&combinator, content, 20);
         let duration = start.elapsed();
         println!("{:<25} parsed in {:?}", name, duration);
+    }
+}
+
+#[test]
+fn profile_python_file() {
+    let combinator = python_file();
+
+    let profile_files = [
+        // "src/tests/test_input.py",
+        "src/python/dump_python_gram.py",
+        // "src/python/remove_left_recursion.py",
+    ];
+
+    for profile_file in profile_files.iter() {
+        let path = Path::new(profile_file);
+        let file = std::fs::read_to_string(path).unwrap();
+        profile_parse(&combinator, &file);
     }
 }
 
