@@ -1,5 +1,17 @@
-use crate::{check_right_data, Combinator, dedent, dent, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, EatU8, eps, exclude_strings, fail, forbid_follows_clear, indent, mutate_right_data, negative_lookahead, Repeat1, RightData, seq, tag};
-use crate::{choice_greedy as choice, opt_greedy as opt, repeat0_greedy as repeat0, repeat1_greedy as repeat1, repeatn_greedy as repeatn};
+use crate::{
+    Combinator, EatU8, RightData, check_right_data, mutate_right_data,
+    eps, fail, seq, tag, eat_byte_range, eat_bytestring_choice,
+    eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice,
+    eat_string, exclude_strings, Repeat1, forbid_follows_clear,
+    negative_lookahead, dedent, dent, indent,
+};
+
+use crate::{
+    choice_greedy as choice, opt_greedy as opt,
+    repeat0_greedy as repeat0, repeat1_greedy as repeat1,
+    repeatn_greedy as repeatn,
+};
+
 use crate::unicode::get_unicode_general_category_bytestrings;
 use crate::unicode_categories::GeneralCategory;
 
