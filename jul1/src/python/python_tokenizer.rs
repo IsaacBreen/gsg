@@ -1,10 +1,9 @@
 use std::rc::Rc;
 
-use unicode_general_category::GeneralCategory;
-
 use crate::{assert_no_dedents, check_right_data, Choice, Combinator, CombinatorTrait, Compile, dedent, dent, eat_any_byte, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, eat_string_choice, EatString, EatU8, eps, Eps, fail, forbid_follows, forbid_follows_check_not, forbid_follows_clear, ForbidFollows, ForbidFollowsClear, indent, IndentCombinator, mutate_right_data, MutateRightData, negative_lookahead, exclude_strings, Repeat1, RightData, seq, Seq, Symbol, tag};
 use crate::{opt_greedy as opt, repeat0_greedy as repeat0, repeat1_greedy as repeat1, repeatn_greedy as repeatn, seprep0_greedy as seprep0, seprep1_greedy as seprep1, choice_greedy as choice};
 use crate::unicode::{get_unicode_general_category_bytestrings, get_unicode_general_category_combinator};
+use crate::unicode_categories::GeneralCategory;
 
 pub fn breaking_space() -> Combinator {
     eat_char_choice("\n\r").into()
@@ -228,12 +227,12 @@ pub fn python_literal(s: &str) -> Combinator {
 pub fn id_start_bytestrings() -> Vec<Vec<u8>> {
     // all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property
     let categories = [
-        GeneralCategory::LowercaseLetter,
-        GeneralCategory::UppercaseLetter,
-        GeneralCategory::TitlecaseLetter,
-        GeneralCategory::ModifierLetter,
-        GeneralCategory::OtherLetter,
-        GeneralCategory::LetterNumber,
+        GeneralCategory::Lu,
+        GeneralCategory::Ll,
+        GeneralCategory::Lt,
+        GeneralCategory::Lm,
+        GeneralCategory::Lo,
+        GeneralCategory::Nl,
         // We ignore Other_ID_Start - it's just for backwards compatibility.
     ];
 
@@ -246,11 +245,10 @@ pub fn id_start_bytestrings() -> Vec<Vec<u8>> {
 pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
     // all characters in id_start, plus characters in the categories Mn, Mc, Nd, Pc and others with the Other_ID_Continue property
     let new_categories = [
-        GeneralCategory::NonspacingMark,
-        // todo: where is SpacingCombiningMark?
-        // GeneralCategory::SpacingCombiningMark,
-        GeneralCategory::DecimalNumber,
-        GeneralCategory::ConnectorPunctuation,
+        GeneralCategory::Mn,
+        GeneralCategory::Mc,
+        GeneralCategory::Nd,
+        GeneralCategory::Pc,
     ];
 
     let new_category_bytestrings: Vec<Vec<u8>> = new_categories.iter().flat_map(|category| get_unicode_general_category_bytestrings(*category)).collect();

@@ -6,8 +6,6 @@ edition = "2021"
 [dependencies]
 derivative = "2.2.0"
 kdam = "0.5.2"
-unicode-general-category = "0.6.0"
-unicode-segmentation = "1.11.0"
 
 # Run tests with opt level 3
 #[profile.dev]

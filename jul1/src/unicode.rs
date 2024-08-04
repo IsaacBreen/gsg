@@ -1,18 +1,15 @@
-use unicode_general_category::{GeneralCategory, GENERAL_CATEGORY};
-
 use crate::*;
+use crate::unicode_categories::{char_ranges_in_general_category, GeneralCategory};
 
 pub fn get_unicode_general_category_bytestrings(general_category: GeneralCategory) -> Vec<Vec<u8>> {
     let mut result = Vec::new();
 
-    // for c in '\u{0}'..='\u{10FFFF}' {
-    //     if get_general_category(c) == general_category {
-    //         let utf8_bytes = c.to_string().as_bytes().to_vec();
-    //         result.push(utf8_bytes);
-    //     }
-    // }
-
-    for (start, end, category) in GENERAL_CATEGORY
+    for (start, end) in char_ranges_in_general_category(general_category) {
+        let utf8_bytes = start.to_string().as_bytes().to_vec();
+        result.push(utf8_bytes);
+        let utf8_bytes = end.to_string().as_bytes().to_vec();
+        result.push(utf8_bytes);
+    }
 
     result
 }
