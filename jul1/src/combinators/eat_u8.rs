@@ -42,20 +42,15 @@ impl ParserTrait for EatU8Parser {
             return ParseResults::empty_unfinished();
         }
 
+        let mut right_data = self.right_data.take().unwrap();
         if self.u8set.contains(bytes[0]) {
-            if let Some(mut right_data) = self.right_data.take() {
-                right_data.position += 1;
-                return ParseResults {
-                    right_data_vec: vec![right_data],
-                    done: true,
-                };
+            right_data.position += 1;
+            ParseResults {
+                right_data_vec: vec![right_data],
+                done: true,
             }
-        }
-
-        if self.right_data.is_some() {
-            return ParseResults::empty_finished();
         } else {
-            panic!("EatU8Parser already consumed");
+            ParseResults::empty_finished()
         }
     }
 }
