@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{LookaheadData, ParseResults, RightData, U8Set};
 
-const SQUASH_THRESHOLD: usize = 0;
+const SQUASH_THRESHOLD: usize = 10;
 
 pub trait Squash {
     type Output;
@@ -13,7 +13,7 @@ pub trait Squash {
 impl Squash for Vec<RightData> {
     type Output = Vec<RightData>;
     fn squashed(self) -> Self::Output {
-        if self.len() > SQUASH_THRESHOLD {
+        if self.len() > 1 {
             let mut decomposed: HashMap<RightData, LookaheadData> = HashMap::new();
             for mut right_data in self {
                 let lookahead_data = std::mem::take(&mut right_data.lookahead_data);
@@ -33,10 +33,11 @@ impl Squash for Vec<RightData> {
         }
     }
     fn squash(&mut self) {
-        if self.len() > SQUASH_THRESHOLD {
+        if self.len() > 1 {
             *self = self.drain(..).collect::<Self>().squashed()
         }
     }
+
 }
 
 impl Squash for ParseResults {
@@ -49,5 +50,13 @@ impl Squash for ParseResults {
     }
     fn squash(&mut self) {
         *self = self.clone().squashed();
+    }
+}
+
+impl ParseResults {
+    pub(crate) fn squash_selectively(&mut self) {
+        if self.right_data_vec.len() > SQUASH_THRESHOLD {
+            self.squash()
+        }
     }
 }
