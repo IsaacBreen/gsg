@@ -297,6 +297,8 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
     expr = f'seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")})'
     expr = f'cache_first_context({expr})'
 
+    expr = f'tag("main", {expr})'
+
     if any(rule.memo for name, rule in rules):
         # expr = f'lookahead_context({expr})'
         expr = f'cache_context({expr})'
