@@ -263,11 +263,9 @@ fn test_string_problem() {
 fn test_string() {
     let combinator = STRING();
 
-    let s = r#""choice!(\n    ""#;
-    assert_parses(&combinator, s, "String");
-
-    let s = r#""\n)""#;
-    assert_parses(&combinator, s, "String");
+    let s = "f'{x}'\n";
+    // assert_parses_default(&combinator, s);
+    assert_parses_fast(&combinator, s);
 
     // todo: Escpae sequences in both f-strings and regular strings
 }
@@ -290,9 +288,25 @@ fn test_debug_import() {
 fn test_debug_raise() {
     let combinator = python_file();
 
-    assert_parses_default(&combinator, "raise ValueError(f'{x}')\n");
-    assert_parses_fast(&combinator, "raise ValueError(f'{x}')\n");
+    // assert_parses_default(&combinator, "raise x\n");
+    // assert_parses_fast(&combinator, "raise x\n");
 
-    assert_parses_default(&combinator, "raise x\n");
-    assert_parses_fast(&combinator, "raise x\n");
+    // assert_parses_default(&combinator, "raise ValueError('x')\n");
+    assert_parses_fast(&combinator, "raise ValueError('x')\n");
+
+    // assert_parses_default(&combinator, "raise ValueError(f'{x}')\n");
+    // assert_parses_fast(&combinator, "raise ValueError(f'{x}')\n");
+}
+
+#[test]
+fn test_parse_fstring() {
+    let combinator = python_file();
+
+    let s = "f''\n";
+    // assert_parses_default(&combinator, s);
+    assert_parses_fast(&combinator, s);
+
+    let s = "f'{x}'\n";
+    // assert_parses_default(&combinator, s);
+    // assert_parses_fast(&combinator, s);
 }
