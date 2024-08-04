@@ -135,9 +135,8 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
     for (tag, duration) in profile_vec.clone() {
         // Convert to standardized time object
         let duration = duration;
-        let duration_secs = duration.as_secs_f64();
         // Print just duration and tag
-        println!("{:<10} {}", format!("{:.3}s", duration_secs), tag);
+        println!("{:?} {}", duration, tag);
     }
 }
 
