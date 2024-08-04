@@ -323,3 +323,12 @@ fn test_parse_fstring_distilled() {
     assert_parses_default(&combinator, s);
     assert_parses_fast(&combinator, s);
 }
+
+#[test]
+fn test_another_fstring_issue() {
+    let combinator = python_file();
+
+    let s = "f'Unknown item type: {type(item)}'\n";
+    assert_parses_default(&combinator, s);
+    assert_parses_fast(&combinator, s);
+}
