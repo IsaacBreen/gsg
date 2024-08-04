@@ -289,9 +289,9 @@ fn test_debug_import() {
 #[test]
 fn test_debug_raise() {
     let combinator = python_file();
-    // assert_parses_default(&combinator, r#"raise ValueError(f"{x}")"#);
-    // assert_parses_fast(&combinator, r#"raise ValueError(f"{x}")"#);
+    // assert_parses_default(&combinator, r#"raise ValueError(f"{x}")\n"#);
+    // assert_parses_fast(&combinator, r#"raise ValueError(f"{x}")\n"#);
 
-    // assert_parses_default(&combinator, r#"raise x"#);
-    assert_parses_fast(&combinator, r#"raise x"#);
+    // assert_parses_default(&combinator, r#"raise x\n"#);
+    assert_parses_fast(&combinator, r#"raise x\n"#);
 }
