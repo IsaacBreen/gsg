@@ -335,7 +335,7 @@ if __name__ == "__main__":
         ref('NEWLINE'): {ref('WS')},
         ref('INDENT'): {ref('WS')},
         ref('DEDENT'): {ref('WS')},
-        ref('NAME'): {ref('NAME'), ref('NUMBER'), ref('FSTRING_START'), ref('STRING')},
+        ref('NAME'): {ref('NAME'), ref('NUMBER')},
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
