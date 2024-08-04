@@ -18,7 +18,9 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
     let mut timings: Vec<(String, std::time::Duration)> = Vec::new();
 
-    let (mut parser, mut parse_results) = T::parser(&combinator, RightData::default());
+    let start_right_data = RightData::default();
+    let profile_data = start_right_data.profile_data.clone();
+    let (mut parser, mut parse_results) = T::parser(&combinator, start_right_data);
 
     let lines = input.lines().collect::<Vec<_>>();
     let num_lines = lines.len();
@@ -59,6 +61,33 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         }
 
         timings.push((line.to_string(), Instant::now() - line_start));
+    }
+
+    // Print profile results
+    let mut profile_vec: Vec<(String, u128)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect();
+    profile_vec.sort_by(|(tag_a, duration_a), (tag_b, duration_b)| {
+        let time_per_char_a = *duration_a as f64 / tag_a.len() as f64;
+        let time_per_char_b = *duration_b as f64 / tag_b.len() as f64;
+        time_per_char_b.partial_cmp(&time_per_char_a).unwrap()
+    });
+    let threshold = 0;
+    if VERBOSE {
+        println!("Profile results:");
+        for (tag, duration) in profile_vec.clone() {
+            let duration_secs = duration as f64 / 1000.0;
+            let time_per_char = duration_secs / tag.len() as f64 * 1000.0;
+            let emphasis = if duration > threshold { " * " } else { "   " };
+            let bold = if duration > threshold { "\x1b[1m" } else { "" };
+            let reset = if bold.is_empty() { "" } else { "\x1b[0m" };
+            println!("{}{:<15}{:<10}{}{:?}{}s",
+                     emphasis,
+                     format!("{:.3}ms/char", time_per_char),
+                     format!("{:.3}s", duration_secs),
+                     bold,
+                     tag,
+                     reset,
+            );
+        }
     }
 
     // Print timing results
