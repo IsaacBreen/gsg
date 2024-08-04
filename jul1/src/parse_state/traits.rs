@@ -33,7 +33,7 @@ impl Squash for Vec<RightData> {
         }
     }
     fn squash(&mut self) {
-        if self.len() > 1 {
+        if self.len() > SQUASH_THRESHOLD {
             *self = self.drain(..).collect::<Self>().squashed()
         }
     }
