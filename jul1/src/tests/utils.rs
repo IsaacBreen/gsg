@@ -70,14 +70,13 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         let time_per_char_b = *duration_b as f64 / tag_b.len() as f64;
         time_per_char_b.partial_cmp(&time_per_char_a).unwrap()
     });
-    let threshold = 0;
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
         // Convert to standardized time object
         let duration = Duration::from_millis(duration as u64);
         let duration_secs = duration.as_secs_f64();
-        let time_per_char = duration_secs / tag.len() as f64 * 1000.0; // ms/char
-        println!("{:<15}{:<10}{}s", format!("{:.3}ms/char", time_per_char), format!("{:.3}s", duration_secs), tag);
+        // Print just duration and tag
+        println!("{:<10} {}", format!("{:.3}s", duration_secs), tag);
     }
 
     // Print timing results
