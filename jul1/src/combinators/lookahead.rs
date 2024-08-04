@@ -42,7 +42,9 @@ impl ParserTrait for LookaheadContextParser {
         // Count number of partial lookaheads again
         let mut m_partial_lookaheads = 0;
         self.inner.map_right_data_mut(&mut |right_data| { m_partial_lookaheads += right_data.lookahead_data.partial_lookaheads.len(); });
-        println!("lookahead_context: n_partial_lookaheads = {}, m_partial_lookaheads = {}, n_right_data = {}", n_partial_lookaheads, m_partial_lookaheads, n_right_data);
+        if n_partial_lookaheads > 0 || m_partial_lookaheads > 0 {
+            println!("lookahead_context: n_partial_lookaheads = {}, m_partial_lookaheads = {}, n_right_data = {}", n_partial_lookaheads, m_partial_lookaheads, n_right_data);
+        }
         self.inner.parse(bytes)
     }
 }
@@ -80,6 +82,7 @@ impl Default for LookaheadData {
 pub struct Lookahead {
     pub combinator: Box<Combinator>,
     pub positive: bool,
+    pub persist_with_partial_lookahead: bool,
 }
 
 impl CombinatorTrait for Lookahead {
@@ -95,11 +98,15 @@ impl CombinatorTrait for Lookahead {
         };
         if succeeds {
             if !parse_results.done {
-                // println!("Lookahead not done at position {}. Lookahead: {:?}", right_data.position, self);
-                right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
-                    parser: Box::new(parser),
-                    positive: self.positive,
-                });
+                if self.persist_with_partial_lookahead {
+                    // println!("Lookahead not done at position {}. Lookahead: {:?}", right_data.position, self);
+                    right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
+                        parser: Box::new(parser),
+                        positive: self.positive,
+                    });
+                } else {
+                    right_data.lookahead_data.has_omitted_partial_lookaheads = true;
+                }
             }
             (Parser::FailParser(FailParser), ParseResults {
                 right_data_vec: vec![right_data],
@@ -112,11 +119,11 @@ impl CombinatorTrait for Lookahead {
 }
 
 pub fn lookahead(combinator: impl Into<Combinator>) -> Lookahead {
-    Lookahead { combinator: Box::new(combinator.into()), positive: true }
+    Lookahead { combinator: Box::new(combinator.into()), positive: true, persist_with_partial_lookahead: false }
 }
 
 pub fn negative_lookahead(combinator: impl Into<Combinator>) -> Lookahead {
-    Lookahead { combinator: Box::new(combinator.into()), positive: false }
+    Lookahead { combinator: Box::new(combinator.into()), positive: false, persist_with_partial_lookahead: false }
 }
 
 impl From<Lookahead> for Combinator {
