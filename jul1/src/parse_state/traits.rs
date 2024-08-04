@@ -1,6 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use crate::{ParseResults, RightData, U8Set};
+use crate::{LookaheadData, ParseResults, RightData, U8Set};
 
 const SQUASH_THRESHOLD: usize = 0;
 
@@ -14,7 +14,20 @@ impl Squash for Vec<RightData> {
     type Output = Vec<RightData>;
     fn squashed(self) -> Self::Output {
         if self.len() > SQUASH_THRESHOLD {
-            self.into_iter().collect::<HashSet<_>>().into_iter().collect()
+            let mut decomposed: HashMap<RightData, LookaheadData> = HashMap::new();
+            for mut right_data in self {
+                let lookahead_data = std::mem::take(&mut right_data.lookahead_data);
+                let mut existing_lookahead_data = decomposed.entry(right_data).or_default();
+                // TODO: In general, all the lookaheads needs to be satisfied, i.e. it's an AND operation between Vecs of lookaheads. But this implies OR.
+                existing_lookahead_data.partial_lookaheads.extend(lookahead_data.partial_lookaheads);
+                existing_lookahead_data.has_omitted_partial_lookaheads &= lookahead_data.has_omitted_partial_lookaheads;
+            }
+            let mut result = vec![];
+            for (mut right_data, lookahead_data) in decomposed {
+                right_data.lookahead_data = lookahead_data;
+                result.push(right_data);
+            }
+            result
         } else {
             self
         }

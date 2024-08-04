@@ -3,17 +3,19 @@ use crate::*;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LookaheadContext {
     pub inner: Box<Combinator>,
+    pub persist_with_partial_lookahead: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LookaheadContextParser {
     pub inner: Box<Parser>,
+    pub persist_with_partial_lookahead: bool,
 }
 
 impl CombinatorTrait for LookaheadContext {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (inner, parse_results) = self.inner.parse(right_data, bytes);
-        (Parser::LookaheadContextParser(LookaheadContextParser { inner: Box::new(inner) }), parse_results)
+        (Parser::LookaheadContextParser(LookaheadContextParser { inner: Box::new(inner), persist_with_partial_lookahead: self.persist_with_partial_lookahead }), parse_results)
     }
 }
 
@@ -46,7 +48,7 @@ impl ParserTrait for LookaheadContextParser {
 }
 
 pub fn lookahead_context(inner: impl Into<Combinator>) -> LookaheadContext {
-    LookaheadContext { inner: Box::new(inner.into()) }
+    LookaheadContext { inner: Box::new(inner.into()), persist_with_partial_lookahead: false }
 }
 
 impl From<LookaheadContext> for Combinator {
@@ -64,12 +66,13 @@ pub struct PartialLookahead {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LookaheadData {
     pub partial_lookaheads: Vec<PartialLookahead>,
+    pub has_omitted_partial_lookaheads: bool,
 }
 
 impl Default for LookaheadData {
     fn default() -> Self {
         // LookaheadData { partial_lookaheads: vec![PartialLookahead { parser: Box::new(Parser::FailParser(FailParser)), positive: true }] }
-        LookaheadData { partial_lookaheads: vec![] }
+        LookaheadData { partial_lookaheads: vec![], has_omitted_partial_lookaheads: false }
     }
 }
 
