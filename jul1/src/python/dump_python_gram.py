@@ -270,8 +270,9 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         for name, rule in rules:
             expr = rhs_to_rust(rule.rhs, top_level=True)
             expr = f'tag("{name}", {expr})'
-            if rule.memo:
-                expr = f'cached({expr})'
+            # if rule.memo:
+            #     expr = f'cached({expr})'
+            expr = f'cached({expr})'
             if deferred:
                 expr = f'{expr}.into()'
                 f.write('fn ' + name + '() -> Combinator {\n')

@@ -2,6 +2,23 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use crate::*;
 
+// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+// pub enum SimpleCombinator {
+//     Seq { children: Vec<SimpleCombinator> },
+//     Choice { children: Vec<SimpleCombinator>, greedy: bool },
+//     Repeat1 { a: SimpleCombinator, greedy: bool },
+//     EatU8 { u8set: U8Set },
+//     EatString { string: String },
+//     EatByteStringChoice { strings: Vec<String> },
+//     Eps,
+//     Fail,
+//     Symbol { symbol: Symbol },
+//     MutateRightData { f: Rc<dyn Fn(RightData) -> RightData> },
+//     CheckRightData { f: Rc<dyn Fn(RightData) -> bool> },
+//     ExcludeStrings { strings: Vec<String> },
+//     NegativeLookahead { child: SimpleCombinator },
+// }
+
 pub trait Compile {
     fn compile(self) -> Combinator;
 }
