@@ -489,7 +489,7 @@ pub fn eat_char_digit() -> EatU8 {
     eat_char_choice("0123456789")
 }
 
-pub fn eat_until_terminator(terminator: char) -> Combinator {
+pub fn eat_until_terminator(terminator: char) -> Repeat1 {
     repeat1(eat_char_negation(terminator))
 }
 
@@ -691,9 +691,7 @@ pub fn FSTRING_START() -> Combinator {
     );
 
     let quote = choice!(
-        seq!(eat_char('\''), mutate_right_data(|right_data| {
-            right_data.fstring_start_stack.push(PythonQuoteType::OneSingle); true
-        })),
+        seq!(eat_char('\''), mutate_right_data(|right_data| { right_data.fstring_start_stack.push(PythonQuoteType::OneSingle); true })),
         seq!(eat_char('"'), mutate_right_data(|right_data| { right_data.fstring_start_stack.push(PythonQuoteType::OneDouble); true })),
         seq!(eat_string("'''"), mutate_right_data(|right_data| { right_data.fstring_start_stack.push(PythonQuoteType::ThreeSingle); true })),
         seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { right_data.fstring_start_stack.push(PythonQuoteType::ThreeDouble); true }))
@@ -733,9 +731,7 @@ pub fn FSTRING_MIDDLE() -> Combinator {
 
 pub fn FSTRING_END() -> Combinator {
     let quote = choice!(
-        seq!(eat_char('\''), mutate_right_data(|right_data| {
-            right_data.fstring_start_stack.pop().unwrap() == PythonQuoteType::OneSingle
-        })),
+        seq!(eat_char('\''), mutate_right_data(|right_data| { right_data.fstring_start_stack.pop().unwrap() == PythonQuoteType::OneSingle })),
         seq!(eat_char('"'), mutate_right_data(|right_data| { right_data.fstring_start_stack.pop().unwrap() == PythonQuoteType::OneDouble })),
         seq!(eat_string("'''"), mutate_right_data(|right_data| { right_data.fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeSingle })),
         seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { right_data.fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
