@@ -34,7 +34,6 @@ impl CombinatorTrait for Seq {
                 }
                 if !done {
                     parsers.push((combinator_index, parser));
-                    break;
                 }
             }
         }
@@ -91,7 +90,6 @@ impl ParserTrait for SeqParser {
                 }
                 if !done {
                     self.parsers.push((combinator_index, parser));
-                    break;
                 }
             }
         }
