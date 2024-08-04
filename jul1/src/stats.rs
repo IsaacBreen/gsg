@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::AddAssign;
 
-use crate::{CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, IndentCombinatorParser, match_parser, Parser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set};
+use crate::{CacheContextParser, CacheFirstContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, IndentCombinatorParser, LookaheadContextParser, match_parser, Parser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -277,7 +277,27 @@ impl Parser {
                 a_parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
             }
             Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => parser.collect_stats(stats, current_tag),
-            _ => {}
+
+            Parser::EpsParser(_) |
+            Parser::FailParser(_) |
+            Parser::CachedParser(_) |
+            Parser::CacheFirstParser(_) |
+            Parser::MutateRightDataParser(_) |
+            Parser::EatByteStringChoiceParser(_) |
+            Parser::CheckRightDataParser(_)
+            => { },
+            Parser::ExcludeBytestringsParser(ExcludeBytestringsParser { inner, .. }) => {
+                inner.collect_stats(stats, current_tag);
+            }
+            Parser::LookaheadContextParser(LookaheadContextParser { inner, .. }) => {
+                inner.collect_stats(stats, current_tag);
+            }
+            Parser::CacheFirstContextParser(CacheFirstContextParser { inner, .. }) => {
+                inner.collect_stats(stats, current_tag);
+            }
+
+            Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(_)) |
+            Parser::IndentCombinatorParser(IndentCombinatorParser::Done) => {}
         }
         stats.active_parser_type_counts.entry(self.type_name()).or_default().add_assign(1);
     }
