@@ -17,7 +17,6 @@ impl Default for ProfileData {
     }
 }
 
-#[derive(Clone)]
 pub struct ProfileDataInner {
     pub(crate) timings: HashMap<String, u128>,
     pub(crate) tag_stack: Vec<String>,
@@ -73,7 +72,7 @@ impl CombinatorTrait for Profiled {
         let top_tag = right_data.profile_data.inner.borrow().tag_stack.last().unwrap().clone();
         let start_time = right_data.profile_data.inner.borrow().prev_time;
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros();
-        let elapsed = now - start_time;
+        let elapsed = now.saturating_sub(start_time);
         right_data.profile_data.inner.borrow_mut().timings.entry(top_tag).or_insert(0).add_assign(elapsed);
         right_data.profile_data.inner.borrow_mut().tag_stack.push(self.tag.clone());
         right_data.profile_data.inner.borrow_mut().prev_time = now;
@@ -81,7 +80,7 @@ impl CombinatorTrait for Profiled {
         right_data.profile_data.inner.borrow_mut().tag_stack.pop();
         let start_time = right_data.profile_data.inner.borrow().prev_time;
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros();;
-        let elapsed = now - start_time;
+        let elapsed = now.saturating_sub(start_time);
         right_data.profile_data.inner.borrow_mut().timings.entry(self.tag.clone()).or_insert(0).add_assign(elapsed);
         match result {
             Ok((parser, parse_results)) => (
@@ -105,7 +104,7 @@ impl ParserTrait for ProfiledParser {
         let top_tag = self.profile_data.inner.borrow().tag_stack.last().unwrap().clone();
         let start_time = self.profile_data.inner.borrow().prev_time;
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros();
-        let elapsed = now - start_time;
+        let elapsed = now.saturating_sub(start_time);
         self.profile_data.inner.borrow_mut().timings.entry(top_tag).or_insert(0).add_assign(elapsed);
         self.profile_data.inner.borrow_mut().tag_stack.push(self.tag.clone());
         self.profile_data.inner.borrow_mut().prev_time = now;
@@ -113,7 +112,7 @@ impl ParserTrait for ProfiledParser {
         self.profile_data.inner.borrow_mut().tag_stack.pop();
         let start_time = self.profile_data.inner.borrow().prev_time;
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros();
-        let elapsed = now - start_time;
+        let elapsed = now.saturating_sub(start_time);
         self.profile_data.inner.borrow_mut().timings.entry(self.tag.clone()).or_insert(0).add_assign(elapsed);
         match result {
             Ok(parse_results) => parse_results,
