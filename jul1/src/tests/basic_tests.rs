@@ -8,6 +8,8 @@ mod tests {
     use crate::combinators::tag;
     use crate::parse_state::{RightData};
     use crate::tests::utils::{assert_parses, assert_parses_default};
+    use crate::unicode::get_unicode_general_category_combinator;
+    use crate::unicode_categories::GeneralCategory;
     use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses_fast};
 
     #[test]
@@ -261,5 +263,24 @@ mod tests {
         );
         assert_fails_default(&combinator, "aab");
         assert_fails_fast(&combinator, "aab");
+    }
+
+    #[test]
+    fn test_eat_string_choice() {
+        let combinator = eat_string_choice(&["ab", "cd"]);
+        assert_parses_default(&combinator, "ab");
+        assert_parses_fast(&combinator, "ab");
+        assert_parses_default(&combinator, "cd");
+        assert_parses_fast(&combinator, "cd");
+        assert_fails_default(&combinator, "ac");
+        assert_fails_fast(&combinator, "ac");
+    }
+
+    #[test]
+    fn test_unicode() {
+        // Test on numbers
+        let combinator = get_unicode_general_category_combinator(GeneralCategory::Nd);
+        assert_parses_default(&combinator, "1");
+        assert_parses_fast(&combinator, "1");
     }
 }
