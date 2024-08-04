@@ -90,7 +90,8 @@ impl ParserTrait for SeqParser {
                 }
             }
 
-            current_right_data = next_right_data.squashed();
+            current_right_data = next_right_data;
+            // current_right_data.squash();
         }
 
         self.position += bytes.len();
