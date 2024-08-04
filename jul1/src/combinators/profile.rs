@@ -1,16 +1,18 @@
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
+use std::rc::Rc;
+use std::cell::RefCell;
 use derivative::Derivative;
 use crate::*;
 
 #[derive(Clone)]
-pub struct ProfileData {
-    timings: HashMap<String, Duration>,
+pub struct ProfileDataInner {
+    pub(crate) timings: HashMap<String, Duration>,
     tag_stack: Vec<String>,
     start_time: Instant,
 }
 
-impl Default for ProfileData {
+impl Default for ProfileDataInner {
     fn default() -> Self {
         Self {
             timings: HashMap::new(),
@@ -20,26 +22,40 @@ impl Default for ProfileData {
     }
 }
 
+#[derive(Clone)]
+pub struct ProfileData {
+    pub(crate) inner: Rc<RefCell<ProfileDataInner>>,
+}
+
+impl Default for ProfileData {
+    fn default() -> Self {
+        Self {
+            inner: Rc::new(RefCell::new(ProfileDataInner::default())),
+        }
+    }
+}
+
 impl ProfileData {
-    fn push_tag(&mut self, tag: String) {
-        let elapsed = self.start_time.elapsed();
-        if let Some(current_tag) = self.tag_stack.last() {
-            *self.timings.entry(current_tag.clone()).or_default() += elapsed;
+    fn push_tag(&self, tag: String) {
+        let elapsed = self.inner.borrow_mut().start_time.elapsed();
+        if let Some(current_tag) = self.inner.borrow_mut().tag_stack.last() {
+            *self.inner.borrow_mut().timings.entry(current_tag.clone()).or_default() += elapsed;
         }
-        self.tag_stack.push(tag);
-        self.start_time = Instant::now();
+        self.inner.borrow_mut().tag_stack.push(tag);
+        self.inner.borrow_mut().start_time = Instant::now();
     }
 
-    fn pop_tag(&mut self) {
-        if let Some(tag) = self.tag_stack.pop() {
-            let elapsed = self.start_time.elapsed();
-            *self.timings.entry(tag).or_default() += elapsed;
-            self.start_time = Instant::now();
+    fn pop_tag(&self) {
+        let mut inner = self.inner.borrow_mut();
+        if let Some(tag) = inner.tag_stack.pop() {
+            let elapsed = inner.start_time.elapsed();
+            *inner.timings.entry(tag).or_default() += elapsed;
+            inner.start_time = Instant::now();
         }
     }
 
-    pub fn get_timings(&self) -> &HashMap<String, Duration> {
-        &self.timings
+    pub fn get_timings(&self) -> HashMap<String, Duration> {
+        self.inner.borrow().timings.clone()
     }
 }
 
@@ -68,7 +84,7 @@ impl CombinatorTrait for Profiled {
             Parser::ProfiledParser(ProfiledParser {
                 inner: Box::new(parser),
                 tag: self.tag.clone(),
-                profile_data: right_data.profile_data.clone()
+                profile_data: right_data.profile_data.clone(),
             }),
             parse_results,
         )

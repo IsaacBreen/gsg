@@ -66,13 +66,13 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     }
 
     // Print profile results
-    let mut profile_vec: Vec<(String, u128)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
         // Convert to standardized time object
-        let duration = Duration::from_micros(duration as u64);
+        let duration = duration;
         let duration_secs = duration.as_secs_f64();
         // Print just duration and tag
         println!("{:<10} {}", format!("{:.3}s", duration_secs), tag);
