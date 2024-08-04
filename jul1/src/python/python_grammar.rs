@@ -22,13 +22,13 @@ enum Forbidden {
 pub fn python_file() -> Combinator {
     use super::python_tokenizer as token;
     let WS = symbol(cached(tag("WS", seq!(forbid_follows_check_not(Forbidden::WS as usize), token::WS().compile(), forbid_follows(&[Forbidden::DEDENT as usize, Forbidden::INDENT as usize, Forbidden::NEWLINE as usize])))));
-    let NAME = symbol(cached(tag("NAME", seq!(forbid_follows_check_not(Forbidden::NAME as usize), token::NAME().compile(), forbid_follows(&[Forbidden::NAME as usize, Forbidden::NUMBER as usize])))));
+    let NAME = symbol(cached(tag("NAME", seq!(forbid_follows_check_not(Forbidden::NAME as usize), token::NAME().compile(), forbid_follows(&[Forbidden::FSTRING_START as usize, Forbidden::NAME as usize, Forbidden::NUMBER as usize, Forbidden::STRING as usize])))));
     let TYPE_COMMENT = symbol(cached(tag("TYPE_COMMENT", seq!(forbid_follows_clear(), token::TYPE_COMMENT().compile()))));
-    let FSTRING_START = symbol(cached(tag("FSTRING_START", seq!(token::FSTRING_START().compile(), forbid_follows(&[Forbidden::WS as usize])))));
+    let FSTRING_START = symbol(cached(tag("FSTRING_START", seq!(forbid_follows_check_not(Forbidden::FSTRING_START as usize), token::FSTRING_START().compile(), forbid_follows(&[Forbidden::WS as usize])))));
     let FSTRING_MIDDLE = symbol(cached(tag("FSTRING_MIDDLE", seq!(forbid_follows_check_not(Forbidden::FSTRING_MIDDLE as usize), token::FSTRING_MIDDLE().compile(), forbid_follows(&[Forbidden::FSTRING_MIDDLE as usize, Forbidden::WS as usize])))));
     let FSTRING_END = symbol(cached(tag("FSTRING_END", seq!(forbid_follows_clear(), token::FSTRING_END().compile()))));
     let NUMBER = symbol(cached(tag("NUMBER", seq!(forbid_follows_check_not(Forbidden::NUMBER as usize), token::NUMBER().compile(), forbid_follows(&[Forbidden::NUMBER as usize])))));
-    let STRING = symbol(cached(tag("STRING", seq!(forbid_follows_clear(), token::STRING().compile()))));
+    let STRING = symbol(cached(tag("STRING", seq!(forbid_follows_check_not(Forbidden::STRING as usize), token::STRING().compile()))));
     let NEWLINE = symbol(cached(tag("NEWLINE", seq!(forbid_follows_check_not(Forbidden::NEWLINE as usize), token::NEWLINE().compile(), forbid_follows(&[Forbidden::WS as usize])))));
     let INDENT = symbol(cached(tag("INDENT", seq!(forbid_follows_check_not(Forbidden::INDENT as usize), token::INDENT().compile(), forbid_follows(&[Forbidden::WS as usize])))));
     let DEDENT = symbol(cached(tag("DEDENT", seq!(forbid_follows_check_not(Forbidden::DEDENT as usize), token::DEDENT().compile(), forbid_follows(&[Forbidden::WS as usize])))));
