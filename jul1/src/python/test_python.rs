@@ -306,7 +306,7 @@ fn test_parse_fstring() {
     // assert_parses_default(&combinator, s);
     assert_parses_fast(&combinator, s);
 
-    let s = "f'{x}'\n";
+    // let s = "f'{x}'\n";
     // assert_parses_default(&combinator, s);
     // assert_parses_fast(&combinator, s);
 }

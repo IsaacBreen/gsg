@@ -20,7 +20,7 @@ pub struct RightData {
     pub cache_data: CacheData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub cache_first_data: CacheFirstData,
-    #[derivative(PartialEq = "ignore")]
+    #[derivative(Hash = "ignore")]
     pub lookahead_data: LookaheadData,
     pub position: usize,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
