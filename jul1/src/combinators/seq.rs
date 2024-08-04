@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile, RightData, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, RightData, Squash, U8Set};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
@@ -106,7 +106,7 @@ impl ParserTrait for SeqParser {
 }
 
 pub fn _seq(v: Vec<Combinator>) -> Combinator {
-    profile("seq", Seq {
+    profile_internal("seq", Seq {
         children: Rc::new(v),
     })
 }
