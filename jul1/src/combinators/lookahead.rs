@@ -36,7 +36,7 @@ impl ParserTrait for LookaheadContextParser {
                 !partial_lookahead.parser.parse(bytes).done
             });
             if n != right_data.lookahead_data.partial_lookaheads.len() {
-                // println!("pruned patial lookaheads from {} to {}", n, right_data.lookahead_data.partial_lookaheads.len());
+                // println!("pruned partial lookaheads from {} to {}", n, right_data.lookahead_data.partial_lookaheads.len());
             }
         });
         // Count number of partial lookaheads again
