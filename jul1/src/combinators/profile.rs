@@ -1,99 +1,77 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
-use std::ops::AddAssign;
-use std::panic::resume_unwind;
-
+use std::time::{Instant, Duration};
 use derivative::Derivative;
-
 use crate::*;
 
 #[derive(Clone)]
 pub struct ProfileData {
-    pub(crate) inner: Rc<RefCell<ProfileDataInner>>,
+    timings: HashMap<String, Duration>,
+    tag_stack: Vec<String>,
+    start_time: Instant,
 }
 
 impl Default for ProfileData {
     fn default() -> Self {
-        Self { inner: Rc::new(RefCell::new(ProfileDataInner::default())) }
-    }
-}
-
-pub struct ProfileDataInner {
-    pub(crate) timings: HashMap<String, u128>,
-    pub(crate) tag_stack: Vec<String>,
-    pub(crate) prev_time: u128,
-}
-
-impl Default for ProfileDataInner {
-    fn default() -> Self {
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros();
-        let tag_stack = vec!["root".to_string()];
         Self {
             timings: HashMap::new(),
-            tag_stack,
-            prev_time: now,
+            tag_stack: vec!["root".to_string()],
+            start_time: Instant::now(),
         }
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+impl ProfileData {
+    fn push_tag(&mut self, tag: String) {
+        let elapsed = self.start_time.elapsed();
+        if let Some(current_tag) = self.tag_stack.last() {
+            *self.timings.entry(current_tag.clone()).or_default() += elapsed;
+        }
+        self.tag_stack.push(tag);
+        self.start_time = Instant::now();
+    }
+
+    fn pop_tag(&mut self) {
+        if let Some(tag) = self.tag_stack.pop() {
+            let elapsed = self.start_time.elapsed();
+            *self.timings.entry(tag).or_default() += elapsed;
+            self.start_time = Instant::now();
+        }
+    }
+
+    pub fn get_timings(&self) -> &HashMap<String, Duration> {
+        &self.timings
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Profiled {
     pub inner: Box<Combinator>,
     pub tag: String,
 }
 
-// #[derive(Clone, PartialEq, Eq, Hash)]
 #[derive(Derivative)]
-#[derivative(Clone, PartialEq, Eq, Hash)]
+#[derivative(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProfiledParser {
     pub inner: Box<Parser>,
     pub tag: String,
-    #[derivative(Debug = "ignore", PartialEq = "ignore", Hash = "ignore")]
+    #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
     pub profile_data: ProfileData,
-}
-
-impl Debug for Profiled {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Profiled")
-            .field("tag", &self.tag)
-            .finish_non_exhaustive()
-    }
-}
-
-impl Debug for ProfiledParser {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ProfiledParser")
-            .field("tag", &self.tag)
-            .finish_non_exhaustive()
-    }
 }
 
 impl CombinatorTrait for Profiled {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let top_tag = right_data.profile_data.inner.borrow().tag_stack.last().unwrap().clone();
-        let start_time = right_data.profile_data.inner.borrow().prev_time;
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros();
-        let elapsed = now.saturating_sub(start_time);
-        right_data.profile_data.inner.borrow_mut().timings.entry(top_tag).or_insert(0).add_assign(elapsed);
-        right_data.profile_data.inner.borrow_mut().tag_stack.push(self.tag.clone());
-        right_data.profile_data.inner.borrow_mut().prev_time = now;
-        let result = self.inner.parse(right_data.clone(), bytes);
-        right_data.profile_data.inner.borrow_mut().tag_stack.pop();
-        let start_time = right_data.profile_data.inner.borrow().prev_time;
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros();;
-        let elapsed = now.saturating_sub(start_time);
-        right_data.profile_data.inner.borrow_mut().timings.entry(self.tag.clone()).or_insert(0).add_assign(elapsed);
-        match result {
-            Ok((parser, parse_results)) => (
-                Parser::ProfiledParser(ProfiledParser { inner: Box::new(parser), tag: self.tag.clone(), profile_data: right_data.profile_data.clone() }),
-                parse_results,
-            ),
-            Err(err) => {
-                eprintln!("Panic caught in parser with tag: {}", self.tag);
-                resume_unwind(err);
-            }
-        }
+        right_data.profile_data.push_tag(self.tag.clone());
+        let (parser, parse_results) = self.inner.parse(right_data.clone(), bytes);
+        right_data.profile_data.pop_tag();
+
+        (
+            Parser::ProfiledParser(ProfiledParser {
+                inner: Box::new(parser),
+                tag: self.tag.clone(),
+                profile_data: right_data.profile_data.clone()
+            }),
+            parse_results,
+        )
     }
 }
 
@@ -103,40 +81,19 @@ impl ParserTrait for ProfiledParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let top_tag = self.profile_data.inner.borrow().tag_stack.last().unwrap().clone();
-        let start_time = self.profile_data.inner.borrow().prev_time;
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros();
-        let elapsed = now.saturating_sub(start_time);
-        self.profile_data.inner.borrow_mut().timings.entry(top_tag).or_insert(0).add_assign(elapsed);
-        self.profile_data.inner.borrow_mut().tag_stack.push(self.tag.clone());
-        self.profile_data.inner.borrow_mut().prev_time = now;
-        let result = self.inner.parse(bytes);
-        self.profile_data.inner.borrow_mut().tag_stack.pop();
-        let start_time = self.profile_data.inner.borrow().prev_time;
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros();
-        let elapsed = now.saturating_sub(start_time);
-        self.profile_data.inner.borrow_mut().timings.entry(self.tag.clone()).or_insert(0).add_assign(elapsed);
-        match result {
-            Ok(parse_results) => parse_results,
-            Err(err) => {
-                eprintln!("Panic caught in steps with tag: {}", self.tag);
-                resume_unwind(err);
-            }
-        }
+        self.profile_data.push_tag(self.tag.clone());
+        let parse_results = self.inner.parse(bytes);
+        self.profile_data.pop_tag();
+        parse_results
     }
 }
 
-// pub fn tag(tag: &str, a: impl Into<Combinator>) -> Combinator {
-//     a.into()
-// }
-
 pub fn profile(tag: &str, a: impl Into<Combinator>) -> Combinator {
-    // TODO: ffs
     Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
 }
 
- impl From<Profiled> for Combinator {
-     fn from(value: Profiled) -> Self {
-         Combinator::Profiled(value)
-     }
- }
+impl From<Profiled> for Combinator {
+    fn from(value: Profiled) -> Self {
+        Combinator::Profiled(value)
+    }
+}
