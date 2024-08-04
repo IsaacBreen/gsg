@@ -54,7 +54,9 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 println!("{}", stats);
             }
 
-            parse_results = catch_unwind(AssertUnwindSafe(|| parser.step(byte).squashed())).expect(format!("Parser.step: Error at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1).as_str());
+            parse_results = catch_unwind(AssertUnwindSafe(|| parser.step(byte))).expect(format!("Parser.step: Error at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1).as_str());
+
+            parse_results.squash();
 
             assert!(!parse_results.right_data_vec.is_empty() || !parser.get_u8set().is_empty(), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
             assert!(!parse_results.done, "Parser finished prematurely at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
@@ -64,16 +66,13 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     }
 
     // Print profile results
-    let mut profile_vec: Vec<(String, u128)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect();
-    profile_vec.sort_by(|(tag_a, duration_a), (tag_b, duration_b)| {
-        let time_per_char_a = *duration_a as f64 / tag_a.len() as f64;
-        let time_per_char_b = *duration_b as f64 / tag_b.len() as f64;
-        time_per_char_b.partial_cmp(&time_per_char_a).unwrap()
-    });
+    let mut profile_vec: Vec<(String, u128)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    // Sort simply by duration
+    profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
         // Convert to standardized time object
-        let duration = Duration::from_millis(duration as u64);
+        let duration = Duration::from_micros(duration as u64);
         let duration_secs = duration.as_secs_f64();
         // Print just duration and tag
         println!("{:<10} {}", format!("{:.3}s", duration_secs), tag);
