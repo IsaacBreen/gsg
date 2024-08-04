@@ -113,9 +113,9 @@ mod tests {
             let stats_recursive = parser_recursive.stats();
             let stats_repeat1 = parser_repeat1.stats();
             if i > 5 {
-                assert!(stats_recursive.total_active_tags() > stats_repeat1.total_active_tags(), 
-                    "Expected recursive parser to have more active tags than repeat1 parser, but found {} > {}", 
-                    stats_recursive.total_active_tags(), stats_repeat1.total_active_tags());
+                assert!(stats_recursive.total_active_tags() > stats_repeat1.total_active_tags(),
+                        "Expected recursive parser to have more active tags than repeat1 parser, but found {} > {}",
+                        stats_recursive.total_active_tags(), stats_repeat1.total_active_tags());
             }
         }
     }
@@ -235,5 +235,21 @@ mod tests {
             ),
             eat_char('b'),
         );
+    }
+
+    #[test]
+    fn test_exclude_strings() {
+        let combinator = seq!(
+            exclude_strings(
+                choice_greedy!(
+                    eat('a'),
+                    seq!(eat("aa")),
+                ),
+                vec!["a"]
+            ),
+            eat('b'),
+        );
+        assert_parses_default(&combinator, "aab");
+        assert_parses_fast(&combinator, "aab");
     }
 }
