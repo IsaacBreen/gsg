@@ -71,23 +71,21 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         time_per_char_b.partial_cmp(&time_per_char_a).unwrap()
     });
     let threshold = 0;
-    if VERBOSE {
-        println!("Profile results:");
-        for (tag, duration) in profile_vec.clone() {
-            let duration_secs = duration as f64 / 1000.0;
-            let time_per_char = duration_secs / tag.len() as f64 * 1000.0;
-            let emphasis = if duration > threshold { " * " } else { "   " };
-            let bold = if duration > threshold { "\x1b[1m" } else { "" };
-            let reset = if bold.is_empty() { "" } else { "\x1b[0m" };
-            println!("{}{:<15}{:<10}{}{:?}{}s",
-                     emphasis,
-                     format!("{:.3}ms/char", time_per_char),
-                     format!("{:.3}s", duration_secs),
-                     bold,
-                     tag,
-                     reset,
-            );
-        }
+    println!("Profile results:");
+    for (tag, duration) in profile_vec.clone() {
+        let duration_secs = duration as f64 / 1000.0;
+        let time_per_char = duration_secs / tag.len() as f64 * 1000.0;
+        let emphasis = if duration > threshold { " * " } else { "   " };
+        let bold = if duration > threshold { "\x1b[1m" } else { "" };
+        let reset = if bold.is_empty() { "" } else { "\x1b[0m" };
+        println!("{}{:<15}{:<10}{}{:?}{}s",
+                 emphasis,
+                 format!("{:.3}ms/char", time_per_char),
+                 format!("{:.3}s", duration_secs),
+                 bold,
+                 tag,
+                 reset,
+        );
     }
 
     // Print timing results
