@@ -123,7 +123,7 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
 
     let (mut parser, mut parse_results) = T::parser(&combinator, start_right_data);
 
-    for byte in input.to_string().bytes() {
+    for byte in tqdm!(input.to_string().bytes(), animation = "fillup", position = 0) {
         parser.step(byte);
     }
 
