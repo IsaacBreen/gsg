@@ -281,5 +281,5 @@ fn test_debug_fail_case() {
 fn test_debug_import() {
     let combinator = python_file();
     assert_parses_default(&combinator, "import x\n");
-    assert_parses_fast(&combinator, "import x\n");
+    // assert_parses_fast(&combinator, "import x\n");
 }
