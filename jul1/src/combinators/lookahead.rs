@@ -39,9 +39,8 @@ impl ParserTrait for LookaheadContextParser {
         });
         // Count number of partial lookaheads again
         let mut m_partial_lookaheads = 0;
-        let mut m_right_data = 0;
-        self.inner.map_right_data_mut(&mut |right_data| { m_partial_lookaheads += right_data.lookahead_data.partial_lookaheads.len(); m_right_data += 1; });
-        println!("lookahead_context: n_partial_lookaheads = {}, n_right_data = {}, m_partial_lookaheads = {}, m_right_data = {}", n_partial_lookaheads, n_right_data, m_partial_lookaheads, m_right_data);
+        self.inner.map_right_data_mut(&mut |right_data| { m_partial_lookaheads += right_data.lookahead_data.partial_lookaheads.len(); });
+        println!("lookahead_context: n_partial_lookaheads = {}, m_partial_lookaheads = {}, n_right_data = {}", n_partial_lookaheads, m_partial_lookaheads, n_right_data);
         self.inner.parse(bytes)
     }
 }
