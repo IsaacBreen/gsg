@@ -11,6 +11,7 @@ pub struct Repeat1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Repeat1Parser {
+    // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
     a: Rc<Combinator>,
     pub(crate) a_parsers: Vec<Parser>,
     position: usize,
@@ -20,7 +21,7 @@ pub struct Repeat1Parser {
 impl CombinatorTrait for Repeat1 {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = vec![];
-        let (parser, ParseResults { mut right_data_vec, mut done }) = self.a.parse(right_data.clone(), bytes);
+        let (parser, ParseResults { mut right_data_vec, done }) = self.a.parse(right_data.clone(), bytes);
         if !done {
             parsers.push(parser);
         }
@@ -33,10 +34,9 @@ impl CombinatorTrait for Repeat1 {
                 if !parse_results.done {
                     parsers.push(parser);
                 }
-                if self.greedy && done && parse_results.succeeds_tentatively() {
+                if self.greedy && parse_results.succeeds_decisively() {
                     right_data_vec.clear();
                     parsers.clear();
-                    done = false;
                 }
                 next_right_data.extend(parse_results.right_data_vec);
             }
@@ -77,11 +77,7 @@ impl ParserTrait for Repeat1Parser {
             if !parse_results.done {
                 self.a_parsers.push(a_parser);
             }
-            let discard_rest = self.greedy && parse_results.succeeds_tentatively();
             right_data_as.extend(parse_results.right_data_vec);
-            if discard_rest {
-                break;
-            }
         }
 
         right_data_as.squash();

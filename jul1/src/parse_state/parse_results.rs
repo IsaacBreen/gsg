@@ -37,7 +37,7 @@ impl ParseResults {
         self.right_data_vec.append(&mut p0.right_data_vec);
         self.done |= p0.done;
     }
-    pub fn succeeds_tentatively(&self) -> bool {
-        self.right_data_vec.iter().any(|rd| rd.failable())
+    pub fn succeeds_decisively(&self) -> bool {
+        self.done && !self.right_data_vec.iter().any(|rd| rd.failable())
     }
 }
