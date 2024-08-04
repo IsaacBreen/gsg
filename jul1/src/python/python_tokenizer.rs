@@ -512,7 +512,7 @@ pub fn STRING() -> Combinator {
     );
 
     let shortstringitem = choice!(
-        eat_char_negation_choice("\\'\n"),
+        eat_char_negation_choice("\\'\"\n"),
         stringescapeseq.clone()
     );
 
