@@ -40,6 +40,8 @@ impl CombinatorTrait for Seq {
             current_right_data = new_right_data;
         }
 
+        current_right_data.squash();
+
         let parser = Parser::SeqParser(SeqParser { children, position: right_data.position });
 
         let parse_results = ParseResults {
