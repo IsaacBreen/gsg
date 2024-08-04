@@ -74,7 +74,7 @@ impl ParserTrait for ExcludeBytestringsParser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut parse_results = self.inner.parse(bytes);
-        self.bytestrings_to_exclude.retain(|bytestring| common_prefix(bytes, &bytestring[self.position - self.start_position..]));
+        self.bytestrings_to_exclude.retain(|bytestring| self.position - self.start_position < bytestring.len() && common_prefix(bytes, &bytestring[self.position - self.start_position..]));
         parse_results.right_data_vec.retain(|right_data| {
             for bytestring_to_exclude in &self.bytestrings_to_exclude {
                 // Since we know at this point that they share a prefix, we can just check the length
