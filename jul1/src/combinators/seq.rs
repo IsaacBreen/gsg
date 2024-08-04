@@ -24,7 +24,7 @@ impl CombinatorTrait for Seq {
             let mut new_parsers = Vec::new();
             let mut new_right_data = Vec::new();
 
-            current_right_data.squash();
+            // current_right_data.squash();
 
             for right_data in current_right_data.into_iter() {
                 let offset = right_data.position - start_position;
@@ -40,7 +40,7 @@ impl CombinatorTrait for Seq {
             current_right_data = new_right_data;
         }
 
-        current_right_data.squash();
+        // current_right_data.squash();
 
         let parser = Parser::SeqParser(SeqParser { children, position: right_data.position });
 
