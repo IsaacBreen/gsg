@@ -761,5 +761,5 @@ pub fn python_file() -> Combinator {
     let file = file.set(tag("file", seq!(opt(seq!(&statements, opt(&WS))), &ENDMARKER)));
 
 
-    cache_context(lookahead_context(cache_first_context(seq!(opt(&NEWLINE), &file)))).into()
+    cache_context(cache_first_context(seq!(opt(&NEWLINE), &file))).into()
 }
