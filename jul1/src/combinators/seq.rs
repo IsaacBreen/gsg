@@ -27,7 +27,7 @@ impl CombinatorTrait for Seq {
                 let offset = right_data.position - start_position;
                 let combinator = &self.children[combinator_index];
                 let (parser, ParseResults { right_data_vec, done }) = combinator.parse(right_data, &bytes[offset..]);
-                if combinator_index + 1 < parsers.len() {
+                if combinator_index + 1 < self.children.len() {
                     parser_initialization_queue.push((combinator_index + 1, right_data_vec));
                 } else {
                     final_right_data.extend(right_data_vec);
