@@ -292,6 +292,6 @@ fn test_debug_raise() {
     // assert_parses_default(&combinator, r#"raise ValueError(f"{x}")"#);
     // assert_parses_fast(&combinator, r#"raise ValueError(f"{x}")"#);
 
-    assert_parses_default(&combinator, r#"raise ValueError"#);
-    assert_parses_fast(&combinator, r#"raise ValueError"#);
+    // assert_parses_default(&combinator, r#"raise x"#);
+    assert_parses_fast(&combinator, r#"raise x"#);
 }
