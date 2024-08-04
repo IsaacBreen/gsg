@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, LookaheadContext, LookaheadContextParser};
 use crate::stats::Stats;
 
 macro_rules! define_enum {
@@ -51,7 +51,8 @@ define_enum!(
     CheckRightData,
     Deferred,
     Lookahead,
-    ExcludeBytestrings
+    ExcludeBytestrings,
+    LookaheadContext
 );
 
 define_enum!(
@@ -73,7 +74,8 @@ define_enum!(
     TaggedParser,
     EatByteStringChoiceParser,
     CheckRightDataParser,
-    ExcludeBytestringsParser
+    ExcludeBytestringsParser,
+    LookaheadContextParser
 );
 
 macro_rules! match_combinator {
@@ -102,7 +104,8 @@ macro_rules! match_combinator {
             CheckRightData,
             Deferred,
             Lookahead,
-            ExcludeBytestrings
+            ExcludeBytestrings,
+            LookaheadContext
         )
     };
 }
@@ -128,7 +131,8 @@ macro_rules! match_parser {
             SymbolParser,
             TaggedParser,
             CheckRightDataParser,
-            ExcludeBytestringsParser
+            ExcludeBytestringsParser,
+            LookaheadContextParser
         )
     };
 }
@@ -165,7 +169,7 @@ impl Combinator {
 }
 
 impl Parser {
-    pub fn map_right_data_mut<F>(&mut self, mut f: F)
+    pub fn map_right_data_mut<F>(&mut self, f: &mut F)
     where
         F: FnMut(&mut RightData),
     {
@@ -173,13 +177,13 @@ impl Parser {
             Parser::SeqParser(SeqParser { children, .. }) => {
                 for (_, parsers) in children {
                     for p in parsers {
-                        p.map_right_data_mut(&mut f);
+                        p.map_right_data_mut(f);
                     }
                 }
             }
             Parser::ChoiceParser(ChoiceParser { parsers, .. }) => {
                 for p in parsers {
-                    p.map_right_data_mut(&mut f);
+                    p.map_right_data_mut(f);
                 }
             }
             Parser::EatU8Parser(EatU8Parser { right_data: Some(right_data), .. }) |
@@ -190,17 +194,17 @@ impl Parser {
             Parser::EpsParser(EpsParser {}) |
             Parser::FailParser(FailParser {}) => {}
             Parser::CacheContextParser(CacheContextParser { inner, cache_data_inner }) => {
-                inner.map_right_data_mut(&mut f);
+                inner.map_right_data_mut(f);
                 for entry in cache_data_inner.borrow().entries.iter() {
                     let mut entry = entry.borrow_mut();
                     if let Some(parser) = entry.parser.as_mut() {
-                        parser.map_right_data_mut(&mut f);
+                        parser.map_right_data_mut(f);
                     }
                 }
             }
             Parser::CachedParser(CachedParser { entry }) => {}
             Parser::CacheFirstContextParser(CacheFirstContextParser { inner, cache_first_data_inner }) => {
-                inner.map_right_data_mut(&mut f);
+                inner.map_right_data_mut(f);
                 for (_, parse_results) in cache_first_data_inner.borrow_mut().entries.iter_mut() {
                     for right_data in &mut parse_results.right_data_vec {
                         f(right_data);
@@ -209,10 +213,10 @@ impl Parser {
             }
             Parser::SymbolParser(SymbolParser { inner, .. }) |
             Parser::TaggedParser(TaggedParser { inner, .. }) => {
-                inner.map_right_data_mut(&mut f);
+                inner.map_right_data_mut(f);
             }
             Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => {
-                parser.map_right_data_mut(&mut f);
+                parser.map_right_data_mut(f);
             }
             Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(Some(right_data))) => {
                 f(right_data);
@@ -221,20 +225,23 @@ impl Parser {
             Parser::IndentCombinatorParser(IndentCombinatorParser::Done) => {}
             Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }) => {}
             Parser::CacheFirstParser(CacheFirstParser::Initialized { parser }) => {
-                parser.map_right_data_mut(&mut f);
+                parser.map_right_data_mut(f);
             }
             Parser::ExcludeBytestringsParser(ExcludeBytestringsParser { inner, .. }) => {
-                inner.map_right_data_mut(&mut f);
+                inner.map_right_data_mut(f);
             }
             Parser::MutateRightDataParser(MutateRightDataParser { run }) => {}
             Parser::Repeat1Parser(Repeat1Parser { a_parsers, .. }) => {
                 for a_parser in a_parsers {
-                    a_parser.map_right_data_mut(&mut f);
+                    a_parser.map_right_data_mut(f);
                 }
             }
             Parser::CheckRightDataParser(CheckRightDataParser { run }) => {}
             Parser::EatU8Parser(EatU8Parser { right_data: None, .. }) |
             Parser::EatStringParser(EatStringParser { .. }) => {}
+            Parser::LookaheadContextParser(LookaheadContextParser { inner, .. }) => {
+                inner.map_right_data_mut(f);
+            }
         }
     }
 }

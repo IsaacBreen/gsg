@@ -14,6 +14,7 @@ pub use symbol::*;
 pub use tag::*;
 pub use lookahead::*;
 pub use negative_lookahead::*;
+pub use fail::*;
 
 mod choice;
 mod eat_string;
