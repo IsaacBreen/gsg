@@ -104,7 +104,7 @@ impl CombinatorTrait for CacheFirst {
 impl ParserTrait for CacheFirstParser {
     fn get_u8set(&self) -> U8Set {
         match self {
-            CacheFirstParser::Uninitialized { key } => U8Set::none(),
+            CacheFirstParser::Uninitialized { key } => panic!("CacheFirstParser.get_u8set() called but key is None"),
             CacheFirstParser::Initialized { parser } => parser.get_u8set(),
         }
     }

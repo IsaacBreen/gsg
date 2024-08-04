@@ -69,7 +69,7 @@ impl CombinatorTrait for CheckRightData {
 
 impl ParserTrait for CheckRightDataParser {
     fn get_u8set(&self) -> U8Set {
-        U8Set::none()
+        panic!("CheckRightDataParser.get_u8set() called")
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {

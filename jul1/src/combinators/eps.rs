@@ -15,7 +15,7 @@ impl CombinatorTrait for Eps {
 
 impl ParserTrait for EpsParser {
     fn get_u8set(&self) -> U8Set {
-        U8Set::none()
+        panic!("EpsParser.get_u8set() called")
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {

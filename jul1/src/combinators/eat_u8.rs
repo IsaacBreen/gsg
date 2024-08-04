@@ -30,11 +30,8 @@ impl CombinatorTrait for EatU8 {
 
 impl ParserTrait for EatU8Parser {
     fn get_u8set(&self) -> U8Set {
-        if self.right_data.is_some() {
-            return self.u8set.clone();
-        } else {
-            U8Set::none()
-        }
+        assert!(self.right_data.is_some(), "EatU8Parser.get_u8set() called but right_data is None");
+        return self.u8set.clone();
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
