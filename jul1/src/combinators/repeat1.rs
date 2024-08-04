@@ -28,6 +28,7 @@ impl CombinatorTrait for Repeat1 {
 
         let mut next_right_data = right_data_vec.clone();
         while next_right_data.len() > 0 {
+            next_right_data.squash();
             for new_right_data in std::mem::take(&mut next_right_data) {
                 let offset = new_right_data.position - right_data.position;
                 let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
