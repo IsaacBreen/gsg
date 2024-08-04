@@ -213,8 +213,8 @@ fn test_actual_python_file_fast() {
 fn test_lots_of_lines() {
     let combinator = python_file();
 
-    let s = "a\n".repeat(14);
-    // assert_parses_default(&combinator, &s);
+    let s = "a\n".repeat(10000);
+    assert_parses_default(&combinator, &s);
     assert_parses_fast(&combinator, &s);
 }
 
