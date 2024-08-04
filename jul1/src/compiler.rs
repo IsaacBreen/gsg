@@ -8,7 +8,6 @@ pub trait Compile {
 
 impl Compile for Combinator {
     fn compile(self) -> Combinator {
-        return self;
         match self {
             Combinator::Seq(seq) => seq.compile(),
             Combinator::Choice(choice) => choice.compile(),
