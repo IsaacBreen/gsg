@@ -1,6 +1,6 @@
 use crate::{
     Combinator, EatU8, RightData, check_right_data, mutate_right_data,
-    eps, fail, seq, tag, eat_byte_range, eat_bytestring_choice,
+    eps, fail, seq, eat_byte_range, eat_bytestring_choice,
     eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice,
     eat_string, exclude_strings, Repeat1, forbid_follows_clear,
     negative_lookahead, dedent, dent, indent,
@@ -957,7 +957,7 @@ pub fn comment() -> Combinator {
 // representing ASCII LF, is the line terminator).
 pub fn NEWLINE() -> Combinator {
     let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
-    seq!(repeat1(blank_line), tag("dent()", dent()))
+    seq!(repeat1(blank_line), dent())
 }
 
 // .. _indentation:
