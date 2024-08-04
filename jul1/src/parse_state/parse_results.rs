@@ -38,6 +38,6 @@ impl ParseResults {
         self.done |= p0.done;
     }
     pub fn succeeds_decisively(&self) -> bool {
-        self.done && !self.right_data_vec.iter().any(|rd| rd.failable())
+        self.done && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|rd| rd.failable())
     }
 }
