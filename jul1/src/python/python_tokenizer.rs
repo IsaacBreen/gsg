@@ -712,7 +712,7 @@ pub fn FSTRING_MIDDLE() -> Combinator {
         seq!(eat_char('\\'), eat_char_digit(), opt(eat_char_digit()), opt(eat_char_digit())),
     );
 
-    let regular_char = eat_char_negation_choice("{}\\\n\r");
+    let regular_char = eat_char_negation_choice("{}\\\n\r\'\"");
 
     let quote = choice!(
         seq!(eat_char('\''), mutate_right_data(|right_data| { *right_data.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle })),

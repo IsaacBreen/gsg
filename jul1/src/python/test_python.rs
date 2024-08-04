@@ -332,3 +332,12 @@ fn test_another_fstring_issue() {
     assert_parses_default(&combinator, s);
     assert_parses_fast(&combinator, s);
 }
+
+#[test]
+fn test_yet_another_fstring_issue() {
+    let combinator = python_file();
+
+    let s = "f'{f'{1}'}'\n";
+    assert_parses_default(&combinator, s);
+    assert_parses_fast(&combinator, s);
+}
