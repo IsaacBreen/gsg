@@ -288,14 +288,14 @@ fn test_debug_import() {
 fn test_debug_raise() {
     let combinator = python_file();
 
-    // assert_parses_default(&combinator, "raise x\n");
-    // assert_parses_fast(&combinator, "raise x\n");
+    assert_parses_default(&combinator, "raise x\n");
+    assert_parses_fast(&combinator, "raise x\n");
 
-    // assert_parses_default(&combinator, "raise ValueError('x')\n");
+    assert_parses_default(&combinator, "raise ValueError('x')\n");
     assert_parses_fast(&combinator, "raise ValueError('x')\n");
 
-    // assert_parses_default(&combinator, "raise ValueError(f'{x}')\n");
-    // assert_parses_fast(&combinator, "raise ValueError(f'{x}')\n");
+    assert_parses_default(&combinator, "raise ValueError(f'{x}')\n");
+    assert_parses_fast(&combinator, "raise ValueError(f'{x}')\n");
 }
 
 #[test]
@@ -303,12 +303,12 @@ fn test_parse_fstring() {
     let combinator = python_file();
 
     let s = "f'x'\n";
-    // assert_parses_default(&combinator, s);
+    assert_parses_default(&combinator, s);
     assert_parses_fast(&combinator, s);
 
-    // let s = "f'{x}'\n";
-    // assert_parses_default(&combinator, s);
-    // assert_parses_fast(&combinator, s);
+    let s = "f'{x}'\n";
+    assert_parses_default(&combinator, s);
+    assert_parses_fast(&combinator, s);
 }
 
 #[test]
@@ -320,10 +320,6 @@ fn test_parse_fstring_distilled() {
     let combinator = seq!(choice_greedy!(NAME, fstring), eat(';'));
 
     let s = "f'';";
-    // assert_parses_default(&combinator, s);
+    assert_parses_default(&combinator, s);
     assert_parses_fast(&combinator, s);
-
-    let s = "f'{x}';";
-    // assert_parses_default(&combinator, s);
-    // assert_parses_fast(&combinator, s);
 }
