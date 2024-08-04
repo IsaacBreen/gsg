@@ -109,10 +109,10 @@ def main():
     char_data = download_and_parse_unicode_data()
     rust_code = generate_rust_code(char_data)
 
-    with open("unicode_categories.rs", "w") as f:
+    with open("../unicode_categories.rs", "w") as f:
         f.write(rust_code)
 
-    print("Rust code has been generated and saved to unicode_categories.rs")
+    print("Rust code has been generated and saved to ../unicode_categories.rs")
 
 
 if __name__ == "__main__":
