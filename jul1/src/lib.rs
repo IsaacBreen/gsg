@@ -31,4 +31,5 @@ mod python;
 mod unicode;
 mod compiler;
 mod stats;
+mod unicode_categories;
 
