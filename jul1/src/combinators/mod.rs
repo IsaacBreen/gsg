@@ -15,6 +15,7 @@ pub use tag::*;
 pub use lookahead::*;
 pub use negative_lookahead::*;
 pub use fail::*;
+pub use profile::*;
 
 mod choice;
 mod eat_string;
@@ -37,6 +38,7 @@ mod deferred;
 mod cache_first;
 mod lookahead;
 mod negative_lookahead;
+mod profile;
 
 pub use choice::*;
 pub use eat_string::*;

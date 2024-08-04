@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use derivative::Derivative;
 
-use crate::{CacheData, CacheFirstData, ForbidFollowsData, FrameStack, LookaheadData, PythonQuoteType};
+use crate::{CacheData, CacheFirstData, ForbidFollowsData, FrameStack, LookaheadData, ProfileData, PythonQuoteType};
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
@@ -25,6 +25,8 @@ pub struct RightData {
     pub position: usize,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub time: Rc<RefCell<u128>>,
+    #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
+    pub profile_data: ProfileData,
 }
 
 impl Default for RightData {
@@ -41,6 +43,7 @@ impl Default for RightData {
             lookahead_data: LookaheadData::default(),
             position: 0,
             time: Rc::new(RefCell::new(0)),
+            profile_data: ProfileData::default(),
         }
     }
 }

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, LookaheadContext, LookaheadContextParser};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, LookaheadContext, LookaheadContextParser, ProfiledParser, Profiled};
 use crate::stats::Stats;
 
 macro_rules! define_enum {
@@ -52,7 +52,8 @@ define_enum!(
     Deferred,
     Lookahead,
     ExcludeBytestrings,
-    LookaheadContext
+    LookaheadContext,
+    Profiled
 );
 
 define_enum!(
@@ -75,7 +76,8 @@ define_enum!(
     EatByteStringChoiceParser,
     CheckRightDataParser,
     ExcludeBytestringsParser,
-    LookaheadContextParser
+    LookaheadContextParser,
+    ProfiledParser
 );
 
 macro_rules! match_combinator {
@@ -105,7 +107,8 @@ macro_rules! match_combinator {
             Deferred,
             Lookahead,
             ExcludeBytestrings,
-            LookaheadContext
+            LookaheadContext,
+            Profiled
         )
     };
 }
@@ -132,7 +135,8 @@ macro_rules! match_parser {
             TaggedParser,
             CheckRightDataParser,
             ExcludeBytestringsParser,
-            LookaheadContextParser
+            LookaheadContextParser,
+            ProfiledParser
         )
     };
 }
@@ -240,6 +244,9 @@ impl Parser {
             Parser::EatU8Parser(EatU8Parser { right_data: None, .. }) |
             Parser::EatStringParser(EatStringParser { .. }) => {}
             Parser::LookaheadContextParser(LookaheadContextParser { inner, .. }) => {
+                inner.map_right_data_mut(f);
+            }
+            Parser::ProfiledParser(ProfiledParser { inner, .. }) => {
                 inner.map_right_data_mut(f);
             }
         }
