@@ -4,7 +4,7 @@ use kdam::tqdm;
 
 use crate::{CombinatorTrait, CombinatorTraitExt, ParseResults, ParserTrait, ParserTraitExt, RightData, Squash};
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -73,19 +73,11 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     let threshold = 0;
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
-        let duration_secs = duration as f64 / 1000.0;
-        let time_per_char = duration_secs / tag.len() as f64 * 1000.0;
-        let emphasis = if duration > threshold { " * " } else { "   " };
-        let bold = if duration > threshold { "\x1b[1m" } else { "" };
-        let reset = if bold.is_empty() { "" } else { "\x1b[0m" };
-        println!("{}{:<15}{:<10}{}{:?}{}s",
-                 emphasis,
-                 format!("{:.3}ms/char", time_per_char),
-                 format!("{:.3}s", duration_secs),
-                 bold,
-                 tag,
-                 reset,
-        );
+        // Convert to standardized time object
+        let duration = Duration::from_millis(duration as u64);
+        let duration_secs = duration.as_secs_f64();
+        let time_per_char = duration_secs / tag.len() as f64 * 1000.0; // ms/char
+        println!("{:<15}{:<10}{}s", format!("{:.3}ms/char", time_per_char), format!("{:.3}s", duration_secs), tag);
     }
 
     // Print timing results
