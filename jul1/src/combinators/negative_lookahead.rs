@@ -60,7 +60,7 @@ impl ParserTrait for ExcludeBytestringsParser {
         parse_results.right_data_vec.retain(|right_data| {
             for bytestring_to_exclude in &self.bytestrings_to_exclude {
                 // Since we know at this point that they share a prefix, we can just check the length
-                if self.position + bytestring_to_exclude.len() == right_data.position {
+                if self.start_position + bytestring_to_exclude.len() == right_data.position {
                     return false;
                 }
             }
