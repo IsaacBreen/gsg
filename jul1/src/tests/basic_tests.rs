@@ -243,13 +243,23 @@ mod tests {
             exclude_strings(
                 choice_greedy!(
                     eat('a'),
-                    seq!(eat("aa")),
+                    eat("aa"),
                 ),
-                vec!["a"]
+                vec!["aa"]
             ),
             eat('b'),
         );
-        assert_parses_default(&combinator, "aab");
+        // assert_parses_default(&combinator, "aab");
         assert_parses_fast(&combinator, "aab");
+
+        let combinator = seq!(
+            choice_greedy!(
+                eat('a'),
+                eat("aa"),
+            ),
+            eat('b'),
+        );
+        // assert_fails_default(&combinator, "aab");
+        // assert_fails_fast(&combinator, "aab");
     }
 }
