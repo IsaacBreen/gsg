@@ -7,7 +7,6 @@ use crate::*;
 
 const SQUASH: bool = false;
 
-// Global profile data
 lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());
 }
@@ -32,7 +31,7 @@ impl Default for ProfileDataInner {
 impl ProfileDataInner {
     fn push_tag(&mut self, tag: String) {
         let elapsed = self.start_time.elapsed();
-        if let Some(current_tag) = self.tag_stack.last().cloned() {
+        if let Some(current_tag) = self.tag_stack.last() {
             *self.timings.entry(current_tag.clone()).or_default() += elapsed;
         }
         self.tag_stack.push(tag);
@@ -66,21 +65,20 @@ pub struct ProfiledParser {
 }
 
 impl CombinatorTrait for Profiled {
-    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        // Use the global profile data
-        {
-            let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
-            profile_data.push_tag(self.tag.clone());
-        }        let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+        profile_data.push_tag(self.tag.clone());
+        drop(profile_data);
 
-        {
-            let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
+        let (parser, mut parse_results) = self.inner.parse(right_data, bytes);
+
+        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+        profile_data.pop_tag();
+
+        if SQUASH {
+            profile_data.push_tag("squash".to_string());
+            parse_results.squash();
             profile_data.pop_tag();
-            if SQUASH {
-                profile_data.push_tag("squash".to_string());
-                parse_results.squash();
-                profile_data.pop_tag();
-            }
         }
 
         (
@@ -99,21 +97,21 @@ impl ParserTrait for ProfiledParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        // Use the global profile data
-        {
-            let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
-            profile_data.push_tag(self.tag.clone());
-        }
+        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+        profile_data.push_tag(self.tag.clone());
+        drop(profile_data);
+
         let mut parse_results = self.inner.parse(bytes);
-        {
-            let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
+
+        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+        profile_data.pop_tag();
+
+        if SQUASH {
+            profile_data.push_tag("squash".to_string());
+            parse_results.squash();
             profile_data.pop_tag();
-            if SQUASH {
-                profile_data.push_tag("squash".to_string());
-                parse_results.squash();
-                profile_data.pop_tag();
-            }
         }
+
         parse_results
     }
 }
