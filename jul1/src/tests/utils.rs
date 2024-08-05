@@ -200,7 +200,13 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     }
     // Duration per hit
     println!("Duration per hit:");
-    let mut duration_per_hit: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let mut duration_per_hit: HashMap<String, Duration> = HashMap::new();
+    for (tag, hit) in profile_data.hit_counts.iter() {
+        if let Some(duration) = profile_data.timings.get(tag) {
+            duration_per_hit.insert(tag.clone(), *duration);
+        }
+    }
+    let mut duration_per_hit: Vec<(String, Duration)> = duration_per_hit.into_iter().collect::<Vec<_>>();
     duration_per_hit.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     for (tag, duration) in duration_per_hit.clone() {
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
