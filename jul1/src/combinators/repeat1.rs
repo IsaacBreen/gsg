@@ -68,7 +68,7 @@ impl ParserTrait for Repeat1Parser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut right_data_as = vec![];
+        let mut right_data_as = smallvec::SmallVec::<[RightData; 8]>::new();
 
         for mut a_parser in std::mem::take(&mut self.a_parsers) {
             let parse_results = a_parser.parse(bytes);

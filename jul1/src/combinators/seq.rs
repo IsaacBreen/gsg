@@ -26,8 +26,8 @@ impl CombinatorTrait for Seq {
         let start_position = right_data.position;
 
         let mut parsers: Vec<(usize, Parser)> = vec![];
-        let mut final_right_data: Vec<RightData> = vec![];
-        let mut parser_initialization_queue: Vec<(usize, Vec<RightData>)> = vec![(0, vec![right_data])];
+        let mut final_right_data: smallvec::SmallVec<[RightData; 8]> = smallvec::SmallVec::new();
+        let mut parser_initialization_queue: Vec<(usize, smallvec::SmallVec<[RightData; 8]>)> = vec![(0, smallvec::smallvec![right_data])];
 
         while let Some((combinator_index, mut right_data_vec)) = parser_initialization_queue.pop() {
             for right_data in right_data_vec {
