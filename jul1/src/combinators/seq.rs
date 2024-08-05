@@ -24,7 +24,8 @@ impl CombinatorTrait for Seq {
         let mut parser_initialization_queue: BTreeMap<usize, Vec<RightData>> = BTreeMap::new();
         parser_initialization_queue.insert(0, vec![right_data]);
 
-        while let Some((combinator_index, right_data_vec)) = parser_initialization_queue.pop_first() {
+        while let Some((combinator_index, mut right_data_vec)) = parser_initialization_queue.pop_first() {
+            right_data_vec.squash();
             for right_data in right_data_vec {
                 let offset = right_data.position - start_position;
                 let combinator = &self.children[combinator_index];
