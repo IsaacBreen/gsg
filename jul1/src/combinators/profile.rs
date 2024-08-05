@@ -26,7 +26,7 @@ impl Default for ProfileDataInner {
 }
 
 impl ProfileDataInner {
-    fn push_tag(&mut self, tag: String) {
+    pub fn push_tag(&mut self, tag: String) {
         let elapsed = self.start_time.elapsed();
         if let Some(current_tag) = self.tag_stack.last() {
             *self.timings.entry(current_tag.clone()).or_default() += elapsed;
@@ -35,7 +35,7 @@ impl ProfileDataInner {
         self.start_time = Instant::now();
     }
 
-    fn pop_tag(&mut self) {
+    pub fn pop_tag(&mut self) {
         if let Some(tag) = self.tag_stack.pop() {
             let elapsed = self.start_time.elapsed();
             *self.timings.entry(tag).or_default() += elapsed;

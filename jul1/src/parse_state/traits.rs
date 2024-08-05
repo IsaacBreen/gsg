@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use crate::{LookaheadData, ParseResults, RightData, U8Set};
+use crate::{LookaheadData, ParseResults, profile, RightData, U8Set};
 
 const SQUASH_THRESHOLD: usize = 0;
 
@@ -14,9 +14,11 @@ impl Squash for Vec<RightData> {
     type Output = Vec<RightData>;
     fn squashed(self) -> Self::Output {
         if self.len() > SQUASH_THRESHOLD {
-            let mut squasher = RightDataSquasher::new();
-            squasher.extend(self);
-            squasher.finish()
+            profile!("RightDataSquasher::squashed", {
+                let mut squasher = RightDataSquasher::new();
+                squasher.extend(self);
+                squasher.finish()
+            })
         } else {
             self
         }
@@ -31,10 +33,12 @@ impl Squash for Vec<RightData> {
 impl Squash for ParseResults {
     type Output = ParseResults;
     fn squashed(self) -> Self::Output {
-        ParseResults {
-            right_data_vec: self.right_data_vec.squashed(),
-            done: self.done,
-        }
+        profile!("ParseResults::squashed",
+            ParseResults {
+                right_data_vec: self.right_data_vec.squashed(),
+                done: self.done,
+            }
+        )
     }
     fn squash(&mut self) {
         *self = self.clone().squashed();
