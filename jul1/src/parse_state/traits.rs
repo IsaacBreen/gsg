@@ -1,8 +1,5 @@
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
-use crate::{LookaheadData, ParseResults, profile, RightData, U8Set};
-
-const SQUASH_THRESHOLD: usize = 0;
+use std::collections::HashSet;
+use crate::{LookaheadData, ParseResults, profile, RightData};
 
 pub trait Squash {
     type Output;
@@ -12,117 +9,65 @@ pub trait Squash {
 
 impl Squash for Vec<RightData> {
     type Output = Vec<RightData>;
-    fn squashed(self) -> Self::Output {
-        if self.len() > SQUASH_THRESHOLD {
-            profile!("RightDataSquasher::squashed", {
-                let mut squasher = RightDataSquasher::new();
-                squasher.extend(self);
-                squasher.finish()
-            })
-        } else {
-            self
-        }
+    fn squashed(mut self) -> Self::Output {
+        self.squash();
+        self
     }
     fn squash(&mut self) {
-        if self.len() > SQUASH_THRESHOLD {
-            *self = self.drain(..).collect::<Self>().squashed()
-        }
+        *self = self.drain(..).collect::<HashSet<_>>().into_iter().collect();
     }
 }
 
 impl Squash for ParseResults {
     type Output = ParseResults;
-    fn squashed(self) -> Self::Output {
-        profile!("ParseResults::squashed",
-            ParseResults {
-                right_data_vec: self.right_data_vec.squashed(),
-                done: self.done,
-            }
-        )
+    fn squashed(mut self) -> Self::Output {
+        self.right_data_vec.squash();
+        self
     }
     fn squash(&mut self) {
-        *self = self.clone().squashed();
+        self.right_data_vec.squash();
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct RightDataSquasher {
-    decomposed: HashMap<RightData, LookaheadData>,
-}
-
-impl Hash for RightDataSquasher {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.decomposed.len().hash(state);
-    }
+    data: Vec<RightData>,
 }
 
 impl RightDataSquasher {
     pub fn new() -> Self {
-        Self {
-            decomposed: HashMap::new(),
-        }
+        Self { data: Vec::new() }
     }
 
     pub fn push(&mut self, right_data: RightData) {
-        let lookahead_data = right_data.lookahead_data.clone();
-        let mut existing_lookahead_data = self.decomposed.entry(right_data).or_default();
-        // TODO: In general, all the lookaheads needs to be satisfied, i.e. it's an AND operation between Vecs of lookaheads. But this implies OR.
-        existing_lookahead_data.partial_lookaheads.extend(lookahead_data.partial_lookaheads);
-        existing_lookahead_data.has_omitted_partial_lookaheads &= lookahead_data.has_omitted_partial_lookaheads;
+        self.data.push(right_data);
     }
 
     pub fn extend(&mut self, right_data_vec: Vec<RightData>) {
-        profile!("RightDataSquasher::extend", {
-        for right_data in right_data_vec {
-            self.push(right_data);
-        }
-            })
+        self.data.extend(right_data_vec);
     }
 
     pub fn finish(self) -> Vec<RightData> {
-        profile!("RightDataSquasher::finish", {
-            let mut result = vec![];
-            for (mut right_data, lookahead_data) in self.decomposed {
-                right_data.lookahead_data = lookahead_data;
-                result.push(right_data);
-            }
-            result
-        })
+        self.data
     }
 }
 
 impl From<Vec<RightData>> for RightDataSquasher {
     fn from(right_data_vec: Vec<RightData>) -> Self {
-        profile!("RightDataSquasher::from", {
-            let mut squasher = RightDataSquasher::new();
-            squasher.extend(right_data_vec);
-            squasher
-        })
+        Self { data: right_data_vec }
     }
 }
 
 impl RightDataSquasher {
-    pub fn into_iter(self) -> RightDataSquasherIterator {
-        RightDataSquasherIterator {
-            inner: self.decomposed.into_iter()
-        }
+    pub fn into_iter(self) -> std::vec::IntoIter<RightData> {
+        self.data.into_iter()
     }
 }
 
-pub struct RightDataSquasherIterator {
-    inner: std::collections::hash_map::IntoIter<RightData, LookaheadData>,
-}
-
-impl Iterator for RightDataSquasherIterator {
-    type Item = (RightData, LookaheadData);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
-    }
-}
+pub type RightDataSquasherIterator = std::vec::IntoIter<RightData>;
 
 impl IntoIterator for RightDataSquasher {
-    type Item = (RightData, LookaheadData);
+    type Item = RightData;
     type IntoIter = RightDataSquasherIterator;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -130,52 +75,34 @@ impl IntoIterator for RightDataSquasher {
     }
 }
 
-pub struct RightDataSquasherIteratorMut<'a> {
-    inner: std::collections::hash_map::IterMut<'a, RightData, LookaheadData>,
-}
-
-impl<'a> Iterator for RightDataSquasherIteratorMut<'a> {
-    type Item = (&'a RightData, &'a mut LookaheadData);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
-    }
-}
+pub type RightDataSquasherIteratorMut<'a> = std::slice::IterMut<'a, RightData>;
 
 impl RightDataSquasher {
-    pub fn iter(&self) -> RightDataSquasherIterator {
-        RightDataSquasherIterator {
-            inner: self.decomposed.clone().into_iter()
-        }
+    pub fn iter(&self) -> std::slice::Iter<RightData> {
+        self.data.iter()
     }
 
     pub fn iter_mut(&mut self) -> RightDataSquasherIteratorMut {
-        RightDataSquasherIteratorMut {
-            inner: self.decomposed.iter_mut()
-        }
+        self.data.iter_mut()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.decomposed.is_empty()
+        self.data.is_empty()
     }
 
     pub fn len(&self) -> usize {
-        self.decomposed.len()
+        self.data.len()
     }
 
     pub fn clear(&mut self) {
-        self.decomposed.clear();
+        self.data.clear();
     }
 
     pub fn append(&mut self, right_data_squasher: &mut RightDataSquasher) {
-        profile!("RightDataSquasher::append", {
-        for right_data in right_data_squasher.decomposed.drain() {
-            self.push(right_data.0);
-        }
-            })
+        self.data.append(&mut right_data_squasher.data);
     }
 
     pub fn retain(&mut self, f: impl Fn(&RightData) -> bool) {
-        self.decomposed.retain(|right_data, _| f(right_data));
+        self.data.retain(f);
     }
 }
