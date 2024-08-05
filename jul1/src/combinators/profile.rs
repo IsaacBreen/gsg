@@ -4,6 +4,18 @@ use std::sync::Mutex;
 use derivative::Derivative;
 use crate::*;
 
+// macro_rules! profile {
+//     ($tag:expr, $body:expr) => {{
+//         $crate::profile!($tag, $body)
+//     }};
+// }
+
+macro_rules! profile {
+    ($tag:expr, $body:expr) => {{
+        $body
+    }};
+}
+
 lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());
 }
