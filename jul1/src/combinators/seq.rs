@@ -11,7 +11,7 @@ macro_rules! profile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
-    pub(crate) children: Rc<Vec<Combinator>>,
+    pub(crate) children: Rc<smallvec::SmallVec<[Combinator; 8]>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
