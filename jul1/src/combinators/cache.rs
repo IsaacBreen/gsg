@@ -22,7 +22,7 @@ pub struct CacheDataInner {
     pub entries: Vec<Rc<RefCell<CacheEntry>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct CacheKey {
     pub combinator: Rc<Combinator>,
     pub right_data: RightData,
@@ -45,7 +45,7 @@ pub struct Cached {
     pub inner: Rc<Combinator>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct CachedParser {
     pub entry: Rc<RefCell<CacheEntry>>,
 }
@@ -61,6 +61,18 @@ impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::mem::discriminant(self.combinator.as_ref()).hash(state);
         self.right_data.hash(state);
+    }
+}
+
+impl PartialEq for CacheKey {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.combinator.as_ref(), other.combinator.as_ref()) && self.right_data == other.right_data
+    }
+}
+
+impl PartialEq for CachedParser {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.entry, &other.entry)
     }
 }
 
