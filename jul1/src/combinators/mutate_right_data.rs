@@ -60,7 +60,7 @@ impl CombinatorTrait for MutateRightData {
             (Parser::MutateRightDataParser(MutateRightDataParser { run: self.run.clone() }), ParseResults::new(right_data, true))
         } else {
             (Parser::MutateRightDataParser(MutateRightDataParser { run: self.run.clone() }), ParseResults {
-                right_data_vec: vec![],
+                right_data_vec: vec![].into(),
                 done: true,
             })
         }
