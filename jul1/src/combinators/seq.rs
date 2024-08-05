@@ -51,7 +51,7 @@ impl CombinatorTrait for Seq {
 
         let all_right_data_vec_squashed_len = all_right_data_vec.clone().squashed().len();
             if all_right_data_vec.len() > all_right_data_vec_squashed_len {
-                println!("all_right_data_vec: {:?}, all_right_data_vec_squashed_len: {:?}", all_right_data_vec, all_right_data_vec_squashed_len);
+                println!("all_right_data_vec.len(): {:?}, all_right_data_vec.squashed().len(): {:?}", all_right_data_vec.len(), all_right_data_vec_squashed_len);
             }
 
         let parsers_is_empty = parsers.is_empty();
