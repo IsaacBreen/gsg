@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use derivative::Derivative;
 use crate::*;
 
-const SQUASH: bool = true;
+const SQUASH: bool = false;
 
 lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());
@@ -117,8 +117,8 @@ impl ParserTrait for ProfiledParser {
 }
 
 pub fn profile(tag: &str, a: impl Into<Combinator>) -> Combinator {
-    // Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
-    a.into()
+    Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
+    // a.into()
 }
 
 pub fn profile_internal(tag: &str, a: impl Into<Combinator>) -> Combinator {

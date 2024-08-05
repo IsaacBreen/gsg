@@ -20,7 +20,7 @@ impl CombinatorTrait for Seq {
         let start_position = right_data.position;
 
         let mut parsers: BTreeMap<usize, Vec<Parser>> = BTreeMap::new();
-        let mut final_right_data = RightDataSquasher::new();
+        let mut final_right_data: Vec<RightData> = vec![];
         let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
         parser_initialization_queue.insert(0, vec![right_data].into());
 
@@ -49,7 +49,7 @@ impl CombinatorTrait for Seq {
         });
 
         let parse_results = ParseResults {
-            right_data_vec: final_right_data.into(),
+            right_data_vec: final_right_data,
             done: parsers_is_empty,
         };
 
@@ -69,8 +69,8 @@ impl ParserTrait for SeqParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut final_right_data = RightDataSquasher::new();
-        let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
+        let mut final_right_data: Vec<RightData> = vec![];
+        let mut parser_initialization_queue: BTreeMap<usize, Vec<RightData>> = BTreeMap::new();
 
         self.parsers.retain(|&combinator_index, parser_vec| {
             parser_vec.retain_mut(|parser| {
@@ -86,7 +86,7 @@ impl ParserTrait for SeqParser {
         });
 
         while let Some((combinator_index, right_data_vec)) = parser_initialization_queue.pop_first() {
-            for right_data in right_data_vec.finish() {
+            for right_data in right_data_vec {
                 let offset = right_data.position - self.position;
                 let combinator = &self.combinators[combinator_index];
                 let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
@@ -104,7 +104,7 @@ impl ParserTrait for SeqParser {
         self.position += bytes.len();
 
         ParseResults {
-            right_data_vec: final_right_data.into(),
+            right_data_vec: final_right_data,
             done: self.parsers.is_empty(),
         }
     }

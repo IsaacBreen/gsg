@@ -12,9 +12,9 @@ lazy_static = "1.5.0"
 #[profile.dev]
 #opt-level = 1
 
-#[profile.test]
+[profile.test]
 # Opt 1
-#opt-level = 1
+opt-level = 1
 ## Keep debug info
 #debug = "full"
 
