@@ -87,7 +87,8 @@ impl ParserTrait for SeqParser {
             !done
         });
 
-        while let Some((combinator_index, right_data_vec)) = parser_initialization_queue.pop() {
+        while let Some((combinator_index, mut right_data_vec)) = parser_initialization_queue.pop() {
+            right_data_vec.squash();
             for right_data in right_data_vec {
                 let offset = right_data.position - self.position;
                 let combinator = &self.combinators[combinator_index];
