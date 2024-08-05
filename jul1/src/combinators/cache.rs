@@ -1,21 +1,24 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::num::NonZero;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 
 use derivative::Derivative;
-
+use lru::LruCache;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile_internal, RightData, Squash, U8Set};
 
-#[derive(Clone, PartialEq, Default, Eq)]
+#[derive(Derivative)]
+#[derivative(Debug, Default, Clone, PartialEq, Eq)]
 pub struct CacheData {
+    #[derivative(Debug = "ignore", PartialEq = "ignore")]
     pub inner: Option<Rc<RefCell<CacheDataInner>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct CacheDataInner {
-    pub new_parsers: HashMap<CacheKey, Rc<RefCell<CacheEntry>>>,
+    pub new_parsers: LruCache<CacheKey, Rc<RefCell<CacheEntry>>>,
     pub entries: Vec<Rc<RefCell<CacheEntry>>>,
 }
 
@@ -81,7 +84,7 @@ impl CombinatorTrait for CacheContext {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         assert!(right_data.cache_data.inner.is_none(), "CacheContextParser already initialized");
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner {
-            new_parsers: HashMap::new(),
+            new_parsers: LruCache::new(NonZero::new(100).unwrap()),
             entries: Vec::new(),
         }));
         right_data.cache_data.inner = Some(cache_data_inner.clone());
@@ -120,7 +123,7 @@ impl ParserTrait for CacheContextParser {
 impl CombinatorTrait for Cached {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
-        if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.get(&key).cloned() {
+        if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.get(&key).cloned() {
             let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
             return (Parser::CachedParser(CachedParser { entry }), parse_results);
         }
@@ -131,7 +134,7 @@ impl CombinatorTrait for Cached {
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         parse_results.squash();
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
-        cache_data_inner.new_parsers.insert(key.clone(), entry.clone());
+        cache_data_inner.new_parsers.put(key.clone(), entry.clone());
         if !parse_results.done {
             cache_data_inner.entries.push(entry.clone());
         }

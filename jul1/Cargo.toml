@@ -7,14 +7,15 @@ edition = "2021"
 derivative = "2.2.0"
 kdam = "0.5.2"
 lazy_static = "1.5.0"
+lru = "0.12.4"
 
 # Run tests with opt level 3
 #[profile.dev]
 #opt-level = 1
 
-[profile.test]
+#[profile.test]
 # Opt 1
-opt-level = 1
+#opt-level = 1
 ## Keep debug info
 #debug = "full"
 
