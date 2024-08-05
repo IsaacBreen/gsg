@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::Mutex;
 use derivative::Derivative;
 use crate::*;
-
-const SQUASH: bool = true;
 
 lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());
@@ -51,6 +48,21 @@ impl ProfileDataInner {
     }
 }
 
+#[macro_export]
+macro_rules! profile {
+    ($tag:expr, $body:expr) => {{
+        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.lock().unwrap();
+        profile_data.push_tag($tag.to_string());
+        drop(profile_data);
+
+        let result = $body;
+
+        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.lock().unwrap();
+        profile_data.pop_tag();
+        result
+    }};
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Profiled {
     pub inner: Box<Combinator>,
@@ -66,28 +78,7 @@ pub struct ProfiledParser {
 
 impl CombinatorTrait for Profiled {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
-        profile_data.push_tag(self.tag.clone());
-        drop(profile_data);
-
-        let (parser, mut parse_results) = self.inner.parse(right_data, bytes);
-
-        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
-        profile_data.pop_tag();
-
-        if SQUASH {
-            profile_data.push_tag("squash".to_string());
-            parse_results.squash();
-            profile_data.pop_tag();
-        }
-
-        (
-            Parser::ProfiledParser(ProfiledParser {
-                inner: Box::new(parser),
-                tag: self.tag.clone(),
-            }),
-            parse_results,
-        )
+        profile!(&self.tag, self.inner.parse(right_data, bytes))
     }
 }
 
@@ -97,22 +88,7 @@ impl ParserTrait for ProfiledParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
-        profile_data.push_tag(self.tag.clone());
-        drop(profile_data);
-
-        let mut parse_results = self.inner.parse(bytes);
-
-        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
-        profile_data.pop_tag();
-
-        if SQUASH {
-            profile_data.push_tag("squash".to_string());
-            parse_results.squash();
-            profile_data.pop_tag();
-        }
-
-        parse_results
+        profile!(&self.tag, self.inner.parse(bytes))
     }
 }
 
