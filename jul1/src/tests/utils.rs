@@ -64,6 +64,17 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         timings.push((line.to_string(), Instant::now() - line_start));
     }
 
+    // Print profile results
+    let profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    // Sort simply by duration
+    profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
+    println!("Profile results:");
+    for (tag, duration) in profile_vec.clone() {
+        // Print just duration and tag
+        println!("{:?} {}", duration, tag);
+    }
+
     // Print timing results
     let mut timing_vec: Vec<(String, std::time::Duration)> = timings.into_iter().collect();
 
