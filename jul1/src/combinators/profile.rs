@@ -78,10 +78,7 @@ pub struct ProfiledParser {
 impl CombinatorTrait for Profiled {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         right_data.profile_data.push_tag(self.tag.clone());
-        let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
-        right_data.profile_data.pop_tag();
-        right_data.profile_data.push_tag("squash".to_string());
-        parse_results.squash();
+        let (parser, parse_results) = self.inner.parse(right_data.clone(), bytes);
         right_data.profile_data.pop_tag();
 
         (
@@ -102,23 +99,14 @@ impl ParserTrait for ProfiledParser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.profile_data.push_tag(self.tag.clone());
-        let mut parse_results = self.inner.parse(bytes);
-        self.profile_data.pop_tag();
-        self.profile_data.push_tag("squash".to_string());
-        parse_results.squash();
+        let parse_results = self.inner.parse(bytes);
         self.profile_data.pop_tag();
         parse_results
     }
 }
 
 pub fn profile(tag: &str, a: impl Into<Combinator>) -> Combinator {
-    // Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
-    a.into()
-}
-
-pub fn profile_internal(tag: &str, a: impl Into<Combinator>) -> Combinator {
-    // profile(tag, a)
-    a.into()
+    Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
 }
 
 impl From<Profiled> for Combinator {
