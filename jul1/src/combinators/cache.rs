@@ -66,7 +66,7 @@ impl Hash for CacheKey {
 
 impl PartialEq for CacheKey {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.combinator.as_ref(), other.combinator.as_ref()) && self.right_data == other.right_data
+        Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
     }
 }
 
