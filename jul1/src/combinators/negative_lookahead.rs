@@ -43,18 +43,18 @@ impl CombinatorTrait for ExcludeBytestrings {
             true
         });
         if self.persist_with_partial_lookahead {
-            for (right_data, lookahead_data) in parse_results.right_data_vec.iter_mut() {
+            for right_data in parse_results.right_data_vec.iter_mut() {
                 let remaining = bytestrings_to_exclude.iter().map(|bytestring| bytestring[right_data.position - start_position..].to_vec()).collect();
                 let remaining_combinator = eat_bytestring_choice(remaining);
                 let (remaining_parser, _) = remaining_combinator.parse(right_data.clone(), &[]);
-                lookahead_data.partial_lookaheads.push(PartialLookahead {
+                right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
                     parser: Box::new(remaining_parser),
                     positive: false,
                 });
             }
         } else {
-            for (right_data, lookahead_data) in parse_results.right_data_vec.iter_mut() {
-                lookahead_data.has_omitted_partial_lookaheads = true;
+            for right_data in parse_results.right_data_vec.iter_mut() {
+                right_data.lookahead_data.has_omitted_partial_lookaheads = true;
             }
         }
         (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
@@ -85,18 +85,18 @@ impl ParserTrait for ExcludeBytestringsParser {
             true
         });
         if self.persist_with_partial_lookahead {
-            for (right_data, lookahead_data) in parse_results.right_data_vec.iter_mut() {
+            for right_data in parse_results.right_data_vec.iter_mut() {
                 let remaining = self.bytestrings_to_exclude.iter().map(|bytestring| bytestring[right_data.position - self.start_position..].to_vec()).collect();
                 let remaining_combinator = eat_bytestring_choice(remaining);
                 let (remaining_parser, _) = remaining_combinator.parse(right_data.clone(), &[]);
-                lookahead_data.partial_lookaheads.push(PartialLookahead {
+                right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
                     parser: Box::new(remaining_parser),
                     positive: false,
                 });
             }
         } else {
-            for (right_data, lookahead_data) in parse_results.right_data_vec.iter_mut() {
-                lookahead_data.has_omitted_partial_lookaheads = true;
+            for right_data in parse_results.right_data_vec.iter_mut() {
+                right_data.lookahead_data.has_omitted_partial_lookaheads = true;
             }
         }
         self.position += bytes.len();

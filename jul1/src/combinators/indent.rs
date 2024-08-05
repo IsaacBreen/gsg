@@ -1,4 +1,4 @@
-use crate::{choice, Combinator, CombinatorTrait, eat_bytes, eps, mutate_right_data, Parser, ParseResults, ParserTrait, RightData, RightDataSquasher, seq, U8Set};
+use crate::{choice, Combinator, CombinatorTrait, eat_bytes, eps, mutate_right_data, Parser, ParseResults, ParserTrait, RightData, seq, U8Set};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IndentCombinator {
     Dent,
@@ -46,7 +46,7 @@ impl CombinatorTrait for IndentCombinator {
             IndentCombinator::Indent if right_data.dedents == 0 => {
                 if !bytes.is_empty() && bytes[0] != b' ' {
                     (IndentCombinatorParser::Done, ParseResults {
-                        right_data_vec: vec![].into(),
+                        right_data_vec: vec![],
                         done: true,
                     })
                 } else {
@@ -58,7 +58,7 @@ impl CombinatorTrait for IndentCombinator {
                     right_data.position += i;
                     right_data.indents.push(bytes[0..i].to_vec());
                     (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults {
-                        right_data_vec: vec![right_data].into(),
+                        right_data_vec: vec![right_data],
                         done: false,
                     })
                 }
@@ -67,13 +67,13 @@ impl CombinatorTrait for IndentCombinator {
                 right_data.dedents -= 1;
                 // println!("Decremented dedents to {}", right_data.dedents);
                 (IndentCombinatorParser::Done, ParseResults {
-                    right_data_vec: vec![right_data].into(),
+                    right_data_vec: vec![right_data],
                     done: true,
                 })
             }
             IndentCombinator::AssertNoDedents if right_data.dedents == 0 => {
                 (IndentCombinatorParser::Done, ParseResults {
-                    right_data_vec: vec![right_data].into(),
+                    right_data_vec: vec![right_data],
                     done: true,
                 })
             }
@@ -97,7 +97,7 @@ impl ParserTrait for IndentCombinatorParser {
             return ParseResults::empty_unfinished();
         }
 
-        let mut right_data_vec = RightDataSquasher::new();
+        let mut right_data_vec = Vec::new();
         let mut done = false;
 
         for &byte in bytes {

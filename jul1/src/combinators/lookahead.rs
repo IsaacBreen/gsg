@@ -89,7 +89,7 @@ impl CombinatorTrait for Lookahead {
                 }
             }
             (Parser::FailParser(FailParser), ParseResults {
-                right_data_vec: vec![right_data].into(),
+                right_data_vec: vec![right_data],
                 done: true,
             })
         } else {
