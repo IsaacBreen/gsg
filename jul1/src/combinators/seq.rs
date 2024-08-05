@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, RightData, RightDataSquasher, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
@@ -28,7 +28,9 @@ impl CombinatorTrait for Seq {
             for right_data in right_data_vec.finish() {
                 let offset = right_data.position - start_position;
                 let combinator = &self.children[combinator_index];
-                let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
+                let (parser, parse_results) = profile!("seq child parse", {
+                    combinator.parse(right_data, &bytes[offset..])
+                });
                 if combinator_index + 1 < self.children.len() {
                     parser_initialization_queue.entry(combinator_index + 1).or_default().extend(parse_results.right_data_vec);
                 } else {
