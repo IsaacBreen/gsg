@@ -41,6 +41,7 @@ impl Squash for ParseResults {
     }
 }
 
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct RightDataSquasher {
     decomposed: HashMap<RightData, LookaheadData>,
 }
@@ -55,7 +56,7 @@ impl RightDataSquasher {
 
 impl RightDataSquasher {
     pub fn push(&mut self, right_data: RightData) {
-        let lookahead_data = std::mem::take(&mut right_data.lookahead_data);
+        let lookahead_data = right_data.lookahead_data.clone();
         let mut existing_lookahead_data = self.decomposed.entry(right_data).or_default();
         // TODO: In general, all the lookaheads needs to be satisfied, i.e. it's an AND operation between Vecs of lookaheads. But this implies OR.
         existing_lookahead_data.partial_lookaheads.extend(lookahead_data.partial_lookaheads);
@@ -75,5 +76,13 @@ impl RightDataSquasher {
             result.push(right_data);
         }
         result
+    }
+}
+
+impl From<Vec<RightData>> for RightDataSquasher {
+    fn from(right_data_vec: Vec<RightData>) -> Self {
+        let mut squasher = RightDataSquasher::new();
+        squasher.extend(right_data_vec);
+        squasher
     }
 }

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, RightData, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, RightData, RightDataSquasher, Squash, U8Set};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
@@ -21,12 +21,11 @@ impl CombinatorTrait for Seq {
 
         let mut parsers: BTreeMap<usize, Vec<Parser>> = BTreeMap::new();
         let mut final_right_data: Vec<RightData> = vec![];
-        let mut parser_initialization_queue: BTreeMap<usize, Vec<RightData>> = BTreeMap::new();
-        parser_initialization_queue.insert(0, vec![right_data]);
+        let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
+        parser_initialization_queue.insert(0, vec![right_data].into());
 
         while let Some((combinator_index, mut right_data_vec)) = parser_initialization_queue.pop_first() {
-            right_data_vec.squash();
-            for right_data in right_data_vec {
+            for right_data in right_data_vec.finish() {
                 let offset = right_data.position - start_position;
                 let combinator = &self.children[combinator_index];
                 let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
