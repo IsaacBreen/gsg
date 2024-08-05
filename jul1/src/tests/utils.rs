@@ -201,9 +201,9 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     // Duration per hit
     println!("Duration per hit:");
     let mut duration_per_hit: HashMap<String, Duration> = HashMap::new();
-    for (tag, hit) in profile_data.hit_counts.iter() {
+    for (tag, hits) in profile_data.hit_counts.iter() {
         if let Some(duration) = profile_data.timings.get(tag) {
-            duration_per_hit.insert(tag.clone(), *duration);
+            duration_per_hit.insert(tag.clone(), *duration / *hits as u32);
         }
     }
     let mut duration_per_hit: Vec<(String, Duration)> = duration_per_hit.into_iter().collect::<Vec<_>>();
