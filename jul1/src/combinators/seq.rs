@@ -50,7 +50,7 @@ impl CombinatorTrait for Seq {
         }
 
         let all_right_data_vec_squashed_len = all_right_data_vec.clone().squashed().len();
-            if all_right_data_vec.len() > all_right_data_vec_squashed_len {
+            if all_right_data_vec.len() > all_right_data_vec_squashed_len * 10 {
                 println!("all_right_data_vec.len(): {:?}, all_right_data_vec.squashed().len(): {:?}", all_right_data_vec.len(), all_right_data_vec_squashed_len);
             }
 
