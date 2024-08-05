@@ -247,11 +247,7 @@ impl Parser {
     fn collect_stats(&self, stats: &mut Stats, current_tag: Option<&String>) {
         match self {
             Parser::SeqParser(SeqParser { parsers, .. }) => {
-                for (_, parsers) in parsers {
-                    for parser in parsers {
-                        parser.collect_stats(stats, current_tag);
-                    }
-                }
+                parsers.iter().for_each(|(_, parser)| parser.collect_stats(stats, current_tag));
             }
             Parser::ChoiceParser(ChoiceParser { parsers, greedy }) => {
                 parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
