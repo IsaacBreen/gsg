@@ -6,11 +6,24 @@ use crate::stats::Stats;
 
 macro_rules! define_enum {
     ($name:ident, $($variants:ident),*) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        #[derive(Debug, Clone, Eq, Hash)]
         pub enum $name {
             $(
                 $variants($variants),
             )*
+        }
+
+        impl PartialEq for $name {
+            fn eq(&self, other: &Self) -> bool {
+                crate::profile!(format!("$name PartialEq"), {
+                    match (self, other) {
+                        $(
+                            ($name::$variants(a), $name::$variants(b)) => a == b,
+                        )*
+                        _ => false,
+                    }
+                })
+            }
         }
     };
 }
