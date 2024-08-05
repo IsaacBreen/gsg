@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 derivative = "2.2.0"
 kdam = "0.5.2"
+lazy_static = "1.5.0"
 
 # Run tests with opt level 3
 #[profile.dev]

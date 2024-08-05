@@ -2,7 +2,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use kdam::tqdm;
 
-use crate::{CombinatorTrait, CombinatorTraitExt, ParseResults, ParserTrait, ParserTraitExt, RightData, Squash};
+use crate::{CombinatorTrait, CombinatorTraitExt, GLOBAL_PROFILE_DATA, ParseResults, ParserTrait, ParserTraitExt, RightData, Squash};
 
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
@@ -19,7 +19,6 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     let mut timings: Vec<(String, std::time::Duration)> = Vec::new();
 
     let start_right_data = RightData::default();
-    let profile_data = start_right_data.profile_data.clone();
     let (mut parser, mut parse_results) = T::parser(&combinator, start_right_data);
 
     let lines = input.lines().collect::<Vec<_>>();
@@ -119,7 +118,6 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
     println!("beginning profile_parse");
 
     let start_right_data = RightData::default();
-    let profile_data = start_right_data.profile_data.clone();
 
     let (mut parser, mut parse_results) = T::parser(&combinator, start_right_data);
 
@@ -127,11 +125,12 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
         parser.step(byte);
     }
 
-    let total_time = profile_data.inner.borrow().timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
+    let profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+    let total_time = profile_data.timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
     println!("Total time: {:?}", total_time);
 
     // Print profile results
-    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
@@ -145,7 +144,6 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
 pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start_right_data = RightData::default();
-    let profile_data = start_right_data.profile_data.clone();
     let (parser, mut parse_results) = combinator.parse(start_right_data, &bytes);
     parse_results.squash();
     // Get the line and char number of the max position
@@ -162,7 +160,8 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     }
 
     // Print profile results
-    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
@@ -185,7 +184,6 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
 pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, tolerance: usize) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start_right_data = RightData::default();
-    let profile_data = start_right_data.profile_data.clone();
     let (parser, mut parse_results) = combinator.parse(start_right_data, &bytes);
     parse_results.squash();
     // Get the line and char number of the max position
@@ -201,11 +199,12 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
         }
     }
 
-    let total_time = profile_data.inner.borrow().timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
+    let profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+    let total_time = profile_data.timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
     println!("Total time: {:?}", total_time);
 
     // Print profile results
-    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
