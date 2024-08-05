@@ -3,6 +3,12 @@ use std::collections::BTreeMap;
 
 use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set};
 
+macro_rules! profile {
+    ($name:expr, $expr:expr) => {
+        $expr
+    };
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
     pub(crate) children: Rc<Vec<Combinator>>,
