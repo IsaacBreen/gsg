@@ -27,8 +27,9 @@ impl Default for ProfileDataInner {
 
 impl ProfileDataInner {
     pub fn push_tag(tag: String) {
+        let now = Instant::now();
         let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
-        let elapsed = profile_data.start_time.elapsed();
+        let elapsed = now.duration_since(profile_data.start_time);
         if let Some(current_tag) = profile_data.tag_stack.last().cloned() {
             *profile_data.timings.entry(current_tag.clone()).or_default() += elapsed;
         }
@@ -37,9 +38,10 @@ impl ProfileDataInner {
     }
 
     pub fn pop_tag() {
+        let now = Instant::now();
         let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
         if let Some(tag) = profile_data.tag_stack.pop() {
-            let elapsed = profile_data.start_time.elapsed();
+            let elapsed = now.duration_since(profile_data.start_time);
             *profile_data.timings.entry(tag).or_default() += elapsed;
             profile_data.start_time = Instant::now();
         }
