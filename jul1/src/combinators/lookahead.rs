@@ -47,14 +47,13 @@ pub struct PartialLookahead {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LookaheadData {
-    pub partial_lookaheads: Vec<PartialLookahead>,
     pub has_omitted_partial_lookaheads: bool,
 }
 
 impl Default for LookaheadData {
     fn default() -> Self {
         // LookaheadData { partial_lookaheads: vec![PartialLookahead { parser: Box::new(Parser::FailParser(FailParser)), positive: true }] }
-        LookaheadData { partial_lookaheads: vec![], has_omitted_partial_lookaheads: false }
+        LookaheadData { has_omitted_partial_lookaheads: false }
     }
 }
 
@@ -78,15 +77,7 @@ impl CombinatorTrait for Lookahead {
         };
         if succeeds {
             if !parse_results.done {
-                if self.persist_with_partial_lookahead {
-                    // println!("Lookahead not done at position {}. Lookahead: {:?}", right_data.position, self);
-                    right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
-                        parser: Box::new(parser),
-                        positive: self.positive,
-                    });
-                } else {
                     right_data.lookahead_data.has_omitted_partial_lookaheads = true;
-                }
             }
             (Parser::FailParser(FailParser), ParseResults {
                 right_data_vec: vec![right_data],
