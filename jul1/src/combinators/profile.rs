@@ -66,10 +66,17 @@ pub struct ProfiledParser {
 impl CombinatorTrait for Profiled {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         // Use the global profile data
-        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
-        profile_data.push_tag(self.tag.clone());
-        let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
-        profile_data.pop_tag();
+        {
+            let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
+            profile_data.push_tag(self.tag.clone());
+        }        let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
+        // right_data.profile_data.push_tag("squash".to_string());
+        // parse_results.squash();
+        // right_data.profile_data.pop_tag();
+        {
+            let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
+            profile_data.pop_tag();
+        }
 
         (
             Parser::ProfiledParser(ProfiledParser {
@@ -88,19 +95,29 @@ impl ParserTrait for ProfiledParser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         // Use the global profile data
-        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
-        profile_data.push_tag(self.tag.clone());
+        {
+            let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
+            profile_data.push_tag(self.tag.clone());
+        }
         let mut parse_results = self.inner.parse(bytes);
-        profile_data.pop_tag();
+        // self.profile_data.push_tag("squash".to_string());
+        // parse_results.squash();
+        // self.profile_data.pop_tag();
+        {
+            let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
+            profile_data.pop_tag();
+        }
         parse_results
     }
 }
 
 pub fn profile(tag: &str, a: impl Into<Combinator>) -> Combinator {
     Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
+    // a.into()
 }
 
 pub fn profile_internal(tag: &str, a: impl Into<Combinator>) -> Combinator {
+    // profile(tag, a)
     a.into()
 }
 

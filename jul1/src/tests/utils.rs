@@ -125,7 +125,7 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
         parser.step(byte);
     }
 
-    let profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+    let profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
     let total_time = profile_data.timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
     println!("Total time: {:?}", total_time);
 
@@ -160,7 +160,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     }
 
     // Print profile results
-    let profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+    let profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
     let mut profile_vec: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
@@ -199,7 +199,7 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
         }
     }
 
-    let profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+    let profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
     let total_time = profile_data.timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
     println!("Total time: {:?}", total_time);
 
