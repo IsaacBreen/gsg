@@ -93,9 +93,11 @@ impl RightDataSquasher {
 
 impl From<Vec<RightData>> for RightDataSquasher {
     fn from(right_data_vec: Vec<RightData>) -> Self {
-        let mut squasher = RightDataSquasher::new();
-        squasher.extend(right_data_vec);
-        squasher
+        profile!("RightDataSquasher::from", {
+            let mut squasher = RightDataSquasher::new();
+            squasher.extend(right_data_vec);
+            squasher
+        })
     }
 }
 
