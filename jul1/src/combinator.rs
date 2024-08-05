@@ -179,8 +179,10 @@ impl Parser {
     {
         match self {
             Parser::SeqParser(SeqParser { parsers, .. }) => {
-                for (i, parser) in parsers {
-                    parser.map_right_data_mut(f);
+                for (i, parsers) in parsers {
+                    for parser in parsers {
+                        parser.map_right_data_mut(f);
+                    }
                 }
             }
             Parser::ChoiceParser(ChoiceParser { parsers, .. }) => {
