@@ -2,12 +2,12 @@ use crate::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub struct ForbidFollowsData {
-    pub prev_match_ids: Vec<usize>,
+    pub prev_match_ids: smallvec::SmallVec<[usize; 1]>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollows {
-    match_ids: Vec<usize>,
+    match_ids: smallvec::SmallVec<[usize; 1]>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -53,7 +53,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
 }
 
 pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows {
-    ForbidFollows { match_ids: match_ids.to_vec() }
+    ForbidFollows { match_ids: match_ids.into() }
 }
 
 pub fn forbid_follows_clear() -> ForbidFollowsClear {

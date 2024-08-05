@@ -11,13 +11,13 @@ macro_rules! profile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
-    pub(crate) children: Rc<smallvec::SmallVec<[Combinator; 1]>>,
+    pub(crate) children: Rc<smallvec::SmallVec<[Combinator; 2]>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
     pub(crate) parsers: Vec<(usize, Parser)>,
-    pub(crate) combinators: Rc<smallvec::SmallVec<[Combinator; 1]>>,
+    pub(crate) combinators: Rc<smallvec::SmallVec<[Combinator; 2]>>,
     pub(crate) position: usize,
 }
 
