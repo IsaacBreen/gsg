@@ -1,8 +1,599 @@
---- a/src/parse_state/right_data.rs
-+++ b/src/parse_state/right_data.rs
-@@ -2,5 +2,5 @@
+```diff
+--- a/src/combinator.rs
++++ b/src/combinator.rs
+@@ -1,7 +1,7 @@
+ use std::fmt::Display;
+ use std::ops::AddAssign;
  use std::rc::Rc;
+-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser};
++use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CacheFirst, CacheFirstContext, CacheFirstContextParser, CacheFirstParser, CheckRightData, CheckRightDataParser, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, MutateRightDataParser, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, CombinatorTrait};
+ use crate::stats::Stats;
+
+ macro_rules! define_enum {
+@@ -55,28 +55,6 @@
+     ExcludeBytestrings
+ );
+
+-define_enum!(
+-    Parser,
+-    SeqParser,
+-    ChoiceParser,
+-    EatU8Parser,
+-    EatStringParser,
+-    EpsParser,
+-    FailParser,
+-    CacheContextParser,
+-    CachedParser,
+-    CacheFirstParser,
+-    CacheFirstContextParser,
+-    IndentCombinatorParser,
+-    MutateRightDataParser,
+-    Repeat1Parser,
+-    SymbolParser,
+-    TaggedParser,
+-    EatByteStringChoiceParser,
+-    CheckRightDataParser,
+-    ExcludeBytestringsParser
+-);
+-
+ macro_rules! match_combinator {
+     ($expr:expr, $inner:ident => $arm:expr) => {
+         $crate::match_enum!($expr, Combinator, $inner => $arm,
+@@ -109,71 +87,6 @@
+     };
+ }
+
+-#[macro_export]
+-macro_rules! match_parser {
+-    ($expr:expr, $inner:ident => $arm:expr) => {
+-        $crate::match_enum!($expr, Parser, $inner => $arm,
+-            SeqParser,
+-            ChoiceParser,
+-            EatU8Parser,
+-            EatStringParser,
+-            EatByteStringChoiceParser,
+-            EpsParser,
+-            FailParser,
+-            CacheContextParser,
+-            CachedParser,
+-            CacheFirstParser,
+-            CacheFirstContextParser,
+-            IndentCombinatorParser,
+-            MutateRightDataParser,
+-            Repeat1Parser,
+-            SymbolParser,
+-            TaggedParser,
+-            CheckRightDataParser,
+-            ExcludeBytestringsParser
+-        )
+-    };
+-}
+-
+-pub trait CombinatorTrait {
+-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults);
+-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
+-    // fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+-    //     let (mut parser, mut parse_results0) = self.parser(right_data);
+-    //     let parse_results1 = parser.steps(bytes);
+-    //     parse_results0.combine_seq(parse_results1);
+-    //     (parser, parse_results0)
+-    // }
+-}
+-
+-pub trait ParserTrait {
+-    fn step(&mut self, c: u8) -> ParseResults;
+-    fn steps(&mut self, bytes: &[u8]) -> ParseResults;
+-}
+-
+-impl CombinatorTrait for Combinator {
+-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+-        match_combinator!(self, inner => inner.parser(right_data))
+-    }
+-
+-    fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+-        match_combinator!(self, inner => inner.parser_with_steps(right_data, bytes))
+-    }
+-}
+-
+-impl ParserTrait for Parser {
+-    fn step(&mut self, c: u8) -> ParseResults {
+-        match_parser!(self, inner => inner.step(c))
+-    }
+-
+-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+-        match_parser!(self, inner => inner.steps(bytes))
+-    }
+-}
+-
+ impl Combinator {
+     pub fn type_name(&self) -> String {
+         match_combinator!(self, inner => std::any::type_name_of_val(&inner)).to_string()
+@@ -250,4 +163,4 @@
+             Parser::EatU8Parser(EatU8Parser { right_data: None, .. }) |
+             Parser::EatStringParser(EatStringParser { .. }) => {}
+         }
+-    }+    }
++}
+```
+File path: src/combinators/cache.rs
+```
+--- a/src/combinators/cache.rs
++++ b/src/combinators/cache.rs
+@@ -6,7 +6,7 @@
+
  use derivative::Derivative;
- 
--use crate::{CacheData, CacheFirstData, ForbidFollowsData, FrameStack, LookaheadData, ProfileData, PythonQuoteType};
-+use crate::{CacheData, CacheFirstData, ForbidFollowsData, FrameStack, LookaheadData, PythonQuoteType, PROFILE_DATA};
+
+-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash};
++use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash, U8Set, UpData};
+
+ #[derive(Clone, PartialEq, Default, Eq)]
+ pub struct CacheData {
+@@ -109,14 +109,20 @@
+
+ impl ParserTrait for CacheContextParser {
+     fn step(&mut self, c: u8) -> ParseResults {
++        let mut all_up_data = Vec::new();
+         self.cache_data_inner.borrow_mut().entries.iter_mut().for_each(|entry| {
+             entry.borrow_mut().maybe_parse_results.take();
+         });
+         let num_entries_initial = self.cache_data_inner.borrow().entries.len().clone();
+         for i in (0..num_entries_initial).rev() {
+             let entry = self.cache_data_inner.borrow().entries[i].clone();
+-            let parse_results = catch_unwind(AssertUnwindSafe(|| entry.borrow_mut().parser.as_mut().unwrap().step(c))).expect("CacheContextParser.step: parse_results is None");
+-            entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
++            let parse_results = catch_unwind(AssertUnwindSafe(|| entry.borrow_mut().parser.as_mut().unwrap().step(c))).expect("CacheContextParser.step: panic");
++            let mut parse_results = parse_results.clone();
++            parse_results.squash();
++            entry.borrow_mut().maybe_parse_results = Some(parse_results);
++            if !parse_results.done {
++                all_up_data.extend(parse_results.up_data_vec);
++            }
+         }
+         let parse_result = self.inner.step(c);
+         let mut new_entries = self.cache_data_inner.borrow_mut().entries.split_off(num_entries_initial);
+@@ -127,14 +133,20 @@
+     }
+
+     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
++        let mut all_up_data = Vec::new();
+         self.cache_data_inner.borrow_mut().entries.iter_mut().for_each(|entry| {
+             entry.borrow_mut().maybe_parse_results.take();
+         });
+         let num_entries_initial = self.cache_data_inner.borrow().entries.len().clone();
+         for i in (0..num_entries_initial).rev() {
+             let entry = self.cache_data_inner.borrow().entries[i].clone();
+-            let parse_results = catch_unwind(AssertUnwindSafe(|| entry.borrow_mut().parser.as_mut().unwrap().steps(bytes))).expect("CacheContextParser.steps: parse_results is None");
+-            entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
++            let parse_results = catch_unwind(AssertUnwindSafe(|| entry.borrow_mut().parser.as_mut().unwrap().steps(bytes))).expect("CacheContextParser.steps: panic");
++            let mut parse_results = parse_results.clone();
++            parse_results.squash();
++            entry.borrow_mut().maybe_parse_results = Some(parse_results);
++            if !parse_results.done {
++                all_up_data.extend(parse_results.up_data_vec);
++            }
+         }
+         let parse_result = self.inner.steps(bytes);
+         let mut new_entries = self.cache_data_inner.borrow_mut().entries.split_off(num_entries_initial);
+@@ -148,7 +160,7 @@
+     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
+         let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
+         if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.get(&key).cloned() {
+-            let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
++            let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None").squashed();
+             return (Parser::CachedParser(CachedParser { entry }), parse_results);
+         }
+         let entry = Rc::new(RefCell::new(CacheEntry {
+@@ -168,7 +180,7 @@
+     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+         let key = CacheFirstKey { combinator: self.inner.clone(), right_data: right_data.clone() };
+         if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.get(&key).cloned() {
+-            let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
++            let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None").squashed();
+             return (Parser::CachedParser(CachedParser { entry }), parse_results);
+         }
+         let entry = Rc::new(RefCell::new(CacheEntry {
+@@ -188,11 +200,11 @@
+
+ impl ParserTrait for CachedParser {
+     fn step(&mut self, c: u8) -> ParseResults {
+-        self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.step: parse_results is None")
+-    }
+-
+-    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+-        self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.steps: parse_results is None")
++        self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.step: parse_results is None").squashed()
++    }
++
++    fn steps(&mut self, bytes: &[u8]) -> ParseResults {
++        self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.steps: parse_results is None").squashed()
+     }
+ }
+
+
+```
+File path: src/combinators/cache_first.rs
+```
+--- a/src/combinators/cache_first.rs
++++ b/src/combinators/cache_first.rs
+@@ -7,7 +7,7 @@
+
+ use derivative::Derivative;
+
+-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash};
++use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash, U8Set, UpData};
+
+ #[derive(Clone, PartialEq, Default, Eq)]
+ pub struct CacheFirstData {
+@@ -100,28 +100,30 @@
+         // Try to get the entry from the cache
+         let key = CacheFirstKey { combinator: self.inner.clone(), right_data: right_data.clone() };
+         if let Some(entry) = right_data.cache_first_data.inner.clone().unwrap().borrow().entries.get(&key).cloned() {
+-            return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry);
++            return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry.squashed());
+         }
+         // Initialize the parser and create a new entry
+-        let (parser, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), &[]);
++        let (mut parser, mut parse_results) = self.inner.parser(right_data.clone());
+         parse_results.squash();
+         let binding = right_data.cache_first_data.inner.unwrap();
+         let mut cache_first_data_inner = binding.borrow_mut();
+         cache_first_data_inner.entries.insert(key.clone(), parse_results.clone());
+-        (parser, parse_results)
++        (Parser::CacheFirstParser(CacheFirstParser::Initialized { parser: Box::new(parser) }), parse_results)
+     }
+
+     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+         // Try to get the entry from the cache
+         let key = CacheFirstKey { combinator: self.inner.clone(), right_data: right_data.clone() };
+         if let Some(entry) = right_data.cache_first_data.inner.clone().unwrap().borrow().entries.get(&key).cloned() {
+-            return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry);
++            return (Parser::CacheFirstParser(CacheFirstParser::Uninitialized { key }), entry.squashed());
+         }
+         // Initialize the parser and create a new entry
+         let (mut parser, mut parse_results) = self.inner.parser_with_steps(right_data.clone(), bytes);
+         parse_results.squash();
+         let binding = right_data.cache_first_data.inner.unwrap();
+         let mut cache_first_data_inner = binding.borrow_mut();
++        parse_results.squash();
+         cache_first_data_inner.entries.insert(key.clone(), parse_results.clone());
+-        (parser, parse_results)
++        (Parser::CacheFirstParser(CacheFirstParser::Initialized { parser: Box::new(parser) }), parse_results)
+     }
+ }
+
+@@ -130,7 +132,7 @@
+         match self {
+             CacheFirstParser::Uninitialized { key } => {
+                 // Initialize the parser and step it.
+-                let (parser, parse_results) = key.combinator.parser(key.right_data.clone());
++                let (parser, parse_results) = key.combinator.parser_with_steps(key.right_data.clone(), &[c]);
+                 *self = CacheFirstParser::Initialized { parser: Box::new(parser) };
+                 self.step(c)
+             }
+
+```
+File path: src/combinators/check_right_data.rs
+```
+--- a/src/combinators/check_right_data.rs
++++ b/src/combinators/check_right_data.rs
+@@ -57,31 +57,19 @@
+ impl CombinatorTrait for CheckRightData {
+     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+         if (self.run)(&right_data) {
+-            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults {
+-                right_data_vec: vec![right_data],
+-                up_data_vec: vec![],
+-                done: true
+-            })
++            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::finished(right_data))
+         } else {
+-            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults {
+-                right_data_vec: vec![],
+-                up_data_vec: vec![],
+-                done: true,
+-            })
++            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::empty_finished())
+         }
+     }
+
+     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+         if (self.run)(&right_data) {
+-            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults {
+-                right_data_vec: vec![right_data],
+-                up_data_vec: vec![],
+-                done: true
+-            })
++            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::finished(right_data))
+         } else {
+-            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults {
+-                right_data_vec: vec![],
+-                up_data_vec: vec![],
+-                done: true,
+-            })
++            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::empty_finished())
+         }
+     }
+ }
+
+```
+File path: src/combinators/choice.rs
+```
+--- a/src/combinators/choice.rs
++++ b/src/combinators/choice.rs
+@@ -18,7 +18,7 @@
+ impl CombinatorTrait for Choice {
+     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+         let mut parsers = Vec::new();
+-        let mut combined_results = ParseResults::empty_finished();
++        let mut combined_results = ParseResults::new();
+
+         for child in &self.children {
+             let (parser, parse_results) = child.parser(right_data.clone());
+@@ -40,7 +40,7 @@
+
+     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+         let mut parsers = Vec::new();
+-        let mut combined_results = ParseResults::empty_finished();
++        let mut combined_results = ParseResults::new();
+
+         for (i, child) in self.children.iter().enumerate() {
+             let (parser, parse_results) = child.parser_with_steps(right_data.clone(), bytes);
+@@ -72,7 +72,7 @@
+
+ impl ParserTrait for ChoiceParser {
+     fn step(&mut self, c: u8) -> ParseResults {
+-        let mut parse_result = ParseResults::empty_finished();
++        let mut parse_result = ParseResults::new();
+         let mut discard_rest = false;
+
+         self.parsers.retain_mut(|mut parser| {
+@@ -91,7 +91,7 @@
+     }
+
+     fn steps(&mut self, bytes: &[u8]) -> ParseResults {
+-        let mut parse_result = ParseResults::empty_finished();
++        let mut parse_result = ParseResults::new();
+         let mut discard_rest = false;
+
+         self.parsers.retain_mut(|mut parser| {
+
+```
+File path: src/combinators/deferred.rs
+```
+--- a/src/combinators/deferred.rs
++++ b/src/combinators/deferred.rs
+@@ -28,6 +28,7 @@
+ }
+
+ impl CombinatorTrait for Deferred {
++    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+         let a = self.f.as_ref()();
+         a.parser(right_data)
+     }
+
+```
+File path: src/combinators/derived.rs
+```
+--- a/src/combinators/derived.rs
++++ b/src/combinators/derived.rs
+@@ -1,5 +1,5 @@
+ use std::rc::Rc;
+-use crate::{_choice, choice, Choice, choice_greedy, Combinator, eps, repeat0, repeat0_greedy, seq, symbol};
++use crate::{_choice, choice, Choice, choice_greedy, Combinator, eps, repeat0, repeat0_greedy, seq, symbol, tag};
+
+ pub fn opt(a: impl Into<Combinator>) -> Combinator {
+     choice!(a, eps())
+@@ -16,7 +16,7 @@
+
+ pub fn repeatn(n: usize, a: impl Into<Combinator>) -> Combinator {
+     let a = Rc::new(a.into());
+-    Choice { children: vec![a.clone(); n], greedy: false }.into()
++    tag("repeatn", Choice { children: vec![a.clone(); n], greedy: false }).into()
+ }
+
+ pub fn opt_greedy(a: impl Into<Combinator>) -> Combinator {
+@@ -34,4 +34,4 @@
+
+ pub fn repeatn_greedy(n: usize, a: impl Into<Combinator>) -> Combinator {
+     let a = Rc::new(a.into());
+-    Choice { children: vec![a.clone(); n], greedy: true }.into()+    tag("repeatn_greedy", Choice { children: vec![a.clone(); n], greedy: true }).into()
+```
+File path: src/combinators/eat_bytestring_choice.rs
+```
+--- a/src/combinators/eat_bytestring_choice.rs
++++ b/src/combinators/eat_bytestring_choice.rs
+@@ -85,7 +85,7 @@
+ }
+
+ impl CombinatorTrait for EatByteStringChoice {
+-        let parser = EatByteStringChoiceParser {
++    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
++        let parser = EatByteStringChoiceParser {
+             current_node: Rc::clone(&self.root),
+             right_data,
+         };
+@@ -100,7 +100,7 @@
+     }
+
+     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+-        let (mut parser, mut parse_results0) = self.parser_with_steps(right_data, &[]);
++        let (mut parser, mut parse_results0) = self.parser(right_data);
+         let parse_results1 = parser.steps(bytes);
+         parse_results0.combine_seq(parse_results1);
+         (parser, parse_results0)
+
+```
+File path: src/combinators/eat_string.rs
+```
+--- a/src/combinators/eat_string.rs
++++ b/src/combinators/eat_string.rs
+@@ -35,7 +35,7 @@
+     }
+
+     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+-        let (mut parser, mut parse_results0) = self.parser(right_data);
++        let (mut parser, mut parse_results0) = self.parser_with_steps(right_data, &[]);
+         let parse_results1 = parser.steps(bytes);
+         parse_results0.combine_seq(parse_results1);
+         (parser, parse_results0)
+
+```
+File path: src/combinators/eat_u8.rs
+```
+--- a/src/combinators/eat_u8.rs
++++ b/src/combinators/eat_u8.rs
+@@ -13,7 +13,7 @@
+ }
+
+ impl CombinatorTrait for EatU8 {
+-        let parser = EatU8Parser {
++    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
++        let parser = EatU8Parser {
+             u8set: self.u8set.clone(),
+             right_data: Some(right_data),
+         };
+@@ -27,7 +27,7 @@
+     }
+
+     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+-        let (mut parser, mut parse_results0) = self.parser_with_steps(right_data, &[]);
++        let (mut parser, mut parse_results0) = self.parser(right_data);
+         let parse_results1 = parser.steps(bytes);
+         parse_results0.combine_seq(parse_results1);
+         (parser, parse_results0)
+
+```
+File path: src/combinators/eps.rs
+```
+--- a/src/combinators/eps.rs
++++ b/src/combinators/eps.rs
+@@ -8,18 +8,12 @@
+
+ impl CombinatorTrait for Eps {
+     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+-        (Parser::EpsParser(EpsParser), ParseResults {
+-            right_data_vec: vec![right_data],
+-            up_data_vec: vec![],
+-            done: true,
+-        })
++        (Parser::EpsParser(EpsParser), ParseResults::finished(right_data))
+     }
+
+     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+-        (Parser::EpsParser(EpsParser), ParseResults {
+-            right_data_vec: vec![right_data],
+-            up_data_vec: vec![],
+-            done: true,
+-        })
++        (Parser::EpsParser(EpsParser), ParseResults::finished(right_data))
+     }
+ }
+
+
+```
+File path: src/combinators/fail.rs
+```
+--- a/src/combinators/fail.rs
++++ b/src/combinators/fail.rs
+@@ -8,18 +8,12 @@
+
+ impl CombinatorTrait for Fail {
+         (Parser::FailParser(FailParser), ParseResults {
+-            right_data_vec: vec![],
+-            up_data_vec: vec![],
+-            done: true,
+-        })
++            right_data_vec: vec![], up_data_vec: vec![], done: true
++        })
+     }
+
+     fn parser_with_steps(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+-        (Parser::FailParser(FailParser), ParseResults {
+-            right_data_vec: vec![],
+-            up_data_vec: vec![],
+-            done: true,
+-        })
++        (Parser::FailParser(FailParser), ParseResults::empty_finished())
+     }
+ }
+
+
+```
+File path: src/combinators/forbid_follows.rs
+```
+--- a/src/combinators/forbid_follows.rs
++++ b/src/combinators/forbid_follows.rs
+@@ -21,19 +21,13 @@
+ impl CombinatorTrait for ForbidFollows {
+     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
+         right_data.forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
+-        (combinator::Parser::FailParser(FailParser), ParseResults {
+-            right_data_vec: vec![right_data],
+-            up_data_vec: vec![],
+-            done: true,
+-        })
++        (combinator::Parser::FailParser(FailParser), ParseResults::finished(right_data))
+     }
+
+     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+         right_data.forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
+-        (combinator::Parser::FailParser(FailParser), ParseResults {
+-            right_data_vec: vec![right_data],
+-            up_data_vec: vec![],
+-            done: true,
+-        })
++        (combinator::Parser::FailParser(FailParser), ParseResults::finished(right_data))
+     }
+ }
+
+@@ -41,19 +35,13 @@
+ impl CombinatorTrait for ForbidFollowsClear {
+     fn parser(&self, mut right_data: RightData) -> (Parser, ParseResults) {
+         right_data.forbidden_consecutive_matches.prev_match_ids.clear();
+-        (combinator::Parser::FailParser(FailParser), ParseResults {
+-            right_data_vec: vec![right_data],
+-            up_data_vec: vec![],
+-            done: true,
+-        })
++        (combinator::Parser::FailParser(FailParser), ParseResults::finished(right_data))
+     }
+
+     fn parser_with_steps(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+         right_data.forbidden_consecutive_matches.prev_match_ids.clear();
+-        (combinator::Parser::FailParser(FailParser), ParseResults {
+-            right_data_vec: vec![right_data],
+-            up_data_vec: vec![],
+-            done: true,
+-        })
++        (combinator::Parser::FailParser(FailParser), ParseResults::finished(right_data))
+     }
+ }
+
+@@ -64,11 +52,7 @@
+         } else {
+             right_data.forbidden_consecutive_matches.prev_match_ids.clear();
+             (combinator::Parser::FailParser(FailParser), ParseResults {
+-                right_data_vec: vec![right_data],
+-                up_data_vec: vec![],
+-                done: true,
+-            })
++                right_data_vec: vec![right_data], up_data_vec: vec![], done: true
++            })
+         }
+     }
+
+@@ -79,11 +63,7 @@
+         } else {
+             right_data.forbidden_consecutive_matches.prev_match_ids.clear();
+             (combinator::Parser::FailParser(FailParser), ParseResults {
+-                right_data_vec: vec![right_data],
+-                up_data_vec: vec![],
+-                done: true,
+-            })
++                right_data_vec: vec![right_data], up_data_vec: vec![], done: true
++            })
+         }
+     }
+ }
+
+```
