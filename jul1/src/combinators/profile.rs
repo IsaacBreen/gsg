@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use derivative::Derivative;
 use crate::*;
 
-const SQUASH: bool = false;
+const SQUASH: bool = true;
 
 lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());
