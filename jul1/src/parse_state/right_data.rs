@@ -17,11 +17,11 @@ pub struct RightData {
     #[derivative(Hash = "ignore")]
     pub forbidden_consecutive_matches: ForbidFollowsData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
-    pub cache_ CacheData,
+    pub cache: CacheData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
-    pub cache_first_ CacheFirstData,
+    pub cache_first: CacheFirstData,
     #[derivative(Hash = "ignore")]
-    pub lookahead_ LookaheadData,
+    pub lookahead: LookaheadData,
     pub position: usize,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub time: Rc<RefCell<u128>>,
@@ -36,9 +36,9 @@ impl Default for RightData {
             scope_count: 0,
             fstring_start_stack: vec![],
             forbidden_consecutive_matches: ForbidFollowsData::default(),
-            cache_ CacheData::default(),
-            cache_first_ CacheFirstData::default(),
-            lookahead_ LookaheadData::default(),
+            cache: CacheData::default(),
+            cache_first: CacheFirstData::default(),
+            lookahead: LookaheadData::default(),
             position: 0,
             time: Rc::new(RefCell::new(0)),
         }
@@ -52,6 +52,6 @@ impl RightData {
     }
 
     pub fn failable(&self) -> bool {
-        !self.lookahead_data.partial_lookaheads.is_empty() || self.lookahead_data.has_omitted_partial_lookaheads
+        !self.lookahead.partial_lookaheads.is_empty() || self.lookahead.has_omitted_partial_lookaheads
     }
 }
