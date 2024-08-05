@@ -184,7 +184,9 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
 
 pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, tolerance: usize) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
-    let (parser, mut parse_results) = combinator.parse(RightData::default(), &bytes);
+    let start_right_data = RightData::default();
+    let profile_data = start_right_data.profile_data.clone();
+    let (parser, mut parse_results) = combinator.parse(start_right_data, &bytes);
     parse_results.squash();
     // Get the line and char number of the max position
     let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
@@ -198,6 +200,20 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
             char_number += 1;
         }
     }
+
+    let total_time = profile_data.inner.borrow().timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
+    println!("Total time: {:?}", total_time);
+
+    // Print profile results
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    // Sort simply by duration
+    profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
+    println!("Profile results:");
+    for (tag, duration) in profile_vec.clone() {
+        // Print just duration and tag
+        println!("{:?} {}", duration, tag);
+    }
+
     // todo: uncomment this for unambiguous parses
     // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
     // Get the right data with the highest position
