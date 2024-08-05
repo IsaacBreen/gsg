@@ -26,13 +26,13 @@ impl CombinatorTrait for Seq {
             for right_data in right_data_vec {
                 let offset = right_data.position - start_position;
                 let combinator = &self.children[combinator_index];
-                let (parser, ParseResults { right_data_vec, done }) = combinator.parse(right_data, &bytes[offset..]);
+                let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
                 if combinator_index + 1 < self.children.len() {
-                    parser_initialization_queue.push((combinator_index + 1, right_data_vec));
+                    parser_initialization_queue.push((combinator_index + 1, parse_results.right_data_vec));
                 } else {
-                    final_right_data.extend(right_data_vec);
+                    final_right_data.extend(parse_results.right_data_vec);
                 }
-                if !done {
+                if !parse_results.done {
                     parsers.push((combinator_index, parser));
                 }
             }
@@ -82,13 +82,13 @@ impl ParserTrait for SeqParser {
             for right_data in right_data_vec {
                 let offset = right_data.position - self.position;
                 let combinator = &self.combinators[combinator_index];
-                let (parser, ParseResults { right_data_vec, done }) = combinator.parse(right_data, &bytes[offset..]);
+                let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
                 if combinator_index + 1 < self.combinators.len() {
-                    parser_initialization_queue.push((combinator_index + 1, right_data_vec));
+                    parser_initialization_queue.push((combinator_index + 1, parse_results.right_data_vec));
                 } else {
-                    final_right_data.extend(right_data_vec);
+                    final_right_data.extend(parse_results.right_data_vec);
                 }
-                if !done {
+                if !parse_results.done {
                     self.parsers.push((combinator_index, parser));
                 }
             }
