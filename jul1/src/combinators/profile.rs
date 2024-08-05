@@ -59,6 +59,7 @@ macro_rules! profile {
 
         let mut profile_data = $crate::GLOBAL_PROFILE_DATA.lock().unwrap();
         profile_data.pop_tag();
+        drop(profile_data);
         result
     }};
 }
@@ -80,7 +81,7 @@ impl CombinatorTrait for Profiled {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         profile!(&self.tag, {
             let (parser, parse_results) = self.inner.parse(right_data, bytes);
-                (parser, parse_results.squashed())
+            (parser, parse_results.squashed())
         })
     }
 }

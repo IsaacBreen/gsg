@@ -2,7 +2,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use kdam::tqdm;
 
-use crate::{CombinatorTrait, CombinatorTraitExt, GLOBAL_PROFILE_DATA, ParseResults, ParserTrait, ParserTraitExt, RightData, Squash};
+use crate::{CombinatorTrait, CombinatorTraitExt, GLOBAL_PROFILE_DATA, ParseResults, ParserTrait, ParserTraitExt, profile, RightData, Squash};
 
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
@@ -158,7 +158,11 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
 pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start_right_data = RightData::default();
-    let (parser, mut parse_results) = combinator.parse(start_right_data, &bytes);
+    let (parser, mut parse_results) = profile!("assert_parses_fast parse",
+        {
+            combinator.parse(start_right_data, &bytes)
+        }
+    );
     parse_results.squash();
     // Get the line and char number of the max position
     let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
