@@ -198,6 +198,14 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
         let percent = *hit_count as f64 / total_hit_count as f64 * 100.0;
         println!("{:>9} {:6.2}% {}", format!("{:.3?}", hit_count), percent, tag);
     }
+    // Duration per hit
+    println!("Duration per hit:");
+    let mut duration_per_hit: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    duration_per_hit.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
+    for (tag, duration) in duration_per_hit.clone() {
+        let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
+        println!("{:>9} {:6.2}% {}", format!("{:.3?}", duration), percent, tag);
+    }
     drop(profile_data);
 
     parse_results.squash();
