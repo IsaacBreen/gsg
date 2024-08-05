@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use derivative::Derivative;
 
-use crate::{CacheData, CacheFirstData, ForbidFollowsData, FrameStack, LookaheadData, ProfileData, PythonQuoteType};
+use crate::{CacheData, CacheFirstData, ForbidFollowsData, FrameStack, LookaheadData, PythonQuoteType};
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
@@ -17,16 +17,14 @@ pub struct RightData {
     #[derivative(Hash = "ignore")]
     pub forbidden_consecutive_matches: ForbidFollowsData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
-    pub cache_data: CacheData,
+    pub cache_ CacheData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
-    pub cache_first_data: CacheFirstData,
+    pub cache_first_ CacheFirstData,
     #[derivative(Hash = "ignore")]
-    pub lookahead_data: LookaheadData,
+    pub lookahead_ LookaheadData,
     pub position: usize,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub time: Rc<RefCell<u128>>,
-    #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
-    pub profile_data: ProfileData,
 }
 
 impl Default for RightData {
@@ -38,12 +36,11 @@ impl Default for RightData {
             scope_count: 0,
             fstring_start_stack: vec![],
             forbidden_consecutive_matches: ForbidFollowsData::default(),
-            cache_data: CacheData::default(),
-            cache_first_data: CacheFirstData::default(),
-            lookahead_data: LookaheadData::default(),
+            cache_ CacheData::default(),
+            cache_first_ CacheFirstData::default(),
+            lookahead_ LookaheadData::default(),
             position: 0,
             time: Rc::new(RefCell::new(0)),
-            profile_data: ProfileData::default(),
         }
     }
 }
