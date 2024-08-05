@@ -32,7 +32,7 @@ impl Squash for ParseResults {
     type Output = ParseResults;
     fn squashed(self) -> Self::Output {
         ParseResults {
-            right_data_vec: self.right_data_vec,
+            right_data_vec: self.right_data_vec.squashed(),
             done: self.done,
         }
     }
@@ -67,8 +67,8 @@ impl RightDataSquasher {
         existing_lookahead_data.has_omitted_partial_lookaheads &= lookahead_data.has_omitted_partial_lookaheads;
     }
 
-    pub fn extend(&mut self, right_data_vec: impl Into<RightDataSquasher>) {
-        for right_data in right_data_vec.into().finish() {
+    pub fn extend(&mut self, right_data_vec: Vec<RightData>) {
+        for right_data in right_data_vec {
             self.push(right_data);
         }
     }
