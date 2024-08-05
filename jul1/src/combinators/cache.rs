@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use derivative::Derivative;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile_internal, RightData, Squash, U8Set};
 
 #[derive(Clone, PartialEq, Default, Eq)]
 pub struct CacheData {
@@ -148,12 +148,12 @@ impl ParserTrait for CachedParser {
     }
 }
 
-pub fn cache_context(a: impl Into<Combinator>) -> CacheContext {
-    CacheContext { inner: Box::new(a.into()) }
+pub fn cache_context(a: impl Into<Combinator>) -> Combinator {
+    profile_internal("cache_context", CacheContext { inner: Box::new(a.into()) })
 }
 
-pub fn cached(a: impl Into<Combinator>) -> Cached {
-    Cached { inner: Rc::new(a.into()) }
+pub fn cached(a: impl Into<Combinator>) -> Combinator {
+    profile_internal("cached", Cached { inner: Rc::new(a.into()) })
 }
 
 impl From<CacheContext> for Combinator {

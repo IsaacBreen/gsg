@@ -144,7 +144,9 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
 
 pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
-    let (parser, mut parse_results) = combinator.parse(RightData::default(), &bytes);
+    let start_right_data = RightData::default();
+    let profile_data = start_right_data.profile_data.clone();
+    let (parser, mut parse_results) = combinator.parse(start_right_data, &bytes);
     parse_results.squash();
     // Get the line and char number of the max position
     let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
@@ -164,6 +166,16 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     // Get the right data with the highest position
     // Ensure the parser finished with right data at the end
     assert!(parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position == bytes.len(), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
+
+    // Print profile results
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    // Sort simply by duration
+    profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
+    println!("Profile results:");
+    for (tag, duration) in profile_vec.clone() {
+        // Print just duration and tag
+        println!("{:?} {}", duration, tag);
+    }
 }
 
 pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, tolerance: usize) {

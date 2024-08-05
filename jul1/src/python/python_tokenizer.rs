@@ -499,7 +499,7 @@ pub fn eat_char_digit() -> EatU8 {
     eat_char_choice("0123456789")
 }
 
-pub fn eat_until_terminator(terminator: char) -> Repeat1 {
+pub fn eat_until_terminator(terminator: char) -> Combinator {
     repeat1(eat_char_negation(terminator))
 }
 
