@@ -28,7 +28,6 @@ impl CombinatorTrait for Repeat1 {
 
         let mut next_right_data = right_data_vec.clone();
         while next_right_data.len() > 0 {
-            // next_right_data.squash();
             for new_right_data in std::mem::take(&mut next_right_data) {
                 let offset = new_right_data.position - right_data.position;
                 let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
@@ -43,8 +42,6 @@ impl CombinatorTrait for Repeat1 {
             }
             right_data_vec.extend(next_right_data.clone());
         }
-
-        // right_data_vec.squash();
 
         (
             Parser::Repeat1Parser(Repeat1Parser {
@@ -80,8 +77,6 @@ impl ParserTrait for Repeat1Parser {
             }
             right_data_as.extend(parse_results.right_data_vec);
         }
-
-        // right_data_as.squash();
 
         let mut i = 0;
         while i < right_data_as.len() {
