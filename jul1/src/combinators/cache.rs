@@ -4,8 +4,6 @@ use std::hash::{Hash, Hasher};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 
-use derivative::Derivative;
-
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile_internal, RightData, Squash, U8Set};
 
 #[derive(Clone, PartialEq, Default, Eq)]
@@ -16,17 +14,16 @@ pub struct CacheData {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheDataInner {
     pub new_parsers: HashMap<CacheKey, Rc<RefCell<CacheEntry>>>,
-    pub entries: Vec<Rc<RefCell<CacheEntry>>>,
+    pub entries: LruCache<CacheKey, Rc<RefCell<CacheEntry>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CacheKey {
     pub combinator: Rc<Combinator>,
     pub right_data: RightData,
 }
 
-#[derive(Derivative)]
-#[derivative(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheEntry {
     pub parser: Option<Box<Parser>>,
     pub maybe_parse_results: Option<ParseResults>,
@@ -35,6 +32,7 @@ pub struct CacheEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CacheContext {
     pub inner: Box<Combinator>,
+    pub capacity: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -49,23 +47,13 @@ pub struct CachedParser {
 
 impl Hash for CachedParser {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // Hash the pointer
         std::ptr::hash(self.entry.as_ref() as *const RefCell<CacheEntry>, state);
     }
 }
 
-impl Hash for CacheKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        std::mem::discriminant(self.combinator.as_ref()).hash(state);
-        self.right_data.hash(state);
-    }
-}
-
-#[derive(Derivative)]
-#[derivative(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheContextParser {
     pub inner: Box<Parser>,
-    #[derivative(PartialEq = "ignore", Hash = "ignore")]
     pub cache_data_inner: Rc<RefCell<CacheDataInner>>,
 }
 
@@ -73,7 +61,7 @@ impl CacheContextParser {
     fn cleanup(&mut self) {
         let mut cache_data_inner = self.cache_data_inner.borrow_mut();
         cache_data_inner.new_parsers.clear();
-        cache_data_inner.entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done);
+        cache_data_inner.entries.retain(|_, entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done);
     }
 }
 
@@ -82,11 +70,10 @@ impl CombinatorTrait for CacheContext {
         assert!(right_data.cache_data.inner.is_none(), "CacheContextParser already initialized");
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner {
             new_parsers: HashMap::new(),
-            entries: Vec::new(),
+            entries: LruCache::new(self.capacity),
         }));
         right_data.cache_data.inner = Some(cache_data_inner.clone());
         let (parser, results) = self.inner.parse(right_data, bytes);
-        cache_data_inner.borrow_mut().entries.reverse();
         let mut cache_context_parser = CacheContextParser { inner: Box::new(parser), cache_data_inner };
         cache_context_parser.cleanup();
         (Parser::CacheContextParser(cache_context_parser), results)
@@ -99,19 +86,19 @@ impl ParserTrait for CacheContextParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        self.cache_data_inner.borrow_mut().entries.iter_mut().for_each(|entry| {
+        let mut cache_data_inner = self.cache_data_inner.borrow_mut();
+        for entry in cache_data_inner.entries.values_mut() {
             entry.borrow_mut().maybe_parse_results.take();
-        });
-        let num_entries_initial = self.cache_data_inner.borrow().entries.len().clone();
-        for i in (0..num_entries_initial).rev() {
-            let entry = self.cache_data_inner.borrow().entries[i].clone();
+        }
+        let keys: Vec<_> = cache_data_inner.entries.keys().cloned().collect();
+        for key in keys.iter().rev() {
+            let entry = cache_data_inner.entries.get(key).unwrap().clone();
             let parse_results = catch_unwind(AssertUnwindSafe(|| entry.borrow_mut().parser.as_mut().unwrap().parse(bytes))).expect("CacheContextParser.steps: parse_results is None");
             entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
+            cache_data_inner.entries.get(key); // Move to front
         }
+        drop(cache_data_inner);
         let parse_result = self.inner.parse(bytes);
-        let mut new_entries = self.cache_data_inner.borrow_mut().entries.split_off(num_entries_initial);
-        new_entries.reverse();
-        self.cache_data_inner.borrow_mut().entries.append(&mut new_entries);
         self.cleanup();
         parse_result
     }
@@ -120,7 +107,8 @@ impl ParserTrait for CacheContextParser {
 impl CombinatorTrait for Cached {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
-        if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.get(&key).cloned() {
+        let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
+        if let Some(entry) = cache_data_inner.entries.get(&key).cloned() {
             let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
             return (Parser::CachedParser(CachedParser { entry }), parse_results);
         }
@@ -128,11 +116,12 @@ impl CombinatorTrait for Cached {
             parser: None,
             maybe_parse_results: None,
         }));
+        drop(cache_data_inner);
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         parse_results.squash();
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.insert(key.clone(), entry.clone());
-        cache_data_inner.entries.push(entry.clone());
+        cache_data_inner.entries.insert(key, entry.clone());
         entry.borrow_mut().parser = Some(Box::new(parser));
         entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
         (Parser::CachedParser(CachedParser { entry }), parse_results)
@@ -149,8 +138,8 @@ impl ParserTrait for CachedParser {
     }
 }
 
-pub fn cache_context(a: impl Into<Combinator>) -> Combinator {
-    profile_internal("cache_context", CacheContext { inner: Box::new(a.into()) })
+pub fn cache_context(a: impl Into<Combinator>, capacity: usize) -> Combinator {
+    profile_internal("cache_context", CacheContext { inner: Box::new(a.into()), capacity })
 }
 
 pub fn cached(a: impl Into<Combinator>) -> Combinator {
@@ -166,5 +155,75 @@ impl From<CacheContext> for Combinator {
 impl From<Cached> for Combinator {
     fn from(value: Cached) -> Self {
         Combinator::Cached(value)
+    }
+}
+
+// LRU Cache implementation
+struct LruCache<K, V> {
+    map: HashMap<K, (V, usize)>,
+    order: Vec<K>,
+    capacity: usize,
+    counter: usize,
+}
+
+impl<K: Clone + Eq + Hash, V> LruCache<K, V> {
+    fn new(capacity: usize) -> Self {
+        LruCache {
+            map: HashMap::new(),
+            order: Vec::new(),
+            capacity,
+            counter: 0,
+        }
+    }
+
+    fn get(&mut self, key: &K) -> Option<&V> {
+        if let Some((value, count)) = self.map.get_mut(key) {
+            self.counter += 1;
+            *count = self.counter;
+            self.update_order();
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    fn insert(&mut self, key: K, value: V) {
+        self.counter += 1;
+        if self.map.len() >= self.capacity {
+            if let Some(lru_key) = self.order.pop() {
+                self.map.remove(&lru_key);
+            }
+        }
+        self.map.insert(key.clone(), (value, self.counter));
+        self.order.push(key);
+        self.update_order();
+    }
+
+    fn update_order(&mut self) {
+        self.order.sort_by(|a, b| {
+            let count_a = self.map.get(a).map(|(_, count)| count).unwrap_or(&0);
+            let count_b = self.map.get(b).map(|(_, count)| count).unwrap_or(&0);
+            count_b.cmp(count_a)
+        });
+    }
+
+    fn values(&self) -> impl Iterator<Item = &V> {
+        self.map.values().map(|(v, _)| v)
+    }
+
+    fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
+        self.map.values_mut().map(|(v, _)| v)
+    }
+
+    fn keys(&self) -> impl Iterator<Item = &K> {
+        self.order.iter()
+    }
+
+    fn retain<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&K, &mut V) -> bool,
+    {
+        self.map.retain(|k, (v, _)| f(k, v));
+        self.order.retain(|k| self.map.contains_key(k));
     }
 }
