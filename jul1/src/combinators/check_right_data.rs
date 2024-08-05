@@ -60,7 +60,7 @@ impl CombinatorTrait for CheckRightData {
             (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::new(right_data, true))
         } else {
             (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults {
-                right_data_vec: vec![],
+                right_data_vec: vec![].into(),
                 done: true,
             })
         }

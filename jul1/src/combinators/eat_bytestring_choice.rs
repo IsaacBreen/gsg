@@ -40,7 +40,7 @@ impl BuildTrieNode {
         TrieNode {
             valid_bytes: self.valid_bytes,
             is_end: self.is_end,
-            children,
+            children: children.into(),
         }
     }
 }
@@ -49,7 +49,7 @@ impl BuildTrieNode {
 struct TrieNode {
     valid_bytes: U8Set,
     is_end: bool,
-    children: Vec<Rc<TrieNode>>,
+    children: smallvec::SmallVec<[Rc<TrieNode>; 8]>,
 }
 
 impl Debug for TrieNode {
@@ -136,7 +136,7 @@ impl ParserTrait for EatByteStringChoiceParser {
         }
 
         ParseResults {
-            right_data_vec,
+            right_data_vec: right_data_vec.into(),
             done,
         }
     }

@@ -17,7 +17,7 @@ pub struct Seq {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
     pub(crate) parsers: Vec<(usize, Parser)>,
-    pub(crate) combinators: Rc<Vec<Combinator>>,
+    pub(crate) combinators: Rc<smallvec::SmallVec<[Combinator; 8]>>,
     pub(crate) position: usize,
 }
 
@@ -74,8 +74,8 @@ impl ParserTrait for SeqParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut final_right_data: Vec<RightData> = vec![];
-        let mut parser_initialization_queue: Vec<(usize, Vec<RightData>)> = vec![];
+        let mut final_right_data: smallvec::SmallVec<[RightData; 8]> = smallvec::SmallVec::new();
+        let mut parser_initialization_queue: smallvec::SmallVec<[(usize, smallvec::SmallVec<[RightData; 8]>); 8]> = smallvec::smallvec![];
 
         self.parsers.retain_mut(|(combinator_index, parser)| {
             let ParseResults { right_data_vec, done } = parser.parse(bytes);
@@ -88,7 +88,6 @@ impl ParserTrait for SeqParser {
         });
 
         while let Some((combinator_index, mut right_data_vec)) = parser_initialization_queue.pop() {
-            right_data_vec.squash();
             for right_data in right_data_vec {
                 let offset = right_data.position - self.position;
                 let combinator = &self.combinators[combinator_index];
@@ -115,7 +114,7 @@ impl ParserTrait for SeqParser {
 
 pub fn _seq(v: Vec<Combinator>) -> Combinator {
     profile_internal("seq", Seq {
-        children: Rc::new(v),
+        children: Rc::new(v.into()),
     })
 }
 

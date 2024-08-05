@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
+use smallvec::Array;
 use crate::{LookaheadData, ParseResults, profile, RightData, U8Set};
 
 // macro_rules! profile {
@@ -37,7 +38,27 @@ impl Squash for Vec<RightData> {
     }
     fn squash(&mut self) {
         if self.len() > SQUASH_THRESHOLD {
-            *self = self.drain(..).collect::<smallvec::SmallVec<[RightData; 8]>>().squashed()
+            *self = self.drain(..).collect::<Vec<RightData>>().squashed()
+        }
+    }
+}
+
+impl<A: Array<Item = RightData>> Squash for smallvec::SmallVec<A> {
+    type Output = Self;
+    fn squashed(self) -> Self::Output {
+        if self.len() > SQUASH_THRESHOLD {
+            profile!("RightDataSquasher::squashed", {
+                let mut squasher = RightDataSquasher::new();
+                squasher.extend(self.into_iter());
+                squasher.finish().into()
+            })
+        } else {
+            self
+        }
+    }
+    fn squash(&mut self) {
+        if self.len() > SQUASH_THRESHOLD {
+            *self = self.drain(..).collect::<Vec<RightData>>().squashed().into()
         }
     }
 }
@@ -82,7 +103,7 @@ impl RightDataSquasher {
         existing_lookahead_data.has_omitted_partial_lookaheads &= lookahead_data.has_omitted_partial_lookaheads;
     }
 
-    pub fn extend(&mut self, right_data_vec: Vec<RightData>) {
+    pub fn extend(&mut self, right_data_vec: impl IntoIterator<Item = RightData>) {
         profile!("RightDataSquasher::extend", {
         for right_data in right_data_vec {
             self.push(right_data);

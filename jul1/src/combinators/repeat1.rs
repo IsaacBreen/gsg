@@ -78,8 +78,6 @@ impl ParserTrait for Repeat1Parser {
             right_data_as.extend(parse_results.right_data_vec);
         }
 
-        right_data_as.squash();
-
         let mut i = 0;
         while i < right_data_as.len() {
             let right_data_a = right_data_as[i].clone();

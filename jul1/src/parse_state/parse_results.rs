@@ -2,26 +2,26 @@ use crate::{RightData, Squash};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParseResults {
-    pub right_data_vec: Vec<RightData>,
+    pub right_data_vec: smallvec::SmallVec<[RightData; 8]>,
     pub done: bool,
 }
 
 impl ParseResults {
     pub fn new(right_data: RightData, done: bool) -> Self {
         ParseResults {
-            right_data_vec: vec![right_data],
+            right_data_vec: vec![right_data].into(),
             done,
         }
     }
     pub fn empty_unfinished() -> Self {
         ParseResults {
-            right_data_vec: vec![],
+            right_data_vec: vec![].into(),
             done: false,
         }
     }
     pub fn empty_finished() -> Self {
         ParseResults {
-            right_data_vec: vec![],
+            right_data_vec: vec![].into(),
             done: true,
         }
     }
