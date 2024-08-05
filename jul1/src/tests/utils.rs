@@ -64,15 +64,17 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         timings.push((line.to_string(), Instant::now() - line_start));
     }
 
+
     // Print profile results
     let profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
     let mut profile_vec: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let total_time = profile_data.timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
-        // Print just duration and tag
-        println!("{:?} {}", duration, tag);
+        let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
+        println!("{:?} {:.2}% {}", duration, percent, tag);
     }
 
     // Print timing results
@@ -142,12 +144,13 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
 
     // Print profile results
     let mut profile_vec: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let total_time = profile_data.timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
-        // Print just duration and tag
-        println!("{:?} {}", duration, tag);
+        let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
+        println!("{:?} {:.2}% {}", duration, percent, tag);
     }
 }
 
@@ -173,12 +176,13 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     // Print profile results
     let profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
     let mut profile_vec: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let total_time = profile_data.timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
-        // Print just duration and tag
-        println!("{:?} {}", duration, tag);
+        let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
+        println!("{:?} {:.2}% {}", duration, percent, tag);
     }
 
     parse_results.squash();
@@ -216,12 +220,13 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
 
     // Print profile results
     let mut profile_vec: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let total_time = profile_data.timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
-        // Print just duration and tag
-        println!("{:?} {}", duration, tag);
+        let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
+        println!("{:?} {:.2}% {}", duration, percent, tag);
     }
 
     // todo: uncomment this for unambiguous parses
