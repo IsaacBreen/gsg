@@ -270,8 +270,8 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
                 return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
             case Ref(_) | Term(_) | EpsExternal(_):
                 return node
-            case Lookahead(child):
-                return lookahead(intersperse_separator_for_node(child, separator, nullable_rules))
+            case Lookahead(child, positive):
+                return Lookahead(intersperse_separator_for_node(child, separator, nullable_rules), positive)
             case _:
                 raise ValueError(f"Unexpected node: {node}")
     except ValueError as e:
@@ -291,8 +291,8 @@ def inject_prefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: 
                 return seq(*children)
             case EpsExternal(_):
                 return node
-            case Lookahead(child):
-                return node
+            case Lookahead(child, positive):
+                return Lookahead(inject_prefix_on_nonnull_for_node(child, prefix, nullable_rules), positive)
             case _:
                 raise ValueError(f"Unexpected nullable node: {node}")
     except ValueError as e:
@@ -312,8 +312,8 @@ def inject_suffix_on_nonnull_for_node(node: Node, suffix: Node, nullable_rules: 
                 return seq(*children)
             case EpsExternal(_):
                 return node
-            case Lookahead(child):
-                return node
+            case Lookahead(child, positive):
+                return Lookahead(inject_suffix_on_nonnull_for_node(child, suffix, nullable_rules), positive)
             case _:
                 raise ValueError(f"Unexpected nullable node: {node}")
     except ValueError as e:
@@ -1183,3 +1183,12 @@ if __name__ == '__main__':
     for r, follow_set in get_follows(rules).items():
         print(f'{r} -> {follow_set}')
     assert ref('FSTRING_MIDDLE') in get_follows(rules)[ref('fstring_middle')]
+
+    # Intersperse separators with lookaheads
+    rules = make_rules(
+        A=seq(term('a'), lookahead(term('b')), term('c')),
+    )
+    print("before interspersing separators:")
+    prettify_rules(rules)
+    print("after interspersing separators:")
+    prettify_rules(intersperse_separator(rules, ref('WS')))
