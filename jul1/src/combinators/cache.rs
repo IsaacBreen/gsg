@@ -3,15 +3,17 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
-
+use derivative::Derivative;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile_internal, RightData, Squash, U8Set};
 
-#[derive(Clone, PartialEq, Default, Eq)]
+#[derive(Clone, Default)]
+#[derive(Derivative)]
+#[derivative(Debug, PartialEq, Eq, Hash)]
 pub struct CacheData {
+    #[derivative(Debug = "ignore", PartialEq = "ignore", Hash = "ignore")]
     pub inner: Option<Rc<RefCell<CacheDataInner>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheDataInner {
     pub new_parsers: HashMap<CacheKey, Rc<RefCell<CacheEntry>>>,
     pub entries: LruCache<CacheKey, Rc<RefCell<CacheEntry>>>,
@@ -51,10 +53,19 @@ impl Hash for CachedParser {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone)]
+#[derive(Derivative)]
+#[derivative(Debug, PartialEq, Eq)]
 pub struct CacheContextParser {
     pub inner: Box<Parser>,
+    #[derivative(Debug = "ignore", PartialEq = "ignore")]
     pub cache_data_inner: Rc<RefCell<CacheDataInner>>,
+}
+
+impl Hash for CacheContextParser {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.cache_data_inner.as_ref() as *const RefCell<CacheDataInner>, state);
+    }
 }
 
 impl CacheContextParser {
@@ -138,8 +149,8 @@ impl ParserTrait for CachedParser {
     }
 }
 
-pub fn cache_context(a: impl Into<Combinator>, capacity: usize) -> Combinator {
-    profile_internal("cache_context", CacheContext { inner: Box::new(a.into()), capacity })
+pub fn cache_context(a: impl Into<Combinator>) -> Combinator {
+    profile_internal("cache_context", CacheContext { inner: Box::new(a.into()), capacity: 100 })
 }
 
 pub fn cached(a: impl Into<Combinator>) -> Combinator {
@@ -159,7 +170,7 @@ impl From<Cached> for Combinator {
 }
 
 // LRU Cache implementation
-struct LruCache<K, V> {
+pub struct LruCache<K, V> {
     map: HashMap<K, (V, usize)>,
     order: Vec<K>,
     capacity: usize,
@@ -167,7 +178,7 @@ struct LruCache<K, V> {
 }
 
 impl<K: Clone + Eq + Hash, V> LruCache<K, V> {
-    fn new(capacity: usize) -> Self {
+    pub fn new(capacity: usize) -> Self {
         LruCache {
             map: HashMap::new(),
             order: Vec::new(),
@@ -176,18 +187,21 @@ impl<K: Clone + Eq + Hash, V> LruCache<K, V> {
         }
     }
 
-    fn get(&mut self, key: &K) -> Option<&V> {
+    pub fn get(&mut self, key: &K) -> Option<&V> {
         if let Some((value, count)) = self.map.get_mut(key) {
             self.counter += 1;
             *count = self.counter;
+            // Update the order after releasing the borrow on 'value'
+            drop(value);
             self.update_order();
-            Some(value)
+            // Get the value again after the order update
+            self.map.get(key).map(|(v, _)| v)
         } else {
             None
         }
     }
 
-    fn insert(&mut self, key: K, value: V) {
+    pub fn insert(&mut self, key: K, value: V) {
         self.counter += 1;
         if self.map.len() >= self.capacity {
             if let Some(lru_key) = self.order.pop() {
@@ -199,7 +213,7 @@ impl<K: Clone + Eq + Hash, V> LruCache<K, V> {
         self.update_order();
     }
 
-    fn update_order(&mut self) {
+    pub fn update_order(&mut self) {
         self.order.sort_by(|a, b| {
             let count_a = self.map.get(a).map(|(_, count)| count).unwrap_or(&0);
             let count_b = self.map.get(b).map(|(_, count)| count).unwrap_or(&0);
@@ -207,19 +221,19 @@ impl<K: Clone + Eq + Hash, V> LruCache<K, V> {
         });
     }
 
-    fn values(&self) -> impl Iterator<Item = &V> {
+    pub fn values(&self) -> impl Iterator<Item = &V> {
         self.map.values().map(|(v, _)| v)
     }
 
-    fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
         self.map.values_mut().map(|(v, _)| v)
     }
 
-    fn keys(&self) -> impl Iterator<Item = &K> {
+    pub fn keys(&self) -> impl Iterator<Item = &K> {
         self.order.iter()
     }
 
-    fn retain<F>(&mut self, mut f: F)
+    pub fn retain<F>(&mut self, mut f: F)
     where
         F: FnMut(&K, &mut V) -> bool,
     {

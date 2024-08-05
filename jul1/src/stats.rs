@@ -260,7 +260,7 @@ impl Parser {
             }
             Parser::CacheContextParser(CacheContextParser { inner, cache_data_inner, .. }) => {
                 inner.collect_stats(stats, current_tag);
-                for entry in cache_data_inner.borrow().entries.iter() {
+                for entry in cache_data_inner.borrow().entries.values() {
                     entry.borrow().parser.as_ref().map(|p| p.collect_stats(stats, current_tag));
                 }
             }
