@@ -1,10 +1,4 @@
-use crate::{
-    Combinator, EatU8, RightData, check_right_data, mutate_right_data,
-    eps, fail, seq, eat_byte_range, eat_bytestring_choice,
-    eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice,
-    eat_string, exclude_strings, Repeat1, forbid_follows_clear,
-    negative_lookahead, dedent, dent, indent,
-};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, eat};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -67,7 +61,8 @@ pub fn whitespace() -> Combinator {
 }
 
 pub fn WS() -> Combinator {
-    whitespace()
+    // whitespace()
+    fail().into()
 }
 
 pub fn python_literal(s: &str) -> Combinator {
@@ -369,7 +364,8 @@ pub fn reserved_keywords() -> Vec<&'static str> {
 }
 
 pub fn NAME() -> Combinator {
-    exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
+    // exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
+    eat("x").into()
 }
 
 // .. _literals:
