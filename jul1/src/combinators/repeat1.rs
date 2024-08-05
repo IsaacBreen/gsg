@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set};
-use crate::combinators::derived::opt;
+use crate::opt;
 use crate::parse_state::RightData;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Repeat1 {
