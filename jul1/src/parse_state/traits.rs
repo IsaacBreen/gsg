@@ -78,12 +78,14 @@ impl RightDataSquasher {
     }
 
     pub fn finish(self) -> Vec<RightData> {
-        let mut result = vec![];
-        for (mut right_data, lookahead_data) in self.decomposed {
-            right_data.lookahead_data = lookahead_data;
-            result.push(right_data);
-        }
-        result
+        profile!("RightDataSquasher::finish", {
+            let mut result = vec![];
+            for (mut right_data, lookahead_data) in self.decomposed {
+                right_data.lookahead_data = lookahead_data;
+                result.push(right_data);
+            }
+            result
+        })
     }
 }
 
