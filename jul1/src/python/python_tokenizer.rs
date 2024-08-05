@@ -3,7 +3,7 @@ use crate::{
     eps, fail, seq, eat_byte_range, eat_bytestring_choice,
     eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice,
     eat_string, exclude_strings, Repeat1, forbid_follows_clear,
-    negative_lookahead, dedent, dent, indent,
+    negative_lookahead, dedent, dent, indent, eat,
 };
 
 use crate::{
@@ -1046,7 +1046,7 @@ pub fn DEDENT() -> Combinator {
 }
 
 pub fn ENDMARKER() -> Combinator {
-    eps().into()
+    eat('\0').into()
 }
 
 pub fn TYPE_COMMENT() -> Combinator {
