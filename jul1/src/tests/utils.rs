@@ -74,7 +74,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
-        println!("{:>10?} {:>6.2}% {:<20}", duration, percent, tag);
+        println!("{:6.3?} {:6.2}% {}", duration, percent, tag);
     }
 
     // Print timing results
@@ -150,7 +150,7 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
-        println!("{:>10?} {:>6.2}% {:<20}", duration, percent, tag);
+        println!("{:6.3?} {:6.2}% {}", duration, percent, tag);
     }
 }
 
@@ -182,7 +182,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
-        println!("{:>10?} {:>6.2}% {:<20}", duration, percent, tag);
+        println!("{:6.3?} {:6.2}% {}", duration, percent, tag);
     }
 
     parse_results.squash();
@@ -226,7 +226,7 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
     println!("Profile results:");
     for (tag, duration) in profile_vec.clone() {
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
-        println!("{:>10?} {:>6.2}% {:<20}", duration, percent, tag);
+        println!("{:6.3?} {:6.2}% {}", duration, percent, tag);
     }
 
     // todo: uncomment this for unambiguous parses
