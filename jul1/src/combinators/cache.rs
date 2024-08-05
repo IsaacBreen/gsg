@@ -132,7 +132,9 @@ impl CombinatorTrait for Cached {
         parse_results.squash();
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.insert(key.clone(), entry.clone());
-        cache_data_inner.entries.push(entry.clone());
+        if !parse_results.done {
+            cache_data_inner.entries.push(entry.clone());
+        }
         entry.borrow_mut().parser = Some(Box::new(parser));
         entry.borrow_mut().maybe_parse_results = Some(parse_results.clone());
         (Parser::CachedParser(CachedParser { entry }), parse_results)
