@@ -160,12 +160,6 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
             char_number += 1;
         }
     }
-    println!("max_position: {max_position}, line_number: {line_number}, char_number: {char_number}");
-    // todo: uncomment this for unambiguous parses
-    // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
-    // Get the right data with the highest position
-    // Ensure the parser finished with right data at the end
-    assert!(parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position == bytes.len(), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
 
     // Print profile results
     let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
@@ -176,6 +170,16 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
         // Print just duration and tag
         println!("{:?} {}", duration, tag);
     }
+
+    parse_results.squash();
+
+    println!("max_position: {max_position}, line_number: {line_number}, char_number: {char_number}");
+    // todo: uncomment this for unambiguous parses
+    // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
+    // Get the right data with the highest position
+    // Ensure the parser finished with right data at the end
+    assert!(parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position == bytes.len(), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
+
 }
 
 pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, tolerance: usize) {
