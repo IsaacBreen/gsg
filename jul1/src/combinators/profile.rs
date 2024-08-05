@@ -43,8 +43,8 @@ impl ProfileDataInner {
         if let Some(tag) = profile_data.tag_stack.pop() {
             let elapsed = now.duration_since(profile_data.start_time);
             *profile_data.timings.entry(tag).or_default() += elapsed;
-            profile_data.start_time = Instant::now();
         }
+        profile_data.start_time = Instant::now();
     }
 }
 
