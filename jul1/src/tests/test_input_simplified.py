@@ -93,7 +93,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -136,7 +136,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -173,39 +173,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -223,7 +223,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -231,26 +231,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -258,21 +258,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -286,13 +286,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -333,7 +333,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -383,7 +383,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -391,7 +391,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -399,14 +399,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -421,11 +421,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -450,23 +450,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -563,7 +563,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -606,7 +606,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -643,39 +643,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -693,7 +693,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -701,26 +701,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -728,21 +728,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -756,13 +756,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -803,7 +803,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -853,7 +853,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -861,7 +861,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -869,14 +869,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -891,11 +891,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -920,23 +920,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -1033,7 +1033,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -1076,7 +1076,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -1113,39 +1113,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -1163,7 +1163,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -1171,26 +1171,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -1198,21 +1198,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -1226,13 +1226,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -1273,7 +1273,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -1323,7 +1323,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -1331,7 +1331,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -1339,14 +1339,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -1361,11 +1361,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -1390,23 +1390,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -1503,7 +1503,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -1546,7 +1546,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -1583,39 +1583,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -1633,7 +1633,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -1641,26 +1641,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -1668,21 +1668,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -1696,13 +1696,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -1743,7 +1743,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -1793,7 +1793,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -1801,7 +1801,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -1809,14 +1809,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -1831,11 +1831,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -1860,23 +1860,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -1973,7 +1973,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -2016,7 +2016,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -2053,39 +2053,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -2103,7 +2103,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -2111,26 +2111,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -2138,21 +2138,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -2166,13 +2166,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -2213,7 +2213,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -2263,7 +2263,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -2271,7 +2271,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -2279,14 +2279,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -2301,11 +2301,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -2330,23 +2330,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -2443,7 +2443,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -2486,7 +2486,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -2523,39 +2523,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -2573,7 +2573,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -2581,26 +2581,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -2608,21 +2608,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -2636,13 +2636,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -2683,7 +2683,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -2733,7 +2733,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -2741,7 +2741,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -2749,14 +2749,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -2771,11 +2771,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -2800,23 +2800,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -2913,7 +2913,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -2956,7 +2956,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -2993,39 +2993,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -3043,7 +3043,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -3051,26 +3051,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -3078,21 +3078,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -3106,13 +3106,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -3153,7 +3153,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -3203,7 +3203,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -3211,7 +3211,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -3219,14 +3219,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -3241,11 +3241,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -3270,23 +3270,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -3383,7 +3383,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -3426,7 +3426,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -3463,39 +3463,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -3513,7 +3513,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -3521,26 +3521,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -3548,21 +3548,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -3576,13 +3576,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -3623,7 +3623,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -3673,7 +3673,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -3681,7 +3681,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -3689,14 +3689,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -3711,11 +3711,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -3740,23 +3740,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -3853,7 +3853,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -3896,7 +3896,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -3933,39 +3933,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -3983,7 +3983,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -3991,26 +3991,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -4018,21 +4018,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -4046,13 +4046,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -4093,7 +4093,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -4143,7 +4143,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -4151,7 +4151,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -4159,14 +4159,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -4181,11 +4181,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -4210,23 +4210,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -4323,7 +4323,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -4366,7 +4366,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -4403,39 +4403,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -4453,7 +4453,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -4461,26 +4461,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -4488,21 +4488,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -4516,13 +4516,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -4563,7 +4563,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -4613,7 +4613,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -4621,7 +4621,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -4629,14 +4629,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -4651,11 +4651,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -4680,23 +4680,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -4793,7 +4793,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -4836,7 +4836,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -4873,39 +4873,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -4923,7 +4923,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -4931,26 +4931,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -4958,21 +4958,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -4986,13 +4986,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -5033,7 +5033,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -5083,7 +5083,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -5091,7 +5091,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -5099,14 +5099,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -5121,11 +5121,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -5150,23 +5150,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -5263,7 +5263,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -5306,7 +5306,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -5343,39 +5343,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -5393,7 +5393,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -5401,26 +5401,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -5428,21 +5428,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -5456,13 +5456,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -5503,7 +5503,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -5553,7 +5553,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -5561,7 +5561,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -5569,14 +5569,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -5591,11 +5591,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -5620,23 +5620,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -5733,7 +5733,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -5776,7 +5776,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -5813,39 +5813,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -5863,7 +5863,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -5871,26 +5871,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -5898,21 +5898,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -5926,13 +5926,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -5973,7 +5973,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -6023,7 +6023,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -6031,7 +6031,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -6039,14 +6039,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -6061,11 +6061,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -6090,23 +6090,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -6203,7 +6203,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -6246,7 +6246,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -6283,39 +6283,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -6333,7 +6333,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -6341,26 +6341,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -6368,21 +6368,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -6396,13 +6396,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -6443,7 +6443,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -6493,7 +6493,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -6501,7 +6501,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -6509,14 +6509,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -6531,11 +6531,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -6560,23 +6560,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -6673,7 +6673,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -6716,7 +6716,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -6753,39 +6753,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -6803,7 +6803,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -6811,26 +6811,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -6838,21 +6838,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -6866,13 +6866,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -6913,7 +6913,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -6963,7 +6963,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -6971,7 +6971,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -6979,14 +6979,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -7001,11 +7001,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -7030,23 +7030,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -7143,7 +7143,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -7186,7 +7186,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -7223,39 +7223,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -7273,7 +7273,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -7281,26 +7281,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -7308,21 +7308,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -7336,13 +7336,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -7383,7 +7383,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -7433,7 +7433,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -7441,7 +7441,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -7449,14 +7449,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -7471,11 +7471,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -7500,23 +7500,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -7613,7 +7613,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -7656,7 +7656,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -7693,39 +7693,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -7743,7 +7743,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -7751,26 +7751,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -7778,21 +7778,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -7806,13 +7806,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -7853,7 +7853,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -7903,7 +7903,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -7911,7 +7911,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -7919,14 +7919,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -7941,11 +7941,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -7970,23 +7970,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -8083,7 +8083,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -8126,7 +8126,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -8163,39 +8163,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -8213,7 +8213,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -8221,26 +8221,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -8248,21 +8248,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -8276,13 +8276,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -8323,7 +8323,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -8373,7 +8373,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -8381,7 +8381,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -8389,14 +8389,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -8411,11 +8411,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -8440,23 +8440,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -8553,7 +8553,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -8596,7 +8596,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -8633,39 +8633,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -8683,7 +8683,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -8691,26 +8691,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -8718,21 +8718,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -8746,13 +8746,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -8793,7 +8793,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -8843,7 +8843,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -8851,7 +8851,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -8859,14 +8859,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -8881,11 +8881,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -8910,23 +8910,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -9023,7 +9023,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -9066,7 +9066,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -9103,39 +9103,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -9153,7 +9153,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -9161,26 +9161,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -9188,21 +9188,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -9216,13 +9216,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -9263,7 +9263,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -9313,7 +9313,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -9321,7 +9321,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -9329,14 +9329,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -9351,11 +9351,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -9380,23 +9380,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -9493,7 +9493,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -9536,7 +9536,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -9573,39 +9573,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -9623,7 +9623,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -9631,26 +9631,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -9658,21 +9658,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -9686,13 +9686,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -9733,7 +9733,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -9783,7 +9783,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -9791,7 +9791,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -9799,14 +9799,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -9821,11 +9821,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -9850,23 +9850,23 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
 import a
 import a
@@ -9963,7 +9963,7 @@ def a(a: a.a.a, a: a = True, a: a = True) -> a[a.a, a.a]:
             #
             return a.a()
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a.a():
@@ -10006,7 +10006,7 @@ def a(a: a[a.a, a.a]) -> a.a.a:
         elif a(a, a.a):
             return a.a.a(a(a.a))
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     a = {}
     for a, a in a.a():
@@ -10043,39 +10043,39 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
             if a[0] == a[-0] in {"", ""}:
                 a = a[0:-0]
             else:
-                raise a(ff{a}f)
-            return ff{a}ff
+                raise a(f"{a}")
+            return f'{a}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}f{a(a.a)}ff
+            return f'{a(a.a)}{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f'{a(a.a)}'
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return a(a.a)
         elif a(a, a.a.a):
-            return ff{a(a.a)}ff
+            return f"{a(a.a)}"
         elif a(a, a.a.a):
-            a.a(ff{a}f)
+            a.a(f"{a}")
             return ""
         elif a(a, a.a.a):
             return a(a)
         elif a(a, a.a.a):
             return ""
         else:
-            raise a(ff{type(a)}f)
+            raise a(f"{type(a)}")
 
     def a(a: a) -> a:
         if a:
-            return ff{a}ff
+            return f'{a}'
         else:
-            return ff{a}f
+            return f'{a}'
 
     a = False
 
@@ -10093,7 +10093,7 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
 
     a.a("")
     for a in a:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     a.a("")
 
@@ -10101,26 +10101,26 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a in a:
-            a = ff{a}ff
-            a = f{a}ff
+            a = f'{a}'
+            a = f'{a}'
 
             a = a.a(a)
             if a in a and a(a in a for a in a.a()):
-                a = ff{a}f{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a in a:
-                a = ff{a}f{"".a(ff{a.a}ff for a in a.a(a, []))}ff
+                a = f'{a}{"".a(f'{a.a}' for a in a.a(a, []))}'
             elif a(a in a for a in a.a()):
-                a = ff{a}f{a}ff
+                a = f'{a}{a}'
             else:
-                a = ff{a}ff
-            a = ff{a}f{a}ff
+                a = f'{a}'
+            a = f'{a}{a}'
             #
-            a = ff{a}ff
+            a = f'{a}'
             if a:
                 a.a("" + a + "" + a + "")
             else:
-                a = ff{a}ff
-                a.a(ff{a}f{a}ff)
+                a = f'{a}'
+                a.a(f'{a}{a}')
         a.a("")
         return a.a()
 
@@ -10128,21 +10128,21 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a = a.a()
         a.a("")
         for a, a in a:
-            a.a(f{a}ff)
+            a.a(f'{a}')
         a.a("")
         for a, a in a:
             a = a(a.a, a=True)
-            a = ff{a}f{a}ff
+            a = f'{a}{a}'
             if a.a:
-                a = ff{a}ff
+                a = f'{a}'
             if a:
-                a = f{a}ff
+                a = f'{a}'
                 a.a("" + a + "")
-                a.a(f{a.a(a, "")}ff)
+                a.a(f'{a.a(a, "")}')
                 a.a("")
                 a.a("")
             else:
-                a.a(ff{a}f{a}f{a}ff)
+                a.a(f'{a}{a}{a}')
         a.a("")
         return a.a()
 
@@ -10156,13 +10156,13 @@ def a(a: a.a.a, a: a[a.a, a[a.a]]) -> a:
         a.a(a.a(a(), ""))
         a.a(a.a(a(), ""))
 
-    a = ff{a("")}f{a("")}ff
-    a = ff{a}ff
+    a = f'{a("")}{a("")}'
+    a = f'{a}'
 
     if a(a.a for a, a in a):
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     else:
-        a.a(ff{a}ff)
+        a.a(f'{a}')
     a.a("")
     return a.a()
 
@@ -10203,7 +10203,7 @@ if a == "":
     #
     #
     a = [a.a for a, a in a.a() if a == a.a()]
-    assert a(a) == 0, ff{a}f
+    assert a(a) == 0, f"{a}"
 
     #
     a = a.a(a)
@@ -10253,7 +10253,7 @@ if a == "":
         a = [a for a in a if a(a, a.a)]
         a = [a for a in a if a(a, a.a)]
         #
-        a(ff{a.a}ff, a="")
+        a(f"{a.a}", a="")
         a = a(a.a)
         a = 0
         if a(a) > 0:
@@ -10261,7 +10261,7 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
             a = 0
         if a(a) > 0:
@@ -10269,14 +10269,14 @@ if a == "":
             a("" * (a - a), a="")
             a("", a="")
             for a in a:
-                a(ff{a.a}ff, a="")
+                a(f"{a.a}", a="")
             a()
         if a(a) == a(a) == 0:
             a()
 
-    a(fff)
+    a(f"")
     for a in a:
-        a(ff{a.a}f)
+        a(f"{a.a}")
 
     #
     a = {}
@@ -10291,11 +10291,11 @@ if a == "":
 
     a("")
     for a, a in a(a.a(), a=lambda a: a[0]):
-        a(ff{a.a}f{a}f)
+        a(f"{a.a}{a}")
 
     #
     a = a.a(a)
-    a(fff)
+    a(f"")
     for a, a in a(a.a(), a=lambda a: (a(type(a[0])), a(a[0])), a=True):
         if a not in a:
             #
@@ -10320,21 +10320,21 @@ if a == "":
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a.a}ff for a in a))
+                a("".a(f"{a.a}" for a in a))
                 a = a
             if a(a) > 0:
                 a("" * a, a="")
                 a("", a="")
-                a("".a(ff{a}ff for a in a(a, a=lambda a: a(a))))
+                a("".a(f"{a}" for a in a(a, a=lambda a: a(a))))
                 a = a
             if a(a) == a(a) == a(a) == 0:
                 a()
 
             if a(a, a.a) and a in a:
-                a.a(ff{a}f)
+                a.a(f"{a}")
 
