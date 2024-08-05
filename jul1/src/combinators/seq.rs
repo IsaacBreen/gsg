@@ -27,9 +27,11 @@ impl CombinatorTrait for Seq {
 
         let mut parsers: Vec<(usize, Parser)> = vec![];
         let mut final_right_data: Vec<RightData> = vec![];
+        let mut all_right_data_vec = vec![right_data.clone()];
         let mut parser_initialization_queue: Vec<(usize, Vec<RightData>)> = vec![(0, vec![right_data])];
 
         while let Some((combinator_index, mut right_data_vec)) = parser_initialization_queue.pop() {
+            all_right_data_vec.extend(right_data_vec.clone());
             for right_data in right_data_vec {
                 let offset = right_data.position - start_position;
                 let combinator = &self.children[combinator_index];
@@ -46,6 +48,11 @@ impl CombinatorTrait for Seq {
                 }
             }
         }
+
+        let all_right_data_vec_squashed_len = all_right_data_vec.clone().squashed().len();
+            if all_right_data_vec.len() > all_right_data_vec_squashed_len {
+                println!("all_right_data_vec: {:?}, all_right_data_vec_squashed_len: {:?}", all_right_data_vec, all_right_data_vec_squashed_len);
+            }
 
         let parsers_is_empty = parsers.is_empty();
 
