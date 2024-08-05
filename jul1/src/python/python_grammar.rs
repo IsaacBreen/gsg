@@ -6,37 +6,37 @@ use crate::seq;
 use crate::{opt_greedy, choice_greedy, seprep0_greedy, seprep1_greedy, repeat0_greedy, repeat1_greedy};
 
 fn opt(c: impl Into<Combinator>) -> Combinator {
-    profile!("opt", opt_greedy(c))
+    profile("opt", opt_greedy(c))
 }
 
 macro_rules! choice {
     ($($c:expr),*) => {
-        profile!("choice", choice_greedy!($($c),*))
+        profile("choice", choice_greedy!($($c),*))
     }
 }
 
 fn seprep0(c: impl Into<Combinator>, sep: impl Into<Combinator>) -> Combinator {
-    profile!("seprep0", seprep0_greedy(c, sep))
+    profile("seprep0", seprep0_greedy(c, sep))
 }
 
 fn seprep1(c: impl Into<Combinator>, sep: impl Into<Combinator>) -> Combinator {
-    profile!("seprep1", seprep1_greedy(c, sep))
+    profile("seprep1", seprep1_greedy(c, sep))
 }
 
 fn repeat0(c: impl Into<Combinator>) -> Combinator {
-    profile!("repeat0", repeat0_greedy(c))
+    profile("repeat0", repeat0_greedy(c))
 }
 
 fn repeat1(c: impl Into<Combinator>) -> Combinator {
-    profile!("repeat1", repeat1_greedy(c))
+    profile("repeat1", repeat1_greedy(c))
 }
 
 fn cache_context(c: impl Into<Combinator>) -> Combinator {
-    profile!("cache_context", crate::cache_context(c))
+    profile("cache_context", crate::cache_context(c))
 }
 
 fn cached(c: impl Into<Combinator>) -> Combinator {
-    profile!("cached", crate::cached(c))
+    profile("cached", crate::cached(c))
 }
 
 enum Forbidden {
