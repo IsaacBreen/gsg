@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
 
-use crate::{Combinator, CombinatorTrait, eps, FailParser, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set};
 
 macro_rules! profile {
     ($name:expr, $expr:expr) => {
@@ -24,30 +24,10 @@ pub struct SeqParser {
 impl CombinatorTrait for Seq {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.position;
-        let combinator_index = 0;
-
-        let offset = right_data.position - start_position;
-        let combinator = &self.children[combinator_index];
-        let (parser, parse_results) = profile!("seq child parse", {
-                    combinator.parse(right_data, &bytes[offset..])
-                });
-
-        if parse_results.done && parse_results.right_data_vec.is_empty() {
-            return (Parser::FailParser(FailParser), ParseResults::empty_finished());
-        }
 
         let mut parsers: Vec<(usize, Parser)> = vec![];
         let mut final_right_data: Vec<RightData> = vec![];
-        let mut parser_initialization_queue: Vec<(usize, Vec<RightData>)> = vec![];
-
-        if combinator_index + 1 < self.children.len() {
-            parser_initialization_queue.push((combinator_index + 1, parse_results.right_data_vec));
-        } else {
-            final_right_data.extend(parse_results.right_data_vec);
-        }
-        if !parse_results.done {
-            parsers.push((combinator_index, parser));
-        }
+        let mut parser_initialization_queue: Vec<(usize, Vec<RightData>)> = vec![(0, vec![right_data])];
 
         while let Some((combinator_index, mut right_data_vec)) = parser_initialization_queue.pop() {
             for right_data in right_data_vec {
