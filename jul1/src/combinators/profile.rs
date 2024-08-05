@@ -26,40 +26,32 @@ impl Default for ProfileDataInner {
 }
 
 impl ProfileDataInner {
-    pub fn push_tag(&mut self, tag: String) {
-        let elapsed = self.start_time.elapsed();
-        if let Some(current_tag) = self.tag_stack.last() {
-            *self.timings.entry(current_tag.clone()).or_default() += elapsed;
+    pub fn push_tag(tag: String) {
+        let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
+        let elapsed = profile_data.start_time.elapsed();
+        if let Some(current_tag) = profile_data.tag_stack.last().cloned() {
+            *profile_data.timings.entry(current_tag.clone()).or_default() += elapsed;
         }
-        self.tag_stack.push(tag);
-        self.start_time = Instant::now();
+        profile_data.tag_stack.push(tag);
+        profile_data.start_time = Instant::now();
     }
 
-    pub fn pop_tag(&mut self) {
-        if let Some(tag) = self.tag_stack.pop() {
-            let elapsed = self.start_time.elapsed();
-            *self.timings.entry(tag).or_default() += elapsed;
-            self.start_time = Instant::now();
+    pub fn pop_tag() {
+        let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
+        if let Some(tag) = profile_data.tag_stack.pop() {
+            let elapsed = profile_data.start_time.elapsed();
+            *profile_data.timings.entry(tag).or_default() += elapsed;
+            profile_data.start_time = Instant::now();
         }
-    }
-
-    pub fn get_timings(&self) -> HashMap<String, Duration> {
-        self.timings.clone()
     }
 }
 
 #[macro_export]
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
-        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.try_lock().unwrap();
-        profile_data.push_tag($tag.to_string());
-        drop(profile_data);
-
+        $crate::ProfileDataInner::push_tag($tag.to_string());
         let result = $body;
-
-        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.try_lock().unwrap();
-        profile_data.pop_tag();
-        drop(profile_data);
+        $crate::ProfileDataInner::pop_tag();
         result
     }};
 }
@@ -67,15 +59,9 @@ macro_rules! profile {
 #[macro_export]
 macro_rules! profile_block {
     ($body:expr) => {{
-        let start_time = std::time::Instant::now();
+        $crate::ProfileDataInner::push_tag(format!("{}:{}", file!(), line!()));
         let result = $body;
-        let elapsed = start_time.elapsed();
-
-        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.try_lock().unwrap();
-        let tag = format!("{}:{}", file!(), line!());
-        *profile_data.timings.entry(tag).or_default() += elapsed;
-        drop(profile_data);
-
+        $crate::ProfileDataInner::pop_tag();
         result
     }};
 }
