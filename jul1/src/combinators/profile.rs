@@ -11,6 +11,7 @@ lazy_static::lazy_static! {
 #[derive(Clone)]
 pub struct ProfileDataInner {
     pub(crate) timings: HashMap<String, Duration>,
+    pub(crate) hit_counts: HashMap<String, usize>,
     tag_stack: Vec<String>,
     start_time: Instant,
 }
@@ -19,6 +20,7 @@ impl Default for ProfileDataInner {
     fn default() -> Self {
         Self {
             timings: HashMap::new(),
+            hit_counts: HashMap::new(),
             tag_stack: vec!["root".to_string()],
             start_time: Instant::now(),
         }
@@ -32,6 +34,7 @@ impl ProfileDataInner {
         let elapsed = now.duration_since(profile_data.start_time);
         if let Some(current_tag) = profile_data.tag_stack.last().cloned() {
             *profile_data.timings.entry(current_tag.clone()).or_default() += elapsed;
+            *profile_data.hit_counts.entry(current_tag).or_default() += 1;
         }
         profile_data.tag_stack.push(tag);
         profile_data.start_time = Instant::now();
@@ -42,11 +45,13 @@ impl ProfileDataInner {
         let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
         if let Some(tag) = profile_data.tag_stack.pop() {
             let elapsed = now.duration_since(profile_data.start_time);
-            *profile_data.timings.entry(tag).or_default() += elapsed;
+            *profile_data.timings.entry(tag.clone()).or_default() += elapsed;
+            *profile_data.hit_counts.entry(tag).or_default() += 1;
         }
         profile_data.start_time = Instant::now();
     }
 }
+
 
 #[macro_export]
 macro_rules! profile {

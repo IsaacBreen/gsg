@@ -190,6 +190,12 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
         println!("{:>9} {:6.2}% {}", format!("{:.3?}", duration), percent, tag);
     }
+    println!("Hit counts:");
+    let total_hit_count = profile_data.hit_counts.values().sum::<usize>();
+    for (tag, hit_count) in profile_data.hit_counts.iter() {
+        let percent = *hit_count as f64 / total_hit_count as f64 * 100.0;
+        println!("{:>9} {:6.2}% {}", format!("{:.3?}", hit_count), percent, tag);
+    }
     drop(profile_data);
 
     parse_results.squash();
