@@ -25,26 +25,6 @@ impl ParserTrait for LookaheadContextParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        // Count number of partial lookaheads and number of right data
-        let mut n_partial_lookaheads = 0;
-        let mut n_right_data = 0;
-        self.inner.map_right_data_mut(&mut |right_data| { n_partial_lookaheads += right_data.lookahead_data.partial_lookaheads.len(); n_right_data += 1; });
-        // Prune partial lookaheads that are done
-        self.inner.map_right_data_mut(&mut |right_data| {
-            let n = right_data.lookahead_data.partial_lookaheads.len();
-            right_data.lookahead_data.partial_lookaheads.retain_mut(|partial_lookahead| {
-                !partial_lookahead.parser.parse(bytes).done
-            });
-            if n != right_data.lookahead_data.partial_lookaheads.len() {
-                // println!("pruned partial lookaheads from {} to {}", n, right_data.lookahead_data.partial_lookaheads.len());
-            }
-        });
-        // Count number of partial lookaheads again
-        let mut m_partial_lookaheads = 0;
-        self.inner.map_right_data_mut(&mut |right_data| { m_partial_lookaheads += right_data.lookahead_data.partial_lookaheads.len(); });
-        if n_partial_lookaheads > 0 || m_partial_lookaheads > 0 {
-            println!("lookahead_context: n_partial_lookaheads = {}, m_partial_lookaheads = {}, n_right_data = {}", n_partial_lookaheads, m_partial_lookaheads, n_right_data);
-        }
         self.inner.parse(bytes)
     }
 }
