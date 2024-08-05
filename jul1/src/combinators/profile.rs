@@ -5,6 +5,8 @@ use std::cell::RefCell;
 use derivative::Derivative;
 use crate::*;
 
+const SQUASH: bool = false;
+
 // Global profile data
 lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());
@@ -70,12 +72,15 @@ impl CombinatorTrait for Profiled {
             let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
             profile_data.push_tag(self.tag.clone());
         }        let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
-        // right_data.profile_data.push_tag("squash".to_string());
-        // parse_results.squash();
-        // right_data.profile_data.pop_tag();
+
         {
             let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
             profile_data.pop_tag();
+            if SQUASH {
+                profile_data.push_tag("squash".to_string());
+                parse_results.squash();
+                profile_data.pop_tag();
+            }
         }
 
         (
@@ -100,12 +105,14 @@ impl ParserTrait for ProfiledParser {
             profile_data.push_tag(self.tag.clone());
         }
         let mut parse_results = self.inner.parse(bytes);
-        // self.profile_data.push_tag("squash".to_string());
-        // parse_results.squash();
-        // self.profile_data.pop_tag();
         {
             let mut profile_data = GLOBAL_PROFILE_DATA.try_lock().unwrap();
             profile_data.pop_tag();
+            if SQUASH {
+                profile_data.push_tag("squash".to_string());
+                parse_results.squash();
+                profile_data.pop_tag();
+            }
         }
         parse_results
     }
