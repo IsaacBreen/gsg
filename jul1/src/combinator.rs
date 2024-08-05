@@ -178,9 +178,11 @@ impl Parser {
         F: FnMut(&mut RightData),
     {
         match self {
-            Parser::SeqParser(SeqParser { parsers, .. }) => {
-                for (i, parser) in parsers {
-                    parser.map_right_data_mut(f);
+            Parser::SeqParser(SeqParser { children, .. }) => {
+                for (_, parsers) in children {
+                    for p in parsers {
+                        p.map_right_data_mut(f);
+                    }
                 }
             }
             Parser::ChoiceParser(ChoiceParser { parsers, .. }) => {

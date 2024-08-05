@@ -1,35 +1,8 @@
 use std::rc::Rc;
-use crate::{cache_context, cached, cache_first_context, cache_first, lookahead_context, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, Repeat1, Seq, tag, Compile, lookahead, negative_lookahead, profile};
+use crate::{cache_context, cached, cache_first_context, cache_first, lookahead_context, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, Repeat1, Seq, tag, Compile, lookahead, negative_lookahead};
 use super::python_tokenizer::python_literal;
 use crate::seq;
-// use crate::{opt_greedy as opt, choice_greedy as choice, seprep0_greedy as seprep0, seprep1_greedy as seprep1, repeat0_greedy as repeat0, repeat1_greedy as repeat1};
-use crate::{opt_greedy, seprep0_greedy, seprep1_greedy, repeat0_greedy, repeat1_greedy};
-
-fn opt(a: impl Into<Combinator>) -> Combinator {
-    profile("opt", opt_greedy(a))
-}
-
-macro_rules! choice {
-    ($($a:expr),* $(,)?) => {
-        profile("choice", crate::choice_greedy!($($a),*))
-    };
-}
-
-fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
-    profile("seprep0", seprep0_greedy(a, b))
-}
-
-fn seprep1(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
-    profile("seprep1", seprep1_greedy(a, b))
-}
-
-fn repeat0(a: impl Into<Combinator>) -> Combinator {
-    profile("repeat0", repeat0_greedy(a))
-}
-
-fn repeat1(a: impl Into<Combinator>) -> Combinator {
-    profile("repeat1", repeat1_greedy(a))
-}
+use crate::{opt_greedy as opt, choice_greedy as choice, seprep0_greedy as seprep0, seprep1_greedy as seprep1, repeat0_greedy as repeat0, repeat1_greedy as repeat1};
 
 enum Forbidden {
     WS,
