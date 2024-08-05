@@ -28,7 +28,7 @@ impl Squash for Vec<RightData> {
         if self.len() > SQUASH_THRESHOLD {
             profile!("RightDataSquasher::squashed", {
                 let mut squasher = RightDataSquasher::new();
-                squasher.extend(self);
+                squasher.extend(self.into_iter());
                 squasher.finish()
             })
         } else {
@@ -37,7 +37,7 @@ impl Squash for Vec<RightData> {
     }
     fn squash(&mut self) {
         if self.len() > SQUASH_THRESHOLD {
-            *self = self.drain(..).collect::<Self>().squashed()
+            *self = self.drain(..).collect::<smallvec::SmallVec<[RightData; 8]>>().squashed()
         }
     }
 }
