@@ -1,27 +1,27 @@
-use crate::{RightData, Squash};
+use crate::{RightData, RightDataSquasher, Squash};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParseResults {
-    pub right_data_vec: Vec<RightData>,
+    pub right_data_vec: RightDataSquasher,
     pub done: bool,
 }
 
 impl ParseResults {
     pub fn new(right_data: RightData, done: bool) -> Self {
         ParseResults {
-            right_data_vec: vec![right_data],
+            right_data_vec: vec![right_data].into(),
             done,
         }
     }
     pub fn empty_unfinished() -> Self {
         ParseResults {
-            right_data_vec: vec![],
+            right_data_vec: vec![].into(),
             done: false,
         }
     }
     pub fn empty_finished() -> Self {
         ParseResults {
-            right_data_vec: vec![],
+            right_data_vec: vec![].into(),
             done: true,
         }
     }
@@ -40,6 +40,6 @@ impl ParseResults {
         // self.squash();
     }
     pub fn succeeds_decisively(&self) -> bool {
-        self.done && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|rd| rd.failable())
+        self.done && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|(_, lookahead_data)| !lookahead_data.partial_lookaheads.is_empty() || lookahead_data.has_omitted_partial_lookaheads)
     }
 }
