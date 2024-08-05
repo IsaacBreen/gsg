@@ -76,6 +76,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
         println!("{:>9} {:6.2}% {}", format!("{:.3?}", duration), percent, tag);
     }
+    drop(profile_data);
 
     // Print timing results
     let mut timing_vec: Vec<(String, std::time::Duration)> = timings.into_iter().collect();
@@ -152,6 +153,7 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
         println!("{:>9} {:6.2}% {}", format!("{:.3?}", duration), percent, tag);
     }
+    drop(profile_data);
 }
 
 
@@ -188,6 +190,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
         println!("{:>9} {:6.2}% {}", format!("{:.3?}", duration), percent, tag);
     }
+    drop(profile_data);
 
     parse_results.squash();
 
@@ -232,6 +235,7 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
         println!("{:>9} {:6.2}% {}", format!("{:.3?}", duration), percent, tag);
     }
+    drop(profile_data);
 
     // todo: uncomment this for unambiguous parses
     // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };

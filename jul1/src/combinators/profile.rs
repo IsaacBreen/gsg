@@ -51,13 +51,13 @@ impl ProfileDataInner {
 #[macro_export]
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
-        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.lock().unwrap();
+        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.try_lock().unwrap();
         profile_data.push_tag($tag.to_string());
         drop(profile_data);
 
         let result = $body;
 
-        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.lock().unwrap();
+        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.try_lock().unwrap();
         profile_data.pop_tag();
         drop(profile_data);
         result
@@ -71,7 +71,7 @@ macro_rules! profile_block {
         let result = $body;
         let elapsed = start_time.elapsed();
 
-        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.lock().unwrap();
+        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.try_lock().unwrap();
         let tag = format!("{}:{}", file!(), line!());
         *profile_data.timings.entry(tag).or_default() += elapsed;
         drop(profile_data);
