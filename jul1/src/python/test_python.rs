@@ -200,6 +200,7 @@ fn test_actual_python_file_fast() {
         // ("remove_left_recursion.py", include_str!("../python/remove_left_recursion.py")),
         // ("test_input.py", include_str!("../tests/test_input.py")),
         ("test_input2.py", include_str!("../tests/test_input2.py")),
+        ("test_input_simplified.py", include_str!("../tests/test_input_simplified.py")),
     ];
 
     for (name, content) in test_cases.iter() {
