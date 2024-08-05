@@ -2,7 +2,7 @@ use crate::{RightData, Squash};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParseResults {
-    pub right_data_vec: smallvec::SmallVec<[RightData; 8]>,
+    pub right_data_vec: smallvec::SmallVec<[RightData; 1]>,
     pub done: bool,
 }
 

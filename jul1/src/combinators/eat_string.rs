@@ -41,7 +41,7 @@ impl ParserTrait for EatStringParser {
             return ParseResults::empty_unfinished();
         }
 
-        let mut right_data_vec = smallvec::SmallVec::<[RightData; 8]>::new();
+        let mut right_data_vec = smallvec::SmallVec::<[RightData; 1]>::new();
         let mut done = false;
 
         for &byte in bytes {

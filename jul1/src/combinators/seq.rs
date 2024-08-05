@@ -11,13 +11,13 @@ macro_rules! profile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
-    pub(crate) children: Rc<smallvec::SmallVec<[Combinator; 8]>>,
+    pub(crate) children: Rc<smallvec::SmallVec<[Combinator; 1]>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
     pub(crate) parsers: Vec<(usize, Parser)>,
-    pub(crate) combinators: Rc<smallvec::SmallVec<[Combinator; 8]>>,
+    pub(crate) combinators: Rc<smallvec::SmallVec<[Combinator; 1]>>,
     pub(crate) position: usize,
 }
 
@@ -26,8 +26,8 @@ impl CombinatorTrait for Seq {
         let start_position = right_data.position;
 
         let mut parsers: Vec<(usize, Parser)> = vec![];
-        let mut final_right_data: smallvec::SmallVec<[RightData; 8]> = smallvec::SmallVec::new();
-        let mut parser_initialization_queue: Vec<(usize, smallvec::SmallVec<[RightData; 8]>)> = vec![(0, smallvec::smallvec![right_data])];
+        let mut final_right_data: smallvec::SmallVec<[RightData; 1]> = smallvec::SmallVec::new();
+        let mut parser_initialization_queue: Vec<(usize, smallvec::SmallVec<[RightData; 1]>)> = vec![(0, smallvec::smallvec![right_data])];
 
         while let Some((combinator_index, mut right_data_vec)) = parser_initialization_queue.pop() {
             for right_data in right_data_vec {
@@ -74,8 +74,8 @@ impl ParserTrait for SeqParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut final_right_data: smallvec::SmallVec<[RightData; 8]> = smallvec::SmallVec::new();
-        let mut parser_initialization_queue: smallvec::SmallVec<[(usize, smallvec::SmallVec<[RightData; 8]>); 8]> = smallvec::smallvec![];
+        let mut final_right_data: smallvec::SmallVec<[RightData; 1]> = smallvec::SmallVec::new();
+        let mut parser_initialization_queue: smallvec::SmallVec<[(usize, smallvec::SmallVec<[RightData; 1]>); 1]> = smallvec::smallvec![];
 
         self.parsers.retain_mut(|(combinator_index, parser)| {
             let ParseResults { right_data_vec, done } = parser.parse(bytes);

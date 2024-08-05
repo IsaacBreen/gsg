@@ -5,7 +5,7 @@ use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Choice {
-    pub(crate) children: smallvec::SmallVec<[Rc<Combinator>; 8]>,
+    pub(crate) children: smallvec::SmallVec<[Rc<Combinator>; 1]>,
     pub(crate) greedy: bool,
 }
 
