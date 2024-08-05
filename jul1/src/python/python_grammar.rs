@@ -1,7 +1,6 @@
 use std::rc::Rc;
 use crate::{cache_first_context, cache_first, lookahead_context, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, Repeat1, Seq, tag, Compile, lookahead, negative_lookahead, profile};
 use super::python_tokenizer::python_literal;
-use crate::seq;
 // use crate::{opt_greedy as opt, choice_greedy as choice, seprep0_greedy as seprep0, seprep1_greedy as seprep1, repeat0_greedy as repeat0, repeat1_greedy as repeat1};
 use crate::{opt_greedy, choice_greedy, seprep0_greedy, seprep1_greedy, repeat0_greedy, repeat1_greedy};
 
@@ -12,6 +11,12 @@ fn opt(c: impl Into<Combinator>) -> Combinator {
 macro_rules! choice {
     ($($c:expr),*) => {
         profile("choice", choice_greedy!($($c),*))
+    }
+}
+
+macro_rules! seq {
+    ($($c:expr),*) => {
+        profile("seq", crate::seq!($($c),*))
     }
 }
 
