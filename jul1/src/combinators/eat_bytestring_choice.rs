@@ -136,7 +136,7 @@ impl ParserTrait for EatByteStringChoiceParser {
         }
 
         ParseResults {
-            right_data_vec: right_data_vec.into(),
+            right_data_vec,
             done,
         }
     }
