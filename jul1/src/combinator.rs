@@ -144,7 +144,7 @@ macro_rules! match_parser {
 }
 
 pub trait CombinatorTrait {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
+    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults);
 }
 
 pub trait ParserTrait {
@@ -153,7 +153,7 @@ pub trait ParserTrait {
 }
 
 impl CombinatorTrait for Combinator {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         match_combinator!(self, inner => inner.parse(right_data, bytes))
     }
 }
@@ -176,7 +176,7 @@ impl Combinator {
 
 pub trait CombinatorTraitExt: CombinatorTrait {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        self.parse(right_data, &[])
+        self.parse(&right_data, &[])
     }
 }
 

@@ -28,7 +28,7 @@ impl Debug for Deferred {
 }
 
 impl CombinatorTrait for Deferred {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let a = self.f.as_ref()();
         a.parse(right_data, bytes)
     }

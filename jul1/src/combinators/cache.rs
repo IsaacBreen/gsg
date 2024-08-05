@@ -77,14 +77,15 @@ impl CacheContextParser {
 }
 
 impl CombinatorTrait for CacheContext {
-    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         assert!(right_data.cache_data.inner.is_none(), "CacheContextParser already initialized");
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner {
             new_parsers: HashMap::new(),
             entries: Vec::new(),
         }));
+        let mut right_data = right_data.clone();
         right_data.cache_data.inner = Some(cache_data_inner.clone());
-        let (parser, results) = self.inner.parse(right_data, bytes);
+        let (parser, results) = self.inner.parse(&right_data, bytes);
         cache_data_inner.borrow_mut().entries.reverse();
         let mut cache_context_parser = CacheContextParser { inner: Box::new(parser), cache_data_inner };
         cache_context_parser.cleanup();
@@ -117,7 +118,7 @@ impl ParserTrait for CacheContextParser {
 }
 
 impl CombinatorTrait for Cached {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
         if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow().new_parsers.get(&key).cloned() {
             let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
@@ -127,7 +128,7 @@ impl CombinatorTrait for Cached {
             parser: None,
             maybe_parse_results: None,
         }));
-        let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
+        let (parser, mut parse_results) = self.inner.parse(&right_data.clone(), bytes);
         parse_results.squash();
         let mut cache_data_inner = right_data.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.insert(key.clone(), entry.clone());

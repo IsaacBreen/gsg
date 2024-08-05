@@ -7,10 +7,10 @@ pub struct Opt {
 }
 
 impl CombinatorTrait for Opt {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
+    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let (parser, mut parse_results) = self.inner.parse(&right_data, bytes);
         if !(self.greedy && parse_results.succeeds_decisively()) {
-            parse_results.right_data_vec.push(right_data);
+            parse_results.right_data_vec.push(right_data.clone());
         }
         (parser, parse_results)
     }
