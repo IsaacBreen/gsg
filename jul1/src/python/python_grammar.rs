@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{cache_context, cached, cache_first_context, cache_first, lookahead_context, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, Repeat1, Seq, tag, Compile, lookahead, negative_lookahead, profile};
+use crate::{cache_first_context, cache_first, lookahead_context, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, Repeat1, Seq, tag, Compile, lookahead, negative_lookahead, profile};
 use super::python_tokenizer::python_literal;
 use crate::seq;
 // use crate::{opt_greedy as opt, choice_greedy as choice, seprep0_greedy as seprep0, seprep1_greedy as seprep1, repeat0_greedy as repeat0, repeat1_greedy as repeat1};
@@ -29,6 +29,14 @@ fn repeat0(c: impl Into<Combinator>) -> Combinator {
 
 fn repeat1(c: impl Into<Combinator>) -> Combinator {
     profile!("repeat1", repeat1_greedy(c))
+}
+
+fn cache_context(c: impl Into<Combinator>) -> Combinator {
+    profile!("cache_context", crate::cache_context(c))
+}
+
+fn cached(c: impl Into<Combinator>) -> Combinator {
+    profile!("cached", crate::cached(c))
 }
 
 enum Forbidden {
