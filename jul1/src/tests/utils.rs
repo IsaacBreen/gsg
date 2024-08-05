@@ -192,7 +192,9 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     }
     println!("Hit counts:");
     let total_hit_count = profile_data.hit_counts.values().sum::<usize>();
-    for (tag, hit_count) in profile_data.hit_counts.iter() {
+    let mut hit_counts = profile_data.hit_counts.iter().collect::<Vec<_>>();
+    hit_counts.sort_by(|(_, hit_count_a), (_, hit_count_b)| hit_count_b.partial_cmp(hit_count_a).unwrap());
+    for (tag, hit_count) in hit_counts.clone() {
         let percent = *hit_count as f64 / total_hit_count as f64 * 100.0;
         println!("{:>9} {:6.2}% {}", format!("{:.3?}", hit_count), percent, tag);
     }
