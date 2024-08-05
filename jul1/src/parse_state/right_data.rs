@@ -10,10 +10,10 @@ pub struct RightData {
     #[derivative(Hash = "ignore")]
     pub frame_stack: Option<FrameStack>,
     #[derivative(Hash = "ignore")]
-    pub indents: smallvec::SmallVec<[Vec<u8>; 2]>,
+    pub indents: smallvec::SmallVec<[Vec<u8>; 0]>,
     pub dedents: usize,
     pub scope_count: usize,
-    pub fstring_start_stack: smallvec::SmallVec<[PythonQuoteType; 1]>,
+    pub fstring_start_stack: smallvec::SmallVec<[PythonQuoteType; 0]>,
     #[derivative(Hash = "ignore")]
     pub forbidden_consecutive_matches: ForbidFollowsData,
     #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
