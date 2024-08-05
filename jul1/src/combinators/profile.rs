@@ -1,14 +1,63 @@
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
-use std::sync::Mutex;
-use lazy_static::lazy_static;
-
+use std::rc::Rc;
+use std::cell::RefCell;
+use derivative::Derivative;
 use crate::*;
 
-lazy_static! {
-    static ref PROFILE_DATA: Mutex<HashMap<String, Duration>> = Mutex::new(HashMap::new());
-    static ref TAG_STACK: Mutex<Vec<String>> = Mutex::new(vec!["root".to_string()]);
-    static ref START_TIME: Mutex<Instant> = Mutex::new(Instant::now());
+#[derive(Clone)]
+pub struct ProfileDataInner {
+    pub(crate) timings: HashMap<String, Duration>,
+    tag_stack: Vec<String>,
+    start_time: Instant,
+}
+
+impl Default for ProfileDataInner {
+    fn default() -> Self {
+        Self {
+            timings: HashMap::new(),
+            tag_stack: vec!["root".to_string()],
+            start_time: Instant::now(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ProfileData {
+    pub(crate) inner: Rc<RefCell<ProfileDataInner>>,
+}
+
+impl Default for ProfileData {
+    fn default() -> Self {
+        Self {
+            inner: Rc::new(RefCell::new(ProfileDataInner::default())),
+        }
+    }
+}
+
+impl ProfileData {
+    fn push_tag(&self, tag: String) {
+        let mut inner = self.inner.borrow_mut();
+        let elapsed = inner.start_time.elapsed();
+        if let Some(current_tag) = inner.tag_stack.last().cloned() {
+            *inner.timings.entry(current_tag.clone()).or_default() += elapsed;
+        }
+        inner.tag_stack.push(tag);
+        inner.start_time = Instant::now();
+    }
+
+    fn pop_tag(&self) {
+        let mut inner = self.inner.borrow_mut();
+        if let Some(tag) = inner.tag_stack.pop() {
+            let elapsed = inner.start_time.elapsed();
+            *inner.timings.entry(tag).or_default() += elapsed;
+            inner.start_time = Instant::now();
+        }
+    }
+
+    pub fn get_timings(&self) -> HashMap<String, Duration> {
+        self.inner.borrow().timings.clone()
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -17,22 +66,29 @@ pub struct Profiled {
     pub tag: String,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Derivative)]
+#[derivative(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProfiledParser {
     pub inner: Box<Parser>,
     pub tag: String,
+    #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
+    pub profile_data: ProfileData,
 }
 
 impl CombinatorTrait for Profiled {
-    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        push_tag(self.tag.clone());
+    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        right_data.profile_data.push_tag(self.tag.clone());
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
-        pop_tag();
+        right_data.profile_data.pop_tag();
+        // right_data.profile_data.push_tag("squash".to_string());
+        // parse_results.squash();
+        // right_data.profile_data.pop_tag();
 
         (
             Parser::ProfiledParser(ProfiledParser {
                 inner: Box::new(parser),
                 tag: self.tag.clone(),
+                profile_data: right_data.profile_data.clone(),
             }),
             parse_results,
         )
@@ -45,41 +101,23 @@ impl ParserTrait for ProfiledParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        push_tag(self.tag.clone());
+        self.profile_data.push_tag(self.tag.clone());
         let mut parse_results = self.inner.parse(bytes);
-        pop_tag();
+        self.profile_data.pop_tag();
+        // self.profile_data.push_tag("squash".to_string());
+        // parse_results.squash();
+        // self.profile_data.pop_tag();
         parse_results
-    }
-}
-
-fn push_tag(tag: String) {
-    let mut profile_data = PROFILE_DATA.lock().unwrap();
-    let mut tag_stack = TAG_STACK.lock().unwrap();
-    let mut start_time = START_TIME.lock().unwrap();
-    let elapsed = start_time.elapsed();
-    if let Some(current_tag) = tag_stack.last().cloned() {
-        *profile_data.entry(current_tag.clone()).or_default() += elapsed;
-    }
-    tag_stack.push(tag);
-    *start_time = Instant::now();
-}
-
-fn pop_tag() {
-    let mut profile_data = PROFILE_DATA.lock().unwrap();
-    let mut tag_stack = TAG_STACK.lock().unwrap();
-    let mut start_time = START_TIME.lock().unwrap();
-    if let Some(tag) = tag_stack.pop() {
-        let elapsed = start_time.elapsed();
-        *profile_data.entry(tag).or_default() += elapsed;
-        *start_time = Instant::now();
     }
 }
 
 pub fn profile(tag: &str, a: impl Into<Combinator>) -> Combinator {
     Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
+    // a.into()
 }
 
 pub fn profile_internal(tag: &str, a: impl Into<Combinator>) -> Combinator {
+    // profile(tag, a)
     a.into()
 }
 

@@ -9,12 +9,6 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::iter;
-use std::sync::Mutex;
-use lazy_static::lazy_static;
-
-lazy_static! {
-    static ref PROFILE_DATA: Mutex<HashMap<String, Duration>> = Mutex::new(HashMap::new());
-}
 
 const VERBOSE: bool = false;
 
@@ -25,6 +19,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     let mut timings: Vec<(String, std::time::Duration)> = Vec::new();
 
     let start_right_data = RightData::default();
+    let profile_data = start_right_data.profile_data.clone();
     let (mut parser, mut parse_results) = T::parser(&combinator, start_right_data);
 
     let lines = input.lines().collect::<Vec<_>>();
@@ -43,7 +38,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         for (char_number, byte) in bytes.iter().cloned().enumerate() {
             parse_results.squash();
             let byte_is_in_some_up_data = parser.get_u8set().contains(byte);
-            assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_ {:?}. Line: {:?}, Char: {:?}, Text: {:?}, u8set: {:?}", byte as char, parse_results, line_number + 1, char_number + 1, line, parser.get_u8set());
+            assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}. Line: {:?}, Char: {:?}, Text: {:?}, u8set: {:?}", byte as char, parse_results, line_number + 1, char_number + 1, line, parser.get_u8set());
 
             if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
                 timings.push((line.to_string(), Instant::now() - line_start));
@@ -124,6 +119,7 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
     println!("beginning profile_parse");
 
     let start_right_data = RightData::default();
+    let profile_data = start_right_data.profile_data.clone();
 
     let (mut parser, mut parse_results) = T::parser(&combinator, start_right_data);
 
@@ -131,12 +127,11 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
         parser.step(byte);
     }
 
-    let profile_data = PROFILE_DATA.lock().unwrap();
-    let total_time = profile_data.values().sum::<Duration>();
+    let total_time = profile_data.inner.borrow().timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
     println!("Total time: {:?}", total_time);
 
     // Print profile results
-    let mut profile_vec: Vec<(String, Duration)> = profile_data.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
@@ -150,6 +145,7 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
 pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start_right_data = RightData::default();
+    let profile_data = start_right_data.profile_data.clone();
     let (parser, mut parse_results) = combinator.parse(start_right_data, &bytes);
     parse_results.squash();
     // Get the line and char number of the max position
@@ -166,8 +162,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     }
 
     // Print profile results
-    let profile_data = PROFILE_DATA.lock().unwrap();
-    let mut profile_vec: Vec<(String, Duration)> = profile_data.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
@@ -190,6 +185,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
 pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, tolerance: usize) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start_right_data = RightData::default();
+    let profile_data = start_right_data.profile_data.clone();
     let (parser, mut parse_results) = combinator.parse(start_right_data, &bytes);
     parse_results.squash();
     // Get the line and char number of the max position
@@ -205,12 +201,11 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
         }
     }
 
-    let profile_data = PROFILE_DATA.lock().unwrap();
-    let total_time = profile_data.values().sum::<Duration>();
+    let total_time = profile_data.inner.borrow().timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
     println!("Total time: {:?}", total_time);
 
     // Print profile results
-    let mut profile_vec: Vec<(String, Duration)> = profile_data.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.inner.borrow().timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
     // Sort simply by duration
     profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
     println!("Profile results:");
@@ -247,7 +242,7 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
             println!("byte: {:?}\n\n\n\n", byte as char);
             let u8set = parser.get_u8set();
             let byte_is_in_some_up_data = u8set.contains(byte);
-            // assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_ {:?}", byte as char, up_data);
+            // assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}", byte as char, up_data);
             if !byte_is_in_some_up_data {
                 println!("byte {:?} is not in the u8set: {:?}", byte as char, u8set);
                 return;
@@ -266,7 +261,7 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
             println!("line:char: {line_number}:{char_number}");
             println!("line: {line:?}");
             println!("byte: {:?}", byte as char);
-            // println!("up_ {up_?}");
+            // println!("up_data: {up_data:?}");
             println!("Stats:");
             println!("{}", parser.stats());
 
