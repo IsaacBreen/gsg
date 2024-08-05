@@ -49,7 +49,8 @@ pub struct CachedParser {
 
 impl Hash for CachedParser {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // self.entry.borrow().hash(state);
+        // Hash the pointer
+        std::ptr::hash(self.entry.as_ref() as *const RefCell<CacheEntry>, state);
     }
 }
 
