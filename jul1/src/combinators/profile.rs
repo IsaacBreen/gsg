@@ -80,9 +80,9 @@ impl CombinatorTrait for Profiled {
         right_data.profile_data.push_tag(self.tag.clone());
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         right_data.profile_data.pop_tag();
-        right_data.profile_data.push_tag("squash".to_string());
-        parse_results.squash();
-        right_data.profile_data.pop_tag();
+        // right_data.profile_data.push_tag("squash".to_string());
+        // parse_results.squash();
+        // right_data.profile_data.pop_tag();
 
         (
             Parser::ProfiledParser(ProfiledParser {
