@@ -93,7 +93,7 @@ impl ParserTrait for Repeat1Parser {
         self.position += bytes.len();
 
         ParseResults {
-            right_data_vec: right_data_as,
+            right_data_vec: right_data_as.into(),
             done: self.a_parsers.is_empty(),
         }
     }

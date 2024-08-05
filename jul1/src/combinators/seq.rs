@@ -49,7 +49,7 @@ impl CombinatorTrait for Seq {
         });
 
         let parse_results = ParseResults {
-            right_data_vec: final_right_data,
+            right_data_vec: final_right_data.into(),
             done: parsers_is_empty,
         };
 
@@ -104,7 +104,7 @@ impl ParserTrait for SeqParser {
         self.position += bytes.len();
 
         ParseResults {
-            right_data_vec: final_right_data,
+            right_data_vec: final_right_data.into(),
             done: self.parsers.is_empty(),
         }
     }
