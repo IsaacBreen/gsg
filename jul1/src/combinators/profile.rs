@@ -64,6 +64,22 @@ macro_rules! profile {
     }};
 }
 
+#[macro_export]
+macro_rules! profile_block {
+    ($body:expr) => {{
+        let start_time = std::time::Instant::now();
+        let result = $body;
+        let elapsed = start_time.elapsed();
+
+        let mut profile_data = $crate::GLOBAL_PROFILE_DATA.lock().unwrap();
+        let tag = format!("{}:{}", file!(), line!());
+        *profile_data.timings.entry(tag).or_default() += elapsed;
+        drop(profile_data);
+
+        result
+    }};
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Profiled {
     pub inner: Box<Combinator>,
