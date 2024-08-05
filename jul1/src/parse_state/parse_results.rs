@@ -40,6 +40,6 @@ impl ParseResults {
         // self.squash();
     }
     pub fn succeeds_decisively(&self) -> bool {
-        self.done && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|rd| rd.failable())
+        self.done && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|(_, lookahead_data)| !lookahead_data.partial_lookaheads.is_empty() || lookahead_data.has_omitted_partial_lookaheads)
     }
 }

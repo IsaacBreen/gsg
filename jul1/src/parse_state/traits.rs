@@ -58,9 +58,7 @@ impl RightDataSquasher {
             decomposed: HashMap::new(),
         }
     }
-}
 
-impl RightDataSquasher {
     pub fn push(&mut self, right_data: RightData) {
         let lookahead_data = right_data.lookahead_data.clone();
         let mut existing_lookahead_data = self.decomposed.entry(right_data).or_default();
@@ -70,7 +68,7 @@ impl RightDataSquasher {
     }
 
     pub fn extend(&mut self, right_data_vec: impl Into<RightDataSquasher>) {
-        for right_data in right_data_vec.into().iter() {
+        for right_data in right_data_vec.into().finish() {
             self.push(right_data);
         }
     }
@@ -106,18 +104,15 @@ pub struct RightDataSquasherIterator {
 }
 
 impl Iterator for RightDataSquasherIterator {
-    type Item = RightData;
+    type Item = (RightData, LookaheadData);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|(mut right_data, lookahead_data)| {
-            right_data.lookahead_data = lookahead_data;
-            right_data
-        })
+        self.inner.next()
     }
 }
 
 impl IntoIterator for RightDataSquasher {
-    type Item = RightData;
+    type Item = (RightData, LookaheadData);
     type IntoIter = RightDataSquasherIterator;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -130,10 +125,10 @@ pub struct RightDataSquasherIteratorMut<'a> {
 }
 
 impl<'a> Iterator for RightDataSquasherIteratorMut<'a> {
-    type Item = &'a mut RightData;
+    type Item = (&'a RightData, &'a mut LookaheadData);
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        self.inner.next()
     }
 }
 
@@ -163,16 +158,12 @@ impl RightDataSquasher {
     }
 
     pub fn append(&mut self, right_data_squasher: &mut RightDataSquasher) {
-        for right_data in std::mem::take(right_data_squasher) {
-            self.push(right_data);
+        for right_data in right_data_squasher.decomposed.drain() {
+            self.push(right_data.0);
         }
     }
 
     pub fn retain(&mut self, f: impl Fn(&RightData) -> bool) {
-        todo!()
-    }
-
-    pub fn retain_mut(&mut self, f: impl FnMut(&mut RightData)) {
-        todo!()
+        self.decomposed.retain(|right_data, _| f(right_data));
     }
 }
