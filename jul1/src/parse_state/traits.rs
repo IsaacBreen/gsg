@@ -2,6 +2,18 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use crate::{LookaheadData, ParseResults, profile, RightData, U8Set};
 
+// macro_rules! profile {
+//     ($tag:expr, $body:expr) => {{
+//         $crate::profile!($tag, $body)
+//     }};
+// }
+
+macro_rules! profile {
+    ($tag:expr, $body:expr) => {{
+        $body
+    }};
+}
+
 const SQUASH_THRESHOLD: usize = 0;
 
 pub trait Squash {
