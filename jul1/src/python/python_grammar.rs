@@ -1,35 +1,8 @@
 use std::rc::Rc;
-use crate::{cache_context, cached, cache_first_context, cache_first, lookahead_context, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, Repeat1, Seq, tag, Compile, lookahead, negative_lookahead, profile};
+use crate::{cache_context, cached, cache_first_context, cache_first, lookahead_context, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, Repeat1, Seq, tag, Compile, lookahead, negative_lookahead};
 use super::python_tokenizer::python_literal;
 use crate::seq;
-// use crate::{opt_greedy as opt, choice_greedy as choice, seprep0_greedy as seprep0, seprep1_greedy as seprep1, repeat0_greedy as repeat0, repeat1_greedy as repeat1};
-use crate::{opt_greedy, seprep0_greedy, seprep1_greedy, repeat0_greedy, repeat1_greedy};
-
-fn opt(a: impl Into<Combinator>) -> Combinator {
-    profile("opt", opt_greedy(a))
-}
-
-macro_rules! choice {
-    ($($a:expr),* $(,)?) => {
-        profile("choice", crate::choice_greedy!($($a),*))
-    };
-}
-
-fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
-    profile("seprep0", seprep0_greedy(a, b))
-}
-
-fn seprep1(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
-    profile("seprep1", seprep1_greedy(a, b))
-}
-
-fn repeat0(a: impl Into<Combinator>) -> Combinator {
-    profile("repeat0", repeat0_greedy(a))
-}
-
-fn repeat1(a: impl Into<Combinator>) -> Combinator {
-    profile("repeat1", repeat1_greedy(a))
-}
+use crate::{opt_greedy as opt, choice_greedy as choice, seprep0_greedy as seprep0, seprep1_greedy as seprep1, repeat0_greedy as repeat0, repeat1_greedy as repeat1};
 
 enum Forbidden {
     WS,
@@ -67,7 +40,7 @@ pub fn python_file() -> Combinator {
         seq!(python_literal("lambda"), opt(seq!(opt(&WS), &lambda_params)), opt(&WS), python_literal(":"), opt(&WS), &expression)
     ))));
     let func_type_comment = func_type_comment.set(cached(tag("func_type_comment", choice!(
-        seq!(&NEWLINE, opt(&WS), &TYPE_COMMENT, lookahead(seq!(&NEWLINE, &INDENT))),
+        seq!(&NEWLINE, opt(&WS), &TYPE_COMMENT, lookahead(seq!(opt(&WS), &NEWLINE, opt(&WS), &INDENT))),
         &TYPE_COMMENT
     ))));
     let type_expressions = type_expressions.set(cached(tag("type_expressions", choice!(
@@ -81,7 +54,7 @@ pub fn python_file() -> Combinator {
         seq!(python_literal("["), opt(seq!(opt(&WS), &del_targets)), opt(&WS), python_literal("]"))
     ))));
     let del_target = del_target.set(cached(tag("del_target", choice!(
-        seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings), &NUMBER, seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)), seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)), seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(&t_lookahead), opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), opt(seq!(&WS, opt(&WS))), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), opt(seq!(&WS, opt(&WS))), &slices, opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal("]"), lookahead(&t_lookahead)), seq!(&genexp, lookahead(&t_lookahead)), seq!(python_literal("("), opt(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &arguments)), opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal(")"), lookahead(&t_lookahead))), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), opt(seq!(&WS, opt(&WS))), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), opt(seq!(&WS, opt(&WS))), &slices, opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal("]"), lookahead(&t_lookahead)), seq!(&genexp, lookahead(&t_lookahead)), seq!(python_literal("("), opt(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &arguments)), opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal(")"), lookahead(&t_lookahead)))))))), opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, negative_lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), negative_lookahead(&t_lookahead)))),
+        seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(seq!(choice!(&STRING, &FSTRING_START), opt(&WS))), &strings), &NUMBER, seq!(lookahead(seq!(python_literal("("), opt(&WS))), choice!(&tuple, &group, &genexp)), seq!(lookahead(seq!(python_literal("["), opt(&WS))), choice!(&list, &listcomp)), seq!(lookahead(seq!(python_literal("{"), opt(&WS))), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(seq!(opt(&WS), &t_lookahead)), opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), opt(seq!(&WS, opt(&WS))), &NAME, lookahead(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(python_literal("["), opt(&WS), opt(seq!(&WS, opt(&WS))), &slices, opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal("]"), lookahead(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(&genexp, lookahead(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(python_literal("("), opt(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &arguments)), opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal(")"), lookahead(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &t_lookahead)))), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), opt(seq!(&WS, opt(&WS))), &NAME, lookahead(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(python_literal("["), opt(&WS), opt(seq!(&WS, opt(&WS))), &slices, opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal("]"), lookahead(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(&genexp, lookahead(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(python_literal("("), opt(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &arguments)), opt(&WS), opt(seq!(&WS, opt(&WS))), python_literal(")"), lookahead(seq!(opt(&WS), opt(seq!(&WS, opt(&WS))), &t_lookahead))))))))), opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, negative_lookahead(seq!(opt(&WS), &t_lookahead))), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), negative_lookahead(seq!(opt(&WS), &t_lookahead))))),
         &del_t_atom
     ))));
     let del_targets = del_targets.set(cached(tag("del_targets", seq!(&del_target, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &del_target, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &del_target))))), opt(seq!(opt(&WS), python_literal(",")))))));
@@ -90,8 +63,8 @@ pub fn python_file() -> Combinator {
         python_literal("["),
         python_literal(".")
     ))));
-    let t_primary = t_primary.set(cached(tag("t_primary", seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings), &NUMBER, seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)), seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)), seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(&t_lookahead), opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), lookahead(&t_lookahead)), seq!(&genexp, lookahead(&t_lookahead)), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), lookahead(&t_lookahead))), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), lookahead(&t_lookahead)), seq!(&genexp, lookahead(&t_lookahead)), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), lookahead(&t_lookahead))))))))))));
-    let single_subscript_attribute_target = single_subscript_attribute_target.set(cached(tag("single_subscript_attribute_target", seq!(&t_primary, opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, negative_lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), negative_lookahead(&t_lookahead)))))));
+    let t_primary = t_primary.set(cached(tag("t_primary", seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(seq!(choice!(&STRING, &FSTRING_START), opt(&WS))), &strings), &NUMBER, seq!(lookahead(seq!(python_literal("("), opt(&WS))), choice!(&tuple, &group, &genexp)), seq!(lookahead(seq!(python_literal("["), opt(&WS))), choice!(&list, &listcomp)), seq!(lookahead(seq!(python_literal("{"), opt(&WS))), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(seq!(opt(&WS), &t_lookahead)), opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, lookahead(seq!(opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), lookahead(seq!(opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(&genexp, lookahead(seq!(opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), lookahead(seq!(opt(seq!(&WS, opt(&WS))), &t_lookahead)))), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, lookahead(seq!(opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), lookahead(seq!(opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(&genexp, lookahead(seq!(opt(seq!(&WS, opt(&WS))), &t_lookahead))), seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")"), lookahead(seq!(opt(seq!(&WS, opt(&WS))), &t_lookahead)))))))))))));
+    let single_subscript_attribute_target = single_subscript_attribute_target.set(cached(tag("single_subscript_attribute_target", seq!(&t_primary, opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, negative_lookahead(seq!(opt(&WS), &t_lookahead))), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), negative_lookahead(seq!(opt(&WS), &t_lookahead))))))));
     let single_target = single_target.set(cached(tag("single_target", choice!(
         &single_subscript_attribute_target,
         &NAME,
@@ -103,16 +76,16 @@ pub fn python_file() -> Combinator {
         seq!(python_literal("["), opt(seq!(opt(&WS), &star_targets_list_seq)), opt(&WS), python_literal("]"))
     ))));
     let target_with_star_atom = target_with_star_atom.set(cached(tag("target_with_star_atom", choice!(
-        seq!(&t_primary, opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, negative_lookahead(&t_lookahead)), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), negative_lookahead(&t_lookahead)))),
+        seq!(&t_primary, opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME, negative_lookahead(seq!(opt(&WS), &t_lookahead))), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"), negative_lookahead(seq!(opt(&WS), &t_lookahead))))),
         &star_atom
     ))));
     let star_target = star_target.set(cached(tag("star_target", choice!(
-        seq!(python_literal("*"), negative_lookahead(python_literal("*")), opt(&WS), &star_target),
+        seq!(python_literal("*"), negative_lookahead(seq!(opt(&WS), python_literal("*"))), opt(&WS), &star_target),
         &target_with_star_atom
     ))));
     let star_targets_tuple_seq = star_targets_tuple_seq.set(cached(tag("star_targets_tuple_seq", seq!(&star_target, opt(&WS), python_literal(","), opt(seq!(opt(&WS), &star_target, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target))), opt(seq!(opt(&WS), python_literal(",")))))))));
     let star_targets_list_seq = star_targets_list_seq.set(cached(tag("star_targets_list_seq", seq!(&star_target, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target))))), opt(seq!(opt(&WS), python_literal(",")))))));
-    let star_targets = star_targets.set(cached(tag("star_targets", seq!(&star_target, choice!(negative_lookahead(python_literal(",")), seq!(opt(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target))))), opt(seq!(opt(&WS), python_literal(",")))))))));
+    let star_targets = star_targets.set(cached(tag("star_targets", seq!(&star_target, choice!(negative_lookahead(seq!(opt(&WS), python_literal(","))), seq!(opt(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &star_target))))), opt(seq!(opt(&WS), python_literal(",")))))))));
     let kwarg_or_double_starred = kwarg_or_double_starred.set(cached(tag("kwarg_or_double_starred", choice!(
         seq!(&NAME, opt(&WS), python_literal("="), opt(&WS), &expression),
         seq!(python_literal("**"), opt(&WS), &expression)
@@ -127,10 +100,10 @@ pub fn python_file() -> Combinator {
         seq!(&kwarg_or_double_starred, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &kwarg_or_double_starred, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &kwarg_or_double_starred))))))
     ))));
     let args = args.set(cached(tag("args", choice!(
-        seq!(choice!(&starred_expression, seq!(choice!(seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(python_literal(":=")))), negative_lookahead(python_literal("=")))), opt(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&starred_expression, seq!(choice!(seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(python_literal(":=")))), negative_lookahead(python_literal("=")))), opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&starred_expression, seq!(choice!(seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(python_literal(":=")))), negative_lookahead(python_literal("="))))))))), opt(seq!(opt(&WS), python_literal(","), opt(&WS), &kwargs))),
+        seq!(choice!(&starred_expression, seq!(choice!(seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(seq!(opt(&WS), python_literal(":="))))), negative_lookahead(seq!(opt(&WS), python_literal("="))))), opt(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&starred_expression, seq!(choice!(seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(seq!(opt(&WS), python_literal(":="))))), negative_lookahead(seq!(opt(&WS), python_literal("="))))), opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&starred_expression, seq!(choice!(seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(seq!(opt(&WS), python_literal(":="))))), negative_lookahead(seq!(opt(&WS), python_literal("=")))))))))), opt(seq!(opt(&WS), python_literal(","), opt(&WS), &kwargs))),
         &kwargs
     ))));
-    let arguments = arguments.set(cached(tag("arguments", seq!(&args, opt(seq!(opt(&WS), python_literal(","))), lookahead(python_literal(")"))))));
+    let arguments = arguments.set(cached(tag("arguments", seq!(&args, opt(seq!(opt(&WS), python_literal(","))), lookahead(seq!(opt(&WS), python_literal(")")))))));
     let dictcomp = dictcomp.set(cached(tag("dictcomp", seq!(
         python_literal("{"),
          opt(&WS),
@@ -143,7 +116,7 @@ pub fn python_file() -> Combinator {
     let genexp = genexp.set(cached(tag("genexp", seq!(
         python_literal("("),
          opt(&WS),
-         choice!(&assignment_expression, seq!(&expression, negative_lookahead(python_literal(":=")))),
+         choice!(&assignment_expression, seq!(&expression, negative_lookahead(seq!(opt(&WS), python_literal(":="))))),
          opt(&WS),
          &for_if_clauses,
          opt(&WS),
@@ -218,9 +191,9 @@ pub fn python_file() -> Combinator {
         &FSTRING_MIDDLE
     ))));
     let lambda_param = lambda_param.set(cached(tag("lambda_param", &NAME)));
-    let lambda_param_maybe_default = lambda_param_maybe_default.set(cached(tag("lambda_param_maybe_default", seq!(&lambda_param, opt(seq!(opt(&WS), &default)), choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(":")))))));
-    let lambda_param_with_default = lambda_param_with_default.set(cached(tag("lambda_param_with_default", seq!(&lambda_param, opt(&WS), &default, choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(":")))))));
-    let lambda_param_no_default = lambda_param_no_default.set(cached(tag("lambda_param_no_default", seq!(&lambda_param, choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(":")))))));
+    let lambda_param_maybe_default = lambda_param_maybe_default.set(cached(tag("lambda_param_maybe_default", seq!(&lambda_param, opt(seq!(opt(&WS), &default)), choice!(seq!(opt(&WS), python_literal(",")), lookahead(seq!(opt(&WS), python_literal(":"))))))));
+    let lambda_param_with_default = lambda_param_with_default.set(cached(tag("lambda_param_with_default", seq!(&lambda_param, opt(&WS), &default, choice!(seq!(opt(&WS), python_literal(",")), lookahead(seq!(opt(&WS), python_literal(":"))))))));
+    let lambda_param_no_default = lambda_param_no_default.set(cached(tag("lambda_param_no_default", seq!(&lambda_param, choice!(seq!(opt(&WS), python_literal(",")), lookahead(seq!(opt(&WS), python_literal(":"))))))));
     let lambda_kwds = lambda_kwds.set(cached(tag("lambda_kwds", seq!(python_literal("**"), opt(&WS), &lambda_param_no_default))));
     let lambda_star_etc = lambda_star_etc.set(cached(tag("lambda_star_etc", choice!(
         seq!(python_literal("*"), opt(&WS), choice!(seq!(&lambda_param_no_default, opt(seq!(opt(&WS), &lambda_param_maybe_default, opt(repeat1(seq!(opt(&WS), &lambda_param_maybe_default))))), opt(seq!(opt(&WS), &lambda_kwds))), seq!(python_literal(","), opt(&WS), &lambda_param_maybe_default, opt(repeat1(seq!(opt(&WS), &lambda_param_maybe_default))), opt(seq!(opt(&WS), &lambda_kwds))))),
@@ -232,14 +205,14 @@ pub fn python_file() -> Combinator {
          opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))),
          opt(&WS),
          python_literal("/"),
-         choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(":")))
+         choice!(seq!(opt(&WS), python_literal(",")), lookahead(seq!(opt(&WS), python_literal(":"))))
     ))));
     let lambda_slash_no_default = lambda_slash_no_default.set(cached(tag("lambda_slash_no_default", seq!(
         &lambda_param_no_default,
          opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))),
          opt(&WS),
          python_literal("/"),
-         choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(":")))
+         choice!(seq!(opt(&WS), python_literal(",")), lookahead(seq!(opt(&WS), python_literal(":"))))
     ))));
     let lambda_parameters = lambda_parameters.set(cached(tag("lambda_parameters", choice!(
         seq!(&lambda_slash_no_default, opt(seq!(opt(&WS), &lambda_param_no_default, opt(repeat1(seq!(opt(&WS), &lambda_param_no_default))))), opt(seq!(opt(&WS), &lambda_param_with_default, opt(repeat1(seq!(opt(&WS), &lambda_param_with_default))))), opt(seq!(opt(&WS), &lambda_star_etc))),
@@ -269,19 +242,19 @@ pub fn python_file() -> Combinator {
         python_literal("True"),
         python_literal("False"),
         python_literal("None"),
-        seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings),
+        seq!(lookahead(seq!(choice!(&STRING, &FSTRING_START), opt(&WS))), &strings),
         &NUMBER,
-        seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)),
-        seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)),
-        seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)),
+        seq!(lookahead(seq!(python_literal("("), opt(&WS))), choice!(&tuple, &group, &genexp)),
+        seq!(lookahead(seq!(python_literal("["), opt(&WS))), choice!(&list, &listcomp)),
+        seq!(lookahead(seq!(python_literal("{"), opt(&WS))), choice!(&dict, &set, &dictcomp, &setcomp)),
         python_literal("...")
     ))));
     let slice = slice.set(cached(tag("slice", choice!(
         seq!(opt(seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), opt(&WS))), python_literal(":"), opt(seq!(opt(&WS), &expression)), opt(seq!(opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &expression))))),
-        choice!(seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(python_literal(":="))))
+        choice!(seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression), seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(seq!(opt(&WS), python_literal(":=")))))
     ))));
     let slices = slices.set(cached(tag("slices", choice!(
-        seq!(&slice, negative_lookahead(python_literal(","))),
+        seq!(&slice, negative_lookahead(seq!(opt(&WS), python_literal(",")))),
         seq!(choice!(&slice, &starred_expression), opt(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&slice, &starred_expression), opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), choice!(&slice, &starred_expression)))))), opt(seq!(opt(&WS), python_literal(","))))
     ))));
     let primary = primary.set(cached(tag("primary", seq!(&atom, opt(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), &genexp, seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")")), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"))), opt(repeat1(seq!(opt(&WS), choice!(seq!(python_literal("."), opt(&WS), &NAME), &genexp, seq!(python_literal("("), opt(seq!(opt(&WS), &arguments)), opt(&WS), python_literal(")")), seq!(python_literal("["), opt(&WS), &slices, opt(&WS), python_literal("]"))))))))))));
@@ -345,7 +318,7 @@ pub fn python_file() -> Combinator {
     let disjunction = disjunction.set(cached(tag("disjunction", seq!(&conjunction, opt(seq!(opt(&WS), python_literal("or"), opt(&WS), &conjunction, opt(repeat1(seq!(opt(&WS), python_literal("or"), opt(&WS), &conjunction)))))))));
     let named_expression = named_expression.set(cached(tag("named_expression", choice!(
         seq!(&NAME, opt(&WS), python_literal(":="), opt(&WS), &expression),
-        seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(python_literal(":=")))
+        seq!(choice!(seq!(&disjunction, opt(seq!(opt(&WS), python_literal("if"), opt(&WS), &disjunction, opt(&WS), python_literal("else"), opt(&WS), &expression))), &lambdef), negative_lookahead(seq!(opt(&WS), python_literal(":="))))
     ))));
     let assignment_expression = assignment_expression.set(cached(tag("assignment_expression", seq!(
         &NAME,
@@ -415,7 +388,7 @@ pub fn python_file() -> Combinator {
     ))));
     let double_star_pattern = double_star_pattern.set(cached(tag("double_star_pattern", seq!(python_literal("**"), opt(&WS), &pattern_capture_target))));
     let key_value_pattern = key_value_pattern.set(cached(tag("key_value_pattern", seq!(
-        choice!(choice!(seq!(&signed_number, negative_lookahead(choice!(python_literal("+"), python_literal("-")))), &complex_number, &strings, python_literal("None"), python_literal("True"), python_literal("False")), seq!(&name_or_attr, opt(&WS), python_literal("."), opt(&WS), &NAME)),
+        choice!(choice!(seq!(&signed_number, negative_lookahead(seq!(opt(&WS), choice!(python_literal("+"), python_literal("-"))))), &complex_number, &strings, python_literal("None"), python_literal("True"), python_literal("False")), seq!(&name_or_attr, opt(&WS), python_literal("."), opt(&WS), &NAME)),
          opt(&WS),
          python_literal(":"),
          opt(&WS),
@@ -449,9 +422,9 @@ pub fn python_file() -> Combinator {
          opt(&WS),
          &NAME
     ))));
-    let value_pattern = value_pattern.set(cached(tag("value_pattern", seq!(&attr, negative_lookahead(choice!(python_literal("."), python_literal("("), python_literal("=")))))));
+    let value_pattern = value_pattern.set(cached(tag("value_pattern", seq!(&attr, negative_lookahead(seq!(opt(&WS), choice!(python_literal("."), python_literal("("), python_literal("="))))))));
     let wildcard_pattern = wildcard_pattern.set(cached(tag("wildcard_pattern", python_literal("_"))));
-    let pattern_capture_target = pattern_capture_target.set(cached(tag("pattern_capture_target", seq!(negative_lookahead(python_literal("_")), &NAME, negative_lookahead(choice!(python_literal("."), python_literal("("), python_literal("=")))))));
+    let pattern_capture_target = pattern_capture_target.set(cached(tag("pattern_capture_target", seq!(negative_lookahead(seq!(python_literal("_"), opt(&WS))), &NAME, negative_lookahead(seq!(opt(&WS), choice!(python_literal("."), python_literal("("), python_literal("="))))))));
     let capture_pattern = capture_pattern.set(cached(tag("capture_pattern", &pattern_capture_target)));
     let imaginary_number = imaginary_number.set(cached(tag("imaginary_number", &NUMBER)));
     let real_number = real_number.set(cached(tag("real_number", &NUMBER)));
@@ -465,7 +438,7 @@ pub fn python_file() -> Combinator {
     ))));
     let complex_number = complex_number.set(cached(tag("complex_number", seq!(&signed_real_number, opt(&WS), choice!(seq!(python_literal("+"), opt(&WS), &imaginary_number), seq!(python_literal("-"), opt(&WS), &imaginary_number))))));
     let literal_expr = literal_expr.set(cached(tag("literal_expr", choice!(
-        seq!(&signed_number, negative_lookahead(choice!(python_literal("+"), python_literal("-")))),
+        seq!(&signed_number, negative_lookahead(seq!(opt(&WS), choice!(python_literal("+"), python_literal("-"))))),
         &complex_number,
         &strings,
         python_literal("None"),
@@ -473,7 +446,7 @@ pub fn python_file() -> Combinator {
         python_literal("False")
     ))));
     let literal_pattern = literal_pattern.set(cached(tag("literal_pattern", choice!(
-        seq!(&signed_number, negative_lookahead(choice!(python_literal("+"), python_literal("-")))),
+        seq!(&signed_number, negative_lookahead(seq!(opt(&WS), choice!(python_literal("+"), python_literal("-"))))),
         &complex_number,
         &strings,
         python_literal("None"),
@@ -566,7 +539,7 @@ pub fn python_file() -> Combinator {
          opt(&WS),
          choice!(&finally_block, seq!(&except_block, opt(repeat1(seq!(opt(&WS), &except_block))), opt(seq!(opt(&WS), &else_block)), opt(seq!(opt(&WS), &finally_block))), seq!(&except_star_block, opt(repeat1(seq!(opt(&WS), &except_star_block))), opt(seq!(opt(&WS), &else_block)), opt(seq!(opt(&WS), &finally_block))))
     ))));
-    let with_item = with_item.set(cached(tag("with_item", seq!(&expression, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &star_target, lookahead(choice!(python_literal(","), python_literal(")"), python_literal(":")))))))));
+    let with_item = with_item.set(cached(tag("with_item", seq!(&expression, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &star_target, lookahead(seq!(opt(&WS), choice!(python_literal(","), python_literal(")"), python_literal(":"))))))))));
     let with_stmt = with_stmt.set(cached(tag("with_stmt", choice!(
         seq!(python_literal("with"), opt(&WS), choice!(seq!(python_literal("("), opt(&WS), &with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal(")"), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block), seq!(&with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block))),
         seq!(python_literal("async"), opt(&WS), python_literal("with"), opt(&WS), choice!(seq!(python_literal("("), opt(&WS), &with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal(")"), opt(&WS), python_literal(":"), opt(&WS), &block), seq!(&with_item, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &with_item))))), opt(&WS), python_literal(":"), opt(seq!(opt(&WS), &TYPE_COMMENT)), opt(&WS), &block)))
@@ -617,10 +590,10 @@ pub fn python_file() -> Combinator {
     let annotation = annotation.set(cached(tag("annotation", seq!(python_literal(":"), opt(&WS), &expression))));
     let param_star_annotation = param_star_annotation.set(cached(tag("param_star_annotation", seq!(&NAME, opt(&WS), &star_annotation))));
     let param = param.set(cached(tag("param", seq!(&NAME, opt(seq!(opt(&WS), &annotation))))));
-    let param_maybe_default = param_maybe_default.set(cached(tag("param_maybe_default", seq!(&param, opt(seq!(opt(&WS), &default)), choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(python_literal(")"))))))));
-    let param_with_default = param_with_default.set(cached(tag("param_with_default", seq!(&param, opt(&WS), &default, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(python_literal(")"))))))));
-    let param_no_default_star_annotation = param_no_default_star_annotation.set(cached(tag("param_no_default_star_annotation", seq!(&param_star_annotation, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(python_literal(")"))))))));
-    let param_no_default = param_no_default.set(cached(tag("param_no_default", seq!(&param, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(python_literal(")"))))))));
+    let param_maybe_default = param_maybe_default.set(cached(tag("param_maybe_default", seq!(&param, opt(seq!(opt(&WS), &default)), choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(seq!(opt(&WS), python_literal(")")))))))));
+    let param_with_default = param_with_default.set(cached(tag("param_with_default", seq!(&param, opt(&WS), &default, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(seq!(opt(&WS), python_literal(")")))))))));
+    let param_no_default_star_annotation = param_no_default_star_annotation.set(cached(tag("param_no_default_star_annotation", seq!(&param_star_annotation, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(seq!(opt(&WS), python_literal(")")))))))));
+    let param_no_default = param_no_default.set(cached(tag("param_no_default", seq!(&param, choice!(seq!(opt(&WS), python_literal(","), opt(seq!(opt(&WS), &TYPE_COMMENT))), seq!(opt(seq!(opt(&WS), &TYPE_COMMENT)), lookahead(seq!(opt(&WS), python_literal(")")))))))));
     let kwds = kwds.set(cached(tag("kwds", seq!(python_literal("**"), opt(&WS), &param_no_default))));
     let star_etc = star_etc.set(cached(tag("star_etc", choice!(
         seq!(python_literal("*"), opt(&WS), choice!(seq!(&param_no_default, opt(seq!(opt(&WS), &param_maybe_default, opt(repeat1(seq!(opt(&WS), &param_maybe_default))))), opt(seq!(opt(&WS), &kwds))), seq!(&param_no_default_star_annotation, opt(seq!(opt(&WS), &param_maybe_default, opt(repeat1(seq!(opt(&WS), &param_maybe_default))))), opt(seq!(opt(&WS), &kwds))), seq!(python_literal(","), opt(&WS), &param_maybe_default, opt(repeat1(seq!(opt(&WS), &param_maybe_default))), opt(seq!(opt(&WS), &kwds))))),
@@ -632,14 +605,14 @@ pub fn python_file() -> Combinator {
          opt(repeat1(seq!(opt(&WS), &param_with_default))),
          opt(&WS),
          python_literal("/"),
-         choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(")")))
+         choice!(seq!(opt(&WS), python_literal(",")), lookahead(seq!(opt(&WS), python_literal(")"))))
     ))));
     let slash_no_default = slash_no_default.set(cached(tag("slash_no_default", seq!(
         &param_no_default,
          opt(repeat1(seq!(opt(&WS), &param_no_default))),
          opt(&WS),
          python_literal("/"),
-         choice!(seq!(opt(&WS), python_literal(",")), lookahead(python_literal(")")))
+         choice!(seq!(opt(&WS), python_literal(",")), lookahead(seq!(opt(&WS), python_literal(")"))))
     ))));
     let parameters = parameters.set(cached(tag("parameters", choice!(
         seq!(&slash_no_default, opt(seq!(opt(&WS), &param_no_default, opt(repeat1(seq!(opt(&WS), &param_no_default))))), opt(seq!(opt(&WS), &param_with_default, opt(repeat1(seq!(opt(&WS), &param_with_default))))), opt(seq!(opt(&WS), &star_etc))),
@@ -682,7 +655,7 @@ pub fn python_file() -> Combinator {
     ))));
     let block = block.set(cached(tag("block", choice!(
         seq!(&NEWLINE, opt(&WS), &INDENT, opt(&WS), &statements, opt(&WS), &DEDENT),
-        seq!(&simple_stmt, opt(&WS), choice!(seq!(negative_lookahead(python_literal(";")), &NEWLINE), seq!(opt(seq!(python_literal(";"), opt(&WS), opt(seq!(&WS, opt(&WS))), &simple_stmt, opt(repeat1(seq!(opt(&WS), python_literal(";"), opt(&WS), opt(seq!(&WS, opt(&WS))), &simple_stmt))), opt(&WS))), opt(seq!(python_literal(";"), opt(&WS))), &NEWLINE)))
+        seq!(&simple_stmt, opt(&WS), choice!(seq!(negative_lookahead(seq!(python_literal(";"), opt(&WS))), &NEWLINE), seq!(opt(seq!(python_literal(";"), opt(&WS), opt(seq!(&WS, opt(&WS))), &simple_stmt, opt(repeat1(seq!(opt(&WS), python_literal(";"), opt(&WS), opt(seq!(&WS, opt(&WS))), &simple_stmt))), opt(&WS))), opt(seq!(python_literal(";"), opt(&WS))), &NEWLINE)))
     ))));
     let dotted_name = dotted_name.set(cached(tag("dotted_name", seq!(&NAME, opt(seq!(opt(&WS), python_literal("."), opt(&WS), &NAME, opt(repeat1(seq!(opt(&WS), python_literal("."), opt(&WS), &NAME)))))))));
     let dotted_as_name = dotted_as_name.set(cached(tag("dotted_as_name", seq!(&dotted_name, opt(seq!(opt(&WS), python_literal("as"), opt(&WS), &NAME))))));
@@ -691,7 +664,7 @@ pub fn python_file() -> Combinator {
     let import_from_as_names = import_from_as_names.set(cached(tag("import_from_as_names", seq!(&import_from_as_name, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &import_from_as_name, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &import_from_as_name)))))))));
     let import_from_targets = import_from_targets.set(cached(tag("import_from_targets", choice!(
         seq!(python_literal("("), opt(&WS), &import_from_as_names, opt(seq!(opt(&WS), python_literal(","))), opt(&WS), python_literal(")")),
-        seq!(&import_from_as_names, negative_lookahead(python_literal(","))),
+        seq!(&import_from_as_names, negative_lookahead(seq!(opt(&WS), python_literal(",")))),
         python_literal("*")
     ))));
     let import_from = import_from.set(cached(tag("import_from", seq!(python_literal("from"), opt(&WS), choice!(seq!(opt(seq!(choice!(python_literal("."), python_literal("...")), opt(repeat1(seq!(opt(&WS), choice!(python_literal("."), python_literal("..."))))), opt(&WS))), &dotted_name, opt(&WS), python_literal("import"), opt(&WS), &import_from_targets), seq!(choice!(python_literal("."), python_literal("...")), opt(repeat1(seq!(opt(&WS), choice!(python_literal("."), python_literal("..."))))), opt(&WS), python_literal("import"), opt(&WS), &import_from_targets))))));
@@ -702,7 +675,7 @@ pub fn python_file() -> Combinator {
     ))));
     let assert_stmt = assert_stmt.set(cached(tag("assert_stmt", seq!(python_literal("assert"), opt(&WS), &expression, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &expression))))));
     let yield_stmt = yield_stmt.set(cached(tag("yield_stmt", &yield_expr)));
-    let del_stmt = del_stmt.set(cached(tag("del_stmt", seq!(python_literal("del"), opt(&WS), &del_targets, lookahead(choice!(python_literal(";"), &NEWLINE))))));
+    let del_stmt = del_stmt.set(cached(tag("del_stmt", seq!(python_literal("del"), opt(&WS), &del_targets, lookahead(seq!(opt(&WS), choice!(python_literal(";"), &NEWLINE)))))));
     let nonlocal_stmt = nonlocal_stmt.set(cached(tag("nonlocal_stmt", seq!(python_literal("nonlocal"), opt(&WS), &NAME, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME)))))))));
     let global_stmt = global_stmt.set(cached(tag("global_stmt", seq!(python_literal("global"), opt(&WS), &NAME, opt(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME, opt(repeat1(seq!(opt(&WS), python_literal(","), opt(&WS), &NAME)))))))));
     let raise_stmt = raise_stmt.set(cached(tag("raise_stmt", seq!(python_literal("raise"), opt(seq!(opt(&WS), &expression, opt(seq!(opt(&WS), python_literal("from"), opt(&WS), &expression))))))));
@@ -729,36 +702,36 @@ pub fn python_file() -> Combinator {
     let assignment = assignment.set(cached(tag("assignment", choice!(
         seq!(&NAME, opt(&WS), python_literal(":"), opt(&WS), &expression, opt(seq!(opt(&WS), python_literal("="), opt(&WS), &annotated_rhs))),
         seq!(choice!(seq!(python_literal("("), opt(&WS), &single_target, opt(&WS), python_literal(")")), &single_subscript_attribute_target), opt(&WS), python_literal(":"), opt(&WS), &expression, opt(seq!(opt(&WS), python_literal("="), opt(&WS), &annotated_rhs))),
-        seq!(&star_targets, opt(&WS), python_literal("="), opt(seq!(opt(&WS), &star_targets, opt(&WS), python_literal("="), opt(repeat1(seq!(opt(&WS), &star_targets, opt(&WS), python_literal("=")))))), opt(&WS), choice!(&yield_expr, &star_expressions), negative_lookahead(python_literal("=")), opt(seq!(opt(&WS), &TYPE_COMMENT))),
+        seq!(&star_targets, opt(&WS), python_literal("="), opt(seq!(opt(&WS), &star_targets, opt(&WS), python_literal("="), opt(repeat1(seq!(opt(&WS), &star_targets, opt(&WS), python_literal("=")))))), opt(&WS), choice!(&yield_expr, &star_expressions), negative_lookahead(seq!(opt(&WS), python_literal("="))), opt(seq!(opt(&WS), &TYPE_COMMENT))),
         seq!(&single_target, opt(&WS), &augassign, opt(&WS), choice!(&yield_expr, &star_expressions))
     ))));
     let compound_stmt = compound_stmt.set(cached(tag("compound_stmt", choice!(
-        seq!(lookahead(choice!(python_literal("def"), python_literal("@"), python_literal("async"))), &function_def),
-        seq!(lookahead(python_literal("if")), &if_stmt),
-        seq!(lookahead(choice!(python_literal("class"), python_literal("@"))), &class_def),
-        seq!(lookahead(choice!(python_literal("with"), python_literal("async"))), &with_stmt),
-        seq!(lookahead(choice!(python_literal("for"), python_literal("async"))), &for_stmt),
-        seq!(lookahead(python_literal("try")), &try_stmt),
-        seq!(lookahead(python_literal("while")), &while_stmt),
+        seq!(lookahead(seq!(choice!(python_literal("def"), python_literal("@"), python_literal("async")), opt(&WS))), &function_def),
+        seq!(lookahead(seq!(python_literal("if"), opt(&WS))), &if_stmt),
+        seq!(lookahead(seq!(choice!(python_literal("class"), python_literal("@")), opt(&WS))), &class_def),
+        seq!(lookahead(seq!(choice!(python_literal("with"), python_literal("async")), opt(&WS))), &with_stmt),
+        seq!(lookahead(seq!(choice!(python_literal("for"), python_literal("async")), opt(&WS))), &for_stmt),
+        seq!(lookahead(seq!(python_literal("try"), opt(&WS))), &try_stmt),
+        seq!(lookahead(seq!(python_literal("while"), opt(&WS))), &while_stmt),
         &match_stmt
     ))));
     let simple_stmt = simple_stmt.set(cached(tag("simple_stmt", choice!(
         &assignment,
-        seq!(lookahead(python_literal("type")), &type_alias),
+        seq!(lookahead(seq!(python_literal("type"), opt(&WS))), &type_alias),
         &star_expressions,
-        seq!(lookahead(python_literal("return")), &return_stmt),
-        seq!(lookahead(choice!(python_literal("import"), python_literal("from"))), &import_stmt),
-        seq!(lookahead(python_literal("raise")), &raise_stmt),
+        seq!(lookahead(seq!(python_literal("return"), opt(&WS))), &return_stmt),
+        seq!(lookahead(seq!(choice!(python_literal("import"), python_literal("from")), opt(&WS))), &import_stmt),
+        seq!(lookahead(seq!(python_literal("raise"), opt(&WS))), &raise_stmt),
         python_literal("pass"),
-        seq!(lookahead(python_literal("del")), &del_stmt),
-        seq!(lookahead(python_literal("yield")), &yield_stmt),
-        seq!(lookahead(python_literal("assert")), &assert_stmt),
+        seq!(lookahead(seq!(python_literal("del"), opt(&WS))), &del_stmt),
+        seq!(lookahead(seq!(python_literal("yield"), opt(&WS))), &yield_stmt),
+        seq!(lookahead(seq!(python_literal("assert"), opt(&WS))), &assert_stmt),
         python_literal("break"),
         python_literal("continue"),
-        seq!(lookahead(python_literal("global")), &global_stmt),
-        seq!(lookahead(python_literal("nonlocal")), &nonlocal_stmt)
+        seq!(lookahead(seq!(python_literal("global"), opt(&WS))), &global_stmt),
+        seq!(lookahead(seq!(python_literal("nonlocal"), opt(&WS))), &nonlocal_stmt)
     ))));
-    let simple_stmts = simple_stmts.set(cached(tag("simple_stmts", seq!(&simple_stmt, opt(&WS), choice!(seq!(negative_lookahead(python_literal(";")), &NEWLINE), seq!(opt(seq!(python_literal(";"), opt(&WS), &simple_stmt, opt(repeat1(seq!(opt(&WS), python_literal(";"), opt(&WS), &simple_stmt))), opt(&WS))), opt(seq!(python_literal(";"), opt(&WS))), &NEWLINE))))));
+    let simple_stmts = simple_stmts.set(cached(tag("simple_stmts", seq!(&simple_stmt, opt(&WS), choice!(seq!(negative_lookahead(seq!(python_literal(";"), opt(&WS))), &NEWLINE), seq!(opt(seq!(python_literal(";"), opt(&WS), &simple_stmt, opt(repeat1(seq!(opt(&WS), python_literal(";"), opt(&WS), &simple_stmt))), opt(&WS))), opt(seq!(python_literal(";"), opt(&WS))), &NEWLINE))))));
     let statement_newline = statement_newline.set(cached(tag("statement_newline", choice!(
         seq!(&compound_stmt, opt(&WS), &NEWLINE),
         &simple_stmts,
