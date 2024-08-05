@@ -1,9 +1,5 @@
 use std::rc::Rc;
-use crate::{_choice, choice, Choice, choice_greedy, Combinator, eps, repeat0, repeat0_greedy, seq, symbol};
-
-pub fn opt(a: impl Into<Combinator>) -> Combinator {
-    choice!(a, eps())
-}
+use crate::{_choice, choice, Choice, choice_greedy, Combinator, eps, opt, opt_greedy, repeat0, repeat0_greedy, seq, symbol};
 
 pub fn seprep1(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
     let a = symbol(a);
@@ -17,10 +13,6 @@ pub fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator
 pub fn repeatn(n: usize, a: impl Into<Combinator>) -> Combinator {
     let a = Rc::new(a.into());
     Choice { children: vec![a.clone(); n], greedy: false }.into()
-}
-
-pub fn opt_greedy(a: impl Into<Combinator>) -> Combinator {
-    choice_greedy!(a, eps())
 }
 
 pub fn seprep1_greedy(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
