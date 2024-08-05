@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::AddAssign;
 
-use crate::{CacheContextParser, CacheFirstContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, IndentCombinatorParser, LookaheadContextParser, match_parser, OptParser, Parser, ProfiledParser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set};
+use crate::{CacheContextParser, CacheFirstContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, IndentCombinatorParser, LookaheadContextParser, match_parser, Parser, ProfiledParser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -298,11 +298,6 @@ impl Parser {
             Parser::IndentCombinatorParser(IndentCombinatorParser::Done) => {}
             Parser::ProfiledParser(ProfiledParser { inner, .. }) => {
                 inner.collect_stats(stats, current_tag);
-            }
-            Parser::OptParser(OptParser { inner, .. }) => {
-                if let Some(inner) = inner {
-                    inner.collect_stats(stats, current_tag);
-                }
             }
         }
         stats.active_parser_type_counts.entry(self.type_name()).or_default().add_assign(1);
