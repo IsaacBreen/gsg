@@ -104,9 +104,9 @@ impl ParserTrait for ProfiledParser {
         self.profile_data.push_tag(self.tag.clone());
         let mut parse_results = self.inner.parse(bytes);
         self.profile_data.pop_tag();
-        self.profile_data.push_tag("squash".to_string());
-        parse_results.squash();
-        self.profile_data.pop_tag();
+        // self.profile_data.push_tag("squash".to_string());
+        // parse_results.squash();
+        // self.profile_data.pop_tag();
         parse_results
     }
 }
