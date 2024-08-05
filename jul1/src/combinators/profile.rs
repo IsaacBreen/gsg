@@ -78,7 +78,10 @@ pub struct ProfiledParser {
 
 impl CombinatorTrait for Profiled {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        profile!(&self.tag, self.inner.parse(right_data, bytes))
+        profile!(&self.tag, {
+            let (parser, parse_results) = self.inner.parse(right_data, bytes);
+                (parser, parse_results.squashed())
+        })
     }
 }
 
@@ -88,7 +91,7 @@ impl ParserTrait for ProfiledParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        profile!(&self.tag, self.inner.parse(bytes))
+        profile!(&self.tag, self.inner.parse(bytes).squashed())
     }
 }
 
