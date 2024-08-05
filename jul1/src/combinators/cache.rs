@@ -84,7 +84,7 @@ impl CombinatorTrait for CacheContext {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         assert!(right_data.cache_data.inner.is_none(), "CacheContextParser already initialized");
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner {
-            new_parsers: LruCache::new(NonZero::new(100).unwrap()),
+            new_parsers: LruCache::new(NonZero::new(64).unwrap()),
             entries: Vec::new(),
         }));
         right_data.cache_data.inner = Some(cache_data_inner.clone());
