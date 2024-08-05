@@ -196,9 +196,10 @@ fn test_actual_python_file_fast() {
 
     let test_cases = [
         // ("Simple string", "x = 12\nx = 2\nx"),
-        ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
+        // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
         // ("remove_left_recursion.py", include_str!("../python/remove_left_recursion.py")),
         // ("test_input.py", include_str!("../tests/test_input.py")),
+        ("test_input2.py", include_str!("../tests/test_input2.py")),
     ];
 
     for (name, content) in test_cases.iter() {
