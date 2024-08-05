@@ -16,12 +16,12 @@ pub struct ChoiceParser {
 }
 
 impl CombinatorTrait for Choice {
-    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
         for child in &self.children {
-            let (parser, parse_results) = child.parse(&right_data, bytes);
+            let (parser, parse_results) = child.parse(right_data.clone(), bytes);
             if !parse_results.done {
                 parsers.push(parser);
             }

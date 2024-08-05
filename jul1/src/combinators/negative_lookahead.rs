@@ -28,7 +28,7 @@ fn common_prefix(a: &[u8], b: &[u8]) -> bool {
 }
 
 impl CombinatorTrait for ExcludeBytestrings {
-    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.position;
         let (inner, mut parse_results) = self.inner.parse(right_data, bytes);
         let mut bytestrings_to_exclude = self.bytestrings_to_exclude.clone();
@@ -46,7 +46,7 @@ impl CombinatorTrait for ExcludeBytestrings {
             for right_data in parse_results.right_data_vec.iter_mut() {
                 let remaining = bytestrings_to_exclude.iter().map(|bytestring| bytestring[right_data.position - start_position..].to_vec()).collect();
                 let remaining_combinator = eat_bytestring_choice(remaining);
-                let (remaining_parser, _) = remaining_combinator.parse(&right_data, &[]);
+                let (remaining_parser, _) = remaining_combinator.parse(right_data.clone(), &[]);
                 right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
                     parser: Box::new(remaining_parser),
                     positive: false,
@@ -88,7 +88,7 @@ impl ParserTrait for ExcludeBytestringsParser {
             for right_data in parse_results.right_data_vec.iter_mut() {
                 let remaining = self.bytestrings_to_exclude.iter().map(|bytestring| bytestring[right_data.position - self.start_position..].to_vec()).collect();
                 let remaining_combinator = eat_bytestring_choice(remaining);
-                let (remaining_parser, _) = remaining_combinator.parse(&right_data, &[]);
+                let (remaining_parser, _) = remaining_combinator.parse(right_data.clone(), &[]);
                 right_data.lookahead_data.partial_lookaheads.push(PartialLookahead {
                     parser: Box::new(remaining_parser),
                     positive: false,

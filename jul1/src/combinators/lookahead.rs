@@ -13,7 +13,7 @@ pub struct LookaheadContextParser {
 }
 
 impl CombinatorTrait for LookaheadContext {
-    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (inner, parse_results) = self.inner.parse(right_data, bytes);
         (Parser::LookaheadContextParser(LookaheadContextParser { inner: Box::new(inner), persist_with_partial_lookahead: self.persist_with_partial_lookahead }), parse_results)
     }
@@ -66,8 +66,8 @@ pub struct Lookahead {
 }
 
 impl CombinatorTrait for Lookahead {
-    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (parser, mut parse_results) = self.combinator.parse(&right_data, bytes);
+    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let (parser, mut parse_results) = self.combinator.parse(right_data.clone(), bytes);
         let has_right_data = !parse_results.right_data_vec.is_empty();
         let succeeds = if self.positive {
             // A positive lookahead succeeds if it yields right data now or it *could* yield right data later (i.e. it's not done yet)
@@ -77,7 +77,6 @@ impl CombinatorTrait for Lookahead {
             !has_right_data
         };
         if succeeds {
-            let mut right_data = right_data.clone();
             if !parse_results.done {
                 if self.persist_with_partial_lookahead {
                     // println!("Lookahead not done at position {}. Lookahead: {:?}", right_data.position, self);

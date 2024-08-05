@@ -85,10 +85,10 @@ pub struct EatByteStringChoiceParser {
 
 impl CombinatorTrait for EatByteStringChoice {
 
-    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatByteStringChoiceParser {
             current_node: Rc::clone(&self.root),
-            right_data: right_data.clone(),
+            right_data,
         };
         let parse_results = parser.parse(bytes);
         (Parser::EatByteStringChoiceParser(parser), parse_results)

@@ -13,7 +13,7 @@ pub struct SymbolParser {
 }
 
 impl CombinatorTrait for Symbol {
-    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (inner, parse_results) = self.value.parse(right_data, bytes);
         (Parser::SymbolParser(SymbolParser { inner: Box::new(inner), symbol_value: self.value.clone() }), parse_results)
     }

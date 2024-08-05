@@ -19,9 +19,9 @@ pub struct Repeat1Parser {
 }
 
 impl CombinatorTrait for Repeat1 {
-    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = vec![];
-        let (parser, ParseResults { mut right_data_vec, done }) = self.a.parse(&right_data, bytes);
+        let (parser, ParseResults { mut right_data_vec, done }) = self.a.parse(right_data.clone(), bytes);
         if !done {
             parsers.push(parser);
         }
@@ -30,7 +30,7 @@ impl CombinatorTrait for Repeat1 {
         while next_right_data.len() > 0 {
             for new_right_data in std::mem::take(&mut next_right_data) {
                 let offset = new_right_data.position - right_data.position;
-                let (parser, parse_results) = self.a.parse(&new_right_data, &bytes[offset..]);
+                let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
                 if !parse_results.done {
                     parsers.push(parser);
                 }
@@ -82,7 +82,7 @@ impl ParserTrait for Repeat1Parser {
         while i < right_data_as.len() {
             let right_data_a = right_data_as[i].clone();
             let offset = right_data_a.position - self.position;
-            let (a_parser, ParseResults { right_data_vec: right_data_a, mut done }) = self.a.parse(&right_data_a, &bytes[offset..]);
+            let (a_parser, ParseResults { right_data_vec: right_data_a, mut done }) = self.a.parse(right_data_a, &bytes[offset..]);
             right_data_as.extend(right_data_a);
             if !done {
                 self.a_parsers.push(a_parser);

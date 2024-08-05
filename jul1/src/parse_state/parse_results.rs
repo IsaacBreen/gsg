@@ -9,7 +9,7 @@ pub struct ParseResults {
 impl ParseResults {
     pub fn new(right_data: RightData, done: bool) -> Self {
         ParseResults {
-            right_data_vec: vec![right_data.clone()],
+            right_data_vec: vec![right_data],
             done,
         }
     }

@@ -7,7 +7,7 @@ pub struct FailParser;
 pub struct Fail;
 
 impl CombinatorTrait for Fail {
-    fn parse(&self, right_data: &RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::FailParser(FailParser), ParseResults::empty_finished())
     }
 }
