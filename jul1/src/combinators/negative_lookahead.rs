@@ -40,7 +40,7 @@ impl CombinatorTrait for ExcludeBytestrings {
             }
             true
         });
-        if !bytestrings_to_exclude.iter().any(|bytestring| bytes.len() <= bytestring.len()) {
+        if bytestrings_to_exclude.iter().any(|bytestring| bytes.len() <= bytestring.len()) {
             for right_data in parse_results.right_data_vec.iter_mut() {
                 Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
             }
@@ -70,7 +70,7 @@ impl ParserTrait for ExcludeBytestringsParser {
             }
             true
         });
-        if !self.bytestrings_to_exclude.iter().any(|bytestring| bytes.len() <= bytestring.len()) {
+        if self.bytestrings_to_exclude.iter().any(|bytestring| bytes.len() <= bytestring.len()) {
             for right_data in parse_results.right_data_vec.iter_mut() {
                 Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
             }
