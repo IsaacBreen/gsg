@@ -30,7 +30,7 @@ impl<T> FakeVec<T> {
 
     pub fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         for item in iter.into_iter() {
-            self.push(item).expect("FakeVec can only store one item");
+            self.push(item).expect("`extend` failed.")
         }
     }
 
