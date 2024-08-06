@@ -37,13 +37,13 @@ impl CombinatorTrait for Seq {
                 let (parser, parse_results) = profile!("seq child parse", {
                     combinator.parse(right_data, &bytes[offset..])
                 });
+                if !parse_results.done() {
+                    parsers.push((combinator_index, parser));
+                }
                 if combinator_index + 1 < self.children.len() {
                     next_right_data_vec.extend(parse_results.right_data_vec);
                 } else {
                     final_right_data.extend(parse_results.right_data_vec);
-                }
-                if !parse_results.done {
-                    parsers.push((combinator_index, parser));
                 }
             }
             if next_right_data_vec.is_empty() {
@@ -79,11 +79,13 @@ impl ParserTrait for SeqParser {
         let mut parser_initialization_queue: Vec<(usize, VecY<RightData>)> = Vec::new();
 
         self.parsers.retain_mut(|(combinator_index, parser)| {
-            let ParseResults { right_data_vec, done } = parser.parse(bytes);
+            // let ParseResults { right_data_vec, done } = parser.parse(bytes);
+            let parse_results = parser.parse(bytes);
+            let done = parse_results.done();
             if *combinator_index + 1 < self.combinators.len() {
-                parser_initialization_queue.push((*combinator_index + 1, right_data_vec));
+                parser_initialization_queue.push((*combinator_index + 1, parse_results.right_data_vec));
             } else {
-                final_right_data.extend(right_data_vec);
+                final_right_data.extend(parse_results.right_data_vec);
             }
             !done
         });
@@ -93,13 +95,13 @@ impl ParserTrait for SeqParser {
                 let offset = right_data.right_data_inner.position - self.position;
                 let combinator = &self.combinators[combinator_index];
                 let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
+                if !parse_results.done() {
+                    self.parsers.push((combinator_index, parser));
+                }
                 if combinator_index + 1 < self.combinators.len() {
                     parser_initialization_queue.push((combinator_index + 1, parse_results.right_data_vec));
                 } else {
                     final_right_data.extend(parse_results.right_data_vec);
-                }
-                if !parse_results.done {
-                    self.parsers.push((combinator_index, parser));
                 }
             }
         }

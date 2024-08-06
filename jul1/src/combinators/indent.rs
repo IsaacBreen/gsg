@@ -97,9 +97,10 @@ impl ParserTrait for IndentCombinatorParser {
         for &byte in bytes {
             match self {
                 IndentCombinatorParser::DentParser(parser) => {
-                    let ParseResults { right_data_vec: mut new_right_data_vec, done: new_done } = parser.parse(&[byte]);
-                    right_data_vec.append(&mut new_right_data_vec);
-                    done = new_done;
+                    // let ParseResults { right_data_vec: mut new_right_data_vec, done: new_done } = parser.parse(&[byte]);
+                    let mut parse_results = parser.parse(&[byte]);
+                    right_data_vec.append(&mut parse_results.right_data_vec);
+                    done = parse_results.done();
                     if done {
                         break;
                     }

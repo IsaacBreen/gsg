@@ -5,37 +5,40 @@ use crate::VecX;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParseResults {
     pub right_data_vec: VecY<RightData>,
-    pub done: bool,
+    // pub done: bool,
 }
 
 impl ParseResults {
-    pub fn new(right_data_vec: VecY<RightData>, done: bool) -> Self {
+    pub fn done(&self) -> bool {
+        self.right_data_vec.is_empty()
+    }
+    pub fn new(right_data_vec: impl IntoIterator<Item = RightData>, done: bool) -> Self {
         ParseResults {
-            right_data_vec,
-            done,
+            right_data_vec: right_data_vec.into_iter().collect(),
+            // done,
         }
     }
     pub fn new_single(right_data: RightData, done: bool) -> Self {
         ParseResults {
             right_data_vec: VecY::from(vec![right_data]),
-            done,
+            // done,
         }
     }
     pub fn empty_unfinished() -> Self {
         ParseResults {
             right_data_vec: VecY::new(),
-            done: false,
+            // done: false,
         }
     }
     pub fn empty_finished() -> Self {
         ParseResults {
             right_data_vec: VecY::new(),
-            done: true,
+            // done: true,
         }
     }
     pub(crate) fn merge_assign(&mut self, mut p0: ParseResults) {
         self.right_data_vec.append(&mut p0.right_data_vec);
-        self.done &= p0.done;
+        // self.done() &= p0.done();
         // self.squash();
     }
     pub(crate) fn merge(mut self, p0: ParseResults) -> Self {
@@ -44,10 +47,10 @@ impl ParseResults {
     }
     pub fn combine_seq(&mut self, mut p0: ParseResults) {
         self.right_data_vec.append(&mut p0.right_data_vec);
-        self.done |= p0.done;
+        // self.done() |= p0.done();
         // self.squash();
     }
     pub fn succeeds_decisively(&self) -> bool {
-        self.done && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|rd| rd.failable())
+        self.done() && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|rd| rd.failable())
     }
 }

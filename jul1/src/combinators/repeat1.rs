@@ -23,17 +23,18 @@ pub struct Repeat1Parser {
 impl CombinatorTrait for Repeat1 {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = vec![];
-        let (parser, ParseResults { mut right_data_vec, done }) = self.a.parse(right_data.clone(), bytes);
-        if !done {
+        let (parser, parse_results) = self.a.parse(right_data.clone(), bytes);
+        if !parse_results.done() {
             parsers.push(parser);
         }
+        let mut right_data_vec = parse_results.right_data_vec.clone();
 
         let mut next_right_data = right_data_vec.clone();
         while next_right_data.len() > 0 {
             for new_right_data in std::mem::take(&mut next_right_data) {
                 let offset = new_right_data.right_data_inner.position - right_data.right_data_inner.position;
                 let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
-                if !parse_results.done {
+                if !parse_results.done() {
                     parsers.push(parser);
                 }
                 if self.greedy && parse_results.succeeds_decisively() {
@@ -55,6 +56,8 @@ impl CombinatorTrait for Repeat1 {
             }
             right_data_vec.extend(next_right_data.clone());
         }
+
+        let done = parsers.is_empty();
 
         (
             Parser::Repeat1Parser(Repeat1Parser {
@@ -82,7 +85,7 @@ impl ParserTrait for Repeat1Parser {
 
         for mut a_parser in std::mem::take(&mut self.a_parsers) {
             let parse_results = a_parser.parse(bytes);
-            if !parse_results.done {
+            if !parse_results.done() {
                 self.a_parsers.push(a_parser);
             }
             right_data_as.extend(parse_results.right_data_vec);
@@ -92,11 +95,11 @@ impl ParserTrait for Repeat1Parser {
         while i < right_data_as.len() {
             let right_data_a = right_data_as[i].clone();
             let offset = right_data_a.right_data_inner.position - self.position;
-            let (a_parser, ParseResults { right_data_vec: right_data_a, mut done }) = self.a.parse(right_data_a, &bytes[offset..]);
-            right_data_as.extend(right_data_a);
-            if !done {
+            let (a_parser, parse_results) = self.a.parse(right_data_a, &bytes[offset..]);
+            if !parse_results.done() {
                 self.a_parsers.push(a_parser);
             }
+            right_data_as.extend(parse_results.right_data_vec);
             i += 1;
         }
 

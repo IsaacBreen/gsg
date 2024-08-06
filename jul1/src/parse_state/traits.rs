@@ -46,10 +46,9 @@ impl Squash for VecY<RightData> {
 impl Squash for ParseResults {
     type Output = ParseResults;
     fn squashed(self) -> Self::Output {
-        profile!("ParseResults::squashed",
-            ParseResults {
-                right_data_vec: self.right_data_vec.squashed(),
-                done: self.done,
+        profile!("ParseResults::squashed", {
+                let done = self.done();
+                ParseResults::new(self.right_data_vec.squashed(), done)
             }
         )
     }
