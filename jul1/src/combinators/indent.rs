@@ -1,4 +1,4 @@
-use crate::{choice, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX, VecY};
+use crate::{choice, choice_greedy, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX, VecY};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IndentCombinator {
     Dent,
@@ -20,18 +20,21 @@ impl CombinatorTrait for IndentCombinator {
             IndentCombinator::Dent if right_data.dedents == 0 => {
                 fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Combinator { // TODO: Make this a macro
                     if indents.is_empty() {
-                        negative_lookahead(eat_byte_choice(b" \n\r")).into()
+                        eps().into()
                     } else {
                         let dedents = indents.len();
-                        choice!(
+                        choice_greedy!(
                             // Exit here and register dedents
-                            mutate_right_data(move |right_data: &mut RightData| {
-                                right_data.dedents = dedents;
-                                // Remove the last `dedents` indents from the indent stack
-                                right_data.indents.truncate(right_data.indents.len() - dedents);
-                                // println!("Registering {} dedents. Right data: {:?}", dedents, right_data);
-                                true
-                            }),
+                            seq!(
+                                negative_lookahead(eat_char_choice(" \n\r")),
+                                mutate_right_data(move |right_data: &mut RightData| {
+                                    right_data.dedents = dedents;
+                                    // Remove the last `dedents` indents from the indent stack
+                                    right_data.indents.truncate(right_data.indents.len() - dedents);
+                                    // println!("Registering {} dedents. Right data: {:?}", dedents, right_data);
+                                    true
+                                })
+                            ),
                             // Or match the indent and continue
                             seq!(eat_bytes(&indents[0]), make_combinator(&indents[1..], total_indents))
                         ).into()
