@@ -27,7 +27,7 @@ fn common_prefix(a: &[u8], b: &[u8]) -> bool {
 }
 
 impl CombinatorTrait for ExcludeBytestrings {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.position;
         let (inner, mut parse_results) = self.inner.parse(right_data, bytes);
         let mut bytestrings_to_exclude = self.bytestrings_to_exclude.clone();

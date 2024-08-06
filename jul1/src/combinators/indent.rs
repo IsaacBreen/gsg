@@ -15,7 +15,7 @@ pub enum IndentCombinatorParser {
 }
 
 impl CombinatorTrait for IndentCombinator {
-    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, mut right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
             IndentCombinator::Dent if right_data.dedents == 0 => {
                 fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Combinator { // TODO: Make this a macro
@@ -60,8 +60,8 @@ impl CombinatorTrait for IndentCombinator {
                     }
                     right_data.position += i;
                     right_data.indents.push(bytes[0..i].to_vec());
-                    (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults {
-                        right_data_vec: vec![right_data].into(),
+                    (IndentCombinatorParser::IndentParser(Some(*right_data.clone())), ParseResults {
+                        right_data_vec: vec![*right_data].into(),
                         done: i < bytes.len(),
                     })
                 }
@@ -70,13 +70,13 @@ impl CombinatorTrait for IndentCombinator {
                 right_data.dedents -= 1;
                 // println!("Decremented dedents to {}", right_data.dedents);
                 (IndentCombinatorParser::Done, ParseResults {
-                    right_data_vec: vec![right_data].into(),
+                    right_data_vec: vec![*right_data].into(),
                     done: true,
                 })
             }
             IndentCombinator::AssertNoDedents if right_data.dedents == 0 => {
                 (IndentCombinatorParser::Done, ParseResults {
-                    right_data_vec: vec![right_data].into(),
+                    right_data_vec: vec![*right_data].into(),
                     done: true,
                 })
             }

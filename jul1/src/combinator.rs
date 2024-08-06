@@ -149,7 +149,7 @@ macro_rules! match_parser {
 }
 
 pub trait CombinatorTrait {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
+    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults);
 }
 
 pub trait ParserTrait {
@@ -158,7 +158,7 @@ pub trait ParserTrait {
 }
 
 impl CombinatorTrait for Combinator {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match_combinator!(self, inner => inner.parse(right_data, bytes));
         if !parse_results.done && bytes.len() > 100 {
             println!("Combinator {:?} did not consume all input. Positions: {:?}, bytes.len(): {}", self, parse_results.right_data_vec.iter().map(|x| x.position).collect::<Vec<_>>(), bytes.len());
@@ -185,7 +185,7 @@ impl Combinator {
 
 pub trait CombinatorTraitExt: CombinatorTrait {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        self.parse(right_data, &[])
+        self.parse(right_data.into(), &[])
     }
 }
 

@@ -13,10 +13,10 @@ pub struct EatU8Parser {
 }
 
 impl CombinatorTrait for EatU8 {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatU8Parser {
             u8set: self.u8set.clone(),
-            right_data: Some(right_data),
+            right_data: Some(*right_data),
         };
         let parse_results = parser.parse(bytes);
         (Parser::EatU8Parser(parser), parse_results)
