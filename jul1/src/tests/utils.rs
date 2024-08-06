@@ -167,7 +167,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     );
     parse_results.squash();
     // Get the line and char number of the max position
-    let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.borrow().position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).borrow().position;
+    let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
     let mut line_number = 0;
     let mut char_number = 0;
     for byte in bytes[0..max_position].iter().cloned() {
@@ -221,7 +221,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
     // Get the right data with the highest position
     // Ensure the parser finished with right data at the end
-    assert!(parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.borrow().position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).borrow().position == bytes.len(), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
+    assert!(parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position == bytes.len(), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
 
 }
 
@@ -231,7 +231,7 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
     let (parser, mut parse_results) = combinator.parse(start_right_data, &bytes);
     parse_results.squash();
     // Get the line and char number of the max position
-    let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.borrow().position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).borrow().position;
+    let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position;
     let mut line_number = 0;
     let mut char_number = 0;
     for byte in bytes[0..max_position].iter().cloned() {
@@ -263,7 +263,7 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
     // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
     // Get the right data with the highest position
     // Ensure the parser is still going or that it finished with right data at the end (within tolerance)
-    assert!(parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.borrow().position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).borrow().position >= bytes.len().saturating_sub(tolerance), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
+    assert!(parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).position >= bytes.len().saturating_sub(tolerance), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
 }
 
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
@@ -336,5 +336,5 @@ pub fn assert_fails_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input:
     let (mut parser, _) = combinator.parser(RightData::default());
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let parse_results = parser.parse(&bytes);
-    assert!(parse_results.done && parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.borrow().position).map_or(true, |right_data| right_data.borrow().position == bytes.len()), "Expected parser to fail at the end. parse_results: {:?}", parse_results);
+    assert!(parse_results.done && parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.position).map_or(true, |right_data| right_data.position == bytes.len()), "Expected parser to fail at the end. parse_results: {:?}", parse_results);
 }
