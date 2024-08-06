@@ -141,11 +141,13 @@ impl ParserTrait for CacheContextParser {
 impl CombinatorTrait for Cached {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
-        if let Some(entry) = right_data.right_data_inner.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.get(&key).cloned() {
-            profile!("Cached.parse: cache hit", {});
-            let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
-            return (Parser::CachedParser(CachedParser { entry }), parse_results);
-        }
+        profile!("Cached.parse: check cache", {
+            if let Some(entry) = right_data.right_data_inner.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.get(&key).cloned() {
+                profile!("Cached.parse: cache hit", {});
+                let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
+                return (Parser::CachedParser(CachedParser { entry }), parse_results);
+            }
+        });
         profile!("Cached.parse: cache miss", {});
         let entry = Rc::new(RefCell::new(CacheEntry {
             parser: None,
