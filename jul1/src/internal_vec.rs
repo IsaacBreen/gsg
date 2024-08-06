@@ -1,8 +1,8 @@
 // pub type VecX<T> = smallvec::SmallVec<[T; 1]>;
 pub type VecX<T> = Vec<T>;
 
-// pub type VecY<T> = Vec<T>;
-pub type VecY<T> = smallvec::SmallVec<[T; 1]>;
+pub type VecY<T> = Vec<T>;
+// pub type VecY<T> = smallvec::SmallVec<[T; 1]>;
 // pub type VecY<T> = FakeVec<T>;
 
 use std::iter::FromIterator;
@@ -51,17 +51,17 @@ impl<T: PartialEq> FakeVec<T> {
     }
 
     pub fn retain<F: FnMut(&T) -> bool>(&mut self, mut f: F) {
-        if let Some(item) = self.item.take() {
-            if f(&item) {
-                self.item = Some(item);
+        if let Some(item) = &mut self.item {
+            if !f(item) {
+                self.item = None;
             }
         }
     }
 
     pub fn retain_mut<F: FnMut(&mut T) -> bool>(&mut self, mut f: F) {
-        if let Some(mut item) = self.item.take() {
-            if f(&mut item) {
-                self.item = Some(item);
+        if let Some(ref mut item) = self.item {
+            if !f(item) {
+                self.item = None;
             }
         }
     }
