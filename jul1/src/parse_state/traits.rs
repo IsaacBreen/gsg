@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use crate::{LookaheadData, ParseResults, profile, RightData, U8Set, VecX};
+use crate::{LookaheadData, ParseResults, profile, RightData, U8Set, VecX, VecY};
 
 // macro_rules! profile {
 //     ($tag:expr, $body:expr) => {{
@@ -22,8 +22,8 @@ pub trait Squash {
     fn squash(&mut self);
 }
 
-impl Squash for Vec<RightData> {
-    type Output = Vec<RightData>;
+impl Squash for VecY<RightData> {
+    type Output = VecY<RightData>;
     fn squashed(self) -> Self::Output {
         if self.len() > SQUASH_THRESHOLD {
             profile!("RightDataSquasher::squashed", {
@@ -37,28 +37,7 @@ impl Squash for Vec<RightData> {
     }
     fn squash(&mut self) {
         if self.len() > SQUASH_THRESHOLD {
-            *self = self.drain(..).collect::<Vec<RightData>>().squashed()
-        }
-    }
-}
-
-impl Squash for VecX<RightData> {
-    type Output = VecX<RightData>;
-    fn squashed(self) -> Self::Output {
-        if self.len() > SQUASH_THRESHOLD {
-            profile!("VecX<RightData>::squashed", {
-                let mut squasher = VecX::new();
-                squasher.extend(self.into_iter());
-                squasher.squash();
-                squasher
-            })
-        } else {
-            self
-        }
-    }
-    fn squash(&mut self) {
-        if self.len() > SQUASH_THRESHOLD {
-            *self = self.drain(..).collect::<Vec<RightData>>().squashed().into()
+            *self = self.drain(..).collect::<VecY<RightData>>().squashed()
         }
     }
 }
@@ -111,9 +90,9 @@ impl RightDataSquasher {
             })
     }
 
-    pub fn finish(self) -> Vec<RightData> {
+    pub fn finish(self) -> VecY<RightData> {
         profile!("RightDataSquasher::finish", {
-            let mut result = vec![];
+            let mut result = VecY::new();
             for (mut right_data, lookahead_data) in self.decomposed {
                 right_data.lookahead_data = lookahead_data;
                 result.push(right_data);

@@ -1,3 +1,186 @@
 pub type VecX<T> = smallvec::SmallVec<[T; 0]>;
 
-pub type VecY<T> = VecX<T>;
+pub type VecY<T> = FakeVec<T>;
+
+use std::iter::FromIterator;
+use std::ops::{Index, IndexMut, RangeBounds};
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FakeVec<T> {
+    item: Option<T>,
+}
+
+impl<T> FakeVec<T> {
+    pub fn new() -> Self {
+        FakeVec { item: None }
+    }
+
+    pub fn push(&mut self, value: T) -> Result<(), &'static str> {
+        if self.item.is_some() {
+            Err("FakeVec can only store one item")
+        } else {
+            self.item = Some(value);
+            Ok(())
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        self.item.take()
+    }
+
+    pub fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter.into_iter() {
+            self.push(item).expect("FakeVec can only store one item");
+        }
+    }
+
+    pub fn append(&mut self, other: &mut Self) {
+        self.extend(other.drain(..));
+    }
+
+    pub fn clear(&mut self) {
+        self.item = None;
+    }
+
+    pub fn drain<R: RangeBounds<usize>>(&mut self, _range: R) -> Drain<T> {
+        Drain { vec: self }
+    }
+
+    pub fn retain<F: FnMut(&T) -> bool>(&mut self, mut f: F) {
+        if let Some(item) = self.item.take() {
+            if f(&item) {
+                self.item = Some(item);
+            }
+        }
+    }
+
+    pub fn retain_mut<F: FnMut(&mut T) -> bool>(&mut self, mut f: F) {
+        if let Some(mut item) = self.item.take() {
+            if f(&mut item) {
+                self.item = Some(item);
+            }
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.item.is_some() as usize
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.item.is_none()
+    }
+
+    pub fn iter(&self) -> std::option::Iter<T> {
+        self.item.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> std::option::IterMut<T> {
+        self.item.iter_mut()
+    }
+
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index == 0 {
+            self.item.as_ref()
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        if index == 0 {
+            self.item.as_mut()
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> Default for FakeVec<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> FromIterator<T> for FakeVec<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut fake_vec = FakeVec::new();
+        for item in iter {
+            if fake_vec.push(item).is_err() {
+                break;
+            }
+        }
+        fake_vec
+    }
+}
+
+impl<T> Extend<T> for FakeVec<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter {
+            if self.push(item).is_err() {
+                break;
+            }
+        }
+    }
+}
+
+impl<T> IntoIterator for FakeVec<T> {
+    type Item = T;
+    type IntoIter = std::option::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.item.into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a FakeVec<T> {
+    type Item = &'a T;
+    type IntoIter = std::option::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut FakeVec<T> {
+    type Item = &'a mut T;
+    type IntoIter = std::option::IterMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+impl<T> From<Vec<T>> for FakeVec<T> {
+    fn from(value: Vec<T>) -> Self {
+        FakeVec {
+            item: value.into_iter().next(),
+        }
+    }
+}
+
+pub struct Drain<'a, T> {
+    vec: &'a mut FakeVec<T>,
+}
+
+impl<'a, T> Iterator for Drain<'a, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.vec.pop()
+    }
+}
+
+impl<T> Index<usize> for FakeVec<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index).unwrap()
+    }
+}
+
+impl<T> IndexMut<usize> for FakeVec<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.get_mut(index).unwrap()
+    }
+}
+
