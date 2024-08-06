@@ -1,4 +1,4 @@
-use crate::{choice, Combinator, CombinatorTrait, eat_bytes, eps, mutate_right_data, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX, VecY};
+use crate::{choice, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX, VecY};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IndentCombinator {
     Dent,
@@ -20,7 +20,7 @@ impl CombinatorTrait for IndentCombinator {
             IndentCombinator::Dent if right_data.dedents == 0 => {
                 fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Combinator { // TODO: Make this a macro
                     if indents.is_empty() {
-                        eps().into()
+                        negative_lookahead(eat_byte_choice(b" \n\r")).into()
                     } else {
                         let dedents = indents.len();
                         choice!(
