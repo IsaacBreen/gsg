@@ -8,6 +8,7 @@ use std::rc::Rc;
 use derivative::Derivative;
 use lru::LruCache;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile_internal, RightData, Squash, U8Set};
+use crate::VecX;
 
 #[derive(Derivative)]
 #[derivative(Debug, Default, Clone, PartialEq, Eq)]
@@ -19,7 +20,7 @@ pub struct CacheData {
 #[derive(Debug)]
 pub struct CacheDataInner {
     pub new_parsers: LruCache<CacheKey, Rc<RefCell<CacheEntry>>>,
-    pub entries: Vec<Rc<RefCell<CacheEntry>>>,
+    pub entries: VecX<Rc<RefCell<CacheEntry>>>,
 }
 
 #[derive(Debug, Clone, Eq)]
@@ -97,7 +98,7 @@ impl CombinatorTrait for CacheContext {
         assert!(right_data.cache_data.inner.is_none(), "CacheContextParser already initialized");
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner {
             new_parsers: LruCache::new(NonZero::new(64).unwrap()),
-            entries: Vec::new(),
+            entries: VecX::new(),
         }));
         right_data.cache_data.inner = Some(cache_data_inner.clone());
         let (parser, results) = self.inner.parse(right_data, bytes);

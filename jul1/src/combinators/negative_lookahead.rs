@@ -1,15 +1,16 @@
 use crate::*;
+use crate::VecX;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExcludeBytestrings {
     pub(crate) inner: Box<Combinator>,
-    pub(crate) bytestrings_to_exclude: Vec<Vec<u8>>,
+    pub(crate) bytestrings_to_exclude: VecX<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExcludeBytestringsParser {
     pub(crate) inner: Box<Parser>,
-    pub(crate) bytestrings_to_exclude: Vec<Vec<u8>>,
+    pub(crate) bytestrings_to_exclude: VecX<Vec<u8>>,
     pub(crate) position: usize,
     pub(crate) start_position: usize,
 }

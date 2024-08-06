@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use crate::*;
+use crate::VecX;
 
 #[derive(Clone)]
 pub struct Deferred {

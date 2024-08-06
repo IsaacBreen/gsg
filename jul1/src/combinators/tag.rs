@@ -2,6 +2,7 @@ use std::fmt::{Debug, Formatter};
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 
 use crate::*;
+use crate::VecX;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Tagged {
@@ -68,7 +69,6 @@ pub fn tag(tag: &str, a: impl Into<Combinator>) -> Combinator {
     // TODO: ffs
     // Tagged { inner: Box::new(a.into()), tag: tag.to_string() }.into()
     Tagged { inner: Box::new(profile(tag, a).into()), tag: tag.to_string() }.into()
-    // a.into()
 }
 
  impl From<Tagged> for Combinator {

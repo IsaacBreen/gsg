@@ -1,13 +1,14 @@
 use crate::*;
+use crate::VecX;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub struct ForbidFollowsData {
-    pub prev_match_ids: smallvec::SmallVec<[usize; 1]>,
+    pub prev_match_ids: VecX<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollows {
-    match_ids: smallvec::SmallVec<[usize; 1]>,
+    match_ids: VecX<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -22,7 +23,7 @@ impl CombinatorTrait for ForbidFollows {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
         (combinator::Parser::FailParser(FailParser), ParseResults {
-            right_data_vec: vec![right_data].into(),
+            right_data_vec: VecX::from_vec(vec![right_data]),
             done: true,
         })
     }
@@ -32,7 +33,7 @@ impl CombinatorTrait for ForbidFollowsClear {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids.clear();
         (combinator::Parser::FailParser(FailParser), ParseResults {
-            right_data_vec: vec![right_data].into(),
+            right_data_vec: VecX::from_vec(vec![right_data]),
             done: true,
         })
     }
@@ -45,7 +46,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
         } else {
             right_data.forbidden_consecutive_matches.prev_match_ids.clear();
             (combinator::Parser::FailParser(FailParser), ParseResults {
-                right_data_vec: vec![right_data].into(),
+                right_data_vec: VecX::from_vec(vec![right_data]),
                 done: true,
             })
         }
@@ -53,7 +54,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
 }
 
 pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows {
-    ForbidFollows { match_ids: match_ids.into() }
+    ForbidFollows { match_ids: VecX::from_vec(match_ids.to_vec()) }
 }
 
 pub fn forbid_follows_clear() -> ForbidFollowsClear {

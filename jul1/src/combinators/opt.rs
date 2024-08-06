@@ -1,4 +1,5 @@
 use crate::*;
+use crate::VecX;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Opt {

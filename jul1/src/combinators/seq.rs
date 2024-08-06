@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::collections::BTreeMap;
 
 use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set};
+use crate::VecX;
 
 macro_rules! profile {
     ($name:expr, $expr:expr) => {
@@ -11,13 +12,13 @@ macro_rules! profile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
-    pub(crate) children: Rc<smallvec::SmallVec<[Combinator; 2]>>,
+    pub(crate) children: Rc<VecX<Combinator>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SeqParser {
     pub(crate) parsers: Vec<(usize, Parser)>,
-    pub(crate) combinators: Rc<smallvec::SmallVec<[Combinator; 2]>>,
+    pub(crate) combinators: Rc<VecX<Combinator>>,
     pub(crate) position: usize,
 }
 
@@ -26,8 +27,8 @@ impl CombinatorTrait for Seq {
         let start_position = right_data.position;
 
         let mut parsers: Vec<(usize, Parser)> = vec![];
-        let mut final_right_data: smallvec::SmallVec<[RightData; 1]> = smallvec::SmallVec::new();
-        let mut next_right_data_vec: smallvec::SmallVec<[RightData; 1]> = smallvec::smallvec![right_data];
+        let mut final_right_data: VecX<RightData> = VecX::new();
+        let mut next_right_data_vec: VecX<RightData> = VecX::from_vec(vec![right_data]);
 
         for combinator_index in 0..self.children.len() {
             for right_data in std::mem::take(&mut next_right_data_vec) {
@@ -77,8 +78,8 @@ impl ParserTrait for SeqParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut final_right_data: smallvec::SmallVec<[RightData; 1]> = smallvec::SmallVec::new();
-        let mut parser_initialization_queue: smallvec::SmallVec<[(usize, smallvec::SmallVec<[RightData; 1]>); 1]> = smallvec::smallvec![];
+        let mut final_right_data: VecX<RightData> = VecX::new();
+        let mut parser_initialization_queue: VecX<(usize, VecX<RightData>)> = VecX::new();
 
         self.parsers.retain_mut(|(combinator_index, parser)| {
             let ParseResults { right_data_vec, done } = parser.parse(bytes);

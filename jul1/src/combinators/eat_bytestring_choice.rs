@@ -3,12 +3,13 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData};
+use crate::VecX;
 
 #[derive(Clone, PartialEq, Eq)]
 struct BuildTrieNode {
     valid_bytes: U8Set,
     is_end: bool,
-    children: Vec<Option<Rc<BuildTrieNode>>>,
+    children: VecX<Option<Rc<BuildTrieNode>>>,
 }
 
 impl BuildTrieNode {
@@ -16,7 +17,7 @@ impl BuildTrieNode {
         BuildTrieNode {
             valid_bytes: U8Set::none(),
             is_end: false,
-            children: vec![None; 256],
+            children: VecX::from_vec(vec![None; 256]),
         }
     }
 
@@ -109,7 +110,7 @@ impl ParserTrait for EatByteStringChoiceParser {
             return ParseResults::empty_unfinished();
         }
 
-        let mut right_data_vec = Vec::new();
+        let mut right_data_vec = VecX::new();
         let mut done = false;
 
         for &byte in bytes {

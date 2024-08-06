@@ -3,6 +3,8 @@ use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set};
 use crate::opt;
 use crate::parse_state::RightData;
+use crate::VecX;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Repeat1 {
     pub(crate) a: Rc<Combinator>,
@@ -13,7 +15,7 @@ pub struct Repeat1 {
 pub struct Repeat1Parser {
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
     a: Rc<Combinator>,
-    pub(crate) a_parsers: Vec<Parser>,
+    pub(crate) a_parsers: VecX<Parser>,
     position: usize,
     greedy: bool,
 }
@@ -68,7 +70,7 @@ impl ParserTrait for Repeat1Parser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut right_data_as = smallvec::SmallVec::<[RightData; 1]>::new();
+        let mut right_data_as = VecX::new();
 
         for mut a_parser in std::mem::take(&mut self.a_parsers) {
             let parse_results = a_parser.parse(bytes);
