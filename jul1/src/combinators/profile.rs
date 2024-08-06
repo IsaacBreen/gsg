@@ -8,12 +8,6 @@ lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());
 }
 
-macro_rules! profile {
-    ($tag:expr, $body:expr) => {{
-        $body
-    }};
-}
-
 #[derive(Clone)]
 pub struct ProfileDataInner {
     pub(crate) timings: HashMap<String, Duration>,
@@ -62,9 +56,9 @@ impl ProfileDataInner {
 #[macro_export]
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
-        $crate::ProfileDataInner::push_tag($tag.to_string());
+        // $crate::ProfileDataInner::push_tag($tag.to_string());
         let result = $body;
-        $crate::ProfileDataInner::pop_tag();
+        // $crate::ProfileDataInner::pop_tag();
         result
     }};
 }
@@ -72,9 +66,9 @@ macro_rules! profile {
 #[macro_export]
 macro_rules! profile_block {
     ($body:expr) => {{
-        $crate::ProfileDataInner::push_tag(format!("{}:{}", file!(), line!()));
+        // $crate::ProfileDataInner::push_tag(format!("{}:{}", file!(), line!()));
         let result = $body;
-        $crate::ProfileDataInner::pop_tag();
+        // $crate::ProfileDataInner::pop_tag();
         result
     }};
 }
