@@ -9,6 +9,9 @@ pub struct ParseResults {
 }
 
 impl ParseResults {
+    pub fn done(&self) -> bool {
+        self.done
+    }
     pub fn new(right_data: RightData, done: bool) -> Self {
         ParseResults {
             right_data_vec: VecY::from(vec![right_data]),
@@ -42,6 +45,6 @@ impl ParseResults {
         // self.squash();
     }
     pub fn succeeds_decisively(&self) -> bool {
-        self.done && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|rd| rd.failable())
+        self.done() && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|rd| rd.failable())
     }
 }

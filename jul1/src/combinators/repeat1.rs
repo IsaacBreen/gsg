@@ -33,7 +33,7 @@ impl CombinatorTrait for Repeat1 {
             for new_right_data in std::mem::take(&mut next_right_data) {
                 let offset = new_right_data.right_data_inner.position - right_data.right_data_inner.position;
                 let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
-                if !parse_results.done {
+                if !parse_results.done() {
                     parsers.push(parser);
                 }
                 if self.greedy && parse_results.succeeds_decisively() {
@@ -85,7 +85,7 @@ impl ParserTrait for Repeat1Parser {
 
         for mut a_parser in std::mem::take(&mut self.a_parsers) {
             let parse_results = a_parser.parse(bytes);
-            if !parse_results.done {
+            if !parse_results.done() {
                 self.a_parsers.push(a_parser);
             }
             right_data_as.extend(parse_results.right_data_vec);
