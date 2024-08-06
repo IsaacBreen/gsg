@@ -140,9 +140,10 @@ impl ParserTrait for CacheContextParser {
 
 impl CombinatorTrait for Cached {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
+        let cache_data_inner_refcell = right_data.right_data_inner.cache_data.inner.as_ref().unwrap().clone();
+        let key = CacheKey { combinator: self.inner.clone(), right_data };
         profile!("Cached.parse: check cache", {
-            if let Some(entry) = right_data.right_data_inner.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.get(&key).cloned() {
+            if let Some(entry) = cache_data_inner_refcell.borrow_mut().new_parsers.get(&key).cloned() {
                 profile!("Cached.parse: cache hit", {});
                 let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
                 return (Parser::CachedParser(CachedParser { entry }), parse_results);
@@ -153,9 +154,9 @@ impl CombinatorTrait for Cached {
             parser: None,
             maybe_parse_results: None,
         }));
-        let (parser, mut parse_results) = profile!("Cached.parse: inner.parse", self.inner.parse(right_data.clone(), bytes));
+        let (parser, mut parse_results) = profile!("Cached.parse: inner.parse", self.inner.parse(key.right_data.clone(), bytes));
         profile!("Cached.parse: parse_results.squash", parse_results.squash());
-        let mut cache_data_inner = right_data.right_data_inner.cache_data.inner.as_ref().unwrap().borrow_mut();
+        let mut cache_data_inner = cache_data_inner_refcell.borrow_mut();
         cache_data_inner.new_parsers.put(key, entry.clone());
         if !parse_results.done() {
             cache_data_inner.entries.push(entry.clone());
