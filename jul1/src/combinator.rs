@@ -161,7 +161,7 @@ impl CombinatorTrait for Combinator {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match_combinator!(self, inner => inner.parse(right_data, bytes));
         if !parse_results.done && bytes.len() > 100 {
-            println!("Combinator {:?} did not consume all input. Positions: {:?}, bytes.len(): {}", self, parse_results.right_data_vec.iter().map(|x| x.right_data_inner.borrow().position).collect::<Vec<_>>(), bytes.len());
+            println!("Combinator {:?} did not consume all input. Positions: {:?}, bytes.len(): {}", self, parse_results.right_data_vec.iter().map(|x| x.borrow().position).collect::<Vec<_>>(), bytes.len());
         }
         (parser, parse_results)
     }

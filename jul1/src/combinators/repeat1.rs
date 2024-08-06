@@ -31,7 +31,7 @@ impl CombinatorTrait for Repeat1 {
         let mut next_right_data = right_data_vec.clone();
         while next_right_data.len() > 0 {
             for new_right_data in std::mem::take(&mut next_right_data) {
-                let offset = new_right_data.right_data_inner.borrow().position - right_data.right_data_inner.borrow().position;
+                let offset = new_right_data.borrow().position - right_data.borrow().position;
                 let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
                 if !parse_results.done {
                     parsers.push(parser);
@@ -46,9 +46,9 @@ impl CombinatorTrait for Repeat1 {
                 next_right_data.extend(parse_results.right_data_vec);
             }
             if !right_data_vec.is_empty() && !next_right_data.is_empty() {
-                let end_pos = right_data.right_data_inner.borrow().position + bytes.len();
-                let pos1 = right_data_vec[0].right_data_inner.borrow().position;
-                let pos2 = next_right_data[0].right_data_inner.borrow().position;
+                let end_pos = right_data.borrow().position + bytes.len();
+                let pos1 = right_data_vec[0].borrow().position;
+                let pos2 = next_right_data[0].borrow().position;
                 if end_pos < pos1 + 1000 || end_pos < pos2 + 1000 {
                     right_data_vec.clear();
                 }
@@ -60,7 +60,7 @@ impl CombinatorTrait for Repeat1 {
             Parser::Repeat1Parser(Repeat1Parser {
                 a: self.a.clone(),
                 a_parsers: parsers,
-                position: right_data.right_data_inner.borrow().position + bytes.len(),
+                position: right_data.borrow().position + bytes.len(),
                 greedy: self.greedy
             }),
             ParseResults {
@@ -94,7 +94,7 @@ impl ParserTrait for Repeat1Parser {
         let mut i = 0;
         while i < right_data_as.len() {
             let right_data_a = right_data_as[i].clone();
-            let offset = right_data_a.right_data_inner.borrow().position - self.position;
+            let offset = right_data_a.borrow().position - self.position;
             let (a_parser, ParseResults { right_data_vec: right_data_a, mut done }) = self.a.parse(right_data_a, &bytes[offset..]);
             right_data_as.extend(right_data_a);
             if !done {

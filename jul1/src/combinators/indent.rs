@@ -17,7 +17,7 @@ pub enum IndentCombinatorParser {
 impl CombinatorTrait for IndentCombinator {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
-            IndentCombinator::Dent if right_data.right_data_inner.borrow().dedents == 0 => {
+            IndentCombinator::Dent if right_data.borrow().dedents == 0 => {
                 fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Combinator { // TODO: Make this a macro
                     if indents.is_empty() {
                         eps().into()
@@ -28,9 +28,9 @@ impl CombinatorTrait for IndentCombinator {
                             seq!(
                                 negative_lookahead(eat_char_choice(" \n\r")),
                                 mutate_right_data(move |right_data: &mut RightData| {
-                                    right_data.right_data_inner.borrow_mut().dedents = dedents;
+                                    right_data.borrow_mut().dedents = dedents;
                                     // Remove the last `dedents` indents from the indent stack
-                                    right_data.right_data_inner.borrow_mut().indents.truncate(right_data.right_data_inner.borrow().indents.len() - dedents);
+                                    right_data.borrow_mut().indents.truncate(right_data.borrow().indents.len() - dedents);
                                     // println!("Registering {} dedents. Right data: {:?}", dedents, right_data);
                                     true
                                 })
@@ -41,12 +41,12 @@ impl CombinatorTrait for IndentCombinator {
                     }
                 }
                 // println!("Made dent parser with right_data: {:?}", right_data);
-                let combinator = make_combinator(&right_data.right_data_inner.borrow().indents, right_data.right_data_inner.borrow().indents.len());
+                let combinator = make_combinator(&right_data.borrow().indents, right_data.borrow().indents.len());
                 let (parser, parse_results) = combinator.parse(right_data, bytes);
 
                 (IndentCombinatorParser::DentParser(Box::new(parser)), parse_results)
             }
-            IndentCombinator::Indent if right_data.right_data_inner.borrow().dedents == 0 => {
+            IndentCombinator::Indent if right_data.borrow().dedents == 0 => {
                 if !bytes.is_empty() && bytes[0] != b' ' {
                     (IndentCombinatorParser::Done, ParseResults {
                         right_data_vec: vec![].into(),
@@ -58,23 +58,23 @@ impl CombinatorTrait for IndentCombinator {
                     while bytes.get(i) == Some(&b' ') {
                         i += 1;
                     }
-                    right_data.right_data_inner.borrow_mut().position += i;
-                    right_data.right_data_inner.borrow_mut().indents.push(bytes[0..i].to_vec());
+                    right_data.borrow_mut().position += i;
+                    right_data.borrow_mut().indents.push(bytes[0..i].to_vec());
                     (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults {
                         right_data_vec: vec![right_data].into(),
                         done: i < bytes.len(),
                     })
                 }
             }
-            IndentCombinator::Dedent if right_data.right_data_inner.borrow().dedents > 0 => {
-                right_data.right_data_inner.borrow_mut().dedents -= 1;
-                // println!("Decremented dedents to {}", right_data.right_data_inner.borrow().dedents);
+            IndentCombinator::Dedent if right_data.borrow().dedents > 0 => {
+                right_data.borrow_mut().dedents -= 1;
+                // println!("Decremented dedents to {}", right_data.borrow().dedents);
                 (IndentCombinatorParser::Done, ParseResults {
                     right_data_vec: vec![right_data].into(),
                     done: true,
                 })
             }
-            IndentCombinator::AssertNoDedents if right_data.right_data_inner.borrow().dedents == 0 => {
+            IndentCombinator::AssertNoDedents if right_data.borrow().dedents == 0 => {
                 (IndentCombinatorParser::Done, ParseResults {
                     right_data_vec: vec![right_data].into(),
                     done: true,
@@ -116,8 +116,8 @@ impl ParserTrait for IndentCombinatorParser {
                 IndentCombinatorParser::IndentParser(maybe_right_data) => {
                     if byte == b' ' {
                         let mut right_data = maybe_right_data.as_mut().unwrap();
-                        right_data.right_data_inner.borrow_mut().position += 1;
-                        right_data.right_data_inner.borrow_mut().indents.last_mut().unwrap().push(byte);
+                        right_data.borrow_mut().position += 1;
+                        right_data.borrow_mut().indents.last_mut().unwrap().push(byte);
                         right_data_vec.push(right_data.clone());
                     } else {
                         maybe_right_data.take();

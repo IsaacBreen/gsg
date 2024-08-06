@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell, RefMut};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use derivative::Derivative;
@@ -33,13 +33,13 @@ pub struct RightData {
 
 impl Hash for RightData {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.right_data_inner.borrow().hash(state);
+        self.borrow().hash(state);
     }
 }
 
 impl PartialEq for RightData {
     fn eq(&self, other: &Self) -> bool {
-        self.right_data_inner.borrow().eq(&other.right_data_inner.borrow())
+        self.borrow().eq(&other.borrow())
     }
 }
 
@@ -63,11 +63,19 @@ impl Default for RightData {
 
 impl RightData {
     pub fn with_position(mut self, position: usize) -> Self {
-        self.right_data_inner.borrow_mut().position = position;
+        self.borrow_mut().position = position;
         self
     }
 
     pub fn failable(&self) -> bool {
-        self.right_data_inner.borrow().lookahead_data.has_omitted_partial_lookaheads
+        self.borrow().lookahead_data.has_omitted_partial_lookaheads
+    }
+
+    pub fn borrow(&self) -> Ref<'_, RightDataInner> {
+        self.right_data_inner.borrow()
+    }
+
+    pub fn borrow_mut(&self) -> RefMut<'_, RightDataInner> {
+        self.right_data_inner.borrow_mut()
     }
 }

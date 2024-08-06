@@ -95,12 +95,12 @@ impl CacheContextParser {
 
 impl CombinatorTrait for CacheContext {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        assert!(right_data.right_data_inner.borrow().cache_data.inner.is_none(), "CacheContextParser already initialized");
+        assert!(right_data.borrow().cache_data.inner.is_none(), "CacheContextParser already initialized");
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner {
             new_parsers: LruCache::new(NonZero::new(64).unwrap()),
             entries: Vec::new(),
         }));
-        right_data.right_data_inner.borrow_mut().cache_data.inner = Some(cache_data_inner.clone());
+        right_data.borrow_mut().cache_data.inner = Some(cache_data_inner.clone());
         let (parser, results) = self.inner.parse(right_data, bytes);
         cache_data_inner.borrow_mut().entries.reverse();
         let mut cache_context_parser = CacheContextParser { inner: Box::new(parser), cache_data_inner };
@@ -136,7 +136,7 @@ impl ParserTrait for CacheContextParser {
 impl CombinatorTrait for Cached {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
-        if let Some(entry) = right_data.right_data_inner.borrow().cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.get(&key).cloned() {
+        if let Some(entry) = right_data.borrow().cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.get(&key).cloned() {
             let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
             return (Parser::CachedParser(CachedParser { entry }), parse_results);
         }
@@ -146,7 +146,7 @@ impl CombinatorTrait for Cached {
         }));
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         parse_results.squash();
-        let binding = right_data.right_data_inner.borrow();
+        let binding = right_data.borrow();
         let mut cache_data_inner = binding.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.put(key.clone(), entry.clone());
         if !parse_results.done {
