@@ -7,7 +7,7 @@ use crate::VecX;
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct RightData {
+pub struct RightDataInner {
     #[derivative(Hash = "ignore")]
     pub frame_stack: Option<FrameStack>,
     #[derivative(Hash = "ignore")]
@@ -21,32 +21,40 @@ pub struct RightData {
     pub cache_data: CacheData,
     #[derivative(Hash = "ignore")]
     pub lookahead_data: LookaheadData,
-    pub position: usize,
+    pub position: usize
+}
+
+#[derive(Derivative)]
+#[derivative(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct RightData {
+    pub right_data_inner: RightDataInner,
 }
 
 impl Default for RightData {
     fn default() -> Self {
         Self {
-            frame_stack: None,
-            indents: VecX::new(),
-            dedents: 0,
-            scope_count: 0,
-            fstring_start_stack: VecX::new(),
-            forbidden_consecutive_matches: ForbidFollowsData::default(),
-            cache_data: CacheData::default(),
-            lookahead_data: LookaheadData::default(),
-            position: 0,
+            right_data_inner: RightDataInner {
+                frame_stack: None,
+                indents: VecX::new(),
+                dedents: 0,
+                scope_count: 0,
+                fstring_start_stack: VecX::new(),
+                forbidden_consecutive_matches: ForbidFollowsData::default(),
+                cache_data: CacheData::default(),
+                lookahead_data: LookaheadData::default(),
+                position: 0,
+            }
         }
     }
 }
 
 impl RightData {
     pub fn with_position(mut self, position: usize) -> Self {
-        self.position = position;
+        self.right_data_inner.position = position;
         self
     }
 
     pub fn failable(&self) -> bool {
-        self.lookahead_data.has_omitted_partial_lookaheads
+        self.right_data_inner.lookahead_data.has_omitted_partial_lookaheads
     }
 }

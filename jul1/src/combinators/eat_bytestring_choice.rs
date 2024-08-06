@@ -118,7 +118,7 @@ impl ParserTrait for EatByteStringChoiceParser {
                 let child_index = self.current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
                 if child_index < self.current_node.children.len() {
                     self.current_node = Rc::clone(&self.current_node.children[child_index]);
-                    self.right_data.position += 1;
+                    self.right_data.right_data_inner.position += 1;
 
                     if self.current_node.is_end {
                         right_data_vec.push(self.right_data.clone());
