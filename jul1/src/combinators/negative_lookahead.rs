@@ -34,16 +34,15 @@ impl CombinatorTrait for ExcludeBytestrings {
         bytestrings_to_exclude.retain(|bytestring| common_prefix(bytes, bytestring));
         parse_results.right_data_vec.retain(|right_data| {
             for bytestring_to_exclude in &bytestrings_to_exclude {
-                // Since we know at this point that they share a prefix, we can just check the length
                 if start_position + bytestring_to_exclude.len() == right_data.right_data_inner.position {
                    return false;
                 }
             }
             true
         });
-            for right_data in parse_results.right_data_vec.iter_mut() {
-                Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
-            }
+        for right_data in parse_results.right_data_vec.iter_mut() {
+            Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
+        }
         (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
             inner: Box::new(inner),
             bytestrings_to_exclude,
@@ -63,15 +62,14 @@ impl ParserTrait for ExcludeBytestringsParser {
         self.bytestrings_to_exclude.retain(|bytestring| self.position - self.start_position < bytestring.len() && common_prefix(bytes, &bytestring[self.position - self.start_position..]));
         parse_results.right_data_vec.retain(|right_data| {
             for bytestring_to_exclude in &self.bytestrings_to_exclude {
-                // Since we know at this point that they share a prefix, we can just check the length
                 if self.start_position + bytestring_to_exclude.len() == right_data.right_data_inner.position {
                     return false;
                 }
             }
             true
         });
-            for right_data in parse_results.right_data_vec.iter_mut() {
-                Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
+        for right_data in parse_results.right_data_vec.iter_mut() {
+            Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
         }
         self.position += bytes.len();
         parse_results
