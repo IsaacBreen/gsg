@@ -10,7 +10,7 @@ pub struct ParseResults {
 
 impl ParseResults {
     pub fn done(&self) -> bool {
-        self.right_data_vec.is_empty()
+        true
     }
     pub fn new(right_data_vec: impl IntoIterator<Item = RightData>, done: bool) -> Self {
         ParseResults {
