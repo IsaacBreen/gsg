@@ -27,7 +27,7 @@ pub struct RightDataInner {
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct RightData {
-    pub right_data_inner: RightDataInner,
+    pub right_data_inner: Box<RightDataInner>,
 }
 
 impl Default for RightData {
@@ -43,7 +43,7 @@ impl Default for RightData {
                 cache_data: CacheData::default(),
                 lookahead_data: LookaheadData::default(),
                 position: 0,
-            }
+            }.into()
         }
     }
 }
