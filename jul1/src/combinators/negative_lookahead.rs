@@ -42,7 +42,7 @@ impl CombinatorTrait for ExcludeBytestrings {
             true
         });
             for right_data in parse_results.right_data_vec.iter_mut() {
-                right_data.right_data_inner.lookahead_data.has_omitted_partial_lookaheads = true;
+                Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
             }
         (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
             inner: Box::new(inner),
@@ -71,7 +71,7 @@ impl ParserTrait for ExcludeBytestringsParser {
             true
         });
             for right_data in parse_results.right_data_vec.iter_mut() {
-                right_data.right_data_inner.lookahead_data.has_omitted_partial_lookaheads = true;
+                Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
         }
         self.position += bytes.len();
         parse_results

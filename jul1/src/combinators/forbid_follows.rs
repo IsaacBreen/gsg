@@ -21,7 +21,7 @@ pub struct ForbidFollowsCheckNot {
 
 impl CombinatorTrait for ForbidFollows {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
+        Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
         (combinator::Parser::FailParser(FailParser), ParseResults {
             right_data_vec: VecY::from(vec![right_data]),
             done: true,
@@ -31,7 +31,7 @@ impl CombinatorTrait for ForbidFollows {
 
 impl CombinatorTrait for ForbidFollowsClear {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids.clear();
+        Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids.clear();
         (combinator::Parser::FailParser(FailParser), ParseResults {
             right_data_vec: VecY::from(vec![right_data]),
             done: true,
@@ -44,7 +44,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
         if right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids.contains(&self.match_id) {
             (combinator::Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else {
-            right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids.clear();
+            Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids.clear();
             (combinator::Parser::FailParser(FailParser), ParseResults {
                 right_data_vec: VecY::from(vec![right_data]),
                 done: true,

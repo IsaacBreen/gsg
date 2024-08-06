@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::{choice, choice_greedy, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX, VecY};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IndentCombinator {
@@ -28,9 +29,10 @@ impl CombinatorTrait for IndentCombinator {
                             seq!(
                                 negative_lookahead(eat_char_choice(" \n\r")),
                                 mutate_right_data(move |right_data: &mut RightData| {
-                                    right_data.right_data_inner.dedents = dedents;
+                                    let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
+                                    right_data_inner.dedents = dedents;
                                     // Remove the last `dedents` indents from the indent stack
-                                    right_data.right_data_inner.indents.truncate(right_data.right_data_inner.indents.len() - dedents);
+                                    right_data_inner.indents.truncate(right_data_inner.indents.len() - dedents);
                                     // println!("Registering {} dedents. Right data: {:?}", dedents, right_data);
                                     true
                                 })
@@ -58,8 +60,9 @@ impl CombinatorTrait for IndentCombinator {
                     while bytes.get(i) == Some(&b' ') {
                         i += 1;
                     }
-                    right_data.right_data_inner.position += i;
-                    right_data.right_data_inner.indents.push(bytes[0..i].to_vec());
+                    let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
+                    right_data_inner.position += i;
+                    right_data_inner.indents.push(bytes[0..i].to_vec());
                     (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults {
                         right_data_vec: vec![right_data].into(),
                         done: i < bytes.len(),
@@ -67,7 +70,7 @@ impl CombinatorTrait for IndentCombinator {
                 }
             }
             IndentCombinator::Dedent if right_data.right_data_inner.dedents > 0 => {
-                right_data.right_data_inner.dedents -= 1;
+                Rc::make_mut(&mut right_data.right_data_inner).dedents -= 1;
                 // println!("Decremented dedents to {}", right_data.right_data_inner.dedents);
                 (IndentCombinatorParser::Done, ParseResults {
                     right_data_vec: vec![right_data].into(),
@@ -116,8 +119,9 @@ impl ParserTrait for IndentCombinatorParser {
                 IndentCombinatorParser::IndentParser(maybe_right_data) => {
                     if byte == b' ' {
                         let mut right_data = maybe_right_data.as_mut().unwrap();
-                        right_data.right_data_inner.position += 1;
-                        right_data.right_data_inner.indents.last_mut().unwrap().push(byte);
+                        let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
+                        right_data_inner.position += 1;
+                        right_data_inner.indents.last_mut().unwrap().push(byte);
                         right_data_vec.push(right_data.clone());
                     } else {
                         maybe_right_data.take();

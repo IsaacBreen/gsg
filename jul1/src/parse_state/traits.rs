@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 use crate::{LookaheadData, ParseResults, profile, RightData, U8Set, VecX, VecY};
 
 // macro_rules! profile {
@@ -94,7 +95,7 @@ impl RightDataSquasher {
         profile!("RightDataSquasher::finish", {
             let mut result = VecY::new();
             for (mut right_data, lookahead_data) in self.decomposed {
-                right_data.right_data_inner.lookahead_data = lookahead_data;
+                Rc::make_mut(&mut right_data.right_data_inner).lookahead_data = lookahead_data;
                 result.push(right_data);
             }
             result

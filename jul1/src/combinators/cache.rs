@@ -102,7 +102,7 @@ impl CombinatorTrait for CacheContext {
             new_parsers: LruCache::new(NonZero::new(64).unwrap()),
             entries: Vec::new(),
         }));
-        right_data.right_data_inner.cache_data.inner = Some(cache_data_inner.clone());
+        Rc::make_mut(&mut right_data.right_data_inner).cache_data.inner = Some(cache_data_inner.clone());
         let (parser, results) = self.inner.parse(right_data, bytes);
         cache_data_inner.borrow_mut().entries.reverse();
         let mut cache_context_parser = CacheContextParser { inner: Box::new(parser), cache_data_inner };

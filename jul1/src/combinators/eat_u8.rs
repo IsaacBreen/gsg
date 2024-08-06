@@ -1,4 +1,5 @@
 use std::ops::RangeBounds;
+use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData};
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
@@ -36,7 +37,7 @@ impl ParserTrait for EatU8Parser {
 
         let mut right_data = self.right_data.take().unwrap();
         if self.u8set.contains(bytes[0]) {
-            right_data.right_data_inner.position += 1;
+            Rc::make_mut(&mut right_data.right_data_inner).position += 1;
             ParseResults {
                 right_data_vec: crate::VecY::from(vec![right_data]),
                 done: true,

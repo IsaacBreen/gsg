@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecX};
 use crate::internal_vec::VecY;
 use crate::parse_state::RightData;
@@ -50,7 +51,7 @@ impl ParserTrait for EatStringParser {
                 self.index += 1;
                 if self.index == self.string.len() {
                     let mut right_data = self.right_data.take().expect("right_data already taken");
-                    right_data.right_data_inner.position += self.string.len();
+                    Rc::make_mut(&mut right_data.right_data_inner).position += self.string.len();
                     right_data_vec.push(right_data);
                     done = true;
                     break;
