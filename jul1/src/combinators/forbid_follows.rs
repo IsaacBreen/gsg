@@ -54,7 +54,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
 }
 
 pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows {
-    ForbidFollows { match_ids: VecX::from_vec(match_ids.to_vec()) }
+    ForbidFollows { match_ids: VecX::from(match_ids.to_vec()) }
 }
 
 pub fn forbid_follows_clear() -> ForbidFollowsClear {

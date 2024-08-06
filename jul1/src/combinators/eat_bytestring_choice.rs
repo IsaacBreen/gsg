@@ -17,7 +17,7 @@ impl BuildTrieNode {
         BuildTrieNode {
             valid_bytes: U8Set::none(),
             is_end: false,
-            children: VecX::from_vec(vec![None; 256]),
+            children: VecX::from(vec![None; 256]),
         }
     }
 

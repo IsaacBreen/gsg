@@ -13,7 +13,7 @@ pub fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator
 
 pub fn repeatn(n: usize, a: impl Into<Combinator>) -> Combinator {
     let a = Rc::new(a.into());
-    Choice { children: VecX::from_vec(vec![a.clone(); n]), greedy: false }.into()
+    Choice { children: VecX::from(vec![a.clone(); n]), greedy: false }.into()
 }
 
 pub fn seprep1_greedy(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
@@ -27,5 +27,5 @@ pub fn seprep0_greedy(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Com
 
 pub fn repeatn_greedy(n: usize, a: impl Into<Combinator>) -> Combinator {
     let a = Rc::new(a.into());
-    Choice { children: VecX::from_vec(vec![a.clone(); n]), greedy: true }.into()
+    Choice { children: VecX::from(vec![a.clone(); n]), greedy: true }.into()
 }
