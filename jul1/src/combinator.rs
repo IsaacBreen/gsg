@@ -6,7 +6,7 @@ use crate::stats::Stats;
 
 macro_rules! define_enum {
     ($name:ident, $($variants:ident),*) => {
-        #[derive(Debug, Clone, Eq, Hash)]
+        #[derive(Debug, Eq)]
         pub enum $name {
             $(
                 $variants($variants),
@@ -21,6 +21,30 @@ macro_rules! define_enum {
                             ($name::$variants(a), $name::$variants(b)) => a == b,
                         )*
                         _ => false,
+                    }
+                })
+            }
+        }
+
+        impl std::hash::Hash for $name {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                crate::profile!(format!("$name Hash"), {
+                    match self {
+                        $(
+                            $name::$variants(a) => a.hash(state),
+                        )*
+                    }
+                })
+            }
+        }
+
+        impl Clone for $name {
+            fn clone(&self) -> Self {
+                crate::profile!(format!("$name Clone"), {
+                    match self {
+                        $(
+                            $name::$variants(a) => $name::$variants(a.clone()),
+                        )*
                     }
                 })
             }
