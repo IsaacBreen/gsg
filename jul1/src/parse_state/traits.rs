@@ -15,7 +15,7 @@ macro_rules! profile {
     }};
 }
 
-const SQUASH_THRESHOLD: usize = 1;
+const SQUASH_THRESHOLD: usize = 0;
 
 pub trait Squash {
     type Output;
@@ -57,9 +57,10 @@ impl Squash for ParseResults {
         }
     }
     fn squash(&mut self) {
-        if self.right_data_vec.len() > SQUASH_THRESHOLD {
+        // if self.right_data_vec.len() > SQUASH_THRESHOLD {
+            // *self.right_data_vec = std::mem::take(&mut self.right_data_vec).squashed();
             *self = self.clone().squashed();
-        }
+        // }
     }
 }
 
@@ -81,9 +82,12 @@ impl RightDataSquasher {
         }
     }
 
-    pub fn push(&mut self, right_data: RightData) {
-        let lookahead_data = right_data.right_data_inner.lookahead_data.clone();
-        let mut existing_lookahead_data = self.decomposed.entry(right_data).or_default();
+    pub fn push(&mut self, mut right_data: RightData) {
+        if right_data.right_data_inner.lookahead_data.has_omitted_partial_lookaheads {
+            println!("has_omitted_partial_lookaheads");
+        }
+        let lookahead_data = std::mem::take(&mut Rc::make_mut(&mut right_data.right_data_inner).lookahead_data);
+        let mut existing_lookahead_data = self.decomposed.entry(right_data).or_insert_with_key(|_| lookahead_data.clone());
         // TODO: In general, all the lookaheads needs to be satisfied, i.e. it's an AND operation between Vecs of lookaheads. But this implies OR.
         existing_lookahead_data.has_omitted_partial_lookaheads &= lookahead_data.has_omitted_partial_lookaheads;
     }
