@@ -8,6 +8,12 @@ lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());
 }
 
+macro_rules! profile {
+    ($tag:expr, $body:expr) => {{
+        $body
+    }};
+}
+
 #[derive(Clone)]
 pub struct ProfileDataInner {
     pub(crate) timings: HashMap<String, Duration>,
