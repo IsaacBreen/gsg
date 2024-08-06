@@ -124,10 +124,7 @@ impl ParserTrait for IndentCombinatorParser {
             }
         }
 
-        ParseResults {
-            right_data_vec,
-            done,
-        }
+        ParseResults::new(right_data_vec, done)
     }
 }
 

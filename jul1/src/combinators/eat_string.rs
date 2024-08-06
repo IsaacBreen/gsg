@@ -63,7 +63,7 @@ impl ParserTrait for EatStringParser {
             }
         }
 
-        ParseResults { right_data_vec: right_data_vec.into(), done }
+        ParseResults::new(right_data_vec, done)
     }
 }
 

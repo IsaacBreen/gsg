@@ -299,7 +299,7 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
 
             let ParseResults {
                 right_data_vec: right_data,
-                done,
+                ..
             } = parser.step(byte).squashed();
 
             println!();

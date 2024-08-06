@@ -106,10 +106,7 @@ impl ParserTrait for SeqParser {
 
         self.position += bytes.len();
 
-        ParseResults {
-            right_data_vec: final_right_data,
-            done: self.parsers.is_empty(),
-        }
+        ParseResults::new(final_right_data, self.parsers.is_empty())
     }
 }
 

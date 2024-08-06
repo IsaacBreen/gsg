@@ -79,10 +79,7 @@ impl CombinatorTrait for Lookahead {
             if !parse_results.done {
                     Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
             }
-            (Parser::FailParser(FailParser), ParseResults {
-                right_data_vec: vec![right_data].into(),
-                done: true,
-            })
+            (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         } else {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
         }
