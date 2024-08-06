@@ -2,15 +2,15 @@
 pub type VecX<T> = Vec<T>;
 
 // pub type VecY<T> = Vec<T>;
-// pub type VecY<T> = smallvec::SmallVec<[T; 0]>;
-pub type VecY<T> = FakeVec<T>;
+pub type VecY<T> = smallvec::SmallVec<[T; 1]>;
+// pub type VecY<T> = FakeVec<T>;
 
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut, RangeBounds};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FakeVec<T> {
-    item: Option<Box<T>>,
+    item: Option<T>,
 }
 
 impl<T: PartialEq> FakeVec<T> {
@@ -20,16 +20,16 @@ impl<T: PartialEq> FakeVec<T> {
 
     pub fn push(&mut self, value: T)  {
         if let Some(item) = &self.item {
-            if **item != value {
+            if item != &value {
                 panic!("FakeVec can only store one item")
             }
         } else {
-            self.item = Some(Box::new(value));
+            self.item = Some(value);
         }
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        self.item.take().map(|item| *item)
+        self.item.take()
     }
 
     pub fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
@@ -74,17 +74,17 @@ impl<T: PartialEq> FakeVec<T> {
         self.item.is_none()
     }
 
-    pub fn iter(&self) -> std::option::Iter<Box<T>> {
+    pub fn iter(&self) -> std::option::Iter<T> {
         self.item.iter()
     }
 
-    pub fn iter_mut(&mut self) -> std::option::IterMut<Box<T>> {
+    pub fn iter_mut(&mut self) -> std::option::IterMut<T> {
         self.item.iter_mut()
     }
 
     pub fn get(&self, index: usize) -> Option<&T> {
         if index == 0 {
-            self.item.as_ref().map(|v| &**v)
+            self.item.as_ref()
         } else {
             None
         }
@@ -92,7 +92,7 @@ impl<T: PartialEq> FakeVec<T> {
 
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         if index == 0 {
-            self.item.as_mut().map(|v| &mut **v)
+            self.item.as_mut()
         } else {
             None
         }
@@ -127,15 +127,14 @@ impl<T: PartialEq> IntoIterator for FakeVec<T> {
     type Item = T;
     type IntoIter = std::option::IntoIter<T>;
 
-    fn into_iter(mut self) -> Self::IntoIter {
-        let item: Option<T> = self.item.take().map(|item| *item);
-        item.into_iter()
+    fn into_iter(self) -> Self::IntoIter {
+        self.item.into_iter()
     }
 }
 
 impl<'a, T: PartialEq> IntoIterator for &'a FakeVec<T> {
-    type Item = &'a Box<T>;
-    type IntoIter = std::option::Iter<'a, Box<T>>;
+    type Item = &'a T;
+    type IntoIter = std::option::Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -143,8 +142,8 @@ impl<'a, T: PartialEq> IntoIterator for &'a FakeVec<T> {
 }
 
 impl<'a, T: PartialEq> IntoIterator for &'a mut FakeVec<T> {
-    type Item = &'a mut Box<T>;
-    type IntoIter = std::option::IterMut<'a, Box<T>>;
+    type Item = &'a mut T;
+    type IntoIter = std::option::IterMut<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -154,7 +153,7 @@ impl<'a, T: PartialEq> IntoIterator for &'a mut FakeVec<T> {
 impl<T: PartialEq> From<Vec<T>> for FakeVec<T> {
     fn from(value: Vec<T>) -> Self {
         FakeVec {
-            item: value.into_iter().next().map(|item| Box::new(item)),
+            item: value.into_iter().next(),
         }
     }
 }
