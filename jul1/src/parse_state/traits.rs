@@ -15,7 +15,7 @@ macro_rules! profile {
     }};
 }
 
-const SQUASH_THRESHOLD: usize = 0;
+const SQUASH_THRESHOLD: usize = 1;
 
 pub trait Squash {
     type Output;
@@ -46,14 +46,20 @@ impl Squash for VecY<RightData> {
 impl Squash for ParseResults {
     type Output = ParseResults;
     fn squashed(self) -> Self::Output {
-        profile!("ParseResults::squashed", {
-                let done = self.done();
-                ParseResults::new(self.right_data_vec.squashed(), done)
-            }
-        )
+        if self.right_data_vec.len() > SQUASH_THRESHOLD {
+            profile!("ParseResults::squashed", {
+                    let done = self.done();
+                    ParseResults::new(self.right_data_vec.squashed(), done)
+                }
+            )
+        } else {
+            self
+        }
     }
     fn squash(&mut self) {
-        *self = self.clone().squashed();
+        if self.right_data_vec.len() > SQUASH_THRESHOLD {
+            *self = self.clone().squashed();
+        }
     }
 }
 
