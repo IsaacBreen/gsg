@@ -50,7 +50,7 @@ impl BuildTrieNode {
 struct TrieNode {
     valid_bytes: U8Set,
     is_end: bool,
-    children: smallvec::SmallVec<[Rc<TrieNode>; 1]>,
+    children: VecX<Rc<TrieNode>>,
 }
 
 impl Debug for TrieNode {

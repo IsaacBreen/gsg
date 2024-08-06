@@ -1,4 +1,4 @@
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecX};
 use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -41,7 +41,7 @@ impl ParserTrait for EatStringParser {
             return ParseResults::empty_unfinished();
         }
 
-        let mut right_data_vec = smallvec::SmallVec::<[RightData; 1]>::new();
+        let mut right_data_vec = VecX::new();
         let mut done = false;
 
         for &byte in bytes {

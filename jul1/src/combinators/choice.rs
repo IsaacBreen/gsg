@@ -1,11 +1,11 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX};
 use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Choice {
-    pub(crate) children: smallvec::SmallVec<[Rc<Combinator>; 1]>,
+    pub(crate) children: VecX<Rc<Combinator>>,
     pub(crate) greedy: bool,
 }
 

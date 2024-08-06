@@ -1,4 +1,4 @@
-use crate::{choice, Combinator, CombinatorTrait, eat_bytes, eps, mutate_right_data, Parser, ParseResults, ParserTrait, RightData, seq, U8Set};
+use crate::{choice, Combinator, CombinatorTrait, eat_bytes, eps, mutate_right_data, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IndentCombinator {
     Dent,
@@ -97,7 +97,7 @@ impl ParserTrait for IndentCombinatorParser {
             return ParseResults::empty_unfinished();
         }
 
-        let mut right_data_vec = smallvec::SmallVec::<[RightData; 1]>::new();
+        let mut right_data_vec = VecX::new();
         let mut done = false;
 
         for &byte in bytes {

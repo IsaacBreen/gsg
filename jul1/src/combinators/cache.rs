@@ -20,7 +20,7 @@ pub struct CacheData {
 #[derive(Debug)]
 pub struct CacheDataInner {
     pub new_parsers: LruCache<CacheKey, Rc<RefCell<CacheEntry>>>,
-    pub entries: VecX<Rc<RefCell<CacheEntry>>>,
+    pub entries: Vec<Rc<RefCell<CacheEntry>>>,
 }
 
 #[derive(Debug, Clone, Eq)]
@@ -98,7 +98,7 @@ impl CombinatorTrait for CacheContext {
         assert!(right_data.cache_data.inner.is_none(), "CacheContextParser already initialized");
         let cache_data_inner = Rc::new(RefCell::new(CacheDataInner {
             new_parsers: LruCache::new(NonZero::new(64).unwrap()),
-            entries: VecX::new(),
+            entries: Vec::new(),
         }));
         right_data.cache_data.inner = Some(cache_data_inner.clone());
         let (parser, results) = self.inner.parse(right_data, bytes);
