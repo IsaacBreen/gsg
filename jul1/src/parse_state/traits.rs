@@ -15,7 +15,7 @@ macro_rules! profile {
     }};
 }
 
-const SQUASH_THRESHOLD: usize = 0;
+const SQUASH_THRESHOLD: usize = 1;
 
 pub trait Squash {
     type Output;
@@ -57,10 +57,10 @@ impl Squash for ParseResults {
         }
     }
     fn squash(&mut self) {
-        // if self.right_data_vec.len() > SQUASH_THRESHOLD {
+        if self.right_data_vec.len() > SQUASH_THRESHOLD {
             // *self.right_data_vec = std::mem::take(&mut self.right_data_vec).squashed();
             *self = self.clone().squashed();
-        // }
+        }
     }
 }
 
