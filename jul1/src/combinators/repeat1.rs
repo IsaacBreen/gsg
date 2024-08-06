@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecY};
 use crate::opt;
 use crate::parse_state::RightData;
 use crate::VecX;
@@ -70,7 +70,7 @@ impl ParserTrait for Repeat1Parser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut right_data_as = VecX::new();
+        let mut right_data_as = VecY::new();
 
         for mut a_parser in std::mem::take(&mut self.a_parsers) {
             let parse_results = a_parser.parse(bytes);

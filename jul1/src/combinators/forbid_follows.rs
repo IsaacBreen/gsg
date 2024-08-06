@@ -23,7 +23,7 @@ impl CombinatorTrait for ForbidFollows {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
         (combinator::Parser::FailParser(FailParser), ParseResults {
-            right_data_vec: VecX::from_vec(vec![right_data]),
+            right_data_vec: VecY::from(vec![right_data]),
             done: true,
         })
     }
@@ -33,7 +33,7 @@ impl CombinatorTrait for ForbidFollowsClear {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         right_data.forbidden_consecutive_matches.prev_match_ids.clear();
         (combinator::Parser::FailParser(FailParser), ParseResults {
-            right_data_vec: VecX::from_vec(vec![right_data]),
+            right_data_vec: VecY::from(vec![right_data]),
             done: true,
         })
     }
@@ -46,7 +46,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
         } else {
             right_data.forbidden_consecutive_matches.prev_match_ids.clear();
             (combinator::Parser::FailParser(FailParser), ParseResults {
-                right_data_vec: VecX::from_vec(vec![right_data]),
+                right_data_vec: VecY::from(vec![right_data]),
                 done: true,
             })
         }

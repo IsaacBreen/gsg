@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecY};
 use crate::parse_state::{RightData};
 use crate::VecX;
 
@@ -110,7 +110,7 @@ impl ParserTrait for EatByteStringChoiceParser {
             return ParseResults::empty_unfinished();
         }
 
-        let mut right_data_vec = VecX::new();
+        let mut right_data_vec = VecY::new();
         let mut done = false;
 
         for &byte in bytes {

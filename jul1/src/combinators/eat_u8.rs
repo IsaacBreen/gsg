@@ -19,7 +19,7 @@ impl CombinatorTrait for EatU8 {
             right_data: Some(right_data),
         };
         let (mut parser, mut parse_results0) = (Parser::EatU8Parser(parser1), ParseResults {
-            right_data_vec: crate::VecX::new(),
+            right_data_vec: crate::VecY::new(),
             done: false,
         });
         let parse_results1 = parser.parse(bytes);
@@ -43,7 +43,7 @@ impl ParserTrait for EatU8Parser {
         if self.u8set.contains(bytes[0]) {
             right_data.position += 1;
             ParseResults {
-                right_data_vec: crate::VecX::from_vec(vec![right_data]),
+                right_data_vec: crate::VecY::from(vec![right_data]),
                 done: true,
             }
         } else {

@@ -1,28 +1,29 @@
 use crate::{RightData, Squash};
+use crate::internal_vec::VecY;
 use crate::VecX;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParseResults {
-    pub right_data_vec: VecX<RightData>,
+    pub right_data_vec: VecY<RightData>,
     pub done: bool,
 }
 
 impl ParseResults {
     pub fn new(right_data: RightData, done: bool) -> Self {
         ParseResults {
-            right_data_vec: VecX::from_vec(vec![right_data]),
+            right_data_vec: VecY::from(vec![right_data]),
             done,
         }
     }
     pub fn empty_unfinished() -> Self {
         ParseResults {
-            right_data_vec: VecX::new(),
+            right_data_vec: VecY::new(),
             done: false,
         }
     }
     pub fn empty_finished() -> Self {
         ParseResults {
-            right_data_vec: VecX::new(),
+            right_data_vec: VecY::new(),
             done: true,
         }
     }

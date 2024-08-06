@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set, VecY};
 use crate::VecX;
 
 macro_rules! profile {
@@ -27,8 +27,8 @@ impl CombinatorTrait for Seq {
         let start_position = right_data.position;
 
         let mut parsers: Vec<(usize, Parser)> = vec![];
-        let mut final_right_data: VecX<RightData> = VecX::new();
-        let mut next_right_data_vec: VecX<RightData> = VecX::from_vec(vec![right_data]);
+        let mut final_right_data: VecY<RightData> = VecY::new();
+        let mut next_right_data_vec: VecY<RightData> = VecY::from(vec![right_data]);
 
         for combinator_index in 0..self.children.len() {
             for right_data in std::mem::take(&mut next_right_data_vec) {
@@ -78,8 +78,8 @@ impl ParserTrait for SeqParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut final_right_data: VecX<RightData> = VecX::new();
-        let mut parser_initialization_queue: VecX<(usize, VecX<RightData>)> = VecX::new();
+        let mut final_right_data: VecY<RightData> = VecY::new();
+        let mut parser_initialization_queue: Vec<(usize, VecY<RightData>)> = VecY::new();
 
         self.parsers.retain_mut(|(combinator_index, parser)| {
             let ParseResults { right_data_vec, done } = parser.parse(bytes);
