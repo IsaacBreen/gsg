@@ -81,7 +81,8 @@ impl EatByteStringChoice {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatByteStringChoiceParser {
     pub(crate) current_node: Rc<TrieNode>,
-    pub(crate) right_data: RightData,
+    pub(crate) right_data: Option<RightData>,
+    pub(crate) position: usize,
 }
 
 impl CombinatorTrait for EatByteStringChoice {
@@ -89,7 +90,8 @@ impl CombinatorTrait for EatByteStringChoice {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatByteStringChoiceParser {
             current_node: Rc::clone(&self.root),
-            right_data,
+            right_data: Some(right_data),
+            position: 0,
         };
         let parse_results = parser.parse(bytes);
         (Parser::EatByteStringChoiceParser(parser), parse_results)
@@ -118,10 +120,12 @@ impl ParserTrait for EatByteStringChoiceParser {
                 let child_index = self.current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
                 if child_index < self.current_node.children.len() {
                     self.current_node = Rc::clone(&self.current_node.children[child_index]);
-                    self.right_data.borrow_mut().position += 1;
+                    self.position += 1;
 
                     if self.current_node.is_end {
-                        right_data_vec.push(self.right_data.clone());
+                        let right_data = self.right_data.take().expect("right_data already taken");
+                        right_data.borrow_mut().position += self.position;
+                        right_data_vec.push(right_data);
                         done = self.current_node.valid_bytes.is_empty();
                         break;
                     } else {
