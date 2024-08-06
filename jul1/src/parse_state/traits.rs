@@ -49,7 +49,7 @@ impl Squash for ParseResults {
         profile!("ParseResults::squashed",
             ParseResults {
                 right_data_vec: self.right_data_vec.squashed(),
-                done: self.done(),
+                done: self.done,
             }
         )
     }

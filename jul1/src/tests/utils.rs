@@ -58,7 +58,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
             parse_results.squash();
 
             assert!(!parse_results.right_data_vec.is_empty() || !parser.get_u8set().is_empty(), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
-            assert!(!parse_results.done(), "Parser finished prematurely at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
+            assert!(!parse_results.done, "Parser finished prematurely at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1);
         }
 
         timings.push((line.to_string(), Instant::now() - line_start));
@@ -336,5 +336,5 @@ pub fn assert_fails_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input:
     let (mut parser, _) = combinator.parser(RightData::default());
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let parse_results = parser.parse(&bytes);
-    assert!(parse_results.done() && parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.right_data_inner.position).map_or(true, |right_data| right_data.right_data_inner.position == bytes.len()), "Expected parser to fail at the end. parse_results: {:?}", parse_results);
+    assert!(parse_results.done && parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.right_data_inner.position).map_or(true, |right_data| right_data.right_data_inner.position == bytes.len()), "Expected parser to fail at the end. parse_results: {:?}", parse_results);
 }

@@ -57,7 +57,7 @@ impl Debug for CheckRightDataParser {
 impl CombinatorTrait for CheckRightData {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&right_data) {
-            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::new(right_data, true))
+            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::new_single(right_data, true))
         } else {
             (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults {
                 right_data_vec: vec![].into(),

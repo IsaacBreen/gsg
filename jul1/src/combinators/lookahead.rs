@@ -70,13 +70,13 @@ impl CombinatorTrait for Lookahead {
         let has_right_data = !parse_results.right_data_vec.is_empty();
         let succeeds = if self.positive {
             // A positive lookahead succeeds if it yields right data now or it *could* yield right data later (i.e. it's not done yet)
-            has_right_data || !parse_results.done()
+            has_right_data || !parse_results.done
         } else {
             // A negative lookahead succeeds if it yields no right data now
             !has_right_data
         };
         if succeeds {
-            if !parse_results.done() {
+            if !parse_results.done {
                     Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
             }
             (Parser::FailParser(FailParser), ParseResults {

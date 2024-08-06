@@ -89,7 +89,7 @@ impl CacheContextParser {
     fn cleanup(&mut self) {
         let mut cache_data_inner = self.cache_data_inner.borrow_mut();
         cache_data_inner.new_parsers.clear();
-        cache_data_inner.entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done());
+        cache_data_inner.entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done);
     }
 }
 
@@ -150,7 +150,7 @@ impl CombinatorTrait for Cached {
         parse_results.squash();
         let mut cache_data_inner = right_data.right_data_inner.cache_data.inner.as_ref().unwrap().borrow_mut();
         cache_data_inner.new_parsers.put(key.clone(), entry.clone());
-        if !parse_results.done() {
+        if !parse_results.done {
             cache_data_inner.entries.push(entry.clone());
         }
         entry.borrow_mut().parser = Some(Box::new(parser));

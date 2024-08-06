@@ -42,7 +42,7 @@ impl CombinatorTrait for Seq {
                 } else {
                     final_right_data.extend(parse_results.right_data_vec);
                 }
-                if !parse_results.done() {
+                if !parse_results.done {
                     parsers.push((combinator_index, parser));
                 }
             }
@@ -101,7 +101,7 @@ impl ParserTrait for SeqParser {
                 } else {
                     final_right_data.extend(parse_results.right_data_vec);
                 }
-                if !parse_results.done() {
+                if !parse_results.done {
                     self.parsers.push((combinator_index, parser));
                 }
             }

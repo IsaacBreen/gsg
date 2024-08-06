@@ -22,7 +22,7 @@ impl CombinatorTrait for Choice {
 
         for child in &self.children {
             let (parser, parse_results) = child.parse(right_data.clone(), bytes);
-            if !parse_results.done() {
+            if !parse_results.done {
                 parsers.push(parser);
             }
             let discard_rest = self.greedy && parse_results.succeeds_decisively();
@@ -58,7 +58,7 @@ impl ParserTrait for ChoiceParser {
             }
             let parse_results = parser.parse(bytes);
             discard_rest = self.greedy && parse_results.succeeds_decisively();
-            let done = parse_results.done();
+            let done = parse_results.done;
             parse_result.merge_assign(parse_results);
             !done
         });
