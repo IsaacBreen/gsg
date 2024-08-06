@@ -102,9 +102,7 @@ impl<T: PartialEq> FakeVec<T> {
 #[macro_export]
 macro_rules! vecx {
     ($($x:expr),*) => {
-        let mut v = VecX::new();
-        $(v.push($x);)*
-        v
+        vec![$($x),*].into()
     };
 
     ($x:expr; $n:expr) => {
@@ -115,9 +113,7 @@ macro_rules! vecx {
 #[macro_export]
 macro_rules! vecy {
     ($($x:expr),*) => {
-        let mut v = VecY::new();
-        $(v.push($x);)*
-        v
+        vec![$($x),*].into()
     };
 
     ($x:expr; $n:expr) => {
