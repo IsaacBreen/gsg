@@ -159,7 +159,11 @@ pub trait ParserTrait {
 
 impl CombinatorTrait for Combinator {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        match_combinator!(self, inner => inner.parse(right_data, bytes))
+        let (parser, parse_results) = match_combinator!(self, inner => inner.parse(right_data, bytes));
+        if !parse_results.done {
+            println!("Combinator {:?} did not consume all input", self);
+        }
+        (parser, parse_results)
     }
 }
 

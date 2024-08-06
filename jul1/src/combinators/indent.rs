@@ -55,14 +55,14 @@ impl CombinatorTrait for IndentCombinator {
                 } else {
                     // Consume as many spaces as possible
                     let mut i = 0;
-                    while i < bytes.len() && bytes[i] == b' ' {
+                    while bytes.get(i) == Some(&b' ') {
                         i += 1;
                     }
                     right_data.position += i;
                     right_data.indents.push(bytes[0..i].to_vec());
                     (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults {
                         right_data_vec: vec![right_data].into(),
-                        done: false,
+                        done: i < bytes.len(),
                     })
                 }
             }

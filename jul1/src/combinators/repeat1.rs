@@ -40,6 +40,9 @@ impl CombinatorTrait for Repeat1 {
                     right_data_vec.clear();
                     parsers.clear();
                 }
+                if !(self.greedy && parse_results.succeeds_decisively()) && parse_results.right_data_vec.len() > 0 && right_data_vec.len() > 0 {
+                    println!("parse_results: {:?}", parse_results);
+                }
                 next_right_data.extend(parse_results.right_data_vec);
             }
             right_data_vec.extend(next_right_data.clone());
