@@ -9,9 +9,9 @@ pub struct ParseResults {
 }
 
 impl ParseResults {
-    pub fn new(right_data: Box<RightData>, done: bool) -> Self {
+    pub fn new(right_data: RightData, done: bool) -> Self {
         ParseResults {
-            right_data_vec: VecY::from(vec![*right_data]),
+            right_data_vec: VecY::from(vec![right_data]),
             done,
         }
     }

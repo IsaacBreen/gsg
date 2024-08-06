@@ -13,7 +13,7 @@ pub struct LookaheadContextParser {
 }
 
 impl CombinatorTrait for LookaheadContext {
-    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (inner, parse_results) = self.inner.parse(right_data, bytes);
         (Parser::LookaheadContextParser(LookaheadContextParser { inner: Box::new(inner), persist_with_partial_lookahead: self.persist_with_partial_lookahead }), parse_results)
     }
@@ -65,7 +65,7 @@ pub struct Lookahead {
 }
 
 impl CombinatorTrait for Lookahead {
-    fn parse(&self, mut right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, mut parse_results) = self.combinator.parse(right_data.clone(), bytes);
         let has_right_data = !parse_results.right_data_vec.is_empty();
         let succeeds = if self.positive {
@@ -80,7 +80,7 @@ impl CombinatorTrait for Lookahead {
                     right_data.lookahead_data.has_omitted_partial_lookaheads = true;
             }
             (Parser::FailParser(FailParser), ParseResults {
-                right_data_vec: vec![*right_data].into(),
+                right_data_vec: vec![right_data].into(),
                 done: true,
             })
         } else {

@@ -94,7 +94,7 @@ impl CacheContextParser {
 }
 
 impl CombinatorTrait for CacheContext {
-    fn parse(&self, mut right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         println!("RightData size: {}", std::mem::size_of::<RightData>());
         println!("ParseResults size: {}", std::mem::size_of::<ParseResults>());
         assert!(right_data.cache_data.inner.is_none(), "CacheContextParser already initialized");
@@ -136,8 +136,8 @@ impl ParserTrait for CacheContextParser {
 }
 
 impl CombinatorTrait for Cached {
-    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
-        let key = CacheKey { combinator: self.inner.clone(), right_data: *right_data.clone() };
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
         if let Some(entry) = right_data.cache_data.inner.as_ref().unwrap().borrow_mut().new_parsers.get(&key).cloned() {
             let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
             return (Parser::CachedParser(CachedParser { entry }), parse_results);

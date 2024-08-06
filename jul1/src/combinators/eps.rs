@@ -8,7 +8,7 @@ pub struct EpsParser;
 
 impl CombinatorTrait for Eps {
 
-    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::EpsParser(EpsParser), ParseResults::new(right_data, true))
     }
 }

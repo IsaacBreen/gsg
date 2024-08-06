@@ -55,7 +55,7 @@ impl Debug for CheckRightDataParser {
 }
 
 impl CombinatorTrait for CheckRightData {
-    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&right_data) {
             (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::new(right_data, true))
         } else {

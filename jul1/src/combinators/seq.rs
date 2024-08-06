@@ -23,19 +23,19 @@ pub struct SeqParser {
 }
 
 impl CombinatorTrait for Seq {
-    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.position;
 
         let mut parsers: Vec<(usize, Parser)> = vec![];
         let mut final_right_data: VecY<RightData> = VecY::new();
-        let mut next_right_data_vec: VecY<RightData> = VecY::from(vec![*right_data]);
+        let mut next_right_data_vec: VecY<RightData> = VecY::from(vec![right_data]);
 
         for combinator_index in 0..self.children.len() {
             for right_data in std::mem::take(&mut next_right_data_vec) {
                 let offset = right_data.position - start_position;
                 let combinator = &self.children[combinator_index];
                 let (parser, parse_results) = profile!("seq child parse", {
-                    combinator.parse(Box::new(right_data), &bytes[offset..])
+                    combinator.parse(right_data, &bytes[offset..])
                 });
                 if combinator_index + 1 < self.children.len() {
                     next_right_data_vec.extend(parse_results.right_data_vec);
@@ -95,7 +95,7 @@ impl ParserTrait for SeqParser {
             for right_data in right_data_vec {
                 let offset = right_data.position - self.position;
                 let combinator = &self.combinators[combinator_index];
-                let (parser, parse_results) = combinator.parse(Box::new(right_data), &bytes[offset..]);
+                let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
                 if combinator_index + 1 < self.combinators.len() {
                     parser_initialization_queue.push((combinator_index + 1, parse_results.right_data_vec));
                 } else {

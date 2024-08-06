@@ -33,7 +33,7 @@ impl Debug for TaggedParser {
 }
 
 impl CombinatorTrait for Tagged {
-    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (

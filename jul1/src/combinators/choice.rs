@@ -16,7 +16,7 @@ pub struct ChoiceParser {
 }
 
 impl CombinatorTrait for Choice {
-    fn parse(&self, right_data: Box<RightData>, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
