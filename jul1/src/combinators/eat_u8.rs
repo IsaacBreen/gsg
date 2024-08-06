@@ -14,17 +14,12 @@ pub struct EatU8Parser {
 
 impl CombinatorTrait for EatU8 {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let parser1 = EatU8Parser {
+        let mut parser = EatU8Parser {
             u8set: self.u8set.clone(),
             right_data: Some(right_data),
         };
-        let (mut parser, mut parse_results0) = (Parser::EatU8Parser(parser1), ParseResults {
-            right_data_vec: crate::VecY::new(),
-            done: false,
-        });
-        let parse_results1 = parser.parse(bytes);
-        parse_results0.combine_seq(parse_results1);
-        (parser, parse_results0)
+        let parse_results = parser.parse(bytes);
+        (Parser::EatU8Parser(parser), parse_results)
     }
 }
 
