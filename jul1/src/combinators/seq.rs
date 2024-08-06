@@ -79,7 +79,7 @@ impl ParserTrait for SeqParser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut final_right_data: VecY<RightData> = VecY::new();
-        let mut parser_initialization_queue: Vec<(usize, VecY<RightData>)> = VecY::new();
+        let mut parser_initialization_queue: Vec<(usize, VecY<RightData>)> = Vec::new();
 
         self.parsers.retain_mut(|(combinator_index, parser)| {
             let ParseResults { right_data_vec, done } = parser.parse(bytes);
