@@ -50,10 +50,7 @@ impl CombinatorTrait for IndentCombinator {
             }
             IndentCombinator::Indent if right_data.right_data_inner.dedents == 0 => {
                 if !bytes.is_empty() && bytes[0] != b' ' {
-                    (IndentCombinatorParser::Done, ParseResults {
-                        right_data_vec: vec![].into(),
-                        done: true,
-                    })
+                    (IndentCombinatorParser::Done, ParseResults::new(vec![], true))
                 } else {
                     // Consume as many spaces as possible
                     let mut i = 0;
@@ -63,25 +60,16 @@ impl CombinatorTrait for IndentCombinator {
                     let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                     right_data_inner.position += i;
                     right_data_inner.indents.push(bytes[0..i].to_vec());
-                    (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults {
-                        right_data_vec: vec![right_data].into(),
-                        done: i < bytes.len(),
-                    })
+                    (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults::new(vec![right_data], i < bytes.len()))
                 }
             }
             IndentCombinator::Dedent if right_data.right_data_inner.dedents > 0 => {
                 Rc::make_mut(&mut right_data.right_data_inner).dedents -= 1;
                 // println!("Decremented dedents to {}", right_data.right_data_inner.dedents);
-                (IndentCombinatorParser::Done, ParseResults {
-                    right_data_vec: vec![right_data].into(),
-                    done: true,
-                })
+                (IndentCombinatorParser::Done, ParseResults::new(vec![right_data], true))
             }
             IndentCombinator::AssertNoDedents if right_data.right_data_inner.dedents == 0 => {
-                (IndentCombinatorParser::Done, ParseResults {
-                    right_data_vec: vec![right_data].into(),
-                    done: true,
-                })
+                (IndentCombinatorParser::Done, ParseResults::new(vec![right_data], true))
             }
             _ => (IndentCombinatorParser::Done, ParseResults::empty_finished()),
         };

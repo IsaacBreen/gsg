@@ -63,10 +63,7 @@ impl CombinatorTrait for Repeat1 {
                 position: right_data.right_data_inner.position + bytes.len(),
                 greedy: self.greedy
             }),
-            ParseResults {
-                right_data_vec,
-                done,
-            }
+            ParseResults::new(right_data_vec, done)
         )
     }
 }

@@ -59,10 +59,7 @@ impl CombinatorTrait for Seq {
             position: start_position + bytes.len(),
         });
 
-        let parse_results = ParseResults {
-            right_data_vec: final_right_data,
-            done: parsers_is_empty,
-        };
+        let parse_results = ParseResults::new(final_right_data, parsers_is_empty);
 
         (parser.into(), parse_results)
     }
