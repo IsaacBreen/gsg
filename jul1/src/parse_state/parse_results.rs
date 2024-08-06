@@ -1,4 +1,4 @@
-use crate::{RightData, Squash};
+use crate::{RightData, Squash, vecy};
 use crate::internal_vec::VecY;
 use crate::VecX;
 
@@ -12,15 +12,15 @@ impl ParseResults {
     pub fn done(&self) -> bool {
         self.done
     }
-    pub fn new(right_data_vec: impl IntoIterator<Item = RightData>, done: bool) -> Self {
+    pub fn new(right_data_vec: VecY<RightData>, done: bool) -> Self {
         ParseResults {
-            right_data_vec: right_data_vec.into_iter().collect(),
+            right_data_vec,
             done,
         }
     }
     pub fn new_single(right_data: RightData, done: bool) -> Self {
         ParseResults {
-            right_data_vec: VecY::from(vec![right_data]),
+            right_data_vec: vecy![right_data],
             done,
         }
     }
