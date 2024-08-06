@@ -7,7 +7,7 @@ use crate::{CacheData, ForbidFollowsData, FrameStack, LookaheadData, PythonQuote
 use crate::VecX;
 
 #[derive(Derivative)]
-#[derivative(Debug, Clone, Hash, PartialEq, Eq)]
+#[derivative(Debug, Hash, PartialEq, Eq)]
 pub struct RightDataInner {
     #[derivative(Hash = "ignore")]
     pub frame_stack: Option<FrameStack>,
