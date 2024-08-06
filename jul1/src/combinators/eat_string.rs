@@ -50,7 +50,7 @@ impl ParserTrait for EatStringParser {
                 self.index += 1;
                 if self.index == self.string.len() {
                     let mut right_data = self.right_data.take().expect("right_data already taken");
-                    right_data.right_data_inner.position += self.string.len();
+                    right_data.right_data_inner.borrow_mut().position += self.string.len();
                     right_data_vec.push(right_data);
                     done = true;
                     break;

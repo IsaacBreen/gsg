@@ -36,7 +36,7 @@ impl ParserTrait for EatU8Parser {
 
         let mut right_data = self.right_data.take().unwrap();
         if self.u8set.contains(bytes[0]) {
-            right_data.right_data_inner.position += 1;
+            right_data.right_data_inner.borrow_mut().position += 1;
             ParseResults {
                 right_data_vec: crate::VecY::from(vec![right_data]),
                 done: true,

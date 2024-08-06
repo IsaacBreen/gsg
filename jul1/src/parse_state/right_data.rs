@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use derivative::Derivative;
 
@@ -25,15 +26,27 @@ pub struct RightDataInner {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug, Clone, Hash, PartialEq, Eq)]
+#[derivative(Debug, Clone, Eq)]
 pub struct RightData {
-    pub right_data_inner: RightDataInner,
+    pub right_data_inner: Rc<RefCell<RightDataInner>>,
+}
+
+impl Hash for RightData {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.right_data_inner.borrow().hash(state);
+    }
+}
+
+impl PartialEq for RightData {
+    fn eq(&self, other: &Self) -> bool {
+        self.right_data_inner.borrow().eq(&other.right_data_inner.borrow())
+    }
 }
 
 impl Default for RightData {
     fn default() -> Self {
         Self {
-            right_data_inner: RightDataInner {
+            right_data_inner: Rc::new(RefCell::new(RightDataInner {
                 frame_stack: None,
                 indents: VecX::new(),
                 dedents: 0,
@@ -43,18 +56,18 @@ impl Default for RightData {
                 cache_data: CacheData::default(),
                 lookahead_data: LookaheadData::default(),
                 position: 0,
-            }
+            }))
         }
     }
 }
 
 impl RightData {
     pub fn with_position(mut self, position: usize) -> Self {
-        self.right_data_inner.position = position;
+        self.right_data_inner.borrow_mut().position = position;
         self
     }
 
     pub fn failable(&self) -> bool {
-        self.right_data_inner.lookahead_data.has_omitted_partial_lookaheads
+        self.right_data_inner.borrow().lookahead_data.has_omitted_partial_lookaheads
     }
 }
