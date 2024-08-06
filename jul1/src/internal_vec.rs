@@ -99,6 +99,32 @@ impl<T: PartialEq> FakeVec<T> {
     }
 }
 
+#[macro_export]
+macro_rules! vecx {
+    ($($x:expr),*) => {
+        let mut v = VecX::new();
+        $(v.push($x);)*
+        v
+    };
+
+    ($x:expr; $n:expr) => {
+        vec![$x; $n].into()
+    };
+}
+
+#[macro_export]
+macro_rules! vecy {
+    ($($x:expr),*) => {
+        let mut v = VecY::new();
+        $(v.push($x);)*
+        v
+    };
+
+    ($x:expr; $n:expr) => {
+        vec![$x; $n].into()
+    };
+}
+
 impl<T: PartialEq> Default for FakeVec<T> {
     fn default() -> Self {
         Self::new()

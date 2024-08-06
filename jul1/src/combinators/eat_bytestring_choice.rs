@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecY};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, vecx, VecY};
 use crate::parse_state::{RightData};
 use crate::VecX;
 
@@ -17,7 +17,7 @@ impl BuildTrieNode {
         BuildTrieNode {
             valid_bytes: U8Set::none(),
             is_end: false,
-            children: VecX::from(vec![None; 256]),
+            children: vecx![None; 256],
         }
     }
 
