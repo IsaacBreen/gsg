@@ -10,14 +10,18 @@ pub struct FakeVec<T> {
     item: Option<T>,
 }
 
-impl<T> FakeVec<T> {
+impl<T: PartialEq> FakeVec<T> {
     pub fn new() -> Self {
         FakeVec { item: None }
     }
 
     pub fn push(&mut self, value: T) -> Result<(), &'static str> {
-        if self.item.is_some() {
-            Err("FakeVec can only store one item")
+        if let Some(item) = &self.item {
+            if item == &value {
+                Ok(())
+            } else {
+                Err("FakeVec can only store one item")
+            }
         } else {
             self.item = Some(value);
             Ok(())
@@ -95,13 +99,13 @@ impl<T> FakeVec<T> {
     }
 }
 
-impl<T> Default for FakeVec<T> {
+impl<T: PartialEq> Default for FakeVec<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> FromIterator<T> for FakeVec<T> {
+impl<T: PartialEq> FromIterator<T> for FakeVec<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut fake_vec = FakeVec::new();
         for item in iter {
@@ -113,7 +117,7 @@ impl<T> FromIterator<T> for FakeVec<T> {
     }
 }
 
-impl<T> Extend<T> for FakeVec<T> {
+impl<T: PartialEq> Extend<T> for FakeVec<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         for item in iter {
             if self.push(item).is_err() {
@@ -123,7 +127,7 @@ impl<T> Extend<T> for FakeVec<T> {
     }
 }
 
-impl<T> IntoIterator for FakeVec<T> {
+impl<T: PartialEq> IntoIterator for FakeVec<T> {
     type Item = T;
     type IntoIter = std::option::IntoIter<T>;
 
@@ -132,7 +136,7 @@ impl<T> IntoIterator for FakeVec<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a FakeVec<T> {
+impl<'a, T: PartialEq> IntoIterator for &'a FakeVec<T> {
     type Item = &'a T;
     type IntoIter = std::option::Iter<'a, T>;
 
@@ -141,7 +145,7 @@ impl<'a, T> IntoIterator for &'a FakeVec<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut FakeVec<T> {
+impl<'a, T: PartialEq> IntoIterator for &'a mut FakeVec<T> {
     type Item = &'a mut T;
     type IntoIter = std::option::IterMut<'a, T>;
 
@@ -150,7 +154,7 @@ impl<'a, T> IntoIterator for &'a mut FakeVec<T> {
     }
 }
 
-impl<T> From<Vec<T>> for FakeVec<T> {
+impl<T: PartialEq> From<Vec<T>> for FakeVec<T> {
     fn from(value: Vec<T>) -> Self {
         FakeVec {
             item: value.into_iter().next(),
@@ -162,7 +166,7 @@ pub struct Drain<'a, T> {
     vec: &'a mut FakeVec<T>,
 }
 
-impl<'a, T> Iterator for Drain<'a, T> {
+impl<'a, T: PartialEq> Iterator for Drain<'a, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -170,7 +174,7 @@ impl<'a, T> Iterator for Drain<'a, T> {
     }
 }
 
-impl<T> Index<usize> for FakeVec<T> {
+impl<T: PartialEq> Index<usize> for FakeVec<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -178,7 +182,7 @@ impl<T> Index<usize> for FakeVec<T> {
     }
 }
 
-impl<T> IndexMut<usize> for FakeVec<T> {
+impl<T: PartialEq> IndexMut<usize> for FakeVec<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.get_mut(index).unwrap()
     }
