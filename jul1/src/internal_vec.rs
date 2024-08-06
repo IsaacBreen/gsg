@@ -15,16 +15,13 @@ impl<T: PartialEq> FakeVec<T> {
         FakeVec { item: None }
     }
 
-    pub fn push(&mut self, value: T) -> Result<(), &'static str> {
+    pub fn push(&mut self, value: T)  {
         if let Some(item) = &self.item {
-            if item == &value {
-                Ok(())
-            } else {
-                Err("FakeVec can only store one item")
+            if item != &value {
+                panic!("FakeVec can only store one item")
             }
         } else {
             self.item = Some(value);
-            Ok(())
         }
     }
 
@@ -34,7 +31,7 @@ impl<T: PartialEq> FakeVec<T> {
 
     pub fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         for item in iter.into_iter() {
-            self.push(item).expect("`extend` failed.")
+            self.push(item)
         }
     }
 
@@ -109,9 +106,7 @@ impl<T: PartialEq> FromIterator<T> for FakeVec<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut fake_vec = FakeVec::new();
         for item in iter {
-            if fake_vec.push(item).is_err() {
-                break;
-            }
+            fake_vec.push(item);
         }
         fake_vec
     }
@@ -120,9 +115,7 @@ impl<T: PartialEq> FromIterator<T> for FakeVec<T> {
 impl<T: PartialEq> Extend<T> for FakeVec<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         for item in iter {
-            if self.push(item).is_err() {
-                break;
-            }
+            self.push(item);
         }
     }
 }
