@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use smallvec::Array;
-use crate::{LookaheadData, ParseResults, profile, RightData, U8Set};
+use crate::{LookaheadData, ParseResults, profile, RightData, U8Set, VecX};
 
 // macro_rules! profile {
 //     ($tag:expr, $body:expr) => {{
@@ -43,14 +42,15 @@ impl Squash for Vec<RightData> {
     }
 }
 
-impl<A: Array<Item = RightData>> Squash for smallvec::SmallVec<A> {
-    type Output = Self;
+impl Squash for VecX<RightData> {
+    type Output = VecX<RightData>;
     fn squashed(self) -> Self::Output {
         if self.len() > SQUASH_THRESHOLD {
-            profile!("RightDataSquasher::squashed", {
-                let mut squasher = RightDataSquasher::new();
+            profile!("VecX<RightData>::squashed", {
+                let mut squasher = VecX::new();
                 squasher.extend(self.into_iter());
-                squasher.finish().into()
+                squasher.squash();
+                squasher
             })
         } else {
             self

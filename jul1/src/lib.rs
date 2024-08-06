@@ -20,6 +20,7 @@ pub use crate::tests::*;
 // Re-export common types and functions
 pub use crate::u8set::U8Set;
 pub use compiler::Compile;
+pub use internal_vec::VecX;
 
 mod combinator;
 mod combinators;
@@ -35,3 +36,4 @@ mod unicode;
 mod compiler;
 mod stats;
 mod unicode_categories;
+mod internal_vec;

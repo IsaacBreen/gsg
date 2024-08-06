@@ -1,0 +1,1 @@
+pub type VecX<T> = smallvec::SmallVec<[T; 0]>;
