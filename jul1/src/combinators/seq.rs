@@ -76,7 +76,7 @@ impl ParserTrait for SeqParser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut final_right_data: VecY<RightData> = VecY::new();
-        let mut parser_initialization_queue: BTreeMap<usize, VecY<RightData>> = BTreeMap::new();
+        let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
         self.parsers.retain_mut(|(combinator_index, parser)| {
             // let ParseResults { right_data_vec, done } = parser.parse(bytes);
@@ -90,8 +90,8 @@ impl ParserTrait for SeqParser {
             !done
         });
 
-        while let Some((combinator_index, mut right_data_vec)) = parser_initialization_queue.pop_first() {
-            for right_data in right_data_vec {
+        while let Some((combinator_index, right_data_squasher)) = parser_initialization_queue.pop_first() {
+            for right_data in right_data_squasher.finish() {
                 let offset = right_data.right_data_inner.position - self.position;
                 let combinator = &self.combinators[combinator_index];
                 let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
