@@ -726,8 +726,8 @@ pub fn FSTRING_MIDDLE() -> Combinator {
     let regular_char = eat_char_negation_choice("{}\\\n\r\'\"");
 
     let quote = choice!(
-        seq!(eat_char('\''), mutate_right_data(|right_data| { *right_data.right_data_inner.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle })),
-        seq!(eat_char('"'), mutate_right_data(|right_data| { *right_data.right_data_inner.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble })),
+        seq!(eat_char('\''), check_right_data(|right_data| { *right_data.right_data_inner.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle })),
+        seq!(eat_char('"'), check_right_data(|right_data| { *right_data.right_data_inner.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble })),
     );
 
     let newline = seq!(breaking_space(), check_right_data(|right_data| {
