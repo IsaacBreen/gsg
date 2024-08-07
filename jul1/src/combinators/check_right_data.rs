@@ -59,7 +59,7 @@ impl CombinatorTrait for CheckRightData {
         if (self.run)(&right_data) {
             (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::new_single(right_data, true))
         } else {
-            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::new(vec![], true))
+            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::empty_finished())
         }
     }
 }
