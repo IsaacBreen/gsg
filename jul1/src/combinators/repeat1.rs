@@ -1,6 +1,7 @@
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecY};
+use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY};
 use crate::opt;
 use crate::parse_state::RightData;
 use crate::VecX;
@@ -82,14 +83,18 @@ impl ParserTrait for Repeat1Parser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut right_data_as = VecY::new();
+        // let mut right_data_as: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
         for mut a_parser in std::mem::take(&mut self.a_parsers) {
             let parse_results = a_parser.parse(bytes);
             if !parse_results.done() {
                 self.a_parsers.push(a_parser);
             }
+            // right_data_as.entry(parse_results.right_data_vec.len()).or_default().extend(parse_results.right_data_vec);
             right_data_as.extend(parse_results.right_data_vec);
         }
+
+        right_data_as.squash();
 
         let mut i = 0;
         while i < right_data_as.len() {
@@ -99,6 +104,7 @@ impl ParserTrait for Repeat1Parser {
             if !parse_results.done() {
                 self.a_parsers.push(a_parser);
             }
+            // right_data_as.entry(i).or_default().extend(parse_results.right_data_vec);
             right_data_as.extend(parse_results.right_data_vec);
             i += 1;
         }

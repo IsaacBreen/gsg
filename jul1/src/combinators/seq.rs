@@ -79,7 +79,6 @@ impl ParserTrait for SeqParser {
         let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
         self.parsers.retain_mut(|(combinator_index, parser)| {
-            // let ParseResults { right_data_vec, done } = parser.parse(bytes);
             let parse_results = parser.parse(bytes);
             let done = parse_results.done();
             if *combinator_index + 1 < self.combinators.len() {
