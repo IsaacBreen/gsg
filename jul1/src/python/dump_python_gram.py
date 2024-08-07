@@ -207,10 +207,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
             raise ValueError(f"Unknown item type: {type(item)}")
 
     def name_to_rust(name: str) -> str:
-        if deferred:
-            return f'deferred({name})'
-        else:
-            return f'&{name}'
+        return f'&{name}'
 
     deferred = True
 
