@@ -1,9 +1,9 @@
 // pub type VecX<T> = smallvec::SmallVec<[T; 1]>;
 pub type VecX<T> = Vec<T>;
 
-pub type VecY<T> = Vec<T>;
+// pub type VecY<T> = Vec<T>;
 // pub type VecY<T> = smallvec::SmallVec<[T; 1]>;
-// pub type VecY<T> = FakeVec<T>;
+pub type VecY<T> = FakeVec<T>;
 
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut, RangeBounds};
