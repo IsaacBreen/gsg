@@ -39,9 +39,9 @@ pub fn deferred(f: impl Fn() -> Combinator + 'static) -> Combinator {
     Deferred { f: Rc::new(f) }.into()
 }
 
-impl From<&'static dyn Fn() -> Combinator> for Combinator {
-    fn from(value: &'static dyn Fn() -> Combinator) -> Self {
-        deferred(value)
+impl<T> From<&'static T> for Combinator where T: Fn() -> Combinator {
+    fn from(value: &'static T) -> Self {
+        deferred(value as &dyn Fn() -> Combinator)
     }
 }
 

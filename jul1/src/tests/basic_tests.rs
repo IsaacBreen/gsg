@@ -197,10 +197,10 @@ mod tests {
     #[test]
     fn test_from_fn() {
         fn A() -> Combinator {
-            choice!(seq!(eat_char('a'), &A as &dyn Fn() -> Combinator), eat_char('b'))
+            choice!(seq!(eat_char('a'), &A), eat_char('b'))
         }
 
-        let S: Combinator = From::<&dyn Fn() -> Combinator>::from(&A);
+        let S: Combinator = From::from(&A);
         assert_parses_default(&S, "ab");
         assert_parses_fast(&S, "ab");
     }
