@@ -21,6 +21,8 @@ impl<T: PartialEq> FakeVec<T> {
     pub fn push(&mut self, value: T)  {
         if let Some(item) = &self.item {
             if item != &value {
+                // todo: This is a hack to get FakeVec working
+                println!("FakeVec can only store one item");
                 // panic!("FakeVec can only store one item")
             }
         } else {
