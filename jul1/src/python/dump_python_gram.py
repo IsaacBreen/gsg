@@ -152,7 +152,7 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
 def grammar_to_rust(
         grammar: pegen.grammar.Grammar,
         unresolved_follows_table: dict[remove_left_recursion.Ref, list[remove_left_recursion.Ref]],
-        deferred: bool = True
+        deferred: bool = False
 ) -> str:
     def rhs_to_rust(rhs: pegen.grammar.Rhs, top_level: bool = False) -> str:
         if len(rhs.alts) == 1:
