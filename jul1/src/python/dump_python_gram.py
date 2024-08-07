@@ -149,7 +149,11 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
         pegen_rules[ref.name] = pegen.grammar.Rule(ref.name, None, node_to_rhs(node.simplify()))
     return pegen.grammar.Grammar(pegen_rules.values(), {})
 
-def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: dict[remove_left_recursion.Ref, list[remove_left_recursion.Ref]], deferred: bool = True) -> str:
+def grammar_to_rust(
+        grammar: pegen.grammar.Grammar,
+        unresolved_follows_table: dict[remove_left_recursion.Ref, list[remove_left_recursion.Ref]],
+        deferred: bool = True
+) -> str:
     def rhs_to_rust(rhs: pegen.grammar.Rhs, top_level: bool = False) -> str:
         if len(rhs.alts) == 1:
             return alt_to_rust(rhs.alts[0], top_level=top_level)
