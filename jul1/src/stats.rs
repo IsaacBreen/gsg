@@ -279,10 +279,7 @@ impl Parser {
             Parser::EpsParser(_) |
             Parser::FailParser(_) |
             Parser::CachedParser(_) |
-            Parser::MutateRightDataParser(_) |
-            Parser::EatByteStringChoiceParser(_) |
-            Parser::CheckRightDataParser(_)
-            => { },
+            Parser::EatByteStringChoiceParser(_) => { },
             Parser::ExcludeBytestringsParser(ExcludeBytestringsParser { inner, .. }) => {
                 inner.collect_stats(stats, current_tag);
             }

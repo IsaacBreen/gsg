@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-
 use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, RightData};
 
 #[derive(Clone)]
@@ -11,13 +10,13 @@ pub struct CheckRightData {
 
 impl Hash for CheckRightData {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.run.as_ref() as *const dyn Fn(&RightData) -> bool, state);
+        std::ptr::hash(Rc::as_ptr(&self.run) as *const (), state);
     }
 }
 
 impl PartialEq for CheckRightData {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(&self.run, &other.run)
+        Rc::ptr_eq(&self.run, &other.run)
     }
 }
 
@@ -25,12 +24,12 @@ impl Eq for CheckRightData {}
 
 impl Debug for CheckRightData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CheckRightData")
+        f.debug_struct("CheckRightData").finish()
     }
 }
 
 impl CombinatorTrait for CheckRightData {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&right_data) {
             (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         } else {
