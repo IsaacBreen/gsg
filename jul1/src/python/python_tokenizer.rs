@@ -730,12 +730,17 @@ pub fn FSTRING_MIDDLE() -> Combinator {
         seq!(eat_char('"'), mutate_right_data(|right_data| { *right_data.right_data_inner.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble })),
     );
 
+    let newline = seq!(breaking_space(), check_right_data(|right_data| {
+        matches!(right_data.right_data_inner.fstring_start_stack.last(), Some(PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble))
+    }));
+
     repeat1(choice!(
             regular_char,
             stringescapeseq,
             quote,
             seq!(eat_char('{'), eat_char('{')),
-            seq!(eat_char('}'), eat_char('}'))
+            seq!(eat_char('}'), eat_char('}')),
+            newline,
         )
     ).into()
 }
