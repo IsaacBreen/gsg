@@ -2,11 +2,11 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, U8Set};
+use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, RightData};
 
 #[derive(Clone)]
 pub struct CheckRightData {
-    pub run: Rc<dyn Fn(&RightData) -> bool>,
+    run: Rc<dyn Fn(&RightData) -> bool>,
 }
 
 impl Hash for CheckRightData {
@@ -29,51 +29,15 @@ impl Debug for CheckRightData {
     }
 }
 
-#[derive(Clone)]
-pub struct CheckRightDataParser {
-    pub run: Rc<dyn Fn(&RightData) -> bool>,
-}
-
-impl Hash for CheckRightDataParser {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.run.as_ref() as *const dyn Fn(&RightData) -> bool, state);
-    }
-}
-
-impl PartialEq for CheckRightDataParser {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(&self.run, &other.run)
-    }
-}
-
-impl Eq for CheckRightDataParser {}
-
-impl Debug for CheckRightDataParser {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CheckRightDataParser")
-    }
-}
-
 impl CombinatorTrait for CheckRightData {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&right_data) {
-            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::new_single(right_data, true))
+            (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         } else {
-            (Parser::CheckRightDataParser(CheckRightDataParser { run: self.run.clone() }), ParseResults::empty_finished())
+            (Parser::FailParser(FailParser), ParseResults::empty_finished())
         }
     }
 }
-
-impl ParserTrait for CheckRightDataParser {
-    fn get_u8set(&self) -> U8Set {
-        panic!("CheckRightDataParser.get_u8set() called")
-    }
-
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        panic!("CheckRightData parser already consumed")
-    }
-}
-
 
 pub fn check_right_data(run: impl Fn(&RightData) -> bool + 'static) -> CheckRightData {
     CheckRightData { run: Rc::new(run) }

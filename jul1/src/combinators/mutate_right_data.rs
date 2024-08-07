@@ -6,7 +6,7 @@ use crate::*;
 
 #[derive(Clone)]
 pub struct MutateRightData {
-    pub run: Rc<dyn Fn(&mut RightData) -> bool>,
+    run: Rc<dyn Fn(&mut RightData) -> bool>,
 }
 
 impl Hash for MutateRightData {
@@ -29,48 +29,13 @@ impl Debug for MutateRightData {
     }
 }
 
-#[derive(Clone)]
-pub struct MutateRightDataParser {
-    pub run: Rc<dyn Fn(&mut RightData) -> bool>,
-}
-
-impl Hash for MutateRightDataParser {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.run.as_ref() as *const dyn Fn(&mut RightData) -> bool, state);
-    }
-}
-
-impl PartialEq for MutateRightDataParser {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(&self.run, &other.run)
-    }
-}
-
-impl Eq for MutateRightDataParser {}
-
-impl Debug for MutateRightDataParser {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MutateRightDataParser")
-    }
-}
-
 impl CombinatorTrait for MutateRightData {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-         if (self.run)(&mut right_data) {
-            (Parser::MutateRightDataParser(MutateRightDataParser { run: self.run.clone() }), ParseResults::new_single(right_data, true))
+        if (self.run)(&mut right_data) {
+            (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         } else {
-            (Parser::MutateRightDataParser(MutateRightDataParser { run: self.run.clone() }), ParseResults::empty_finished())
+            (Parser::FailParser(FailParser), ParseResults::empty_finished())
         }
-    }
-}
-
-impl ParserTrait for MutateRightDataParser {
-    fn get_u8set(&self) -> U8Set {
-        U8Set::none()
-    }
-
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        panic!("MutateRightData parser already consumed")
     }
 }
 
