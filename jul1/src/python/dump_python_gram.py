@@ -212,7 +212,7 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
         else:
             return f'&{name}'
 
-    deferred = False
+    deferred = True
 
     rules = grammar.rules.items()
     rules = list(reversed(rules))
@@ -262,10 +262,11 @@ def grammar_to_rust(grammar: pegen.grammar.Grammar, unresolved_follows_table: di
 
     def make_rules() -> str:
         f = io.StringIO()
-        f.write('forward_decls!(')
-        for name, rule in rules:
-            f.write(f'{name}, ')
-        f.write(');\n')
+        if not deferred:
+            f.write('forward_decls!(')
+            for name, rule in rules:
+                f.write(f'{name}, ')
+            f.write(');\n')
         for name, rule in rules:
             expr = rhs_to_rust(rule.rhs, top_level=True)
             expr = f'tag("{name}", {expr})'
