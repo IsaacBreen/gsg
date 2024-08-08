@@ -5,7 +5,7 @@ use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Choice {
-    pub(crate) children: VecX<Rc<Combinator>>,
+    pub(crate) children: Rc<VecX<Combinator>>,
     pub(crate) greedy: bool,
 }
 
@@ -20,7 +20,7 @@ impl CombinatorTrait for Choice {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
-        for child in &self.children {
+        for child in self.children.iter() {
             let (parser, parse_results) = child.parse(right_data.clone(), bytes);
             if !parse_results.done() {
                 parsers.push(parser);
@@ -69,14 +69,14 @@ impl ParserTrait for ChoiceParser {
 
 pub fn _choice(v: Vec<Combinator>) -> Combinator {
     Choice {
-        children: v.into_iter().map(Rc::new).collect(),
+        children: Rc::new(v.into()),
         greedy: false,
     }.into()
 }
 
 pub fn _choice_greedy(v: Vec<Combinator>) -> Combinator {
     profile_internal("choice", Choice {
-        children: v.into_iter().map(Rc::new).collect(),
+        children: Rc::new(v.into()),
         greedy: true,
     })
 }
