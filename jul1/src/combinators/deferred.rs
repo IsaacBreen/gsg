@@ -12,7 +12,7 @@ thread_local! {
 
 #[derive(Clone)]
 pub struct Deferred {
-    pub(crate) f: Rc<dyn Fn() -> Combinator>,
+    pub(crate) f: fn() -> Combinator,
     cache_key: usize,
 }
 
@@ -44,21 +44,19 @@ impl CombinatorTrait for Deferred {
                 .or_insert_with(|| Rc::new((self.f)()))
                 .clone()
         });
+        assert_eq!(&(self.f)(), combinator.as_ref());
         combinator.parse(right_data, bytes)
     }
 }
 
-pub fn deferred(f: impl Fn() -> Combinator + 'static) -> Combinator {
+pub fn deferred(f: fn() -> Combinator) -> Combinator {
     let cache_key = &f as *const _ as usize;
-    Deferred { f: Rc::new(f), cache_key }.into()
+    Deferred { f, cache_key }.into()
 }
 
-impl<T> From<&'static T> for Combinator
-where
-    T: Fn() -> Combinator
-{
-    fn from(value: &'static T) -> Self {
-        deferred(value as &dyn Fn() -> Combinator)
+impl From<&fn () -> Combinator> for Combinator {
+    fn from(value: &fn() -> Combinator) -> Self {
+        deferred(*value)
     }
 }
 
