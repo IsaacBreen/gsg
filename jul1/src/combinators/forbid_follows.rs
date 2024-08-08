@@ -8,7 +8,7 @@ pub struct ForbidFollowsData {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollows {
-    match_ids: VecX<usize>,
+    pub(crate) match_ids: VecX<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -16,7 +16,7 @@ pub struct ForbidFollowsClear {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollowsCheckNot {
-    match_id: usize,
+    pub(crate) match_id: usize,
 }
 
 impl CombinatorTrait for ForbidFollows {

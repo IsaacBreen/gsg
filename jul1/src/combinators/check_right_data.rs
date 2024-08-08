@@ -5,7 +5,7 @@ use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, Right
 
 #[derive(Clone)]
 pub struct CheckRightData {
-    run: Rc<dyn Fn(&RightData) -> bool>,
+    pub(crate) run: Rc<dyn Fn(&RightData) -> bool>,
 }
 
 impl Hash for CheckRightData {

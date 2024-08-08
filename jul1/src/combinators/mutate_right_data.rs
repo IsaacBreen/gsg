@@ -5,7 +5,7 @@ use crate::*;
 
 #[derive(Clone)]
 pub struct MutateRightData {
-    run: Rc<dyn Fn(&mut RightData) -> bool>,
+    pub(crate) run: Rc<dyn Fn(&mut RightData) -> bool>,
 }
 
 impl Hash for MutateRightData {

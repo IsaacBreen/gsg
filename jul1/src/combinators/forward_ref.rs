@@ -6,7 +6,7 @@ use crate::{Combinator, CombinatorTrait, Parser, ParseResults, Symbol};
 use crate::parse_state::RightData;
 #[derive(Debug, Clone)]
 pub struct ForwardRef {
-    a: Rc<RefCell<Option<Rc<Combinator>>>>,
+    pub(crate) a: Rc<RefCell<Option<Rc<Combinator>>>>,
 }
 
 impl Hash for ForwardRef {

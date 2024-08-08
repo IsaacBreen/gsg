@@ -47,7 +47,7 @@ impl BuildTrieNode {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-struct TrieNode {
+pub(crate) struct TrieNode {
     valid_bytes: U8Set,
     is_end: bool,
     children: VecX<Rc<TrieNode>>,
@@ -64,7 +64,7 @@ impl Debug for TrieNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatByteStringChoice {
-    root: Rc<TrieNode>,
+    pub(crate) root: Rc<TrieNode>,
 }
 
 impl EatByteStringChoice {
