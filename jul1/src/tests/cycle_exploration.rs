@@ -57,21 +57,38 @@ fn weak() {
 
 #[test]
 fn careful_lifetimes() {
-    struct A<'a> {
-        b: Option<&'a B<'a>>,
+    struct A {
+        b: RefCell<Option<Weak<B>>>,
     }
 
-    struct B<'a> {
-        a: &'a A<'a>,
+    struct B {
+        a: Rc<A>,
     }
 
-    fn make_A<'a>() -> A<'a> {
-        let mut a = A { b: None };
-        let b = B { a: &a };
-        a.b = Some(&b);
+    fn make_A() -> Rc<A> {
+        let a = Rc::new(A {
+            b: RefCell::new(None),
+        });
+        let b = Rc::new(B {
+            a: a.clone(),
+        });
+        a.b.replace(Some(Rc::downgrade(&b)));
         a
     }
 
     let a = make_A();
-    assert!(a.b.is_some());
+    assert_eq!(Rc::strong_count(&a), 1); // One strong reference to `a`
+    assert_eq!(Rc::weak_count(&a), 0);   // No weak references to `a`
+
+    // Check the strong and weak counts for `b`
+    if let Some(weak_b) = a.b.borrow().as_ref() {
+        if let Some(b) = weak_b.upgrade() {
+            assert_eq!(Rc::strong_count(&b), 1); // One strong reference to `b`
+            assert_eq!(Rc::weak_count(&b), 1);   // One weak reference to `b`
+        } else {
+            panic!("Failed to upgrade weak reference to `b`");
+        }
+    } else {
+        panic!("`a.b` should contain a weak reference to `b`");
+    };
 }
