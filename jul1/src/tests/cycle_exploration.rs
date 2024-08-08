@@ -25,7 +25,7 @@ fn memory_leak() {
     // Memory leak occurs here because `A` holds a strong reference to `B`
     // and `B` holds a strong reference back to `A`.
     let a = make_A();
-    assert_eq!(Rc::strong_count(&a), 1); // One strong reference to `a`
+    assert_eq!(Rc::strong_count(&a), 2); // Two strong references to `a`
     assert_eq!(Rc::weak_count(&a), 0);   // No weak references
 }
 
