@@ -72,7 +72,7 @@ impl<'a> CombinatorTrait<'a> for Repeat1<'a> {
     }
 }
 
-impl<'a> ParserTrait for Repeat1Parser<'a> {
+impl ParserTrait for Repeat1Parser<'_> {
     fn get_u8set(&self) -> U8Set {
         if self.a_parsers.is_empty() {
             U8Set::none()
