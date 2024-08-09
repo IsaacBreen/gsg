@@ -7,12 +7,12 @@ use crate::*;
 use crate::VecX;
 
 thread_local! {
-    static COMBINATOR_CACHE: RefCell<HashMap<Deferred, Rc<Combinator>>> = RefCell::new(HashMap::new());
+    static COMBINATOR_CACHE: RefCell<HashMap<Deferred, Rc<Combinator<'static>>>> = RefCell::new(HashMap::new());
 }
 
 #[derive(Clone)]
 pub struct Deferred {
-    pub(crate) f: &'static dyn Fn() -> Combinator,
+    pub(crate) f: &'static dyn Fn() -> Combinator<'static>,
 }
 
 impl Hash for Deferred {
@@ -37,7 +37,7 @@ impl Debug for Deferred {
     }
 }
 
-impl CombinatorTrait for Deferred {
+impl CombinatorTrait<'_> for Deferred {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         panic!("Deferred combinator should not be used directly. Use deferred() function instead.");
         let combinator = profile!("Deferred cache check", {
@@ -52,20 +52,20 @@ impl CombinatorTrait for Deferred {
     }
 }
 
-pub fn deferred(f: &'static impl Fn() -> Combinator) -> Combinator {
+pub fn deferred(f: &'static impl Fn() -> Combinator<'static>) -> Combinator<'static> {
     Deferred { f }.into()
 }
 
-impl<T> From<&'static T> for Combinator
+impl<T> From<&'static T> for Combinator<'_>
 where
-    T: Fn() -> Combinator
+    T: Fn() -> Combinator<'static>
 {
     fn from(value: &'static T) -> Self {
         deferred(value)
     }
 }
 
-impl From<Deferred> for Combinator {
+impl From<Deferred> for Combinator<'_> {
     fn from(value: Deferred) -> Self {
         Combinator::Deferred(value)
     }

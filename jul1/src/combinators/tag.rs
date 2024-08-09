@@ -5,18 +5,18 @@ use crate::*;
 use crate::VecX;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Tagged {
-    pub inner: Box<Combinator>,
+pub struct Tagged<'a> {
+    pub inner: Box<Combinator<'a>>,
     pub tag: String,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct TaggedParser {
-    pub inner: Box<Parser>,
+pub struct TaggedParser<'a> {
+    pub inner: Box<Parser<'a>>,
     pub tag: String,
 }
 
-impl Debug for Tagged {
+impl Debug for Tagged<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Tagged")
             .field("tag", &self.tag)
@@ -24,7 +24,7 @@ impl Debug for Tagged {
     }
 }
 
-impl Debug for TaggedParser {
+impl Debug for TaggedParser<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaggedParser")
             .field("tag", &self.tag)
@@ -32,7 +32,7 @@ impl Debug for TaggedParser {
     }
 }
 
-impl CombinatorTrait for Tagged {
+impl CombinatorTrait<'_> for Tagged<'_> {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
@@ -48,7 +48,7 @@ impl CombinatorTrait for Tagged {
     }
 }
 
-impl ParserTrait for TaggedParser {
+impl ParserTrait for TaggedParser<'_> {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }
@@ -65,14 +65,14 @@ impl ParserTrait for TaggedParser {
     }
 }
 
-pub fn tag(tag: &str, a: impl Into<Combinator>) -> Combinator {
+pub fn tag<'a>(tag: &str, a: impl Into<Combinator<'a>>) -> Combinator<'a> {
     // TODO: ffs
     // Tagged { inner: Box::new(a.into()), tag: tag.to_string() }.into()
     Tagged { inner: Box::new(profile(tag, a).into()), tag: tag.to_string() }.into()
     // a.into()
 }
 
- impl From<Tagged> for Combinator {
+ impl From<Tagged<'_>> for Combinator<'_> {
      fn from(value: Tagged) -> Self {
          Combinator::Tagged(value)
      }

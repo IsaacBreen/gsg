@@ -7,6 +7,7 @@ pub type VecY<T> = FakeVec<T>;
 
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut, RangeBounds};
+use crate::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FakeVec<T> {
@@ -40,7 +41,7 @@ impl<T: PartialEq> FakeVec<T> {
         }
     }
 
-    pub fn append(&mut self, other: &mut Self) {
+    pub fn append(&mut self, other: &mut VecY<T>) {
         self.extend(other.drain(..));
     }
 

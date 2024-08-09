@@ -1,7 +1,7 @@
 use crate::*;
 use std::{borrow::BorrowMut, cell::RefCell, rc::Rc};
 
-impl Combinator {
+impl Combinator<'_> {
     pub fn apply_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut Combinator),

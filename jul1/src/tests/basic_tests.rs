@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_from_fn() {
-        fn A() -> Combinator {
+        fn A() -> Combinator<'static> {
             choice!(seq!(eat_char('a'), &A), eat_char('b'))
         }
 

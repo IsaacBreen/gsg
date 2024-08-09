@@ -4,19 +4,19 @@ use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait,
 use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Choice {
-    pub(crate) children: Rc<VecX<Combinator>>,
+pub struct Choice<'a> {
+    pub(crate) children: Rc<VecX<Combinator<'a>>>,
     pub(crate) greedy: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ChoiceParser {
-    pub(crate) parsers: Vec<Parser>,
+pub struct ChoiceParser<'a> {
+    pub(crate) parsers: Vec<Parser<'a>>,
     pub(crate) greedy: bool,
 }
 
-impl CombinatorTrait for Choice {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+impl<'a> CombinatorTrait<'a> for Choice<'a> {
+    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
@@ -39,7 +39,7 @@ impl CombinatorTrait for Choice {
     }
 }
 
-impl ParserTrait for ChoiceParser {
+impl<'a> ParserTrait for ChoiceParser<'a> {
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::none();
         for parser in &self.parsers {
@@ -52,15 +52,16 @@ impl ParserTrait for ChoiceParser {
         let mut parse_result = ParseResults::empty_finished();
         let mut discard_rest = false;
 
-        self.parsers.retain_mut(|mut parser| {
+        self.parsers.retain_mut(|parser| {
             if discard_rest {
                 return false;
             }
-            let parse_results = parser.parse(bytes);
-            discard_rest = self.greedy && parse_results.succeeds_decisively();
-            let done = parse_results.done();
-            parse_result.merge_assign(parse_results);
-            !done
+            // let parse_results = parser.parse(bytes);
+            // discard_rest = self.greedy && parse_results.succeeds_decisively();
+            // let done = parse_results.done();
+            // parse_result.merge_assign(parse_results);
+            // !done
+            todo!()
         });
         parse_result
     }
@@ -95,8 +96,8 @@ macro_rules! choice_greedy {
     };
 }
 
-impl From<Choice> for Combinator {
-    fn from(value: Choice) -> Self {
+impl<'a> From<Choice<'a>> for Combinator<'a> {
+    fn from(value: Choice<'a>) -> Self {
         Combinator::Choice(value)
     }
 }

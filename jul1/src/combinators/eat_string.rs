@@ -8,7 +8,7 @@ pub struct EatString {
     pub(crate) string: Vec<u8>,
 }
 
-impl From<EatString> for Combinator {
+impl From<EatString> for Combinator<'_> {
     fn from(value: EatString) -> Self {
         Combinator::EatString(value)
     }
@@ -21,7 +21,7 @@ pub struct EatStringParser {
     pub(crate) right_data: Option<RightData>,
 }
 
-impl CombinatorTrait for EatString {
+impl CombinatorTrait<'_> for EatString {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatStringParser {
             string: self.string.clone(),

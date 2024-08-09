@@ -16,7 +16,7 @@ pub fn get_unicode_general_category_bytestrings(general_category: GeneralCategor
     result
 }
 
-pub fn get_unicode_general_category_combinator(general_category: GeneralCategory) -> Combinator {
+pub fn get_unicode_general_category_combinator(general_category: GeneralCategory) -> Combinator<'static> {
     let bytestrings = get_unicode_general_category_bytestrings(general_category);
     eat_bytestring_choice(bytestrings)
 }

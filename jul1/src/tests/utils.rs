@@ -12,7 +12,7 @@ use std::iter;
 
 const VERBOSE: bool = false;
 
-pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
+pub fn assert_parses<T: CombinatorTrait<'static>, S: ToString>(combinator: &T, input: S, desc: &str) {
     let mut input = input.to_string();
     println!("beginning assert_parses {}", desc);
 
@@ -124,11 +124,11 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     }
 }
 
-pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
+pub fn assert_parses_default<T: CombinatorTrait<'static>, S: ToString>(combinator: &T, input: S) {
     assert_parses(combinator, input, "Parser failed unexpectedly");
 }
 
-pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
+pub fn profile_parse<T: CombinatorTrait<'static>, S: ToString>(combinator: &T, input: S) {
     println!("beginning profile_parse");
 
     let start_right_data = RightData::default();
@@ -157,7 +157,7 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
 }
 
 
-pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
+pub fn assert_parses_fast<T: CombinatorTrait<'static>, S: ToString>(combinator: &T, input: S) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start_right_data = RightData::default();
     let (parser, mut parse_results) = profile!("assert_parses_fast parse",
@@ -226,7 +226,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
 
 }
 
-pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, tolerance: usize) {
+pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait<'static>, S: ToString>(combinator: &T, input: S, tolerance: usize) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start_right_data = RightData::default();
     let (parser, mut parse_results) = combinator.parse(start_right_data, &bytes);
@@ -267,7 +267,7 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
     assert!(parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.right_data_inner.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).right_data_inner.position >= bytes.len().saturating_sub(tolerance), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
 }
 
-pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
+pub fn assert_fails<T: CombinatorTrait<'static>, S: ToString>(combinator: &T, input: S, desc: &str) {
     let mut input = input.to_string();
     println!("beginning assert_fails {}", desc);
     let (mut parser, ParseResults { .. }) = T::parser(&combinator, RightData::default());
@@ -329,11 +329,11 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
     assert!(result.is_err(), "{}", desc);
 }
 
-pub fn assert_fails_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
+pub fn assert_fails_default<T: CombinatorTrait<'static>, S: ToString>(combinator: &T, input: S) {
     assert_fails(combinator, input, "Parser succeeded unexpectedly");
 }
 
-pub fn assert_fails_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
+pub fn assert_fails_fast<T: CombinatorTrait<'static>, S: ToString>(combinator: &T, input: S) {
     let (mut parser, _) = combinator.parser(RightData::default());
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let parse_results = parser.parse(&bytes);

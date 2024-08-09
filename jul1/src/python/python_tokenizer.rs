@@ -16,15 +16,15 @@ use crate::{
 use crate::unicode::get_unicode_general_category_bytestrings;
 use crate::unicode_categories::GeneralCategory;
 
-pub fn breaking_space() -> Combinator {
+pub fn breaking_space() -> Combinator<'static> {
     eat_char_choice("\n\r").into()
 }
 
-pub fn not_breaking_space() -> Combinator {
+pub fn not_breaking_space() -> Combinator<'static> {
     eat_char_negation_choice("\n\r").into()
 }
 
-pub fn non_breaking_space() -> Combinator {
+pub fn non_breaking_space() -> Combinator<'static> {
     eat_char_choice(" \t").into()
 }
 
@@ -54,7 +54,7 @@ pub fn non_breaking_space() -> Combinator {
 // tokens.  Whitespace is needed between two tokens only if their concatenation
 // could otherwise be interpreted as a different token (e.g., ab is one token, but
 // a b is two tokens).
-pub fn whitespace() -> Combinator {
+pub fn whitespace() -> Combinator<'static> {
     repeat1(choice!(
             // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
             seq!(
@@ -67,7 +67,7 @@ pub fn whitespace() -> Combinator {
         )).into()
 }
 
-pub fn WS() -> Combinator {
+pub fn WS() -> Combinator<'static> {
     whitespace()
 }
 
@@ -270,21 +270,21 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
     bytestrings
 }
 
-pub fn id_start() -> Combinator {
+pub fn id_start() -> Combinator<'static> {
     eat_bytestring_choice(id_start_bytestrings())
 }
 
-pub fn id_continue() -> Combinator {
+pub fn id_continue() -> Combinator<'static> {
     eat_bytestring_choice(id_continue_bytestrings())
 }
 
-pub fn xid_start() -> Combinator {
+pub fn xid_start() -> Combinator<'static> {
     // all characters in id_start whose NFKC normalization is in "id_start xid_continue*"
     // Honestly, I don't know what this means.
     id_start()
 }
 
-pub fn xid_continue() -> Combinator {
+pub fn xid_continue() -> Combinator<'static> {
     // all characters in id_continue whose NFKC normalization is in "id_continue*"
     // Honestly, I don't know what this means.
     id_continue()
@@ -369,7 +369,7 @@ pub fn reserved_keywords() -> Vec<&'static str> {
     ]
 }
 
-pub fn NAME() -> Combinator {
+pub fn NAME() -> Combinator<'static> {
     exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
 }
 
@@ -500,11 +500,11 @@ pub fn eat_char_digit() -> EatU8 {
     eat_char_choice("0123456789")
 }
 
-pub fn eat_until_terminator(terminator: char) -> Combinator {
+pub fn eat_until_terminator(terminator: char) -> Combinator<'static> {
     repeat1(eat_char_negation(terminator))
 }
 
-pub fn STRING() -> Combinator {
+pub fn STRING() -> Combinator<'static> {
     let stringprefix = opt(choice!(
         eat_char_choice("ruRUfF"),
         choice!(
@@ -694,7 +694,7 @@ pub enum PythonQuoteType {
     ThreeDouble,
 }
 
-pub fn FSTRING_START() -> Combinator {
+pub fn FSTRING_START() -> Combinator<'static> {
     let prefix = choice!(
         eat_char_choice("fF"),
         seq!(eat_char_choice("fF"), eat_char_choice("rR")),
@@ -713,7 +713,7 @@ pub fn FSTRING_START() -> Combinator {
     )
 }
 
-pub fn FSTRING_MIDDLE() -> Combinator {
+pub fn FSTRING_MIDDLE() -> Combinator<'static> {
     let stringescapeseq = choice!(
         seq!(eat_char('\\'), eat_char_choice("\\'\"abfnrtv")),
         seq!(eat_char('\\'), eat_char('x'), repeatn(2, eat_char_hex_digit())),
@@ -745,7 +745,7 @@ pub fn FSTRING_MIDDLE() -> Combinator {
     ).into()
 }
 
-pub fn FSTRING_END() -> Combinator {
+pub fn FSTRING_END() -> Combinator<'static> {
     let quote = choice!(
         seq!(eat_char('\''), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner).fstring_start_stack.pop().unwrap() == PythonQuoteType::OneSingle })),
         seq!(eat_char('"'), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner).fstring_start_stack.pop().unwrap() == PythonQuoteType::OneDouble })),
@@ -871,7 +871,7 @@ pub fn FSTRING_END() -> Combinator {
 // imaginary literals::
 //
 //    3.14j   10.j    10j     .001j   1e100j   3.14e-10j   3.14_15_93j
-pub fn NUMBER() -> Combinator {
+pub fn NUMBER() -> Combinator<'static> {
     let digit = eat_byte_range(b'0', b'9');
     let nonzerodigit = eat_byte_range(b'1', b'9');
     let bindigit = eat_byte_range(b'0', b'1');
@@ -917,7 +917,7 @@ pub fn NUMBER() -> Combinator {
 // literal, and ends at the end of the physical line.  A comment signifies the end
 // of the logical line unless the implicit line joining rules are invoked. Comments
 // are ignored by the syntax.
-pub fn comment() -> Combinator {
+pub fn comment() -> Combinator<'static> {
     seq!(eat_char('#'), repeat0(not_breaking_space()))
 }
 
@@ -961,7 +961,7 @@ pub fn comment() -> Combinator {
 // When embedding Python, source code strings should be passed to Python APIs using
 // the standard C conventions for newline characters (the ``\n`` character,
 // representing ASCII LF, is the line terminator).
-pub fn NEWLINE() -> Combinator {
+pub fn NEWLINE() -> Combinator<'static> {
     let blank_line = seq!(repeat0(non_breaking_space()), opt(comment()), breaking_space());
     seq!(repeat1(blank_line), dent())
 }
@@ -1043,19 +1043,19 @@ pub fn NEWLINE() -> Combinator {
 // (Actually, the first three errors are detected by the parser; only the last
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
-pub fn INDENT() -> Combinator {
+pub fn INDENT() -> Combinator<'static> {
     indent().into()
 }
 
-pub fn DEDENT() -> Combinator {
+pub fn DEDENT() -> Combinator<'static> {
     dedent().into()
 }
 
-pub fn ENDMARKER() -> Combinator {
+pub fn ENDMARKER() -> Combinator<'static> {
     eps().into()
 }
 
-pub fn TYPE_COMMENT() -> Combinator {
+pub fn TYPE_COMMENT() -> Combinator<'static> {
     // seq!(eat_string("#"), opt(whitespace()), eat_string("type:"), opt(whitespace()), repeat0(eat_char_negation_choice("\n\r")))
     fail().into()
 }

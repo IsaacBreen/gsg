@@ -6,7 +6,7 @@ pub struct FailParser;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Fail;
 
-impl CombinatorTrait for Fail {
+impl CombinatorTrait<'_> for Fail {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::FailParser(FailParser), ParseResults::empty_finished())
     }
@@ -26,7 +26,7 @@ pub fn fail() -> Fail {
     Fail
 }
 
-impl From<Fail> for Combinator {
+impl From<Fail> for Combinator<'_> {
     fn from(value: Fail) -> Self {
         Combinator::Fail(value)
     }

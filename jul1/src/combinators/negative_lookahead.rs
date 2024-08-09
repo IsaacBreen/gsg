@@ -2,14 +2,14 @@ use crate::*;
 use crate::VecX;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ExcludeBytestrings {
-    pub(crate) inner: Box<Combinator>,
+pub struct ExcludeBytestrings<'a> {
+    pub(crate) inner: Box<Combinator<'a>>,
     pub(crate) bytestrings_to_exclude: VecX<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ExcludeBytestringsParser {
-    pub(crate) inner: Box<Parser>,
+pub struct ExcludeBytestringsParser<'a> {
+    pub(crate) inner: Box<Parser<'a>>,
     pub(crate) bytestrings_to_exclude: VecX<Vec<u8>>,
     pub(crate) position: usize,
     pub(crate) start_position: usize,
@@ -26,7 +26,7 @@ fn common_prefix(a: &[u8], b: &[u8]) -> bool {
     true
 }
 
-impl CombinatorTrait for ExcludeBytestrings {
+impl CombinatorTrait<'_> for ExcludeBytestrings<'_> {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.right_data_inner.position;
         let (inner, mut parse_results) = self.inner.parse(right_data, bytes);
@@ -54,7 +54,7 @@ impl CombinatorTrait for ExcludeBytestrings {
     }
 }
 
-impl ParserTrait for ExcludeBytestringsParser {
+impl ParserTrait for ExcludeBytestringsParser<'_> {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }
@@ -80,7 +80,7 @@ impl ParserTrait for ExcludeBytestringsParser {
     }
 }
 
-pub fn exclude_strings(inner: Combinator, bytestrings_to_exclude: Vec<&str>) -> Combinator {
+pub fn exclude_strings<'a>(inner: Combinator<'a>, bytestrings_to_exclude: Vec<&str>) -> Combinator<'a> {
     let bytestrings_to_exclude = bytestrings_to_exclude.iter().map(|s| s.as_bytes().to_vec()).collect();
     Combinator::ExcludeBytestrings(ExcludeBytestrings {
         inner: Box::new(inner),
@@ -88,7 +88,7 @@ pub fn exclude_strings(inner: Combinator, bytestrings_to_exclude: Vec<&str>) -> 
     })
 }
 
-impl From<ExcludeBytestrings> for Combinator {
+impl From<ExcludeBytestrings<'_>> for Combinator<'_> {
     fn from(exclude_bytestrings: ExcludeBytestrings) -> Self {
         Self::ExcludeBytestrings(exclude_bytestrings)
     }

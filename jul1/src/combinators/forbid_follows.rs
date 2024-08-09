@@ -19,21 +19,21 @@ pub struct ForbidFollowsCheckNot {
     pub(crate) match_id: usize,
 }
 
-impl CombinatorTrait for ForbidFollows {
+impl CombinatorTrait<'_> for ForbidFollows {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
         (combinator::Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
     }
 }
 
-impl CombinatorTrait for ForbidFollowsClear {
+impl CombinatorTrait<'_> for ForbidFollowsClear {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids.clear();
         (combinator::Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
     }
 }
 
-impl CombinatorTrait for ForbidFollowsCheckNot {
+impl CombinatorTrait<'_> for ForbidFollowsCheckNot {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids.contains(&self.match_id) {
             (combinator::Parser::FailParser(FailParser), ParseResults::empty_finished())
@@ -56,19 +56,19 @@ pub fn forbid_follows_check_not(match_id: usize) -> ForbidFollowsCheckNot {
     ForbidFollowsCheckNot { match_id }
 }
 
-impl From<ForbidFollows> for Combinator {
+impl From<ForbidFollows> for Combinator<'_> {
     fn from(value: ForbidFollows) -> Self {
         Combinator::ForbidFollows(value)
     }
 }
 
-impl From<ForbidFollowsClear> for Combinator {
+impl From<ForbidFollowsClear> for Combinator<'_> {
     fn from(value: ForbidFollowsClear) -> Self {
         Combinator::ForbidFollowsClear(value)
     }
 }
 
-impl From<ForbidFollowsCheckNot> for Combinator {
+impl From<ForbidFollowsCheckNot> for Combinator<'_> {
     fn from(value: ForbidFollowsCheckNot) -> Self {
         Combinator::ForbidFollowsCheckNot(value)
     }

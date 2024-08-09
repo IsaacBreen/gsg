@@ -84,7 +84,7 @@ pub struct EatByteStringChoiceParser {
     pub(crate) right_data: RightData,
 }
 
-impl CombinatorTrait for EatByteStringChoice {
+impl CombinatorTrait<'_> for EatByteStringChoice {
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatByteStringChoiceParser {
@@ -140,15 +140,15 @@ impl ParserTrait for EatByteStringChoiceParser {
     }
 }
 
-pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
+pub fn eat_bytestring_choice<'a>(bytestrings: Vec<Vec<u8>>) -> Combinator<'a> {
     EatByteStringChoice::new(bytestrings).into()
 }
 
-pub fn eat_string_choice(strings: &[&str]) -> Combinator {
+pub fn eat_string_choice<'a>(strings: &[&str]) -> Combinator<'a> {
     eat_bytestring_choice(strings.iter().map(|s| s.as_bytes().to_vec()).collect())
 }
 
-impl From<EatByteStringChoice> for Combinator {
+impl From<EatByteStringChoice> for Combinator<'_> {
     fn from(value: EatByteStringChoice) -> Self {
         Combinator::EatByteStringChoice(value)
     }

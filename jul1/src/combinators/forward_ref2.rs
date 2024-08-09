@@ -4,29 +4,29 @@ use std::ptr::NonNull;
 use crate::*;
 
 #[derive(Debug, Clone, Eq)]
-pub struct ForwardRef2 {
-    b: Rc<RefCell<Option<&'static Combinator>>>,
+pub struct ForwardRef2<'a> {
+    b: Rc<RefCell<Option<&'a Combinator<'a>>>>,
 }
 
-impl PartialEq for ForwardRef2 {
+impl PartialEq for ForwardRef2<'_> {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self, other)
     }
 }
 
-impl Hash for ForwardRef2 {
+impl Hash for ForwardRef2<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(self, state);
     }
 }
 
-impl ForwardRef2 {
+impl ForwardRef2<'_> {
     pub fn set(self, a: &'static Combinator) {
         *self.b.borrow_mut() = Some(&a);
     }
 }
 
-impl CombinatorTrait for ForwardRef2 {
+impl CombinatorTrait<'_> for ForwardRef2<'_> {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let binding = self.b.borrow();
         let a = binding.as_ref().unwrap();
@@ -34,19 +34,19 @@ impl CombinatorTrait for ForwardRef2 {
     }
 }
 
-impl From<&ForwardRef2> for Combinator {
-    fn from(value: &ForwardRef2) -> Self {
+impl<'a> From<&'a ForwardRef2<'a>> for Combinator<'_> {
+    fn from(value: &'a ForwardRef2<'a>) -> Self {
         Combinator::ForwardRef2(value.clone())
     }
 }
 
-pub fn forward_ref2() -> ForwardRef2 {
+pub fn forward_ref2<'a>() -> ForwardRef2<'a> {
     ForwardRef2 { b: Rc::new(RefCell::new(None)) }
 }
 
 #[test]
 fn test_forward_ref2_0() {
-    fn make() -> Combinator {
+    fn make() -> Combinator<'static> {
         let mut a = forward_ref2();
         let a_inner = choice!(seq!(eat('a'), &a), eat('b'));
         a.set(&a_inner);
