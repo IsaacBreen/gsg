@@ -35,4 +35,20 @@ impl Combinator {
             Combinator::Deferred(_) => {}
         }
     }
+
+    pub fn apply_recursive_preorder_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut Combinator),
+    {
+        f(self);
+        self.apply_mut(f);
+    }
+
+    pub fn apply_recursive_postorder_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut Combinator),
+    {
+        self.apply_mut(f);
+        f(self);
+    }
 }
