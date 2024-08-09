@@ -51,6 +51,9 @@ impl CombinatorTrait for Seq {
         }
 
         for combinator_index in 1..self.children.len() {
+            if next_right_data_vec.is_empty() {
+                break;
+            }
             for right_data in std::mem::take(&mut next_right_data_vec) {
                 let offset = right_data.right_data_inner.position - start_position;
                 let combinator = &self.children[combinator_index];
@@ -65,9 +68,6 @@ impl CombinatorTrait for Seq {
                 } else {
                     final_right_data.extend(parse_results.right_data_vec);
                 }
-            }
-            if next_right_data_vec.is_empty() {
-                break;
             }
         }
 

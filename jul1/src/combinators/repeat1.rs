@@ -23,17 +23,23 @@ pub struct Repeat1Parser {
 
 impl CombinatorTrait for Repeat1 {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let mut parsers = vec![];
-        let (parser, parse_results) = self.a.parse(right_data.clone(), bytes);
-        if !parse_results.done() {
-            parsers.push(parser);
+        let start_position = right_data.right_data_inner.position;
+        let (parser, parse_results) = self.a.parse(right_data, bytes);
+        if parse_results.done() && parse_results.right_data_vec.is_empty() {
+            // Shortcut
+            return (parser, parse_results);
         }
+        let mut parsers = if parse_results.done() {
+            vec![]
+        } else {
+            vec![parser]
+        };
         let mut right_data_vec = parse_results.right_data_vec.clone();
 
         let mut next_right_data = right_data_vec.clone();
         while next_right_data.len() > 0 {
             for new_right_data in std::mem::take(&mut next_right_data) {
-                let offset = new_right_data.right_data_inner.position - right_data.right_data_inner.position;
+                let offset = new_right_data.right_data_inner.position - start_position;
                 let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
                 if !parse_results.done() {
                     parsers.push(parser);
@@ -48,7 +54,7 @@ impl CombinatorTrait for Repeat1 {
                 next_right_data.extend(parse_results.right_data_vec);
             }
             if !right_data_vec.is_empty() && !next_right_data.is_empty() {
-                let end_pos = right_data.right_data_inner.position + bytes.len();
+                let end_pos = start_position + bytes.len();
                 let pos1 = right_data_vec[0].right_data_inner.position;
                 let pos2 = next_right_data[0].right_data_inner.position;
                 if end_pos < pos1 + 1000 || end_pos < pos2 + 1000 {
@@ -64,7 +70,7 @@ impl CombinatorTrait for Repeat1 {
             Parser::Repeat1Parser(Repeat1Parser {
                 a: self.a.clone(),
                 a_parsers: parsers,
-                position: right_data.right_data_inner.position + bytes.len(),
+                position: start_position + bytes.len(),
                 greedy: self.greedy
             }),
             ParseResults::new(right_data_vec, done)
