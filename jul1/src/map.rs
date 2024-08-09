@@ -21,7 +21,18 @@ impl Combinator {
             Combinator::ForwardRef(ForwardRef { a }) => {
                 f(Rc::make_mut(RefCell::borrow_mut(a).as_mut().unwrap()));
             }
-            _ => {}
+            Combinator::EatU8(_) => {}
+            Combinator::EatString(_) => {}
+            Combinator::Eps(_) => {}
+            Combinator::Fail(_) => {}
+            Combinator::IndentCombinator(_) => {}
+            Combinator::MutateRightData(_) => {}
+            Combinator::ForbidFollows(_) => {}
+            Combinator::ForbidFollowsClear(_) => {}
+            Combinator::ForbidFollowsCheckNot(_) => {}
+            Combinator::EatByteStringChoice(_) => {}
+            Combinator::CheckRightData(_) => {}
+            Combinator::Deferred(_) => {}
         }
     }
 }
