@@ -26,7 +26,7 @@ impl CombinatorTrait for Choice {
                 parsers.push(parser);
             }
             let discard_rest = self.greedy && parse_results.succeeds_decisively();
-            combined_results = combined_results.merge(parse_results);
+            combined_results.merge_assign(parse_results);
             if discard_rest {
                 break;
             }
