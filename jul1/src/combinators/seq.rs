@@ -34,16 +34,19 @@ impl CombinatorTrait for Seq {
             // Shortcut
             return (parser, parse_results);
         }
-        let mut parsers: Vec<(usize, Parser)> = vec![];
-        let mut final_right_data: VecY<RightData> = VecY::new();
-        let mut next_right_data_vec: VecY<RightData> = VecY::new();
-        if !parse_results.done() {
-            parsers.push((0, parser));
-        }
-        if 0 + 1 < self.children.len() {
-            next_right_data_vec.extend(parse_results.right_data_vec);
+        let mut parsers: Vec<(usize, Parser)> = if parse_results.done() {
+            vec![]
         } else {
-            final_right_data.extend(parse_results.right_data_vec);
+            vec![(0, parser)]
+        };
+        let mut final_right_data: VecY<RightData>;
+        let mut next_right_data_vec: VecY<RightData>;
+        if 0 + 1 < self.children.len() {
+            next_right_data_vec = parse_results.right_data_vec;
+            final_right_data = VecY::new();
+        } else {
+            next_right_data_vec = VecY::new();
+            final_right_data = parse_results.right_data_vec;
         }
 
         for combinator_index in 1..self.children.len() {
