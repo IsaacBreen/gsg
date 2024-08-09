@@ -4,54 +4,6 @@ use std::rc::Rc;
 use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, LookaheadContext, LookaheadContextParser, ProfiledParser, Profiled, Opt, ForwardRef2};
 use crate::stats::Stats;
 
-macro_rules! define_enum {
-    ($name:ident, $($variants:ident),*) => {
-        #[derive(Debug, Eq)]
-        pub enum $name {
-            $(
-                $variants($variants),
-            )*
-        }
-
-        impl PartialEq for $name {
-            fn eq(&self, other: &Self) -> bool {
-                crate::profile!(format!("$name PartialEq"), {
-                    match (self, other) {
-                        $(
-                            ($name::$variants(a), $name::$variants(b)) => a == b,
-                        )*
-                        _ => false,
-                    }
-                })
-            }
-        }
-
-        impl std::hash::Hash for $name {
-            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-                crate::profile!(format!("$name Hash"), {
-                    match self {
-                        $(
-                            $name::$variants(a) => a.hash(state),
-                        )*
-                    }
-                })
-            }
-        }
-
-        impl Clone for $name {
-            fn clone(&self) -> Self {
-                crate::profile!(format!("$name Clone"), {
-                    match self {
-                        $(
-                            $name::$variants(a) => $name::$variants(a.clone()),
-                        )*
-                    }
-                })
-            }
-        }
-    };
-}
-
 #[macro_export]
 macro_rules! match_enum {
     ($expr:expr, $enum:ident, $inner:ident => $arm:expr, $($variant:ident),*) => {
@@ -63,55 +15,55 @@ macro_rules! match_enum {
     };
 }
 
-define_enum!(
-    Combinator,
-    Seq,
-    Choice,
-    EatU8,
-    EatString,
-    Eps,
-    Fail,
-    CacheContext,
-    Cached,
-    IndentCombinator,
-    MutateRightData,
-    Repeat1,
-    Symbol,
-    Tagged,
-    ForwardRef,
-    ForwardRef2,
-    ForbidFollows,
-    ForbidFollowsClear,
-    ForbidFollowsCheckNot,
-    EatByteStringChoice,
-    CheckRightData,
-    Deferred,
-    Lookahead,
-    ExcludeBytestrings,
-    LookaheadContext,
-    Profiled,
-    Opt
-);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Combinator {
+    Seq(Seq),
+    Choice(Choice),
+    EatU8(EatU8),
+    EatString(EatString),
+    Eps(Eps),
+    Fail(Fail),
+    CacheContext(CacheContext),
+    Cached(Cached),
+    IndentCombinator(IndentCombinator),
+    MutateRightData(MutateRightData),
+    Repeat1(Repeat1),
+    Symbol(Symbol),
+    Tagged(Tagged),
+    ForwardRef(ForwardRef),
+    ForwardRef2(ForwardRef2),
+    ForbidFollows(ForbidFollows),
+    ForbidFollowsClear(ForbidFollowsClear),
+    ForbidFollowsCheckNot(ForbidFollowsCheckNot),
+    EatByteStringChoice(EatByteStringChoice),
+    CheckRightData(CheckRightData),
+    Deferred(Deferred),
+    Lookahead(Lookahead),
+    ExcludeBytestrings(ExcludeBytestrings),
+    LookaheadContext(LookaheadContext),
+    Profiled(Profiled),
+    Opt(Opt),
+}
 
-define_enum!(
-    Parser,
-    SeqParser,
-    ChoiceParser,
-    EatU8Parser,
-    EatStringParser,
-    EpsParser,
-    FailParser,
-    CacheContextParser,
-    CachedParser,
-    IndentCombinatorParser,
-    Repeat1Parser,
-    SymbolParser,
-    TaggedParser,
-    EatByteStringChoiceParser,
-    ExcludeBytestringsParser,
-    LookaheadContextParser,
-    ProfiledParser
-);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Parser {
+    SeqParser(SeqParser),
+    ChoiceParser(ChoiceParser),
+    EatU8Parser(EatU8Parser),
+    EatStringParser(EatStringParser),
+    EpsParser(EpsParser),
+    FailParser(FailParser),
+    CacheContextParser(CacheContextParser),
+    CachedParser(CachedParser),
+    IndentCombinatorParser(IndentCombinatorParser),
+    Repeat1Parser(Repeat1Parser),
+    SymbolParser(SymbolParser),
+    TaggedParser(TaggedParser),
+    EatByteStringChoiceParser(EatByteStringChoiceParser),
+    ExcludeBytestringsParser(ExcludeBytestringsParser),
+    LookaheadContextParser(LookaheadContextParser),
+    ProfiledParser(ProfiledParser),
+}
 
 macro_rules! match_combinator {
     ($expr:expr, $inner:ident => $arm:expr) => {
