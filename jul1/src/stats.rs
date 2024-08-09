@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::AddAssign;
 
-use crate::{CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, IndentCombinatorParser, LookaheadContextParser, match_parser, Parser, ProfiledParser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set};
+use crate::{CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, GLOBAL_CACHE, IndentCombinatorParser, LookaheadContextParser, match_parser, Parser, ProfiledParser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -258,11 +258,11 @@ impl Parser {
             Parser::EatStringParser(EatStringParser { string, .. }) => {
                 stats.active_string_matchers.entry(String::from_utf8_lossy(string).to_string()).or_default().add_assign(1);
             }
-            Parser::CacheContextParser(CacheContextParser { inner, cache_data_inner, .. }) => {
+            Parser::CacheContextParser(CacheContextParser { inner, .. }) => {
                 inner.collect_stats(stats, current_tag);
-                for entry in cache_data_inner.borrow().entries.iter() {
-                    entry.borrow().parser.as_ref().map(|p| p.collect_stats(stats, current_tag));
-                }
+                // for entry in GLOBAL_CACHE.with(|cache| cache.borrow().entries.iter()) {
+                //     entry.borrow().parser.as_ref().map(|p| p.collect_stats(stats, current_tag));
+                // }
             }
             Parser::SymbolParser(SymbolParser { inner, .. }) => inner.collect_stats(stats, current_tag),
             Parser::TaggedParser(TaggedParser { inner, tag }) => {
