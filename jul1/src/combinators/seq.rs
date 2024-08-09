@@ -50,29 +50,27 @@ impl CombinatorTrait for Seq {
             final_right_data = parse_results.right_data_vec;
         }
 
-        if done {
-            for combinator_index in 1..self.children.len() {
-                for right_data in std::mem::take(&mut next_right_data_vec) {
-                    let offset = right_data.right_data_inner.position - start_position;
-                    let combinator = &self.children[combinator_index];
-                    let (parser, parse_results) = profile!("seq child parse", {
+        for combinator_index in 1..self.children.len() {
+            for right_data in std::mem::take(&mut next_right_data_vec) {
+                let offset = right_data.right_data_inner.position - start_position;
+                let combinator = &self.children[combinator_index];
+                let (parser, parse_results) = profile!("seq child parse", {
                     combinator.parse(right_data, &bytes[offset..])
                 });
-                    if !parse_results.done() {
-                        parsers.push((combinator_index, parser));
-                    }
-                    if combinator_index + 1 < self.children.len() {
-                        next_right_data_vec.extend(parse_results.right_data_vec);
-                    } else {
-                        final_right_data.extend(parse_results.right_data_vec);
-                    }
+                if !parse_results.done() {
+                    parsers.push((combinator_index, parser));
                 }
-                if next_right_data_vec.is_empty() {
-                    break;
+                if combinator_index + 1 < self.children.len() {
+                    next_right_data_vec.extend(parse_results.right_data_vec);
+                } else {
+                    final_right_data.extend(parse_results.right_data_vec);
                 }
             }
+            if next_right_data_vec.is_empty() {
+                break;
+            }
         }
-        
+
         let parsers_is_empty = parsers.is_empty();
 
         let parser = Parser::SeqParser(SeqParser {
