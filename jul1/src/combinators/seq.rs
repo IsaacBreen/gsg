@@ -26,11 +26,27 @@ impl CombinatorTrait for Seq {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.right_data_inner.position;
 
+        let combinator = &self.children[0];
+        let (parser, parse_results) = profile!("seq child parse", {
+            combinator.parse(right_data, &bytes)
+        });
+        if parse_results.done() && parse_results.right_data_vec.is_empty() {
+            // Shortcut
+            return (parser, parse_results);
+        }
         let mut parsers: Vec<(usize, Parser)> = vec![];
         let mut final_right_data: VecY<RightData> = VecY::new();
-        let mut next_right_data_vec: VecY<RightData> = VecY::from(vec![right_data]);
+        let mut next_right_data_vec: VecY<RightData> = VecY::new();
+        if !parse_results.done() {
+            parsers.push((0, parser));
+        }
+        if 0 + 1 < self.children.len() {
+            next_right_data_vec.extend(parse_results.right_data_vec);
+        } else {
+            final_right_data.extend(parse_results.right_data_vec);
+        }
 
-        for combinator_index in 0..self.children.len() {
+        for combinator_index in 1..self.children.len() {
             for right_data in std::mem::take(&mut next_right_data_vec) {
                 let offset = right_data.right_data_inner.position - start_position;
                 let combinator = &self.children[combinator_index];
