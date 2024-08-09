@@ -39,6 +39,7 @@ impl Debug for Deferred {
 
 impl CombinatorTrait for Deferred {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        panic!("Deferred combinator should not be used directly. Use deferred() function instead.");
         let combinator = profile!("Deferred cache check", {
                 COMBINATOR_CACHE.with(|cache| {
                 let mut cache = cache.borrow_mut();

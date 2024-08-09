@@ -56,9 +56,9 @@ impl ProfileDataInner {
 #[macro_export]
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
-        // $crate::ProfileDataInner::push_tag($tag.to_string());
+        $crate::ProfileDataInner::push_tag($tag.to_string());
         let result = $body;
-        // $crate::ProfileDataInner::pop_tag();
+        $crate::ProfileDataInner::pop_tag();
         result
     }};
 }
@@ -111,8 +111,8 @@ pub fn profile(tag: &str, a: impl Into<Combinator>) -> Combinator {
 }
 
 pub fn profile_internal(tag: &str, a: impl Into<Combinator>) -> Combinator {
-    profile(tag, a)
-    // a.into()
+    // profile(tag, a)
+    a.into()
 }
 
 impl From<Profiled> for Combinator {

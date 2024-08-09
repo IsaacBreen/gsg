@@ -36,43 +36,55 @@ impl Combinator {
         }
     }
 
-    pub fn apply_recursive_preorder_mut<F>(&mut self, mut f: F)
+    pub fn apply_recursive_preorder_mut<F>(&mut self, f: &mut F)
     where
-        F: FnMut(&mut Combinator),
+        F: FnMut(&mut Combinator) -> bool,
     {
-        f(self);
-        self.apply_mut(f);
+        if f(self) {
+            self.apply_mut(|combinator| {
+                combinator.apply_recursive_preorder_mut(f)
+            })
+        }
     }
 
-    pub fn apply_recursive_postorder_mut<F>(&mut self, mut f: F)
+    pub fn apply_recursive_postorder_mut<F>(&mut self, f: &mut F)
     where
-        F: FnMut(&mut Combinator),
+        F: FnMut(&mut Combinator) -> bool,
     {
-        self.apply_mut(&mut f);
-        f(self);
+        if f(self) {
+            self.apply_mut(|combinator| {
+                combinator.apply_recursive_postorder_mut(f)
+            })
+        }
     }
 
-    pub fn map<F>(mut self, f: F) -> Self
+    pub fn map<F>(mut self, mut f: &mut F) -> Self
     where
-        F: Fn(Self) -> Self,
+        F: FnMut(Self) -> Self,
     {
         self.apply_mut(|combinator| *combinator = f(combinator.clone()));
         self
     }
 
-    pub fn map_recursive_preorder<F>(mut self, f: F) -> Self
+    pub fn map_recursive_preorder<F>(mut self, f: &mut F) -> Self
     where
-        F: Fn(Self) -> Self,
+        F: FnMut(Self) -> Self,
     {
-        self.apply_recursive_preorder_mut(|combinator| *combinator = f(combinator.clone()));
+        self.apply_recursive_preorder_mut(&mut |combinator: &mut Combinator| {
+            *combinator = f(combinator.clone());
+            true
+        });
         self
     }
 
-    pub fn map_recursive_postorder<F>(mut self, f: F) -> Self
+    pub fn map_recursive_postorder<F>(mut self, f: &mut F) -> Self
     where
-        F: Fn(Self) -> Self,
+        F: FnMut(Self) -> Self,
     {
-        self.apply_recursive_postorder_mut(|combinator| *combinator = f(combinator.clone()));
+        self.apply_recursive_postorder_mut(&mut |combinator: &mut Combinator| {
+            *combinator = f(combinator.clone());
+            true
+        });
         self
     }
 }
