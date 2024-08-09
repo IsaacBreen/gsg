@@ -300,9 +300,9 @@ def grammar_to_rust(
     if any(rule.memo for name, rule in rules):
         # expr = f'lookahead_context({expr})'
         expr = f'cache_context({expr})'
-        f.write(f'\n    {expr}.into()\n')
+        f.write(f'\n    {expr}.compile()\n')
     else:
-        f.write(f'\n    seq!({expr}).into()\n')
+        f.write(f'\n    seq!({expr}).compile()\n')
     f.write('}\n')
     return f.getvalue()
 

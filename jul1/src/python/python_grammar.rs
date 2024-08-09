@@ -1348,5 +1348,5 @@ fn file() -> Combinator {
 
 pub fn python_file() -> Combinator {
 
-    cache_context(tag("main", seq!(opt(&NEWLINE), &file))).into()
+    cache_context(tag("main", seq!(opt(&NEWLINE), &file))).compile()
 }
