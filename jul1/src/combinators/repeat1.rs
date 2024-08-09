@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY};
+use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy};
 use crate::opt;
 use crate::parse_state::RightData;
 use crate::VecX;
@@ -28,6 +28,13 @@ impl CombinatorTrait for Repeat1 {
         if parse_results.done() && parse_results.right_data_vec.is_empty() {
             // Shortcut
             return (parser, parse_results);
+        } else if parse_results.right_data_vec.is_empty() {
+            return (Parser::Repeat1Parser(Repeat1Parser {
+                a: self.a.clone(),
+                a_parsers: vec![parser],
+                position: start_position + bytes.len(),
+                greedy: self.greedy
+            }), ParseResults::new(vecy![], false));
         }
         let mut parsers = if parse_results.done() {
             vec![]

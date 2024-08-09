@@ -19,9 +19,9 @@ once_cell = "1.19.0"
 #[profile.dev]
 #opt-level = 1
 
-#[profile.test]
+[profile.test]
 # Opt 1
-#opt-level = 1
+opt-level = 2
 ## Keep debug info
 #debug = "full"
 
