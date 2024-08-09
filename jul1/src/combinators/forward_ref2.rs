@@ -21,7 +21,7 @@ impl Hash for ForwardRef2 {
 }
 
 impl ForwardRef2 {
-    pub fn set(&mut self, a: Combinator) {
+    pub fn set(self, a: &'static Combinator) {
         *self.b.borrow_mut() = Some(&a);
     }
 }
@@ -45,7 +45,17 @@ pub fn forward_ref2() -> ForwardRef2 {
 }
 
 #[test]
-fn test_forward_ref2() {
+fn test_forward_ref2_0() {
+    fn make() -> Combinator {
+        let mut a = forward_ref2();
+        let a_inner = choice!(seq!(eat('a'), &a), eat('b'));
+        a.set(&a_inner);
+        a_inner
+    }
+}
+
+#[test]
+fn test_forward_ref2_1() {
     // should fail to compile :
     // error[E0597]: `a` does not live long enough
     //   --> src/combinators/forward_ref2.rs:52:15
@@ -61,11 +71,11 @@ fn test_forward_ref2() {
     // 54 |     }
     //    |     - `a` dropped here while still borrowed
     //
-    fn make() -> Combinator {
-        let mut f = forward_ref2();
-        let a: Combinator = eps().into();
-        let b = seq!(eat('b'), &f);
-        f.set(&a);
-        b
-    }
+//     fn make() -> Combinator {
+//         let mut f = forward_ref2();
+//         let a: Combinator = eps().into();
+//         let b = seq!(eat('b'), &f);
+//         f.set(&a);
+//         b
+//     }
 }
