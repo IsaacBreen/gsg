@@ -42,7 +42,7 @@ impl CombinatorTrait for Deferred {
         let combinator = COMBINATOR_CACHE.with(|cache| {
             let mut cache = cache.borrow_mut();
             cache.entry(self.clone())
-                .or_insert_with(|| Rc::new((self.f)()))
+                .or_insert_with(|| profile!("Deferred init", Rc::new((self.f)())))
                 .clone()
         });
         combinator.parse(right_data, bytes)
