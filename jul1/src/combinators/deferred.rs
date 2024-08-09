@@ -39,11 +39,13 @@ impl Debug for Deferred {
 
 impl CombinatorTrait for Deferred {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let combinator = COMBINATOR_CACHE.with(|cache| {
-            let mut cache = cache.borrow_mut();
-            cache.entry(self.clone())
-                .or_insert_with(|| profile!("Deferred init", Rc::new((self.f)())))
-                .clone()
+        let combinator = profile!("Deferred cache check", {
+                COMBINATOR_CACHE.with(|cache| {
+                let mut cache = cache.borrow_mut();
+                cache.entry(self.clone())
+                    .or_insert_with(|| profile!("Deferred init", Rc::new((self.f)())))
+                    .clone()
+            })
         });
         combinator.parse(right_data, bytes)
     }
