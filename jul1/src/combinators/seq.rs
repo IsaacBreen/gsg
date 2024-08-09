@@ -30,11 +30,12 @@ impl CombinatorTrait for Seq {
         let (parser, parse_results) = profile!("seq child parse", {
             combinator.parse(right_data, &bytes)
         });
-        if parse_results.done() && parse_results.right_data_vec.is_empty() {
+        let done = parse_results.done();
+        if done && parse_results.right_data_vec.is_empty() {
             // Shortcut
             return (parser, parse_results);
         }
-        let mut parsers: Vec<(usize, Parser)> = if parse_results.done() {
+        let mut parsers: Vec<(usize, Parser)> = if done {
             vec![]
         } else {
             vec![(0, parser)]
@@ -49,24 +50,26 @@ impl CombinatorTrait for Seq {
             final_right_data = parse_results.right_data_vec;
         }
 
-        for combinator_index in 1..self.children.len() {
-            for right_data in std::mem::take(&mut next_right_data_vec) {
-                let offset = right_data.right_data_inner.position - start_position;
-                let combinator = &self.children[combinator_index];
-                let (parser, parse_results) = profile!("seq child parse", {
+        if done {
+            for combinator_index in 1..self.children.len() {
+                for right_data in std::mem::take(&mut next_right_data_vec) {
+                    let offset = right_data.right_data_inner.position - start_position;
+                    let combinator = &self.children[combinator_index];
+                    let (parser, parse_results) = profile!("seq child parse", {
                     combinator.parse(right_data, &bytes[offset..])
                 });
-                if !parse_results.done() {
-                    parsers.push((combinator_index, parser));
+                    if !parse_results.done() {
+                        parsers.push((combinator_index, parser));
+                    }
+                    if combinator_index + 1 < self.children.len() {
+                        next_right_data_vec.extend(parse_results.right_data_vec);
+                    } else {
+                        final_right_data.extend(parse_results.right_data_vec);
+                    }
                 }
-                if combinator_index + 1 < self.children.len() {
-                    next_right_data_vec.extend(parse_results.right_data_vec);
-                } else {
-                    final_right_data.extend(parse_results.right_data_vec);
+                if next_right_data_vec.is_empty() {
+                    break;
                 }
-            }
-            if next_right_data_vec.is_empty() {
-                break;
             }
         }
         
