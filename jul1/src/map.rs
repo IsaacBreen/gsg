@@ -48,7 +48,31 @@ impl Combinator {
     where
         F: FnMut(&mut Combinator),
     {
-        self.apply_mut(f);
+        self.apply_mut(&mut f);
         f(self);
+    }
+
+    pub fn map<F>(mut self, f: F) -> Self
+    where
+        F: Fn(Self) -> Self,
+    {
+        self.apply_mut(|combinator| *combinator = f(combinator.clone()));
+        self
+    }
+
+    pub fn map_recursive_preorder<F>(mut self, f: F) -> Self
+    where
+        F: Fn(Self) -> Self,
+    {
+        self.apply_recursive_preorder_mut(|combinator| *combinator = f(combinator.clone()));
+        self
+    }
+
+    pub fn map_recursive_postorder<F>(mut self, f: F) -> Self
+    where
+        F: Fn(Self) -> Self,
+    {
+        self.apply_recursive_postorder_mut(|combinator| *combinator = f(combinator.clone()));
+        self
     }
 }
