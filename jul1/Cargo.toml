@@ -1,7 +1,9 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "jun3"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 derivative = "2.2.0"

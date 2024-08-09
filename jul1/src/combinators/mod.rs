@@ -17,6 +17,7 @@ pub use negative_lookahead::*;
 pub use fail::*;
 pub use profile::*;
 pub use opt::*;
+pub use forward_ref2::*;
 
 mod choice;
 mod eat_string;
@@ -40,6 +41,7 @@ mod lookahead;
 mod negative_lookahead;
 mod profile;
 mod opt;
+mod forward_ref2;
 
 pub use choice::*;
 pub use eat_string::*;

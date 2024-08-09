@@ -33,6 +33,7 @@ impl Combinator {
             Combinator::EatByteStringChoice(_) => {}
             Combinator::CheckRightData(_) => {}
             Combinator::Deferred(_) => {}
+            Combinator::ForwardRef2(_) => todo!(),
         }
     }
 
