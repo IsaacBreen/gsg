@@ -3,35 +3,32 @@ use crate::*;
 
 impl Combinator {
     pub fn compile(mut self) -> Combinator {
-        let mut deferred_cache: HashMap<Deferred, ForwardRef> = HashMap::new();
-        let mut forward_refs: HashSet<ForwardRef> = HashSet::new();
-        self.apply_recursive_preorder_mut(&mut |combinator| {
+        let mut deferred_cache: HashMap<Deferred, Combinator> = HashMap::new();
+        fn compile_inner(combinator: &mut Combinator, deferred_cache: &mut HashMap<Deferred, Combinator>) {
             match combinator {
                 // Construct the deferred combinator
                 Combinator::Deferred(inner) => {
-                    if let Some(forward_ref) = deferred_cache.get(&inner) {
-                        *combinator = forward_ref.into();
+                    if let Some(cached) = deferred_cache.get(&inner) {
+                        *combinator = cached.clone();
                     } else {
-                        let mut forward_ref = forward_ref();
-                        deferred_cache.insert(inner.clone(), forward_ref.clone());
-                        forward_refs.insert(forward_ref.clone());
-                        let evaluated = (inner.f)();
-                        forward_ref.set(evaluated.clone());
-                        *combinator = evaluated;
-                    }
-                    true
-                }
-                Combinator::ForwardRef(forward_ref) => {
-                    if forward_refs.contains(forward_ref) {
-                        true
-                    } else {
-                        // forward_refs.insert(forward_ref.clone());
-                        false
+                        let strong = strong_ref();
+                        let weak = strong.downgrade();
+                        deferred_cache.insert(inner.clone(), weak.clone().into());
+                        let mut evaluated = (inner.f)();
+                        compile_inner(&mut evaluated, deferred_cache);
+                        deferred_cache.insert(inner.clone(), evaluated.clone());
+                        strong.set(evaluated);
+                        *combinator = strong.into();
                     }
                 }
-                _ => true
+                _ => {
+                    combinator.apply_mut(|combinator| {
+                        compile_inner(combinator, deferred_cache);
+                    });
+                }
             }
-        });
+        }
+        compile_inner(&mut self, &mut deferred_cache);
         self
     }
 }

@@ -5,7 +5,7 @@ use crate::*;
 
 #[derive(Debug, Clone, Eq)]
 pub struct ForwardRef2 {
-    b: Rc<RefCell<Option<&'static Combinator>>>,
+    b: Rc<RefCell<Option<NonNull<Combinator>>>>,
 }
 
 impl PartialEq for ForwardRef2 {
@@ -21,8 +21,8 @@ impl Hash for ForwardRef2 {
 }
 
 impl ForwardRef2 {
-    pub fn set(self, a: &'static Combinator) {
-        *self.b.borrow_mut() = Some(&a);
+    pub fn set(self, a: &Combinator) {
+        *self.b.borrow_mut() = Some(NonNull::from(a));
     }
 }
 
@@ -30,7 +30,7 @@ impl CombinatorTrait for ForwardRef2 {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let binding = self.b.borrow();
         let a = binding.as_ref().unwrap();
-        a.parse(right_data, bytes)
+        unsafe { a.as_ref().parse(right_data, bytes) }
     }
 }
 
@@ -71,11 +71,11 @@ fn test_forward_ref2_1() {
     // 54 |     }
     //    |     - `a` dropped here while still borrowed
     //
-//     fn make() -> Combinator {
-//         let mut f = forward_ref2();
-//         let a: Combinator = eps().into();
-//         let b = seq!(eat('b'), &f);
-//         f.set(&a);
-//         b
-//     }
+    fn make() -> Combinator {
+        let mut f = forward_ref2();
+        let a: Combinator = eps().into();
+        let b = seq!(eat('b'), &f);
+        f.set(&a);
+        b
+    }
 }

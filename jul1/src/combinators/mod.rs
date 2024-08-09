@@ -42,6 +42,7 @@ mod negative_lookahead;
 mod profile;
 mod opt;
 mod forward_ref2;
+mod reference;
 
 pub use choice::*;
 pub use eat_string::*;
@@ -61,3 +62,4 @@ pub use cache::*;
 pub use derived::*;
 pub use eat_bytestring_choice::*;
 pub use deferred::*;
+pub use reference::*;

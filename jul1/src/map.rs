@@ -34,6 +34,8 @@ impl Combinator {
             Combinator::CheckRightData(_) => {}
             Combinator::Deferred(_) => {}
             Combinator::ForwardRef2(_) => todo!(),
+            Combinator::WeakRef(inner) => todo!(),
+            Combinator::StrongRef(inner) => todo!(),
         }
     }
 
