@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, ForwardRef, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, LookaheadContext, LookaheadContextParser, ProfiledParser, Profiled, Opt, ForwardRef2, WeakRef, StrongRef};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, LookaheadContext, LookaheadContextParser, ProfiledParser, Profiled, Opt, WeakRef, StrongRef};
 use crate::stats::Stats;
 
 #[macro_export]
@@ -30,8 +30,6 @@ pub enum Combinator {
     Repeat1(Repeat1),
     Symbol(Symbol),
     Tagged(Tagged),
-    ForwardRef(ForwardRef),
-    ForwardRef2(ForwardRef2),
     ForbidFollows(ForbidFollows),
     ForbidFollowsClear(ForbidFollowsClear),
     ForbidFollowsCheckNot(ForbidFollowsCheckNot),
@@ -83,8 +81,6 @@ macro_rules! match_combinator {
             Repeat1,
             Symbol,
             Tagged,
-            ForwardRef,
-            ForwardRef2,
             ForbidFollows,
             ForbidFollowsClear,
             ForbidFollowsCheckNot,

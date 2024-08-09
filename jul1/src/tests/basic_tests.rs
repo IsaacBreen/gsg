@@ -65,8 +65,8 @@ mod tests {
     }
 
     #[test]
-    fn test_forward_ref() {
-        let mut combinator = forward_ref();
+    fn test_strong_ref() {
+        let mut combinator = strong_ref();
         combinator.set(choice!(seq!(eat_char('a'), &combinator), eat_char('b')));
         assert_parses_default(&combinator, "b");
         assert_parses_fast(&combinator, "b");
@@ -101,8 +101,8 @@ mod tests {
     fn test_right_recursion_name_explosion() {
         let NAME = symbol(tag("repeat_a", seq!(forbid_follows(&[0]), repeat1(eat_char('a')))));
 
-        let mut combinator_recursive = forward_ref();
-        let combinator_recursive = combinator_recursive.set(seq!(&NAME, &combinator_recursive));
+        let mut combinator_recursive = strong_ref();
+        combinator_recursive.set(seq!(&NAME, &combinator_recursive));
 
         let combinator_repeat1 = repeat1(&NAME);
 
@@ -164,7 +164,9 @@ mod tests {
 
     #[test]
     fn test_cache_nested_simple() {
-        forward_decls!(A);
+        // forward_decls!(A);
+        // A.set(cached(seq!(eat_char('['), opt(&A), eat_char(']'))));
+        let A = strong_ref();
         A.set(cached(seq!(eat_char('['), opt(&A), eat_char(']'))));
         let s_combinator = cache_context(&A);
 
@@ -176,10 +178,10 @@ mod tests {
 
     #[test]
     fn test_cache_nested() {
-        forward_decls!(A);
         // It's useful to test both eat_char and eat_string here to make sure both work under a cache
-        // A.set(tag("A", cached(seq!(eat_char('['), opt(seq!(&A, opt(&A))), eat_char(']')))));
-        A.set(tag("A", cached(seq!(eat_string("["), opt(seq!(&A, opt(&A))), eat_string("]")))));
+        // A.set(tag("A", cached(seq!(eat_string("["), opt(seq!(&A, opt(&A))), eat_string("]")))));
+        let A = strong_ref();
+        A.set(cached(seq!(eat_string("["), opt(seq!(&A, opt(&A))), eat_string("]"))));
         let s_combinator = cache_context(&A);
 
         assert_parses_default(&s_combinator, "[]");

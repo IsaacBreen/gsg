@@ -18,9 +18,6 @@ impl Combinator {
             Combinator::CacheContext(CacheContext { inner }) | Combinator::Tagged(Tagged { inner, .. }) | Combinator::Lookahead(Lookahead { combinator: inner, .. }) | Combinator::ExcludeBytestrings(ExcludeBytestrings { inner, .. }) | Combinator::LookaheadContext(LookaheadContext { inner, .. }) | Combinator::Profiled(Profiled { inner, .. }) | Combinator::Opt(Opt { inner, .. }) => {
                 f(inner);
             }
-            Combinator::ForwardRef(ForwardRef { a }) => {
-                f(Rc::make_mut(RefCell::borrow_mut(a).as_mut().unwrap()));
-            }
             Combinator::EatU8(_) => {}
             Combinator::EatString(_) => {}
             Combinator::Eps(_) => {}
@@ -33,7 +30,6 @@ impl Combinator {
             Combinator::EatByteStringChoice(_) => {}
             Combinator::CheckRightData(_) => {}
             Combinator::Deferred(_) => {}
-            Combinator::ForwardRef2(_) => todo!(),
             Combinator::WeakRef(inner) => todo!(),
             Combinator::StrongRef(inner) => todo!(),
         }

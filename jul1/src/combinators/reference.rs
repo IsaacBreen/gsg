@@ -71,6 +71,14 @@ impl StrongRef {
     }
 }
 
+impl WeakRef {
+    pub fn upgrade(&self) -> Option<StrongRef> {
+        self.inner.upgrade().map(|inner| StrongRef {
+            inner
+        })
+    }
+}
+
 impl From<WeakRef> for Combinator {
     fn from(weak_ref: WeakRef) -> Self {
         Combinator::WeakRef(weak_ref)
@@ -80,5 +88,11 @@ impl From<WeakRef> for Combinator {
 impl From<StrongRef> for Combinator {
     fn from(strong_ref: StrongRef) -> Self {
         Combinator::StrongRef(strong_ref)
+    }
+}
+
+impl From<&StrongRef> for Combinator {
+    fn from(strong_ref: &StrongRef) -> Self {
+        Combinator::StrongRef(strong_ref.clone())
     }
 }
