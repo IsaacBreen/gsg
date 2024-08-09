@@ -28,7 +28,7 @@ impl Debug for MutateRightData {
     }
 }
 
-impl CombinatorTrait<'_> for MutateRightData {
+impl CombinatorTrait for MutateRightData {
     fn parse(&self, mut right_data: RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&mut right_data) {
             (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
@@ -42,7 +42,7 @@ pub fn mutate_right_data(run: impl Fn(&mut RightData) -> bool + 'static) -> Muta
     MutateRightData { run: Rc::new(run) }
 }
 
-impl From<MutateRightData> for Combinator<'_> {
+impl From<MutateRightData> for Combinator {
     fn from(value: MutateRightData) -> Self {
         Combinator::MutateRightData(value)
     }

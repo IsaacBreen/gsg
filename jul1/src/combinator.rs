@@ -16,53 +16,53 @@ macro_rules! match_enum {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Combinator<'a> {
-    Seq(Seq<'a>),
-    Choice(Choice<'a>),
+pub enum Combinator {
+    Seq(Seq),
+    Choice(Choice),
     EatU8(EatU8),
     EatString(EatString),
     Eps(Eps),
     Fail(Fail),
-    CacheContext(CacheContext<'a>),
-    Cached(Cached<'a>),
+    CacheContext(CacheContext),
+    Cached(Cached),
     IndentCombinator(IndentCombinator),
     MutateRightData(MutateRightData),
-    Repeat1(Repeat1<'a>),
-    Symbol(Symbol<'a>),
-    Tagged(Tagged<'a>),
-    ForwardRef(ForwardRef<'a>),
-    ForwardRef2(ForwardRef2<'static>),
+    Repeat1(Repeat1),
+    Symbol(Symbol),
+    Tagged(Tagged),
+    ForwardRef(ForwardRef),
+    ForwardRef2(ForwardRef2),
     ForbidFollows(ForbidFollows),
     ForbidFollowsClear(ForbidFollowsClear),
     ForbidFollowsCheckNot(ForbidFollowsCheckNot),
     EatByteStringChoice(EatByteStringChoice),
     CheckRightData(CheckRightData),
     Deferred(Deferred),
-    Lookahead(Lookahead<'a>),
-    ExcludeBytestrings(ExcludeBytestrings<'a>),
-    LookaheadContext(LookaheadContext<'a>),
-    Profiled(Profiled<'a>),
-    Opt(Opt<'a>),
+    Lookahead(Lookahead),
+    ExcludeBytestrings(ExcludeBytestrings),
+    LookaheadContext(LookaheadContext),
+    Profiled(Profiled),
+    Opt(Opt),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Parser<'a> {
-    SeqParser(SeqParser<'a>),
-    ChoiceParser(ChoiceParser<'a>),
+pub enum Parser {
+    SeqParser(SeqParser),
+    ChoiceParser(ChoiceParser),
     EatU8Parser(EatU8Parser),
     EatStringParser(EatStringParser),
     EpsParser(EpsParser),
     FailParser(FailParser),
-    CacheContextParser(CacheContextParser<'a>),
-    CachedParser(CachedParser<'a>),
-    IndentCombinatorParser(IndentCombinatorParser<'a>),
-    Repeat1Parser(Repeat1Parser<'a>),
-    SymbolParser(SymbolParser<'a>),
-    TaggedParser(TaggedParser<'a>),
+    CacheContextParser(CacheContextParser),
+    CachedParser(CachedParser),
+    IndentCombinatorParser(IndentCombinatorParser),
+    Repeat1Parser(Repeat1Parser),
+    SymbolParser(SymbolParser),
+    TaggedParser(TaggedParser),
     EatByteStringChoiceParser(EatByteStringChoiceParser),
-    ExcludeBytestringsParser(ExcludeBytestringsParser<'a>),
-    LookaheadContextParser(LookaheadContextParser<'a>),
-    ProfiledParser(ProfiledParser<'a>),
+    ExcludeBytestringsParser(ExcludeBytestringsParser),
+    LookaheadContextParser(LookaheadContextParser),
+    ProfiledParser(ProfiledParser),
 }
 
 macro_rules! match_combinator {
@@ -122,8 +122,8 @@ macro_rules! match_parser {
     };
 }
 
-pub trait CombinatorTrait<'a> {
-    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults);
+pub trait CombinatorTrait {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
 }
 
 pub trait ParserTrait {
@@ -131,8 +131,8 @@ pub trait ParserTrait {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults;
 }
 
-impl<'a> CombinatorTrait<'a> for Combinator<'a> {
-    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+impl CombinatorTrait for Combinator {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match_combinator!(self, inner => inner.parse(right_data, bytes));
         // if !parse_results.done() && bytes.len() > 100 {
             // println!("Combinator {:?} did not consume all input. Positions: {:?}, bytes.len(): {}", self, parse_results.right_data_vec.iter().map(|x| x.position).collect::<Vec<_>>(), bytes.len());
@@ -141,7 +141,7 @@ impl<'a> CombinatorTrait<'a> for Combinator<'a> {
     }
 }
 
-impl<'a> ParserTrait for Parser<'a> {
+impl ParserTrait for Parser {
     fn get_u8set(&self) -> U8Set {
         match_parser!(self, inner => inner.get_u8set())
     }
@@ -151,23 +151,23 @@ impl<'a> ParserTrait for Parser<'a> {
     }
 }
 
-impl Combinator<'_> {
+impl Combinator {
     pub fn type_name(&self) -> String {
         match_combinator!(self, inner => std::any::type_name_of_val(&inner)).to_string()
     }
 }
 
-pub trait CombinatorTraitExt<'a>: CombinatorTrait<'a> {
-    fn parser(&'a self, right_data: RightData) -> (Parser<'a>, ParseResults) {
+pub trait CombinatorTraitExt: CombinatorTrait {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         self.parse(right_data, &[])
     }
 }
 
-pub trait ParserTraitExt<'a>: ParserTrait {
-    fn step(&'a mut self, c: u8) -> ParseResults {
+pub trait ParserTraitExt: ParserTrait {
+    fn step(&mut self, c: u8) -> ParseResults {
         self.parse(&[c])
     }
 }
 
-impl<'a, T: CombinatorTrait<'a>> CombinatorTraitExt<'a> for T {}
-impl<'a, T: ParserTrait> ParserTraitExt<'a> for T {}
+impl<T: CombinatorTrait> CombinatorTraitExt for T {}
+impl<T: ParserTrait> ParserTraitExt for T {}

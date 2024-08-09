@@ -6,7 +6,7 @@ pub struct Eps;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EpsParser;
 
-impl CombinatorTrait<'_> for Eps {
+impl CombinatorTrait for Eps {
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::EpsParser(EpsParser), ParseResults::new_single(right_data, true))
@@ -27,7 +27,7 @@ pub fn eps() -> Eps {
     Eps
 }
 
-impl From<Eps> for Combinator<'_> {
+impl From<Eps> for Combinator {
     fn from(value: Eps) -> Self {
         Combinator::Eps(value)
     }

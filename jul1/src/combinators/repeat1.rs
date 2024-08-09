@@ -7,22 +7,22 @@ use crate::parse_state::RightData;
 use crate::VecX;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Repeat1<'a> {
-    pub(crate) a: Rc<Combinator<'a>>,
+pub struct Repeat1 {
+    pub(crate) a: Rc<Combinator>,
     pub(crate) greedy: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Repeat1Parser<'a> {
+pub struct Repeat1Parser {
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
-    a: Rc<Combinator<'a>>,
-    pub(crate) a_parsers: Vec<Parser<'a>>,
+    a: Rc<Combinator>,
+    pub(crate) a_parsers: Vec<Parser>,
     position: usize,
     greedy: bool,
 }
 
-impl<'a> CombinatorTrait<'a> for Repeat1<'a> {
-    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+impl CombinatorTrait for Repeat1 {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = vec![];
         let (parser, parse_results) = self.a.parse(right_data.clone(), bytes);
         if !parse_results.done() {
@@ -72,7 +72,7 @@ impl<'a> CombinatorTrait<'a> for Repeat1<'a> {
     }
 }
 
-impl ParserTrait for Repeat1Parser<'_> {
+impl ParserTrait for Repeat1Parser {
     fn get_u8set(&self) -> U8Set {
         if self.a_parsers.is_empty() {
             U8Set::none()
@@ -85,12 +85,14 @@ impl ParserTrait for Repeat1Parser<'_> {
         let mut right_data_as = VecY::new();
         // let mut right_data_as: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
-        self.a_parsers.retain_mut(|a_parser| {
-            let mut parse_results = a_parser.parse(bytes);
-            let done = parse_results.done();
-            right_data_as.append(&mut parse_results.right_data_vec);
-            !done
-        });
+        for mut a_parser in std::mem::take(&mut self.a_parsers) {
+            let parse_results = a_parser.parse(bytes);
+            if !parse_results.done() {
+                self.a_parsers.push(a_parser);
+            }
+            // right_data_as.entry(parse_results.right_data_vec.len()).or_default().extend(parse_results.right_data_vec);
+            right_data_as.extend(parse_results.right_data_vec);
+        }
 
         right_data_as.squash();
 
@@ -113,29 +115,29 @@ impl ParserTrait for Repeat1Parser<'_> {
     }
 }
 
-pub fn repeat1<'a>(a: impl Into<Combinator<'a>>) -> Combinator<'a> {
+pub fn repeat1(a: impl Into<Combinator>) -> Combinator {
     profile_internal("repeat1", Repeat1 {
         a: Rc::new(a.into()),
         greedy: false,
     })
 }
 
-pub fn repeat1_greedy<'a>(a: impl Into<Combinator<'a>>) -> Combinator<'a> {
+pub fn repeat1_greedy(a: impl Into<Combinator>) -> Combinator {
     profile_internal("repeat1_greedy", Repeat1 {
         a: Rc::new(a.into()),
         greedy: true,
     })
 }
 
-pub fn repeat0<'a>(a: impl Into<Combinator<'a>>) -> Combinator<'a> {
+pub fn repeat0(a: impl Into<Combinator>) -> Combinator {
     opt(repeat1(a)).into()
 }
 
-pub fn repeat0_greedy<'a>(a: impl Into<Combinator<'a>>) -> Combinator<'a> {
+pub fn repeat0_greedy(a: impl Into<Combinator>) -> Combinator {
     opt_greedy(repeat1_greedy(a)).into()
 }
 
-impl<'a> From<Repeat1<'a>> for Combinator<'a> {
+impl From<Repeat1> for Combinator {
     fn from(value: Repeat1) -> Self {
         Combinator::Repeat1(value)
     }

@@ -13,7 +13,7 @@ pub struct EatU8Parser {
     pub(crate) right_data: Option<RightData>,
 }
 
-impl CombinatorTrait<'_> for EatU8 {
+impl CombinatorTrait for EatU8 {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatU8Parser {
             u8set: self.u8set.clone(),
@@ -108,7 +108,7 @@ where
     }
 }
 
-impl From<EatU8> for Combinator<'_> {
+impl From<EatU8> for Combinator {
     fn from(value: EatU8) -> Self {
         Combinator::EatU8(value)
     }

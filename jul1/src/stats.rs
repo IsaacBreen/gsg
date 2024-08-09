@@ -237,7 +237,7 @@ impl Stats {
     }
 }
 
-impl Parser<'_> {
+impl Parser {
     pub fn stats(&self) -> Stats {
         let mut stats = Stats::default();
         self.collect_stats(&mut stats, None);

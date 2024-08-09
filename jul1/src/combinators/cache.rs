@@ -12,66 +12,66 @@ use crate::VecX;
 
 #[derive(Derivative)]
 #[derivative(Debug, Default, Clone, PartialEq, Eq)]
-pub struct CacheData<'a> {
+pub struct CacheData {
     #[derivative(Debug = "ignore", PartialEq = "ignore")]
-    pub inner: Option<Rc<RefCell<CacheDataInner<'a>>>>,
+    pub inner: Option<Rc<RefCell<CacheDataInner>>>,
 }
 
 #[derive(Debug)]
-pub struct CacheDataInner<'a> {
-    pub new_parsers: LruCache<CacheKey<'a>, Rc<RefCell<CacheEntry<'a>>>>,
-    pub entries: Vec<Rc<RefCell<CacheEntry<'a>>>>,
+pub struct CacheDataInner {
+    pub new_parsers: LruCache<CacheKey, Rc<RefCell<CacheEntry>>>,
+    pub entries: Vec<Rc<RefCell<CacheEntry>>>,
 }
 
 #[derive(Debug, Clone, Eq)]
-pub struct CacheKey<'a> {
-    pub combinator: Rc<Combinator<'a>>,
+pub struct CacheKey {
+    pub combinator: Rc<Combinator>,
     pub right_data: RightData,
 }
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CacheEntry<'a> {
-    pub parser: Option<Box<Parser<'a>>>,
+pub struct CacheEntry {
+    pub parser: Option<Box<Parser>>,
     pub maybe_parse_results: Option<ParseResults>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CacheContext<'a> {
-    pub inner: Box<Combinator<'a>>,
+pub struct CacheContext {
+    pub inner: Box<Combinator>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Cached<'a> {
-    pub inner: Rc<Combinator<'a>>,
+pub struct Cached {
+    pub inner: Rc<Combinator>,
 }
 
 #[derive(Debug, Clone, Eq)]
-pub struct CachedParser<'a> {
-    pub entry: Rc<RefCell<CacheEntry<'a>>>,
+pub struct CachedParser {
+    pub entry: Rc<RefCell<CacheEntry>>,
 }
 
-impl Hash for CachedParser<'_> {
+impl Hash for CachedParser {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the pointer
         std::ptr::hash(self.entry.as_ref() as *const RefCell<CacheEntry>, state);
     }
 }
 
-impl Hash for CacheKey<'_> {
+impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::mem::discriminant(self.combinator.as_ref()).hash(state);
         self.right_data.hash(state);
     }
 }
 
-impl PartialEq for CacheKey<'_> {
+impl PartialEq for CacheKey {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
     }
 }
 
-impl PartialEq for CachedParser<'_> {
+impl PartialEq for CachedParser {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.entry, &other.entry)
     }
@@ -79,20 +79,20 @@ impl PartialEq for CachedParser<'_> {
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CacheContextParser<'a> {
-    pub inner: Box<Parser<'a>>,
+pub struct CacheContextParser {
+    pub inner: Box<Parser>,
     #[derivative(PartialEq = "ignore", Hash = "ignore")]
-    pub cache_data_inner: Rc<RefCell<CacheDataInner<'a>>>,
+    pub cache_data_inner: Rc<RefCell<CacheDataInner>>,
 }
 
-impl CacheDataInner<'_> {
+impl CacheDataInner {
     fn cleanup(&mut self) {
         self.new_parsers.clear();
         self.entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done());
     }
 }
 
-impl CombinatorTrait<'_> for CacheContext<'_> {
+impl CombinatorTrait for CacheContext {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         println!("RightData size in bytes: {}", std::mem::size_of::<RightData>());
         println!("ParseResults size in bytes: {}", std::mem::size_of::<ParseResults>());
@@ -112,7 +112,7 @@ impl CombinatorTrait<'_> for CacheContext<'_> {
     }
 }
 
-impl ParserTrait for CacheContextParser<'_> {
+impl ParserTrait for CacheContextParser {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }
@@ -138,7 +138,7 @@ impl ParserTrait for CacheContextParser<'_> {
     }
 }
 
-impl CombinatorTrait<'_> for Cached<'_> {
+impl CombinatorTrait for Cached {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let cache_data_inner_refcell = right_data.right_data_inner.cache_data.inner.as_ref().unwrap().clone();
         let key = CacheKey { combinator: self.inner.clone(), right_data };
@@ -166,7 +166,7 @@ impl CombinatorTrait<'_> for Cached<'_> {
     }
 }
 
-impl ParserTrait for CachedParser<'_> {
+impl ParserTrait for CachedParser {
     fn get_u8set(&self) -> U8Set {
         self.entry.borrow().parser.as_ref().unwrap().get_u8set()
     }
@@ -176,21 +176,21 @@ impl ParserTrait for CachedParser<'_> {
     }
 }
 
-pub fn cache_context<'a>(a: impl Into<Combinator<'a>>) -> Combinator<'a> {
+pub fn cache_context(a: impl Into<Combinator>) -> Combinator {
     profile_internal("cache_context", CacheContext { inner: Box::new(a.into()) })
 }
 
-pub fn cached<'a>(a: impl Into<Combinator<'a>>) -> Combinator<'a> {
+pub fn cached(a: impl Into<Combinator>) -> Combinator {
     profile_internal("cached", Cached { inner: Rc::new(a.into()) })
 }
 
-impl From<CacheContext<'_>> for Combinator<'_> {
+impl From<CacheContext> for Combinator {
     fn from(value: CacheContext) -> Self {
         Combinator::CacheContext(value)
     }
 }
 
-impl From<Cached<'_>> for Combinator<'_> {
+impl From<Cached> for Combinator {
     fn from(value: Cached) -> Self {
         Combinator::Cached(value)
     }

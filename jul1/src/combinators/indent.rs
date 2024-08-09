@@ -9,13 +9,13 @@ pub enum IndentCombinator {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum IndentCombinatorParser<'a> {
-    DentParser(Box<Parser<'a>>),
+pub enum IndentCombinatorParser {
+    DentParser(Box<Parser>),
     IndentParser(Option<RightData>),
     Done,
 }
 
-impl CombinatorTrait<'_> for IndentCombinator {
+impl CombinatorTrait for IndentCombinator {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
             IndentCombinator::Dent if right_data.right_data_inner.dedents == 0 => {
@@ -77,7 +77,7 @@ impl CombinatorTrait<'_> for IndentCombinator {
     }
 }
 
-impl ParserTrait for IndentCombinatorParser<'_> {
+impl ParserTrait for IndentCombinatorParser {
     fn get_u8set(&self) -> U8Set {
         match self {
             IndentCombinatorParser::DentParser(parser) => parser.get_u8set(),
@@ -145,11 +145,11 @@ pub fn assert_no_dedents() -> IndentCombinator {
     IndentCombinator::AssertNoDedents
 }
 
-pub fn with_indent<'a>(a: impl Into<Combinator<'a>>) -> Combinator<'a> {
+pub fn with_indent(a: impl Into<Combinator>) -> Combinator {
     seq!(indent(), a, dedent())
 }
 
-impl From<IndentCombinator> for Combinator<'_> {
+impl From<IndentCombinator> for Combinator {
     fn from(value: IndentCombinator) -> Self {
         Combinator::IndentCombinator(value)
     }

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 use crate::*;
 
-impl Combinator<'_> {
-    pub fn compile(mut self) -> Combinator<'static> {
+impl Combinator {
+    pub fn compile(mut self) -> Combinator {
         let mut deferred_cache: HashMap<Deferred, ForwardRef> = HashMap::new();
         let mut forward_refs: HashSet<ForwardRef> = HashSet::new();
         self.apply_recursive_preorder_mut(&mut |combinator| {

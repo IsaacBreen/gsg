@@ -11,18 +11,18 @@ macro_rules! profile {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Seq<'a> {
-    pub(crate) children: Rc<VecX<Combinator<'a>>>,
+pub struct Seq {
+    pub(crate) children: Rc<VecX<Combinator>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SeqParser<'a> {
-    pub(crate) parsers: Vec<(usize, Parser<'a>)>,
-    pub(crate) combinators: Rc<VecX<Combinator<'a>>>,
+pub struct SeqParser {
+    pub(crate) parsers: Vec<(usize, Parser)>,
+    pub(crate) combinators: Rc<VecX<Combinator>>,
     pub(crate) position: usize,
 }
 
-impl<'a> CombinatorTrait<'a> for Seq<'a> {
+impl CombinatorTrait for Seq {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.right_data_inner.position;
 
@@ -65,7 +65,7 @@ impl<'a> CombinatorTrait<'a> for Seq<'a> {
     }
 }
 
-impl ParserTrait for SeqParser<'_> {
+impl ParserTrait for SeqParser {
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::none();
         for (_, parser) in &self.parsers {
@@ -124,7 +124,7 @@ macro_rules! seq {
     };
 }
 
-impl From<Seq<'_>> for Combinator<'_> {
+impl From<Seq> for Combinator {
     fn from(value: Seq) -> Self {
         Combinator::Seq(value)
     }

@@ -74,19 +74,19 @@ macro_rules! profile_block {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Profiled<'a> {
-    pub inner: Box<Combinator<'a>>,
+pub struct Profiled {
+    pub inner: Box<Combinator>,
     pub tag: String,
 }
 
 #[derive(Derivative)]
 #[derivative(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ProfiledParser<'a> {
-    pub inner: Box<Parser<'a>>,
+pub struct ProfiledParser {
+    pub inner: Box<Parser>,
     pub tag: String,
 }
 
-impl CombinatorTrait<'_> for Profiled<'_> {
+impl CombinatorTrait for Profiled {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         profile!(&self.tag, {
             let (parser, parse_results) = self.inner.parse(right_data, bytes);
@@ -95,7 +95,7 @@ impl CombinatorTrait<'_> for Profiled<'_> {
     }
 }
 
-impl ParserTrait for ProfiledParser<'_> {
+impl ParserTrait for ProfiledParser {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }
@@ -105,17 +105,17 @@ impl ParserTrait for ProfiledParser<'_> {
     }
 }
 
-pub fn profile<'a>(tag: &str, a: impl Into<Combinator<'a>>) -> Combinator<'a> {
+pub fn profile(tag: &str, a: impl Into<Combinator>) -> Combinator {
     Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
     // a.into()
 }
 
-pub fn profile_internal<'a>(tag: &str, a: impl Into<Combinator<'a>>) -> Combinator<'a> {
+pub fn profile_internal(tag: &str, a: impl Into<Combinator>) -> Combinator {
     // profile(tag, a)
     a.into()
 }
 
-impl From<Profiled<'_>> for Combinator<'_> {
+impl From<Profiled> for Combinator {
     fn from(value: Profiled) -> Self {
         Combinator::Profiled(value)
     }
