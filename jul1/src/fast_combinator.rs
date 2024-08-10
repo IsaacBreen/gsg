@@ -151,32 +151,42 @@ impl FastParser {
         }
     }
 
-    pub(crate) fn optimize(self) -> FastParser {
-        let x = match self {
+    pub(crate) fn optimize_stage_1(self) -> FastParser {
+        match self {
             FastParser::Seq(children) => {
-                let children = children.into_iter().map(|c| c.optimize()).collect();
+                let children = children.into_iter().map(|c| c.optimize_stage_1()).collect();
                 flatten_seq(FastParser::Seq(children))
             }
             FastParser::Choice(children) => {
-                let children = children.into_iter().map(|c| c.optimize()).collect();
+                let children = children.into_iter().map(|c| c.optimize_stage_1()).collect();
                 flatten_choice(FastParser::Choice(children))
             }
             FastParser::Opt(parser) => {
-                let parser = parser.optimize();
+                let parser = parser.optimize_stage_1();
                 match parser {
                     FastParser::Eps => FastParser::Eps, // Opt(Eps) = Eps
                     _ => flatten_choice(FastParser::Choice(vec![parser, FastParser::Eps])),
                 }
             }
-            FastParser::Repeat1(parser) => FastParser::Repeat1(Box::new(parser.optimize())),
+            FastParser::Repeat1(parser) => FastParser::Repeat1(Box::new(parser.optimize_stage_1())),
             FastParser::Eps => FastParser::Eps,
             FastParser::EatU8Parser(_) => self,
-            FastParser::EatByteStringChoiceFast(_) => self,
-        };
-        if let Some(x) = to_trie(x.clone()) {
-            x
+            FastParser::EatByteStringChoiceFast(root) => flatten_trie(root),
+        }
+    }
+
+    pub fn flatten(self) -> FastParser {
+        // e.g. expand seq(choice(a, b), choice(c, d)) into choice(seq(a, c), seq(a, d), seq(b, c), seq(b, d))
+        // final expression
+
+    }
+
+    pub fn optimize(self) -> FastParser {
+        let optimized = self.optimize_stage_1();
+        if let Some(as_t) = to_trie(optimized.clone()) {
+            as_t
         } else {
-            x
+            optimized
         }
     }
 }
@@ -222,76 +232,33 @@ fn flatten_choice(parser: FastParser) -> FastParser {
     }
 }
 
+fn flatten_trie(root: TrieNode) -> FastParser {
+    // Flatten a tree into a choice of sequences of EatU8s
+    todo!()
+}
+
 fn to_trie(parser: FastParser) -> Option<FastParser> {
-    match parser {
-        FastParser::Seq(children) => {
-            let mut bytestrings = vec![Vec::new()];
-            for child in children {
-                match child {
-                    FastParser::EatU8Parser(u8set) => {
-                        for bytestring in &mut bytestrings {
-                            for byte in u8set.iter() {
-                                bytestring.push(byte);
-                            }
-                        }
-                    }
-                    FastParser::EatByteStringChoiceFast(trie) => {
-                        let mut new_bytestrings = Vec::new();
-                        for bytestring in bytestrings {
-                            for child in &trie.children {
-                                let mut new_bytestring = bytestring.clone();
-                                new_bytestring.extend(child.valid_bytes.iter());
-                                new_bytestrings.push(new_bytestring);
-                            }
-                        }
-                        bytestrings = new_bytestrings;
-                    }
-                    _ => return None, // Not a trie-compatible parser
-                }
-            }
-            Some(eat_bytestring_choice_fast(bytestrings))
-        }
-        FastParser::Choice(children) => {
-            let mut bytestrings = Vec::new();
-            for child in children {
-                match to_trie(child) {
-                    Some(FastParser::EatByteStringChoiceFast(trie)) => {
-                        for child in &trie.children {
-                            bytestrings.push(child.valid_bytes.iter().collect());
-                        }
-                    }
-                    _ => return None, // Not a trie-compatible parser
-                }
-            }
-            Some(eat_bytestring_choice_fast(bytestrings))
-        }
-        FastParser::EatU8Parser(u8set) => {
-            let bytestrings: Vec<Vec<u8>> = u8set.iter().map(|b| vec![b]).collect();
-            Some(eat_bytestring_choice_fast(bytestrings))
-        }
-        FastParser::EatByteStringChoiceFast(_) => Some(parser),
-        _ => None, // Not a trie-compatible parser
-    }
+    todo!()
 }
 
 pub fn seq_fast(parsers: Vec<FastParser>) -> FastParser {
-    FastParser::Seq(parsers).optimize()
+    FastParser::Seq(parsers).optimize_stage_1()
 }
 
 pub fn choice_fast(parsers: Vec<FastParser>) -> FastParser {
-    FastParser::Choice(parsers).optimize()
+    FastParser::Choice(parsers).optimize_stage_1()
 }
 
 pub fn opt_fast(parser: FastParser) -> FastParser {
-    FastParser::Opt(Box::new(parser)).optimize()
+    FastParser::Opt(Box::new(parser)).optimize_stage_1()
 }
 
 pub fn repeat1_fast(parser: FastParser) -> FastParser {
-    FastParser::Repeat1(Box::new(parser)).optimize()
+    FastParser::Repeat1(Box::new(parser)).optimize_stage_1()
 }
 
 pub fn eat_char_fast(c: char) -> FastParser {
-    FastParser::EatU8Parser(U8Set::from_char(c)).optimize()
+    FastParser::EatU8Parser(U8Set::from_char(c)).optimize_stage_1()
 }
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
@@ -300,7 +267,7 @@ pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
         build_root.insert(&bytestring);
     }
     let root = build_root.to_optimized_trie_node();
-    FastParser::EatByteStringChoiceFast(root).optimize()
+    FastParser::EatByteStringChoiceFast(root).optimize_stage_1()
 }
 
 pub fn repeat0_fast(parser: FastParser) -> FastParser {
