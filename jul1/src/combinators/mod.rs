@@ -41,6 +41,7 @@ mod opt;
 mod reference;
 mod brute_force_fn;
 mod continuation;
+mod fast;
 
 pub use choice::*;
 pub use eat_string::*;
@@ -62,3 +63,4 @@ pub use deferred::*;
 pub use reference::*;
 pub use brute_force_fn::*;
 pub use continuation::*;
+pub use fast::*;

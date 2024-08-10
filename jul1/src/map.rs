@@ -34,6 +34,7 @@ impl Combinator {
             Combinator::StrongRef(inner) => todo!(),
             Combinator::BruteForce(_) => {},
             Combinator::Continuation(_) => {},
+            Combinator::Fast(_) => {}
         }
     }
 

@@ -2,12 +2,7 @@ use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
 
-use crate::{
-    Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range,
-    eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice,
-    eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent,
-brute_force, ParseError, parse_error, parse_ok
-};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, seq_fast, fast_parser};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -304,21 +299,21 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
     bytestrings
 }
 
-pub fn id_start() -> Combinator {
-    eat_bytestring_choice(id_start_bytestrings())
+pub fn id_start() -> impl FastParserTrait {
+    eat_bytestring_choice_fast(id_start_bytestrings())
 }
 
-pub fn id_continue() -> Combinator {
-    eat_bytestring_choice(id_continue_bytestrings())
+pub fn id_continue() -> impl FastParserTrait {
+    eat_bytestring_choice_fast(id_continue_bytestrings())
 }
 
-pub fn xid_start() -> Combinator {
+pub fn xid_start() -> impl FastParserTrait {
     // all characters in id_start whose NFKC normalization is in "id_start xid_continue*"
     // Honestly, I don't know what this means.
     id_start()
 }
 
-pub fn xid_continue() -> Combinator {
+pub fn xid_continue() -> impl FastParserTrait {
     // all characters in id_continue whose NFKC normalization is in "id_continue*"
     // Honestly, I don't know what this means.
     id_continue()
@@ -409,6 +404,7 @@ pub fn is_reserved_keyword(s: &str) -> bool {
 
 
 use std::str::Utf8Error;
+use crate::fast_combinator::{eat_bytestring_choice_fast, FastParserTrait, repeat0_fast};
 
 struct Utf8CharDecoder<'a> {
     bytes: &'a [u8],
@@ -529,8 +525,10 @@ pub fn NAME() -> Combinator {
     });
 
     // let combinator = seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
-    let combinator = seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
+    // let combinator = seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
     // let combinator = seq!(exclude_strings(combinator.into(), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
+
+    let combinator = seq!(exclude_strings(fast_parser(seq_fast!(xid_start(), repeat0_fast(xid_continue()))), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
 
     combinator
 }

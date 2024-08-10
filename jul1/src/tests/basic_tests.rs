@@ -6,6 +6,7 @@ mod tests {
     use crate::combinators::*;
     use crate::combinators::cache_context;
     use crate::combinators::tag;
+    use crate::fast_combinator::eat_char_fast;
     use crate::parse_state::{RightData};
     use crate::tests::utils::{assert_parses, assert_parses_default};
     use crate::unicode::get_unicode_general_category_combinator;
@@ -351,5 +352,28 @@ mod tests {
         let parse_results = parser.parse(b"p");
         assert!(parse_results.done());
         assert_eq!(parse_results.right_data_vec.len(), 0);
+    }
+
+    #[test]
+    fn test_fast_parser() {
+        let combinator = fast_parser(seq_fast!(
+            choice_fast!(
+                eat_char_fast('a'),
+                eat_char_fast('b'),
+            ),
+            choice_fast!(
+                eat_char_fast('c'),
+                eat_char_fast('d'),
+            ),
+        ));
+
+        assert_parses_default(&combinator, "ac");
+        assert_parses_fast(&combinator, "ac");
+        assert_parses_default(&combinator, "ad");
+        assert_parses_fast(&combinator, "ad");
+        assert_parses_default(&combinator, "bc");
+        assert_parses_fast(&combinator, "bc");
+        assert_parses_default(&combinator, "bd");
+        assert_parses_fast(&combinator, "bd");
     }
 }
