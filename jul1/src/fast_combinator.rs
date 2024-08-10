@@ -31,8 +31,7 @@ impl FastParser {
                         FastParserResult::Success(len) => {
                             total_len += len;
                         }
-                        FastParserResult::Failure => return FastParserResult::Failure,
-                        FastParserResult::Incomplete => return FastParserResult::Incomplete,
+                        x => return x,
                     }
                 }
                 FastParserResult::Success(total_len)
@@ -40,17 +39,15 @@ impl FastParser {
             FastParser::Choice(children) => {
                 for child in children {
                     match child.parse(bytes) {
-                        FastParserResult::Success(len) => return FastParserResult::Success(len),
                         FastParserResult::Failure => continue,
-                        FastParserResult::Incomplete => return FastParserResult::Incomplete,
+                        x => return x,
                     }
                 }
                 FastParserResult::Failure
             }
             FastParser::Opt(parser) => match parser.parse(bytes) {
-                FastParserResult::Success(len) => FastParserResult::Success(len),
                 FastParserResult::Failure => FastParserResult::Success(0),
-                FastParserResult::Incomplete => FastParserResult::Incomplete,
+                x => x,
             },
             FastParser::Repeat1(parser) => {
                 let mut total_len = 0;
