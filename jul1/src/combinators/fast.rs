@@ -1,10 +1,12 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use crate::*;
+use crate::dfa::DFA;
 use crate::fast_combinator::{FastParser, FastParserResult};
 
 pub struct FastCombinator {
     pub(crate) fast: Rc<FastParser>,
+    pub(crate) dfa: Rc<DFA>,
     pub(crate) slow: Box<Combinator>,
 }
 
@@ -20,6 +22,7 @@ impl Clone for FastCombinator {
     fn clone(&self) -> Self {
         Self {
             fast: self.fast.clone(),
+            dfa: self.dfa.clone(),
             slow: self.slow.clone(),
         }
     }
@@ -58,7 +61,8 @@ impl CombinatorTrait for FastCombinator {
 
 pub fn fast_parser(parser: FastParser) -> FastCombinator {
     let slow = parser.slow();
-    FastCombinator { fast: Rc::new(parser.optimize()), slow: Box::new(slow) }
+    let dfa = parser.to_dfa();
+    FastCombinator { fast: Rc::new(parser), dfa: Rc::new(dfa), slow: Box::new(slow) }
 }
 
 impl From<FastCombinator> for Combinator {

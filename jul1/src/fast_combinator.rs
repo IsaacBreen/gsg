@@ -2,6 +2,8 @@ use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 use crate::{Combinator, U8Set};
 use crate::trie::{BuildTrieNode, TrieNode};
+use crate::dfa::{DFA, DFAState};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FastParser {
@@ -151,7 +153,7 @@ impl FastParser {
         }
     }
 
-    pub fn optimize(self) -> FastParser {
+    pub fn to_dfa(&self) -> DFA {
         todo!()
     }
 }

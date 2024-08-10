@@ -1,17 +1,25 @@
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use crate::fast_combinator::FastParserResult;
 use crate::U8Set;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct DFAState {
-    is_accepting: bool,
-    transitions: HashMap<u8, usize>, // byte -> next state index
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DFAState {
+    pub(crate) is_accepting: bool,
+    pub(crate) transitions: HashMap<u8, usize>, // byte -> next state index
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DFA {
     states: Vec<DFAState>,
     start_state: usize,
+}
+
+impl Hash for DFA {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.start_state.hash(state);
+        self.states.len().hash(state);
+    }
 }
 
 impl DFA {
