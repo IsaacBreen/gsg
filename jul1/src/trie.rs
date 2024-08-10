@@ -1,12 +1,13 @@
-use std::rc::Rc;
 use std::fmt::{Debug, Formatter};
-use crate::{U8Set, VecX};
+use std::rc::Rc;
+
+use crate::U8Set;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct BuildTrieNode {
     valid_bytes: U8Set,
     is_end: bool,
-    children: VecX<Option<Rc<BuildTrieNode>>>,
+    children: Vec<Option<Rc<BuildTrieNode>>>,
 }
 
 impl BuildTrieNode {
@@ -47,7 +48,7 @@ impl BuildTrieNode {
 pub(crate) struct TrieNode {
     pub(crate) valid_bytes: U8Set,
     pub(crate) is_end: bool,
-    pub(crate) children: VecX<Rc<TrieNode>>,
+    pub(crate) children: Vec<Rc<TrieNode>>,
 }
 
 impl Debug for TrieNode {
