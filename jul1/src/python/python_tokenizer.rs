@@ -491,7 +491,7 @@ impl NormalizeParseResult<(char, usize)> for Option<Result<(char, usize), Utf8Er
 pub fn NAME() -> Combinator {
     // exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
 
-    return exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords()).compile_greedy();
+    return seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue())).compile_greedy(), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
 
     brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
