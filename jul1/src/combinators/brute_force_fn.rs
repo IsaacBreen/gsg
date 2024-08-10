@@ -8,6 +8,13 @@ pub struct BruteForce {
     pub(crate) run: Rc<dyn Fn(RightData, &[u8]) -> Option<RightData>>,
 }
 
+#[derive(Clone)]
+pub struct BruteForceParser {
+    pub(crate) run: Rc<dyn Fn(RightData, &[u8]) -> Option<RightData>>,
+    pub(crate) right_data: RightData,
+    pub(crate) bytes: Vec<u8>,
+}
+
 impl Hash for BruteForce {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(Rc::as_ptr(&self.run) as *const (), state);
@@ -26,24 +33,6 @@ impl Debug for BruteForce {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BruteForce").finish()
     }
-}
-
-impl CombinatorTrait for BruteForce {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let maybe_right_data = (self.run)(right_data.clone(), bytes);
-        if let Some(right_data) = maybe_right_data {
-            (Parser::BruteForceParser(BruteForceParser::new(self.run.clone(), right_data.clone(), bytes.to_vec())), ParseResults::new_single(right_data, true))
-        } else {
-            (Parser::BruteForceParser(BruteForceParser::new(self.run.clone(), right_data, bytes.to_vec())), ParseResults::empty_unfinished())
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct BruteForceParser {
-    pub(crate) run: Rc<dyn Fn(RightData, &[u8]) -> Option<RightData>>,
-    pub(crate) right_data: RightData,
-    pub(crate) bytes: Vec<u8>,
 }
 
 impl BruteForceParser {
@@ -71,6 +60,17 @@ impl Eq for BruteForceParser {}
 impl Debug for BruteForceParser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BruteForceParser").finish()
+    }
+}
+
+impl CombinatorTrait for BruteForce {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let maybe_right_data = (self.run)(right_data.clone(), bytes);
+        if let Some(right_data) = maybe_right_data {
+            (Parser::BruteForceParser(BruteForceParser::new(self.run.clone(), right_data.clone(), bytes.to_vec())), ParseResults::new_single(right_data, true))
+        } else {
+            (Parser::BruteForceParser(BruteForceParser::new(self.run.clone(), right_data, bytes.to_vec())), ParseResults::empty_unfinished())
+        }
     }
 }
 

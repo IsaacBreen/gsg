@@ -285,4 +285,58 @@ mod tests {
         assert_parses_default(&combinator, "1");
         assert_parses_fast(&combinator, "1");
     }
+
+    #[test]
+    fn brute_force_success_on_first_step() {
+        let combinator = brute_force(|right_data, bytes| {
+            if bytes == b"hello" {
+                Some(right_data.with_position(5))
+            } else {
+                None
+            }
+        });
+
+        let (mut parser, parse_results) = combinator.parse(RightData::default(), b"hello");
+        assert!(parse_results.done());
+        assert_eq!(parse_results.right_data_vec.len(), 1);
+        assert_eq!(parse_results.right_data_vec[0].right_data_inner.position, 5);
+    }
+
+    #[test]
+    fn brute_force_success_on_second_step() {
+        let combinator = brute_force(|right_data, bytes| {
+            if bytes == b"hello" {
+                Some(right_data.with_position(5))
+            } else {
+                None
+            }
+        });
+
+        let (mut parser, parse_results) = combinator.parse(RightData::default(), b"hell");
+        assert!(!parse_results.done());
+        assert_eq!(parse_results.right_data_vec.len(), 0);
+
+        let parse_results = parser.parse(b"o");
+        assert!(parse_results.done());
+        assert_eq!(parse_results.right_data_vec.len(), 1);
+        assert_eq!(parse_results.right_data_vec[0].right_data_inner.position, 5);
+    }
+
+    #[test]
+    fn brute_force_failure() {
+        let combinator = brute_force(|right_data, bytes| {
+            if bytes == b"hello" {
+                Some(right_data.with_position(5))
+            } else {
+                None
+            }
+        });
+
+        let (mut parser, parse_results) = combinator.parse(RightData::default(), b"hell");
+        assert!(!parse_results.done());
+
+        let parse_results = parser.parse(b"p");
+        assert!(parse_results.done());
+        assert_eq!(parse_results.right_data_vec.len(), 0);
+    }
 }
