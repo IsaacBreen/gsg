@@ -291,7 +291,8 @@ impl Parser {
             Parser::ProfiledParser(ProfiledParser { inner, .. }) => {
                 inner.collect_stats(stats, current_tag);
             },
-            Parser::BruteForceParser(_) => {}
+            Parser::BruteForceParser(_) => {},
+            Parser::ContinuationParser(_) => {},
         }
         stats.active_parser_type_counts.entry(self.type_name()).or_default().add_assign(1);
     }

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, U8Set};
+use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, RightData, U8Set};
 
 pub enum BruteForceResult {
     Ok(RightData),
@@ -73,11 +73,11 @@ impl CombinatorTrait for BruteForce {
         let run = self.run.clone();
         match result {
             BruteForceResult::Ok(right_data) => (
-                Parser::BruteForceParser(BruteForceParser { run, right_data: None, bytes: bytes.to_vec() }),
+                Parser::FailParser(FailParser),
                 ParseResults::new_single(right_data, true)
             ),
             BruteForceResult::Err => (
-                Parser::BruteForceParser(BruteForceParser { run, right_data: None, bytes: bytes.to_vec() }),
+                Parser::FailParser(FailParser),
                 ParseResults::empty_finished()
             ),
             BruteForceResult::Incomplete => (

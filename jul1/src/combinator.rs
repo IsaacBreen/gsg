@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, LookaheadContext, LookaheadContextParser, ProfiledParser, Profiled, Opt, WeakRef, StrongRef, BruteForceParser, BruteForce};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, SymbolParser, Tagged, TaggedParser, U8Set, LookaheadContext, LookaheadContextParser, ProfiledParser, Profiled, Opt, WeakRef, StrongRef, BruteForceParser, BruteForce, Continuation, ContinuationParser};
 use crate::stats::Stats;
 
 #[macro_export]
@@ -44,6 +44,7 @@ pub enum Combinator {
     WeakRef(WeakRef),
     StrongRef(StrongRef),
     BruteForce(BruteForce),
+    Continuation(Continuation),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -65,6 +66,7 @@ pub enum Parser {
     LookaheadContextParser(LookaheadContextParser),
     ProfiledParser(ProfiledParser),
     BruteForceParser(BruteForceParser),
+    ContinuationParser(ContinuationParser),
 }
 
 macro_rules! match_combinator {
@@ -96,7 +98,8 @@ macro_rules! match_combinator {
             Opt,
             WeakRef,
             StrongRef,
-            BruteForce
+            BruteForce,
+            Continuation
         )
     };
 }
@@ -121,7 +124,8 @@ macro_rules! match_parser {
             ExcludeBytestringsParser,
             LookaheadContextParser,
             ProfiledParser,
-            BruteForceParser
+            BruteForceParser,
+            ContinuationParser
         )
     };
 }
