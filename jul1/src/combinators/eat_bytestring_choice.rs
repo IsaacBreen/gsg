@@ -6,14 +6,14 @@ use crate::parse_state::{RightData};
 use crate::VecX;
 
 #[derive(Clone, PartialEq, Eq)]
-struct BuildTrieNode {
+pub struct BuildTrieNode {
     valid_bytes: U8Set,
     is_end: bool,
     children: VecX<Option<Rc<BuildTrieNode>>>,
 }
 
 impl BuildTrieNode {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         BuildTrieNode {
             valid_bytes: U8Set::none(),
             is_end: false,
@@ -21,7 +21,7 @@ impl BuildTrieNode {
         }
     }
 
-    fn insert(&mut self, bytestring: &[u8]) {
+    pub(crate) fn insert(&mut self, bytestring: &[u8]) {
         let mut node = self;
         for &byte in bytestring {
             node.valid_bytes.insert(byte);
@@ -33,7 +33,7 @@ impl BuildTrieNode {
         node.is_end = true;
     }
 
-    fn to_optimized_trie_node(&self) -> TrieNode {
+    pub(crate) fn to_optimized_trie_node(&self) -> TrieNode {
         let children: Vec<Rc<TrieNode>> = self.children.iter()
             .filter_map(|child| child.as_ref().map(|c| Rc::new(c.to_optimized_trie_node())))
             .collect();
@@ -48,9 +48,9 @@ impl BuildTrieNode {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) struct TrieNode {
-    valid_bytes: U8Set,
-    is_end: bool,
-    children: VecX<Rc<TrieNode>>,
+    pub(crate) valid_bytes: U8Set,
+    pub(crate) is_end: bool,
+    pub(crate) children: VecX<Rc<TrieNode>>,
 }
 
 impl Debug for TrieNode {

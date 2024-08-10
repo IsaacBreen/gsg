@@ -194,6 +194,46 @@ impl FastParserTrait for EatU8Parser {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EatByteStringChoiceFast {
+    pub(crate) root: crate::TrieNode,
+}
+
+impl FastParserTrait for EatByteStringChoiceFast {
+    fn parse(&self, bytes: &[u8]) -> FastParserResult {
+        let mut current_node = &self.root;
+        let mut bytes_consumed = 0;
+
+        for &byte in bytes {
+            if current_node.valid_bytes.contains(byte) {
+                let child_index = current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
+                if child_index < current_node.children.len() {
+                    current_node = &current_node.children[child_index];
+                    bytes_consumed += 1;
+                    if current_node.is_end {
+                        return FastParserResult::Success(bytes_consumed);
+                    }
+                } else {
+                    return FastParserResult::Failure;
+                }
+            } else {
+                return FastParserResult::Failure;
+            }
+        }
+
+        if bytes_consumed > 0 && current_node.is_end {
+            FastParserResult::Success(bytes_consumed)
+        } else {
+            FastParserResult::Incomplete
+        }
+    }
+
+    fn slow(&self) -> Combinator {
+        crate::EatByteStringChoice { root: std::rc::Rc::new(self.root.clone()) }.into()
+    }
+}
+
+
 #[macro_export]
 macro_rules! seq_fast {
     ($a:expr $(,)?) => {
@@ -232,8 +272,13 @@ pub fn eat_char_fast(c: char) -> EatU8Parser {
     EatU8Parser { u8set: U8Set::from_char(c) }
 }
 
-pub fn eat_bytestring_choice_fast(bytes: Vec<Vec<u8>>) -> EatU8Parser {
-    todo!()
+pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> EatByteStringChoiceFast {
+    let mut build_root = crate::BuildTrieNode::new();
+    for bytestring in bytestrings {
+        build_root.insert(&bytestring);
+    }
+    let root = build_root.to_optimized_trie_node();
+    EatByteStringChoiceFast { root }
 }
 
 // Derived combinators
