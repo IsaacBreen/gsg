@@ -169,3 +169,17 @@ pub fn eat_char_fast(c: char) -> EatU8Parser {
         u8set: U8Set::from_char(c),
     }
 }
+
+// Derived combinators
+
+pub fn repeat0_fast<A: FastParserTrait>(a: A) -> Opt<Repeat1<A>> {
+    opt_fast(repeat1_fast(a))
+}
+
+pub fn seprep1_fast<A: FastParserTrait, B: FastParserTrait>(a: A, b: B) -> Seq<A, Repeat0<Seq<B, A>>> {
+    seq_fast!(a, repeat0_fast(seq_fast!(b, a)))
+}
+
+pub fn seprep0_fast<A: FastParserTrait, B: FastParserTrait>(a: A, b: B) -> Opt<Seq<A, Repeat0<Seq<B, A>>>> {
+    opt_fast(seprep1_fast(a, b))
+}
