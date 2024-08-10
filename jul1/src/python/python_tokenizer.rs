@@ -57,16 +57,16 @@ pub fn non_breaking_space() -> Combinator {
 // could otherwise be interpreted as a different token (e.g., ab is one token, but
 // a b is two tokens).
 pub fn whitespace() -> Combinator {
-    // repeat1(choice!(
-    //         // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
-    //         seq!(
-    //             check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
-    //             breaking_space()
-    //         ),
-    //         // But we can match an escaped newline.
-    //         seq!(eat_string("\\"), breaking_space()),
-    //         non_breaking_space()
-    //     )).into()
+    return repeat1(choice!(
+            // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
+            seq!(
+                check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
+                breaking_space()
+            ),
+            // But we can match an escaped newline.
+            seq!(eat_string("\\"), breaking_space()),
+            non_breaking_space()
+        )).into();
 
     brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
@@ -489,11 +489,7 @@ impl NormalizeParseResult<(char, usize)> for Option<Result<(char, usize), Utf8Er
 }
 
 pub fn NAME() -> Combinator {
-    // exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
-
-    return seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue())).compile_greedy(), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
-
-    brute_force(|mut right_data, bytes| {
+    let combinator = brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
 
         // The first character must belong to the set of valid identifiers: Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property.
@@ -530,7 +526,13 @@ pub fn NAME() -> Combinator {
 
         right_data.advance(total_offset);
         parse_ok(right_data)
-    }).into()
+    });
+
+    // let combinator = seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
+    let combinator = seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
+    // let combinator = seq!(exclude_strings(combinator.into(), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
+
+    combinator
 }
 
 // .. _literals:
