@@ -1,4 +1,7 @@
+use std::fmt::{Debug, Formatter};
+use std::rc::Rc;
 use crate::{Combinator, U8Set};
+use crate::trie::{BuildTrieNode, TrieNode};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FastParser {
@@ -8,7 +11,7 @@ pub enum FastParser {
     Repeat1(Box<FastParser>),
     Eps,
     EatU8Parser(U8Set),
-    EatByteStringChoiceFast(crate::TrieNode),
+    EatByteStringChoiceFast(TrieNode),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -146,7 +149,7 @@ impl FastParser {
             FastParser::Eps => crate::eps().into(),
             FastParser::EatU8Parser(u8set) => crate::EatU8 { u8set: *u8set }.into(),
             FastParser::EatByteStringChoiceFast(root) => {
-                crate::EatByteStringChoice { root: std::rc::Rc::new(root.clone()) }.into()
+                crate::EatByteStringChoice { root: Rc::new(root.clone()) }.into()
             }
         }
     }
@@ -173,7 +176,7 @@ pub fn eat_char_fast(c: char) -> FastParser {
 }
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
-    let mut build_root = crate::BuildTrieNode::new();
+    let mut build_root = BuildTrieNode::new();
     for bytestring in bytestrings {
         build_root.insert(&bytestring);
     }
