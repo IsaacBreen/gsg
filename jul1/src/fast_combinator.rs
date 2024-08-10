@@ -151,114 +151,29 @@ impl FastParser {
         }
     }
 
-    pub(crate) fn optimize_stage_1(self) -> FastParser {
-        match self {
-            FastParser::Seq(children) => {
-                let children = children.into_iter().map(|c| c.optimize_stage_1()).collect();
-                flatten_seq(FastParser::Seq(children))
-            }
-            FastParser::Choice(children) => {
-                let children = children.into_iter().map(|c| c.optimize_stage_1()).collect();
-                flatten_choice(FastParser::Choice(children))
-            }
-            FastParser::Opt(parser) => {
-                let parser = parser.optimize_stage_1();
-                match parser {
-                    FastParser::Eps => FastParser::Eps, // Opt(Eps) = Eps
-                    _ => flatten_choice(FastParser::Choice(vec![parser, FastParser::Eps])),
-                }
-            }
-            FastParser::Repeat1(parser) => FastParser::Repeat1(Box::new(parser.optimize_stage_1())),
-            FastParser::Eps => FastParser::Eps,
-            FastParser::EatU8Parser(_) => self,
-            FastParser::EatByteStringChoiceFast(root) => flatten_trie(root),
-        }
-    }
-
-    pub fn flatten(self) -> FastParser {
-        // e.g. expand seq(choice(a, b), choice(c, d)) into choice(seq(a, c), seq(a, d), seq(b, c), seq(b, d))
-        // final expression
-
-    }
-
     pub fn optimize(self) -> FastParser {
-        let optimized = self.optimize_stage_1();
-        if let Some(as_t) = to_trie(optimized.clone()) {
-            as_t
-        } else {
-            optimized
-        }
+        todo!()
     }
-}
-
-fn flatten_seq(parser: FastParser) -> FastParser {
-    match parser {
-        FastParser::Seq(children) => {
-            let mut new_children = Vec::new();
-            for child in children {
-                match child {
-                    FastParser::Seq(grandchildren) => new_children.extend(grandchildren),
-                    FastParser::Eps => {} // Skip epsilon in sequences
-                    _ => new_children.push(child),
-                }
-            }
-            if new_children.len() == 1 {
-                new_children.pop().unwrap()
-            } else {
-                FastParser::Seq(new_children)
-            }
-        }
-        _ => parser,
-    }
-}
-
-fn flatten_choice(parser: FastParser) -> FastParser {
-    match parser {
-        FastParser::Choice(children) => {
-            let mut new_children = Vec::new();
-            for child in children {
-                match child {
-                    FastParser::Choice(grandchildren) => new_children.extend(grandchildren),
-                    _ => new_children.push(child),
-                }
-            }
-            if new_children.len() == 1 {
-                new_children.pop().unwrap()
-            } else {
-                FastParser::Choice(new_children)
-            }
-        }
-        _ => parser,
-    }
-}
-
-fn flatten_trie(root: TrieNode) -> FastParser {
-    // Flatten a tree into a choice of sequences of EatU8s
-    todo!()
-}
-
-fn to_trie(parser: FastParser) -> Option<FastParser> {
-    todo!()
 }
 
 pub fn seq_fast(parsers: Vec<FastParser>) -> FastParser {
-    FastParser::Seq(parsers).optimize_stage_1()
+    FastParser::Seq(parsers)
 }
 
 pub fn choice_fast(parsers: Vec<FastParser>) -> FastParser {
-    FastParser::Choice(parsers).optimize_stage_1()
+    FastParser::Choice(parsers)
 }
 
 pub fn opt_fast(parser: FastParser) -> FastParser {
-    FastParser::Opt(Box::new(parser)).optimize_stage_1()
+    FastParser::Opt(Box::new(parser))
 }
 
 pub fn repeat1_fast(parser: FastParser) -> FastParser {
-    FastParser::Repeat1(Box::new(parser)).optimize_stage_1()
+    FastParser::Repeat1(Box::new(parser))
 }
 
 pub fn eat_char_fast(c: char) -> FastParser {
-    FastParser::EatU8Parser(U8Set::from_char(c)).optimize_stage_1()
+    FastParser::EatU8Parser(U8Set::from_char(c))
 }
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
@@ -267,7 +182,7 @@ pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
         build_root.insert(&bytestring);
     }
     let root = build_root.to_optimized_trie_node();
-    FastParser::EatByteStringChoiceFast(root).optimize_stage_1()
+    FastParser::EatByteStringChoiceFast(root)
 }
 
 pub fn repeat0_fast(parser: FastParser) -> FastParser {
