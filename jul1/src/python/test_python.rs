@@ -45,10 +45,10 @@ fn test_name() {
     assert_parses_fast(&combinator, "_;");
     assert_parses_fast(&combinator, "_abc123;");
 
-    assert_fails_default(&combinator, "1;");
-    assert_fails_default(&combinator, "1x;");
-    assert_fails_default(&combinator, "if;");
-    assert_fails_default(&combinator, "for;");
+    assert_fails_fast(&combinator, "1;");
+    assert_fails_fast(&combinator, "1x;");
+    assert_fails_fast(&combinator, "if;");
+    assert_fails_fast(&combinator, "for;");
 }
 
 #[test]

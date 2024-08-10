@@ -365,6 +365,10 @@ pub fn reserved_keywords() -> Vec<&'static str> {
     ]
 }
 
+pub fn is_reserved_keyword(s: &str) -> bool {
+    reserved_keywords().contains(&s)
+}
+
 
 use std::str::Utf8Error;
 
@@ -454,6 +458,9 @@ pub fn NAME() -> Combinator {
             match s.next()? {
                 Ok((c, next_offset)) => {
                     let category = get_general_category(c);
+                    if matches!(c, '"' | '\'') {
+                        return parse_error();
+                    }
                     if !(matches!(category, GC::UppercaseLetter | GC::LowercaseLetter | GC::TitlecaseLetter | GC::ModifierLetter | GC::OtherLetter | GC::LetterNumber | GC::NonspacingMark | GC::SpacingMark | GC::DecimalNumber | GC::ConnectorPunctuation) || c == '_') {
                         break;
                     }
@@ -461,6 +468,12 @@ pub fn NAME() -> Combinator {
                 },
                 Err(_) => break,
             }
+        }
+
+        // Ensure it's not one of the reserved keywords
+        let s = String::from_utf8(bytes[0..total_offset].to_vec()).unwrap();
+        if is_reserved_keyword(&s) {
+            return parse_error();
         }
 
         right_data.advance(total_offset);
