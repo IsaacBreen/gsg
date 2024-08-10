@@ -58,7 +58,7 @@ impl CombinatorTrait for FastCombinator {
 
 pub fn fast_parser(parser: FastParser) -> FastCombinator {
     let slow = parser.slow();
-    FastCombinator { fast: Rc::new(parser), slow: Box::new(slow) }
+    FastCombinator { fast: Rc::new(parser.optimize()), slow: Box::new(slow) }
 }
 
 impl From<FastCombinator> for Combinator {

@@ -1,17 +1,14 @@
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
-use crate::{Combinator, U8Set};
-use crate::trie::{BuildTrieNode, TrieNode};
+use crate::{Combinator, U8Set, VecX};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum FastParser {
     Seq(Vec<FastParser>),
     Choice(Vec<FastParser>),
-    Opt(Box<FastParser>),
     Repeat1(Box<FastParser>),
-    Eps,
     EatU8Parser(U8Set),
-    EatByteStringChoiceFast(TrieNode),
+    EatByteStringChoiceFast(Rc<TrieNode>),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -21,6 +18,35 @@ pub enum FastParserResult {
     Incomplete,
 }
 
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct TrieNode {
+    valid_bytes: U8Set,
+    is_end: bool,
+    children: Vec<Option<Rc<TrieNode>>>,
+}
+
+impl TrieNode {
+    fn new() -> Self {
+        TrieNode {
+            valid_bytes: U8Set::none(),
+            is_end: false,
+            children: vec![None; 256],
+        }
+    }
+
+    fn insert(&mut self, bytestring: &[u8]) {
+        let mut node = self;
+        for &byte in bytestring {
+            node.valid_bytes.insert(byte);
+            if node.children[byte as usize].is_none() {
+                node.children[byte as usize] = Some(Rc::new(TrieNode::new()));
+            }
+            node = Rc::make_mut(node.children[byte as usize].as_mut().unwrap());
+        }
+        node.is_end = true;
+    }
+}
+
 impl FastParser {
     pub fn parse(&self, bytes: &[u8]) -> FastParserResult {
         match self {
@@ -28,9 +54,7 @@ impl FastParser {
                 let mut total_len = 0;
                 for child in children {
                     match child.parse(&bytes[total_len..]) {
-                        FastParserResult::Success(len) => {
-                            total_len += len;
-                        }
+                        FastParserResult::Success(len) => total_len += len,
                         FastParserResult::Failure => return FastParserResult::Failure,
                         FastParserResult::Incomplete => return FastParserResult::Incomplete,
                     }
@@ -47,38 +71,25 @@ impl FastParser {
                 }
                 FastParserResult::Failure
             }
-            FastParser::Opt(parser) => match parser.parse(bytes) {
-                FastParserResult::Success(len) => FastParserResult::Success(len),
-                FastParserResult::Failure => FastParserResult::Success(0),
-                FastParserResult::Incomplete => FastParserResult::Incomplete,
-            },
             FastParser::Repeat1(parser) => {
                 let mut total_len = 0;
                 loop {
                     match parser.parse(&bytes[total_len..]) {
                         FastParserResult::Success(len) => {
-                            if len == 0 {
-                                break;
-                            }
+                            if len == 0 { break; }
                             total_len += len;
                         }
                         FastParserResult::Failure => {
-                            if total_len == 0 {
-                                return FastParserResult::Failure;
-                            } else {
-                                break;
-                            }
+                            if total_len == 0 { return FastParserResult::Failure; }
+                            break;
                         }
                         FastParserResult::Incomplete => return FastParserResult::Incomplete,
                     }
                 }
                 FastParserResult::Success(total_len)
             }
-            FastParser::Eps => FastParserResult::Success(0),
             FastParser::EatU8Parser(u8set) => {
-                if bytes.is_empty() {
-                    return FastParserResult::Incomplete;
-                }
+                if bytes.is_empty() { return FastParserResult::Incomplete; }
                 if u8set.contains(bytes[0]) {
                     FastParserResult::Success(1)
                 } else {
@@ -91,10 +102,8 @@ impl FastParser {
 
                 for &byte in bytes {
                     if current_node.valid_bytes.contains(byte) {
-                        let child_index =
-                            current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
-                        if child_index < current_node.children.len() {
-                            current_node = &current_node.children[child_index];
+                        if let Some(next_node) = &current_node.children[byte as usize] {
+                            current_node = next_node;
                             bytes_consumed += 1;
                             if current_node.is_end {
                                 return FastParserResult::Success(bytes_consumed);
@@ -119,56 +128,162 @@ impl FastParser {
     pub fn slow(&self) -> Combinator {
         match self {
             FastParser::Seq(children) => {
-                let mut all_children: crate::VecX<Combinator> = crate::vecx![];
-                for child in children {
-                    let child_slow = child.slow();
-                    match child_slow {
-                        Combinator::Seq(crate::Seq { children, .. }) => {
-                            all_children.extend(children.iter().cloned());
-                        }
-                        _ => all_children.push(child_slow),
-                    }
-                }
+                let all_children: VecX<Combinator> = children.iter().map(|c| c.slow()).collect();
                 crate::_seq(all_children)
             }
             FastParser::Choice(children) => {
-                let mut all_children: crate::VecX<Combinator> = crate::vecx![];
-                for child in children {
-                    let child_slow = child.slow();
-                    match child_slow {
-                        Combinator::Choice(crate::Choice { children, .. }) => {
-                            all_children.extend(children.iter().cloned());
-                        }
-                        _ => all_children.push(child_slow),
-                    }
-                }
+                let all_children: VecX<Combinator> = children.iter().map(|c| c.slow()).collect();
                 crate::_choice(all_children)
             }
-            FastParser::Opt(parser) => crate::opt(parser.slow()).into(),
             FastParser::Repeat1(parser) => crate::repeat1(parser.slow()).into(),
-            FastParser::Eps => crate::eps().into(),
             FastParser::EatU8Parser(u8set) => crate::EatU8 { u8set: *u8set }.into(),
             FastParser::EatByteStringChoiceFast(root) => {
-                crate::EatByteStringChoice { root: Rc::new(root.clone()) }.into()
+                crate::EatByteStringChoice { root: root.clone() }.into()
+            }
+        }
+    }
+
+    pub(crate) fn optimize(self) -> Self {
+        match self {
+            FastParser::Seq(children) => {
+                let mut new_children = Vec::new();
+                for child in children {
+                    match child.optimize() {
+                        FastParser::Seq(mut sub_children) => new_children.append(&mut sub_children),
+                        other => new_children.push(other),
+                    }
+                }
+                if new_children.len() == 1 {
+                    new_children.pop().unwrap()
+                } else {
+                    FastParser::Seq(new_children)
+                }
+            }
+            FastParser::Choice(children) => {
+                let mut new_children = Vec::new();
+                for child in children {
+                    match child.optimize() {
+                        FastParser::Choice(mut sub_children) => new_children.append(&mut sub_children),
+                        other => new_children.push(other),
+                    }
+                }
+                if new_children.len() == 1 {
+                    new_children.pop().unwrap()
+                } else {
+                    FastParser::Choice(new_children)
+                }
+            }
+            FastParser::Repeat1(parser) => FastParser::Repeat1(Box::new(parser.optimize())),
+            other => other,
+        }
+    }
+
+    fn compile(self) -> Self {
+        let optimized = self.optimize();
+        if let Some(trie) = optimized.to_trie() {
+            FastParser::EatByteStringChoiceFast(Rc::new(trie))
+        } else {
+            optimized
+        }
+    }
+
+    fn to_trie(&self) -> Option<TrieNode> {
+        match self {
+            FastParser::EatU8Parser(u8set) => {
+                let mut trie = TrieNode::new();
+                for byte in u8set.iter() {
+                    trie.insert(&[byte]);
+                }
+                Some(trie)
+            }
+            FastParser::EatByteStringChoiceFast(root) => Some((*root).clone()),
+            FastParser::Seq(children) => {
+                let mut trie = TrieNode::new();
+                let mut current_path = Vec::new();
+                Self::build_trie_from_seq(&mut trie, children, &mut current_path, 0)
+                    .then_some(trie)
+            }
+            FastParser::Choice(children) => {
+                let mut trie = TrieNode::new();
+                for child in children {
+                    if let Some(child_trie) = child.to_trie() {
+                        Self::merge_tries(&mut trie, &child_trie);
+                    } else {
+                        return None;
+                    }
+                }
+                Some(trie)
+            }
+            FastParser::Repeat1(_) => None,
+        }
+    }
+
+    fn build_trie_from_seq(trie: &mut TrieNode, children: &[FastParser], current_path: &mut Vec<u8>, index: usize) -> bool {
+        if index == children.len() {
+            trie.insert(current_path);
+            return true;
+        }
+
+        match &children[index] {
+            FastParser::EatU8Parser(u8set) => {
+                let mut success = false;
+                for byte in u8set.iter() {
+                    current_path.push(byte);
+                    success |= Self::build_trie_from_seq(trie, children, current_path, index + 1);
+                    current_path.pop();
+                }
+                success
+            }
+            FastParser::EatByteStringChoiceFast(root) => {
+                Self::build_trie_from_node(trie, root, children, current_path, index)
+            }
+            _ => false,
+        }
+    }
+
+    fn build_trie_from_node(trie: &mut TrieNode, node: &TrieNode, children: &[FastParser], current_path: &mut Vec<u8>, index: usize) -> bool {
+        let mut success = false;
+        if node.is_end {
+            success |= Self::build_trie_from_seq(trie, children, current_path, index + 1);
+        }
+        for (byte, child) in node.children.iter().enumerate().filter_map(|(i, c)| c.as_ref().map(|c| (i as u8, c))) {
+            current_path.push(byte);
+            success |= Self::build_trie_from_node(trie, child, children, current_path, index);
+            current_path.pop();
+        }
+        success
+    }
+
+    fn merge_tries(target: &mut TrieNode, source: &TrieNode) {
+        if source.is_end {
+            target.is_end = true;
+        }
+        target.valid_bytes = target.valid_bytes.union(source.valid_bytes);
+        for (byte, child) in source.children.iter().enumerate().filter_map(|(i, c)| c.as_ref().map(|c| (i, c))) {
+            if let Some(target_child) = &mut target.children[byte] {
+                let target_child = Rc::make_mut(target_child);
+                Self::merge_tries(target_child, child);
+            } else {
+                target.children[byte] = Some(child.clone());
             }
         }
     }
 }
 
 pub fn seq_fast(parsers: Vec<FastParser>) -> FastParser {
-    FastParser::Seq(parsers)
+    FastParser::Seq(parsers).compile()
 }
 
 pub fn choice_fast(parsers: Vec<FastParser>) -> FastParser {
-    FastParser::Choice(parsers)
+    FastParser::Choice(parsers).compile()
 }
 
 pub fn opt_fast(parser: FastParser) -> FastParser {
-    FastParser::Opt(Box::new(parser))
+    choice_fast(vec![parser, FastParser::Seq(vec![])])
 }
 
 pub fn repeat1_fast(parser: FastParser) -> FastParser {
-    FastParser::Repeat1(Box::new(parser))
+    FastParser::Repeat1(Box::new(parser.compile()))
 }
 
 pub fn eat_char_fast(c: char) -> FastParser {
@@ -176,12 +291,11 @@ pub fn eat_char_fast(c: char) -> FastParser {
 }
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
-    let mut build_root = BuildTrieNode::new();
+    let mut root = TrieNode::new();
     for bytestring in bytestrings {
-        build_root.insert(&bytestring);
+        root.insert(&bytestring);
     }
-    let root = build_root.to_optimized_trie_node();
-    FastParser::EatByteStringChoiceFast(root)
+    FastParser::EatByteStringChoiceFast(Rc::new(root))
 }
 
 pub fn repeat0_fast(parser: FastParser) -> FastParser {
@@ -208,4 +322,16 @@ macro_rules! choice_fast {
     ($($x:expr),* $(,)?) => {
         $crate::choice_fast(vec![$($x),*])
     };
+}
+
+impl Debug for FastParser {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FastParser::Seq(children) => f.debug_tuple("Seq").field(children).finish(),
+            FastParser::Choice(children) => f.debug_tuple("Choice").field(children).finish(),
+            FastParser::Repeat1(parser) => f.debug_tuple("Repeat1").field(parser).finish(),
+            FastParser::EatU8Parser(u8set) => f.debug_tuple("EatU8Parser").field(u8set).finish(),
+            FastParser::EatByteStringChoiceFast(_) => f.debug_struct("EatByteStringChoiceFast").finish_non_exhaustive(),
+        }
+    }
 }
