@@ -10,7 +10,8 @@ pub enum ParseError {
     Fail,
 }
 
-type BruteForceResult = Result<RightData, ParseError>;
+type BruteForceResult = Option<Result<RightData, ()>>;
+type BruteForceResult2 = Result<RightData, ParseError>;
 pub type BruteForceFn = dyn Fn(RightData, &[u8]) -> BruteForceResult;
 
 #[derive(Clone)]
@@ -69,11 +70,19 @@ impl Debug for BruteForceParser {
     }
 }
 
+fn convert_result(result: BruteForceResult) -> BruteForceResult2 {
+    match result {
+        Some(Ok(right_data)) => Ok(right_data),
+        Some(Err(())) => Err(ParseError::Fail),
+        None => Err(ParseError::Incomplete),
+    }
+}
+
 impl CombinatorTrait for BruteForce {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
-        match result {
+        match convert_result(result) {
             Ok(right_data) => (
                 Parser::FailParser(FailParser),
                 ParseResults::new_single(right_data, true)
@@ -98,7 +107,7 @@ impl ParserTrait for BruteForceParser {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.bytes.extend_from_slice(bytes);
         if let Some(right_data) = self.right_data.take() {
-            match (self.run)(right_data.clone(), &self.bytes) {
+            match convert_result((self.run)(right_data.clone(), &self.bytes)) {
                 Ok(new_right_data) => ParseResults::new_single(new_right_data, true),
                 Err(ParseError::Incomplete) => ParseResults::empty_unfinished(),
                 Err(ParseError::Fail) => ParseResults::empty_finished(),
@@ -119,14 +128,14 @@ impl From<BruteForce> for Combinator {
     }
 }
 
-pub fn parse_error() -> Result<RightData, ParseError> {
-    Err(ParseError::Fail)
+pub fn parse_error() -> BruteForceResult {
+    Some(Err(()))
 }
 
-pub fn parse_incomplete() -> Result<RightData, ParseError> {
-    Err(ParseError::Incomplete)
+pub fn parse_incomplete() -> BruteForceResult {
+    None
 }
 
-pub fn parse_ok(right_data: RightData) -> Result<RightData, ParseError> {
-    Ok(right_data)
+pub fn parse_ok(right_data: RightData) -> BruteForceResult {
+    Some(Ok(right_data))
 }

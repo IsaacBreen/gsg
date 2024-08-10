@@ -424,7 +424,8 @@ pub fn NAME() -> Combinator {
         }
 
         // The remaining characters must belong to the set of valid identifiers: Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Continue property.
-        while let Ok((c, offset)) = s.next().transpose() {
+        // while let Ok((c, offset)) = s.next().transpose() {
+        todo!()
     })
 }
 
