@@ -3,12 +3,10 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, RightData, U8Set};
 
-pub enum BruteForceResult {
-    Ok(RightData),
-    Err,
-    Incomplete,
-}
+pub struct Incomplete;
+pub struct ParseError;
 
+type BruteForceResult = Option<Result<RightData, ParseError>>;
 pub type BruteForceFn = dyn Fn(RightData, &[u8]) -> BruteForceResult;
 
 #[derive(Clone)]
@@ -72,15 +70,15 @@ impl CombinatorTrait for BruteForce {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
         match result {
-            BruteForceResult::Ok(right_data) => (
+            Some(Ok(right_data)) => (
                 Parser::FailParser(FailParser),
                 ParseResults::new_single(right_data, true)
             ),
-            BruteForceResult::Err => (
+            Some(Err(parse_error)) => (
                 Parser::FailParser(FailParser),
                 ParseResults::empty_finished()
             ),
-            BruteForceResult::Incomplete => (
+            None => (
                 Parser::BruteForceParser(BruteForceParser { run, right_data: Some(right_data), bytes: bytes.to_vec() }),
                 ParseResults::empty_unfinished()
             ),
@@ -97,9 +95,9 @@ impl ParserTrait for BruteForceParser {
         self.bytes.extend_from_slice(bytes);
         if let Some(right_data) = self.right_data.take() {
             match (self.run)(right_data.clone(), &self.bytes) {
-                BruteForceResult::Ok(new_right_data) => ParseResults::new_single(new_right_data, true),
-                BruteForceResult::Err => ParseResults::empty_finished(),
-                BruteForceResult::Incomplete => {
+                Some(Ok(new_right_data)) => ParseResults::new_single(new_right_data, true),
+                Some(Err(parse_error)) => ParseResults::empty_finished(),
+                None => {
                     self.right_data = Some(right_data);
                     ParseResults::empty_unfinished()
                 }
