@@ -47,6 +47,10 @@ impl Default for RightData {
 }
 
 impl RightData {
+    pub fn advance(&mut self, n: usize) {
+        Rc::make_mut(&mut self.right_data_inner).position += n;
+    }
+
     pub fn with_position(mut self, position: usize) -> Self {
         Rc::make_mut(&mut self.right_data_inner).position = position;
         self

@@ -288,9 +288,10 @@ mod tests {
 
     #[test]
     fn brute_force_success_on_first_step() {
-        let combinator = brute_force(|right_data, bytes| {
+        let combinator = brute_force(|mut right_data, bytes: &[u8]| {
             if bytes == b"hello" {
-                Some(right_data.with_position(5))
+                right_data.advance(5);
+                Some(right_data)
             } else {
                 None
             }
@@ -304,9 +305,10 @@ mod tests {
 
     #[test]
     fn brute_force_success_on_second_step() {
-        let combinator = brute_force(|right_data, bytes| {
+        let combinator = brute_force(|mut right_data, bytes| {
             if bytes == b"hello" {
-                Some(right_data.with_position(5))
+                right_data.advance(5);
+                Some(right_data)
             } else {
                 None
             }
@@ -324,9 +326,10 @@ mod tests {
 
     #[test]
     fn brute_force_failure() {
-        let combinator = brute_force(|right_data, bytes| {
+        let combinator = brute_force(|mut right_data, bytes| {
             if bytes == b"hello" {
-                Some(right_data.with_position(5))
+                right_data.advance(5);
+                Some(right_data)
             } else {
                 None
             }
