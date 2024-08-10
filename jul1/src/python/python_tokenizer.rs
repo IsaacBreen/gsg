@@ -391,36 +391,48 @@ impl<'a> Utf8CharDecoder<'a> {
 }
 
 impl<'a> Iterator for Utf8CharDecoder<'a> {
-    type Item = Result<(char, usize), Utf8Error>;
+    type Item = Result<(char, usize), ParseError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.position >= self.bytes.len() {
             return None;
         }
 
-        let remaining_bytes = &self.bytes[self.position..];
-        match std::str::from_utf8(remaining_bytes) {
+        let first_byte = self.bytes[self.position];
+        let byte_length = utf8_byte_length(first_byte);
+
+        if self.position + byte_length > self.bytes.len() {
+            // Incomplete sequence
+            self.position += 1; // Skip the invalid byte
+            return Some(Err(ParseError::Incomplete));
+        }
+
+        let slice = &self.bytes[self.position..self.position + byte_length];
+
+        match std::str::from_utf8(slice) {
             Ok(s) => {
-                let ch = s.chars().next().unwrap();
-                let char_len = ch.len_utf8();
-                self.position += char_len;
-                Some(Ok((ch, char_len)))
+                self.position += byte_length;
+                Some(Ok((s.chars().next().unwrap(), byte_length)))
             }
             Err(e) => {
-                if e.valid_up_to() == 0 {
-                    // The very first byte is invalid
-                    self.position += 1;
-                    Some(Err(e))
-                } else {
-                    // We have a valid character followed by invalid UTF-8
-                    let valid_str = unsafe { std::str::from_utf8_unchecked(&remaining_bytes[..e.valid_up_to()]) };
-                    let ch = valid_str.chars().next().unwrap();
-                    let char_len = ch.len_utf8();
-                    self.position += char_len;
-                    Some(Ok((ch, char_len)))
-                }
+                self.position += 1; // Skip the invalid byte
+                Some(Err(ParseError::Fail))
             }
         }
+    }
+}
+
+fn utf8_byte_length(first_byte: u8) -> usize {
+    if first_byte & 0b10000000 == 0 {
+        1
+    } else if first_byte & 0b11100000 == 0b11000000 {
+        2
+    } else if first_byte & 0b11110000 == 0b11100000 {
+        3
+    } else if first_byte & 0b11111000 == 0b11110000 {
+        4
+    } else {
+        1 // Invalid start byte
     }
 }
 
@@ -440,6 +452,8 @@ impl NormalizeParseResult<(char, usize)> for Option<Result<(char, usize), Utf8Er
 
 pub fn NAME() -> Combinator {
     // exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
+
+    // return exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords());
 
     brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
