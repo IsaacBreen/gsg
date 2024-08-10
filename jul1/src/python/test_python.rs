@@ -22,6 +22,7 @@ fn test_trivial_ws() {
     assert_parses_default(&combinator, "x =");
 }
 
+
 #[test]
 fn test_trivial_adjacent_literals() {
     let combinator = non_breaking_space();
@@ -32,6 +33,22 @@ fn test_trivial_adjacent_literals() {
 fn test_trivial_match() {
     let combinator = seq!(python_literal("match"), WS(), python_literal("x"), opt(WS()), python_literal(":"));
     assert_parses_default(&combinator, "match x:");
+}
+
+#[test]
+fn test_name() {
+    let combinator = seq!(NAME(), eat(";"));
+    assert_parses_fast(&combinator, "x;");
+    assert_parses_fast(&combinator, "xy;");
+    assert_parses_fast(&combinator, "match;");
+    assert_parses_fast(&combinator, "id;");
+    assert_parses_fast(&combinator, "_;");
+    assert_parses_fast(&combinator, "_abc123;");
+
+    assert_fails_default(&combinator, "1;");
+    assert_fails_default(&combinator, "1x;");
+    assert_fails_default(&combinator, "if;");
+    assert_fails_default(&combinator, "for;");
 }
 
 #[test]

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
-use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -387,11 +387,36 @@ impl<'a> Utf8CharDecoder<'a> {
 }
 
 impl<'a> Iterator for Utf8CharDecoder<'a> {
-    // ParseError is an enum with two zero-size variants: Incomplete and Fail
-    type Item = Result<(char, usize), std::str::Utf8Error>;
+    type Item = Result<(char, usize), Utf8Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        if self.position >= self.bytes.len() {
+            return None;
+        }
+
+        let remaining_bytes = &self.bytes[self.position..];
+        match std::str::from_utf8(remaining_bytes) {
+            Ok(s) => {
+                let ch = s.chars().next().unwrap();
+                let char_len = ch.len_utf8();
+                self.position += char_len;
+                Some(Ok((ch, char_len)))
+            }
+            Err(e) => {
+                if e.valid_up_to() == 0 {
+                    // The very first byte is invalid
+                    self.position += 1;
+                    Some(Err(e))
+                } else {
+                    // We have a valid character followed by invalid UTF-8
+                    let valid_str = unsafe { std::str::from_utf8_unchecked(&remaining_bytes[..e.valid_up_to()]) };
+                    let ch = valid_str.chars().next().unwrap();
+                    let char_len = ch.len_utf8();
+                    self.position += char_len;
+                    Some(Ok((ch, char_len)))
+                }
+            }
+        }
     }
 }
 
@@ -412,21 +437,35 @@ impl NormalizeParseResult<(char, usize)> for Option<Result<(char, usize), Utf8Er
 pub fn NAME() -> Combinator {
     // exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
 
-    brute_force(|right_data, bytes| {
+    brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
 
         // The first character must belong to the set of valid identifiers: Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property.
         use unicode_general_category::{GeneralCategory as GC};
-        let (c, offset) = s.next()?;
+        let Ok((c, offset)) = s.next()? else { return parse_error(); };
+        let mut total_offset = offset;
         let category = get_general_category(c);
-        if !matches!(category, GC::UppercaseLetter | GC::LowercaseLetter | GC::TitlecaseLetter | GC::ModifierLetter | GC::OtherLetter | GC::LetterNumber) {
+        if !(matches!(category, GC::UppercaseLetter | GC::LowercaseLetter | GC::TitlecaseLetter | GC::ModifierLetter | GC::OtherLetter | GC::LetterNumber) || c == '_') {
             return parse_error();
         }
 
-        // The remaining characters must belong to the set of valid identifiers: Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Continue property.
-        // while let Ok((c, offset)) = s.next().transpose() {
-        todo!()
-    })
+        // The remaining characters must belong to the set of valid identifiers: all identifiers in the start set identifiers, Mn, Mc, Nd, Pc, and characters with the Other_ID_Continue property.
+        loop {
+            match s.next()? {
+                Ok((c, next_offset)) => {
+                    let category = get_general_category(c);
+                    if !(matches!(category, GC::UppercaseLetter | GC::LowercaseLetter | GC::TitlecaseLetter | GC::ModifierLetter | GC::OtherLetter | GC::LetterNumber | GC::NonspacingMark | GC::SpacingMark | GC::DecimalNumber | GC::ConnectorPunctuation) || c == '_') {
+                        break;
+                    }
+                    total_offset += next_offset;
+                },
+                Err(_) => break,
+            }
+        }
+
+        right_data.advance(total_offset);
+        parse_ok(right_data)
+    }).into()
 }
 
 // .. _literals:

@@ -10,9 +10,13 @@ pub enum ParseError {
     Fail,
 }
 
-type BruteForceResult = Option<Result<RightData, ()>>;
+pub struct ParseFail;
+
+type BruteForceResult = Option<Result<RightData, ParseFail>>;
 type BruteForceResult2 = Result<RightData, ParseError>;
+// type BruteForceResult = Result<RightData, ParseError>;
 pub type BruteForceFn = dyn Fn(RightData, &[u8]) -> BruteForceResult;
+
 
 #[derive(Clone)]
 pub struct BruteForce {
@@ -73,10 +77,18 @@ impl Debug for BruteForceParser {
 fn convert_result(result: BruteForceResult) -> BruteForceResult2 {
     match result {
         Some(Ok(right_data)) => Ok(right_data),
-        Some(Err(())) => Err(ParseError::Fail),
+        Some(Err(_)) => Err(ParseError::Fail),
         None => Err(ParseError::Incomplete),
     }
 }
+//
+// fn convert_result(result: BruteForceResult) -> Result<RightData, ParseError> {
+//     match result {
+//         Ok(right_data) => Ok(right_data),
+//         Err(ParseError::Fail) => Err(ParseError::Fail),
+//         Err(ParseError::Incomplete) => Err(ParseError::Incomplete),
+//     }
+// }
 
 impl CombinatorTrait for BruteForce {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
@@ -87,11 +99,11 @@ impl CombinatorTrait for BruteForce {
                 Parser::FailParser(FailParser),
                 ParseResults::new_single(right_data, true)
             ),
-            Err(ParseError::Incomplete) => (
+            Err(ParseError::Fail) => (
                 Parser::FailParser(FailParser),
                 ParseResults::empty_finished()
             ),
-            Err(ParseError::Fail) => (
+            Err(ParseError::Incomplete) => (
                 Parser::BruteForceParser(BruteForceParser { run, right_data: Some(right_data), bytes: bytes.to_vec() }),
                 ParseResults::empty_unfinished()
             ),
@@ -129,7 +141,7 @@ impl From<BruteForce> for Combinator {
 }
 
 pub fn parse_error() -> BruteForceResult {
-    Some(Err(()))
+    Some(Err(ParseFail))
 }
 
 pub fn parse_incomplete() -> BruteForceResult {
@@ -139,3 +151,15 @@ pub fn parse_incomplete() -> BruteForceResult {
 pub fn parse_ok(right_data: RightData) -> BruteForceResult {
     Some(Ok(right_data))
 }
+
+// pub fn parse_error() -> BruteForceResult {
+//     Err(ParseError::Fail)
+// }
+//
+// pub fn parse_incomplete() -> BruteForceResult {
+//     Err(ParseError::Incomplete)
+// }
+//
+// pub fn parse_ok(right_data: RightData) -> BruteForceResult {
+//     Ok(right_data)
+// }
