@@ -37,3 +37,4 @@ mod stats;
 mod unicode_categories;
 mod internal_vec;
 mod map;
+mod compiler_greedy;
