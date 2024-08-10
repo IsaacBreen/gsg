@@ -23,7 +23,17 @@ where
     B: FastParserTrait,
 {
     fn parse(&mut self, bytes: &[u8]) -> FastParserResult {
-        todo!()
+        match self.a.parse(bytes) {
+            FastParserResult::Success(a_len) => {
+                match self.b.parse(&bytes[a_len..]) {
+                    FastParserResult::Success(b_len) => FastParserResult::Success(a_len + b_len),
+                    FastParserResult::Incomplete => FastParserResult::Incomplete,
+                    FastParserResult::Failure => FastParserResult::Failure,
+                }
+            }
+            FastParserResult::Incomplete => FastParserResult::Incomplete,
+            FastParserResult::Failure => FastParserResult::Failure,
+        }
     }
 }
 
@@ -39,7 +49,15 @@ where
     B: FastParserTrait,
 {
     fn parse(&mut self, bytes: &[u8]) -> FastParserResult {
-        todo!()
+        match self.a.parse(bytes) {
+            FastParserResult::Success(len) => FastParserResult::Success(len),
+            FastParserResult::Incomplete => match self.b.parse(bytes) {
+                FastParserResult::Success(len) => FastParserResult::Success(len),
+                FastParserResult::Incomplete => FastParserResult::Incomplete,
+                FastParserResult::Failure => FastParserResult::Incomplete,
+            },
+            FastParserResult::Failure => self.b.parse(bytes),
+        }
     }
 }
 
@@ -53,7 +71,11 @@ where
     A: FastParserTrait,
 {
     fn parse(&mut self, bytes: &[u8]) -> FastParserResult {
-        todo!()
+        match self.a.parse(bytes) {
+            FastParserResult::Success(len) => FastParserResult::Success(len),
+            FastParserResult::Incomplete => FastParserResult::Success(0),
+            FastParserResult::Failure => FastParserResult::Success(0),
+        }
     }
 }
 
@@ -67,7 +89,26 @@ where
     A: FastParserTrait,
 {
     fn parse(&mut self, bytes: &[u8]) -> FastParserResult {
-        todo!()
+        let mut total_len = 0;
+        loop {
+            match self.a.parse(&bytes[total_len..]) {
+                FastParserResult::Success(len) => {
+                    if len == 0 {
+                        break;
+                    }
+                    total_len += len;
+                }
+                FastParserResult::Incomplete => return FastParserResult::Incomplete,
+                FastParserResult::Failure => {
+                    if total_len == 0 {
+                        return FastParserResult::Failure;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        FastParserResult::Success(total_len)
     }
 }
 
@@ -78,7 +119,14 @@ pub struct EatU8Parser {
 
 impl FastParserTrait for EatU8Parser {
     fn parse(&mut self, bytes: &[u8]) -> FastParserResult {
-        todo!()
+        if bytes.is_empty() {
+            return FastParserResult::Incomplete;
+        }
+        if self.u8set.contains(bytes[0]) {
+            FastParserResult::Success(1)
+        } else {
+            FastParserResult::Failure
+        }
     }
 }
 
