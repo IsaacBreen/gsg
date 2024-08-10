@@ -288,12 +288,15 @@ mod tests {
 
     #[test]
     fn brute_force_success_on_first_step() {
-        let combinator = brute_force(|mut right_data, bytes: &[u8]| {
+        let combinator = brute_force(|mut right_data, bytes| {
             if bytes == b"hello" {
                 right_data.advance(5);
-                Some(right_data)
+                BruteForceResult::Ok(right_data)
+            } else if bytes.starts_with(b"hello") {
+                right_data.advance(5);
+                BruteForceResult::Incomplete
             } else {
-                None
+                BruteForceResult::Err
             }
         });
 
@@ -308,9 +311,12 @@ mod tests {
         let combinator = brute_force(|mut right_data, bytes| {
             if bytes == b"hello" {
                 right_data.advance(5);
-                Some(right_data)
+                BruteForceResult::Ok(right_data)
+            } else if b"hello".starts_with(bytes) {
+                right_data.advance(5);
+                BruteForceResult::Incomplete
             } else {
-                None
+                BruteForceResult::Err
             }
         });
 
@@ -329,14 +335,18 @@ mod tests {
         let combinator = brute_force(|mut right_data, bytes| {
             if bytes == b"hello" {
                 right_data.advance(5);
-                Some(right_data)
+                BruteForceResult::Ok(right_data)
+            } else if b"hello".starts_with(bytes) {
+                right_data.advance(5);
+                BruteForceResult::Incomplete
             } else {
-                None
+                BruteForceResult::Err
             }
         });
 
         let (mut parser, parse_results) = combinator.parse(RightData::default(), b"hell");
         assert!(!parse_results.done());
+        assert_eq!(parse_results.right_data_vec.len(), 0);
 
         let parse_results = parser.parse(b"p");
         assert!(parse_results.done());

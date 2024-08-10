@@ -3,7 +3,13 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, U8Set};
 
-pub type BruteForceFn = dyn Fn(RightData, &[u8]) -> Option<RightData>;
+pub enum BruteForceResult {
+    Ok(RightData),
+    Err,
+    Incomplete,
+}
+
+pub type BruteForceFn = dyn Fn(RightData, &[u8]) -> BruteForceResult;
 
 #[derive(Clone)]
 pub struct BruteForce {
@@ -63,14 +69,18 @@ impl Debug for BruteForceParser {
 
 impl CombinatorTrait for BruteForce {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let maybe_right_data = (self.run)(right_data.clone(), bytes);
+        let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
-        match maybe_right_data {
-            Some(right_data) => (
+        match result {
+            BruteForceResult::Ok(right_data) => (
                 Parser::BruteForceParser(BruteForceParser { run, right_data: None, bytes: bytes.to_vec() }),
                 ParseResults::new_single(right_data, true)
             ),
-            None => (
+            BruteForceResult::Err => (
+                Parser::BruteForceParser(BruteForceParser { run, right_data: None, bytes: bytes.to_vec() }),
+                ParseResults::empty_finished()
+            ),
+            BruteForceResult::Incomplete => (
                 Parser::BruteForceParser(BruteForceParser { run, right_data: Some(right_data), bytes: bytes.to_vec() }),
                 ParseResults::empty_unfinished()
             ),
@@ -86,10 +96,13 @@ impl ParserTrait for BruteForceParser {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.bytes.extend_from_slice(bytes);
         if let Some(right_data) = self.right_data.take() {
-            if let Some(new_right_data) = (self.run)(right_data, &self.bytes) {
-                ParseResults::new_single(new_right_data, true)
-            } else {
-                ParseResults::empty_unfinished()
+            match (self.run)(right_data.clone(), &self.bytes) {
+                BruteForceResult::Ok(new_right_data) => ParseResults::new_single(new_right_data, true),
+                BruteForceResult::Err => ParseResults::empty_finished(),
+                BruteForceResult::Incomplete => {
+                    self.right_data = Some(right_data);
+                    ParseResults::empty_unfinished()
+                }
             }
         } else {
             ParseResults::empty_unfinished()
@@ -97,7 +110,7 @@ impl ParserTrait for BruteForceParser {
     }
 }
 
-pub fn brute_force(run: impl Fn(RightData, &[u8]) -> Option<RightData> + 'static) -> BruteForce {
+pub fn brute_force(run: impl Fn(RightData, &[u8]) -> BruteForceResult + 'static) -> BruteForce {
     BruteForce { run: Rc::new(run) }
 }
 
