@@ -1,19 +1,6 @@
 use std::collections::HashSet;
 use crate::*;
 
-// Only the combinators below are supported by compile_greedy
-// use crate::{
-//     eps, fail, seq, eat_byte_range,
-//     eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice,
-//     eat_string, exclude_strings, negative_lookahead,
-// };
-//
-// use crate::{
-//     choice_greedy, opt_greedy,
-//     repeat0_greedy, repeat1_greedy,
-//     repeatn_greedy,
-// };
-
 #[derive(Clone)]
 pub enum SimpleCombinator {
     Eps,
