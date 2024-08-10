@@ -291,12 +291,12 @@ mod tests {
         let combinator = brute_force(|mut right_data, bytes| {
             if bytes == b"hello" {
                 right_data.advance(5);
-                Some(Ok(right_data))
+                parse_ok(right_data)
             } else if bytes.starts_with(b"hello") {
                 right_data.advance(5);
-                None
+                parse_incomplete()
             } else {
-                Some(Err(ParseError))
+                parse_error()
             }
         });
 
@@ -311,12 +311,12 @@ mod tests {
         let combinator = brute_force(|mut right_data, bytes| {
             if bytes == b"hello" {
                 right_data.advance(5);
-                Some(Ok(right_data))
+                parse_ok(right_data)
             } else if bytes.starts_with(b"hello") {
                 right_data.advance(5);
-                None
+                parse_incomplete()
             } else {
-                Some(Err(ParseError))
+                parse_error()
             }
         });
 
@@ -335,12 +335,12 @@ mod tests {
         let combinator = brute_force(|mut right_data, bytes| {
             if bytes == b"hello" {
                 right_data.advance(5);
-                Some(Ok(right_data))
+                parse_ok(right_data)
             } else if bytes.starts_with(b"hello") {
                 right_data.advance(5);
-                None
+                parse_incomplete()
             } else {
-                Some(Err(ParseError))
+                parse_error()
             }
         });
 

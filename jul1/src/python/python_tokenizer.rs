@@ -1,11 +1,7 @@
 use std::rc::Rc;
-use crate::{
-    Combinator, EatU8, RightData, check_right_data, mutate_right_data,
-    eps, fail, seq, eat_byte_range, eat_bytestring_choice,
-    eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice,
-    eat_string, exclude_strings, Repeat1, forbid_follows_clear,
-    negative_lookahead, dedent, dent, indent,
-};
+use std::str::Chars;
+use unicode_general_category::get_general_category;
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -369,12 +365,67 @@ pub fn reserved_keywords() -> Vec<&'static str> {
     ]
 }
 
-// pub fn NAME() -> Combinator {
-//     exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
-// }
+
+use std::str::Utf8Error;
+
+struct Utf8CharDecoder<'a> {
+    bytes: &'a [u8],
+    position: usize,
+}
+
+impl<'a> Utf8CharDecoder<'a> {
+    fn new(bytes: &'a [u8]) -> Self {
+        Utf8CharDecoder {
+            bytes,
+            position: 0,
+        }
+    }
+
+    fn current_position(&self) -> usize {
+        self.position
+    }
+}
+
+impl<'a> Iterator for Utf8CharDecoder<'a> {
+    // ParseError is an enum with two zero-size variants: Incomplete and Fail
+    type Item = Result<(char, usize), std::str::Utf8Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
+    }
+}
+
+pub trait NormalizeParseResult<T> {
+    fn normalize(self) -> Result<T, ParseError>;
+}
+
+impl NormalizeParseResult<(char, usize)> for Option<Result<(char, usize), Utf8Error>> {
+    fn normalize(self) -> Result<(char, usize), ParseError> {
+        match self {
+            Some(Ok(x)) => Ok(x),
+            Some(Err(e)) => Err(ParseError::Fail),
+            None => Err(ParseError::Incomplete),
+        }
+    }
+}
 
 pub fn NAME() -> Combinator {
-    exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords())
+    // exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
+
+    brute_force(|right_data, bytes| {
+        let mut s = Utf8CharDecoder::new(bytes);
+
+        // The first character must belong to the set of valid identifiers: Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property.
+        use unicode_general_category::{GeneralCategory as GC};
+        let (c, offset) = s.next()?;
+        let category = get_general_category(c);
+        if !matches!(category, GC::UppercaseLetter | GC::LowercaseLetter | GC::TitlecaseLetter | GC::ModifierLetter | GC::OtherLetter | GC::LetterNumber) {
+            return parse_error();
+        }
+
+        // The remaining characters must belong to the set of valid identifiers: Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Continue property.
+        while let Ok((c, offset)) = s.next().transpose() {
+    })
 }
 
 // .. _literals:
