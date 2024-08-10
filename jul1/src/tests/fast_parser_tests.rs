@@ -1,17 +1,17 @@
 use crate::*;
 use crate::fast_combinator::*;
 
-pub fn assert_fast_parser_parses(fast_parser: &impl FastParserTrait, bytes: &[u8], expected_offset: usize) {
+pub fn assert_fast_parser_parses(fast_parser: &FastParser, bytes: &[u8], expected_offset: usize) {
     let result = fast_parser.parse(bytes);
     assert_eq!(result, FastParserResult::Success(expected_offset));
 }
 
-pub fn assert_fast_parser_fails(fast_parser: &impl FastParserTrait, bytes: &[u8]) {
+pub fn assert_fast_parser_fails(fast_parser: &FastParser, bytes: &[u8]) {
     let result = fast_parser.parse(bytes);
     assert_eq!(result, FastParserResult::Failure);
 }
 
-pub fn assert_fast_parser_incomplete(fast_parser: &impl FastParserTrait, bytes: &[u8]) {
+pub fn assert_fast_parser_incomplete(fast_parser: &FastParser, bytes: &[u8]) {
     let result = fast_parser.parse(bytes);
     assert_eq!(result, FastParserResult::Incomplete);
 }

@@ -1,10 +1,10 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use crate::*;
-use crate::fast_combinator::{FastParserResult, FastParserTrait};
+use crate::fast_combinator::{FastParser, FastParserResult};
 
 pub struct FastCombinator {
-    pub(crate) fast: Rc<dyn FastParserTrait>,
+    pub(crate) fast: Rc<FastParser>,
     pub(crate) slow: Box<Combinator>,
 }
 
@@ -56,7 +56,7 @@ impl CombinatorTrait for FastCombinator {
     }
 }
 
-pub fn fast_parser(parser: impl FastParserTrait + 'static) -> FastCombinator {
+pub fn fast_parser(parser: FastParser) -> FastCombinator {
     let slow = parser.slow();
     FastCombinator { fast: Rc::new(parser), slow: Box::new(slow) }
 }

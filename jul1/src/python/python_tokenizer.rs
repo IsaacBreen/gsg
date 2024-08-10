@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
 
-use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, seq_fast, fast_parser, eat};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -299,21 +299,21 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
     bytestrings
 }
 
-pub fn id_start_fast() -> impl FastParserTrait {
+pub fn id_start_fast() -> FastParser {
     eat_bytestring_choice_fast(id_start_bytestrings())
 }
 
-pub fn id_continue_fast() -> impl FastParserTrait {
+pub fn id_continue_fast() -> FastParser {
     eat_bytestring_choice_fast(id_continue_bytestrings())
 }
 
-pub fn xid_start_fast() -> impl FastParserTrait {
+pub fn xid_start_fast() -> FastParser {
     // all characters in id_start whose NFKC normalization is in "id_start xid_continue*"
     // Honestly, I don't know what this means.
     id_start_fast()
 }
 
-pub fn xid_continue_fast() -> impl FastParserTrait {
+pub fn xid_continue_fast() -> FastParser {
     // all characters in id_continue whose NFKC normalization is in "id_continue*"
     // Honestly, I don't know what this means.
     id_continue_fast()
@@ -420,7 +420,7 @@ pub fn is_reserved_keyword(s: &str) -> bool {
 
 
 use std::str::Utf8Error;
-use crate::fast_combinator::{eat_bytestring_choice_fast, FastParserTrait, repeat0_fast};
+use crate::fast_combinator::{eat_bytestring_choice_fast, repeat0_fast};
 
 struct Utf8CharDecoder<'a> {
     bytes: &'a [u8],
