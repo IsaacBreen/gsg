@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, RightData, U8Set};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, U8Set};
 
 pub type BruteForceFn = dyn Fn(RightData, &[u8]) -> Option<RightData>;
 
@@ -47,7 +47,9 @@ impl Hash for BruteForceParser {
 
 impl PartialEq for BruteForceParser {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.run, &other.run) && self.right_data == other.right_data && self.bytes == other.bytes
+        Rc::ptr_eq(&self.run, &other.run)
+            && self.right_data == other.right_data
+            && self.bytes == other.bytes
     }
 }
 
@@ -60,13 +62,18 @@ impl Debug for BruteForceParser {
 }
 
 impl CombinatorTrait for BruteForce {
-    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let maybe_right_data = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
-        if let Some(right_data) = maybe_right_data {
-            (Parser::BruteForceParser(BruteForceParser { run, right_data: None, bytes: bytes.to_vec() }), ParseResults::new_single(right_data, true))
-        } else {
-            (Parser::BruteForceParser(BruteForceParser { run, right_data: Some(right_data), bytes: bytes.to_vec() }), ParseResults::empty_unfinished())
+        match maybe_right_data {
+            Some(right_data) => (
+                Parser::BruteForceParser(BruteForceParser { run, right_data: None, bytes: bytes.to_vec() }),
+                ParseResults::new_single(right_data, true)
+            ),
+            None => (
+                Parser::BruteForceParser(BruteForceParser { run, right_data: Some(right_data), bytes: bytes.to_vec() }),
+                ParseResults::empty_unfinished()
+            ),
         }
     }
 }
@@ -78,11 +85,12 @@ impl ParserTrait for BruteForceParser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.bytes.extend_from_slice(bytes);
-        let right_data = self.right_data.clone().unwrap();
-        let maybe_right_data = (self.run)(right_data, &self.bytes);
-        if let Some(right_data) = maybe_right_data {
-            self.right_data = None;
-            ParseResults::new_single(right_data, true)
+        if let Some(right_data) = self.right_data.take() {
+            if let Some(new_right_data) = (self.run)(right_data, &self.bytes) {
+                ParseResults::new_single(new_right_data, true)
+            } else {
+                ParseResults::empty_unfinished()
+            }
         } else {
             ParseResults::empty_unfinished()
         }
