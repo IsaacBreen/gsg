@@ -40,10 +40,9 @@ impl Hash for FastCombinator {
 }
 
 impl CombinatorTrait for FastCombinator {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         match self.fast.parse(bytes) {
             FastParserResult::Success(len) => {
-                let mut right_data = right_data;
                 right_data.advance(len);
                 (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
             }
