@@ -9,21 +9,21 @@ pub type ParseContinuationFn = dyn FnMut(&[u8]) -> ParseResults;
 
 pub struct ParseContinuationWrapper(Box<ParseContinuationFn>);
 
-impl Clone for ParseContinuationWrapper {
-    fn clone(&self) -> Self {
-        ParseContinuationWrapper(self.0.dyn_clone())
-    }
-}
-
-pub trait DynClone {
-    fn dyn_clone(&self) -> Self;
-}
-
-impl<T: ?Sized + Clone + FnMut(&[u8]) -> ParseResults> DynClone for T {
-    fn dyn_clone(&self) -> Self {
-        self.clone()
-    }
-}
+// impl Clone for ParseContinuationWrapper {
+//     fn clone(&self) -> Self {
+//         ParseContinuationWrapper(self.0.dyn_clone())
+//     }
+// }
+//
+// pub trait DynClone {
+//     fn dyn_clone(&self) -> Self;
+// }
+//
+// impl<T: ?Sized + Clone + FnMut(&[u8]) -> ParseResults> DynClone for T {
+//     fn dyn_clone(&self) -> Self {
+//         self.clone()
+//     }
+// }
 
 #[derive(Clone)]
 pub struct Continuation {
@@ -32,9 +32,9 @@ pub struct Continuation {
 
 #[derive(Clone)]
 pub struct ContinuationParser {
-    pub(crate) run: ParseContinuationWrapper,
-    pub(crate) right_data: Option<RightData>,
-    pub(crate) bytes: Vec<u8>,
+    // pub(crate) run: ParseContinuationWrapper,
+    // pub(crate) right_data: Option<RightData>,
+    // pub(crate) bytes: Vec<u8>,
 }
 
 impl Hash for Continuation {
@@ -59,17 +59,18 @@ impl Debug for Continuation {
 
 impl Hash for ContinuationParser {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(Rc::as_ptr(&self.run) as *const (), state);
-        self.right_data.hash(state);
-        self.bytes.hash(state);
+        // std::ptr::hash(Rc::as_ptr(&self.run) as *const (), state);
+        // self.right_data.hash(state);
+        // self.bytes.hash(state);
     }
 }
 
 impl PartialEq for ContinuationParser {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.run, &other.run)
-            && self.right_data == other.right_data
-            && self.bytes == other.bytes
+        // Rc::ptr_eq(&self.run, &other.run)
+        //     && self.right_data == other.right_data
+        //     && self.bytes == other.bytes
+        todo!()
     }
 }
 
@@ -85,20 +86,21 @@ impl CombinatorTrait for Continuation {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
-        match result {
-            ContinuationResult::Ok(right_data) => (
-                Parser::ContinuationParser(ContinuationParser { run, right_data: None, bytes: bytes.to_vec() }),
-                ParseResults::new_single(right_data, true)
-            ),
-            ContinuationResult::Err => (
-                Parser::ContinuationParser(ContinuationParser { run, right_data: None, bytes: bytes.to_vec() }),
-                ParseResults::empty_finished()
-            ),
-            ContinuationResult::Incomplete => (
-                Parser::ContinuationParser(ContinuationParser { run, right_data: Some(right_data), bytes: bytes.to_vec() }),
-                ParseResults::empty_unfinished()
-            ),
-        }
+        // match result {
+        //     ContinuationResult::Ok(right_data) => (
+        //         Parser::ContinuationParser(ContinuationParser { run, right_data: None, bytes: bytes.to_vec() }),
+        //         ParseResults::new_single(right_data, true)
+        //     ),
+        //     ContinuationResult::Err => (
+        //         Parser::ContinuationParser(ContinuationParser { run, right_data: None, bytes: bytes.to_vec() }),
+        //         ParseResults::empty_finished()
+        //     ),
+        //     ContinuationResult::Incomplete => (
+        //         Parser::ContinuationParser(ContinuationParser { run, right_data: Some(right_data), bytes: bytes.to_vec() }),
+        //         ParseResults::empty_unfinished()
+        //     ),
+        // }
+        todo!()
     }
 }
 
@@ -108,19 +110,20 @@ impl ParserTrait for ContinuationParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        self.bytes.extend_from_slice(bytes);
-        if let Some(right_data) = self.right_data.take() {
-            match (self.run)(right_data.clone(), &self.bytes) {
-                ContinuationResult::Ok(new_right_data) => ParseResults::new_single(new_right_data, true),
-                ContinuationResult::Err => ParseResults::empty_finished(),
-                ContinuationResult::Incomplete => {
-                    self.right_data = Some(right_data);
-                    ParseResults::empty_unfinished()
-                }
-            }
-        } else {
-            ParseResults::empty_unfinished()
-        }
+        // self.bytes.extend_from_slice(bytes);
+        // if let Some(right_data) = self.right_data.take() {
+        //     match (self.run)(right_data.clone(), &self.bytes) {
+        //         ContinuationResult::Ok(new_right_data) => ParseResults::new_single(new_right_data, true),
+        //         ContinuationResult::Err => ParseResults::empty_finished(),
+        //         ContinuationResult::Incomplete => {
+        //             self.right_data = Some(right_data);
+        //             ParseResults::empty_unfinished()
+        //         }
+        //     }
+        // } else {
+        //     ParseResults::empty_unfinished()
+        // }
+        todo!()
     }
 }
 
