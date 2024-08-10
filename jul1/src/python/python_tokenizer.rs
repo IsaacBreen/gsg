@@ -1,7 +1,13 @@
 use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
-use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok};
+
+use crate::{
+    Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range,
+    eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice,
+    eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent,
+brute_force, ParseError, parse_error, parse_ok
+};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -51,16 +57,48 @@ pub fn non_breaking_space() -> Combinator {
 // could otherwise be interpreted as a different token (e.g., ab is one token, but
 // a b is two tokens).
 pub fn whitespace() -> Combinator {
-    repeat1(choice!(
-            // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
-            seq!(
-                check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
-                breaking_space()
-            ),
-            // But we can match an escaped newline.
-            seq!(eat_string("\\"), breaking_space()),
-            non_breaking_space()
-        )).into()
+    // repeat1(choice!(
+    //         // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
+    //         seq!(
+    //             check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
+    //             breaking_space()
+    //         ),
+    //         // But we can match an escaped newline.
+    //         seq!(eat_string("\\"), breaking_space()),
+    //         non_breaking_space()
+    //     )).into()
+
+    brute_force(|mut right_data, bytes| {
+        let mut s = Utf8CharDecoder::new(bytes);
+        let mut total_offset = 0;
+        loop {
+            match s.next()? {
+                Ok((c, next_offset)) => {
+                    if matches!(c, '\n' | '\r') {
+                        if right_data.right_data_inner.scope_count == 0 {
+                            break;
+                        }
+                        total_offset += next_offset;
+                    } else if c.is_whitespace() {
+                        total_offset += next_offset;
+                    } else if c == '\\' {
+                        match s.next()? {
+                            Ok(('\n' | '\r', next_offset2)) => {
+                                total_offset += next_offset + next_offset2;
+                            },
+                            _ => break,
+                        }
+                    } else {
+                        break;
+                    }
+                },
+                Err(_) => break,
+            }
+        }
+
+        right_data.advance(total_offset);
+        parse_ok(right_data)
+    }).into()
 }
 
 pub fn WS() -> Combinator {
@@ -453,7 +491,7 @@ impl NormalizeParseResult<(char, usize)> for Option<Result<(char, usize), Utf8Er
 pub fn NAME() -> Combinator {
     // exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords())
 
-    // return exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords());
+    return exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords()).compile_greedy();
 
     brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
