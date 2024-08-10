@@ -20,6 +20,7 @@ pub use crate::tests::*;
 // Re-export common types and functions
 pub use crate::u8set::U8Set;
 pub use internal_vec::{VecX, VecY};
+pub use fast_combinator::{seq_fast, choice_fast, opt_fast, repeat1_fast, eat_char_fast, eat_bytestring_choice_fast, repeat0_fast, seprep1_fast, seprep0_fast};
 
 mod combinator;
 mod combinators;

@@ -233,30 +233,45 @@ impl FastParserTrait for EatByteStringChoiceFast {
     }
 }
 
+pub fn seq_fast<A: FastParserTrait, B: FastParserTrait>(a: A, b: B) -> impl FastParserTrait {
+    Seq { a, b }
+}
+
+pub fn choice_fast<A: FastParserTrait, B: FastParserTrait>(a: A, b: B) -> impl FastParserTrait {
+    Choice { a, b }
+}
 
 #[macro_export]
 macro_rules! seq_fast {
-    ($a:expr $(,)?) => {
-        $a
-    };
-    ($a:expr, $($b:expr),+ $(,)?) => {
-        $crate::fast_combinator::Seq {
-            a: $a,
-            b: $crate::seq_fast!($($b),+),
-        }
+    // Implement for up to eight arguments. Keep it balanced.
+    ($x0:expr $(,)?) => { $x0 };
+    ($x0:expr, $x1:expr $(,)?) => { $crate::fast_combinator::seq_fast($x0, $x1) };
+    ($x0:expr, $x1:expr, $x2:expr $(,)?) => { $crate::seq_fast($x0, $crate::seq_fast!($x1, $x2)) };
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr $(,)?) => { $crate::seq_fast($crate::seq_fast!($x0, $x1), $crate::seq_fast!($x2, $x3)) };
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr, $x4:expr $(,)?) => { $crate::seq_fast($crate::seq_fast!($x0, $x1), $crate::seq_fast!($x2, $x3, $x4)) };
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr, $x4:expr, $x5:expr $(,)?) => { $crate::seq_fast($crate::seq_fast!($x0, $x1, $x2), $crate::seq_fast!($x3, $x4, $x5)) };
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr, $x4:expr, $x5:expr, $x6:expr $(,)?) => { $crate::seq_fast($crate::seq_fast!($x0, $x1, $x2), $crate::seq_fast!($x3, $x4, $x5, $x6)) };
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr, $x4:expr, $x5:expr, $x6:expr, $x7:expr $(,)?) => { $crate::seq_fast($crate::seq_fast!($x0, $x1, $x2, $x3), $crate::seq_fast!($x4, $x5, $x6, $x7)) };
+    // And all the rest
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr, $x4:expr, $x5:expr, $x6:expr, $x7:expr, $($rest:expr),+) => {
+        $crate::seq_fast($crate::seq_fast!($x0, $x1, $x2, $x3), $crate::seq_fast!($x4, $x5, $x6, $x7, $($rest),+))
     };
 }
 
 #[macro_export]
 macro_rules! choice_fast {
-    ($a:expr $(,)?) => {
-        $a
-    };
-    ($a:expr, $($b:expr),+ $(,)?) => {
-        $crate::fast_combinator::Choice {
-            a: $a,
-            b: $crate::choice_fast!($($b),+),
-        }
+    // Implement for up to eight arguments. Keep it balanced.
+    ($x0:expr $(,)?) => { $crate::fast_combinator::choice_fast($x0) };
+    ($x0:expr, $x1:expr $(,)?) => { $crate::fast_combinator::choice_fast($x0, $x1) };
+    ($x0:expr, $x1:expr, $x2:expr $(,)?) => { $crate::fast_combinator::choice_fast($x0, $crate::choice_fast!($x1, $x2)) };
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr $(,)?) => { $crate::fast_combinator::choice_fast($crate::choice_fast!($x0, $x1), $crate::choice_fast!($x2, $x3)) };
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr, $x4:expr $(,)?) => { $crate::fast_combinator::choice_fast($crate::choice_fast!($x0, $x1), $crate::choice_fast!($x2, $x3, $x4)) };
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr, $x4:expr, $x5:expr $(,)?) => { $crate::fast_combinator::choice_fast($crate::choice_fast!($x0, $x1, $x2), $crate::choice_fast!($x3, $x4, $x5)) };
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr, $x4:expr, $x5:expr, $x6:expr $(,)?) => { $crate::fast_combinator::choice_fast($crate::choice_fast!($x0, $x1, $x2), $crate::choice_fast!($x3, $x4, $x5, $x6)) };
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr, $x4:expr, $x5:expr, $x6:expr, $x7:expr $(,)?) => { $crate::fast_combinator::choice_fast($crate::choice_fast!($x0, $x1, $x2, $x3), $crate::choice_fast!($x4, $x5, $x6, $x7)) };
+    // And all the rest
+    ($x0:expr, $x1:expr, $x2:expr, $x3:expr, $x4:expr, $x5:expr, $x6:expr, $x7:expr, $($rest:expr),+) => {
+        $crate::fast_combinator::choice_fast($crate::fast_combinator::choice_fast($x0, $x1, $x2, $x3), $crate::fast_combinator::choice_fast($x4, $x5, $x6, $x7, $($rest),+))
     };
 }
 
