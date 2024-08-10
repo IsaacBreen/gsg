@@ -152,7 +152,7 @@ impl FastParser {
     }
 
     pub(crate) fn optimize(self) -> FastParser {
-        match self {
+        let x = match self {
             FastParser::Seq(children) => {
                 let children = children.into_iter().map(|c| c.optimize()).collect();
                 flatten_seq(FastParser::Seq(children))
@@ -172,6 +172,11 @@ impl FastParser {
             FastParser::Eps => FastParser::Eps,
             FastParser::EatU8Parser(_) => self,
             FastParser::EatByteStringChoiceFast(_) => self,
+        };
+        if let Some(x) = to_trie(x.clone()) {
+            x
+        } else {
+            x
         }
     }
 }
