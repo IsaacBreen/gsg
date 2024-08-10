@@ -39,6 +39,7 @@ mod negative_lookahead;
 mod profile;
 mod opt;
 mod reference;
+mod brute_force_fn;
 
 pub use choice::*;
 pub use eat_string::*;
@@ -58,3 +59,4 @@ pub use derived::*;
 pub use eat_bytestring_choice::*;
 pub use deferred::*;
 pub use reference::*;
+pub use brute_force_fn::*;

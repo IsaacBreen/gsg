@@ -32,6 +32,7 @@ impl Combinator {
             Combinator::Deferred(_) => {}
             Combinator::WeakRef(inner) => todo!(),
             Combinator::StrongRef(inner) => todo!(),
+            Combinator::BruteForce(_) => {}
         }
     }
 
