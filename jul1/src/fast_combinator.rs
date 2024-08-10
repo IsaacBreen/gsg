@@ -13,7 +13,6 @@ pub enum FastParser {
     Repeat1(Box<FastParser>),
     Eps,
     EatU8Parser(U8Set),
-    EatByteStringChoiceFast(TrieNode),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -84,34 +83,6 @@ impl FastParser {
                     FastParserResult::Failure
                 }
             }
-            FastParser::EatByteStringChoiceFast(root) => {
-                let mut current_node = root;
-                let mut bytes_consumed = 0;
-
-                for &byte in bytes {
-                    if current_node.valid_bytes.contains(byte) {
-                        let child_index =
-                            current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
-                        if child_index < current_node.children.len() {
-                            current_node = &current_node.children[child_index];
-                            bytes_consumed += 1;
-                            if current_node.is_end {
-                                return FastParserResult::Success(bytes_consumed);
-                            }
-                        } else {
-                            return FastParserResult::Failure;
-                        }
-                    } else {
-                        return FastParserResult::Failure;
-                    }
-                }
-
-                if bytes_consumed > 0 && current_node.is_end {
-                    FastParserResult::Success(bytes_consumed)
-                } else {
-                    FastParserResult::Incomplete
-                }
-            }
         }
     }
 
@@ -147,14 +118,7 @@ impl FastParser {
             FastParser::Repeat1(parser) => crate::repeat1(parser.slow()).into(),
             FastParser::Eps => crate::eps().into(),
             FastParser::EatU8Parser(u8set) => crate::EatU8 { u8set: *u8set }.into(),
-            FastParser::EatByteStringChoiceFast(root) => {
-                crate::EatByteStringChoice { root: Rc::new(root.clone()) }.into()
-            }
         }
-    }
-
-    pub fn to_dfa(&self) -> DFA {
-        todo!()
     }
 }
 
@@ -179,12 +143,17 @@ pub fn eat_char_fast(c: char) -> FastParser {
 }
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
-    let mut build_root = BuildTrieNode::new();
-    for bytestring in bytestrings {
-        build_root.insert(&bytestring);
-    }
-    let root = build_root.to_optimized_trie_node();
-    FastParser::EatByteStringChoiceFast(root)
+    let parsers = bytestrings
+        .into_iter()
+        .map(|bytestring| {
+            let u8_parsers: Vec<FastParser> = bytestring
+                .into_iter()
+                .map(|byte| FastParser::EatU8Parser(U8Set::from_byte(byte)))
+                .collect();
+            FastParser::Seq(u8_parsers)
+        })
+        .collect();
+    FastParser::Choice(parsers)
 }
 
 pub fn repeat0_fast(parser: FastParser) -> FastParser {
