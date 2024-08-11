@@ -580,12 +580,13 @@ pub fn NAME() -> Combinator {
     });
 
     // let combinator = seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
-    // let combinator = seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
+    // let combinator = seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords()));
+    let combinator = seq!(exclude_strings(seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
     // let combinator = seq!(exclude_strings(combinator, reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
 
     // let combinator: Combinator = combinator.into();
 
-    let combinator = seq!(exclude_strings(fast_parser(seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast()))), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
+    // let combinator = seq!(exclude_strings(fast_parser(seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast()))), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
 
     combinator
 }
