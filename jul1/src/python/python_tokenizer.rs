@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
 
-use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast, eat_char_negation_fast, repeatn_fast};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -709,57 +709,59 @@ pub fn NAME() -> Combinator {
 //    single: \N; escape sequence
 //    single: \u; escape sequence
 //    single: \U; escape sequence
-pub fn eat_char_hex_digit() -> EatU8 {
-    eat_char_choice("0123456789abcdefABCDEF")
+pub fn eat_char_hex_digit() -> FastParser {
+    eat_char_choice_fast("0123456789abcdefABCDEF")
 }
 
-pub fn eat_char_digit() -> EatU8 {
-    eat_char_choice("0123456789")
+pub fn eat_char_digit() -> FastParser {
+    eat_char_choice_fast("0123456789")
 }
 
-pub fn eat_until_terminator(terminator: char) -> Combinator {
-    repeat1(eat_char_negation(terminator))
+pub fn eat_until_terminator(terminator: char) -> FastParser {
+    repeat1_fast(eat_char_negation_fast(terminator))
 }
 
 pub fn STRING() -> Combinator {
-    let stringprefix = opt(choice!(
+    use crate::fast_combinator::{opt_fast as opt, eat_char_fast as eat_char, eat_char_negation_fast as eat_char_negation, eat_char_choice_fast as eat_char_choice, repeatn_fast as repeatn, eat_char_negation_choice_fast as eat_char_negation_choice, eat_string_fast as eat_string, repeat1_fast as repeat1, repeat0_fast as repeat0};
+
+    let stringprefix = opt(choice_fast!(
         eat_char_choice("ruRUfF"),
-        choice!(
-            seq!(eat_char_choice("fF"), eat_char_choice("rR")),
-            seq!(eat_char_choice("rR"), eat_char_choice("fF"))
+        choice_fast!(
+            seq_fast!(eat_char_choice("fF"), eat_char_choice("rR")),
+            seq_fast!(eat_char_choice("rR"), eat_char_choice("fF"))
         )
     ));
 
-    let stringescapeseq = choice!(
-        seq!(eat_char('\\'), eat_char_choice("\\'\"abfnrtv")),
-        seq!(eat_char('\\'), eat_char('x'), repeatn(2, eat_char_hex_digit())),
-        seq!(eat_char('\\'), eat_char('u'), repeatn(4, eat_char_hex_digit())),
-        seq!(eat_char('\\'), eat_char('U'), repeatn(8, eat_char_hex_digit())),
-        seq!(eat_char('\\'), eat_char('N'), eat_until_terminator(';')),
-        seq!(eat_char('\\'), eat_char_digit(), opt(eat_char_digit()), opt(eat_char_digit())),
+    let stringescapeseq = choice_fast!(
+        seq_fast!(eat_char('\\'), eat_char_choice("\\'\"abfnrtv")),
+        seq_fast!(eat_char('\\'), eat_char('x'), repeatn(2, eat_char_hex_digit())),
+        seq_fast!(eat_char('\\'), eat_char('u'), repeatn(4, eat_char_hex_digit())),
+        seq_fast!(eat_char('\\'), eat_char('U'), repeatn(8, eat_char_hex_digit())),
+        seq_fast!(eat_char('\\'), eat_char('N'), eat_until_terminator(';')),
+        seq_fast!(eat_char('\\'), eat_char_digit(), opt(eat_char_digit()), opt(eat_char_digit())),
     );
 
-    let shortstringitem = choice!(
+    let shortstringitem = choice_fast!(
         eat_char_negation_choice("\\'\"\n"),
         stringescapeseq.clone()
     );
 
-    let longstringitem = choice!(
+    let longstringitem = choice_fast!(
         eat_char_negation('\\'),
         stringescapeseq
     );
 
-    let shortstring = choice!(
-        seq!(eat_char('\''), repeat0(choice!(shortstringitem.clone(), eat_char('"'), eat_string(r#"\'"#))), eat_char('\'')),
-        seq!(eat_char('"'), repeat0(choice!(shortstringitem, eat_char('\''), eat_string(r#"\""#))), eat_char('"'))
+    let shortstring = choice_fast!(
+        seq_fast!(eat_char('\''), repeat0(choice_fast!(shortstringitem.clone(), eat_char('"'), eat_string(r#"\'"#))), eat_char('\'')),
+        seq_fast!(eat_char('"'), repeat0(choice_fast!(shortstringitem, eat_char('\''), eat_string(r#"\""#))), eat_char('"'))
     );
 
-    let longstring = choice!(
-        seq!(eat_string("'''"), repeat0(longstringitem.clone()), eat_string("'''")),
-        seq!(eat_string("\"\"\""), repeat0(longstringitem), eat_string("\"\"\""))
+    let longstring = choice_fast!(
+        seq_fast!(eat_string("'''"), repeat0(longstringitem.clone()), eat_string("'''")),
+        seq_fast!(eat_string("\"\"\""), repeat0(longstringitem), eat_string("\"\"\""))
     );
 
-    seq!(stringprefix, choice!(shortstring, longstring))
+    seq_fast!(stringprefix, choice_fast!(shortstring, longstring)).into()
 }
 
 // From https://peps.python.org/pep-0701/
@@ -912,10 +914,10 @@ pub enum PythonQuoteType {
 }
 
 pub fn FSTRING_START() -> Combinator {
-    let prefix = choice!(
-        eat_char_choice("fF"),
-        seq!(eat_char_choice("fF"), eat_char_choice("rR")),
-        seq!(eat_char_choice("rR"), eat_char_choice("fF"))
+    let prefix = choice_fast!(
+        eat_char_choice_fast("fF"),
+        seq_fast!(eat_char_choice_fast("fF"), eat_char_choice_fast("rR")),
+        seq_fast!(eat_char_choice_fast("rR"), eat_char_choice_fast("fF"))
     );
 
     let quote = choice!(
@@ -931,13 +933,13 @@ pub fn FSTRING_START() -> Combinator {
 }
 
 pub fn FSTRING_MIDDLE() -> Combinator {
-    let stringescapeseq = choice!(
-        seq!(eat_char('\\'), eat_char_choice("\\'\"abfnrtv")),
-        seq!(eat_char('\\'), eat_char('x'), repeatn(2, eat_char_hex_digit())),
-        seq!(eat_char('\\'), eat_char('u'), repeatn(4, eat_char_hex_digit())),
-        seq!(eat_char('\\'), eat_char('U'), repeatn(8, eat_char_hex_digit())),
-        seq!(eat_char('\\'), eat_char('N'), eat_until_terminator(';')),
-        seq!(eat_char('\\'), eat_char_digit(), opt(eat_char_digit()), opt(eat_char_digit())),
+    let stringescapeseq = choice_fast!(
+        seq_fast!(eat_char_fast('\\'), eat_char_choice_fast("\\'\"abfnrtv")),
+        seq_fast!(eat_char_fast('\\'), eat_char_fast('x'), repeatn_fast(2, eat_char_hex_digit())),
+        seq_fast!(eat_char_fast('\\'), eat_char_fast('u'), repeatn_fast(4, eat_char_hex_digit())),
+        seq_fast!(eat_char_fast('\\'), eat_char_fast('U'), repeatn_fast(8, eat_char_hex_digit())),
+        seq_fast!(eat_char_fast('\\'), eat_char_fast('N'), eat_until_terminator(';')),
+        seq_fast!(eat_char_fast('\\'), eat_char_digit(), opt_fast(eat_char_digit()), opt_fast(eat_char_digit())),
     );
 
     let regular_char = eat_char_negation_choice("{}\\\n\r\'\"");
@@ -1089,37 +1091,39 @@ pub fn FSTRING_END() -> Combinator {
 //
 //    3.14j   10.j    10j     .001j   1e100j   3.14e-10j   3.14_15_93j
 pub fn NUMBER() -> Combinator {
+    use crate::fast_combinator::{opt_fast as opt, eat_char_fast as eat_char, eat_char_negation_fast as eat_char_negation, eat_char_choice_fast as eat_char_choice, repeatn_fast as repeatn, eat_char_negation_choice_fast as eat_char_negation_choice, eat_string_fast as eat_string, repeat1_fast as repeat1, repeat0_fast as repeat0, eat_byte_range_fast as eat_byte_range};
+
     let digit = eat_byte_range(b'0', b'9');
     let nonzerodigit = eat_byte_range(b'1', b'9');
     let bindigit = eat_byte_range(b'0', b'1');
     let octdigit = eat_byte_range(b'0', b'7');
-    let hexdigit = choice!(digit, eat_byte_range(b'a', b'f'), eat_byte_range(b'A', b'F'));
+    let hexdigit = choice_fast!(digit.clone(), eat_byte_range(b'a', b'f'), eat_byte_range(b'A', b'F'));
 
-    let decinteger = choice!(
-        seq!(nonzerodigit, repeat0(seq!(opt(eat_char('_')), digit))),
-        seq!(repeat1(eat_char('0')), repeat0(seq!(opt(eat_char('_')), eat_char('0'))))
+    let decinteger = choice_fast!(
+        seq_fast!(nonzerodigit, repeat0(seq_fast!(opt(eat_char('_')), digit.clone()))),
+        seq_fast!(repeat1(eat_char('0')), repeat0(seq_fast!(opt(eat_char('_')), eat_char('0'))))
     );
-    let bininteger = seq!(eat_char('0'), eat_char_choice("bB"), repeat1(seq!(opt(eat_char('_')), bindigit)));
-    let octinteger = seq!(eat_char('0'), eat_char_choice("oO"), repeat1(seq!(opt(eat_char('_')), octdigit)));
-    let hexinteger = seq!(eat_char('0'), eat_char_choice("xX"), repeat1(seq!(opt(eat_char('_')), hexdigit)));
+    let bininteger = seq_fast!(eat_char('0'), eat_char_choice("bB"), repeat1(seq_fast!(opt(eat_char('_')), bindigit)));
+    let octinteger = seq_fast!(eat_char('0'), eat_char_choice("oO"), repeat1(seq_fast!(opt(eat_char('_')), octdigit)));
+    let hexinteger = seq_fast!(eat_char('0'), eat_char_choice("xX"), repeat1(seq_fast!(opt(eat_char('_')), hexdigit)));
 
-    let integer = choice!(decinteger, bininteger, octinteger, hexinteger);
+    let integer = choice_fast!(decinteger, bininteger, octinteger, hexinteger);
 
-    let digitpart = seq!(digit, repeat0(seq!(opt(eat_char('_')), digit)));
-    let fraction = seq!(eat_char('.'), digitpart.clone());
-    let exponent = seq!(eat_char_choice("eE"), opt(eat_char_choice("+-")), digitpart.clone());
+    let digitpart = seq_fast!(digit.clone(), repeat0(seq_fast!(opt(eat_char('_')), digit)));
+    let fraction = seq_fast!(eat_char('.'), digitpart.clone());
+    let exponent = seq_fast!(eat_char_choice("eE"), opt(eat_char_choice("+-")), digitpart.clone());
 
-    let pointfloat = choice!(
-        seq!(opt(digitpart.clone()), fraction),
-        seq!(digitpart.clone(), eat_char('.'))
+    let pointfloat = choice_fast!(
+        seq_fast!(opt(digitpart.clone()), fraction),
+        seq_fast!(digitpart.clone(), eat_char('.'))
     );
-    let exponentfloat = seq!(choice!(digitpart.clone(), pointfloat.clone()), exponent);
+    let exponentfloat = seq_fast!(choice_fast!(digitpart.clone(), pointfloat.clone()), exponent);
 
-    let floatnumber = choice!(pointfloat, exponentfloat);
+    let floatnumber = choice_fast!(pointfloat, exponentfloat);
 
-    let imagnumber = seq!(choice!(floatnumber.clone(), digitpart), eat_char_choice("jJ"));
+    let imagnumber = seq_fast!(choice_fast!(floatnumber.clone(), digitpart), eat_char_choice("jJ"));
 
-    choice!(integer, floatnumber, imagnumber).into()
+    choice_fast!(integer, floatnumber, imagnumber).into()
 }
 
 // .. _comments:

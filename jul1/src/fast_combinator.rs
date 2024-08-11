@@ -162,12 +162,20 @@ pub fn eat_byte_fast(byte: u8) -> FastParser {
     FastParser::EatU8Parser(U8Set::from_byte(byte))
 }
 
+pub fn eat_char_negation_fast(c: char) -> FastParser {
+    FastParser::EatU8Parser(U8Set::from_char(c).complement())
+}
+
 pub fn eat_char_choice_fast(chars: &str) -> FastParser {
     FastParser::EatU8Parser(U8Set::from_chars(chars))
 }
 
 pub fn eat_char_negation_choice_fast(chars: &str) -> FastParser {
     FastParser::EatU8Parser(U8Set::from_chars(chars).complement())
+}
+
+pub fn eat_byte_range_fast(start: u8, end: u8) -> FastParser {
+    FastParser::EatU8Parser(U8Set::from_byte_range(start..=end))
 }
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
@@ -196,6 +204,17 @@ pub fn seprep1_fast(a: FastParser, b: FastParser) -> FastParser {
 
 pub fn seprep0_fast(a: FastParser, b: FastParser) -> FastParser {
     opt_fast(seprep1_fast(a, b))
+}
+
+pub fn repeatn_fast(n: usize, parser: FastParser) -> FastParser {
+    if n == 0 {
+        return seq_fast(vec![]);
+    }
+    let mut parsers = Vec::new();
+    for _ in 0..n {
+        parsers.push(parser.clone());
+    }
+    seq_fast(parsers)
 }
 
 #[macro_export]
