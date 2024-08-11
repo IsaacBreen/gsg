@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
 
-use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser, choice_greedy, choice_fast, eat_string_fast, eat_char_fast};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -13,15 +13,27 @@ use crate::{
 use crate::unicode::get_unicode_general_category_bytestrings;
 use crate::unicode_categories::GeneralCategory;
 
-pub fn breaking_space() -> FastParser {
+pub fn breaking_space() -> Combinator {
+    eat_char_choice("\n\r").into()
+}
+
+pub fn not_breaking_space() -> Combinator {
+    eat_char_negation_choice("\n\r").into()
+}
+
+pub fn non_breaking_space() -> Combinator {
+    eat_char_choice(" \t").into()
+}
+
+pub fn breaking_space_fast() -> FastParser {
     eat_char_choice_fast("\n\r").into()
 }
 
-pub fn not_breaking_space() -> FastParser {
-    eat_char_choice_fast("\n\r").into()
+pub fn not_breaking_space_fast() -> FastParser {
+    eat_char_negation_choice_fast("\n\r").into()
 }
 
-pub fn non_breaking_space() -> FastParser {
+pub fn non_breaking_space_fast() -> FastParser {
     eat_char_choice_fast(" \t").into()
 }
 
@@ -63,20 +75,19 @@ pub fn whitespace() -> Combinator {
     //         non_breaking_space()
     //     )).into();
 
-    return choice!(
+    return repeat1_greedy(choice_greedy!(
         seq!(
             check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
             choice_fast!(
-                breaking_space(),
+                breaking_space_fast(),
                 eat_string_fast("\\\n"),
-                non_breaking_space()
+                non_breaking_space_fast()
             )
         ),
         choice_fast!(
-            breaking_space(),
             eat_string_fast("\\\n"),
-            non_breaking_space()
-        )
+            non_breaking_space_fast()
+        ))
     );
 
     brute_force(|mut right_data, bytes| {
@@ -1116,8 +1127,7 @@ pub fn NUMBER() -> Combinator {
 // of the logical line unless the implicit line joining rules are invoked. Comments
 // are ignored by the syntax.
 pub fn comment() -> FastParser {
-    // seq!(eat_char('#'), repeat0(not_breaking_space()))
-    seq_fast!(eat_char_fast('#'), repeat0_fast(not_breaking_space()))
+    seq_fast!(eat_char_fast('#'), repeat0_fast(not_breaking_space_fast()))
 }
 
 // .. _line-structure:

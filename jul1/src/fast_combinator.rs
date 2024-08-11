@@ -166,6 +166,10 @@ pub fn eat_char_choice_fast(chars: &str) -> FastParser {
     FastParser::EatU8Parser(U8Set::from_chars(chars))
 }
 
+pub fn eat_char_negation_choice_fast(chars: &str) -> FastParser {
+    FastParser::EatU8Parser(U8Set::from_chars(chars).complement())
+}
+
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
     FastParser::EatByteStringChoiceFast(Rc::new(bytestrings.into()))
 }
