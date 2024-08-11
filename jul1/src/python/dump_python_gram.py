@@ -269,6 +269,7 @@ def grammar_to_rust(
             f.write(');\n')
         for name, rule in rules:
             expr = rhs_to_rust(rule.rhs, top_level=True)
+            expr = f'crate::profile("{name}", {expr})'
             expr = f'tag("{name}", {expr})'
             if rule.memo:
                 expr = f'cached({expr})'
@@ -297,7 +298,6 @@ def grammar_to_rust(
     expr = f'seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")})'
 
     expr = f'tag("main", {expr})'
-
     if any(rule.memo for name, rule in rules):
         # expr = f'lookahead_context({expr})'
         expr = f'cache_context({expr})'
