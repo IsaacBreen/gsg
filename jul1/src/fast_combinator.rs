@@ -12,7 +12,7 @@ pub enum FastParser {
     Repeat1(Box<FastParser>),
     Eps,
     EatU8Parser(U8Set),
-    EatByteStringChoiceFast(TrieNode),
+    EatByteStringChoiceFast(Rc<TrieNode>),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -132,7 +132,7 @@ impl FastParser {
             FastParser::Eps => crate::eps().into(),
             FastParser::EatU8Parser(u8set) => crate::EatU8 { u8set: *u8set }.into(),
             FastParser::EatByteStringChoiceFast(root) => {
-                crate::EatByteStringChoice { root: Rc::new(root.clone()) }.into()
+                crate::EatByteStringChoice { root: Rc::clone(root) }.into()
             }
         }
     }
@@ -167,7 +167,7 @@ pub fn eat_char_choice_fast(chars: &str) -> FastParser {
 }
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
-    FastParser::EatByteStringChoiceFast(bytestrings.into())
+    FastParser::EatByteStringChoiceFast(Rc::new(bytestrings.into()))
 }
 
 pub fn repeat0_fast(parser: FastParser) -> FastParser {

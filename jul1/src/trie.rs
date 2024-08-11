@@ -1,6 +1,5 @@
 use std::cmp::PartialEq;
 use std::fmt::{Debug, Formatter};
-use std::rc::Rc;
 
 use crate::U8Set;
 
@@ -8,7 +7,7 @@ use crate::U8Set;
 pub(crate) struct TrieNode {
     pub(crate) valid_bytes: U8Set,
     pub(crate) is_end: bool,
-    pub(crate) children: Vec<Rc<TrieNode>>,
+    pub(crate) children: Vec<TrieNode>,
 }
 
 impl Debug for TrieNode {
@@ -28,7 +27,7 @@ pub enum FinishReason {
 }
 
 impl TrieNode {
-    pub fn next(&self, bytes: &[u8]) -> (&TrieNode, usize, FinishReason) {
+    pub fn next<'a>(&'a self, bytes: &[u8]) -> (&'a TrieNode, usize, FinishReason) {
         let mut current_node = self;
         for (i, &byte) in bytes.iter().enumerate() {
             if current_node.valid_bytes.contains(byte) {
@@ -44,7 +43,7 @@ impl TrieNode {
         (current_node, bytes.len(), FinishReason::EndOfInput)
     }
 
-    pub fn all_next(&self, bytes: &[u8]) -> (Vec<(&TrieNode, usize)>, (&TrieNode, usize, FinishReason)) {
+    pub fn all_next<'a>(&'a self, bytes: &[u8]) -> (Vec<(&'a TrieNode, usize)>, (&'a TrieNode, usize, FinishReason)) {
         let mut results = vec![];
         let mut current_node = self;
         let mut i = 0;
@@ -85,10 +84,10 @@ impl TrieNode {
         let mut node = self;
         for &byte in bytestring {
             if node.valid_bytes.insert(byte) {
-                node.children.push(Rc::new(TrieNode::new()));
+                node.children.push(TrieNode::new());
             }
             debug_assert_eq!(node.children.len(), node.valid_bytes.len());
-            node = Rc::make_mut(node.children.last_mut().unwrap());
+            node = node.children.last_mut().unwrap();
         }
         node.is_end = true;
    }
