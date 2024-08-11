@@ -88,14 +88,10 @@ impl TrieNode {
     pub fn last(&self, bytes: &[u8]) -> (&TrieNode, usize, FinishReason) {
         let mut current_node = self;
         let mut i = 0;
-        for &byte in bytes {
-            if current_node.valid_bytes.contains(byte) {
-                let child_index = current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
-                current_node = &current_node.children[child_index];
-                i += 1;
-            } else {
-                break;
-            }
+        while i < bytes.len() && current_node.valid_bytes.contains(bytes[i]) {
+            let child_index = current_node.valid_bytes.bitset.count_bits_before(bytes[i]) as usize;
+            current_node = &current_node.children[child_index];
+            i += 1;
         }
         if current_node.is_end {
             (current_node, i, FinishReason::Success)
