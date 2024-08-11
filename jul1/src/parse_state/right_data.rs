@@ -20,7 +20,7 @@ pub struct RightDataInner {
     pub forbidden_consecutive_matches: ForbidFollowsData,
     #[derivative(Hash = "ignore")]
     pub lookahead_data: LookaheadData,
-    pub position: usize
+    pub position: usize,
 }
 
 #[derive(Derivative)]
