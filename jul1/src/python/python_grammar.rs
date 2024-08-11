@@ -1,9 +1,8 @@
-use crate::{cache_context, cached, Combinator, forbid_follows, forbid_follows_check_not, forbid_follows_clear, lookahead, negative_lookahead, tag};
-use crate::{choice_greedy as choice, opt_greedy as opt, repeat1_greedy as repeat1};
-use crate::seq;
-
-use super::python_tokenizer as token;
+use std::rc::Rc;
+use crate::{cache_context, cached, lookahead_context, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};
 use super::python_tokenizer::python_literal;
+use crate::seq;
+use crate::{opt_greedy as opt, choice_greedy as choice, seprep0_greedy as seprep0, seprep1_greedy as seprep1, repeat0_greedy as repeat0, repeat1_greedy as repeat1};
 
 enum Forbidden {
     WS,
@@ -20,6 +19,7 @@ enum Forbidden {
     ENDMARKER,
 }
 
+use super::python_tokenizer as token;
 fn WS() -> Combinator { cached(tag("WS", crate::profile("WS", seq!(forbid_follows_check_not(Forbidden::WS as usize), token::WS().compile(), forbid_follows(&[Forbidden::DEDENT as usize, Forbidden::INDENT as usize, Forbidden::NEWLINE as usize]))))).into() }
 fn NAME() -> Combinator { cached(tag("NAME", crate::profile("NAME", seq!(forbid_follows_check_not(Forbidden::NAME as usize), token::NAME().compile(), forbid_follows(&[Forbidden::NAME as usize, Forbidden::NUMBER as usize]))))).into() }
 fn TYPE_COMMENT() -> Combinator { cached(tag("TYPE_COMMENT", crate::profile("TYPE_COMMENT", seq!(forbid_follows_clear(), token::TYPE_COMMENT().compile())))).into() }
@@ -1347,5 +1347,6 @@ fn file() -> Combinator {
 
 
 pub fn python_file() -> Combinator {
+
     cache_context(tag("main", seq!(opt(&NEWLINE), &file))).compile()
 }

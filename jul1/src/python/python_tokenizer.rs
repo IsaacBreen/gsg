@@ -138,12 +138,12 @@ pub fn WS() -> Combinator {
 }
 
 pub fn python_literal(s: &str) -> Combinator {
-    let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).scope_count += 1; true };
-    let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).scope_count -= 1; true };
+    let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).scope_count += 1; Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids.clear(); true };
+    let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).scope_count -= 1; Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids.clear(); true };
 
     match s {
-        "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear()),
-        ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear()),
+        "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count)),
+        ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count)),
         _ => seq!(eat_string(s), forbid_follows_clear()),
     }
 }
