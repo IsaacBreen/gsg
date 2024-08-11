@@ -113,12 +113,36 @@ impl TrieNode {
     }
 }
 
-impl From<Vec<Vec<u8>>> for TrieNode {
-    fn from(bytestrings: Vec<Vec<u8>>) -> Self {
-        let mut build_root = BuildTrieNode::new();
-        for bytestring in bytestrings {
-            build_root.insert(&bytestring);
+impl TrieNode {
+    fn new() -> Self {
+        TrieNode {
+            valid_bytes: U8Set::none(),
+            is_end: false,
+            children: vec![],
         }
-        build_root.to_optimized_trie_node()
+    }
+
+    fn insert_in_order(&mut self, bytestring: &[u8]) {
+        let mut node = self;
+        for &byte in bytestring {
+            node.valid_bytes.insert(byte);
+            if node.children.len() <= byte as usize {
+                node.children.push(Rc::new(TrieNode::new()));
+            }
+            node = Rc::make_mut(node.children.last_mut().unwrap());
+        }
+        node.is_end = true;
+   }
+}
+
+impl From<Vec<Vec<u8>>> for TrieNode {
+    fn from(mut bytestrings: Vec<Vec<u8>>) -> Self {
+        // Sort
+        bytestrings.sort();
+        let mut root = TrieNode::new();
+        for bytestring in bytestrings {
+            root.insert_in_order(&bytestring);
+        }
+        root
     }
 }
