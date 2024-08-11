@@ -249,6 +249,7 @@ def grammar_to_rust(
                 expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr})'
             else:
                 expr = f'seq!(forbid_follows_clear(), {expr})'
+            expr = f'profile("{token}", {expr})'
             expr = f'tag("{token}", {expr})'
             expr = f'cached({expr})'
             if deferred:
