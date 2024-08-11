@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 use crate::{Combinator, U8Set};
-use crate::trie::{BuildTrieNode, FinishReason, TrieNode};
+use crate::trie::{FinishReason, TrieNode};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
