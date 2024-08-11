@@ -71,20 +71,18 @@ pub enum FinishReason {
 impl TrieNode {
     pub fn next(&self, bytes: &[u8]) -> (&TrieNode, usize, FinishReason) {
         let mut current_node = self;
-        let mut i = 0;
-        while let Some(byte) = bytes.get(i) {
-            if current_node.valid_bytes.contains(*byte) {
-                let child_index = current_node.valid_bytes.bitset.count_bits_before(*byte) as usize;
+        for (i, &byte) in bytes.iter().enumerate() {
+            if current_node.valid_bytes.contains(byte) {
+                let child_index = current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
                 current_node = &current_node.children[child_index];
-                i += 1;
                 if current_node.is_end {
-                    return (current_node, i, FinishReason::Success);
+                    return (current_node, i + 1, FinishReason::Success);
                 }
             } else {
                 return (current_node, i, FinishReason::Failure);
             }
         }
-        (current_node, i, FinishReason::EndOfInput)
+        (current_node, bytes.len(), FinishReason::EndOfInput)
     }
 
     pub fn all_next(&self, bytes: &[u8]) -> (Vec<(&TrieNode, usize)>, (&TrieNode, usize, FinishReason)) {
