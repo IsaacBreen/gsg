@@ -305,8 +305,8 @@ pub fn id_start_fast() -> FastParser {
 }
 
 pub fn id_continue_fast() -> FastParser {
-    // eat_bytestring_choice_fast(id_continue_bytestrings())
-    eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+    eat_bytestring_choice_fast(id_continue_bytestrings())
+    // eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 }
 
 pub fn xid_start_fast() -> FastParser {

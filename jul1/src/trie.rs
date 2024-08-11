@@ -59,3 +59,38 @@ impl Debug for TrieNode {
             .finish_non_exhaustive()
     }
 }
+
+pub enum FinishReason {
+    Success,
+    EndOfInput,
+    Failure,
+}
+
+impl TrieNode {
+    pub fn next(&self, bytes: &[u8]) -> (&TrieNode, usize, FinishReason) {
+        let mut current_node = self;
+        let mut bytes_consumed = 0;
+        for &byte in bytes {
+            if current_node.valid_bytes.contains(byte) {
+                let child_index = current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
+                assert!(child_index < current_node.children.len());
+                current_node = &current_node.children[child_index];
+                bytes_consumed += 1;
+                if current_node.is_end {
+                    return (current_node, bytes_consumed, FinishReason::Success);
+                }
+            } else {
+                return (current_node, bytes_consumed, FinishReason::Failure);
+            }
+        }
+        (current_node, bytes_consumed, FinishReason::EndOfInput)
+    }
+
+    pub fn is_end(&self) -> bool {
+        self.is_end
+    }
+
+    pub fn is_absolute_end(&self) -> bool {
+        self.is_end && self.valid_bytes.is_empty()
+    }
+}

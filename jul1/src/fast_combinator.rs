@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 use crate::{Combinator, U8Set};
-use crate::trie::{BuildTrieNode, TrieNode};
+use crate::trie::{BuildTrieNode, FinishReason, TrieNode};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -84,31 +84,11 @@ impl FastParser {
                 }
             }
             FastParser::EatByteStringChoiceFast(root) => {
-                let mut current_node = root;
-                let mut bytes_consumed = 0;
-
-                for &byte in bytes {
-                    if current_node.valid_bytes.contains(byte) {
-                        let child_index =
-                            current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
-                        if child_index < current_node.children.len() {
-                            current_node = &current_node.children[child_index];
-                            bytes_consumed += 1;
-                            if current_node.is_end {
-                                return FastParserResult::Success(bytes_consumed);
-                            }
-                        } else {
-                            return FastParserResult::Failure;
-                        }
-                    } else {
-                        return FastParserResult::Failure;
-                    }
-                }
-
-                if bytes_consumed > 0 && current_node.is_end {
-                    FastParserResult::Success(bytes_consumed)
-                } else {
-                    FastParserResult::Incomplete
+                let (current_node, bytes_consumed, finish_reason) = root.next(bytes);
+                match finish_reason {
+                    FinishReason::Success => FastParserResult::Success(bytes_consumed),
+                    FinishReason::EndOfInput => FastParserResult::Incomplete,
+                    FinishReason::Failure => FastParserResult::Failure,
                 }
             }
         }
