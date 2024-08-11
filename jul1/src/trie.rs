@@ -125,10 +125,10 @@ impl TrieNode {
     fn insert_in_order(&mut self, bytestring: &[u8]) {
         let mut node = self;
         for &byte in bytestring {
-            node.valid_bytes.insert(byte);
-            if node.children.len() <= byte as usize {
+            if node.valid_bytes.insert(byte) {
                 node.children.push(Rc::new(TrieNode::new()));
             }
+            assert_eq!(node.children.len(), node.valid_bytes.len());
             node = Rc::make_mut(node.children.last_mut().unwrap());
         }
         node.is_end = true;
