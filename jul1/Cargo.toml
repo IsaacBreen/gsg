@@ -21,9 +21,9 @@ nom = "7.1.3"
 #[profile.dev]
 #opt-level = 1
 
-#[profile.test]
+[profile.test]
 # Opt 1
-#opt-level = 2
+opt-level = 2
 ## Keep debug info
 #debug = "full"
 

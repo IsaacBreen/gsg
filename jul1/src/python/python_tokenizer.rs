@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
 
-use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -300,11 +300,13 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
 }
 
 pub fn id_start_fast() -> FastParser {
-    eat_bytestring_choice_fast(id_start_bytestrings())
+    // eat_bytestring_choice_fast(id_start_bytestrings())
+    eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 }
 
 pub fn id_continue_fast() -> FastParser {
-    eat_bytestring_choice_fast(id_continue_bytestrings())
+    // eat_bytestring_choice_fast(id_continue_bytestrings())
+    eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 }
 
 pub fn xid_start_fast() -> FastParser {
