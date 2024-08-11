@@ -87,20 +87,20 @@ impl TrieNode {
 
     pub fn last(&self, bytes: &[u8]) -> (&TrieNode, usize, FinishReason) {
         let mut current_node = self;
-        for (i, &byte) in bytes.iter().enumerate() {
+        let mut i = 0;
+        for &byte in bytes {
             if current_node.valid_bytes.contains(byte) {
                 let child_index = current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
                 current_node = &current_node.children[child_index];
-            } else if current_node.is_end {
-                return (current_node, i, FinishReason::Success);
+                i += 1;
             } else {
-                return (current_node, i, FinishReason::Failure);
+                break;
             }
         }
         if current_node.is_end {
-            (current_node, bytes.len(), FinishReason::Success)
+            (current_node, i, FinishReason::Success)
         } else {
-            (current_node, bytes.len(), FinishReason::EndOfInput)
+            (current_node, i, FinishReason::EndOfInput)
         }
     }
 
