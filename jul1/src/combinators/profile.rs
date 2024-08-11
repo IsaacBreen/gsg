@@ -111,8 +111,8 @@ pub fn profile(tag: &str, a: impl Into<Combinator>) -> Combinator {
 }
 
 pub fn profile_internal(tag: &str, a: impl Into<Combinator>) -> Combinator {
-    // profile(tag, a)
-    a.into()
+    profile(tag, a)
+    // a.into()
 }
 
 impl From<Profiled> for Combinator {

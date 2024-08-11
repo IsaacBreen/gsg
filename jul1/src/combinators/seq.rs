@@ -24,7 +24,6 @@ pub struct SeqParser {
 
 impl CombinatorTrait for Seq {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        profile!("seq parse", {
         let start_position = right_data.right_data_inner.position;
 
         let combinator = &self.children[0];
@@ -85,7 +84,6 @@ impl CombinatorTrait for Seq {
         let parse_results = ParseResults::new(final_right_data, false);
 
         (parser.into(), parse_results)
-            })
     }
 }
 
