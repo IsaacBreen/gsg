@@ -87,7 +87,7 @@ impl TrieNode {
             if node.valid_bytes.insert(byte) {
                 node.children.push(Rc::new(TrieNode::new()));
             }
-            assert_eq!(node.children.len(), node.valid_bytes.len());
+            debug_assert_eq!(node.children.len(), node.valid_bytes.len());
             node = Rc::make_mut(node.children.last_mut().unwrap());
         }
         node.is_end = true;
