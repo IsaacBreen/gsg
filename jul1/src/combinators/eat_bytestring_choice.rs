@@ -17,9 +17,9 @@ impl EatByteStringChoice {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct EatByteStringChoiceParser<'a> {
+pub struct EatByteStringChoiceParser {
     pub(crate) root: Rc<TrieNode>,
-    pub(crate) current_node: &'a TrieNode,
+    pub(crate) current_node: Rc<TrieNode>,
     pub(crate) right_data: RightData,
 }
 
@@ -28,7 +28,7 @@ impl CombinatorTrait for EatByteStringChoice {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatByteStringChoiceParser {
             root: Rc::clone(&self.root),
-            current_node: &self.root,
+            current_node: Rc::clone(&self.root),
             right_data,
         };
         let parse_results = parser.parse(bytes);
@@ -36,7 +36,7 @@ impl CombinatorTrait for EatByteStringChoice {
     }
 }
 
-impl<'a> ParserTrait for EatByteStringChoiceParser<'a> {
+impl ParserTrait for EatByteStringChoiceParser {
     fn get_u8set(&self) -> U8Set {
         if self.current_node.valid_bytes.is_empty() {
             U8Set::none()
@@ -63,7 +63,7 @@ impl<'a> ParserTrait for EatByteStringChoiceParser<'a> {
             right_data_vec.push(right_data);
         }
         Rc::make_mut(&mut self.right_data.right_data_inner).position += bytes.len();
-        self.current_node = node;
+        self.current_node = Rc::new(node.clone());
         let done = reason != FinishReason::EndOfInput;
         ParseResults::new(right_data_vec, done)
     }

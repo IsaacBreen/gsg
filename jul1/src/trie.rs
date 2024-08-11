@@ -27,7 +27,7 @@ pub enum FinishReason {
 }
 
 impl TrieNode {
-    pub fn next<'a>(&'a self, bytes: &[u8]) -> (&'a TrieNode, usize, FinishReason) {
+    pub fn next(&self, bytes: &[u8]) -> (&TrieNode, usize, FinishReason) {
         let mut current_node = self;
         for (i, &byte) in bytes.iter().enumerate() {
             if current_node.valid_bytes.contains(byte) {
@@ -43,7 +43,7 @@ impl TrieNode {
         (current_node, bytes.len(), FinishReason::EndOfInput)
     }
 
-    pub fn all_next<'a>(&'a self, bytes: &[u8]) -> (Vec<(&'a TrieNode, usize)>, (&'a TrieNode, usize, FinishReason)) {
+    pub fn all_next(&self, bytes: &[u8]) -> (Vec<(&TrieNode, usize)>, (&TrieNode, usize, FinishReason)) {
         let mut results = vec![];
         let mut current_node = self;
         let mut i = 0;
