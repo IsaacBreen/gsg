@@ -69,20 +69,18 @@ pub enum FinishReason {
 impl TrieNode {
     pub fn next(&self, bytes: &[u8]) -> (&TrieNode, usize, FinishReason) {
         let mut current_node = self;
-        let mut bytes_consumed = 0;
-        for &byte in bytes {
+        for (i, &byte) in bytes.iter().enumerate() {
             if current_node.valid_bytes.contains(byte) {
                 let child_index = current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
                 current_node = &current_node.children[child_index];
-                bytes_consumed += 1;
                 if current_node.is_end {
-                    return (current_node, bytes_consumed, FinishReason::Success);
+                    return (current_node, i, FinishReason::Success);
                 }
             } else {
-                return (current_node, bytes_consumed, FinishReason::Failure);
+                return (current_node, i, FinishReason::Failure);
             }
         }
-        (current_node, bytes_consumed, FinishReason::EndOfInput)
+        (current_node, bytes.len(), FinishReason::EndOfInput)
     }
 
     pub fn is_end(&self) -> bool {
