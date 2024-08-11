@@ -8,6 +8,12 @@ use derivative::Derivative;
 use lru::LruCache;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, Squash, U8Set};
 
+macro_rules! profile {
+    ($tag:expr, $body:expr) => {{
+        $body
+    }};
+}
+
 thread_local! {
     pub static GLOBAL_CACHE: RefCell<GlobalCache> = RefCell::new(GlobalCache::new());
 }
