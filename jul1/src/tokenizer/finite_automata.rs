@@ -5,7 +5,7 @@ use crate::tokenizer::charset::CharSet;
 use crate::tokenizer::parse_regex::{CharClass, CharClassItem, parse_regex, ParsedRegex};
 
 use crate::tokenizer::tokenizer_trait::Tokenizer;
-use crate::utils::FrozenSet;
+use crate::tokenizer::frozenset::FrozenSet;
 
 type GroupID = usize;
 
