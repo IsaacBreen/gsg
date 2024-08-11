@@ -20,12 +20,12 @@ impl EatByteStringChoice {
 pub struct EatByteStringChoiceParser<'a> {
     pub(crate) root: Rc<TrieNode>,
     pub(crate) current_node: &'a TrieNode,
-    pub(crate) right_ RightData,
+    pub(crate) right_data: RightData,
 }
 
 impl CombinatorTrait for EatByteStringChoice {
 
-    fn parse<'a>(&'a self, right_ RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatByteStringChoiceParser {
             root: Rc::clone(&self.root),
             current_node: &self.root,
