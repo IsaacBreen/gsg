@@ -42,5 +42,4 @@ mod map;
 mod compiler_greedy;
 mod fast_combinator;
 mod trie;
-mod dfa;
 mod tokenizer;

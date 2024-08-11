@@ -1,12 +1,10 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use crate::*;
-use crate::dfa::DFA;
 use crate::fast_combinator::{FastParser, FastParserResult};
 
 pub struct FastCombinator {
     pub(crate) fast: Rc<FastParser>,
-    pub(crate) dfa: Rc<DFA>,
     pub(crate) slow: Box<Combinator>,
 }
 
