@@ -87,11 +87,8 @@ impl TrieNode {
         (current_node, i, FinishReason::EndOfInput)
     }
 
-    pub fn all(&self, bytes: &[u8]) -> (Vec<(&TrieNode, usize)>, (&TrieNode, usize, FinishReason)) {
-        let mut all = vec![];
-        if self.is_end {
-            all.push((self, bytes.len()));
-        }
+    pub fn all_next(&self, bytes: &[u8]) -> (Vec<(&TrieNode, usize)>, (&TrieNode, usize, FinishReason)) {
+        let mut results = vec![];
         let mut current_node = self;
         let mut i = 0;
         loop {
@@ -99,10 +96,10 @@ impl TrieNode {
             i += di;
             match reason {
                 FinishReason::EndOfInput | FinishReason::Failure => {
-                    return (all, (node, i, reason));
+                    return (results, (node, i, reason));
                 }
                 FinishReason::Success => {
-                    all.push((node, i));
+                    results.push((node, i));
                     current_node = node;
                 }
             }

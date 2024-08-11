@@ -52,7 +52,7 @@ impl ParserTrait for EatByteStringChoiceParser {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
-        let (results, last_result) = self.current_node.all(bytes);
+        let (results, last_result) = self.current_node.all_next(bytes);
         let mut right_data_vec = VecY::new();
         for (node, i) in results {
             let mut right_data = self.right_data.clone();
