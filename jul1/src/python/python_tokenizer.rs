@@ -300,8 +300,8 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
 }
 
 pub fn id_start_fast() -> FastParser {
-    // eat_bytestring_choice_fast(id_start_bytestrings())
-    eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    eat_bytestring_choice_fast(id_start_bytestrings())
+    // eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 }
 
 pub fn id_continue_fast() -> FastParser {
