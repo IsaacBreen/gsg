@@ -208,9 +208,9 @@ impl From<FastParser> for Combinator {
     fn from(value: FastParser) -> Self {
         match value {
             FastParser::Seq(children) => crate::_seq(children.into_iter().map(|parser| parser.into()).collect()),
-            FastParser::Choice(children) => crate::_choice(children.into_iter().map(|parser| parser.into()).collect()),
-            FastParser::Opt(child) => crate::opt(*child),
-            FastParser::Repeat1(child) => crate::repeat1(*child),
+            FastParser::Choice(children) => crate::_choice_greedy(children.into_iter().map(|parser| parser.into()).collect()),
+            FastParser::Opt(child) => crate::opt_greedy(*child),
+            FastParser::Repeat1(child) => crate::repeat1_greedy(*child),
             FastParser::Eps => crate::eps().into(),
             FastParser::EatU8Parser(u8set) => crate::EatU8 { u8set }.into(),
             FastParser::EatByteStringChoiceFast(root) => {
