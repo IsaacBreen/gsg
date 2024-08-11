@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{cache_context, cached, lookahead_context, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, forward_decls, forward_ref, Repeat1, Seq, tag, lookahead, negative_lookahead};
+use crate::{cache_context, cached, lookahead_context, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};
 use super::python_tokenizer::python_literal;
 use crate::seq;
 use crate::{opt_greedy as opt, choice_greedy as choice, seprep0_greedy as seprep0, seprep1_greedy as seprep1, repeat0_greedy as repeat0, repeat1_greedy as repeat1};
@@ -20,18 +20,18 @@ enum Forbidden {
 }
 
 use super::python_tokenizer as token;
-fn WS() -> Combinator { cached(tag("WS", profile("WS", seq!(forbid_follows_check_not(Forbidden::WS as usize), token::WS().compile(), forbid_follows(&[Forbidden::DEDENT as usize, Forbidden::INDENT as usize, Forbidden::NEWLINE as usize]))))).into() }
-fn NAME() -> Combinator { cached(tag("NAME", profile("NAME", seq!(forbid_follows_check_not(Forbidden::NAME as usize), token::NAME().compile(), forbid_follows(&[Forbidden::NAME as usize, Forbidden::NUMBER as usize]))))).into() }
-fn TYPE_COMMENT() -> Combinator { cached(tag("TYPE_COMMENT", profile("TYPE_COMMENT", seq!(forbid_follows_clear(), token::TYPE_COMMENT().compile())))).into() }
-fn FSTRING_START() -> Combinator { cached(tag("FSTRING_START", profile("FSTRING_START", seq!(token::FSTRING_START().compile(), forbid_follows(&[Forbidden::WS as usize]))))).into() }
-fn FSTRING_MIDDLE() -> Combinator { cached(tag("FSTRING_MIDDLE", profile("FSTRING_MIDDLE", seq!(forbid_follows_check_not(Forbidden::FSTRING_MIDDLE as usize), token::FSTRING_MIDDLE().compile(), forbid_follows(&[Forbidden::FSTRING_MIDDLE as usize, Forbidden::WS as usize]))))).into() }
-fn FSTRING_END() -> Combinator { cached(tag("FSTRING_END", profile("FSTRING_END", seq!(forbid_follows_clear(), token::FSTRING_END().compile())))).into() }
-fn NUMBER() -> Combinator { cached(tag("NUMBER", profile("NUMBER", seq!(forbid_follows_check_not(Forbidden::NUMBER as usize), token::NUMBER().compile(), forbid_follows(&[Forbidden::NUMBER as usize]))))).into() }
-fn STRING() -> Combinator { cached(tag("STRING", profile("STRING", seq!(forbid_follows_clear(), token::STRING().compile())))).into() }
-fn NEWLINE() -> Combinator { cached(tag("NEWLINE", profile("NEWLINE", seq!(forbid_follows_check_not(Forbidden::NEWLINE as usize), token::NEWLINE().compile(), forbid_follows(&[Forbidden::WS as usize]))))).into() }
-fn INDENT() -> Combinator { cached(tag("INDENT", profile("INDENT", seq!(forbid_follows_check_not(Forbidden::INDENT as usize), token::INDENT().compile(), forbid_follows(&[Forbidden::WS as usize]))))).into() }
-fn DEDENT() -> Combinator { cached(tag("DEDENT", profile("DEDENT", seq!(forbid_follows_check_not(Forbidden::DEDENT as usize), token::DEDENT().compile(), forbid_follows(&[Forbidden::WS as usize]))))).into() }
-fn ENDMARKER() -> Combinator { cached(tag("ENDMARKER", profile("ENDMARKER", seq!(forbid_follows_clear(), token::ENDMARKER().compile())))).into() }
+fn WS() -> Combinator { cached(tag("WS", crate::profile("WS", seq!(forbid_follows_check_not(Forbidden::WS as usize), token::WS().compile(), forbid_follows(&[Forbidden::DEDENT as usize, Forbidden::INDENT as usize, Forbidden::NEWLINE as usize]))))).into() }
+fn NAME() -> Combinator { cached(tag("NAME", crate::profile("NAME", seq!(forbid_follows_check_not(Forbidden::NAME as usize), token::NAME().compile(), forbid_follows(&[Forbidden::NAME as usize, Forbidden::NUMBER as usize]))))).into() }
+fn TYPE_COMMENT() -> Combinator { cached(tag("TYPE_COMMENT", crate::profile("TYPE_COMMENT", seq!(forbid_follows_clear(), token::TYPE_COMMENT().compile())))).into() }
+fn FSTRING_START() -> Combinator { cached(tag("FSTRING_START", crate::profile("FSTRING_START", seq!(token::FSTRING_START().compile(), forbid_follows(&[Forbidden::WS as usize]))))).into() }
+fn FSTRING_MIDDLE() -> Combinator { cached(tag("FSTRING_MIDDLE", crate::profile("FSTRING_MIDDLE", seq!(forbid_follows_check_not(Forbidden::FSTRING_MIDDLE as usize), token::FSTRING_MIDDLE().compile(), forbid_follows(&[Forbidden::FSTRING_MIDDLE as usize, Forbidden::WS as usize]))))).into() }
+fn FSTRING_END() -> Combinator { cached(tag("FSTRING_END", crate::profile("FSTRING_END", seq!(forbid_follows_clear(), token::FSTRING_END().compile())))).into() }
+fn NUMBER() -> Combinator { cached(tag("NUMBER", crate::profile("NUMBER", seq!(forbid_follows_check_not(Forbidden::NUMBER as usize), token::NUMBER().compile(), forbid_follows(&[Forbidden::NUMBER as usize]))))).into() }
+fn STRING() -> Combinator { cached(tag("STRING", crate::profile("STRING", seq!(forbid_follows_clear(), token::STRING().compile())))).into() }
+fn NEWLINE() -> Combinator { cached(tag("NEWLINE", crate::profile("NEWLINE", seq!(forbid_follows_check_not(Forbidden::NEWLINE as usize), token::NEWLINE().compile(), forbid_follows(&[Forbidden::WS as usize]))))).into() }
+fn INDENT() -> Combinator { cached(tag("INDENT", crate::profile("INDENT", seq!(forbid_follows_check_not(Forbidden::INDENT as usize), token::INDENT().compile(), forbid_follows(&[Forbidden::WS as usize]))))).into() }
+fn DEDENT() -> Combinator { cached(tag("DEDENT", crate::profile("DEDENT", seq!(forbid_follows_check_not(Forbidden::DEDENT as usize), token::DEDENT().compile(), forbid_follows(&[Forbidden::WS as usize]))))).into() }
+fn ENDMARKER() -> Combinator { cached(tag("ENDMARKER", crate::profile("ENDMARKER", seq!(forbid_follows_clear(), token::ENDMARKER().compile())))).into() }
 
 fn expression_without_invalid() -> Combinator {
     tag("expression_without_invalid", choice!(
