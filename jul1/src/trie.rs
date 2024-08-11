@@ -74,7 +74,7 @@ impl TrieNode {
                 let child_index = current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
                 current_node = &current_node.children[child_index];
                 if current_node.is_end {
-                    return (current_node, i, FinishReason::Success);
+                    return (current_node, i + 1, FinishReason::Success);
                 }
             } else {
                 return (current_node, i, FinishReason::Failure);
