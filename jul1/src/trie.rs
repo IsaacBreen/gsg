@@ -1,3 +1,4 @@
+use std::cmp::PartialEq;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
@@ -60,6 +61,7 @@ impl Debug for TrieNode {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum FinishReason {
     Success,
     EndOfInput,
@@ -69,18 +71,42 @@ pub enum FinishReason {
 impl TrieNode {
     pub fn next(&self, bytes: &[u8]) -> (&TrieNode, usize, FinishReason) {
         let mut current_node = self;
-        for (i, &byte) in bytes.iter().enumerate() {
-            if current_node.valid_bytes.contains(byte) {
-                let child_index = current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
+        let mut i = 0;
+        for byte in bytes {
+            if current_node.valid_bytes.contains(*byte) {
+                let child_index = current_node.valid_bytes.bitset.count_bits_before(*byte) as usize;
                 current_node = &current_node.children[child_index];
+                i += 1;
                 if current_node.is_end {
-                    return (current_node, i + 1, FinishReason::Success);
+                    return (current_node, i, FinishReason::Success);
                 }
             } else {
                 return (current_node, i, FinishReason::Failure);
             }
         }
-        (current_node, bytes.len(), FinishReason::EndOfInput)
+        (current_node, i, FinishReason::EndOfInput)
+    }
+
+    pub fn all(&self, bytes: &[u8]) -> (Vec<(&TrieNode, usize)>, (&TrieNode, usize, FinishReason)) {
+        let mut all = vec![];
+        if self.is_end {
+            all.push((self, bytes.len()));
+        }
+        let mut current_node = self;
+        let mut i = 0;
+        loop {
+            let (node, di, reason) = current_node.next(&bytes[i..]);
+            i += di;
+            match reason {
+                FinishReason::EndOfInput | FinishReason::Failure => {
+                    return (all, (node, i, reason));
+                }
+                FinishReason::Success => {
+                    all.push((node, i));
+                    current_node = node;
+                }
+            }
+        }
     }
 
     pub fn is_end(&self) -> bool {

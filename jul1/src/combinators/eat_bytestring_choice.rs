@@ -3,7 +3,7 @@ use std::hash::Hash;
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecY};
 use crate::parse_state::RightData;
-use crate::trie::{BuildTrieNode, TrieNode};
+use crate::trie::{BuildTrieNode, FinishReason, TrieNode};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatByteStringChoice {
@@ -52,33 +52,20 @@ impl ParserTrait for EatByteStringChoiceParser {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
-
+        let (results, last_result) = self.current_node.all(bytes);
         let mut right_data_vec = VecY::new();
-        let mut done = false;
-
-        for &byte in bytes {
-            if self.current_node.valid_bytes.contains(byte) {
-                let child_index = self.current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
-                if child_index < self.current_node.children.len() {
-                    self.current_node = Rc::clone(&self.current_node.children[child_index]);
-                    Rc::make_mut(&mut self.right_data.right_data_inner).position += 1;
-
-                    if self.current_node.is_end {
-                        right_data_vec.push(self.right_data.clone());
-                        done = self.current_node.valid_bytes.is_empty();
-                        break;
-                    } else {
-                    }
-                } else {
-                    done = true;
-                    break;
-                }
-            } else {
-                done = true;
-                break;
-            }
+        for (node, i) in results {
+            let mut right_data = self.right_data.clone();
+            Rc::make_mut(&mut right_data.right_data_inner).position += i;
+            right_data_vec.push(right_data);
         }
-
+        let (node, i, reason) = last_result;
+        if reason == FinishReason::Success {
+            let mut right_data = self.right_data.clone();
+            Rc::make_mut(&mut right_data.right_data_inner).position += i;
+            right_data_vec.push(right_data);
+        }
+        let done = reason != FinishReason::EndOfInput;
         ParseResults::new(right_data_vec, done)
     }
 }
