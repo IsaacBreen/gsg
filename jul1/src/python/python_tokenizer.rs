@@ -78,10 +78,25 @@ pub fn whitespace() -> Combinator {
     return choice_greedy!(
         seq!(
             check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
-            repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n", "\n", "\r"]))
+            repeat1_fast(choice_fast!(
+                non_breaking_space_fast(),
+                breaking_space_fast(),
+                eat_string_fast("\\\n"),
+            ))
         ),
-        repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n"]))
+        repeat1_fast(choice_fast!(
+            non_breaking_space_fast(),
+            eat_string_fast("\\\n"),
+        ))
     );
+
+    // return choice_greedy!(
+    //     seq!(
+    //         check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
+    //         repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n", "\n", "\r"]))
+    //     ),
+    //     repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n"]))
+    // );
 
     brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
