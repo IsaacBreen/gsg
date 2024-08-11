@@ -78,20 +78,15 @@ impl TrieNode {
     pub fn get_indices(&self, bytes: &[u8]) -> (Vec<usize>, Option<&TrieNode>) {
         let mut indices = vec![];
         let mut current_node = self;
-        let mut i = 0;
-        while let (node, di, reason) = current_node.next(&bytes[i..]) {
-            i += di;
-            match reason {
-                FinishReason::Failure => {
-                    return (indices, None);
+        for (i, &byte) in bytes.iter().enumerate() {
+            if current_node.valid_bytes.contains(byte) {
+                let child_index = current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
+                current_node = &current_node.children[child_index];
+                if current_node.is_end {
+                    indices.push(i + 1);
                 }
-                FinishReason::EndOfInput => {
-                    return (indices, Some(node));
-                }
-                FinishReason::Success => {
-                    indices.push(i);
-                    current_node = node;
-                }
+            } else {
+                return (indices, None);
             }
         }
         (indices, Some(current_node))

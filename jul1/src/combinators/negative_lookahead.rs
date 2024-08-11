@@ -14,6 +14,7 @@ pub struct ExcludeBytestrings {
 pub struct ExcludeBytestringsParser {
     pub(crate) inner: Box<Parser>,
     pub(crate) node: Option<Rc<TrieNode>>,
+    pub(crate) start_position: usize,
 }
 
 impl CombinatorTrait for ExcludeBytestrings {
@@ -22,12 +23,14 @@ impl CombinatorTrait for ExcludeBytestrings {
         let (indices, node) = self.root.get_indices(bytes);
         let indices: HashSet<usize> = indices.into_iter().collect();
         // Retain only results that don't coincide with the indices
+        let start_position = right_data.right_data_inner.position;
         parse_results.right_data_vec.retain(|right_data| {
-            !indices.contains(&right_data.right_data_inner.position)
+            !indices.contains(&(right_data.right_data_inner.position - start_position))
         });
         (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
             inner: Box::new(inner),
             node: node.map(|node| Rc::new(node.clone())),
+            start_position,
         }), parse_results)
     }
 }
@@ -43,10 +46,11 @@ impl ParserTrait for ExcludeBytestringsParser {
             let (indices, node) = node.get_indices(bytes);
             let indices: HashSet<usize> = indices.into_iter().collect();
             parse_results.right_data_vec.retain(|right_data| {
-                !indices.contains(&right_data.right_data_inner.position)
+                !indices.contains(&(right_data.right_data_inner.position - self.start_position))
             });
             self.node = node.map(|node| Rc::new(node.clone()));
         }
+        self.start_position += bytes.len();
         parse_results
     }
 }
