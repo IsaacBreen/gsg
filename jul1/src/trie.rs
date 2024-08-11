@@ -93,11 +93,8 @@ impl TrieNode {
             current_node = &current_node.children[child_index];
             i += 1;
         }
-        if current_node.is_end {
-            (current_node, i, FinishReason::Success)
-        } else {
-            (current_node, i, FinishReason::EndOfInput)
-        }
+        let reason = if current_node.is_end { FinishReason::Success } else { FinishReason::EndOfInput };
+        (current_node, i, reason)
     }
 
     pub fn all_next(&self, bytes: &[u8]) -> (Vec<(&TrieNode, usize)>, (&TrieNode, usize, FinishReason)) {
