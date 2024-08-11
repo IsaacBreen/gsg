@@ -22,7 +22,6 @@ impl Clone for FastCombinator {
     fn clone(&self) -> Self {
         Self {
             fast: self.fast.clone(),
-            dfa: self.dfa.clone(),
             slow: self.slow.clone(),
         }
     }
@@ -61,8 +60,7 @@ impl CombinatorTrait for FastCombinator {
 
 pub fn fast_parser(parser: FastParser) -> FastCombinator {
     let slow = parser.slow();
-    let dfa = parser.to_dfa();
-    FastCombinator { fast: Rc::new(parser), dfa: Rc::new(dfa), slow: Box::new(slow) }
+    FastCombinator { fast: Rc::new(parser), slow: Box::new(slow) }
 }
 
 impl From<FastCombinator> for Combinator {
