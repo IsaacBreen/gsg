@@ -174,6 +174,10 @@ pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
     FastParser::EatByteStringChoiceFast(Rc::new(bytestrings.into()))
 }
 
+pub fn eat_string_choice_fast(strings: &[&str]) -> FastParser {
+    eat_bytestring_choice_fast(strings.into_iter().map(|s| s.as_bytes().to_vec()).collect())
+}
+
 pub fn eat_string_fast(s: &str) -> FastParser {
     let mut children = vec![];
     for c in s.bytes() {

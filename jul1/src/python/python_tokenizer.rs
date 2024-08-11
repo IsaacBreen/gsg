@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
 
-use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy, eat_string_choice_fast};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -78,17 +78,10 @@ pub fn whitespace() -> Combinator {
     return repeat1_greedy(choice_greedy!(
         seq!(
             check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
-            choice_fast!(
-                breaking_space_fast(),
-                eat_string_fast("\\\n"),
-                non_breaking_space_fast()
-            )
+            eat_string_choice_fast(&["\n", "\r", " ", "\t", "\\\n"])
         ),
-        choice_fast!(
-            eat_string_fast("\\\n"),
-            non_breaking_space_fast()
-        ))
-    );
+        eat_string_choice_fast(&["\n", "\r", " ", "\t"])
+    ));
 
     brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
