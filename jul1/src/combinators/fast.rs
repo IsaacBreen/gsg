@@ -66,3 +66,9 @@ impl From<FastCombinator> for Combinator {
         Combinator::Fast(fast_combinator)
     }
 }
+
+impl From<FastParser> for Combinator {
+    fn from(value: FastParser) -> Self {
+        Combinator::from(fast_parser(value))
+    }
+}
