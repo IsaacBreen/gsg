@@ -79,11 +79,14 @@ impl TrieNode {
         let mut indices = vec![];
         let mut current_node = self;
         let mut i = 0;
-        while let (node, di, reason) = current_node.next(bytes) {
+        while let (node, di, reason) = current_node.next(&bytes[i..]) {
             i += di;
             match reason {
-                FinishReason::EndOfInput | FinishReason::Failure => {
+                FinishReason::Failure => {
                     return (indices, None);
+                }
+                FinishReason::EndOfInput => {
+                    return (indices, Some(node));
                 }
                 FinishReason::Success => {
                     indices.push(i);
