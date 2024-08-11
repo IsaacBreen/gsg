@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
 
-use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser, choice_greedy, choice_fast, eat_string_fast, eat_char_fast};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -13,16 +13,16 @@ use crate::{
 use crate::unicode::get_unicode_general_category_bytestrings;
 use crate::unicode_categories::GeneralCategory;
 
-pub fn breaking_space() -> Combinator {
-    eat_char_choice("\n\r").into()
+pub fn breaking_space() -> FastParser {
+    eat_char_choice_fast("\n\r").into()
 }
 
-pub fn not_breaking_space() -> Combinator {
-    eat_char_negation_choice("\n\r").into()
+pub fn not_breaking_space() -> FastParser {
+    eat_char_choice_fast("\n\r").into()
 }
 
-pub fn non_breaking_space() -> Combinator {
-    eat_char_choice(" \t").into()
+pub fn non_breaking_space() -> FastParser {
+    eat_char_choice_fast(" \t").into()
 }
 
 // .. _blank-lines:
@@ -52,16 +52,32 @@ pub fn non_breaking_space() -> Combinator {
 // could otherwise be interpreted as a different token (e.g., ab is one token, but
 // a b is two tokens).
 pub fn whitespace() -> Combinator {
-    return repeat1(choice!(
-            // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
-            seq!(
-                check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
-                breaking_space()
-            ),
-            // But we can match an escaped newline.
-            seq!(eat_string("\\"), breaking_space()),
+    // return repeat1(choice!(
+    //         // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
+    //         seq!(
+    //             check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
+    //             breaking_space()
+    //         ),
+    //         // But we can match an escaped newline.
+    //         seq!(eat_string("\\"), breaking_space()),
+    //         non_breaking_space()
+    //     )).into();
+
+    return choice!(
+        seq!(
+            check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
+            choice_fast!(
+                breaking_space(),
+                eat_string_fast("\\\n"),
+                non_breaking_space()
+            )
+        ),
+        choice_fast!(
+            breaking_space(),
+            eat_string_fast("\\\n"),
             non_breaking_space()
-        )).into();
+        )
+    );
 
     brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
@@ -1099,8 +1115,9 @@ pub fn NUMBER() -> Combinator {
 // literal, and ends at the end of the physical line.  A comment signifies the end
 // of the logical line unless the implicit line joining rules are invoked. Comments
 // are ignored by the syntax.
-pub fn comment() -> Combinator {
-    seq!(eat_char('#'), repeat0(not_breaking_space()))
+pub fn comment() -> FastParser {
+    // seq!(eat_char('#'), repeat0(not_breaking_space()))
+    seq_fast!(eat_char_fast('#'), repeat0_fast(not_breaking_space()))
 }
 
 // .. _line-structure:

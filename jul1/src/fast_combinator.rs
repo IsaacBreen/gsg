@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
-use crate::{Combinator, U8Set};
+use crate::{Combinator, combinator, EatByteStringChoice, EatU8, eps, U8Set};
 use crate::trie::{FinishReason, TrieNode};
 use std::collections::HashMap;
 
@@ -170,6 +170,14 @@ pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
     FastParser::EatByteStringChoiceFast(Rc::new(bytestrings.into()))
 }
 
+pub fn eat_string_fast(s: &str) -> FastParser {
+    let mut children = vec![];
+    for c in s.bytes() {
+        children.push(eat_byte_fast(c));
+    }
+    seq_fast(children)
+}
+
 pub fn repeat0_fast(parser: FastParser) -> FastParser {
     opt_fast(repeat1_fast(parser))
 }
@@ -194,4 +202,21 @@ macro_rules! choice_fast {
     ($($x:expr),* $(,)?) => {
         $crate::choice_fast(vec![$($x),*])
     };
+}
+
+impl From<FastParser> for Combinator {
+    fn from(value: FastParser) -> Self {
+        match value {
+            FastParser::Seq(children) => crate::_seq(children.into_iter().map(|parser| parser.into()).collect()),
+            FastParser::Choice(children) => crate::_choice(children.into_iter().map(|parser| parser.into()).collect()),
+            FastParser::Opt(child) => crate::opt(*child),
+            FastParser::Repeat1(child) => crate::repeat1(*child),
+            FastParser::Eps => crate::eps().into(),
+            FastParser::EatU8Parser(u8set) => crate::EatU8 { u8set }.into(),
+            FastParser::EatByteStringChoiceFast(root) => {
+                crate::EatByteStringChoice { root }.into()
+            }
+
+        }
+    }
 }

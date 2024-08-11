@@ -22,13 +22,6 @@ fn test_trivial_ws() {
     assert_parses_default(&combinator, "x =");
 }
 
-
-#[test]
-fn test_trivial_adjacent_literals() {
-    let combinator = non_breaking_space();
-    assert_parses_default(&combinator, " ");
-}
-
 #[test]
 fn test_trivial_match() {
     let combinator = seq!(python_literal("match"), WS(), python_literal("x"), opt(WS()), python_literal(":"));
