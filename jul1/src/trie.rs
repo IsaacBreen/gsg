@@ -112,3 +112,13 @@ impl TrieNode {
         self.is_end && self.valid_bytes.is_empty()
     }
 }
+
+impl From<Vec<Vec<u8>>> for TrieNode {
+    fn from(bytestrings: Vec<Vec<u8>>) -> Self {
+        let mut build_root = BuildTrieNode::new();
+        for bytestring in bytestrings {
+            build_root.insert(&bytestring);
+        }
+        build_root.to_optimized_trie_node()
+    }
+}

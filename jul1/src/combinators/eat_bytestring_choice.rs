@@ -12,12 +12,7 @@ pub struct EatByteStringChoice {
 
 impl EatByteStringChoice {
     pub fn new(bytestrings: Vec<Vec<u8>>) -> Self {
-        let mut build_root = BuildTrieNode::new();
-        for bytestring in bytestrings {
-            build_root.insert(&bytestring);
-        }
-        let root = build_root.to_optimized_trie_node();
-        EatByteStringChoice { root: Rc::new(root) }
+        EatByteStringChoice { root: Rc::new(bytestrings.into()) }
     }
 }
 

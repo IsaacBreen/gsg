@@ -167,12 +167,7 @@ pub fn eat_char_choice_fast(chars: &str) -> FastParser {
 }
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> FastParser {
-    let mut build_root = BuildTrieNode::new();
-    for bytestring in bytestrings {
-        build_root.insert(&bytestring);
-    }
-    let root = build_root.to_optimized_trie_node();
-    FastParser::EatByteStringChoiceFast(root)
+    FastParser::EatByteStringChoiceFast(bytestrings.into())
 }
 
 pub fn repeat0_fast(parser: FastParser) -> FastParser {
