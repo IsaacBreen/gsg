@@ -95,8 +95,8 @@ impl TrieNode {
 
 impl From<Vec<Vec<u8>>> for TrieNode {
     fn from(mut bytestrings: Vec<Vec<u8>>) -> Self {
-        // Sort
-        bytestrings.sort();
+        // Sort lexicographically
+        bytestrings.sort_unstable();
         let mut root = TrieNode::new();
         for bytestring in bytestrings {
             root.insert_in_order(&bytestring);

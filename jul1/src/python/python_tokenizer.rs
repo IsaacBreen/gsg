@@ -579,10 +579,9 @@ pub fn NAME() -> Combinator {
         parse_ok(right_data)
     });
 
-    // let combinator = seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
-    // let combinator = seq!(exclude_strings(seq!(xid_start(), repeat0(xid_continue()), negative_lookahead(eat_char_choice("\'\""))), reserved_keywords()));
-    let combinator = seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast()));
-    let combinator = seq!(exclude_strings(combinator, reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
+    let combinator = seq!(exclude_strings(seq!(xid_start_fast(), repeat0(xid_continue_fast())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
+    // let combinator = seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast()));
+    // let combinator = seq!(exclude_strings(combinator, reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
 
     // let combinator: Combinator = combinator.into();
 
