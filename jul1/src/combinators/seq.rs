@@ -4,11 +4,11 @@ use std::collections::BTreeMap;
 use crate::{Combinator, CombinatorTrait, eps, FailParser, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set, VecY};
 use crate::VecX;
 
-macro_rules! profile {
-    ($name:expr, $expr:expr) => {
-        $expr
-    };
-}
+// macro_rules! profile {
+//     ($name:expr, $expr:expr) => {
+//         $expr
+//     };
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
@@ -24,6 +24,7 @@ pub struct SeqParser {
 
 impl CombinatorTrait for Seq {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        profile!("seq parse", {
         let start_position = right_data.right_data_inner.position;
 
         let combinator = &self.children[0];
@@ -33,7 +34,7 @@ impl CombinatorTrait for Seq {
         let done = parse_results.done();
         if done && parse_results.right_data_vec.is_empty() {
             // Shortcut
-            return (parser, parse_results);
+            return (Parser::FailParser(FailParser), parse_results);
         }
         let mut parsers: Vec<(usize, Parser)> = if done {
             vec![]
@@ -84,6 +85,7 @@ impl CombinatorTrait for Seq {
         let parse_results = ParseResults::new(final_right_data, false);
 
         (parser.into(), parse_results)
+            })
     }
 }
 
