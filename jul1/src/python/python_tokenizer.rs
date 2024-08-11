@@ -92,7 +92,6 @@ pub fn whitespace() -> Combinator {
 
     return choice_greedy!(
         seq!(
-            check_right_data(|right_data| right_data.right_data_inner.scope_count == 0),
             repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n"]))
         ),
         seq!(
