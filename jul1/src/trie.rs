@@ -73,7 +73,6 @@ impl TrieNode {
         for &byte in bytes {
             if current_node.valid_bytes.contains(byte) {
                 let child_index = current_node.valid_bytes.bitset.count_bits_before(byte) as usize;
-                assert!(child_index < current_node.children.len());
                 current_node = &current_node.children[child_index];
                 bytes_consumed += 1;
                 if current_node.is_end {
