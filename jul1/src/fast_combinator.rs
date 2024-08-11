@@ -85,7 +85,8 @@ impl FastParser {
             }
             FastParser::EatByteStringChoiceFast(root) => {
                 let (current_node, bytes_consumed, finish_reason) = root.next(bytes);
-                if !root.all_next(bytes).0.is_empty() {
+                let all_next = root.all_next(bytes);
+                if root.all_next(bytes).0.len() > 1 {
                     let s = String::from_utf8_lossy(bytes);
                     panic!("Ambiguous parse: {:?}", s[..s.len().min(100)].to_string());
                 }
