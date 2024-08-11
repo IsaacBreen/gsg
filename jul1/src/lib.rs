@@ -1,5 +1,6 @@
 #![allow(warnings)]
 #![feature(assert_matches)]
+#![feature(let_chains)]
 extern crate core;
 
 use std::rc::Rc;
