@@ -65,6 +65,7 @@ impl ParserTrait for EatByteStringChoiceParser {
             Rc::make_mut(&mut right_data.right_data_inner).position += i;
             right_data_vec.push(right_data);
         }
+        Rc::make_mut(&mut self.right_data.right_data_inner).position += bytes.len();
         let done = reason != FinishReason::EndOfInput;
         ParseResults::new(right_data_vec, done)
     }
