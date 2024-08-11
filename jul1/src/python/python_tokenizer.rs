@@ -78,9 +78,9 @@ pub fn whitespace() -> Combinator {
     return repeat1_greedy(choice_greedy!(
         seq!(
             check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
-            eat_string_choice_fast(&["\n", "\r", " ", "\t", "\\\n"])
+            eat_string_choice_fast(&[" ", "\t", "\\\n", "\n", "\r"])
         ),
-        eat_string_choice_fast(&["\n", "\r", " ", "\t"])
+        eat_string_choice_fast(&[" ", "\t", "\\\n"])
     ));
 
     brute_force(|mut right_data, bytes| {
