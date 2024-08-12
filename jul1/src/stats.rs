@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::AddAssign;
 
-use crate::{BruteForceParser, CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, GLOBAL_CACHE, IndentCombinatorParser, LookaheadContextParser, match_parser, Parser, ProfiledParser, Repeat1Parser, SeqParser, SymbolParser, TaggedParser, U8Set};
+use crate::{BruteForceParser, CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, GLOBAL_CACHE, IndentCombinatorParser, LookaheadContextParser, match_parser, Parser, ProfiledParser, Repeat1Parser, SeqParser, TaggedParser, U8Set};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -264,7 +264,6 @@ impl Parser {
                 //     entry.borrow().parser.as_ref().map(|p| p.collect_stats(stats, current_tag));
                 // }
             }
-            Parser::SymbolParser(SymbolParser { inner, .. }) => inner.collect_stats(stats, current_tag),
             Parser::TaggedParser(TaggedParser { inner, tag }) => {
                 let mut tag_stats = Stats::default();
                 inner.collect_stats(&mut tag_stats, Some(tag));
