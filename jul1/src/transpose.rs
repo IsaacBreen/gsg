@@ -40,8 +40,8 @@ impl Parser {
                                 });
                                 let self_str = format!("{:?}", self);
                                 let transposed_str = format!("{:?}", transposed);
-                                let self_str_truncated = self_str.chars().take(100).collect::<String>();
-                                let transposed_str_truncated = transposed_str.chars().take(100).collect::<String>();
+                                let self_str_truncated = self_str.chars().take(50).collect::<String>();
+                                let transposed_str_truncated = transposed_str.chars().take(50).collect::<String>();
                                 println!("transpose! {:?} => {:?}", self_str_truncated, transposed_str_truncated);
                                 return transposed;
 
