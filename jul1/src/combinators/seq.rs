@@ -1,6 +1,7 @@
 use std::rc::Rc;
-use std::collections::BTreeMap;
-
+use std::collections::{BTreeMap, HashSet};
+use std::hash::{Hash, Hasher};
+use lru::DefaultHasher;
 use crate::{Combinator, CombinatorTrait, eps, FailParser, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set, VecY};
 use crate::VecX;
 
@@ -113,8 +114,7 @@ impl ParserTrait for SeqParser {
         let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
         // Eliminate duplicate parsers
-        self.parsers.sort_by_key(|(combinator_index, _)| *combinator_index);
-        self.parsers.dedup_by_key(|(combinator_index, _)| *combinator_index);
+        self.parsers = std::mem::take(&mut self.parsers).into_iter().collect::<HashSet<_>>().into_iter().collect();
 
         profile!("SeqParser::parse part 1", {
         self.parsers.retain_mut(|(combinator_index, parser)| {
