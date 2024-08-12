@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut};
 
 const CHARMAP_SIZE: usize = 256;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CharMap<T> {
     data: [Option<Box<T>>; CHARMAP_SIZE],
 }

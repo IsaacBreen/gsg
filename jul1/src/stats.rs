@@ -283,6 +283,7 @@ impl Parser {
             },
             Parser::BruteForceParser(_) => {},
             Parser::ContinuationParser(_) => {},
+            Parser::FastParserWrapper(_) => {}
         }
         stats.active_parser_type_counts.entry(self.type_name()).or_default().add_assign(1);
     }

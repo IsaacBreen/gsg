@@ -60,6 +60,7 @@ impl Parser {
             Parser::ProfiledParser(_) => {},
             Parser::BruteForceParser(_) => {}
             Parser::ContinuationParser(_) => {}
+            Parser::FastParserWrapper(_) => {}
         }
     }
 }

@@ -4,6 +4,8 @@ use crate::{Combinator, combinator, EatByteStringChoice, EatU8, eps, U8Set};
 use crate::trie::{FinishReason, TrieNode};
 use std::collections::HashMap;
 use crate::FastCombinatorResult::Failure;
+use crate::tokenizer::finite_automata::{ExprGroups, Expr, prec, DFAState, opt, ExprGroup, DFA, RegexState, Regex};
+use crate::tokenizer::tokenizer_trait::Tokenizer;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FastCombinator {
@@ -18,11 +20,12 @@ pub enum FastCombinator {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FastParser {
-    SeqParser(Rc<Vec<FastCombinator>>, usize),
-    ChoiceParser(Rc<Vec<FastCombinator>>, usize),
-    Repeat1Parser(Rc<FastCombinator>),
-    EatByteStringChoiceFastParser(Rc<TrieNode>, Rc<TrieNode>),
-    EatU8Parser(U8Set),
+    // SeqParser(Rc<Vec<FastCombinator>>, usize),
+    // ChoiceParser(Rc<Vec<FastCombinator>>, usize),
+    // Repeat1Parser(Rc<FastCombinator>),
+    // EatByteStringChoiceFastParser(Rc<TrieNode>, Rc<TrieNode>),
+    // EatU8Parser(U8Set),
+    DFA(DFAState),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -76,6 +79,47 @@ impl FastCombinator {
             }
         }
     }
+
+    fn to_dfa_expr(&self) -> Expr {
+        match self {
+            FastCombinator::Seq(children) => {
+                let mut exprs = Vec::new();
+                for child in children.iter() {
+                    exprs.push(child.to_dfa_expr());
+                }
+                crate::tokenizer::finite_automata::_seq(exprs)
+            }
+            FastCombinator::Choice(children) => {
+                let mut exprs = Vec::new();
+                for child in children.iter() {
+                    exprs.push(child.to_dfa_expr());
+                }
+                crate::tokenizer::finite_automata::_choice(exprs)
+            }
+            FastCombinator::Opt(parser) => {
+                let expr = parser.to_dfa_expr();
+                crate::tokenizer::finite_automata::rep1(expr)
+            }
+            FastCombinator::Repeat1(parser) => {
+                let expr = parser.to_dfa_expr();
+                crate::tokenizer::finite_automata::rep1(expr)
+            }
+            FastCombinator::Eps => {
+                crate::tokenizer::finite_automata::eps()
+            }
+            FastCombinator::EatU8(u8set) => {
+                todo!()
+            }
+            FastCombinator::EatByteStringChoiceFast(root) => {
+                todo!()
+            }
+        }
+    }
+
+    pub fn to_dfa(&self) -> Regex {
+        let expr = self.to_dfa_expr();
+        expr.build()
+    }
 }
 
 pub trait FastCombinatorTrait {
@@ -89,165 +133,17 @@ pub trait FastParserTrait {
 
 impl FastCombinatorTrait for FastCombinator {
     fn parse(&self, bytes: &[u8]) -> FastCombinatorResult {
-        match self {
-            FastCombinator::Seq(children) => {
-                let mut position = 0;
-                let mut finish_positions = vec![];
-            }
-            FastCombinator::Choice(children) => {
-                for (i, child) in children.iter().enumerate() {
-                    match child.parse(bytes) {
-                        FastCombinatorResult::Success(len) => {
-                            return FastCombinatorResult::Success(len);
-                        }
-                        FastCombinatorResult::Failure => {
-                            continue;
-                        }
-                        FastCombinatorResult::Incomplete(parser, consumed) => {
-                            let mut parsers = vec![];
-                            let mut finish_positions = vec![];
-
-                        }
-                    }
-                }
-                FastCombinatorResult::Failure
-            }
-            FastCombinator::Opt(parser) => match parser.parse(bytes) {
-                FastCombinatorResult::Failure => FastCombinatorResult::Success(0),
-                FastCombinatorResult::Success(len) => FastCombinatorResult::Success(len),
-                FastCombinatorResult::Incomplete(parser) => FastCombinatorResult::Incomplete(FastParser::Opt(Box::new(parser))),
-            },
-            FastCombinator::Repeat1(parser) => {
-                FastCombinatorResult::Incomplete(FastParser::Repeat1Parser(parser.clone()))
-            }
-            FastCombinator::Eps => FastCombinatorResult::Success(0),
-            FastCombinator::EatU8(u8set) => {
-                if bytes.is_empty() {
-                    return FastCombinatorResult::Incomplete(FastParser::EatU8Parser(*u8set));
-                }
-                if u8set.contains(bytes[0]) {
-                    FastCombinatorResult::Success(1)
-                } else {
-                    FastCombinatorResult::Failure
-                }
-            }
-            FastCombinator::EatByteStringChoiceFast(root) => {
-                if bytes.is_empty() {
-                    return FastCombinatorResult::Incomplete(FastParser::EatByteStringChoiceFastParser(root.clone(), root.clone()));
-                }
-                let (current_node, bytes_consumed, finish_reason) = root.next(bytes);
-                match finish_reason {
-                    FinishReason::Success => FastCombinatorResult::Success(bytes_consumed),
-                    FinishReason::EndOfInput => FastCombinatorResult::Incomplete(FastParser::EatByteStringChoiceFastParser(root.clone(), Rc::new(current_node.clone()))),
-                    FinishReason::Failure => FastCombinatorResult::Failure,
-                }
-            }
-        }
+        todo!()
     }
 }
 
 impl FastParserTrait for FastParser {
     fn parse(&mut self, bytes: &[u8]) -> FastParserResult {
-        match self {
-            FastParser::SeqParser(children, index) => {
-                let mut total_len = 0;
-                while *index < children.len() {
-                    match children[*index].parse(&bytes[total_len..]) {
-                        FastCombinatorResult::Success(len) => {
-                            total_len += len;
-                            *index += 1;
-                        }
-                        FastCombinatorResult::Failure => return FastParserResult::Failure,
-                        FastCombinatorResult::Incomplete(parser) => {
-                            *self = parser;
-                            return FastParserResult::Incomplete;
-                        }
-                    }
-                }
-                FastParserResult::Success(total_len)
-            }
-            FastParser::ChoiceParser(children, index) => {
-                while *index < children.len() {
-                    match children[*index].parse(bytes) {
-                        FastCombinatorResult::Failure => {
-                            *index += 1;
-                            continue;
-                        }
-                        FastCombinatorResult::Success(len) => return FastParserResult::Success(len),
-                        FastCombinatorResult::Incomplete(parser) => {
-                            *self = parser;
-                            return FastParserResult::Incomplete(parser);
-                        }
-                    }
-                }
-                FastParserResult::Failure
-            }
-            FastParser::Repeat1Parser(parser) => {
-                let mut total_len = 0;
-                loop {
-                    match parser.parse(&bytes[total_len..]) {
-                        FastCombinatorResult::Success(len) => {
-                            if len == 0 {
-                                break;
-                            }
-                            total_len += len;
-                        }
-                        FastCombinatorResult::Failure => {
-                            if total_len == 0 {
-                                return FastParserResult::Failure;
-                            } else {
-                                break;
-                            }
-                        }
-                        FastCombinatorResult::Incomplete(parser) => {
-                            *self = parser;
-                            return FastParserResult::Incomplete(parser);
-                        }
-                    }
-                }
-                FastParserResult::Success(total_len)
-            }
-            FastParser::EatByteStringChoiceFastParser(root, current_node) => {
-                let (new_node, bytes_consumed, finish_reason) = current_node.next(bytes);
-                match finish_reason {
-                    FinishReason::Success => FastParserResult::Success(bytes_consumed),
-                    FinishReason::EndOfInput => FastParserResult::Incomplete,
-                    FinishReason::Failure => FastParserResult::Failure,
-                }
-            }
-            FastParser::EatU8Parser(u8set) => {
-                if bytes.is_empty() {
-                    return FastParserResult::Incomplete;
-                }
-                if u8set.contains(bytes[0]) {
-                    FastParserResult::Success(1)
-                } else {
-                    FastParserResult::Failure
-                }
-            }
-        }
+        todo!()
     }
 
     fn get_u8set(&self) -> U8Set {
-        match self {
-            FastParser::SeqParser(children, index) => {
-                if *index >= children.len() {
-                    return U8Set::none();
-                }
-                children[*index].get_u8set()
-            }
-            FastParser::ChoiceParser(children, index) => {
-                let mut u8set = U8Set::none();
-                for i in *index..children.len() {
-                    u8set |= children[i].get_u8set();
-                }
-                u8set
-            }
-            FastParser::Opt(parser) => parser.get_u8set(),
-            FastParser::Repeat1Parser(parser) => parser.get_u8set(),
-            FastParser::EatByteStringChoiceFastParser(root, current_node) => current_node.valid_bytes.clone(),
-            FastParser::EatU8Parser(u8set) => *u8set,
-        }
+        todo!()
     }
 }
 

@@ -9,7 +9,7 @@ use crate::tokenizer::frozenset::FrozenSet;
 
 type GroupID = usize;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Finalizer {
     pub precedence: isize,
     pub group: GroupID,
@@ -27,7 +27,7 @@ pub struct NFA {
     start_state: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DFAState {
     transitions: CharMap<usize>,
     finalizer: Option<Finalizer>,
@@ -123,6 +123,18 @@ pub fn opt<T: Into<Expr>>(expr: T) -> Expr {
 
 pub fn prec<T: Into<Expr>>(precedence: isize, expr: T) -> ExprGroup {
     ExprGroup { expr: expr.into(), precedence }
+}
+
+pub fn _seq(exprs: Vec<Expr>) -> Expr {
+    Expr::Seq(exprs)
+}
+
+pub fn _choice(exprs: Vec<Expr>) -> Expr {
+    Expr::Choice(exprs)
+}
+
+pub fn eps() -> Expr {
+    Expr::Seq(vec![])
 }
 
 macro_rules! choice {

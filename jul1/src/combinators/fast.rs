@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use crate::*;
 use crate::fast_combinator::{FastCombinator, FastCombinatorResult};
 use crate::FastCombinatorTrait;
+use crate::tokenizer::finite_automata::ExprGroups;
 
 pub struct FastCombinatorWrapper {
     pub(crate) fast: Rc<FastCombinator>,
@@ -10,7 +11,7 @@ pub struct FastCombinatorWrapper {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FastParserWrapper {
-    pub(crate) fast: Rc<FastParser>,
+    pub(crate) fast: FastParser,
     pub(crate) right_data: Option<RightData>,
 }
 
@@ -54,7 +55,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
                 (Parser::FailParser(FailParser), ParseResults::empty_finished())
             }
             FastCombinatorResult::Incomplete(parser, consumed) => {
-                (Parser::FastParserWrapper(FastParserWrapper { fast: Rc::new(parser), right_data: Some(right_data) }), ParseResults::empty_unfinished())
+                (Parser::FastParserWrapper(FastParserWrapper { fast: parser, right_data: Some(right_data) }), ParseResults::empty_unfinished())
             }
         }
     }
@@ -78,7 +79,6 @@ impl ParserTrait for FastParserWrapper {
 }
 
 pub fn fast_combinator(parser: FastCombinator) -> FastCombinatorWrapper {
-    let slow = parser.slow();
     FastCombinatorWrapper { fast: Rc::new(parser) }
 }
 
