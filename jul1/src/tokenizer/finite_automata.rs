@@ -67,8 +67,8 @@ pub struct RegexState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
-    Char(u8),
-    CharClass(U8Set),
+    U8(u8),
+    U8Class(U8Set),
     Quantifier(Box<Expr>, QuantifierType),
     Choice(Vec<Expr>),
     Seq(Vec<Expr>),
@@ -92,26 +92,20 @@ pub struct ExprGroups {
     pub groups: Vec<ExprGroup>,
 }
 
-impl<T> From<T> for Expr where T: ToString {
-    fn from(t: T) -> Self {
-        Expr::Seq(t.to_string().chars().map(|c| Expr::Char(c as u8)).collect())
-    }
-}
-
-impl<T> From<T> for ExprGroup where T: ToString {
-    fn from(t: T) -> Self {
+impl From<Expr> for ExprGroup {
+    fn from(expr: Expr) -> Self {
         ExprGroup {
-            expr: t.into(),
+            expr,
             precedence: 0,
         }
     }
 }
 
-pub fn char(c: u8) -> Expr {
+pub fn eat_u8(c: u8) -> Expr {
     if c == b'\0' {
         Expr::Seq(vec![])
     } else {
-        Expr::Char(c as u8)
+        Expr::U8(c as u8)
     }
 }
 
@@ -189,8 +183,8 @@ impl Debug for NFA {
         for (state_index, state) in self.states.iter().enumerate() {
             f.write_str(&format!("State {}:\n", state_index))?;
 
-            for (transition_char, next_states) in &state.transitions {
-                f.write_str(&format!("  - '{}': {:?}\n", transition_char, next_states))?;
+            for (transition_u8, next_states) in &state.transitions {
+                f.write_str(&format!("  - '{}': {:?}\n", transition_u8, next_states))?;
             }
 
             if let Some(finalizer) = state.finalizer {
@@ -209,8 +203,8 @@ impl Debug for DFA {
         for (state_index, state) in self.states.iter().enumerate() {
             f.write_str(&format!("State {}:\n", state_index))?;
 
-            for (transition_char, next_state) in &state.transitions {
-                f.write_str(&format!("  - '{}': {}\n", transition_char, next_state))?;
+            for (transition_u8, next_state) in &state.transitions {
+                f.write_str(&format!("  - '{}': {}\n", transition_u8, next_state))?;
             }
 
             if let Some(finalizer) = state.finalizer {
@@ -260,14 +254,14 @@ impl Expr {
 
     fn handle_expr(expr: Expr, nfa: &mut NFA, mut current_state: usize) -> usize {
         match expr {
-            Expr::Char((c)) => {
+            Expr::U8((c)) => {
                 let new_state = nfa.add_state();
                 nfa.add_transition(current_state, c, new_state);
                 new_state
             },
-            Expr::CharClass(chars) => {
+            Expr::U8Class(u8s) => {
                 let new_state = nfa.add_state();
-                for ch in chars.iter() {
+                for ch in u8s.iter() {
                     nfa.add_transition(current_state, ch, new_state);
                 }
                 new_state
@@ -364,10 +358,10 @@ impl NFA {
         new_index
     }
 
-    pub fn add_transition(&mut self, from: usize, on_char: u8, to: usize) {
+    pub fn add_transition(&mut self, from: usize, on_u8: u8, to: usize) {
         self.states[from]
             .transitions
-            .entry(on_char)
+            .entry(on_u8)
             .or_insert(Vec::new())
             .push(to);
     }
@@ -400,10 +394,10 @@ impl NFA {
 
             // For each state in the current DFA state, look at the NFA transitions
             for &state in current_set.iter() {
-                for (transition_char, next_states) in &self.states[state].transitions {
-                    if transition_char == b'\0' { continue; } // Skip epsilon transitions here
+                for (transition_u8, next_states) in &self.states[state].transitions {
+                    if transition_u8 == b'\0' { continue; } // Skip epsilon transitions here
 
-                    let entry = transition_map.entry(transition_char).or_insert_with(HashSet::new);
+                    let entry = transition_map.entry(transition_u8).or_insert_with(HashSet::new);
                     for &next_state in next_states {
                         entry.insert(next_state);
                     }
@@ -411,7 +405,7 @@ impl NFA {
             }
 
             // For each transition, compute the epsilon closure of the resulting state set
-            for (transition_char, next_states) in &transition_map {
+            for (transition_u8, next_states) in &transition_map {
                 // let closure = self.epsilon_closure(&next_states);
                 let mut closure = HashSet::new();
                 for &next_state in next_states {
@@ -433,7 +427,7 @@ impl NFA {
                 }
 
                 let next_dfa_state = *dfa_state_map.get(&frozen_closure).unwrap();
-                dfa_states[current_dfa_state].transitions.insert(transition_char, next_dfa_state);
+                dfa_states[current_dfa_state].transitions.insert(transition_u8, next_dfa_state);
             }
         }
 
@@ -442,23 +436,6 @@ impl NFA {
             start_state: 0,
         }
     }
-
-    // fn epsilon_closure(&self, states: &HashSet<usize>) -> HashSet<usize> {
-    //     let mut closure = states.clone();
-    //     let mut stack: Vec<usize> = states.iter().copied().collect();
-    //
-    //     while let Some(state) = stack.pop() {
-    //         if let Some(next_states) = self.states[state].transitions.get('\0') {
-    //             for &next_state in next_states {
-    //                 if closure.insert(next_state) {
-    //                     stack.push(next_state);
-    //                 }
-    //             }
-    //         }
-    //     }
-    //
-    //     closure
-    // }
 
     fn epsilon_closure(&self, state: usize) -> HashSet<usize> {
         let mut closure = HashSet::new();
@@ -486,8 +463,8 @@ impl RegexState {
         let mut local_position = 0;
         while local_position < text.len() {
             let state_data = &dfa.states[self.current_state];
-            let next_char = text[local_position];
-            if let Some(&next_state) = state_data.transitions.get(next_char) {
+            let next_u8 = text[local_position];
+            if let Some(&next_state) = state_data.transitions.get(next_u8) {
                 self.current_state = next_state;
                 self.position += 1;
                 local_position += 1;
@@ -499,7 +476,7 @@ impl RegexState {
                     }
                 }
             } else {
-                // If no transition exists for the current character, we're finished
+                // If no transition exists for the current u8acter, we're finished
                 self.end();
                 return;
             }
@@ -536,31 +513,31 @@ impl RegexState {
 }
 
 impl RegexState {
-    pub fn get_possible_next_chars(&self) -> U8Set {
-        let mut possible_chars = U8Set::new();
+    pub fn get_possible_next_u8s(&self) -> U8Set {
+        let mut possible_u8s = U8Set::new();
         let current_dfa_state = &self.regex.dfa.states[self.current_state];
 
         // Iterate through all transitions from the current state
-        for (char, &next_state) in &current_dfa_state.transitions {
-            possible_chars.insert(char);
+        for (u8, &next_state) in &current_dfa_state.transitions {
+            possible_u8s.insert(u8);
 
-            // If the next state has a finalizer, add all characters that can be reached from it
+            // If the next state has a finalizer, add all u8acters that can be reached from it
             if self.regex.dfa.states[next_state].finalizer.is_some() {
-                self.add_reachable_chars(next_state, &mut possible_chars);
+                self.add_reachable_u8s(next_state, &mut possible_u8s);
             }
         }
 
-        possible_chars
+        possible_u8s
     }
 
-    fn add_reachable_chars(&self, state: usize, char_set: &mut U8Set) {
+    fn add_reachable_u8s(&self, state: usize, u8_set: &mut U8Set) {
         let mut visited = HashSet::new();
         let mut stack = vec![state];
 
         while let Some(current_state) = stack.pop() {
             if visited.insert(current_state) {
-                for (char, &next_state) in &self.regex.dfa.states[current_state].transitions {
-                    char_set.insert(char);
+                for (u8, &next_state) in &self.regex.dfa.states[current_state].transitions {
+                    u8_set.insert(u8);
                     stack.push(next_state);
                 }
             }
@@ -645,7 +622,7 @@ mod tests {
 
     #[test]
     fn test_literal() {
-        let expr: Expr = 'a'.into();
+        let expr: Expr = eat_u8(b'a');
         dbg!(&expr);
         let regex = expr.build();
         dbg!(&regex);
@@ -661,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_quantifier() {
-        let expr = rep('a');
+        let expr = rep(eat_u8(b'a'));
         dbg!(&expr);
         let regex = expr.build();
         dbg!(&regex);
@@ -679,7 +656,7 @@ mod tests {
 
     #[test]
     fn test_choice() {
-        let expr = choice!['a', 'b'];
+        let expr = choice![eat_u8(b'a'), eat_u8(b'b')];
         dbg!(&expr);
         let regex = expr.build();
         dbg!(&regex);
@@ -691,17 +668,17 @@ mod tests {
 
     #[test]
     fn test_seq() {
-        let expr = seq![b'a', b'b'];
+        let expr = seq![eat_u8(b'a'), eat_u8(b'b')];
         dbg!(&expr);
         let regex = expr.build();
         dbg!(&regex);
 
         assert!(regex.could_match(b"a"));
-        // assert!(!regex.definitely_matches(b"a"));
-        // assert!(!regex.could_match(b"b"));
-        // assert!(regex.definitely_matches(b"ab"));
-        // assert!(regex.definitely_matches(b"abab"));
-        // assert!(!regex.could_match(b"c"));
+        assert!(!regex.definitely_matches(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(regex.definitely_matches(b"ab"));
+        assert!(regex.definitely_matches(b"abab"));
+        assert!(!regex.could_match(b"c"));
     }
 }
 
@@ -711,7 +688,7 @@ mod complex_tests {
 
     #[test]
     fn test_nested_quantifiers() {
-        let expr = rep1(rep('a'));
+        let expr = rep1(rep(eat_u8(b'a')));
         let regex = expr.build();
         dbg!(&regex);
 
@@ -724,8 +701,8 @@ mod complex_tests {
     #[test]
     fn test_complex_choice() {
         let expr = choice![
-            seq!['a', rep1('b')],
-            'c',
+            seq![eat_u8(b'a'), rep1(eat_u8(b'b'))],
+            eat_u8(b'c'),
         ];
         let regex = expr.build();
         dbg!(&regex);
@@ -741,9 +718,9 @@ mod complex_tests {
     #[test]
     fn test_complex_seq_with_quantifiers() {
         let expr = seq![
-            rep('a'),
-            'b',
-            rep1('c'),
+            rep(eat_u8(b'a')),
+            eat_u8(b'b'),
+            rep1(eat_u8(b'c')),
         ];
         let regex = expr.build();
         dbg!(&regex);
@@ -760,9 +737,9 @@ mod complex_tests {
     #[test]
     fn test_complex_pattern() {
         let expr = seq![
-            rep(choice!['a', 'b']),
-            'c',
-            rep1(choice!['d', 'e']),
+            rep(choice![eat_u8(b'a'), eat_u8(b'b')]),
+            eat_u8(b'c'),
+            rep1(choice![eat_u8(b'd'), eat_u8(b'e')]),
         ];
         let regex = expr.build();
         dbg!(&regex);
@@ -780,13 +757,14 @@ mod complex_tests {
 
 #[cfg(test)]
 mod even_more_complex_tests {
+    use crate::eat;
     use super::*;
 
     #[test]
-    fn test_overlapping_character_classes() {
+    fn test_overlapping_u8acter_classes() {
         let expr = seq![
-            choice!['a', 'b', 'c'],
-            choice!['b', 'c', 'd'],
+            choice![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')],
+            choice![eat_u8(b'b'), eat_u8(b'c'), eat_u8(b'd')],
         ];
         let regex = expr.build();
 
@@ -799,8 +777,8 @@ mod even_more_complex_tests {
     #[test]
     fn test_nested_seqs_with_quantifiers() {
         let expr = seq![
-            rep(seq!['a', rep1('b')]),
-            'c',
+            rep(seq![eat_u8(b'a'), rep1(eat_u8(b'b'))]),
+            eat_u8(b'c'),
         ];
         let regex = expr.build();
 
@@ -813,7 +791,7 @@ mod even_more_complex_tests {
 
     #[test]
     fn test_choice_with_empty_option() {
-        let expr = choice!['a', seq![]];
+        let expr = choice![eat_u8(b'a'), seq![]];
         let regex = expr.build();
 
         assert!(regex.definitely_fully_matches(b"a"));
@@ -823,8 +801,8 @@ mod even_more_complex_tests {
     #[test]
     fn test_complex_pattern_with_overlapping_quantifiers() {
         let expr = seq![
-            rep('a'),
-            rep1('a'),
+            rep(eat_u8(b'a')),
+            rep1(eat_u8(b'a')),
         ];
         let regex = expr.build();
 
@@ -836,7 +814,7 @@ mod even_more_complex_tests {
 
     #[test]
     fn test_matching_at_different_positions() {
-        let expr: Expr = 'a'.into();
+        let expr: Expr = eat_u8(b'a');
         let regex = expr.build();
 
         assert!(regex.definitely_fully_matches(b"a"));
@@ -849,9 +827,9 @@ mod even_more_complex_tests {
     #[test]
     fn test_explicit_precedence() {
         let expr = groups![
-            'a',
-            prec(2, 'a'),
-            prec(3, 'a'),
+            eat_u8(b'a'),
+            prec(2, eat_u8(b'a')),
+            prec(3, eat_u8(b'a')),
         ];
         let regex = expr.build();
         dbg!(&regex);
@@ -863,8 +841,8 @@ mod even_more_complex_tests {
     fn test_precedence_with_quantifiers() {
         // This test checks if the engine correctly applies precedence when quantifiers are involved
         let expr = groups![
-            prec(1, rep('a')), // 'a' repeated, lower precedence
-            prec(2, 'a'),      // single 'a', higher precedence
+            prec(1, rep(eat_u8(b'a'))), // 'a' repeated, lower precedence
+            prec(2, eat_u8(b'a')),      // single 'a', higher precedence
         ];
         let regex = expr.build();
 
@@ -876,8 +854,8 @@ mod even_more_complex_tests {
     fn test_precedence_with_choice() {
         // This test checks if the engine correctly applies precedence when choices are involved
         let expr = groups![
-            prec(1, choice!['a', 'b']), // choice between 'a' and 'b', lower precedence
-            prec(2, 'a'),               // single 'a', higher precedence
+            prec(1, choice![eat_u8(b'a'), eat_u8(b'b')]), // choice between 'a' and 'b', lower precedence
+            prec(2, eat_u8(b'a')),                        // single 'a', higher precedence
         ];
         let regex = expr.build();
 
@@ -889,8 +867,8 @@ mod even_more_complex_tests {
     fn test_precedence_with_overlap() {
         // This test checks if the engine correctly applies precedence when patterns overlap
         let expr = groups![
-            prec(1, seq!['a', 'b']), // sequence 'ab', lower precedence
-            prec(2, 'a'),            // single 'a', higher precedence
+            prec(1, seq![eat_u8(b'a'), eat_u8(b'b')]), // sequence 'ab', lower precedence
+            prec(2, eat_u8(b'a')),                     // single 'a', higher precedence
         ];
         let regex = expr.build();
 
@@ -938,7 +916,7 @@ mod even_more_complex_tests {
             "yield",
         ];
 
-        let expr = Expr::Choice(words.iter().map(|word| Expr::Seq(word.bytes().map(|c| Expr::Char(c)).collect())).collect());
+        let expr = Expr::Choice(words.iter().map(|word| Expr::Seq(word.bytes().map(|c| Expr::U8(c)).collect())).collect());
         let regex = expr.build();
         dbg!(&regex);
 
