@@ -4,27 +4,6 @@ use crate::{ChoiceParser, Opt, Parser, Repeat1, Repeat1Parser, Seq, SeqParser};
 
 impl Parser {
     pub fn transpose(mut self) -> Self {
-        // Converts a parser into a form where the outer expression is a choice between sequences that begin with a terminal.
-        //
-        // Here, a 'terminal' is defined (loosely) as any combinator that is not a sequence or a choice.
-        //
-        // Example transpositions:
-        //
-        // seq(seq(a, b, c), d, e)) =>
-        // choice(seq(a, seq(b, c), seq(d, e))))
-        //
-        // seq(choice(a, b, c), d, e)) =>
-        // choice(seq(a, seq(d, e)), seq(b, seq(d, e)), seq(c, seq(d, e)))
-        //
-        // There are four patterns we support:
-        //
-        // choice choice
-        // choice seq
-        // seq seq
-        // seq choice
-        //
-        // i.e.
-        // choice parsers where
         match &self {
             Parser::SeqParser(SeqParser { parsers, combinators, position }) => {
                 match parsers.as_slice() {
@@ -39,11 +18,6 @@ impl Parser {
                                     combinators: Rc::new(vec![first, second, third]),
                                     position: *position2,
                                 });
-                                // let self_str = format!("{:?}", self);
-                                // let transposed_str = format!("{:?}", transposed);
-                                // let self_str_truncated = self_str.chars().take(50).collect::<String>();
-                                // let transposed_str_truncated = transposed_str.chars().take(50).collect::<String>();
-                                // println!("transpose! {:?} => {:?}", self_str_truncated, transposed_str_truncated);
                                 // println!("transposing seq");
                                 transposed
                             }
