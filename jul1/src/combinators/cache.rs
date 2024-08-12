@@ -20,8 +20,8 @@ thread_local! {
 
 #[derive(Debug)]
 struct GlobalCache {
-    new_parsers: LruCache<CacheKey, Rc<RefCell<CacheEntry>>>,
-    pub(crate) entries: Vec<Rc<RefCell<CacheEntry>>>,
+    new_parsers: HashMap<usize, LruCache<CacheKey, Rc<RefCell<CacheEntry>>>>,
+    pub(crate) entries: HashMap<usize, Vec<Rc<RefCell<CacheEntry>>>>,
     pub(crate) parse_id_counter: usize,
     pub(crate) parse_id: Option<usize>,
 }
@@ -29,17 +29,17 @@ struct GlobalCache {
 impl GlobalCache {
     fn new() -> Self {
         Self {
-            new_parsers: LruCache::new(NonZeroUsize::new(64).unwrap()),
-            entries: Vec::new(),
+            new_parsers: HashMap::new(),
+            entries: HashMap::new(),
             parse_id_counter: 0,
             parse_id: None,
         }
     }
 
     fn cleanup(&mut self) {
-        self.new_parsers.clear();
-        self.entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done());
-        self.parse_id = None;
+        let parse_id = self.parse_id.take().unwrap();
+        self.new_parsers.get_mut(&parse_id).unwrap().clear();
+        self.entries.get_mut(&parse_id).unwrap().retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done());
     }
 }
 
@@ -47,20 +47,18 @@ impl GlobalCache {
 struct CacheKey {
     combinator: Rc<Combinator>,
     right_data: RightData,
-    parse_id: usize
 }
 
 impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::mem::discriminant(self.combinator.as_ref()).hash(state);
         self.right_data.hash(state);
-        self.parse_id.hash(state);
     }
 }
 
 impl PartialEq for CacheKey {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data && self.parse_id == other.parse_id
+        Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
     }
 }
 
@@ -110,15 +108,16 @@ impl CombinatorTrait for CacheContext {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
-                // global_cache.entries.clear();
-                // global_cache.new_parsers.clear();
+                let parse_id = global_cache.parse_id_counter;
+                global_cache.new_parsers.insert(parse_id, LruCache::new(NonZeroUsize::new(64).unwrap()));
+                global_cache.entries.insert(parse_id, Vec::new());
                 global_cache.parse_id = Some(global_cache.parse_id_counter);
                 global_cache.parse_id_counter += 1;
-                global_cache.parse_id.unwrap()
+                parse_id
             };
             let (parser, results) = self.inner.parse(right_data, bytes);
             let mut global_cache = cache.borrow_mut();
-            global_cache.entries.reverse();
+            global_cache.entries.get_mut(&parse_id).unwrap().reverse();
             global_cache.cleanup();
             let cache_context_parser = CacheContextParser { inner: Box::new(parser), parse_id };
             (Parser::CacheContextParser(cache_context_parser), results)
@@ -136,13 +135,13 @@ impl ParserTrait for CacheContextParser {
             {
                 let mut global_cache = cache.borrow_mut();
                 global_cache.parse_id = Some(self.parse_id);
-                global_cache.entries.iter_mut().for_each(|entry| {
+                global_cache.entries.get_mut(&self.parse_id).unwrap().iter_mut().for_each(|entry| {
                     entry.borrow_mut().maybe_parse_results.take();
                 });
             }
-            let num_entries_initial = cache.borrow_mut().entries.len();
+            let num_entries_initial = cache.borrow_mut().entries[&self.parse_id].len();
             for i in (0..num_entries_initial).rev() {
-                let entry_refcell = cache.borrow_mut().entries[i].clone();
+                let entry_refcell = cache.borrow_mut().entries[&self.parse_id][i].clone();
                 let mut entry = entry_refcell.borrow_mut();
                 let parse_results = entry.parser.as_mut().unwrap().parse(bytes);
                 entry.maybe_parse_results = Some(parse_results);
@@ -151,9 +150,9 @@ impl ParserTrait for CacheContextParser {
             let parse_result = self.inner.parse(bytes);
 
             let mut global_cache = cache.borrow_mut();
-            let mut new_entries = global_cache.entries.split_off(num_entries_initial);
+            let mut new_entries = global_cache.entries.get_mut(&self.parse_id).unwrap().split_off(num_entries_initial);
             new_entries.reverse();
-            global_cache.entries.append(&mut new_entries);
+            global_cache.entries.get_mut(&self.parse_id).unwrap().append(&mut new_entries);
             global_cache.cleanup();
             parse_result
         })
@@ -163,11 +162,12 @@ impl ParserTrait for CacheContextParser {
 impl CombinatorTrait for Cached {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
-            let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone(), parse_id: cache.borrow().parse_id.unwrap() };
+            let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
 
             let mut global_cache = cache.borrow_mut();
             profile!("Cached.parse: check cache", {
-                if let Some(entry) = global_cache.new_parsers.get(&key).cloned() {
+                let parse_id = global_cache.parse_id.unwrap();
+                if let Some(entry) = global_cache.new_parsers.get_mut(&parse_id).unwrap().get(&key).cloned() {
                     profile!("Cached.parse: cache hit", {});
                     let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
                     return (Parser::CachedParser(CachedParser { entry }), parse_results);
@@ -184,9 +184,10 @@ impl CombinatorTrait for Cached {
             profile!("Cached.parse: parse_results.squash", parse_results.squash());
 
             let mut global_cache = cache.borrow_mut();
-            global_cache.new_parsers.put(key, entry.clone());
+            let parse_id = global_cache.parse_id.unwrap();
+            global_cache.new_parsers.get_mut(&parse_id).unwrap().put(key, entry.clone());
             if !parse_results.done() {
-                global_cache.entries.push(entry.clone());
+                global_cache.entries.get_mut(&parse_id).unwrap().push(entry.clone());
             }
             *entry.borrow_mut() = CacheEntry { parser: Some(Box::new(parser)), maybe_parse_results: Some(parse_results.clone()) };
             (Parser::CachedParser(CachedParser { entry }), parse_results)
