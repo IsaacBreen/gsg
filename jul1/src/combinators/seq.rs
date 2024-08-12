@@ -114,7 +114,7 @@ impl ParserTrait for SeqParser {
         let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
         // Eliminate duplicate parsers
-        self.parsers = std::mem::take(&mut self.parsers).into_iter().collect::<HashSet<_>>().into_iter().collect();
+        // self.parsers = std::mem::take(&mut self.parsers).into_iter().collect::<HashSet<_>>().into_iter().collect();
 
         profile!("SeqParser::parse part 1", {
         self.parsers.retain_mut(|(combinator_index, parser)| {
