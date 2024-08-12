@@ -31,7 +31,7 @@ impl Parser {
                         match parsers2.as_slice() {
                             [(i2, child)] => {
                                 let first = combinators2[*i2].clone();
-                                let second: Combinator = Seq { children: combinators2.clone(), start_index: i2 + 1 }.into();
+                                let second = Seq { children: combinators2.clone(), start_index: i2 + 1 }.into();
                                 let third = Seq { children: combinators.clone(), start_index: i + 1 }.into();
                                 let transposed = Parser::SeqParser(SeqParser {
                                     parsers: vec![(0, child.clone())],
