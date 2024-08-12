@@ -53,7 +53,11 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
                 println!("{}", stats);
             }
 
-            parse_results = catch_unwind(AssertUnwindSafe(|| parser.step(byte))).expect(format!("Parser.step: Error at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1).as_str());
+            parse_results = catch_unwind(AssertUnwindSafe(||
+                profile!("assert_parses parse",
+                    parser.step(byte)
+                )
+            )).expect(format!("Parser.step: Error at byte: {} on line: {} at char: {}", byte as char, line_number + 1, char_number + 1).as_str());
 
             parse_results.squash();
 
