@@ -169,7 +169,7 @@ impl ParserTrait for Parser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let parse_results = match_parser!(self, inner => inner.parse(bytes));
-        profile!("Parser::transpose", { self.transpose(); });
+        // profile!("Parser::transpose", { self.transpose(); });
         parse_results
     }
 }
