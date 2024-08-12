@@ -269,7 +269,7 @@ def grammar_to_rust(
             f.write(');\n')
         for name, rule in rules:
             expr = rhs_to_rust(rule.rhs, top_level=True)
-            expr = f'crate::profile("{name}", {expr})'
+            # expr = f'crate::profile("{name}", {expr})'
             expr = f'tag("{name}", {expr})'
             if rule.memo:
                 expr = f'cached({expr})'

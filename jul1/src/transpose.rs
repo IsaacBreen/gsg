@@ -48,7 +48,18 @@ impl Parser {
                     self.transpose();
                 }
             }
-            _ => {},
+            Parser::EatU8Parser(_) => {}
+            Parser::EatStringParser(_) => {}
+            Parser::EpsParser(_) => {}
+            Parser::FailParser(_) => {}
+            Parser::CacheContextParser(_) => {}
+            Parser::CachedParser(_) => {}
+            Parser::IndentCombinatorParser(_) => {}
+            Parser::EatByteStringChoiceParser(_) => {}
+            Parser::ExcludeBytestringsParser(_) => {}
+            Parser::ProfiledParser(_) => panic!("profiled parsers should not be transposed"),
+            Parser::BruteForceParser(_) => {}
+            Parser::ContinuationParser(_) => {}
         }
     }
 }
