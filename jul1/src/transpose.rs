@@ -38,7 +38,11 @@ impl Parser {
                                     combinators: Rc::new(vec![first, second, third]),
                                     position: *position2,
                                 });
-                                println!("transpose {:?} -> {:?}", self, transposed);
+                                let self_str = format!("{:?}", self);
+                                let transposed_str = format!("{:?}", transposed);
+                                let self_str_truncated = self_str.chars().take(100).collect::<String>();
+                                let transposed_str_truncated = transposed_str.chars().take(100).collect::<String>();
+                                println!("transpose! {:?} => {:?}", self_str_truncated, transposed_str_truncated);
                                 return transposed;
 
                             }
