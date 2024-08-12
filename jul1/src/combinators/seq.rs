@@ -27,7 +27,13 @@ impl CombinatorTrait for Seq {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.right_data_inner.position;
 
-        let combinator = &self.children[0];
+        let mut combinator_index = self.start_index;
+
+        if combinator_index >= self.children.len() {
+            return (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true));
+        }
+
+        let combinator = &self.children[combinator_index];
         let (parser, parse_results) = profile!("seq first child parse", {
             combinator.parse(right_data, &bytes)
         });
@@ -39,11 +45,11 @@ impl CombinatorTrait for Seq {
         let mut parsers: Vec<(usize, Parser)> = if done {
             vec![]
         } else {
-            vec![(0, parser)]
+            vec![(combinator_index, parser)]
         };
         let mut final_right_data: VecY<RightData>;
         let mut next_right_data_vec: VecY<RightData>;
-        if 0 + 1 < self.children.len() {
+        if combinator_index + 1 < self.children.len() {
             next_right_data_vec = parse_results.right_data_vec;
             final_right_data = VecY::new();
         } else {
@@ -51,7 +57,9 @@ impl CombinatorTrait for Seq {
             final_right_data = parse_results.right_data_vec;
         }
 
-        for combinator_index in 1..self.children.len() {
+        combinator_index += 1;
+
+        while combinator_index < self.children.len() {
             if next_right_data_vec.is_empty() {
                 break;
             }
@@ -70,6 +78,7 @@ impl CombinatorTrait for Seq {
                     final_right_data.extend(parse_results.right_data_vec);
                 }
             }
+            combinator_index += 1;
         }
 
         if parsers.is_empty() {
