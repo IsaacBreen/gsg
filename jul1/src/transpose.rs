@@ -57,7 +57,7 @@ impl Parser {
             Parser::IndentCombinatorParser(_) => {}
             Parser::EatByteStringChoiceParser(_) => {}
             Parser::ExcludeBytestringsParser(_) => {}
-            Parser::ProfiledParser(_) => panic!("profiled parsers should not be transposed"),
+            Parser::ProfiledParser(_) => {},
             Parser::BruteForceParser(_) => {}
             Parser::ContinuationParser(_) => {}
         }
