@@ -102,6 +102,9 @@ impl ParserTrait for ProfiledParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        if self.tag == "NUMBER" {
+            println!("parsing number");
+        }
         profile!(&self.tag, self.inner.parse(bytes))
     }
 }

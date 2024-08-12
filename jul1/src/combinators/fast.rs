@@ -40,7 +40,7 @@ impl ParserTrait for FastParserWrapper {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut regex_state = self.regex_state.clone();
+        let mut regex_state = &mut self.regex_state;
         let prev_match = regex_state.prev_match();
         regex_state.execute(bytes);
         if regex_state.failed() {
