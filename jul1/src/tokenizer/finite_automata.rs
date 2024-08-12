@@ -57,7 +57,7 @@ pub struct FindReturn {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RegexState {
     pub regex: Regex,
-    pub find_return: Option<FindReturn>,
+    find_return: Option<FindReturn>,
     pub(crate) position: usize,
     current_state: usize,
     prev_finalizer: Option<Finalizer>,
@@ -549,6 +549,16 @@ impl RegexState {
             }
         }
     }
+
+    pub fn get_prev_match(&self) -> Option<Success> {
+        // Returns the previous match if it exists
+        self.prev_finalizer.map(|finalizer| Success { position: self.prev_finalizer_position, group_id: finalizer.group })
+    }
+
+    pub fn done(&self) -> bool {
+        // Returns true if the regex has matched and cannot possibly match any more
+        todo!()
+    }
 }
 
 impl Regex {
@@ -610,6 +620,11 @@ mod tests {
         assert!(regex.is_match(b"a"));
         assert!(regex.is_match(b"aaaa"));
         assert!(regex.is_match(b"b"));
+
+        let mut state = regex.init();
+        state.execute(b"aa");
+        assert_eq!(state.get_prev_match(), Some(Success { position: 2, group_id: 0 }));
+        assert!(!state.done()); // Could match more 'a's
     }
 
     #[test]
@@ -752,6 +767,8 @@ mod even_more_complex_tests {
 
         assert!(regex.is_match(b"a"));
         assert!(regex.is_match(b"")); // Should match the empty option
+
+        assert!(regex.is_match(b"ab")); // Partial match allowed
     }
 
     #[test]

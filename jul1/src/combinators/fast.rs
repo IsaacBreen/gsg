@@ -22,13 +22,14 @@ impl CombinatorTrait for FastCombinatorWrapper {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else {
             let mut right_data_vec = vec![];
-            if let Some(find_return) = regex_state.find_return {
-                let position = find_return.position;
+            let done = regex_state.done();
+            if let Some(find_return) = regex_state.find_return.take() {
                 let mut new_right_data = right_data.clone();
+                let position = find_return.position;
                 new_right_data.advance(position);
                 right_data_vec.push(new_right_data);
             }
-            (Parser::FastParserWrapper(FastParserWrapper { regex_state, right_data: Some(right_data) }), ParseResults::new(right_data_vec, false))
+            (Parser::FastParserWrapper(FastParserWrapper { regex_state, right_data: Some(right_data) }), ParseResults::new(right_data_vec, done))
         }
     }
 }
