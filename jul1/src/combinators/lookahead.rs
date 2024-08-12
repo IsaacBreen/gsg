@@ -1,45 +1,6 @@
 use crate::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct LookaheadContext {
-    pub inner: Box<Combinator>,
-    pub persist_with_partial_lookahead: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct LookaheadContextParser {
-    pub inner: Box<Parser>,
-    pub persist_with_partial_lookahead: bool,
-}
-
-impl CombinatorTrait for LookaheadContext {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (inner, parse_results) = self.inner.parse(right_data, bytes);
-        (Parser::LookaheadContextParser(LookaheadContextParser { inner: Box::new(inner), persist_with_partial_lookahead: self.persist_with_partial_lookahead }), parse_results)
-    }
-}
-
-impl ParserTrait for LookaheadContextParser {
-    fn get_u8set(&self) -> U8Set {
-        self.inner.get_u8set()
-    }
-
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        self.inner.parse(bytes)
-    }
-}
-
-pub fn lookahead_context(inner: impl Into<Combinator>) -> LookaheadContext {
-    LookaheadContext { inner: Box::new(inner.into()), persist_with_partial_lookahead: false }
-}
-
-impl From<LookaheadContext> for Combinator {
-    fn from(lookahead_context: LookaheadContext) -> Self {
-        Self::LookaheadContext(lookahead_context)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PartialLookahead {
     pub parser: Box<Parser>,
     pub positive: bool,

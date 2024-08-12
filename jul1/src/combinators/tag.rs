@@ -37,28 +37,11 @@ impl CombinatorTrait for Tagged {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (
-                Parser::TaggedParser(TaggedParser { inner: Box::new(parser), tag: self.tag.clone() }),
+                parser,
                 parse_results,
             ),
             Err(err) => {
                 eprintln!("Panic caught in parser with tag: {}", self.tag);
-                resume_unwind(err);
-            }
-        }
-    }
-}
-
-impl ParserTrait for TaggedParser {
-    fn get_u8set(&self) -> U8Set {
-        self.inner.get_u8set()
-    }
-
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(bytes)));
-        match result {
-            Ok(parse_results) => parse_results,
-            Err(err) => {
-                eprintln!("Panic caught in steps with tag: {}", self.tag);
                 resume_unwind(err);
             }
         }

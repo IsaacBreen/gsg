@@ -14,6 +14,16 @@ impl Parser {
         //
         // seq(choice(a, b, c), d, e)) =>
         // choice(seq(a, seq(d, e)), seq(b, seq(d, e)), seq(c, seq(d, e)))
+        //
+        // There are four patterns we support:
+        //
+        // choice choice
+        // choice seq
+        // seq seq
+        // seq choice
+        //
+        // i.e.
+        // choice parsers where
         match self {
             Self::SeqParser(SeqParser { parsers, combinators, position }) => {
 

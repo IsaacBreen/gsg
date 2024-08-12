@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::AddAssign;
 
-use crate::{BruteForceParser, CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, GLOBAL_CACHE, IndentCombinatorParser, LookaheadContextParser, match_parser, Parser, ProfiledParser, Repeat1Parser, SeqParser, TaggedParser, U8Set};
+use crate::{BruteForceParser, CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, GLOBAL_CACHE, IndentCombinatorParser, match_parser, Parser, ProfiledParser, Repeat1Parser, SeqParser, TaggedParser, U8Set};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -264,12 +264,6 @@ impl Parser {
                 //     entry.borrow().parser.as_ref().map(|p| p.collect_stats(stats, current_tag));
                 // }
             }
-            Parser::TaggedParser(TaggedParser { inner, tag }) => {
-                let mut tag_stats = Stats::default();
-                inner.collect_stats(&mut tag_stats, Some(tag));
-                stats.stats_by_tag.entry(tag.clone()).or_default().push(tag_stats);
-                stats.active_tags.entry(tag.clone()).or_default().add_assign(1);
-            }
             Parser::Repeat1Parser(Repeat1Parser { a_parsers, .. }) => {
                 a_parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
             }
@@ -280,9 +274,6 @@ impl Parser {
             Parser::CachedParser(_) |
             Parser::EatByteStringChoiceParser(_) => { },
             Parser::ExcludeBytestringsParser(ExcludeBytestringsParser { inner, .. }) => {
-                inner.collect_stats(stats, current_tag);
-            }
-            Parser::LookaheadContextParser(LookaheadContextParser { inner, .. }) => {
                 inner.collect_stats(stats, current_tag);
             }
             Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(_)) |
