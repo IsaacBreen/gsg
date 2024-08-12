@@ -517,9 +517,38 @@ impl RegexState {
             inner: self.prev_finalizer.map(|finalizer| Success { position: self.prev_finalizer_position, group_id: finalizer.group }),
         });
     }
+}
 
+impl RegexState {
     pub fn get_possible_next_chars(&self) -> CharSet {
-        todo!()
+        let mut possible_chars = CharSet::new();
+        let current_dfa_state = &self.regex.dfa.states[self.current_state];
+
+        // Iterate through all transitions from the current state
+        for (char, &next_state) in &current_dfa_state.transitions {
+            possible_chars.insert(char);
+
+            // If the next state has a finalizer, add all characters that can be reached from it
+            if self.regex.dfa.states[next_state].finalizer.is_some() {
+                self.add_reachable_chars(next_state, &mut possible_chars);
+            }
+        }
+
+        possible_chars
+    }
+
+    fn add_reachable_chars(&self, state: usize, char_set: &mut CharSet) {
+        let mut visited = HashSet::new();
+        let mut stack = vec![state];
+
+        while let Some(current_state) = stack.pop() {
+            if visited.insert(current_state) {
+                for (char, &next_state) in &self.regex.dfa.states[current_state].transitions {
+                    char_set.insert(char);
+                    stack.push(next_state);
+                }
+            }
+        }
     }
 }
 

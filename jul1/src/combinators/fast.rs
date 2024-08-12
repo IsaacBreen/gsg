@@ -33,7 +33,11 @@ impl CombinatorTrait for FastCombinatorWrapper {
 
 impl ParserTrait for FastParserWrapper {
     fn get_u8set(&self) -> U8Set {
-        todo!()
+        let mut u8set = U8Set::none();
+        for c in self.regex_state.get_possible_next_chars() {
+            u8set.insert(c as u8);
+        }
+        u8set
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {

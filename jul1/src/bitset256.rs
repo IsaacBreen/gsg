@@ -61,6 +61,10 @@ impl BitSet256 {
         BitSet256 { x: u128::MAX, y: u128::MAX }
     }
 
+    pub fn new() -> Self {
+        BitSet256 { x: 0, y: 0 }
+    }
+
     pub fn none() -> Self {
         BitSet256 { x: 0, y: 0 }
     }

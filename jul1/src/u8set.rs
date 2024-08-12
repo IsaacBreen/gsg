@@ -91,6 +91,10 @@ impl U8Set {
         U8Set { bitset: BitSet256::all() }
     }
 
+    pub fn new() -> Self {
+        U8Set { bitset: BitSet256::new() }
+    }
+
     pub fn none() -> Self {
         U8Set { bitset: BitSet256::none() }
     }
