@@ -32,13 +32,6 @@ pub enum FastCombinatorResult {
     Incomplete(FastParser, Vec<usize>),
 }
 
-// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-// pub enum FastParserResult {
-//     Success(usize),
-//     Failure,
-//     Incomplete(Vec<usize>),
-// }
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FastParserResult {
     pub(crate) finish_positions: Vec<usize>,
