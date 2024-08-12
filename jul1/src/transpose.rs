@@ -20,6 +20,7 @@ impl Parser {
                                 });
                                 // println!("transposing seq");
                                 *self = transposed;
+                                self.transpose();
                             }
                             _ => {},
                         }
@@ -31,6 +32,7 @@ impl Parser {
                 if parsers.len() == 1 {
                     // println!("transposing choice");
                     *self = parsers.first().unwrap().clone();
+                    self.transpose();
                 }
             }
             Parser::Repeat1Parser(Repeat1Parser { a, a_parsers, position, greedy }) => {
@@ -43,6 +45,7 @@ impl Parser {
                         combinators: Rc::new(vec![first, second]),
                         position: *position,
                     });
+                    self.transpose();
                 }
             }
             _ => {},
