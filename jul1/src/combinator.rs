@@ -155,7 +155,7 @@ impl CombinatorTrait for Combinator {
         // if !parse_results.done() && bytes.len() > 100 {
             // println!("Combinator {:?} did not consume all input. Positions: {:?}, bytes.len(): {}", self, parse_results.right_data_vec.iter().map(|x| x.position).collect::<Vec<_>>(), bytes.len());
         // }
-        parser = parser.transpose();
+        parser.transpose();
         (parser, parse_results)
     }
 }
@@ -166,7 +166,9 @@ impl ParserTrait for Parser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        match_parser!(self, inner => inner.parse(bytes))
+        let parse_results = match_parser!(self, inner => inner.parse(bytes));
+        self.transpose();
+        parse_results
     }
 }
 

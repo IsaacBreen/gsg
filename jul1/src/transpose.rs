@@ -3,8 +3,8 @@ use std::rc::Rc;
 use crate::{ChoiceParser, Opt, Parser, Repeat1, Repeat1Parser, Seq, SeqParser};
 
 impl Parser {
-    pub fn transpose(mut self) -> Self {
-        match &self {
+    pub fn transpose(&mut self) {
+        match self {
             Parser::SeqParser(SeqParser { parsers, combinators, position }) => {
                 match parsers.as_slice() {
                     [(i, Parser::SeqParser(SeqParser { parsers: parsers2, combinators: combinators2, position: position2 }))] => {
@@ -19,20 +19,18 @@ impl Parser {
                                     position: *position2,
                                 });
                                 // println!("transposing seq");
-                                transposed
+                                *self = transposed;
                             }
-                            _ => self,
+                            _ => {},
                         }
                     }
-                    _ => self,
+                    _ => {},
                 }
             }
             Parser::ChoiceParser(ChoiceParser { parsers, greedy }) => {
                 if parsers.len() == 1 {
                     // println!("transposing choice");
-                    parsers.first().unwrap().clone()
-                } else {
-                    self
+                    *self = parsers.first().unwrap().clone();
                 }
             }
             Parser::Repeat1Parser(Repeat1Parser { a, a_parsers, position, greedy }) => {
@@ -40,16 +38,14 @@ impl Parser {
                     // println!("transposing repeat1");
                     let first = a.as_ref().clone();
                     let second = Opt { inner: Box::new(Repeat1 { a: a.clone(), greedy: *greedy }.into()), greedy: *greedy }.into();
-                    Parser::SeqParser(SeqParser {
+                    *self = Parser::SeqParser(SeqParser {
                         parsers: vec![(0, a_parsers.first().unwrap().clone())],
                         combinators: Rc::new(vec![first, second]),
                         position: *position,
-                    })
-                } else {
-                    self
+                    });
                 }
             }
-            _ => self,
+            _ => {},
         }
     }
 }
