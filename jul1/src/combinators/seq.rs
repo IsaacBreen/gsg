@@ -112,6 +112,10 @@ impl ParserTrait for SeqParser {
         let mut final_right_data: VecY<RightData> = VecY::new();
         let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
+        // Eliminate duplicate parsers
+        self.parsers.sort_by_key(|(combinator_index, _)| *combinator_index);
+        self.parsers.dedup_by_key(|(combinator_index, _)| *combinator_index);
+
         profile!("SeqParser::parse part 1", {
         self.parsers.retain_mut(|(combinator_index, parser)| {
             let parse_results = profile!("SeqParser::parse child Parser::parse", {
