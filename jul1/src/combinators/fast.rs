@@ -1,18 +1,22 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use crate::*;
-use crate::fast_combinator::{FastCombinator, FastParserResult};
+use crate::fast_combinator::{FastCombinator, FastCombinatorResult};
 use crate::FastCombinatorTrait;
 
 pub struct FastCombinatorWrapper {
     pub(crate) fast: Rc<FastCombinator>,
-    pub(crate) slow: Box<Combinator>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FastParserWrapper {
+    pub(crate) fast: Rc<FastParser>,
+    pub(crate) right_data: Option<RightData>,
 }
 
 impl Debug for FastCombinatorWrapper {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FastParser")
-            .field("slow", &self.slow)
             .finish_non_exhaustive()
     }
 }
@@ -21,7 +25,6 @@ impl Clone for FastCombinatorWrapper {
     fn clone(&self) -> Self {
         Self {
             fast: self.fast.clone(),
-            slow: self.slow.clone(),
         }
     }
 }
@@ -43,23 +46,40 @@ impl Hash for FastCombinatorWrapper {
 impl CombinatorTrait for FastCombinatorWrapper {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         match self.fast.parse(bytes) {
-            FastParserResult::Success(len) => {
+            FastCombinatorResult::Success(len) => {
                 right_data.advance(len);
                 (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
             }
-            FastParserResult::Failure => {
+            FastCombinatorResult::Failure => {
                 (Parser::FailParser(FailParser), ParseResults::empty_finished())
             }
-            FastParserResult::Incomplete => {
-                self.slow.parse(right_data, bytes)
+            FastCombinatorResult::Incomplete(parser, consumed) => {
+                (Parser::FastParserWrapper(FastParserWrapper { fast: Rc::new(parser), right_data: Some(right_data) }), ParseResults::empty_unfinished())
             }
         }
     }
 }
 
+impl ParserTrait for FastParserWrapper {
+    fn get_u8set(&self) -> U8Set {
+        self.fast.get_u8set()
+    }
+
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        let result = self.fast.parse(bytes);
+        let mut right_data_vec = vec![];
+        for i in result.finish_positions {
+            let mut right_data = self.right_data.as_ref().unwrap().clone();
+            right_data.advance(i);
+            right_data_vec.push(right_data);
+        }
+        ParseResults::new(right_data_vec, result.done)
+    }
+}
+
 pub fn fast_combinator(parser: FastCombinator) -> FastCombinatorWrapper {
     let slow = parser.slow();
-    FastCombinatorWrapper { fast: Rc::new(parser), slow: Box::new(slow) }
+    FastCombinatorWrapper { fast: Rc::new(parser) }
 }
 
 impl From<FastCombinatorWrapper> for Combinator {

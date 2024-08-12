@@ -1,20 +1,21 @@
+use std::assert_matches::assert_matches;
 use crate::*;
 use crate::fast_combinator::*;
 use crate::FastCombinatorTrait;
 
 pub fn assert_fast_combinator_parses(fast_combinator: &FastCombinator, bytes: &[u8], expected_offset: usize) {
     let result = fast_combinator.parse(bytes);
-    assert_eq!(result, FastParserResult::Success(expected_offset));
+    assert_eq!(result, FastCombinatorResult::Success(expected_offset));
 }
 
 pub fn assert_fast_combinator_fails(fast_combinator: &FastCombinator, bytes: &[u8]) {
     let result = fast_combinator.parse(bytes);
-    assert_eq!(result, FastParserResult::Failure);
+    assert_eq!(result, FastCombinatorResult::Failure);
 }
 
 pub fn assert_fast_combinator_incomplete(fast_combinator: &FastCombinator, bytes: &[u8]) {
     let result = fast_combinator.parse(bytes);
-    assert_eq!(result, FastParserResult::Incomplete);
+    assert_matches!(result, FastCombinatorResult::Incomplete(_, _));
 }
 
 #[test]
