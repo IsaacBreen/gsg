@@ -13,6 +13,7 @@ use crate::VecX;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
     pub(crate) children: Rc<VecX<Combinator>>,
+    pub(crate) start_index: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -136,6 +137,7 @@ impl ParserTrait for SeqParser {
 pub fn _seq(v: Vec<Combinator>) -> Combinator {
     profile_internal("seq", Seq {
         children: Rc::new(v.into()),
+        start_index: 0,
     })
 }
 

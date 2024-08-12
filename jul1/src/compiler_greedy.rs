@@ -19,7 +19,7 @@ impl Combinator {
         match self {
             Combinator::Eps(_) => SimpleCombinator::Eps,
             Combinator::Fail(_) => SimpleCombinator::Fail,
-            Combinator::Seq(Seq { children }) => SimpleCombinator::Seq(children.iter().map(|x| x.to_simple_combinator()).collect()),
+            Combinator::Seq(Seq { children, start_index }) => SimpleCombinator::Seq(children.iter().map(|x| x.to_simple_combinator()).collect()),
             Combinator::Choice(Choice { children, greedy: true }) => SimpleCombinator::Choice(children.iter().map(|x| x.to_simple_combinator()).collect()),
             Combinator::Choice(Choice { greedy: false, .. }) => panic!("Choice with greedy=false is not supported"),
             Combinator::Opt(inner) => SimpleCombinator::Opt(Box::new(inner.inner.to_simple_combinator())),

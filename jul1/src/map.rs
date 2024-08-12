@@ -7,7 +7,7 @@ impl Combinator {
         F: FnMut(&mut Combinator),
     {
         match self {
-            Combinator::Seq(Seq { children }) | Combinator::Choice(Choice { children, .. }) => {
+            Combinator::Seq(Seq { children, .. }) | Combinator::Choice(Choice { children, .. }) => {
                 for child in Rc::make_mut(children).iter_mut() {
                     f(child);
                 }
