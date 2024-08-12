@@ -11,6 +11,6 @@ impl Combinator {
         //
         // seq(choice(a, b, c), d, e)) =>
         // choice(seq(a, seq(d, e)), seq(b, seq(d, e)), seq(c, seq(d, e)))
-
+        todo!()
     }
 }
