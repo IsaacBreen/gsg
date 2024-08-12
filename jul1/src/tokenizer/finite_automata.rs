@@ -812,4 +812,56 @@ mod even_more_complex_tests {
         // Expect the single 'a' to match due to higher precedence, even though 'ab' is also a valid match
         assert_eq!(regex.find("ab"), FindReturn { position: 2, inner: Some(Success { position: 1, group_id: 1 }) });
     }
+
+    #[test]
+    fn test_lots_of_words() {
+        let words = [
+            "False",
+            "None",
+            "True",
+            "and",
+            "as",
+            "assert",
+            "async",
+            "await",
+            "break",
+            "class",
+            "continue",
+            "def",
+            "del",
+            "elif",
+            "else",
+            "except",
+            "finally",
+            "for",
+            "from",
+            "global",
+            "if",
+            "import",
+            "in",
+            "is",
+            "lambda",
+            "nonlocal",
+            "not",
+            "or",
+            "pass",
+            "raise",
+            "return",
+            "try",
+            "while",
+            "with",
+            "yield",
+        ];
+
+        let expr = Expr::Choice(words.iter().map(|word| Expr::Seq(word.chars().map(|c| Expr::Char(c)).collect())).collect());
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.is_match("False"));
+        assert!(regex.is_match("None"));
+        assert!(regex.is_match("True"));
+        assert!(regex.is_match("and"));
+        assert!(regex.is_match("as"));
+        assert!(regex.is_match("assert"));
+    }
 }
