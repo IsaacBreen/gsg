@@ -12,8 +12,13 @@ pub struct TrieMap<T> {
 
 impl<T> TrieMap<T> {
     pub fn new() -> Self {
+        let mut data = Vec::with_capacity(CHARMAP_SIZE);
+        for _ in 0..CHARMAP_SIZE {
+            data.push(None);
+        }
+
         Self {
-            data: std::iter::from_fn(|| None).take(CHARMAP_SIZE).collect(),
+            data,
             children: vec![Vec::new(); CHARMAP_SIZE],
             u8set: U8Set::none(),
         }
