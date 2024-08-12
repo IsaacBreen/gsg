@@ -107,11 +107,14 @@ impl ParserTrait for SeqParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        profile!("SeqParser::parse", {
         let mut final_right_data: VecY<RightData> = VecY::new();
         let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
         self.parsers.retain_mut(|(combinator_index, parser)| {
-            let parse_results = parser.parse(bytes);
+            let parse_results = profile!("SeqParser::parse child Parser::parse", {
+                parser.parse(bytes)
+            });
             let done = parse_results.done();
             if *combinator_index + 1 < self.combinators.len() {
                 parser_initialization_queue.entry(*combinator_index + 1).or_default().extend(parse_results.right_data_vec);
@@ -125,7 +128,10 @@ impl ParserTrait for SeqParser {
             for right_data in right_data_squasher.finish() {
                 let offset = right_data.right_data_inner.position - self.position;
                 let combinator = &self.combinators[combinator_index];
-                let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
+                // let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
+                let (parser, parse_results) = profile!("SeqParser::parse child Combinator::parse", {
+                    combinator.parse(right_data, &bytes[offset..])
+                });
                 if !parse_results.done() {
                     self.parsers.push((combinator_index, parser));
                 }
@@ -140,6 +146,7 @@ impl ParserTrait for SeqParser {
         self.position += bytes.len();
 
         ParseResults::new(final_right_data, self.parsers.is_empty())
+            })
     }
 }
 
