@@ -17,7 +17,7 @@ pub struct FastParserWrapper {
 impl CombinatorTrait for FastCombinatorWrapper {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut regex_state = self.regex.init();
-        regex_state.execute(String::from_utf8_lossy(bytes).as_ref());
+        regex_state.execute(bytes);
         if regex_state.failed {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else if let Some(find_return) = regex_state.find_return {
@@ -33,16 +33,13 @@ impl CombinatorTrait for FastCombinatorWrapper {
 
 impl ParserTrait for FastParserWrapper {
     fn get_u8set(&self) -> U8Set {
-        let mut u8set = U8Set::none();
-        for c in self.regex_state.get_possible_next_chars() {
-            u8set.insert(c as u8);
-        }
-        u8set
+        // self.regex_state.get_possible_next_bytes()
+        todo!()
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut regex_state = self.regex_state.clone();
-        regex_state.execute(String::from_utf8_lossy(bytes).as_ref());
+        regex_state.execute(bytes);
         if regex_state.failed {
             ParseResults::empty_finished()
         } else if let Some(find_return) = regex_state.find_return {

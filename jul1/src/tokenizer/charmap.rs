@@ -1,63 +1,80 @@
 use std::ops::{Index, IndexMut};
+use crate::u8set::U8Set;
 
 const CHARMAP_SIZE: usize = 256;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct CharMap<T> {
-    data: [Option<Box<T>>; CHARMAP_SIZE],
+pub struct TrieMap<T> {
+    data: Vec<Option<Box<T>>>,
+    children: Vec<Vec<usize>>,
+    u8set: U8Set,
 }
 
-impl<T> CharMap<T> {
+impl<T> TrieMap<T> {
     pub fn new() -> Self {
         Self {
-            data: std::array::from_fn(|_| None),
+            data: std::iter::from_fn(|| None).take(CHARMAP_SIZE).collect(),
+            children: vec![Vec::new(); CHARMAP_SIZE],
+            u8set: U8Set::none(),
         }
     }
 
-    pub fn insert(&mut self, key: char, value: T) -> Option<T> {
+    pub fn insert(&mut self, key: u8, value: T) -> Option<T> {
         let index = key as usize;
         let old_value = self.data[index].take();
         self.data[index] = Some(Box::new(value));
+        self.u8set.insert(key);
         old_value.map(|v| *v)
     }
 
-    pub fn get(&self, key: char) -> Option<&T> {
-        self.data[key as usize].as_ref().map(|v| v.as_ref())
+    pub fn get(&self, key: u8) -> Option<&T> {
+        let index = key as usize;
+        self.data[index].as_ref().map(|v| v.as_ref())
     }
 
-    pub fn get_mut(&mut self, key: char) -> Option<&mut T> {
-        self.data[key as usize].as_mut().map(|v| v.as_mut())
+    pub fn get_mut(&mut self, key: u8) -> Option<&mut T> {
+        let index = key as usize;
+        self.data[index].as_mut().map(|v| v.as_mut())
     }
 
-    pub fn remove(&mut self, key: char) -> Option<T> {
-        self.data[key as usize].take().map(|v| *v)
+    pub fn remove(&mut self, key: u8) -> Option<T> {
+        let index = key as usize;
+        let old_value = self.data[index].take();
+        if old_value.is_some() {
+            self.u8set.remove(key);
+        }
+        old_value.map(|v| *v)
     }
 
-    pub fn contains_key(&self, key: char) -> bool {
-        self.data[key as usize].is_some()
+    pub fn contains_key(&self, key: u8) -> bool {
+        let index = key as usize;
+        self.data[index].is_some()
     }
 
     pub fn clear(&mut self) {
         for element in self.data.iter_mut() {
             *element = None;
         }
+        self.u8set.clear();
     }
 
-    pub fn drain(&mut self) -> impl Iterator<Item = (char, T)> + '_ {
+    pub fn drain(&mut self) -> impl Iterator<Item = (u8, T)> + '_ {
+        self.u8set.clear();
         self.data.iter_mut().enumerate().filter_map(|(i, option)| {
-            option.take().map(|boxed| (i as u8 as char, *boxed))
+            option.take().map(|boxed| (i as u8, *boxed))
         })
     }
 
     pub fn retain<F>(&mut self, mut f: F)
     where
-        F: FnMut(char, &mut T) -> bool,
+        F: FnMut(u8, &mut T) -> bool,
     {
         for (i, value) in self.data.iter_mut().enumerate() {
             if let Some(ref mut v) = value {
-                let key = i as u8 as char;
+                let key = i as u8;
                 if !f(key, v.as_mut()) {
                     *value = None;
+                    self.u8set.remove(key);
                 }
             }
         }
@@ -68,26 +85,26 @@ impl<T> CharMap<T> {
     }
 
     pub fn len(&self) -> usize {
-        self.data.iter().filter(|x| x.is_some()).count()
+        self.u8set.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.u8set.is_empty()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (char, &T)> {
+    pub fn iter(&self) -> impl Iterator<Item = (u8, &T)> {
         self.data.iter().enumerate().filter_map(|(i, option)| {
-            option.as_ref().map(|boxed| (i as u8 as char, boxed.as_ref()))
+            option.as_ref().map(|boxed| (i as u8, boxed.as_ref()))
         })
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (char, &mut T)> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (u8, &mut T)> {
         self.data.iter_mut().enumerate().filter_map(|(i, option)| {
-            option.as_mut().map(|boxed| (i as u8 as char, boxed.as_mut()))
+            option.as_mut().map(|boxed| (i as u8, boxed.as_mut()))
         })
     }
 
-    pub fn keys(&self) -> impl Iterator<Item = char> + '_ {
+    pub fn keys(&self) -> impl Iterator<Item = u8> + '_ {
         self.iter().map(|(key, _)| key)
     }
 
@@ -99,7 +116,7 @@ impl<T> CharMap<T> {
         self.iter_mut().map(|(_, value)| value)
     }
 
-    pub fn entry(&mut self, key: char) -> Entry<'_, T> {
+    pub fn entry(&mut self, key: u8) -> Entry<'_, T> {
         let index = key as usize;
         if self.data[index].is_some() {
             Entry::Occupied(OccupiedEntry { map: self, index })
@@ -107,24 +124,47 @@ impl<T> CharMap<T> {
             Entry::Vacant(VacantEntry { map: self, index })
         }
     }
+
+    pub fn transition(&self, key: u8) -> Option<&Vec<usize>> {
+        let index = key as usize;
+        if self.u8set.contains(key) {
+            Some(&self.children[index])
+        } else {
+            None
+        }
+    }
+
+    pub fn transition_mut(&mut self, key: u8) -> Option<&mut Vec<usize>> {
+        let index = key as usize;
+        if self.u8set.contains(key) {
+            Some(&mut self.children[index])
+        } else {
+            None
+        }
+    }
+
+    pub fn add_transition(&mut self, from: u8, to: usize) {
+        let index = from as usize;
+        self.children[index].push(to);
+    }
 }
 
-impl<T> Default for CharMap<T> {
+impl<T> Default for TrieMap<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> Index<char> for CharMap<T> {
+impl<T> Index<u8> for TrieMap<T> {
     type Output = T;
 
-    fn index(&self, key: char) -> &Self::Output {
+    fn index(&self, key: u8) -> &Self::Output {
         self.get(key).expect("Key not found")
     }
 }
 
-impl<T> IndexMut<char> for CharMap<T> {
-    fn index_mut(&mut self, key: char) -> &mut Self::Output {
+impl<T> IndexMut<u8> for TrieMap<T> {
+    fn index_mut(&mut self, key: u8) -> &mut Self::Output {
         self.get_mut(key).expect("Key not found")
     }
 }
@@ -135,20 +175,20 @@ pub enum Entry<'a, T> {
 }
 
 pub struct OccupiedEntry<'a, T> {
-    map: &'a mut CharMap<T>,
+    map: &'a mut TrieMap<T>,
     index: usize,
 }
 
 pub struct VacantEntry<'a, T> {
-    map: &'a mut CharMap<T>,
+    map: &'a mut TrieMap<T>,
     index: usize,
 }
 
 impl<'a, T> Entry<'a, T> {
-    pub fn key(&self) -> char {
+    pub fn key(&self) -> u8 {
         match self {
-            Entry::Occupied(occupied) => occupied.index as u8 as char,
-            Entry::Vacant(vacant) => vacant.index as u8 as char,
+            Entry::Occupied(occupied) => occupied.index as u8,
+            Entry::Vacant(vacant) => vacant.index as u8,
         }
     }
 
@@ -199,19 +239,19 @@ impl<'a, T> VacantEntry<'a, T> {
     }
 }
 
-impl<T> IntoIterator for CharMap<T> where T: Clone {
-    type Item = (char, T);
+impl<T> IntoIterator for TrieMap<T> where T: Clone {
+    type Item = (u8, T);
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.data.iter().enumerate().filter_map(|(i, option)| {
-            <Option<Box<T>> as Clone>::clone(&option).map(|boxed| (i as u8 as char, *boxed))
+            <Option<Box<T>> as Clone>::clone(&option).map(|boxed| (i as u8, *boxed))
         }).collect::<Vec<_>>().into_iter()
     }
 }
 
-impl<'a, T> IntoIterator for &'a CharMap<T> {
-    type Item = (char, &'a T);
+impl<'a, T> IntoIterator for &'a TrieMap<T> {
+    type Item = (u8, &'a T);
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -219,8 +259,8 @@ impl<'a, T> IntoIterator for &'a CharMap<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut CharMap<T> {
-    type Item = (char, &'a mut T);
+impl<'a, T> IntoIterator for &'a mut TrieMap<T> {
+    type Item = (u8, &'a mut T);
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -228,10 +268,10 @@ impl<'a, T> IntoIterator for &'a mut CharMap<T> {
     }
 }
 
-impl<T> Extend<(char, T)> for CharMap<T> {
+impl<T> Extend<(u8, T)> for TrieMap<T> {
     fn extend<I>(&mut self, iter: I)
     where
-        I: IntoIterator<Item = (char, T)>,
+        I: IntoIterator<Item = (u8, T)>,
     {
         for (key, value) in iter {
             self.insert(key, value);

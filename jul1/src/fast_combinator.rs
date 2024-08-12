@@ -1,9 +1,4 @@
-use std::fmt::{Debug, Formatter};
-use std::rc::Rc;
 use crate::{Combinator, combinator, EatByteStringChoice, EatU8, eps, U8Set};
-use crate::trie::{FinishReason, TrieNode};
-use std::collections::HashMap;
-use crate::tokenizer::charset::CharSet;
 use crate::tokenizer::finite_automata::{ExprGroups, Expr, prec, DFAState, opt, ExprGroup, DFA, RegexState, Regex, QuantifierType};
 
 pub fn seq_fast(parsers: Vec<Expr>) -> Expr {
@@ -22,38 +17,48 @@ pub fn repeat1_fast(parser: Expr) -> Expr {
     Expr::Quantifier(Box::new(parser), QuantifierType::OneOrMore)
 }
 
-impl From<U8Set> for CharSet {
-    fn from(u8set: U8Set) -> Self {
-        let mut charset = CharSet::new();
-        for byte in u8set.iter() {
-            charset.insert(byte as char);
-        }
-        charset
-    }
+pub fn eat_u8_fast(byte: u8) -> Expr {
+    Expr::CharClass(U8Set::from_byte(byte))
+}
+
+pub fn eat_u8_negation_fast(byte: u8) -> Expr {
+    Expr::CharClass(U8Set::from_byte(byte).complement())
+}
+
+pub fn eat_u8_choice_fast(bytes: &[u8]) -> Expr {
+    Expr::CharClass(U8Set::from_bytes(bytes))
+}
+
+pub fn eat_u8_negation_choice_fast(bytes: &[u8]) -> Expr {
+    Expr::CharClass(U8Set::from_bytes(bytes).complement())
+}
+
+pub fn eat_u8_range_fast(start: u8, end: u8) -> Expr {
+    Expr::CharClass(U8Set::from_byte_range(start..=end))
 }
 
 pub fn eat_char_fast(c: char) -> Expr {
-    Expr::CharClass(U8Set::from_char(c).into())
-}
-
-pub fn eat_byte_fast(byte: u8) -> Expr {
-    Expr::CharClass(U8Set::from_byte(byte).into())
+    Expr::Char(c as u8)
 }
 
 pub fn eat_char_negation_fast(c: char) -> Expr {
-    Expr::CharClass(U8Set::from_char(c).complement().into())
+    Expr::CharClass(U8Set::from_char(c).complement())
 }
 
-pub fn eat_char_choice_fast(chars: &str) -> Expr {
-    Expr::CharClass(U8Set::from_chars(chars).into())
+pub fn eat_char_choice_fast(s: &str) -> Expr {
+    Expr::CharClass(U8Set::from_bytes(s.as_bytes()))
 }
 
-pub fn eat_char_negation_choice_fast(chars: &str) -> Expr {
-    Expr::CharClass(U8Set::from_chars(chars).complement().into())
+pub fn eat_char_negation_choice_fast(s: &str) -> Expr {
+    Expr::CharClass(U8Set::from_bytes(s.as_bytes()).complement())
+}
+
+pub fn eat_string_fast(s: &str) -> Expr {
+    Expr::Seq(s.chars().map(|c| Expr::Char(c as u8)).collect())
 }
 
 pub fn eat_byte_range_fast(start: u8, end: u8) -> Expr {
-    Expr::CharClass(U8Set::from_byte_range(start..=end).into())
+    Expr::CharClass(U8Set::from_byte_range(start..=end))
 }
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> Expr {
@@ -68,20 +73,16 @@ pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> Expr {
     choice_fast(children)
 }
 
-pub fn eat_string_choice_fast(strings: &[&str]) -> Expr {
-    eat_bytestring_choice_fast(strings.into_iter().map(|s| s.as_bytes().to_vec()).collect())
-}
-
-pub fn eat_string_fast(s: &str) -> Expr {
-    let mut children = vec![];
-    for c in s.bytes() {
-        children.push(eat_byte_fast(c));
-    }
-    seq_fast(children)
-}
-
 pub fn eat_bytestring_fast(bytes: Vec<u8>) -> Expr {
-    seq_fast(bytes.into_iter().map(|byte| eat_byte_fast(byte)).collect())
+    seq_fast(bytes.into_iter().map(|byte| eat_u8_fast(byte)).collect())
+}
+
+pub fn eat_string_choice_fast(strings: &[&str]) -> Expr {
+    let mut children = vec![];
+    for s in strings {
+        children.push(eat_string_fast(s));
+    }
+    choice_fast(children)
 }
 
 pub fn repeat0_fast(parser: Expr) -> Expr {

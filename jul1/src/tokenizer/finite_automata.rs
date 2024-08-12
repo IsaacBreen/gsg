@@ -1,9 +1,9 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
-use crate::tokenizer::charmap::CharMap;
-use crate::tokenizer::charset::CharSet;
+use crate::tokenizer::charmap::TrieMap;
 
 use crate::tokenizer::frozenset::FrozenSet;
+use crate::U8Set;
 
 type GroupID = usize;
 
@@ -15,7 +15,7 @@ pub struct Finalizer {
 
 #[derive(Debug, Clone)]
 pub struct NFAState {
-    transitions: CharMap<Vec<usize>>,
+    transitions: TrieMap<Vec<usize>>,
     finalizer: Option<Finalizer>,
 }
 
@@ -27,7 +27,7 @@ pub struct NFA {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DFAState {
-    transitions: CharMap<usize>,
+    transitions: TrieMap<usize>,
     finalizer: Option<Finalizer>,
 }
 
@@ -67,8 +67,8 @@ pub struct RegexState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
-    Char(char),
-    CharClass(CharSet),
+    Char(u8),
+    CharClass(U8Set),
     Quantifier(Box<Expr>, QuantifierType),
     Choice(Vec<Expr>),
     Seq(Vec<Expr>),
@@ -94,7 +94,7 @@ pub struct ExprGroups {
 
 impl<T> From<T> for Expr where T: ToString {
     fn from(t: T) -> Self {
-        Expr::Seq(t.to_string().chars().map(|c| Expr::Char((c))).collect())
+        Expr::Seq(t.to_string().chars().map(|c| Expr::Char(c as u8)).collect())
     }
 }
 
@@ -108,11 +108,10 @@ impl<T> From<T> for ExprGroup where T: ToString {
 }
 
 pub fn char(c: u8) -> Expr {
-    let c = c as char;
-    if c == '\0' {
+    if c == b'\0' {
         Expr::Seq(vec![])
     } else {
-        Expr::Char(c)
+        Expr::Char(c as u8)
     }
 }
 
@@ -226,7 +225,7 @@ impl Debug for DFA {
 impl NFAState {
     pub fn new() -> NFAState {
         NFAState {
-            transitions: CharMap::new(),
+            transitions: TrieMap::new(),
             finalizer: None,
         }
     }
@@ -268,7 +267,7 @@ impl Expr {
             },
             Expr::CharClass(chars) => {
                 let new_state = nfa.add_state();
-                for ch in chars {
+                for ch in chars.iter() {
                     nfa.add_transition(current_state, ch, new_state);
                 }
                 new_state
@@ -280,16 +279,16 @@ impl Expr {
                         let loop_end_state = nfa.add_state();
 
                         // Epsilon transition from current state to loop start state
-                        nfa.add_transition(current_state, '\0', loop_start_state);
+                        nfa.add_transition(current_state, b'\0', loop_start_state);
 
                         // Process the expr
                         let expr_end_state = Self::handle_expr(*expr, nfa, loop_start_state);
 
                         // Epsilon transition from expr end state back to loop start state for repetition
-                        nfa.add_transition(expr_end_state, '\0', loop_start_state);
+                        nfa.add_transition(expr_end_state, b'\0', loop_start_state);
 
                         // Epsilon transition from loop start state to loop end state to allow skipping
-                        nfa.add_transition(loop_start_state, '\0', loop_end_state);
+                        nfa.add_transition(loop_start_state, b'\0', loop_end_state);
 
                         // The loop end state becomes the new current state
                         loop_end_state
@@ -301,10 +300,10 @@ impl Expr {
                         let expr_end_state = Self::handle_expr(*expr, nfa, current_state);
 
                         // Epsilon transition from expr end state back to loop start state for repetition
-                        nfa.add_transition(expr_end_state, '\0', loop_start_state);
+                        nfa.add_transition(expr_end_state, b'\0', loop_start_state);
 
                         // Epsilon transition from loop start state back to expr start state to allow repetition
-                        nfa.add_transition(loop_start_state, '\0', current_state);
+                        nfa.add_transition(loop_start_state, b'\0', current_state);
 
                         // The expr end state becomes the new current state
                         expr_end_state
@@ -313,13 +312,13 @@ impl Expr {
                         let optional_end_state = nfa.add_state();
 
                         // Epsilon transition from current state to optional end state to allow skipping
-                        nfa.add_transition(current_state, '\0', optional_end_state);
+                        nfa.add_transition(current_state, b'\0', optional_end_state);
 
                         // Process the expr
                         let expr_end_state = Self::handle_expr(*expr, nfa, current_state);
 
                         // Epsilon transition from expr end state to optional end state
-                        nfa.add_transition(expr_end_state, '\0', optional_end_state);
+                        nfa.add_transition(expr_end_state, b'\0', optional_end_state);
 
                         // The optional end state becomes the new current state
                         optional_end_state
@@ -331,18 +330,18 @@ impl Expr {
                 let choice_end_state = nfa.add_state(); // New end state for choice
 
                 // Epsilon transition from the current state to the start state of the choice
-                nfa.add_transition(current_state, '\0', choice_start_state);
+                nfa.add_transition(current_state, b'\0', choice_start_state);
 
                 for expr in exprs {
                     // For each expr, connect the start state of the choice to the start state of the expr
                     let expr_start_state = nfa.add_state();
-                    nfa.add_transition(choice_start_state, '\0', expr_start_state);
+                    nfa.add_transition(choice_start_state, b'\0', expr_start_state);
 
                     // Process the expr and get its end state
                     let expr_end_state = Self::handle_expr(expr, nfa, expr_start_state);
 
                     // Connect the end state of the expr to the end state of the choice
-                    nfa.add_transition(expr_end_state, '\0', choice_end_state);
+                    nfa.add_transition(expr_end_state, b'\0', choice_end_state);
                 }
 
                 // The end state of the choice becomes the new current state
@@ -365,7 +364,7 @@ impl NFA {
         new_index
     }
 
-    pub fn add_transition(&mut self, from: usize, on_char: char, to: usize) {
+    pub fn add_transition(&mut self, from: usize, on_char: u8, to: usize) {
         self.states[from]
             .transitions
             .entry(on_char)
@@ -391,18 +390,18 @@ impl NFA {
         // let closure = self.epsilon_closure(&HashSet::from([self.start_state]));
         let closure = epsilon_closures[self.start_state].clone();
         dfa_states.push(DFAState {
-            transitions: CharMap::new(),
+            transitions: TrieMap::new(),
             finalizer: closure.iter().filter_map(|&state| self.states[state].finalizer).min_by_key(|finalizer| (finalizer.precedence, finalizer.group)),
         });
 
         while let Some(current_set) = worklist.pop() {
             let current_dfa_state = *dfa_state_map.get(&current_set).unwrap();
-            let mut transition_map: CharMap<HashSet<usize>> = CharMap::new();
+            let mut transition_map: TrieMap<HashSet<usize>> = TrieMap::new();
 
             // For each state in the current DFA state, look at the NFA transitions
             for &state in current_set.iter() {
                 for (transition_char, next_states) in &self.states[state].transitions {
-                    if transition_char == '\0' { continue; } // Skip epsilon transitions here
+                    if transition_char == b'\0' { continue; } // Skip epsilon transitions here
 
                     let entry = transition_map.entry(transition_char).or_insert_with(HashSet::new);
                     for &next_state in next_states {
@@ -427,7 +426,7 @@ impl NFA {
                     worklist.push(frozen_closure.clone());
 
                     dfa_states.push(DFAState {
-                        transitions: CharMap::new(),
+                        transitions: TrieMap::new(),
                         // Finalise on the first group
                         finalizer: closure.iter().filter_map(|&state| self.states[state].finalizer).min_by_key(|finalizer| (-finalizer.precedence, finalizer.group)),
                     });
@@ -467,7 +466,7 @@ impl NFA {
 
         while let Some(state) = stack.pop() {
             if closure.insert(state) {
-                if let Some(next_states) = self.states[state].transitions.get('\0') {
+                if let Some(next_states) = self.states[state].transitions.get(b'\0') {
                     stack.extend(next_states);
                 }
             }
@@ -482,12 +481,12 @@ impl NFA {
 }
 
 impl RegexState {
-    pub fn execute(&mut self, text: &str) {
+    pub fn execute(&mut self, text: &[u8]) {
         let dfa = &self.regex.dfa;
         let mut local_position = 0;
-        while local_position < text.as_bytes().len() {
+        while local_position < text.len() {
             let state_data = &dfa.states[self.current_state];
-            let next_char = text.as_bytes()[local_position] as char;
+            let next_char = text[local_position];
             if let Some(&next_state) = state_data.transitions.get(next_char) {
                 self.current_state = next_state;
                 self.position += 1;
@@ -520,8 +519,8 @@ impl RegexState {
 }
 
 impl RegexState {
-    pub fn get_possible_next_chars(&self) -> CharSet {
-        let mut possible_chars = CharSet::new();
+    pub fn get_possible_next_chars(&self) -> U8Set {
+        let mut possible_chars = U8Set::new();
         let current_dfa_state = &self.regex.dfa.states[self.current_state];
 
         // Iterate through all transitions from the current state
@@ -537,7 +536,7 @@ impl RegexState {
         possible_chars
     }
 
-    fn add_reachable_chars(&self, state: usize, char_set: &mut CharSet) {
+    fn add_reachable_chars(&self, state: usize, char_set: &mut U8Set) {
         let mut visited = HashSet::new();
         let mut stack = vec![state];
 
@@ -566,7 +565,7 @@ impl Regex {
 
     }
 
-    pub fn find(&self, text: &str) -> FindReturn {
+    pub fn find(&self, text: &[u8]) -> FindReturn {
         let mut regex_state = self.init();
         regex_state.execute(text);
         regex_state.end();
@@ -580,7 +579,7 @@ impl Regex {
         }
     }
 
-    pub fn is_match(&self, text: &str) -> bool {
+    pub fn is_match(&self, text: &[u8]) -> bool {
         self.find(text).inner.is_some()
     }
 }
@@ -596,8 +595,8 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match("a"));
-        assert!(!regex.is_match("b"));
+        assert!(regex.is_match(b"a"));
+        assert!(!regex.is_match(b"b"));
     }
 
     #[test]
@@ -607,10 +606,10 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match(""));
-        assert!(regex.is_match("a"));
-        assert!(regex.is_match("aaaa"));
-        assert!(regex.is_match("b"));
+        assert!(regex.is_match(b""));
+        assert!(regex.is_match(b"a"));
+        assert!(regex.is_match(b"aaaa"));
+        assert!(regex.is_match(b"b"));
     }
 
     #[test]
@@ -620,9 +619,9 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match("a"));
-        assert!(regex.is_match("b"));
-        assert!(!regex.is_match("c"));
+        assert!(regex.is_match(b"a"));
+        assert!(regex.is_match(b"b"));
+        assert!(!regex.is_match(b"c"));
     }
 
     #[test]
@@ -632,11 +631,11 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(!regex.is_match("a"));
-        assert!(!regex.is_match("b"));
-        assert!(regex.is_match("ab"));
-        assert!(regex.is_match("abab"));
-        assert!(!regex.is_match("c"));
+        assert!(!regex.is_match(b"a"));
+        assert!(!regex.is_match(b"b"));
+        assert!(regex.is_match(b"ab"));
+        assert!(regex.is_match(b"abab"));
+        assert!(!regex.is_match(b"c"));
     }
 }
 
@@ -650,10 +649,10 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match("a"));
-        assert!(regex.is_match("aa"));
-        assert!(regex.is_match("aaa"));
-        assert!(regex.is_match(""));
+        assert!(regex.is_match(b"a"));
+        assert!(regex.is_match(b"aa"));
+        assert!(regex.is_match(b"aaa"));
+        assert!(regex.is_match(b""));
     }
 
     #[test]
@@ -665,12 +664,12 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match("ab"));
-        assert!(regex.is_match("abb"));
-        assert!(regex.is_match("c"));
-        assert!(!regex.is_match("a"));
-        assert!(!regex.is_match("b"));
-        assert!(regex.is_match("cc"));
+        assert!(regex.is_match(b"ab"));
+        assert!(regex.is_match(b"abb"));
+        assert!(regex.is_match(b"c"));
+        assert!(!regex.is_match(b"a"));
+        assert!(!regex.is_match(b"b"));
+        assert!(regex.is_match(b"cc"));
     }
 
     #[test]
@@ -683,13 +682,13 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match("bc"));
-        assert!(regex.is_match("bcc"));
-        assert!(regex.is_match("abcc"));
-        assert!(regex.is_match("aaabccc"));
-        assert!(!regex.is_match("a"));
-        assert!(!regex.is_match("b"));
-        assert!(!regex.is_match("c"));
+        assert!(regex.is_match(b"bc"));
+        assert!(regex.is_match(b"bcc"));
+        assert!(regex.is_match(b"abcc"));
+        assert!(regex.is_match(b"aaabccc"));
+        assert!(!regex.is_match(b"a"));
+        assert!(!regex.is_match(b"b"));
+        assert!(!regex.is_match(b"c"));
     }
 
     #[test]
@@ -702,14 +701,14 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match("cd"));
-        assert!(regex.is_match("ce"));
-        assert!(regex.is_match("cde"));
-        assert!(regex.is_match("aced"));
-        assert!(regex.is_match("bacde"));
-        assert!(!regex.is_match("a"));
-        assert!(!regex.is_match("b"));
-        assert!(!regex.is_match("c"));
+        assert!(regex.is_match(b"cd"));
+        assert!(regex.is_match(b"ce"));
+        assert!(regex.is_match(b"cde"));
+        assert!(regex.is_match(b"aced"));
+        assert!(regex.is_match(b"bacde"));
+        assert!(!regex.is_match(b"a"));
+        assert!(!regex.is_match(b"b"));
+        assert!(!regex.is_match(b"c"));
     }
 }
 
@@ -725,10 +724,10 @@ mod even_more_complex_tests {
         ];
         let regex = expr.build();
 
-        assert!(regex.is_match("bc"));
-        assert!(regex.is_match("cb"));
-        assert!(regex.is_match("ab"));
-        assert!(regex.is_match("cd"));
+        assert!(regex.is_match(b"bc"));
+        assert!(regex.is_match(b"cb"));
+        assert!(regex.is_match(b"ab"));
+        assert!(regex.is_match(b"cd"));
     }
 
     #[test]
@@ -739,11 +738,11 @@ mod even_more_complex_tests {
         ];
         let regex = expr.build();
 
-        assert!(regex.is_match("c"));
-        assert!(regex.is_match("abc"));
-        assert!(regex.is_match("abbc"));
-        assert!(regex.is_match("ababbabc"));
-        assert!(!regex.is_match("ac"));
+        assert!(regex.is_match(b"c"));
+        assert!(regex.is_match(b"abc"));
+        assert!(regex.is_match(b"abbc"));
+        assert!(regex.is_match(b"ababbabc"));
+        assert!(!regex.is_match(b"ac"));
     }
 
     #[test]
@@ -751,8 +750,8 @@ mod even_more_complex_tests {
         let expr = choice!['a', seq![]];
         let regex = expr.build();
 
-        assert!(regex.is_match("a"));
-        assert!(regex.is_match("")); // Should match the empty option
+        assert!(regex.is_match(b"a"));
+        assert!(regex.is_match(b"")); // Should match the empty option
     }
 
     #[test]
@@ -763,10 +762,10 @@ mod even_more_complex_tests {
         ];
         let regex = expr.build();
 
-        assert!(regex.is_match("a"));
-        assert!(regex.is_match("aa"));
-        assert!(!regex.is_match(""));
-        assert!(!regex.is_match("b"));
+        assert!(regex.is_match(b"a"));
+        assert!(regex.is_match(b"aa"));
+        assert!(!regex.is_match(b""));
+        assert!(!regex.is_match(b"b"));
     }
 
     #[test]
@@ -774,11 +773,11 @@ mod even_more_complex_tests {
         let expr: Expr = 'a'.into();
         let regex = expr.build();
 
-        assert!(regex.is_match("a"));
-        assert!(!regex.is_match("ba"));
-        assert!(regex.is_match("ab"));
-        assert!(!regex.is_match("bab"));
-        assert!(!regex.is_match("b"));
+        assert!(regex.is_match(b"a"));
+        assert!(!regex.is_match(b"ba"));
+        assert!(regex.is_match(b"ab"));
+        assert!(!regex.is_match(b"bab"));
+        assert!(!regex.is_match(b"b"));
     }
 
     #[test]
@@ -791,7 +790,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find("a"), FindReturn { position: 1, inner: Some(Success { position: 1, group_id: 2 }) });
+        assert_eq!(regex.find(b"a"), FindReturn { position: 1, inner: Some(Success { position: 1, group_id: 2 }) });
     }
 
     #[test]
@@ -804,7 +803,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence
-        assert_eq!(regex.find("aaa"), FindReturn { position: 3, inner: Some(Success { position: 1, group_id: 1 }) });
+        assert_eq!(regex.find(b"aaa"), FindReturn { position: 3, inner: Some(Success { position: 1, group_id: 1 }) });
     }
 
     #[test]
@@ -817,7 +816,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence, even though 'a' is also part of a choice
-        assert_eq!(regex.find("a"), FindReturn { position: 1, inner: Some(Success { position: 1, group_id: 1 }) });
+        assert_eq!(regex.find(b"a"), FindReturn { position: 1, inner: Some(Success { position: 1, group_id: 1 }) });
     }
 
     #[test]
@@ -830,7 +829,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence, even though 'ab' is also a valid match
-        assert_eq!(regex.find("ab"), FindReturn { position: 2, inner: Some(Success { position: 1, group_id: 1 }) });
+        assert_eq!(regex.find(b"ab"), FindReturn { position: 2, inner: Some(Success { position: 1, group_id: 1 }) });
     }
 
     #[test]
@@ -873,15 +872,15 @@ mod even_more_complex_tests {
             "yield",
         ];
 
-        let expr = Expr::Choice(words.iter().map(|word| Expr::Seq(word.chars().map(|c| Expr::Char(c)).collect())).collect());
+        let expr = Expr::Choice(words.iter().map(|word| Expr::Seq(word.bytes().map(|c| Expr::Char(c)).collect())).collect());
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match("False"));
-        assert!(regex.is_match("None"));
-        assert!(regex.is_match("True"));
-        assert!(regex.is_match("and"));
-        assert!(regex.is_match("as"));
-        assert!(regex.is_match("assert"));
+        assert!(regex.is_match(b"False"));
+        assert!(regex.is_match(b"None"));
+        assert!(regex.is_match(b"True"));
+        assert!(regex.is_match(b"and"));
+        assert!(regex.is_match(b"as"));
+        assert!(regex.is_match(b"assert"));
     }
 }
