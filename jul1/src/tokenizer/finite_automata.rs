@@ -42,13 +42,13 @@ pub struct Regex {
     dfa: DFA,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Success {
     pub position: usize,
     pub group_id: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct FindReturn {
     pub position: usize,
     pub inner: Option<Success>,
@@ -518,17 +518,8 @@ impl RegexState {
         });
     }
 
-    pub fn get_possible_group_ids(&self) -> HashSet<usize> {
-        // TODO: do this once upon regex creation or regex state creation.
-        // Use bitsets wherever possible instead of sets of IDs
-        let mut possible_group_ids = HashSet::new();
-
-        // Walk along all possible transitions.
-        // Keep track of already-seen states to avoid cycles.
-        // Add group ID to set if finalizer is present.
-        todo!();
-
-        possible_group_ids
+    pub fn get_possible_next_chars(&self) -> CharSet {
+        todo!()
     }
 }
 

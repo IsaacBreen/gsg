@@ -16,7 +16,18 @@ pub struct FastParserWrapper {
 
 impl CombinatorTrait for FastCombinatorWrapper {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        todo!()
+        let mut regex_state = self.regex.init();
+        regex_state.execute(String::from_utf8_lossy(bytes).as_ref());
+        if regex_state.failed {
+            (Parser::FailParser(FailParser), ParseResults::empty_finished())
+        } else if let Some(find_return) = regex_state.find_return {
+            let position = find_return.position;
+            let mut new_right_data = right_data.clone();
+            new_right_data.advance(position);
+            (Parser::FastParserWrapper(FastParserWrapper { regex_state, right_data: Some(right_data) }), ParseResults::new_single(new_right_data, false))
+        } else {
+            (Parser::FastParserWrapper(FastParserWrapper { regex_state, right_data: Some(right_data) }), ParseResults::empty_unfinished())
+        }
     }
 }
 
@@ -26,15 +37,23 @@ impl ParserTrait for FastParserWrapper {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        todo!()
+        let mut regex_state = self.regex_state.clone();
+        regex_state.execute(String::from_utf8_lossy(bytes).as_ref());
+        if regex_state.failed {
+            ParseResults::empty_finished()
+        } else if let Some(find_return) = regex_state.find_return {
+            let position = find_return.position;
+            let mut new_right_data = self.right_data.clone().unwrap();
+            new_right_data.advance(position);
+            ParseResults::new_single(new_right_data, false)
+        } else {
+            ParseResults::empty_unfinished()
+        }
     }
 }
 
 pub fn fast_combinator(expr: Expr) -> FastCombinatorWrapper {
-    println!("building regex");
-    println!("{:?}", expr);
     let regex = expr.build();
-    println!("built regex");
     FastCombinatorWrapper { regex: Rc::new(regex) }
 }
 
