@@ -61,7 +61,6 @@ pub struct RegexState {
     current_state: usize,
     prev_finalizer: Option<Finalizer>,
     prev_finalizer_position: usize,
-    pub failed: bool,
     done: bool,
 }
 
@@ -567,6 +566,11 @@ impl RegexState {
         // Returns true if the regex has matched and cannot possibly match anymore
         self.done
     }
+
+    pub fn failed(&self) -> bool {
+        // Returns true if the regex has failed to match and cannot possibly match
+        !self.could_match()
+    }
 }
 
 impl Regex {
@@ -577,7 +581,6 @@ impl Regex {
             current_state: 0,
             prev_finalizer: self.dfa.states[self.dfa.start_state].finalizer,
             prev_finalizer_position: 0,
-            failed: false,
             done: false,
         }
     }
@@ -679,6 +682,19 @@ mod tests {
         assert!(regex.definitely_matches(b"ab"));
         assert!(regex.definitely_matches(b"abab"));
         assert!(!regex.could_match(b"c"));
+    }
+
+    #[test]
+    fn test_opt() {
+        let expr = opt(eat_u8(b'a'));
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"")); // Optional 'a' can be absent
+        assert!(regex.definitely_fully_matches(b"a")); // Optional 'a' can be present
+        assert!(!regex.could_fully_match(b"aa")); // Should not match more than one 'a'
+        assert!(regex.could_match(b"b")); // Can still match the empty string in "b"
     }
 }
 

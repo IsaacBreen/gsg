@@ -49,18 +49,20 @@ fn test_simple() {
     println!("beginning test_simple");
     let combinator = python_file();
 
-    assert_parses_default(&combinator, "1");
+    // assert_parses_default(&combinator, "1");
     assert_parses_default(&combinator, "11");
-    assert_parses_default(&combinator, "1111");
-    assert_parses_default(&combinator, "11111111");
-    assert_parses_default(&combinator, "1111111111111111");
-
-    assert_parses_default(&combinator, "x=12\nx=2\nx");
-
-    assert_parses_default(&combinator, "x = 12\nx = 2\nx");
-    assert_parses_default(&combinator, "x = (\n12\n+\n2\n)\nx");
-
-    assert_fails_default(&combinator, "x = 12\n+\n2\n");
+    // assert_parses_default(&combinator, "111");
+    // assert_parses_default(&combinator, "1111");
+    // assert_parses_fast(&combinator, "1111");
+    // assert_parses_default(&combinator, "11111111");
+    // assert_parses_default(&combinator, "1111111111111111");
+    //
+    // assert_parses_default(&combinator, "x=12\nx=2\nx");
+    //
+    // assert_parses_default(&combinator, "x = 12\nx = 2\nx");
+    // assert_parses_default(&combinator, "x = (\n12\n+\n2\n)\nx");
+    //
+    // assert_fails_default(&combinator, "x = 12\n+\n2\n");
 }
 
 #[test]

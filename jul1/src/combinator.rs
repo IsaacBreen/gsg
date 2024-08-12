@@ -157,7 +157,7 @@ impl CombinatorTrait for Combinator {
         // if !parse_results.done() && bytes.len() > 100 {
             // println!("Combinator {:?} did not consume all input. Positions: {:?}, bytes.len(): {}", self, parse_results.right_data_vec.iter().map(|x| x.position).collect::<Vec<_>>(), bytes.len());
         // }
-        profile!("Combinator::transpose", { parser.transpose(); });
+        // profile!("Combinator::transpose", { parser.transpose(); });
         (parser, parse_results)
     }
 }

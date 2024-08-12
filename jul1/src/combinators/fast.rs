@@ -18,14 +18,14 @@ impl CombinatorTrait for FastCombinatorWrapper {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
-        if regex_state.failed {
+        if regex_state.failed() {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else {
             let mut right_data_vec = vec![];
             let done = regex_state.done();
-            if let Some(find_return) = regex_state.prev_match() {
+            if let Some(new_match) = regex_state.prev_match() {
                 let mut new_right_data = right_data.clone();
-                let position = find_return.position;
+                let position = new_match.position;
                 new_right_data.advance(position);
                 right_data_vec.push(new_right_data);
             }
@@ -41,16 +41,22 @@ impl ParserTrait for FastParserWrapper {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut regex_state = self.regex_state.clone();
+        let prev_match = regex_state.prev_match();
         regex_state.execute(bytes);
-        if regex_state.failed {
+        if regex_state.failed() {
             ParseResults::empty_finished()
-        } else if let Some(find_return) = regex_state.prev_match() {
-            let position = find_return.position;
-            let mut new_right_data = self.right_data.clone().unwrap();
-            new_right_data.advance(position);
-            ParseResults::new_single(new_right_data, false)
         } else {
-            ParseResults::empty_unfinished()
+            let mut right_data_vec = vec![];
+            let done = regex_state.done();
+            if let Some(new_match) = regex_state.prev_match() {
+                if Some(new_match) != prev_match {
+                    let mut new_right_data = self.right_data.clone().unwrap();
+                    let position = new_match.position;
+                    new_right_data.advance(position);
+                    right_data_vec.push(new_right_data);
+                }
+            }
+            ParseResults::new(right_data_vec, done)
         }
     }
 }
