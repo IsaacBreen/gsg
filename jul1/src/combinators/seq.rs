@@ -5,11 +5,11 @@ use lru::DefaultHasher;
 use crate::{Combinator, CombinatorTrait, eps, FailParser, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set, VecY};
 use crate::VecX;
 
-// macro_rules! profile {
-//     ($name:expr, $expr:expr) => {
-//         $expr
-//     };
-// }
+macro_rules! profile {
+    ($name:expr, $expr:expr) => {
+        $expr
+    };
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Seq {
