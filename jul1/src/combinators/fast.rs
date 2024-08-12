@@ -21,7 +21,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
         if regex_state.failed() {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else {
-            let mut right_data_vec = vec![];
+            let mut right_data_vec: VecY<RightData> = vecy![];
             let done = regex_state.done();
             if let Some(new_match) = regex_state.prev_match() {
                 let mut new_right_data = right_data.clone();
@@ -46,7 +46,7 @@ impl ParserTrait for FastParserWrapper {
         if regex_state.failed() {
             ParseResults::empty_finished()
         } else {
-            let mut right_data_vec = vec![];
+            let mut right_data_vec: VecY<RightData> = vecy![];
             let done = regex_state.done();
             if let Some(new_match) = regex_state.prev_match() {
                 if Some(new_match) != prev_match {
