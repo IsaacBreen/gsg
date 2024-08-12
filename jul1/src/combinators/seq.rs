@@ -111,6 +111,7 @@ impl ParserTrait for SeqParser {
         let mut final_right_data: VecY<RightData> = VecY::new();
         let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
+        profile!("SeqParser::parse part 1", {
         self.parsers.retain_mut(|(combinator_index, parser)| {
             let parse_results = profile!("SeqParser::parse child Parser::parse", {
                 parser.parse(bytes)
@@ -125,7 +126,9 @@ impl ParserTrait for SeqParser {
             }
             !done
         });
+        });
 
+        profile!("SeqParser::parse part 2", {
         while let Some((combinator_index, right_data_squasher)) = parser_initialization_queue.pop_first() {
             for right_data in right_data_squasher.finish() {
                 let offset = right_data.right_data_inner.position - self.position;
@@ -145,6 +148,7 @@ impl ParserTrait for SeqParser {
                 }
             }
         }
+        });
 
         self.position += bytes.len();
 
