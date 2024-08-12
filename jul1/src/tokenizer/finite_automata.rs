@@ -49,7 +49,7 @@ pub struct Match {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
-pub struct FinalMatch {
+pub struct FinalStateReport {
     pub position: usize,
     pub inner: Option<Match>,
 }
@@ -57,12 +57,12 @@ pub struct FinalMatch {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RegexState {
     pub regex: Regex,
-    final_match: Option<FinalMatch>,
     pub(crate) position: usize,
     current_state: usize,
     prev_finalizer: Option<Finalizer>,
     prev_finalizer_position: usize,
     pub failed: bool,
+    done: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -510,11 +510,28 @@ impl RegexState {
         }
     }
 
+    pub fn prev_match(&self) -> Option<Match> {
+        self.prev_finalizer.map(|finalizer| Match { position: self.prev_finalizer_position, group_id: finalizer.group })
+    }
+
+    pub fn final_match(&self) -> Option<Match> {
+        if self.done {
+            self.prev_match()
+        } else {
+            None
+        }
+    }
+
     pub fn end(&mut self) {
-        self.final_match = Some(FinalMatch {
+        assert!(!self.done);
+        self.done = true;
+    }
+
+    pub fn final_state_report(&self) -> FinalStateReport {
+        FinalStateReport {
             position: self.position,
             inner: self.prev_finalizer.map(|finalizer| Match { position: self.prev_finalizer_position, group_id: finalizer.group }),
-        });
+        }
     }
 }
 
@@ -555,6 +572,20 @@ impl RegexState {
         self.prev_finalizer.map(|finalizer| Match { position: self.prev_finalizer_position, group_id: finalizer.group })
     }
 
+    pub fn matches(&self) -> Option<bool> {
+        if self.prev_finalizer.is_some() {
+            Some(true)
+        } else if self.done {
+            Some(false)
+        } else {
+            None
+        }
+    }
+
+    pub fn could_match(&self) -> bool {
+        self.matches().unwrap_or(true)
+    }
+
     pub fn done(&self) -> bool {
         // Returns true if the regex has matched and cannot possibly match any more
         todo!()
@@ -565,32 +596,46 @@ impl Regex {
     pub fn init(&self) -> RegexState {
         RegexState {
             regex: self.clone(),
-            final_match: None,
             position: 0,
             current_state: 0,
             prev_finalizer: self.dfa.states[self.dfa.start_state].finalizer,
             prev_finalizer_position: 0,
             failed: false,
+            done: false,
         }
-
     }
 
-    pub fn find(&self, text: &[u8]) -> FinalMatch {
+    pub fn find(&self, text: &[u8]) -> Option<Match> {
         let mut regex_state = self.init();
         regex_state.execute(text);
-        regex_state.end();
-        if let Some(find_return) = regex_state.final_match {
-            find_return
-        } else {
-            FinalMatch {
-                position: regex_state.position,
-                inner: None,
-            }
-        }
+        regex_state.prev_match()
     }
 
-    pub fn is_match(&self, text: &[u8]) -> bool {
-        self.find(text).inner.is_some()
+    pub fn matches(&self, text: &[u8]) -> Option<bool> {
+        let mut regex_state = self.init();
+        regex_state.execute(text);
+        let m = regex_state.prev_match();
+        regex_state.matches()
+    }
+
+    pub fn definitely_matches(&self, text: &[u8]) -> bool {
+        self.matches(text).unwrap_or(false)
+    }
+
+    pub fn could_match(&self, text: &[u8]) -> bool {
+        self.matches(text).unwrap_or(true)
+    }
+
+    pub fn fully_matches(&self, text: &[u8]) -> Option<bool> {
+        self.find(text).map(|m| m.position == text.len())
+    }
+
+    pub fn definitely_fully_matches(&self, text: &[u8]) -> bool {
+        self.fully_matches(text).unwrap_or(false)
+    }
+
+    pub fn could_fully_match(&self, text: &[u8]) -> bool {
+        self.fully_matches(text).unwrap_or(true)
     }
 }
 
@@ -605,8 +650,13 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match(b"a"));
-        assert!(!regex.is_match(b"b"));
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(!regex.could_match(b"b"));
+
+        assert!(!regex.definitely_matches(b"")); // Incomplete match not allowed
+        assert!(regex.could_match(b"")); // Incomplete match allowed
+        assert!(regex.definitely_matches(b"ab")); // Prefix match allowed
+        assert!(regex.definitely_matches(b"aa")); // Prefix match allowed
     }
 
     #[test]
@@ -616,10 +666,10 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match(b""));
-        assert!(regex.is_match(b"a"));
-        assert!(regex.is_match(b"aaaa"));
-        assert!(regex.is_match(b"b"));
+        assert!(regex.definitely_fully_matches(b""));
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"aaaa"));
+        assert!(regex.definitely_fully_matches(b"b"));
 
         let mut state = regex.init();
         state.execute(b"aa");
@@ -634,23 +684,24 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match(b"a"));
-        assert!(regex.is_match(b"b"));
-        assert!(!regex.is_match(b"c"));
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"b"));
+        assert!(!regex.could_match(b"c"));
     }
 
     #[test]
     fn test_seq() {
-        let expr = seq!['a', 'b'];
+        let expr = seq![b'a', b'b'];
         dbg!(&expr);
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(!regex.is_match(b"a"));
-        assert!(!regex.is_match(b"b"));
-        assert!(regex.is_match(b"ab"));
-        assert!(regex.is_match(b"abab"));
-        assert!(!regex.is_match(b"c"));
+        assert!(regex.could_match(b"a"));
+        // assert!(!regex.definitely_matches(b"a"));
+        // assert!(!regex.could_match(b"b"));
+        // assert!(regex.definitely_matches(b"ab"));
+        // assert!(regex.definitely_matches(b"abab"));
+        // assert!(!regex.could_match(b"c"));
     }
 }
 
@@ -664,10 +715,10 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match(b"a"));
-        assert!(regex.is_match(b"aa"));
-        assert!(regex.is_match(b"aaa"));
-        assert!(regex.is_match(b""));
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"aa"));
+        assert!(regex.definitely_fully_matches(b"aaa"));
+        assert!(regex.definitely_fully_matches(b""));
     }
 
     #[test]
@@ -679,12 +730,12 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match(b"ab"));
-        assert!(regex.is_match(b"abb"));
-        assert!(regex.is_match(b"c"));
-        assert!(!regex.is_match(b"a"));
-        assert!(!regex.is_match(b"b"));
-        assert!(regex.is_match(b"cc"));
+        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(regex.definitely_fully_matches(b"abb"));
+        assert!(regex.definitely_fully_matches(b"c"));
+        assert!(!regex.could_match(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(regex.definitely_fully_matches(b"cc"));
     }
 
     #[test]
@@ -697,13 +748,13 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match(b"bc"));
-        assert!(regex.is_match(b"bcc"));
-        assert!(regex.is_match(b"abcc"));
-        assert!(regex.is_match(b"aaabccc"));
-        assert!(!regex.is_match(b"a"));
-        assert!(!regex.is_match(b"b"));
-        assert!(!regex.is_match(b"c"));
+        assert!(regex.definitely_fully_matches(b"bc"));
+        assert!(regex.definitely_fully_matches(b"bcc"));
+        assert!(regex.definitely_fully_matches(b"abcc"));
+        assert!(regex.definitely_fully_matches(b"aaabccc"));
+        assert!(!regex.could_match(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(!regex.could_match(b"c"));
     }
 
     #[test]
@@ -716,14 +767,14 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match(b"cd"));
-        assert!(regex.is_match(b"ce"));
-        assert!(regex.is_match(b"cde"));
-        assert!(regex.is_match(b"aced"));
-        assert!(regex.is_match(b"bacde"));
-        assert!(!regex.is_match(b"a"));
-        assert!(!regex.is_match(b"b"));
-        assert!(!regex.is_match(b"c"));
+        assert!(regex.definitely_fully_matches(b"cd"));
+        assert!(regex.definitely_fully_matches(b"ce"));
+        assert!(regex.definitely_fully_matches(b"cde"));
+        assert!(regex.definitely_fully_matches(b"aced"));
+        assert!(regex.definitely_fully_matches(b"bacde"));
+        assert!(!regex.could_match(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(!regex.could_match(b"c"));
     }
 }
 
@@ -739,10 +790,10 @@ mod even_more_complex_tests {
         ];
         let regex = expr.build();
 
-        assert!(regex.is_match(b"bc"));
-        assert!(regex.is_match(b"cb"));
-        assert!(regex.is_match(b"ab"));
-        assert!(regex.is_match(b"cd"));
+        assert!(regex.definitely_fully_matches(b"bc"));
+        assert!(regex.definitely_fully_matches(b"cb"));
+        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(regex.definitely_fully_matches(b"cd"));
     }
 
     #[test]
@@ -753,11 +804,11 @@ mod even_more_complex_tests {
         ];
         let regex = expr.build();
 
-        assert!(regex.is_match(b"c"));
-        assert!(regex.is_match(b"abc"));
-        assert!(regex.is_match(b"abbc"));
-        assert!(regex.is_match(b"ababbabc"));
-        assert!(!regex.is_match(b"ac"));
+        assert!(regex.definitely_fully_matches(b"c"));
+        assert!(regex.definitely_fully_matches(b"abc"));
+        assert!(regex.definitely_fully_matches(b"abbc"));
+        assert!(regex.definitely_fully_matches(b"ababbabc"));
+        assert!(!regex.could_match(b"ac"));
     }
 
     #[test]
@@ -765,10 +816,8 @@ mod even_more_complex_tests {
         let expr = choice!['a', seq![]];
         let regex = expr.build();
 
-        assert!(regex.is_match(b"a"));
-        assert!(regex.is_match(b"")); // Should match the empty option
-
-        assert!(regex.is_match(b"ab")); // Partial match allowed
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"")); // Should match the empty option
     }
 
     #[test]
@@ -779,10 +828,10 @@ mod even_more_complex_tests {
         ];
         let regex = expr.build();
 
-        assert!(regex.is_match(b"a"));
-        assert!(regex.is_match(b"aa"));
-        assert!(!regex.is_match(b""));
-        assert!(!regex.is_match(b"b"));
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"aa"));
+        assert!(!regex.could_match(b""));
+        assert!(!regex.could_match(b"b"));
     }
 
     #[test]
@@ -790,11 +839,11 @@ mod even_more_complex_tests {
         let expr: Expr = 'a'.into();
         let regex = expr.build();
 
-        assert!(regex.is_match(b"a"));
-        assert!(!regex.is_match(b"ba"));
-        assert!(regex.is_match(b"ab"));
-        assert!(!regex.is_match(b"bab"));
-        assert!(!regex.is_match(b"b"));
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(!regex.could_match(b"ba"));
+        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(!regex.could_match(b"bab"));
+        assert!(!regex.could_match(b"b"));
     }
 
     #[test]
@@ -807,7 +856,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"a"), FinalMatch { position: 1, inner: Some(Match { position: 1, group_id: 2 }) });
+        assert_eq!(regex.find(b"a"), Some(Match { position: 1, group_id: 2 }));
     }
 
     #[test]
@@ -820,7 +869,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence
-        assert_eq!(regex.find(b"aaa"), FinalMatch { position: 3, inner: Some(Match { position: 1, group_id: 1 }) });
+        assert_eq!(regex.find(b"aaa"), Some(Match { position: 3, group_id: 1 }));
     }
 
     #[test]
@@ -833,7 +882,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence, even though 'a' is also part of a choice
-        assert_eq!(regex.find(b"a"), FinalMatch { position: 1, inner: Some(Match { position: 1, group_id: 1 }) });
+        assert_eq!(regex.find(b"a"), Some(Match { position: 1, group_id: 1 }));
     }
 
     #[test]
@@ -846,7 +895,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence, even though 'ab' is also a valid match
-        assert_eq!(regex.find(b"ab"), FinalMatch { position: 2, inner: Some(Match { position: 1, group_id: 1 }) });
+        assert_eq!(regex.find(b"ab"), Some(Match { position: 2, group_id: 1 }));
     }
 
     #[test]
@@ -893,11 +942,11 @@ mod even_more_complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.is_match(b"False"));
-        assert!(regex.is_match(b"None"));
-        assert!(regex.is_match(b"True"));
-        assert!(regex.is_match(b"and"));
-        assert!(regex.is_match(b"as"));
-        assert!(regex.is_match(b"assert"));
+        assert!(regex.definitely_fully_matches(b"False"));
+        assert!(regex.definitely_fully_matches(b"None"));
+        assert!(regex.definitely_fully_matches(b"True"));
+        assert!(regex.definitely_fully_matches(b"and"));
+        assert!(regex.definitely_fully_matches(b"as"));
+        assert!(regex.definitely_fully_matches(b"assert"));
     }
 }

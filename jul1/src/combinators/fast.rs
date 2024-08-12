@@ -23,12 +23,12 @@ impl CombinatorTrait for FastCombinatorWrapper {
         } else {
             let mut right_data_vec = vec![];
             let done = regex_state.done();
-            if let Some(find_return) = regex_state.final_match.take() {
-                let mut new_right_data = right_data.clone();
-                let position = find_return.position;
-                new_right_data.advance(position);
-                right_data_vec.push(new_right_data);
-            }
+            // if let Some(find_return) = regex_state.final_match.take() {
+            //     let mut new_right_data = right_data.clone();
+            //     let position = find_return.position;
+            //     new_right_data.advance(position);
+            //     right_data_vec.push(new_right_data);
+            // }
             (Parser::FastParserWrapper(FastParserWrapper { regex_state, right_data: Some(right_data) }), ParseResults::new(right_data_vec, done))
         }
     }
@@ -45,11 +45,11 @@ impl ParserTrait for FastParserWrapper {
         regex_state.execute(bytes);
         if regex_state.failed {
             ParseResults::empty_finished()
-        } else if let Some(find_return) = regex_state.find_return {
-            let position = find_return.position;
-            let mut new_right_data = self.right_data.clone().unwrap();
-            new_right_data.advance(position);
-            ParseResults::new_single(new_right_data, false)
+        // } else if let Some(find_return) = regex_state.find_return {
+        //     let position = find_return.position;
+        //     let mut new_right_data = self.right_data.clone().unwrap();
+        //     new_right_data.advance(position);
+        //     ParseResults::new_single(new_right_data, false)
         } else {
             ParseResults::empty_unfinished()
         }
