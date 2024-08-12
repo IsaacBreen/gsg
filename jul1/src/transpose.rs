@@ -10,17 +10,24 @@ impl Parser {
                     [(i, Parser::SeqParser(SeqParser { parsers: parsers2, combinators: combinators2, position: position2 }))] => {
                         match parsers2.as_slice() {
                             [(i2, child)] => {
-                                let first = combinators2[*i2].clone();
-                                let second = Seq { children: combinators2.clone(), start_index: i2 + 1 }.into();
-                                let third = Seq { children: combinators.clone(), start_index: i + 1 }.into();
+                                // let first = combinators2[*i2].clone();
+                                // let second = Seq { children: combinators2.clone(), start_index: i2 + 1 }.into();
+                                // let third = Seq { children: combinators.clone(), start_index: i + 1 }.into();
+                                let mut new_combinators = vec![];
+                                new_combinators.push(combinators2[*i2].clone());
+                                // new_combinators.push(Seq { children: combinators2.clone(), start_index: i2 + 1 }.into());
+                                // new_combinators.push(Seq { children: combinators.clone(), start_index: i + 1 }.into());
+                                new_combinators.extend(combinators2[i2 + 1..].iter().cloned());
+                                new_combinators.extend(combinators[i + 1..].iter().cloned());
                                 let transposed = Parser::SeqParser(SeqParser {
                                     parsers: vec![(0, child.clone())],
-                                    combinators: Rc::new(vec![first, second, third]),
+                                    // combinators: Rc::new(vec![first, second, third]),
+                                    combinators: Rc::new(new_combinators),
                                     position: *position2,
                                 });
                                 // println!("transposing seq");
                                 *self = transposed;
-                                self.transpose();
+                                // self.transpose();
                             }
                             _ => {},
                         }
@@ -32,7 +39,7 @@ impl Parser {
                 if parsers.len() == 1 {
                     // println!("transposing choice");
                     *self = parsers.first().unwrap().clone();
-                    self.transpose();
+                    // self.transpose();
                 }
             }
             Parser::Repeat1Parser(Repeat1Parser { a, a_parsers, position, greedy }) => {
@@ -45,7 +52,7 @@ impl Parser {
                         combinators: Rc::new(vec![first, second]),
                         position: *position,
                     });
-                    self.transpose();
+                    // self.transpose();
                 }
             }
             Parser::EatU8Parser(_) => {}

@@ -165,14 +165,14 @@ impl CombinatorTrait for Cached {
             let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
 
             let mut global_cache = cache.borrow_mut();
-            profile!("Cached.parse: check cache", {
-                let parse_id = global_cache.parse_id.unwrap();
-                if let Some(entry) = global_cache.new_parsers.get_mut(&parse_id).unwrap().get(&key).cloned() {
-                    profile!("Cached.parse: cache hit", {});
-                    let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
-                    return (Parser::CachedParser(CachedParser { entry }), parse_results);
-                }
-            });
+            let parse_id = global_cache.parse_id.unwrap();
+            if let Some(entry) = profile!("Cached.parse: check cache: get entry", {
+                global_cache.new_parsers.get_mut(&parse_id).unwrap().get(&key).cloned()
+            }) {
+                profile!("Cached.parse: cache hit", {});
+                let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
+                return (Parser::CachedParser(CachedParser { entry }), parse_results);
+            }
             drop(global_cache);
 
             profile!("Cached.parse: cache miss", {});
