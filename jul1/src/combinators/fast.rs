@@ -1,14 +1,14 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use crate::*;
-use crate::fast_combinator::{FastParser, FastParserResult};
+use crate::fast_combinator::{FastCombinator, FastParserResult};
 
-pub struct FastCombinator {
-    pub(crate) fast: Rc<FastParser>,
+pub struct FastCombinatorWrapper {
+    pub(crate) fast: Rc<FastCombinator>,
     pub(crate) slow: Box<Combinator>,
 }
 
-impl Debug for FastCombinator {
+impl Debug for FastCombinatorWrapper {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FastParser")
             .field("slow", &self.slow)
@@ -16,7 +16,7 @@ impl Debug for FastCombinator {
     }
 }
 
-impl Clone for FastCombinator {
+impl Clone for FastCombinatorWrapper {
     fn clone(&self) -> Self {
         Self {
             fast: self.fast.clone(),
@@ -25,21 +25,21 @@ impl Clone for FastCombinator {
     }
 }
 
-impl PartialEq for FastCombinator {
+impl PartialEq for FastCombinatorWrapper {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.fast, &other.fast)
     }
 }
 
-impl Eq for FastCombinator {}
+impl Eq for FastCombinatorWrapper {}
 
-impl Hash for FastCombinator {
+impl Hash for FastCombinatorWrapper {
     fn hash<H: Hasher>(&self, state: &mut H) {
         Rc::as_ptr(&self.fast).hash(state);
     }
 }
 
-impl CombinatorTrait for FastCombinator {
+impl CombinatorTrait for FastCombinatorWrapper {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         match self.fast.parse(bytes) {
             FastParserResult::Success(len) => {
@@ -56,19 +56,19 @@ impl CombinatorTrait for FastCombinator {
     }
 }
 
-pub fn fast_parser(parser: FastParser) -> FastCombinator {
+pub fn fast_combinator(parser: FastCombinator) -> FastCombinatorWrapper {
     let slow = parser.slow();
-    FastCombinator { fast: Rc::new(parser), slow: Box::new(slow) }
+    FastCombinatorWrapper { fast: Rc::new(parser), slow: Box::new(slow) }
 }
 
-impl From<FastCombinator> for Combinator {
-    fn from(fast_combinator: FastCombinator) -> Self {
+impl From<FastCombinatorWrapper> for Combinator {
+    fn from(fast_combinator: FastCombinatorWrapper) -> Self {
         Combinator::Fast(fast_combinator)
     }
 }
 
-impl From<FastParser> for Combinator {
-    fn from(value: FastParser) -> Self {
-        Combinator::from(fast_parser(value))
+impl From<FastCombinator> for Combinator {
+    fn from(value: FastCombinator) -> Self {
+        Combinator::from(fast_combinator(value))
     }
 }

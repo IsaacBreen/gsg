@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
 
-use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_parser, eat, FastParser, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast, eat_char_negation_fast, repeatn_fast};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_combinator, eat, FastCombinator, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast, eat_char_negation_fast, repeatn_fast};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -25,15 +25,15 @@ pub fn non_breaking_space() -> Combinator {
     eat_char_choice(" \t").into()
 }
 
-pub fn breaking_space_fast() -> FastParser {
+pub fn breaking_space_fast() -> FastCombinator {
     eat_char_choice_fast("\n\r").into()
 }
 
-pub fn not_breaking_space_fast() -> FastParser {
+pub fn not_breaking_space_fast() -> FastCombinator {
     eat_char_negation_choice_fast("\n\r").into()
 }
 
-pub fn non_breaking_space_fast() -> FastParser {
+pub fn non_breaking_space_fast() -> FastCombinator {
     eat_char_choice_fast(" \t").into()
 }
 
@@ -336,25 +336,25 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
     bytestrings
 }
 
-pub fn id_start_fast() -> FastParser {
+pub fn id_start_fast() -> FastCombinator {
     eat_bytestring_choice_fast(id_start_bytestrings())
     // eat_bytestring_choice_fast(vec![b'_', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z'].into_iter().map(|byte| vec![byte]).collect())
     // eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 }
 
-pub fn id_continue_fast() -> FastParser {
+pub fn id_continue_fast() -> FastCombinator {
     eat_bytestring_choice_fast(id_continue_bytestrings())
     // eat_bytestring_choice_fast(vec![b'_', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9'].into_iter().map(|byte| vec![byte]).collect())
     // eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 }
 
-pub fn xid_start_fast() -> FastParser {
+pub fn xid_start_fast() -> FastCombinator {
     // all characters in id_start whose NFKC normalization is in "id_start xid_continue*"
     // Honestly, I don't know what this means.
     id_start_fast()
 }
 
-pub fn xid_continue_fast() -> FastParser {
+pub fn xid_continue_fast() -> FastCombinator {
     // all characters in id_continue whose NFKC normalization is in "id_continue*"
     // Honestly, I don't know what this means.
     id_continue_fast()
@@ -711,15 +711,15 @@ pub fn NAME() -> Combinator {
 //    single: \N; escape sequence
 //    single: \u; escape sequence
 //    single: \U; escape sequence
-pub fn eat_char_hex_digit() -> FastParser {
+pub fn eat_char_hex_digit() -> FastCombinator {
     eat_char_choice_fast("0123456789abcdefABCDEF")
 }
 
-pub fn eat_char_digit() -> FastParser {
+pub fn eat_char_digit() -> FastCombinator {
     eat_char_choice_fast("0123456789")
 }
 
-pub fn eat_until_terminator(terminator: char) -> FastParser {
+pub fn eat_until_terminator(terminator: char) -> FastCombinator {
     repeat1_fast(eat_char_negation_fast(terminator))
 }
 
@@ -1140,7 +1140,7 @@ pub fn NUMBER() -> Combinator {
 // literal, and ends at the end of the physical line.  A comment signifies the end
 // of the logical line unless the implicit line joining rules are invoked. Comments
 // are ignored by the syntax.
-pub fn comment() -> FastParser {
+pub fn comment() -> FastCombinator {
     seq_fast!(eat_char_fast('#'), repeat0_fast(not_breaking_space_fast()))
 }
 

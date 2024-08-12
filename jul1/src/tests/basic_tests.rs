@@ -355,8 +355,8 @@ mod tests {
     }
 
     #[test]
-    fn test_fast_parser() {
-        let combinator = fast_parser(seq_fast!(
+    fn test_fast_combinator() {
+        let combinator = fast_combinator(seq_fast!(
             choice_fast!(
                 eat_char_fast('a'),
                 eat_char_fast('b'),
