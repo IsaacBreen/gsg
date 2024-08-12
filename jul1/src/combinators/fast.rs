@@ -32,6 +32,7 @@ impl ParserTrait for FastParserWrapper {
 
 pub fn fast_combinator(expr: Expr) -> FastCombinatorWrapper {
     println!("building regex");
+    println!("{:?}", expr);
     let regex = expr.build();
     println!("built regex");
     FastCombinatorWrapper { regex: Rc::new(regex) }
@@ -45,6 +46,6 @@ impl From<FastCombinatorWrapper> for Combinator {
 
 impl From<Expr> for Combinator {
     fn from(value: Expr) -> Self {
-        Combinator::from(fast_combinator(value))
+        fast_combinator(value).into()
     }
 }
