@@ -102,16 +102,13 @@ impl ParserTrait for ProfiledParser {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        if self.tag == "NUMBER" {
-            println!("parsing number");
-        }
         profile!(&self.tag, self.inner.parse(bytes))
     }
 }
 
 pub fn profile(tag: &str, a: impl Into<Combinator>) -> Combinator {
-    Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
-    // a.into()
+    // Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
+    a.into()
 }
 
 pub fn profile_internal(tag: &str, a: impl Into<Combinator>) -> Combinator {

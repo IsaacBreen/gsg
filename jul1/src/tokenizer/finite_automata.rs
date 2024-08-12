@@ -1,5 +1,6 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
+use std::rc::Rc;
 use crate::tokenizer::charmap::TrieMap;
 
 use crate::tokenizer::frozenset::FrozenSet;
@@ -39,7 +40,7 @@ pub struct DFA {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Regex {
-    dfa: DFA,
+    dfa: Rc<DFA>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -227,7 +228,7 @@ impl NFAState {
 impl ExprGroups {
     pub fn build(self) -> Regex {
         Regex {
-            dfa: self.build_nfa().to_dfa(),
+            dfa: Rc::new(self.build_nfa().to_dfa()),
         }
     }
 
