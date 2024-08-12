@@ -31,30 +31,30 @@ pub struct DFAState {
     finalizer: Option<Finalizer>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct DFA {
     states: Vec<DFAState>,
     start_state: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Regex {
     dfa: DFA,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Success {
     pub position: usize,
     pub group_id: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
 pub struct FindReturn {
     pub position: usize,
     pub inner: Option<Success>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RegexState {
     pub regex: Regex,
     pub find_return: Option<FindReturn>,
@@ -562,24 +562,6 @@ impl Regex {
 
     pub fn is_match(&self, text: &str) -> bool {
         self.find(text).inner.is_some()
-    }
-
-    pub fn from_strs(regex_strs: Vec<String>) -> Regex {
-        // Turn the strings into sequences of characters
-        let mut exprs = Vec::new();
-        for regex_str in regex_strs {
-            exprs.push(parse_regex(regex_str.as_str()).unwrap());
-        }
-        dbg!(&exprs[90]);
-        let mut expr_groups = Vec::new();
-        for expr in exprs {
-            expr_groups.push(ExprGroup {
-                expr: expr.into(),
-                precedence: 0,
-            });
-        }
-        let expr_groups = ExprGroups { groups: expr_groups };
-        expr_groups.build()
     }
 }
 
