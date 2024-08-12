@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use crate::{ChoiceParser, Combinator, Parser, ParseResults, Seq, SeqParser};
+
+use crate::{ChoiceParser, Opt, Parser, Repeat1, Repeat1Parser, Seq, SeqParser};
 
 impl Parser {
     pub fn transpose(mut self) -> Self {
@@ -44,7 +45,6 @@ impl Parser {
                                 // let transposed_str_truncated = transposed_str.chars().take(50).collect::<String>();
                                 // println!("transpose! {:?} => {:?}", self_str_truncated, transposed_str_truncated);
                                 transposed
-
                             }
                             _ => self,
                         }
@@ -53,7 +53,24 @@ impl Parser {
                 }
             }
             Parser::ChoiceParser(ChoiceParser { parsers, greedy }) => {
-                self
+                if parsers.len() == 1 {
+                    parsers.first().unwrap().clone()
+                } else {
+                    self
+                }
+            }
+            Parser::Repeat1Parser(Repeat1Parser { a, a_parsers, position, greedy }) => {
+                if a_parsers.len() == 1 {
+                    let first = a.as_ref().clone();
+                    let second = Opt { inner: Box::new(Repeat1 { a: a.clone(), greedy: *greedy }.into()), greedy: *greedy }.into();
+                    Parser::SeqParser(SeqParser {
+                        parsers: vec![(0, a_parsers.first().unwrap().clone())],
+                        combinators: Rc::new(vec![first, second]),
+                        position: *position,
+                    })
+                } else {
+                    self
+                }
             }
             _ => self,
         }
