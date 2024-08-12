@@ -122,7 +122,9 @@ impl ParserTrait for SeqParser {
                     parser_initialization_queue.entry(*combinator_index + 1).or_default().extend(parse_results.right_data_vec);
                 });
             } else {
-                final_right_data.extend(parse_results.right_data_vec);
+                profile!("SeqParser::parse extend final_right_data", {
+                    final_right_data.extend(parse_results.right_data_vec);
+                });
             }
             !done
         });
