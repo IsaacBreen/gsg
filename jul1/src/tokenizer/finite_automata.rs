@@ -528,7 +528,13 @@ impl RegexState {
 impl RegexState {
     pub fn get_u8set(&self) -> U8Set {
         // Get all possible u8s that can match next
-        todo!()
+        let mut u8set = U8Set::new();
+        let dfa = &self.regex.dfa;
+        let state_data = &dfa.states[self.current_state];
+        for (transition_u8, _) in &state_data.transitions {
+            u8set.insert(transition_u8);
+        }
+        u8set
     }
 
     pub fn get_prev_match(&self) -> Option<Match> {
