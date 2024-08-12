@@ -710,9 +710,11 @@ mod complex_tests {
         assert!(regex.definitely_fully_matches(b"ab"));
         assert!(regex.definitely_fully_matches(b"abb"));
         assert!(regex.definitely_fully_matches(b"c"));
-        assert!(!regex.could_match(b"a"));
+        assert!(regex.could_match(b"a"));
+        assert!(!regex.definitely_matches(b"a"));
         assert!(!regex.could_match(b"b"));
-        assert!(regex.definitely_fully_matches(b"cc"));
+        assert!(regex.definitely_matches(b"cc"));
+        assert!(!regex.definitely_fully_matches(b"cc"));
     }
 
     #[test]
@@ -729,8 +731,8 @@ mod complex_tests {
         assert!(regex.definitely_fully_matches(b"bcc"));
         assert!(regex.definitely_fully_matches(b"abcc"));
         assert!(regex.definitely_fully_matches(b"aaabccc"));
-        assert!(!regex.could_match(b"a"));
-        assert!(!regex.could_match(b"b"));
+        assert!(regex.could_match(b"a"));
+        assert!(regex.could_match(b"b"));
         assert!(!regex.could_match(b"c"));
     }
 
@@ -749,9 +751,12 @@ mod complex_tests {
         assert!(regex.definitely_fully_matches(b"cde"));
         assert!(regex.definitely_fully_matches(b"aced"));
         assert!(regex.definitely_fully_matches(b"bacde"));
-        assert!(!regex.could_match(b"a"));
-        assert!(!regex.could_match(b"b"));
-        assert!(!regex.could_match(b"c"));
+        assert!(regex.could_fully_match(b"a"));
+        assert!(!regex.definitely_matches(b"a"));
+        assert!(!regex.definitely_matches(b"b"));
+        assert!(regex.could_match(b"c"));
+        assert!(!regex.definitely_matches(b"c"));
+        assert!(!regex.could_match(b"d"));
     }
 }
 
@@ -808,7 +813,8 @@ mod even_more_complex_tests {
 
         assert!(regex.definitely_fully_matches(b"a"));
         assert!(regex.definitely_fully_matches(b"aa"));
-        assert!(!regex.could_match(b""));
+        assert!(regex.could_match(b""));
+        assert!(regex.could_fully_match(b""));
         assert!(!regex.could_match(b"b"));
     }
 
@@ -819,7 +825,8 @@ mod even_more_complex_tests {
 
         assert!(regex.definitely_fully_matches(b"a"));
         assert!(!regex.could_match(b"ba"));
-        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(regex.definitely_matches(b"ab"));
+        assert!(!regex.definitely_fully_matches(b"ab"));
         assert!(!regex.could_match(b"bab"));
         assert!(!regex.could_match(b"b"));
     }
@@ -847,7 +854,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence
-        assert_eq!(regex.find(b"aaa"), Some(Match { position: 3, group_id: 1 }));
+        assert_eq!(regex.find(b"aaa"), Some(Match { position: 1, group_id: 1 }));
     }
 
     #[test]
@@ -873,7 +880,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence, even though 'ab' is also a valid match
-        assert_eq!(regex.find(b"ab"), Some(Match { position: 2, group_id: 1 }));
+        assert_eq!(regex.find(b"ab"), Some(Match { position: 1, group_id: 1 }));
     }
 
     #[test]
