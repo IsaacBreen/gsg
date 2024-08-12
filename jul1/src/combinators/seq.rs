@@ -117,7 +117,9 @@ impl ParserTrait for SeqParser {
             });
             let done = parse_results.done();
             if *combinator_index + 1 < self.combinators.len() {
-                parser_initialization_queue.entry(*combinator_index + 1).or_default().extend(parse_results.right_data_vec);
+                profile!("SeqParser::parse extend parser_initialization_queue", {
+                    parser_initialization_queue.entry(*combinator_index + 1).or_default().extend(parse_results.right_data_vec);
+                });
             } else {
                 final_right_data.extend(parse_results.right_data_vec);
             }
@@ -136,7 +138,9 @@ impl ParserTrait for SeqParser {
                     self.parsers.push((combinator_index, parser));
                 }
                 if combinator_index + 1 < self.combinators.len() {
-                    parser_initialization_queue.entry(combinator_index + 1).or_default().extend(parse_results.right_data_vec);
+                    profile!("SeqParser::parse extend parser_initialization_queue", {
+                        parser_initialization_queue.entry(combinator_index + 1).or_default().extend(parse_results.right_data_vec);
+                    });
                 } else {
                     final_right_data.extend(parse_results.right_data_vec);
                 }
