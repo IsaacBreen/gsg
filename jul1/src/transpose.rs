@@ -44,6 +44,7 @@ impl Parser {
                                 // let self_str_truncated = self_str.chars().take(50).collect::<String>();
                                 // let transposed_str_truncated = transposed_str.chars().take(50).collect::<String>();
                                 // println!("transpose! {:?} => {:?}", self_str_truncated, transposed_str_truncated);
+                                // println!("transposing seq");
                                 transposed
                             }
                             _ => self,
@@ -54,6 +55,7 @@ impl Parser {
             }
             Parser::ChoiceParser(ChoiceParser { parsers, greedy }) => {
                 if parsers.len() == 1 {
+                    // println!("transposing choice");
                     parsers.first().unwrap().clone()
                 } else {
                     self
@@ -61,6 +63,7 @@ impl Parser {
             }
             Parser::Repeat1Parser(Repeat1Parser { a, a_parsers, position, greedy }) => {
                 if a_parsers.len() == 1 {
+                    // println!("transposing repeat1");
                     let first = a.as_ref().clone();
                     let second = Opt { inner: Box::new(Repeat1 { a: a.clone(), greedy: *greedy }.into()), greedy: *greedy }.into();
                     Parser::SeqParser(SeqParser {
