@@ -130,7 +130,6 @@ impl ParserTrait for SeqParser {
             for right_data in right_data_squasher.finish() {
                 let offset = right_data.right_data_inner.position - self.position;
                 let combinator = &self.combinators[combinator_index];
-                // let (parser, parse_results) = combinator.parse(right_data, &bytes[offset..]);
                 let (parser, parse_results) = profile!("SeqParser::parse child Combinator::parse", {
                     combinator.parse(right_data, &bytes[offset..])
                 });
