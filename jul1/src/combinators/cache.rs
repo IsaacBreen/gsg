@@ -22,6 +22,8 @@ thread_local! {
 struct GlobalCache {
     new_parsers: LruCache<CacheKey, Rc<RefCell<CacheEntry>>>,
     pub(crate) entries: Vec<Rc<RefCell<CacheEntry>>>,
+    pub(crate) parse_id_counter: usize,
+    pub(crate) parse_id: Option<usize>,
 }
 
 impl GlobalCache {
@@ -29,12 +31,15 @@ impl GlobalCache {
         Self {
             new_parsers: LruCache::new(NonZeroUsize::new(64).unwrap()),
             entries: Vec::new(),
+            parse_id_counter: 0,
+            parse_id: None,
         }
     }
 
     fn cleanup(&mut self) {
         self.new_parsers.clear();
         self.entries.retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done());
+        self.parse_id = None;
     }
 }
 
@@ -42,18 +47,20 @@ impl GlobalCache {
 struct CacheKey {
     combinator: Rc<Combinator>,
     right_data: RightData,
+    parse_id: usize
 }
 
 impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::mem::discriminant(self.combinator.as_ref()).hash(state);
         self.right_data.hash(state);
+        self.parse_id.hash(state);
     }
 }
 
 impl PartialEq for CacheKey {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
+        Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data && self.parse_id == other.parse_id
     }
 }
 
@@ -95,16 +102,25 @@ impl PartialEq for CachedParser {
 #[derivative(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CacheContextParser {
     pub inner: Box<Parser>,
+    pub(crate) parse_id: usize,
 }
 
 impl CombinatorTrait for CacheContext {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
+            let parse_id = {
+                let mut global_cache = cache.borrow_mut();
+                // global_cache.entries.clear();
+                // global_cache.new_parsers.clear();
+                global_cache.parse_id = Some(global_cache.parse_id_counter);
+                global_cache.parse_id_counter += 1;
+                global_cache.parse_id.unwrap()
+            };
             let (parser, results) = self.inner.parse(right_data, bytes);
             let mut global_cache = cache.borrow_mut();
             global_cache.entries.reverse();
             global_cache.cleanup();
-            let cache_context_parser = CacheContextParser { inner: Box::new(parser) };
+            let cache_context_parser = CacheContextParser { inner: Box::new(parser), parse_id };
             (Parser::CacheContextParser(cache_context_parser), results)
         })
     }
@@ -117,9 +133,13 @@ impl ParserTrait for CacheContextParser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         GLOBAL_CACHE.with(|cache| {
-            cache.borrow_mut().entries.iter_mut().for_each(|entry| {
-                entry.borrow_mut().maybe_parse_results.take();
-            });
+            {
+                let mut global_cache = cache.borrow_mut();
+                global_cache.parse_id = Some(self.parse_id);
+                global_cache.entries.iter_mut().for_each(|entry| {
+                    entry.borrow_mut().maybe_parse_results.take();
+                });
+            }
             let num_entries_initial = cache.borrow_mut().entries.len();
             for i in (0..num_entries_initial).rev() {
                 let entry_refcell = cache.borrow_mut().entries[i].clone();
@@ -143,7 +163,7 @@ impl ParserTrait for CacheContextParser {
 impl CombinatorTrait for Cached {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
-            let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
+            let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone(), parse_id: cache.borrow().parse_id.unwrap() };
 
             let mut global_cache = cache.borrow_mut();
             profile!("Cached.parse: check cache", {
