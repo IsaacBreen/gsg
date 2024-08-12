@@ -376,4 +376,15 @@ mod tests {
         assert_parses_default(&combinator, "bd");
         assert_parses_fast(&combinator, "bd");
     }
+
+    #[test]
+    fn test_prefix() {
+        let combinator = choice!(
+            eat_string("abcxx"),
+            eat_string("abcyy"),
+        );
+        let (mut parser, _) = combinator.parser(RightData::default());
+        let (prefix, parse_results) = parser.autoparse(10);
+        assert_eq!(prefix, b"abc");
+    }
 }

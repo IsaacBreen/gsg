@@ -137,6 +137,22 @@ pub trait CombinatorTrait {
 pub trait ParserTrait {
     fn get_u8set(&self) -> U8Set;
     fn parse(&mut self, bytes: &[u8]) -> ParseResults;
+    fn autoparse(&mut self, max_length: usize) -> (Vec<u8>, ParseResults) {
+        let mut prefix = Vec::new();
+        let mut parse_results = ParseResults::empty_finished();
+        while prefix.len() < max_length {
+            let u8set = self.get_u8set();
+            if u8set.len() == 1 {
+                let c = u8set.iter().next().unwrap();
+                let new_parse_results = self.parse(&[c]);
+                parse_results.combine_seq(new_parse_results);
+                prefix.push(c);
+            } else {
+                break;
+            }
+        }
+        (prefix, parse_results)
+    }
 }
 
 impl CombinatorTrait for Combinator {
