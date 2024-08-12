@@ -1,5 +1,6 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::tokenizer::charmap::TrieMap;
 
@@ -38,9 +39,21 @@ pub struct DFA {
     start_state: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Eq)]
 pub struct Regex {
     dfa: Rc<DFA>,
+}
+
+impl PartialEq for Regex {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.dfa, &other.dfa)
+    }
+}
+
+impl Hash for Regex {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.dfa.states.len().hash(state);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -514,34 +527,8 @@ impl RegexState {
 
 impl RegexState {
     pub fn get_u8set(&self) -> U8Set {
-        let mut possible_u8s = U8Set::new();
-        let current_dfa_state = &self.regex.dfa.states[self.current_state];
-
-        // Iterate through all transitions from the current state
-        for (u8, &next_state) in &current_dfa_state.transitions {
-            possible_u8s.insert(u8);
-
-            // If the next state has a finalizer, add all u8s that can be reached from it
-            if self.regex.dfa.states[next_state].finalizer.is_some() {
-                self.add_reachable_u8s(next_state, &mut possible_u8s);
-            }
-        }
-
-        possible_u8s
-    }
-
-    fn add_reachable_u8s(&self, state: usize, u8_set: &mut U8Set) {
-        let mut visited = HashSet::new();
-        let mut stack = vec![state];
-
-        while let Some(current_state) = stack.pop() {
-            if visited.insert(current_state) {
-                for (u8, &next_state) in &self.regex.dfa.states[current_state].transitions {
-                    u8_set.insert(u8);
-                    stack.push(next_state);
-                }
-            }
-        }
+        // Get all possible u8s that can match next
+        todo!()
     }
 
     pub fn get_prev_match(&self) -> Option<Match> {
