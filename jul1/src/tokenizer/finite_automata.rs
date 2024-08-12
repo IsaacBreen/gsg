@@ -513,7 +513,7 @@ impl RegexState {
 }
 
 impl RegexState {
-    pub fn get_possible_next_u8s(&self) -> U8Set {
+    pub fn get_u8set(&self) -> U8Set {
         let mut possible_u8s = U8Set::new();
         let current_dfa_state = &self.regex.dfa.states[self.current_state];
 
