@@ -476,7 +476,7 @@ impl RegexState {
                     }
                 }
             } else {
-                // If no transition exists for the current u8acter, we're finished
+                // If no transition exists for the current u8, we're finished
                 self.end();
                 return;
             }
@@ -521,7 +521,7 @@ impl RegexState {
         for (u8, &next_state) in &current_dfa_state.transitions {
             possible_u8s.insert(u8);
 
-            // If the next state has a finalizer, add all u8acters that can be reached from it
+            // If the next state has a finalizer, add all u8s that can be reached from it
             if self.regex.dfa.states[next_state].finalizer.is_some() {
                 self.add_reachable_u8s(next_state, &mut possible_u8s);
             }
@@ -766,7 +766,7 @@ mod even_more_complex_tests {
     use super::*;
 
     #[test]
-    fn test_overlapping_u8acter_classes() {
+    fn test_overlapping_u8_classes() {
         let expr = seq![
             choice![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')],
             choice![eat_u8(b'b'), eat_u8(b'c'), eat_u8(b'd')],
