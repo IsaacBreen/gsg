@@ -5,7 +5,6 @@ use crate::trie::{FinishReason, TrieNode};
 use std::collections::HashMap;
 use crate::FastCombinatorResult::Failure;
 use crate::tokenizer::finite_automata::{ExprGroups, Expr, prec, DFAState, opt, ExprGroup, DFA, RegexState, Regex};
-use crate::tokenizer::tokenizer_trait::Tokenizer;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FastCombinator {
