@@ -109,6 +109,15 @@ impl<T> From<T> for ExprGroup where T: ToString {
     }
 }
 
+pub fn char(c: u8) -> Expr {
+    let c = c as char;
+    if c == '\0' {
+        Expr::Seq(vec![])
+    } else {
+        Expr::Char(c)
+    }
+}
+
 pub fn rep<T: Into<Expr>>(expr: T) -> Expr {
     Expr::Quantifier(Box::new(expr.into()), QuantifierType::ZeroOrMore)
 }
@@ -125,16 +134,16 @@ pub fn prec<T: Into<Expr>>(precedence: isize, expr: T) -> ExprGroup {
     ExprGroup { expr: expr.into(), precedence }
 }
 
+pub fn eps() -> Expr {
+    Expr::Seq(vec![])
+}
+
 pub fn _seq(exprs: Vec<Expr>) -> Expr {
     Expr::Seq(exprs)
 }
 
 pub fn _choice(exprs: Vec<Expr>) -> Expr {
     Expr::Choice(exprs)
-}
-
-pub fn eps() -> Expr {
-    Expr::Seq(vec![])
 }
 
 macro_rules! choice {

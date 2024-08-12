@@ -121,6 +121,17 @@ impl TrieNode {
         }
         node.is_end = true;
    }
+
+    pub fn to_vec(&self) -> Vec<Vec<u8>> {
+        fn recurse(node: &TrieNode, bytes: Vec<u8>) -> Vec<Vec<u8>> {
+            if node.is_end {
+                vec![bytes]
+            } else {
+                node.children.iter().flat_map(|child| recurse(child, bytes.clone())).collect()
+            }
+        }
+        recurse(self, vec![])
+    }
 }
 
 impl From<Vec<Vec<u8>>> for TrieNode {

@@ -108,10 +108,18 @@ impl FastCombinator {
                 crate::tokenizer::finite_automata::eps()
             }
             FastCombinator::EatU8(u8set) => {
-                todo!()
+                let mut choices = Vec::new();
+                for byte in u8set.iter() {
+                    choices.push(crate::tokenizer::finite_automata::char(byte));
+                }
+                crate::tokenizer::finite_automata::_choice(choices)
             }
             FastCombinator::EatByteStringChoiceFast(root) => {
-                todo!()
+                let mut choices = Vec::new();
+                for bytes in root.to_vec() {
+                    choices.push(crate::tokenizer::finite_automata::_seq(bytes.into_iter().map(crate::tokenizer::finite_automata::char).collect()));
+                }
+                crate::tokenizer::finite_automata::_choice(choices)
             }
         }
     }
