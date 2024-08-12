@@ -378,7 +378,7 @@ mod tests {
     }
 
     #[test]
-    fn test_prefix() {
+    fn test_autoparse() {
         let combinator = choice!(
             eat_string("abcxx"),
             eat_string("abcyy"),
