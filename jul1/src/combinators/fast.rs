@@ -20,13 +20,15 @@ impl CombinatorTrait for FastCombinatorWrapper {
         regex_state.execute(bytes);
         if regex_state.failed {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
-        } else if let Some(find_return) = regex_state.find_return {
-            let position = find_return.position;
-            let mut new_right_data = right_data.clone();
-            new_right_data.advance(position);
-            (Parser::FastParserWrapper(FastParserWrapper { regex_state, right_data: Some(right_data) }), ParseResults::new_single(new_right_data, false))
         } else {
-            (Parser::FastParserWrapper(FastParserWrapper { regex_state, right_data: Some(right_data) }), ParseResults::empty_unfinished())
+            let mut right_data_vec = vec![];
+            if let Some(find_return) = regex_state.find_return {
+                let position = find_return.position;
+                let mut new_right_data = right_data.clone();
+                new_right_data.advance(position);
+                right_data_vec.push(new_right_data);
+            }
+            (Parser::FastParserWrapper(FastParserWrapper { regex_state, right_data: Some(right_data) }), ParseResults::new(right_data_vec, false))
         }
     }
 }
