@@ -43,21 +43,21 @@ pub struct Regex {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Success {
+pub struct Match {
     pub position: usize,
     pub group_id: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
-pub struct FindReturn {
+pub struct FinalMatch {
     pub position: usize,
-    pub inner: Option<Success>,
+    pub inner: Option<Match>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RegexState {
     pub regex: Regex,
-    find_return: Option<FindReturn>,
+    final_match: Option<FinalMatch>,
     pub(crate) position: usize,
     current_state: usize,
     prev_finalizer: Option<Finalizer>,
@@ -511,9 +511,9 @@ impl RegexState {
     }
 
     pub fn end(&mut self) {
-        self.find_return = Some(FindReturn {
+        self.final_match = Some(FinalMatch {
             position: self.position,
-            inner: self.prev_finalizer.map(|finalizer| Success { position: self.prev_finalizer_position, group_id: finalizer.group }),
+            inner: self.prev_finalizer.map(|finalizer| Match { position: self.prev_finalizer_position, group_id: finalizer.group }),
         });
     }
 }
@@ -550,9 +550,9 @@ impl RegexState {
         }
     }
 
-    pub fn get_prev_match(&self) -> Option<Success> {
+    pub fn get_prev_match(&self) -> Option<Match> {
         // Returns the previous match if it exists
-        self.prev_finalizer.map(|finalizer| Success { position: self.prev_finalizer_position, group_id: finalizer.group })
+        self.prev_finalizer.map(|finalizer| Match { position: self.prev_finalizer_position, group_id: finalizer.group })
     }
 
     pub fn done(&self) -> bool {
@@ -565,7 +565,7 @@ impl Regex {
     pub fn init(&self) -> RegexState {
         RegexState {
             regex: self.clone(),
-            find_return: Default::default(),
+            final_match: FinalMatch::default(),
             position: 0,
             current_state: 0,
             prev_finalizer: self.dfa.states[self.dfa.start_state].finalizer,
@@ -575,14 +575,14 @@ impl Regex {
 
     }
 
-    pub fn find(&self, text: &[u8]) -> FindReturn {
+    pub fn find(&self, text: &[u8]) -> FinalMatch {
         let mut regex_state = self.init();
         regex_state.execute(text);
         regex_state.end();
-        if let Some(find_return) = regex_state.find_return {
+        if let Some(find_return) = regex_state.final_match {
             find_return
         } else {
-            FindReturn {
+            FinalMatch {
                 position: regex_state.position,
                 inner: None,
             }
@@ -623,7 +623,7 @@ mod tests {
 
         let mut state = regex.init();
         state.execute(b"aa");
-        assert_eq!(state.get_prev_match(), Some(Success { position: 2, group_id: 0 }));
+        assert_eq!(state.get_prev_match(), Some(Match { position: 2, group_id: 0 }));
         assert!(!state.done()); // Could match more 'a's
     }
 
@@ -807,7 +807,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"a"), FindReturn { position: 1, inner: Some(Success { position: 1, group_id: 2 }) });
+        assert_eq!(regex.find(b"a"), FinalMatch { position: 1, inner: Some(Match { position: 1, group_id: 2 }) });
     }
 
     #[test]
@@ -820,7 +820,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence
-        assert_eq!(regex.find(b"aaa"), FindReturn { position: 3, inner: Some(Success { position: 1, group_id: 1 }) });
+        assert_eq!(regex.find(b"aaa"), FinalMatch { position: 3, inner: Some(Match { position: 1, group_id: 1 }) });
     }
 
     #[test]
@@ -833,7 +833,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence, even though 'a' is also part of a choice
-        assert_eq!(regex.find(b"a"), FindReturn { position: 1, inner: Some(Success { position: 1, group_id: 1 }) });
+        assert_eq!(regex.find(b"a"), FinalMatch { position: 1, inner: Some(Match { position: 1, group_id: 1 }) });
     }
 
     #[test]
@@ -846,7 +846,7 @@ mod even_more_complex_tests {
         let regex = expr.build();
 
         // Expect the single 'a' to match due to higher precedence, even though 'ab' is also a valid match
-        assert_eq!(regex.find(b"ab"), FindReturn { position: 2, inner: Some(Success { position: 1, group_id: 1 }) });
+        assert_eq!(regex.find(b"ab"), FinalMatch { position: 2, inner: Some(Match { position: 1, group_id: 1 }) });
     }
 
     #[test]
