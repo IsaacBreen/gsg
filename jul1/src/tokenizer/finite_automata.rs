@@ -564,8 +564,8 @@ impl RegexState {
     }
 
     pub fn done(&self) -> bool {
-        // Returns true if the regex has matched and cannot possibly match any more
-        todo!()
+        // Returns true if the regex has matched and cannot possibly match anymore
+        self.done
     }
 }
 
@@ -646,7 +646,7 @@ mod tests {
         assert!(regex.definitely_fully_matches(b""));
         assert!(regex.definitely_fully_matches(b"a"));
         assert!(regex.definitely_fully_matches(b"aaaa"));
-        assert!(regex.definitely_fully_matches(b"b"));
+        assert!(regex.definitely_matches(b"b"));
 
         let mut state = regex.init();
         state.execute(b"aa");
