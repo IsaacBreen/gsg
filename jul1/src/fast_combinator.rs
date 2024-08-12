@@ -23,7 +23,56 @@ pub enum FastParserResult {
 }
 
 impl FastCombinator {
-    pub fn parse(&self, bytes: &[u8]) -> FastParserResult {
+    pub fn slow(&self) -> Combinator {
+        match self {
+            FastCombinator::Seq(children) => {
+                let mut all_children: crate::VecX<Combinator> = crate::vecx![];
+                for child in children {
+                    let child_slow = child.slow();
+                    match child_slow {
+                        Combinator::Seq(crate::Seq { children, .. }) => {
+                            all_children.extend(children.iter().cloned());
+                        }
+                        _ => all_children.push(child_slow),
+                    }
+                }
+                crate::_seq(all_children)
+            }
+            FastCombinator::Choice(children) => {
+                let mut all_children: crate::VecX<Combinator> = crate::vecx![];
+                for child in children {
+                    let child_slow = child.slow();
+                    match child_slow {
+                        Combinator::Choice(crate::Choice { children, .. }) => {
+                            all_children.extend(children.iter().cloned());
+                        }
+                        _ => all_children.push(child_slow),
+                    }
+                }
+                crate::_choice(all_children)
+            }
+            FastCombinator::Opt(parser) => crate::opt(parser.slow()).into(),
+            FastCombinator::Repeat1(parser) => crate::repeat1(parser.slow()).into(),
+            FastCombinator::Eps => crate::eps().into(),
+            FastCombinator::EatU8Parser(u8set) => crate::EatU8 { u8set: *u8set }.into(),
+            FastCombinator::EatByteStringChoiceFast(root) => {
+                crate::EatByteStringChoice { root: Rc::clone(root) }.into()
+            }
+        }
+    }
+}
+
+pub trait FastCombinatorTrait {
+    fn parse(&self, bytes: &[u8]) -> FastParserResult;
+}
+
+pub trait FastParserTrait {
+    fn parse(&self, bytes: &[u8]) -> FastParserResult;
+    fn get_u8set(&self) -> U8Set;
+}
+
+impl FastCombinatorTrait for FastCombinator {
+    fn parse(&self, bytes: &[u8]) -> FastParserResult {
         match self {
             FastCombinator::Seq(children) => {
                 let mut total_len = 0;
@@ -85,54 +134,11 @@ impl FastCombinator {
             }
             FastCombinator::EatByteStringChoiceFast(root) => {
                 let (current_node, bytes_consumed, finish_reason) = root.next(bytes);
-                // let all_next = root.all_next(bytes);
-                // if root.all_next(bytes).0.len() > 1 {
-                //     let s = String::from_utf8_lossy(bytes);
-                //     panic!("Ambiguous parse: {:?}", s[..s.len().min(100)].to_string());
-                // }
                 match finish_reason {
                     FinishReason::Success => FastParserResult::Success(bytes_consumed),
                     FinishReason::EndOfInput => FastParserResult::Incomplete,
                     FinishReason::Failure => FastParserResult::Failure,
                 }
-            }
-        }
-    }
-
-    pub fn slow(&self) -> Combinator {
-        match self {
-            FastCombinator::Seq(children) => {
-                let mut all_children: crate::VecX<Combinator> = crate::vecx![];
-                for child in children {
-                    let child_slow = child.slow();
-                    match child_slow {
-                        Combinator::Seq(crate::Seq { children, .. }) => {
-                            all_children.extend(children.iter().cloned());
-                        }
-                        _ => all_children.push(child_slow),
-                    }
-                }
-                crate::_seq(all_children)
-            }
-            FastCombinator::Choice(children) => {
-                let mut all_children: crate::VecX<Combinator> = crate::vecx![];
-                for child in children {
-                    let child_slow = child.slow();
-                    match child_slow {
-                        Combinator::Choice(crate::Choice { children, .. }) => {
-                            all_children.extend(children.iter().cloned());
-                        }
-                        _ => all_children.push(child_slow),
-                    }
-                }
-                crate::_choice(all_children)
-            }
-            FastCombinator::Opt(parser) => crate::opt(parser.slow()).into(),
-            FastCombinator::Repeat1(parser) => crate::repeat1(parser.slow()).into(),
-            FastCombinator::Eps => crate::eps().into(),
-            FastCombinator::EatU8Parser(u8set) => crate::EatU8 { u8set: *u8set }.into(),
-            FastCombinator::EatByteStringChoiceFast(root) => {
-                crate::EatByteStringChoice { root: Rc::clone(root) }.into()
             }
         }
     }

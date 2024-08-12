@@ -2,6 +2,7 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use crate::*;
 use crate::fast_combinator::{FastCombinator, FastParserResult};
+use crate::FastCombinatorTrait;
 
 pub struct FastCombinatorWrapper {
     pub(crate) fast: Rc<FastCombinator>,

@@ -1,5 +1,6 @@
 use crate::*;
 use crate::fast_combinator::*;
+use crate::FastCombinatorTrait;
 
 pub fn assert_fast_combinator_parses(fast_combinator: &FastCombinator, bytes: &[u8], expected_offset: usize) {
     let result = fast_combinator.parse(bytes);
