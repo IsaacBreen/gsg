@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, Tagged, TaggedParser, U8Set, ProfiledParser, Profiled, Opt, WeakRef, StrongRef, BruteForceParser, BruteForce, Continuation, ContinuationParser, FastCombinatorWrapper};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, Tagged, TaggedParser, U8Set, ProfiledParser, Profiled, Opt, WeakRef, StrongRef, BruteForceParser, BruteForce, Continuation, ContinuationParser, FastCombinatorWrapper, profile};
 use crate::stats::Stats;
 
 #[macro_export]
@@ -155,7 +155,7 @@ impl CombinatorTrait for Combinator {
         // if !parse_results.done() && bytes.len() > 100 {
             // println!("Combinator {:?} did not consume all input. Positions: {:?}, bytes.len(): {}", self, parse_results.right_data_vec.iter().map(|x| x.position).collect::<Vec<_>>(), bytes.len());
         // }
-        parser.transpose();
+        profile!("Combinator::transpose", { parser.transpose(); });
         (parser, parse_results)
     }
 }
@@ -167,7 +167,7 @@ impl ParserTrait for Parser {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let parse_results = match_parser!(self, inner => inner.parse(bytes));
-        self.transpose();
+        profile!("Parser::transpose", { self.transpose(); });
         parse_results
     }
 }
