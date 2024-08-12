@@ -565,7 +565,7 @@ impl Regex {
     pub fn init(&self) -> RegexState {
         RegexState {
             regex: self.clone(),
-            final_match: FinalMatch::default(),
+            final_match: None,
             position: 0,
             current_state: 0,
             prev_finalizer: self.dfa.states[self.dfa.start_state].finalizer,

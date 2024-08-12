@@ -23,7 +23,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
         } else {
             let mut right_data_vec = vec![];
             let done = regex_state.done();
-            if let Some(find_return) = regex_state.find_return.take() {
+            if let Some(find_return) = regex_state.final_match.take() {
                 let mut new_right_data = right_data.clone();
                 let position = find_return.position;
                 new_right_data.advance(position);
