@@ -29,7 +29,7 @@ pub struct Fields2 {
 pub struct RightDataInner {
     pub fields1: Fields1,
     #[derivative(Hash = "ignore")]
-    pub fields2: Fields2,
+    pub fields2: Box<Fields2>,
 }
 
 #[derive(Derivative)]
@@ -45,7 +45,7 @@ impl Default for RightData {
         Self {
             right_data_inner: RightDataInner {
                 // frame_stack: None,
-                fields2: Fields2 { indents: VecX::new(), fstring_start_stack: VecX::new() },
+                fields2: Fields2 { indents: VecX::new(), fstring_start_stack: VecX::new() }.into(),
                 fields1: Fields1 { dedents: 0, scope_count: 0, forbidden_consecutive_matches: ForbidFollowsData::default(), lookahead_data: LookaheadData::default(), position: 0 },
             }.into()
         }
