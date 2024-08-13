@@ -2,12 +2,12 @@ use crate::*;
 use crate::VecX;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Opt {
-    pub(crate) inner: Box<Combinator>,
+pub struct Opt<T: CombinatorTrait> {
+    pub(crate) inner: T,
     pub(crate) greedy: bool,
 }
 
-impl CombinatorTrait for Opt {
+impl<T: CombinatorTrait> CombinatorTrait for Opt<T> {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         if !(self.greedy && parse_results.succeeds_decisively()) {
@@ -25,8 +25,8 @@ pub fn opt_greedy(a: impl Into<Combinator>) -> Combinator {
     profile_internal("opt_greedy", Opt { inner: Box::new(a.into()), greedy: true })
 }
 
-impl From<Opt> for Combinator {
-    fn from(value: Opt) -> Self {
+impl From<Opt<Box<Combinator>>> for Combinator {
+    fn from(value: Opt<Box<Combinator>>) -> Self {
         Combinator::Opt(value)
     }
 }

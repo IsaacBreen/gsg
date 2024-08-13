@@ -39,7 +39,7 @@ pub enum Combinator {
     Lookahead(Lookahead),
     ExcludeBytestrings(ExcludeBytestrings),
     Profiled(Profiled),
-    Opt(Opt),
+    Opt(Opt<Box<Combinator>>),
     WeakRef(WeakRef),
     StrongRef(StrongRef),
     BruteForce(BruteForce),
@@ -65,6 +65,25 @@ pub enum Parser {
     BruteForceParser(BruteForceParser),
     ContinuationParser(ContinuationParser),
     FastParserWrapper(FastParserWrapper),
+}
+
+impl CombinatorTrait for Box<Combinator> {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let inner = &**self;
+        inner.parse(right_data, bytes)
+    }
+}
+
+impl ParserTrait for Box<Parser> {
+    fn get_u8set(&self) -> U8Set {
+        let inner = &**self;
+        inner.get_u8set()
+    }
+
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        let inner = &mut **self;
+        inner.parse(bytes)
+    }
 }
 
 macro_rules! match_combinator {
