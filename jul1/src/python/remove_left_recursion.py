@@ -52,6 +52,8 @@ def is_nullable(node: Node, nullable_rules: set[Ref]) -> bool:
             return any(is_nullable(child, nullable_rules) for child in children)
         case Repeat1(child):
             return is_nullable(child, nullable_rules)
+        case SepRep1(child, _):
+            return is_nullable(child, nullable_rules)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -72,6 +74,8 @@ def is_null(node: Node, null_rules: set[Ref]) -> bool:
             return all(is_null(child, null_rules) for child in children)
         case Repeat1(child):
             return is_null(child, null_rules)
+        case SepRep1(child, _):
+            return is_null(child, null_rules) and is_null(node, null_rules)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -150,6 +154,8 @@ def get_firsts(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExte
         return result
     elif isinstance(node, Repeat1):
         return get_firsts(node.child, nullable_rules)
+    elif isinstance(node, SepRep1):
+        return get_firsts(node.child, nullable_rules)
     else:
         raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -197,6 +203,9 @@ def iter_nodes(node: Node) -> Iterable[Node]:
                 yield from iter_nodes(child)
         case Repeat1(child):
             yield from iter_nodes(child)
+        case SepRep1(child, _):
+            yield from iter_nodes(child)
+            yield from iter_nodes(node)
         case EpsExternal(_) | Term(_) | Ref(_):
             pass
         case Lookahead(child):
@@ -244,6 +253,9 @@ def assert_not_recursive_for_node(node: Node, seen: set[int] = None) -> None:
                 assert_not_recursive_for_node(child, seen)
         case Repeat1(child):
             assert_not_recursive_for_node(child, seen)
+        case SepRep1(child, _):
+            assert_not_recursive_for_node(child, seen)
+            assert_not_recursive_for_node(node, seen)
         case Ref(_):
             pass
         case Term(_):
@@ -310,6 +322,8 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
                 return Choice([intersperse_separator_for_node(child, separator, nullable_rules) for child in children])
             case Repeat1(child):
                 return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
+            case SepRep1(child, sep):
+                return sep_rep1(child, inject_prefix_on_nonnull_for_node(inject_suffix_on_nonnull_for_node(sep, separator, nullable_rules), separator, nullable_rules))
             case Ref(_) | Term(_) | EpsExternal(_):
                 return node
             case Lookahead(child, positive):
@@ -404,6 +418,11 @@ def get_firsts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term 
             return result
         case Repeat1(child):
             return get_firsts_for_node(child, nullable_rules)
+        case SepRep1(child, separator):
+            result = get_firsts_for_node(child, nullable_rules)
+            if is_nullable(child, nullable_rules):
+                result.update(get_firsts_for_node(separator, nullable_rules))
+            return result
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -435,37 +454,11 @@ def get_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term |
             return result
         case Repeat1(child):
             return get_lasts_for_node(child, nullable_rules)
-        case _:
-            raise ValueError(f"Unknown node type: {type(node)}")
-
-
-def get_definite_lasts_for_node(node: Node, nullable_rules: set[Ref]) -> set[Ref | Term | EpsExternal]:
-    match node:
-        case Ref(_):
-            assert isinstance(node, Ref)
-            return {node}
-        case Term(_):
-            assert isinstance(node, Term)
-            return {node}
-        case EpsExternal(_):
-            assert isinstance(node, EpsExternal)
-            return {node}
-        case Lookahead(child):
-            return set()
-        case Seq(children):
-            result = set()
-            for child in reversed(children):
-                result.update(get_lasts_for_node(child, nullable_rules))
-                if not is_nullable(child, nullable_rules):
-                    break
+        case SepRep1(child, separator):
+            result = get_lasts_for_node(child, nullable_rules)
+            if is_nullable(child, nullable_rules):
+                result.update(get_lasts_for_node(separator, nullable_rules))
             return result
-        case Choice(children):
-            result = set()
-            for child in children:
-                result.update(get_lasts_for_node(child, nullable_rules))
-            return result
-        case Repeat1(child):
-            return get_lasts_for_node(child, nullable_rules)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -535,6 +528,8 @@ def collect_follows_for_node(node: Node, nullable_rules: set[Ref]) -> dict[Ref |
             for last in lasts:
                 result[last] = firsts
             return result
+        case SepRep1(child, separator):
+            return collect_follows_for_node(seq(child, repeat0(seq(separator, child))), nullable_rules)
         case _:
             raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -596,6 +591,8 @@ def map_left(node: Node, f: Callable[[Node], Node], nullable_rules: set[Ref]) ->
             return Choice([map_left(child, f, nullable_rules) for child in children])
         case Repeat1(child):
             return Repeat1(map_left(child, f, nullable_rules))
+        case SepRep1(child, sep):
+            return SepRep1(map_left(child, f, nullable_rules), sep)
         case _:
             return node
 
@@ -608,6 +605,8 @@ def map_all_for_node(node: Node, f: Callable[[Node], Node]) -> Node:
             node = Choice([map_all_for_node(child, f) for child in children])
         case Repeat1(child):
             node = Repeat1(map_all_for_node(child, f))
+        case SepRep1(child, sep):
+            node = SepRep1(map_all_for_node(child, f), sep)
         case _:
             node = node
     node = f(node)
@@ -626,6 +625,8 @@ def ensure_lasts_for_node(node: Node, includes: set[Ref | Term | EpsExternal], n
             return Choice([ensure_lasts_for_node(child, includes, nullable_rules) for child in children])
         case Repeat1(child):
             return seq(repeat0(child), ensure_lasts_for_node(child, includes, nullable_rules))
+        case SepRep1(child, sep):
+            return SepRep1(ensure_lasts_for_node(child, includes, nullable_rules), sep)
         case Ref(_) | Term(_) | EpsExternal(_):
             return node
 
@@ -710,6 +711,8 @@ def forbid_follows_for_node(node: Node, first: Ref | Term | EpsExternal, forbidd
                 return Choice([forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, null_rules) for child in children])
             case Repeat1(child):
                 return Repeat1(forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, null_rules))
+            case SepRep1(child, sep):
+                return SepRep1(forbid_follows_for_node(child, first, forbidden_follows, nullable_rules, null_rules), sep)
             case Ref(_) | Term(_) | EpsExternal(_):
                 return node
             case Lookahead(_):
@@ -941,10 +944,28 @@ class Repeat1(Node):
     child: Node
 
     def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
-        return seq(self.child, repeat0(self.child)).decompose_on_left_recursion(ref)
+        # return seq(self.child, repeat0(self.child)).decompose_on_left_recursion(ref)
+        first, recursive = self.child.decompose_on_left_recursion(ref)
+        child = self.child.simplify()
+        first = first.simplify()
+        recursive = recursive.simplify()
+        if first == child:
+            first = self
+        else:
+            first = seq(first, repeat0(child))
+        if recursive == child:
+            recursive = self
+        else:
+            recursive = seq(recursive, repeat0(child))
+        return first, recursive
 
     def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
-        return seq(self.child, repeat0(self.child)).replace_left_refs(replacements)
+        first = self.child.replace_left_refs(replacements).simplify()
+        child = self.child.simplify()
+        if first == child:
+            return self
+        else:
+            return seq(first, repeat0(self.child))
 
     def simplify(self) -> Node:
         self.child = self.child.simplify()
@@ -955,6 +976,56 @@ class Repeat1(Node):
 
     def __str__(self) -> str:
         return f'\u001b[35mrepeat1\u001b[0m({str(self.child)})'
+
+
+@dataclass
+class SepRep1(Node):
+    child: Node
+    separator: Node
+
+    def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
+        first, recursive = self.child.decompose_on_left_recursion(ref)
+        child = self.child.simplify()
+        first = first.simplify()
+        recursive = recursive.simplify()
+        if first == child:
+            first = self
+        else:
+            first = seq(first, repeat0(seq(self.separator, child)))
+        if recursive == child:
+            recursive = self
+        else:
+            recursive = seq(recursive, repeat0(seq(self.separator, child)))
+        return first, recursive
+
+    def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
+        first = self.child.replace_left_refs(replacements).simplify()
+        child = self.child.simplify()
+        if first == child:
+            return self
+        else:
+            return seq(first, repeat0(seq(self.separator, child)))
+
+    def simplify(self) -> Node:
+        self.child = self.child.simplify()
+        self.separator = self.separator.simplify()
+        if self.child == fail():
+            return fail()
+        if self.separator == fail():
+            return self.child
+        if self.separator == self.child:
+            return repeat1(self.child).simplify()
+        if self.child == eps():
+            return repeat0(self.separator).simplify()
+        if self.separator == eps():
+            return repeat1(self.child).simplify()
+        return self
+
+    def copy(self) -> Self:
+        return SepRep1(self.child.copy(), self.separator.copy())
+
+    def __str__(self) -> str:
+        return f'\u001b[35msep_rep1\u001b[0m({str(self.child)}, {str(self.separator)})'
 
 
 @dataclass(frozen=True)
@@ -1048,6 +1119,7 @@ class Lookahead(Node):
 def seq(*children: Node) -> Seq: return Seq(list(children))
 def choice(*children: Node) -> Choice: return Choice(list(children))
 def repeat1(child: Node) -> Repeat1: return Repeat1(child)
+def sep_rep1(child: Node, separator: Node) -> SepRep1: return SepRep1(child, separator)
 def ref(name: str) -> Ref: return Ref(name)
 def term(value: str) -> Term: return Term(value)
 def eps_external[T](data: T) -> EpsExternal[T]: return EpsExternal(data)
@@ -1060,7 +1132,7 @@ def eps() -> Seq: return Seq([])
 def fail() -> Choice: return Choice([])
 def opt(child: Node) -> Node: return choice(child, eps())
 def repeat0(child: Node) -> Node: return opt(repeat1(child))
-def sep1(child: Node, sep: Node) -> Node: return seq(child, repeat0(seq(sep, child)))
+def sep1(child: Node, sep: Node) -> Node: return SepRep1(child, sep)
 def sep0(child: Node, sep: Node) -> Node: return opt(sep1(child, sep))
 
 
