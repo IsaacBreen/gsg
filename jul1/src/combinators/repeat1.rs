@@ -41,6 +41,7 @@ impl CombinatorTrait for Repeat1 {
         } else {
             vec![parser]
         };
+        let mut all_prev_succeeded_decisively = parse_results.succeeds_decisively();
         let mut right_data_vec = parse_results.right_data_vec.clone();
 
         let mut next_right_data = right_data_vec.clone();
@@ -51,7 +52,8 @@ impl CombinatorTrait for Repeat1 {
                 if !parse_results.done() {
                     parsers.push(parser);
                 }
-                if self.greedy && parse_results.succeeds_decisively() {
+                all_prev_succeeded_decisively &= parse_results.succeeds_decisively();
+                if self.greedy && all_prev_succeeded_decisively {
                     right_data_vec.clear();
                     parsers.clear();
                 }
