@@ -30,9 +30,9 @@ impl CombinatorTrait for Seq {
 
         let mut combinator_index = self.start_index;
 
-        if combinator_index >= self.children.len() {
-            return (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true));
-        }
+        // if combinator_index >= self.children.len() {
+        //     return (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true));
+        // }
 
         let combinator = &self.children[combinator_index];
         let (parser, parse_results) = profile!("seq first child parse", {
