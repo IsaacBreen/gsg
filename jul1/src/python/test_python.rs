@@ -167,13 +167,21 @@ fn test_test_input_fast() {
 }
 
 #[test]
+fn test_test_input2() {
+    let path = Path::new("src/tests/test_input2.py");
+    let file = std::fs::read_to_string(path).unwrap();
+    let combinator = python_file();
+    assert_parses_default(&combinator, &file);
+}
+
+
+#[test]
 fn test_test_input_fast2() {
     let path = Path::new("src/tests/test_input2.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses_fast(&combinator, &file);
 }
-
 
 #[test]
 fn test_actual_python_file() {
