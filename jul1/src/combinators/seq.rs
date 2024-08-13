@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::collections::{BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
 use lru::DefaultHasher;
-use crate::{Combinator, CombinatorTrait, eps, FailParser, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set, VecY};
+use crate::{Combinator, CombinatorTrait, eps, FailParser, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set, VecY, vecy};
 use crate::VecX;
 
 macro_rules! profile {
@@ -57,15 +57,44 @@ impl CombinatorTrait for Seq {
             next_right_data_vec = VecY::new();
             final_right_data = parse_results.right_data_vec;
         }
+        let mut next_right_data_vec_2: VecY<RightData> = VecY::new();
 
         combinator_index += 1;
 
-        while combinator_index < self.children.len() {
+        loop {
+            if !combinator_index < self.children.len() {
+                break;
+            }
             // next_right_data_vec.squash();
             if next_right_data_vec.is_empty() {
                 break;
             }
-            for right_data in std::mem::take(&mut next_right_data_vec) {
+            while let Some(right_data) = next_right_data_vec.pop() {
+                let offset = right_data.right_data_inner.fields1.position - start_position;
+                let combinator = &self.children[combinator_index];
+                let (parser, parse_results) = profile!("seq other child parse", {
+                    combinator.parse(right_data, &bytes[offset..])
+                });
+                if !parse_results.done() {
+                    parsers.push((combinator_index, parser));
+                }
+                if combinator_index + 1 < self.children.len() {
+                    next_right_data_vec_2.extend(parse_results.right_data_vec);
+                } else {
+                    final_right_data.extend(parse_results.right_data_vec);
+                }
+            }
+            combinator_index += 1;
+
+
+            if !combinator_index < self.children.len() {
+                break;
+            }
+            // next_right_data_vec_2.squash();
+            if next_right_data_vec_2.is_empty() {
+                break;
+            }
+            while let Some(right_data) = next_right_data_vec_2.pop() {
                 let offset = right_data.right_data_inner.fields1.position - start_position;
                 let combinator = &self.children[combinator_index];
                 let (parser, parse_results) = profile!("seq other child parse", {
