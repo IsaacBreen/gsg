@@ -64,8 +64,8 @@ impl CombinatorTrait for Seq {
             let offset = right_data.right_data_inner.fields1.position - start_position;
             let combinator = &self.children[combinator_index];
             let (parser, parse_results) = profile!("seq other child parse", {
-            combinator.parse(right_data, &bytes[offset..])
-        });
+                combinator.parse(right_data, &bytes[offset..])
+            });
             if !parse_results.done() {
                 parsers.push((combinator_index, parser));
             }
