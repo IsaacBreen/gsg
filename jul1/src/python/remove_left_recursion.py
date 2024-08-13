@@ -253,9 +253,9 @@ def assert_not_recursive_for_node(node: Node, seen: set[int] = None) -> None:
                 assert_not_recursive_for_node(child, seen)
         case Repeat1(child):
             assert_not_recursive_for_node(child, seen)
-        case SepRep1(child, _):
+        case SepRep1(child, sep):
             assert_not_recursive_for_node(child, seen)
-            assert_not_recursive_for_node(node, seen)
+            assert_not_recursive_for_node(sep, seen)
         case Ref(_):
             pass
         case Term(_):
