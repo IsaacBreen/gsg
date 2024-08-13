@@ -5,7 +5,7 @@ use crate::parse_state::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatString {
-    pub(crate) string: Vec<u8>,
+    pub(crate) string: Rc<Vec<u8>>,
 }
 
 impl From<EatString> for Combinator {
@@ -16,7 +16,7 @@ impl From<EatString> for Combinator {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatStringParser {
-    pub(crate) string: Vec<u8>,
+    pub(crate) string: Rc<Vec<u8>>,
     index: usize,
     pub(crate) right_data: Option<RightData>,
 }
@@ -68,13 +68,13 @@ impl ParserTrait for EatStringParser {
 }
 
 pub fn eat_string(string: &str) -> EatString {
-    EatString { string: string.as_bytes().to_vec() }
+    EatString { string: Rc::new(string.as_bytes().to_vec()) }
 }
 
 pub fn eat_bytes(bytes: &[u8]) -> EatString {
-    EatString { string: bytes.to_vec() }
+    EatString { string: Rc::new(bytes.to_vec()) }
 }
 
 pub fn eat(string: impl Into<String>) -> EatString {
-    EatString { string: string.into().into_bytes() }
+    EatString { string: Rc::new(string.into().into_bytes()) }
 }
