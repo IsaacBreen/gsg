@@ -72,7 +72,94 @@ impl CombinatorTrait for Seq {
 
         let mut helper2 = |mut next_right_data_vec: VecY<RightData>| {
             let mut final_right_data: VecY<RightData>;
-            if self.children.len() == 2 {
+            // if self.children.len() == 2 {
+            //     if next_right_data_vec.is_empty() { return VecY::new(); }
+            //     final_right_data = VecY::new();
+            //     for right_data in next_right_data_vec { final_right_data.extend(helper(right_data, 1)); }
+            // } else if self.children.len() == 3 {
+            //     if next_right_data_vec.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec2 = VecY::new();
+            //     for right_data in next_right_data_vec { next_right_data_vec2.extend(helper(right_data, 1)); }
+            //
+            //     if next_right_data_vec2.is_empty() { return VecY::new(); }
+            //     final_right_data = VecY::new();
+            //     for right_data in next_right_data_vec2 { final_right_data.extend(helper(right_data, 2)); }
+            // } else if self.children.len() == 4 {
+            //     if next_right_data_vec.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec2 = VecY::new();
+            //     for right_data in next_right_data_vec { next_right_data_vec2.extend(helper(right_data, 1)); }
+            //
+            //     if next_right_data_vec2.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec3 = VecY::new();
+            //     for right_data in next_right_data_vec2 { next_right_data_vec3.extend(helper(right_data, 2)); }
+            //
+            //     if next_right_data_vec3.is_empty() { return VecY::new(); }
+            //     final_right_data = VecY::new();
+            //     for right_data in next_right_data_vec3 { final_right_data.extend(helper(right_data, 3)); }
+            // } else if self.children.len() == 5 {
+            //     if next_right_data_vec.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec2 = VecY::new();
+            //     for right_data in next_right_data_vec { next_right_data_vec2.extend(helper(right_data, 1)); }
+            //
+            //     if next_right_data_vec2.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec3 = VecY::new();
+            //     for right_data in next_right_data_vec2 { next_right_data_vec3.extend(helper(right_data, 2)); }
+            //
+            //     if next_right_data_vec3.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec4 = VecY::new();
+            //     for right_data in next_right_data_vec3 { next_right_data_vec4.extend(helper(right_data, 3)); }
+            //
+            //     if next_right_data_vec4.is_empty() { return VecY::new(); }
+            //     final_right_data = VecY::new();
+            //     for right_data in next_right_data_vec4 { final_right_data.extend(helper(right_data, 4)); }
+            // } else if self.children.len() == 6 {
+            //     if next_right_data_vec.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec2 = VecY::new();
+            //     for right_data in next_right_data_vec { next_right_data_vec2.extend(helper(right_data, 1)); }
+            //
+            //     if next_right_data_vec2.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec3 = VecY::new();
+            //     for right_data in next_right_data_vec2 { next_right_data_vec3.extend(helper(right_data, 2)); }
+            //
+            //     if next_right_data_vec3.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec4 = VecY::new();
+            //     for right_data in next_right_data_vec3 { next_right_data_vec4.extend(helper(right_data, 3)); }
+            //
+            //     if next_right_data_vec4.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec5 = VecY::new();
+            //     for right_data in next_right_data_vec4 { next_right_data_vec5.extend(helper(right_data, 4)); }
+            //
+            //     if next_right_data_vec5.is_empty() { return VecY::new(); }
+            //     final_right_data = VecY::new();
+            //     for right_data in next_right_data_vec5 { final_right_data.extend(helper(right_data, 5)); }
+            // } else if self.children.len() == 7 {
+            //     if next_right_data_vec.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec2 = VecY::new();
+            //     for right_data in next_right_data_vec { next_right_data_vec2.extend(helper(right_data, 1)); }
+            //
+            //     if next_right_data_vec2.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec3 = VecY::new();
+            //     for right_data in next_right_data_vec2 { next_right_data_vec3.extend(helper(right_data, 2)); }
+            //
+            //     if next_right_data_vec3.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec4 = VecY::new();
+            //     for right_data in next_right_data_vec3 { next_right_data_vec4.extend(helper(right_data, 3)); }
+            //
+            //     if next_right_data_vec4.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec5 = VecY::new();
+            //     for right_data in next_right_data_vec4 { next_right_data_vec5.extend(helper(right_data, 4)); }
+            //
+            //     if next_right_data_vec5.is_empty() { return VecY::new(); }
+            //     let mut next_right_data_vec6 = VecY::new();
+            //     for right_data in next_right_data_vec5 { next_right_data_vec6.extend(helper(right_data, 5)); }
+            //
+            //     if next_right_data_vec6.is_empty() { return VecY::new(); }
+            //     final_right_data = VecY::new();
+            //     for right_data in next_right_data_vec6 { final_right_data.extend(helper(right_data, 6)); }
+
+            if self.children.len() == 1 {
+                final_right_data = next_right_data_vec;
+            } else if self.children.len() == 2 {
                 if next_right_data_vec.is_empty() { return VecY::new(); }
                 final_right_data = VecY::new();
                 for right_data in next_right_data_vec { final_right_data.extend(helper(right_data, 1)); }
