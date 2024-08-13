@@ -138,8 +138,8 @@ pub fn WS() -> Combinator {
 }
 
 pub fn python_literal(s: &str) -> Combinator {
-    let increment_scope_count = |right_data: &mut RightData| { right_data.right_data_inner.fields1.scope_count += 1; true };
-    let decrement_scope_count = |right_data: &mut RightData| { right_data.right_data_inner.fields1.scope_count -= 1; true };
+    let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count += 1; true };
+    let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
 
     match s {
         "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear()),
@@ -924,10 +924,10 @@ pub fn FSTRING_START() -> Combinator {
     );
 
     let quote = choice!(
-        seq!(eat_char('\''), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner.fields2).fstring_start_stack.push(PythonQuoteType::OneSingle); true })),
-        seq!(eat_char('"'), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner.fields2).fstring_start_stack.push(PythonQuoteType::OneDouble); true })),
-        seq!(eat_string("'''"), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner.fields2).fstring_start_stack.push(PythonQuoteType::ThreeSingle); true })),
-        seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner.fields2).fstring_start_stack.push(PythonQuoteType::ThreeDouble); true }))
+        seq!(eat_char('\''), mutate_right_data(|right_data| { Rc::make_mut(&mut Rc::make_mut(&mut right_data.right_data_inner).fields2).fstring_start_stack.push(PythonQuoteType::OneSingle); true })),
+        seq!(eat_char('"'), mutate_right_data(|right_data| { Rc::make_mut(&mut Rc::make_mut(&mut right_data.right_data_inner).fields2).fstring_start_stack.push(PythonQuoteType::OneDouble); true })),
+        seq!(eat_string("'''"), mutate_right_data(|right_data| { Rc::make_mut(&mut Rc::make_mut(&mut right_data.right_data_inner).fields2).fstring_start_stack.push(PythonQuoteType::ThreeSingle); true })),
+        seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { Rc::make_mut(&mut Rc::make_mut(&mut right_data.right_data_inner).fields2).fstring_start_stack.push(PythonQuoteType::ThreeDouble); true }))
     );
 
     seq!(
@@ -969,11 +969,11 @@ pub fn FSTRING_MIDDLE() -> Combinator {
 
 pub fn FSTRING_END() -> Combinator {
     let quote = choice!(
-        // seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { right_data.right_data_inner.fields2.fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
-        seq!(eat_char('\''), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner.fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::OneSingle })),
-        seq!(eat_char('"'), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner.fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::OneDouble })),
-        seq!(eat_string("'''"), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner.fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeSingle })),
-        seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner.fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
+        // seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner).fields2.fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
+        seq!(eat_char('\''), mutate_right_data(|right_data| { Rc::make_mut(&mut Rc::make_mut(&mut right_data.right_data_inner).fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::OneSingle })),
+        seq!(eat_char('"'), mutate_right_data(|right_data| { Rc::make_mut(&mut Rc::make_mut(&mut right_data.right_data_inner).fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::OneDouble })),
+        seq!(eat_string("'''"), mutate_right_data(|right_data| { Rc::make_mut(&mut Rc::make_mut(&mut right_data.right_data_inner).fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeSingle })),
+        seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { Rc::make_mut(&mut Rc::make_mut(&mut right_data.right_data_inner).fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
     );
 
     quote.into()

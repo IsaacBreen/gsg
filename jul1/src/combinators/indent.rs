@@ -29,7 +29,7 @@ impl CombinatorTrait for IndentCombinator {
                             seq!(
                                 negative_lookahead(eat_char_choice(" \n\r")),
                                 mutate_right_data(move |right_data: &mut RightData| {
-                                    let right_data_inner = &mut right_data.right_data_inner;
+                                    let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                                     right_data_inner.fields1.dedents = dedents;
                                     // Remove the last `dedents` indents from the indent stack
                                     let new_size = right_data_inner.fields2.indents.len() - dedents as usize;
@@ -58,14 +58,14 @@ impl CombinatorTrait for IndentCombinator {
                     while bytes.get(i) == Some(&b' ') {
                         i += 1;
                     }
-                    let mut right_data_inner = &mut right_data.right_data_inner;
+                    let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                     right_data_inner.fields1.position += i;
                     Rc::make_mut(&mut right_data_inner.fields2).indents.push(bytes[0..i].to_vec());
                     (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults::new_single(right_data, i < bytes.len()))
                 }
             }
             IndentCombinator::Dedent if right_data.right_data_inner.fields1.dedents > 0 => {
-                right_data.right_data_inner.fields1.dedents -= 1;
+                Rc::make_mut(&mut right_data.right_data_inner).fields1.dedents -= 1;
                 // println!("Decremented dedents to {}", right_data.right_data_inner.dedents);
                 (IndentCombinatorParser::Done, ParseResults::new_single(right_data, true))
             }
@@ -109,7 +109,7 @@ impl ParserTrait for IndentCombinatorParser {
                 IndentCombinatorParser::IndentParser(maybe_right_data) => {
                     if byte == b' ' {
                         let mut right_data = maybe_right_data.as_mut().unwrap();
-                        let right_data_inner = &mut right_data.right_data_inner;
+                        let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                         right_data_inner.fields1.position += 1;
                         Rc::make_mut(&mut right_data_inner.fields2).indents.last_mut().unwrap().push(byte);
                         right_data_vec.push(right_data.clone());
