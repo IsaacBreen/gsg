@@ -108,7 +108,7 @@ impl CombinatorTrait for CacheContext {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
                 let parse_id = global_cache.parse_id_counter;
-                global_cache.new_parsers.insert(parse_id, SegmentedCache::new(64, 64).unwrap());
+                global_cache.new_parsers.insert(parse_id, SegmentedCache::new(32, 32).unwrap());
                 global_cache.entries.insert(parse_id, Vec::new());
                 global_cache.parse_id = Some(global_cache.parse_id_counter);
                 global_cache.parse_id_counter += 1;
