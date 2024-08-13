@@ -78,9 +78,11 @@ impl CombinatorTrait for Seq {
         };
 
         while combinator_index < self.children.len() && !next_right_data_vec.is_empty() {
-            for right_data in std::mem::take(&mut next_right_data_vec) {
-                next_right_data_vec.extend(helper(right_data, combinator_index));
+            let mut next_next_right_data_vec = VecY::new();
+            for right_data in next_right_data_vec {
+                next_next_right_data_vec.extend(helper(right_data, combinator_index));
             }
+            next_right_data_vec = next_next_right_data_vec;
             combinator_index += 1;
         }
 
