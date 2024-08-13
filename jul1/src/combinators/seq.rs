@@ -61,7 +61,7 @@ impl CombinatorTrait for Seq {
         combinator_index += 1;
 
         while combinator_index < self.children.len() {
-            next_right_data_vec.squash();
+            // next_right_data_vec.squash();
             if next_right_data_vec.is_empty() {
                 break;
             }
