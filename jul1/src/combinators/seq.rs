@@ -65,12 +65,13 @@ impl CombinatorTrait for Seq {
             if next_right_data_vec.is_empty() {
                 break;
             }
-            for right_data in std::mem::take(&mut next_right_data_vec) {
+            let this_right_data_vec = std::mem::take(&mut next_right_data_vec);
+            let mut helper = |right_data: RightData| {
                 let offset = right_data.right_data_inner.fields1.position - start_position;
                 let combinator = &self.children[combinator_index];
                 let (parser, parse_results) = profile!("seq other child parse", {
-                    combinator.parse(right_data, &bytes[offset..])
-                });
+                combinator.parse(right_data, &bytes[offset..])
+            });
                 if !parse_results.done() {
                     parsers.push((combinator_index, parser));
                 }
@@ -79,6 +80,9 @@ impl CombinatorTrait for Seq {
                 } else {
                     final_right_data.extend(parse_results.right_data_vec);
                 }
+            };
+            for right_data in this_right_data_vec {
+                helper(right_data);
             }
             combinator_index += 1;
         }
