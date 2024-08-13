@@ -56,11 +56,11 @@ impl ProfileDataInner {
 #[macro_export]
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
-        // $crate::ProfileDataInner::push_tag($tag.to_string());
-        // let result = $body;
-        // $crate::ProfileDataInner::pop_tag();
-        // result
-        $body
+        $crate::ProfileDataInner::push_tag($tag.to_string());
+        let result = $body;
+        $crate::ProfileDataInner::pop_tag();
+        result
+        // $body
     }};
 }
 
@@ -108,8 +108,8 @@ impl ParserTrait for ProfiledParser {
 }
 
 pub fn profile(tag: &str, a: impl Into<Combinator>) -> Combinator {
-    // Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
-    a.into()
+    Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
+    // a.into()
 }
 
 pub fn profile_internal(tag: &str, a: impl Into<Combinator>) -> Combinator {
