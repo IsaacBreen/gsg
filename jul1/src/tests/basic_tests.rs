@@ -304,7 +304,7 @@ mod tests {
         let (mut parser, parse_results) = combinator.parse(RightData::default(), b"hello");
         assert!(parse_results.done());
         assert_eq!(parse_results.right_data_vec.len(), 1);
-        assert_eq!(parse_results.right_data_vec[0].right_data_inner.position, 5);
+        assert_eq!(parse_results.right_data_vec[0].right_data_inner.fields1.position, 5);
     }
 
     #[test]
@@ -328,7 +328,7 @@ mod tests {
         let parse_results = parser.parse(b"o");
         assert!(parse_results.done());
         assert_eq!(parse_results.right_data_vec.len(), 1);
-        assert_eq!(parse_results.right_data_vec[0].right_data_inner.position, 5);
+        assert_eq!(parse_results.right_data_vec[0].right_data_inner.fields1.position, 5);
     }
 
     #[test]

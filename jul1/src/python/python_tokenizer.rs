@@ -95,7 +95,7 @@ pub fn whitespace() -> Combinator {
             repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n"]))
         ),
         seq!(
-            check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
+            check_right_data(|right_data| right_data.right_data_inner.fields1.scope_count > 0),
             repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n", "\n", "\r"]))
         ),
     );
@@ -107,7 +107,7 @@ pub fn whitespace() -> Combinator {
             match s.next()? {
                 Ok((c, next_offset)) => {
                     if matches!(c, '\n' | '\r') {
-                        if right_data.right_data_inner.scope_count == 0 {
+                        if right_data.right_data_inner.fields1.scope_count == 0 {
                             break;
                         }
                         total_offset += next_offset;
@@ -138,8 +138,8 @@ pub fn WS() -> Combinator {
 }
 
 pub fn python_literal(s: &str) -> Combinator {
-    let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).scope_count += 1; true };
-    let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).scope_count -= 1; true };
+    let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count += 1; true };
+    let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
 
     match s {
         "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear()),

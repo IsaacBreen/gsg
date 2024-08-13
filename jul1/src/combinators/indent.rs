@@ -18,7 +18,7 @@ pub enum IndentCombinatorParser {
 impl CombinatorTrait for IndentCombinator {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
-            IndentCombinator::Dent if right_data.right_data_inner.dedents == 0 => {
+            IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
                 fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Combinator { // TODO: Make this a macro
                     if indents.is_empty() {
                         eps().into()
@@ -30,7 +30,7 @@ impl CombinatorTrait for IndentCombinator {
                                 negative_lookahead(eat_char_choice(" \n\r")),
                                 mutate_right_data(move |right_data: &mut RightData| {
                                     let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
-                                    right_data_inner.dedents = dedents;
+                                    right_data_inner.fields1.dedents = dedents;
                                     // Remove the last `dedents` indents from the indent stack
                                     right_data_inner.indents.truncate(right_data_inner.indents.len() - dedents as usize);
                                     // println!("Registering {} dedents. Right data: {:?}", dedents, right_data);
@@ -48,7 +48,7 @@ impl CombinatorTrait for IndentCombinator {
 
                 (IndentCombinatorParser::DentParser(Box::new(parser)), parse_results)
             }
-            IndentCombinator::Indent if right_data.right_data_inner.dedents == 0 => {
+            IndentCombinator::Indent if right_data.right_data_inner.fields1.dedents == 0 => {
                 if !bytes.is_empty() && bytes[0] != b' ' {
                     (IndentCombinatorParser::Done, ParseResults::new(VecY::new(), true))
                 } else {
@@ -58,17 +58,17 @@ impl CombinatorTrait for IndentCombinator {
                         i += 1;
                     }
                     let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
-                    right_data_inner.position += i;
+                    right_data_inner.fields1.position += i;
                     right_data_inner.indents.push(bytes[0..i].to_vec());
                     (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults::new_single(right_data, i < bytes.len()))
                 }
             }
-            IndentCombinator::Dedent if right_data.right_data_inner.dedents > 0 => {
-                Rc::make_mut(&mut right_data.right_data_inner).dedents -= 1;
+            IndentCombinator::Dedent if right_data.right_data_inner.fields1.dedents > 0 => {
+                Rc::make_mut(&mut right_data.right_data_inner).fields1.dedents -= 1;
                 // println!("Decremented dedents to {}", right_data.right_data_inner.dedents);
                 (IndentCombinatorParser::Done, ParseResults::new_single(right_data, true))
             }
-            IndentCombinator::AssertNoDedents if right_data.right_data_inner.dedents == 0 => {
+            IndentCombinator::AssertNoDedents if right_data.right_data_inner.fields1.dedents == 0 => {
                 (IndentCombinatorParser::Done, ParseResults::new_single(right_data, true))
             }
             _ => (IndentCombinatorParser::Done, ParseResults::empty_finished()),
@@ -109,7 +109,7 @@ impl ParserTrait for IndentCombinatorParser {
                     if byte == b' ' {
                         let mut right_data = maybe_right_data.as_mut().unwrap();
                         let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
-                        right_data_inner.position += 1;
+                        right_data_inner.fields1.position += 1;
                         right_data_inner.indents.last_mut().unwrap().push(byte);
                         right_data_vec.push(right_data.clone());
                     } else {

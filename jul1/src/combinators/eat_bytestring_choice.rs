@@ -53,16 +53,16 @@ impl ParserTrait for EatByteStringChoiceParser {
         let mut right_data_vec = VecY::new();
         for (node, i) in results {
             let mut right_data = self.right_data.clone();
-            Rc::make_mut(&mut right_data.right_data_inner).position += i;
+            Rc::make_mut(&mut right_data.right_data_inner).fields1.position += i;
             right_data_vec.push(right_data);
         }
         let (node, i, reason) = last_result;
         if reason == FinishReason::Success {
             let mut right_data = self.right_data.clone();
-            Rc::make_mut(&mut right_data.right_data_inner).position += i;
+            Rc::make_mut(&mut right_data.right_data_inner).fields1.position += i;
             right_data_vec.push(right_data);
         }
-        Rc::make_mut(&mut self.right_data.right_data_inner).position += bytes.len();
+        Rc::make_mut(&mut self.right_data.right_data_inner).fields1.position += bytes.len();
         self.current_node = Rc::new(node.clone());
         let done = reason != FinishReason::EndOfInput;
         ParseResults::new(right_data_vec, done)

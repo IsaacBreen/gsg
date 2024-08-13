@@ -38,7 +38,7 @@ impl CombinatorTrait for Lookahead {
         };
         if succeeds {
             if !parse_results.done() {
-                    Rc::make_mut(&mut right_data.right_data_inner).lookahead_data.has_omitted_partial_lookaheads = true;
+                    Rc::make_mut(&mut right_data.right_data_inner).fields1.lookahead_data.has_omitted_partial_lookaheads = true;
             }
             (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         } else {

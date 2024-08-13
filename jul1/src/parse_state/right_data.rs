@@ -8,19 +8,24 @@ use crate::VecX;
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct Fields1 {
+    pub lookahead_data: LookaheadData,
+    pub position: usize,
+    pub forbidden_consecutive_matches: ForbidFollowsData,
+    pub dedents: u8,
+    pub scope_count: u8
+}
+
+#[derive(Derivative)]
+#[derivative(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct RightDataInner {
     // #[derivative(Hash = "ignore")]
     // pub frame_stack: Option<FrameStack>,
     #[derivative(Hash = "ignore")]
     pub indents: VecX<Vec<u8>>,
-    pub dedents: u8,
-    pub scope_count: u8,
+    #[derivative(Hash = "ignore")]
     pub fstring_start_stack: VecX<PythonQuoteType>,
-    #[derivative(Hash = "ignore")]
-    pub forbidden_consecutive_matches: ForbidFollowsData,
-    #[derivative(Hash = "ignore")]
-    pub lookahead_data: LookaheadData,
-    pub position: usize,
+    pub fields1: Fields1,
 }
 
 #[derive(Derivative)]
@@ -31,16 +36,14 @@ pub struct RightData {
 
 impl Default for RightData {
     fn default() -> Self {
+        // Print the size of RightDataInner
+        println!("RightDataInner size: {}", std::mem::size_of::<RightDataInner>());
         Self {
             right_data_inner: RightDataInner {
                 // frame_stack: None,
                 indents: VecX::new(),
-                dedents: 0,
-                scope_count: 0,
+                fields1: Fields1 { dedents: 0, scope_count: 0, forbidden_consecutive_matches: ForbidFollowsData::default(), lookahead_data: LookaheadData::default(), position: 0 },
                 fstring_start_stack: VecX::new(),
-                forbidden_consecutive_matches: ForbidFollowsData::default(),
-                lookahead_data: LookaheadData::default(),
-                position: 0,
             }.into()
         }
     }
@@ -48,15 +51,15 @@ impl Default for RightData {
 
 impl RightData {
     pub fn advance(&mut self, n: usize) {
-        Rc::make_mut(&mut self.right_data_inner).position += n;
+        Rc::make_mut(&mut self.right_data_inner).fields1.position += n;
     }
 
     pub fn with_position(mut self, position: usize) -> Self {
-        Rc::make_mut(&mut self.right_data_inner).position = position;
+        Rc::make_mut(&mut self.right_data_inner).fields1.position = position;
         self
     }
 
     pub fn failable(&self) -> bool {
-        self.right_data_inner.lookahead_data.has_omitted_partial_lookaheads
+        self.right_data_inner.fields1.lookahead_data.has_omitted_partial_lookaheads
     }
 }

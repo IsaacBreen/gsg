@@ -26,7 +26,7 @@ pub struct SeqParser {
 
 impl CombinatorTrait for Seq {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let start_position = right_data.right_data_inner.position;
+        let start_position = right_data.right_data_inner.fields1.position;
 
         let mut combinator_index = self.start_index;
 
@@ -66,7 +66,7 @@ impl CombinatorTrait for Seq {
                 break;
             }
             for right_data in std::mem::take(&mut next_right_data_vec) {
-                let offset = right_data.right_data_inner.position - start_position;
+                let offset = right_data.right_data_inner.fields1.position - start_position;
                 let combinator = &self.children[combinator_index];
                 let (parser, parse_results) = profile!("seq other child parse", {
                     combinator.parse(right_data, &bytes[offset..])
@@ -140,7 +140,7 @@ impl ParserTrait for SeqParser {
         profile!("SeqParser::parse part 2", {
         while let Some((combinator_index, right_data_squasher)) = parser_initialization_queue.pop_first() {
             for right_data in right_data_squasher.finish() {
-                let offset = right_data.right_data_inner.position - self.position;
+                let offset = right_data.right_data_inner.fields1.position - self.position;
                 let combinator = &self.combinators[combinator_index];
                 let (parser, parse_results) = profile!("SeqParser::parse child Combinator::parse", {
                     combinator.parse(right_data, &bytes[offset..])

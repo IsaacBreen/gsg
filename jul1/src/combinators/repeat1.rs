@@ -23,7 +23,7 @@ pub struct Repeat1Parser {
 
 impl CombinatorTrait for Repeat1 {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let start_position = right_data.right_data_inner.position;
+        let start_position = right_data.right_data_inner.fields1.position;
         let (parser, parse_results) = self.a.parse(right_data, bytes);
         if parse_results.done() && parse_results.right_data_vec.is_empty() {
             // Shortcut
@@ -46,7 +46,7 @@ impl CombinatorTrait for Repeat1 {
         let mut next_right_data = right_data_vec.clone();
         while next_right_data.len() > 0 {
             for new_right_data in std::mem::take(&mut next_right_data) {
-                let offset = new_right_data.right_data_inner.position - start_position;
+                let offset = new_right_data.right_data_inner.fields1.position - start_position;
                 let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
                 if !parse_results.done() {
                     parsers.push(parser);
@@ -62,8 +62,8 @@ impl CombinatorTrait for Repeat1 {
             }
             if !right_data_vec.is_empty() && !next_right_data.is_empty() {
                 let end_pos = start_position + bytes.len();
-                let pos1 = right_data_vec[0].right_data_inner.position;
-                let pos2 = next_right_data[0].right_data_inner.position;
+                let pos1 = right_data_vec[0].right_data_inner.fields1.position;
+                let pos2 = next_right_data[0].right_data_inner.fields1.position;
                 if end_pos < pos1 + 1000 || end_pos < pos2 + 1000 {
                     right_data_vec.clear();
                 }
@@ -112,7 +112,7 @@ impl ParserTrait for Repeat1Parser {
         let mut i = 0;
         while i < right_data_as.len() {
             let right_data_a = right_data_as[i].clone();
-            let offset = right_data_a.right_data_inner.position - self.position;
+            let offset = right_data_a.right_data_inner.fields1.position - self.position;
             let (a_parser, parse_results) = self.a.parse(right_data_a, &bytes[offset..]);
             if !parse_results.done() {
                 self.a_parsers.push(a_parser);
