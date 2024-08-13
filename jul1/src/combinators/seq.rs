@@ -78,11 +78,16 @@ impl CombinatorTrait for Seq {
         };
 
         while combinator_index < self.children.len() && !next_right_data_vec.is_empty() {
-            let mut next_next_right_data_vec = VecY::new();
-            for right_data in next_right_data_vec {
-                next_next_right_data_vec.extend(helper(right_data, combinator_index));
+            if next_right_data_vec.len() == 1 {
+                let right_data = next_right_data_vec.pop().unwrap();
+                next_right_data_vec = helper(right_data, combinator_index);
+            } else {
+                let mut next_next_right_data_vec = VecY::new();
+                for right_data in next_right_data_vec {
+                    next_next_right_data_vec.extend(helper(right_data, combinator_index));
+                }
+                next_right_data_vec = next_next_right_data_vec;
             }
-            next_right_data_vec = next_next_right_data_vec;
             combinator_index += 1;
         }
 
