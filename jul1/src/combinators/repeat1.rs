@@ -42,7 +42,7 @@ impl CombinatorTrait for Repeat1 {
             vec![parser]
         };
         let mut all_prev_succeeded_decisively = parse_results.succeeds_decisively();
-        let mut right_data_vec = parse_results.right_data_vec.clone();
+        let mut right_data_vec = parse_results.right_data_vec;
 
         let mut next_right_data = right_data_vec.clone();
         while next_right_data.len() > 0 {
