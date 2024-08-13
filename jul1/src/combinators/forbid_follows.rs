@@ -3,12 +3,12 @@ use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub struct ForbidFollowsData {
-    pub prev_match_ids: usize, // Using a bitset
+    pub prev_match_ids: u32, // Using a bitset
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollows {
-    pub(crate) match_ids: usize, // Using a bitset
+    pub(crate) match_ids: u32, // Using a bitset
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -16,7 +16,7 @@ pub struct ForbidFollowsClear {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollowsCheckNot {
-    pub(crate) match_id: usize,
+    pub(crate) match_id: u8,
 }
 
 impl CombinatorTrait for ForbidFollows {
@@ -45,10 +45,10 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
     }
 }
 
-pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows {
+pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows { // Using a bitset
     let mut bitset = 0;
     for &id in match_ids {
-        bitset |= 1 << id;
+        bitset |= 1 << TryInto::<u32>::try_into(id).unwrap();
     }
     ForbidFollows { match_ids: bitset }
 }
@@ -58,7 +58,7 @@ pub fn forbid_follows_clear() -> ForbidFollowsClear {
 }
 
 pub fn forbid_follows_check_not(match_id: usize) -> ForbidFollowsCheckNot {
-    ForbidFollowsCheckNot { match_id }
+    ForbidFollowsCheckNot { match_id: match_id.try_into().unwrap() }
 }
 
 impl From<ForbidFollows> for Combinator {
