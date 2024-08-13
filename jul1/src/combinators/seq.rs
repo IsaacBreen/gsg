@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::collections::{BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
+use lru::DefaultHasher;
 use crate::{Combinator, CombinatorTrait, eps, FailParser, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, RightDataSquasher, Squash, U8Set, VecY};
 use crate::VecX;
 
