@@ -184,7 +184,7 @@ impl CombinatorTrait for Cached {
 
             let mut global_cache = cache.borrow_mut();
             let parse_id = global_cache.parse_id.unwrap();
-            global_cache.new_parsers.get_mut(&parse_id).unwrap().put(key, entry.clone());
+            global_cache.new_parsers.get_mut(&parse_id).unwrap().insert(key, entry.clone());
             if !parse_results.done() {
                 global_cache.entries.get_mut(&parse_id).unwrap().push(entry.clone());
             }
