@@ -6,7 +6,7 @@ pub struct PartialLookahead {
     pub positive: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LookaheadData {
     pub has_omitted_partial_lookaheads: bool,
 }

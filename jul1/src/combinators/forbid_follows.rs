@@ -1,7 +1,7 @@
 use crate::*;
 use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub struct ForbidFollowsData {
     pub prev_match_ids: u16, // Using a bitset
 }

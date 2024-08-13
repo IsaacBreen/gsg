@@ -6,7 +6,8 @@ use derivative::Derivative;
 use crate::{ForbidFollowsData, FrameStack, LookaheadData, PythonQuoteType};
 use crate::VecX;
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[repr(packed(1))]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Fields1 {
     pub lookahead_data: LookaheadData,
     pub position: usize,
@@ -26,9 +27,9 @@ pub struct Fields2 {
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct RightDataInner {
+    pub fields1: Fields1,
     #[derivative(Hash = "ignore")]
     pub fields2: Fields2,
-    pub fields1: Fields1,
 }
 
 #[derive(Derivative)]
