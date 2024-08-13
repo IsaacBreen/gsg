@@ -1,14 +1,14 @@
 use crate::*;
-use fixedbitset::FixedBitSet;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub struct ForbidFollowsData {
-    pub prev_match_ids: FixedBitSet,
+    pub prev_match_ids: usize, // Using a bitset
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollows {
-    pub(crate) match_ids: FixedBitSet,
+    pub(crate) match_ids: usize, // Using a bitset
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -21,33 +21,34 @@ pub struct ForbidFollowsCheckNot {
 
 impl CombinatorTrait for ForbidFollows {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids = self.match_ids.clone();
+        Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids = self.match_ids;
         (combinator::Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
     }
 }
 
 impl CombinatorTrait for ForbidFollowsClear {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids.clear();
+        Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids = 0;
         (combinator::Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
     }
 }
 
 impl CombinatorTrait for ForbidFollowsCheckNot {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        if right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids.contains(self.match_id) {
+        let bit = 1 << self.match_id;
+        if right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids & bit != 0 {
             (combinator::Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else {
-            Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids.clear();
+            Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids = 0;
             (combinator::Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         }
     }
 }
 
 pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows {
-    let mut bitset = FixedBitSet::with_capacity(match_ids.iter().max().unwrap_or(&0) + 1);
+    let mut bitset = 0;
     for &id in match_ids {
-        bitset.insert(id);
+        bitset |= 1 << id;
     }
     ForbidFollows { match_ids: bitset }
 }
