@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import functools
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
@@ -10,6 +11,9 @@ from typing import Self, Iterable, Callable, Any
 
 import itertools
 from tqdm import tqdm
+import sys
+
+# sys.setrecursionlimit(100)
 
 
 class Node(abc.ABC):
@@ -226,6 +230,43 @@ def validate_rules(rules: dict[Ref, Node]) -> None:
             raise ValueError(f"Unknown rule type: {rule_type}")
 
 
+def assert_not_recursive_for_node(node: Node, seen: set[int] = None) -> None:
+    seen = seen.copy() if seen is not None else set()
+    if id(node) in seen:
+        raise ValueError(f"Recursive node with id {id(node)}")
+    seen.add(id(node))
+    match node:
+        case Seq(children):
+            for child in children:
+                assert_not_recursive_for_node(child, seen)
+        case Choice(children):
+            for child in children:
+                assert_not_recursive_for_node(child, seen)
+        case Repeat1(child):
+            assert_not_recursive_for_node(child, seen)
+        case Ref(_):
+            pass
+        case Term(_):
+            pass
+        case EpsExternal(_):
+            pass
+        case Lookahead(child):
+            assert_not_recursive_for_node(child, seen)
+        case _:
+            raise ValueError(f"Unknown node type: {type(node)}")
+
+def assert_not_recursive(rules: dict[Ref, Node]) -> None:
+    for ref, node in rules.items():
+        assert_not_recursive_for_node(node)
+
+def validate(f: Callable[..., Node]) -> Callable[..., Node]:
+    return f
+    def wrapper(*args, **kwargs):
+        x = f(*args, **kwargs)
+        assert_not_recursive_for_node(x)
+        return x
+    return functools.wraps(f)(wrapper)
+
 def resolve_left_recursion_for_rule[T: Node](node: T, ref: Ref, replacements: dict[Ref, Node]) -> Node:
     # Resolve indirect left recursion
     node.replace_left_refs(replacements)
@@ -240,13 +281,14 @@ def resolve_left_recursion(rules: dict[Ref, Node]) -> dict[Ref, Node]:
         replacements[ref] = resolve_left_recursion_for_rule(node, ref, replacements)
     return replacements
 
-
+@validate
 def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: set[Ref]) -> Node:
     try:
         match node:
             case Seq([]):
                 return node
             case Seq(children):
+                children = children.copy()
                 # Actually, as long as we have a single non-nullable sequent, we're good.
                 try:
                     i = [is_nullable(child, nullable_rules) for child in children].index(False)
@@ -279,6 +321,7 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
         raise
 
 
+@validate
 def inject_prefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: set[Ref]) -> Node:
     try:
         if not is_nullable(node, nullable_rules):
@@ -300,6 +343,7 @@ def inject_prefix_on_nonnull_for_node(node: Node, prefix: Node, nullable_rules: 
         raise
 
 
+@validate
 def inject_suffix_on_nonnull_for_node(node: Node, suffix: Node, nullable_rules: set[Ref]) -> Node:
     try:
         if not is_nullable(node, nullable_rules):
@@ -323,7 +367,11 @@ def inject_suffix_on_nonnull_for_node(node: Node, suffix: Node, nullable_rules: 
 def intersperse_separator(rules: dict[Ref, Node], separator: Node) -> dict[Ref, Node]:
     nullable_rules = get_nullable_rules(rules)
     new_rules = {}
-    for ref, node in rules.items():
+    assert_not_recursive(rules)
+    for ref, node in (bar := tqdm(rules.items(), desc="Interspersing separators")):
+        assert_not_recursive(new_rules)
+        assert_not_recursive_for_node(node)
+        bar.set_description(f"Interspersing separators for {ref}")
         try:
             new_rules[ref] = intersperse_separator_for_node(node, separator, nullable_rules).simplify()
         except ValueError as e:
@@ -1192,3 +1240,11 @@ if __name__ == '__main__':
     prettify_rules(rules)
     print("after interspersing separators:")
     prettify_rules(intersperse_separator(rules, ref('WS')))
+
+    rules = make_rules(
+        A=seq(ref('A'), term('a'), lookahead(term('b')), term('c')),
+        B=seq(ref('B'), term('a'), lookahead(term('b')), term('c')),
+    )
+    rules = resolve_left_recursion(rules)
+    new_rules = intersperse_separator(rules, opt(seq(ref('WS'), ref('WS'))))
+    prettify_rules(new_rules)
