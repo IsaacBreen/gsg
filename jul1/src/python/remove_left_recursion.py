@@ -947,7 +947,6 @@ class Repeat1(Node):
     child: Node
 
     def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
-        # return seq(self.child, repeat0(self.child)).decompose_on_left_recursion(ref)
         first, recursive = self.child.decompose_on_left_recursion(ref)
         child = self.child.simplify()
         first = first.simplify()
@@ -987,7 +986,6 @@ class SepRep1(Node):
     separator: Node
 
     def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
-        return seq(self.child, repeat0(seq(self.separator, self.child))).decompose_on_left_recursion(ref)
         first, recursive = self.child.decompose_on_left_recursion(ref)
         child = self.child.simplify()
         first = first.simplify()
@@ -1003,7 +1001,6 @@ class SepRep1(Node):
         return first, recursive
 
     def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
-        return seq(self.child, repeat0(seq(self.separator, self.child))).replace_left_refs(replacements)
         first = self.child.replace_left_refs(replacements).simplify()
         child = self.child.simplify()
         if first == child:
@@ -1012,7 +1009,6 @@ class SepRep1(Node):
             return seq(first, repeat0(seq(self.separator, child)))
 
     def simplify(self) -> Node:
-        return self
         self.child = self.child.simplify()
         self.separator = self.separator.simplify()
         if self.child == fail():
