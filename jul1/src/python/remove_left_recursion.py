@@ -1240,11 +1240,3 @@ if __name__ == '__main__':
     prettify_rules(rules)
     print("after interspersing separators:")
     prettify_rules(intersperse_separator(rules, ref('WS')))
-
-    rules = make_rules(
-        A=seq(ref('A'), term('a'), lookahead(term('b')), term('c')),
-        B=seq(ref('B'), term('a'), lookahead(term('b')), term('c')),
-    )
-    rules = resolve_left_recursion(rules)
-    new_rules = intersperse_separator(rules, opt(seq(ref('WS'), ref('WS'))))
-    prettify_rules(new_rules)
