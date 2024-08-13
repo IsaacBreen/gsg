@@ -9,8 +9,8 @@ use crate::VecX;
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct RightDataInner {
-    #[derivative(Hash = "ignore")]
-    pub frame_stack: Option<FrameStack>,
+    // #[derivative(Hash = "ignore")]
+    // pub frame_stack: Option<FrameStack>,
     #[derivative(Hash = "ignore")]
     pub indents: VecX<Vec<u8>>,
     pub dedents: usize,
@@ -33,7 +33,7 @@ impl Default for RightData {
     fn default() -> Self {
         Self {
             right_data_inner: RightDataInner {
-                frame_stack: None,
+                // frame_stack: None,
                 indents: VecX::new(),
                 dedents: 0,
                 scope_count: 0,
