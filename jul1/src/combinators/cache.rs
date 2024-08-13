@@ -49,7 +49,9 @@ struct CacheKey {
 
 impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::mem::discriminant(self.combinator.as_ref()).hash(state);
+        // std::mem::discriminant(self.combinator.as_ref()).hash(state);
+        // self.combinator.hash(state);
+        Rc::as_ptr(&self.combinator).hash(state);
         self.right_data.hash(state);
     }
 }
