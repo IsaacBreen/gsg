@@ -52,6 +52,7 @@ impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // std::mem::discriminant(self.combinator.as_ref()).hash(state);
         Rc::as_ptr(&self.combinator).hash(state);
+        // self.combinator.hash(state);
         self.right_data.hash(state);
     }
 }
@@ -59,6 +60,7 @@ impl Hash for CacheKey {
 impl PartialEq for CacheKey {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
+        // self.combinator == other.combinator && self.right_data == other.right_data
     }
 }
 
