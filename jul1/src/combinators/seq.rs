@@ -48,13 +48,15 @@ impl CombinatorTrait for Seq {
         } else {
             vec![(combinator_index, parser)]
         };
-        // final_right_data: VecY<RightData>;
-        // let mut next_right_data_vec: VecY<RightData>;
-        // if combinator_index + 1 < self.children.len() {
-        //     next_right_data_vec = parse_results.right_data_vec;
-        // } else {
-        //     next_right_data_vec = VecY::new();
-        // }
+        let mut final_right_data: VecY<RightData>;
+        let mut next_right_data_vec: VecY<RightData>;
+        if combinator_index + 1 < self.children.len() {
+            next_right_data_vec = parse_results.right_data_vec;
+            final_right_data = VecY::new();
+        } else {
+            next_right_data_vec = VecY::new();
+            final_right_data = parse_results.right_data_vec;
+        }
 
         combinator_index += 1;
 
@@ -67,161 +69,22 @@ impl CombinatorTrait for Seq {
             if !parse_results.done() {
                 parsers.push((combinator_index, parser));
             }
-            parse_results.right_data_vec
-        };
-
-        let mut helper2 = |mut next_right_data_vec: VecY<RightData>| {
-            let mut final_right_data: VecY<RightData>;
-            if self.children.len() == 1 {
-                final_right_data = next_right_data_vec;
-            } else if self.children.len() == 2 {
-                if next_right_data_vec.is_empty() { return VecY::new(); }
-                if next_right_data_vec.len() == 1 {
-                    final_right_data = helper(next_right_data_vec.into_iter().next().unwrap(), 1);
-                } else {
-                    final_right_data = VecY::new();
-                    for right_data in next_right_data_vec { final_right_data.extend(helper(right_data, 1)); }
-                }
-            } else if self.children.len() == 3 {
-                if next_right_data_vec.is_empty() { return VecY::new(); }
-                let mut next_right_data_vec2;
-                if next_right_data_vec.len() == 1 {
-                    next_right_data_vec2 = helper(next_right_data_vec.into_iter().next().unwrap(), 1);
-                } else {
-                    next_right_data_vec2 = VecY::new();
-                    for right_data in next_right_data_vec { next_right_data_vec2.extend(helper(right_data, 1)); }
-                }
-
-                if next_right_data_vec2.is_empty() { return VecY::new(); }
-                if next_right_data_vec2.len() == 1 {
-                    final_right_data = helper(next_right_data_vec2.into_iter().next().unwrap(), 2);
-                } else {
-                    final_right_data = VecY::new();
-                    for right_data in next_right_data_vec2 { final_right_data.extend(helper(right_data, 2)); }
-                }
-            } else if self.children.len() == 4 {
-                if next_right_data_vec.is_empty() { return VecY::new(); }
-                let mut next_right_data_vec2;
-                if next_right_data_vec.len() == 1 {
-                    next_right_data_vec2 = helper(next_right_data_vec.into_iter().next().unwrap(), 1);
-                } else {
-                    next_right_data_vec2 = VecY::new();
-                    for right_data in next_right_data_vec { next_right_data_vec2.extend(helper(right_data, 1)); }
-                }
-
-                if next_right_data_vec2.is_empty() { return VecY::new(); }
-                let mut next_right_data_vec3;
-                if next_right_data_vec2.len() == 1 {
-                    next_right_data_vec3 = helper(next_right_data_vec2.into_iter().next().unwrap(), 2);
-                } else {
-                    next_right_data_vec3 = VecY::new();
-                    for right_data in next_right_data_vec2 { next_right_data_vec3.extend(helper(right_data, 2)); }
-                }
-
-                if next_right_data_vec3.is_empty() { return VecY::new(); }
-                if next_right_data_vec3.len() == 1 {
-                    final_right_data = helper(next_right_data_vec3.into_iter().next().unwrap(), 3);
-                } else {
-                    final_right_data = VecY::new();
-                    for right_data in next_right_data_vec3 { final_right_data.extend(helper(right_data, 3)); }
-                }
-            } else if self.children.len() == 5 {
-                if next_right_data_vec.is_empty() { return VecY::new(); }
-                let mut next_right_data_vec2;
-                if next_right_data_vec.len() == 1 {
-                    next_right_data_vec2 = helper(next_right_data_vec.into_iter().next().unwrap(), 1);
-                } else {
-                    next_right_data_vec2 = VecY::new();
-                    for right_data in next_right_data_vec { next_right_data_vec2.extend(helper(right_data, 1)); }
-                }
-
-                if next_right_data_vec2.is_empty() { return VecY::new(); }
-                let mut next_right_data_vec3;
-                if next_right_data_vec2.len() == 1 {
-                    next_right_data_vec3 = helper(next_right_data_vec2.into_iter().next().unwrap(), 2);
-                } else {
-                    next_right_data_vec3 = VecY::new();
-                    for right_data in next_right_data_vec2 { next_right_data_vec3.extend(helper(right_data, 2)); }
-                }
-
-                if next_right_data_vec3.is_empty() { return VecY::new(); }
-                let mut next_right_data_vec4;
-                if next_right_data_vec3.len() == 1 {
-                    next_right_data_vec4 = helper(next_right_data_vec3.into_iter().next().unwrap(), 3);
-                } else {
-                    next_right_data_vec4 = VecY::new();
-                    for right_data in next_right_data_vec3 { next_right_data_vec4.extend(helper(right_data, 3)); }
-                }
-
-                if next_right_data_vec4.is_empty() { return VecY::new(); }
-                if next_right_data_vec4.len() == 1 {
-                    final_right_data = helper(next_right_data_vec4.into_iter().next().unwrap(), 4);
-                } else {
-                    final_right_data = VecY::new();
-                    for right_data in next_right_data_vec4 { final_right_data.extend(helper(right_data, 4)); }
-                }
-            } else if self.children.len() == 6 {
-                if next_right_data_vec.is_empty() { return VecY::new(); }
-                let mut next_right_data_vec2;
-                if next_right_data_vec.len() == 1 {
-                    next_right_data_vec2 = helper(next_right_data_vec.into_iter().next().unwrap(), 1);
-                } else {
-                    next_right_data_vec2 = VecY::new();
-                    for right_data in next_right_data_vec { next_right_data_vec2.extend(helper(right_data, 1)); }
-                }
-
-                if next_right_data_vec2.is_empty() { return VecY::new(); }
-                let mut next_right_data_vec3;
-                if next_right_data_vec2.len() == 1 {
-                    next_right_data_vec3 = helper(next_right_data_vec2.into_iter().next().unwrap(), 2);
-                } else {
-                    next_right_data_vec3 = VecY::new();
-                    for right_data in next_right_data_vec2 { next_right_data_vec3.extend(helper(right_data, 2)); }
-                }
-
-                if next_right_data_vec3.is_empty() { return VecY::new(); }
-                let mut next_right_data_vec4;
-                if next_right_data_vec3.len() == 1 {
-                    next_right_data_vec4 = helper(next_right_data_vec3.into_iter().next().unwrap(), 3);
-                } else {
-                    next_right_data_vec4 = VecY::new();
-                    for right_data in next_right_data_vec3 { next_right_data_vec4.extend(helper(right_data, 3)); }
-                }
-
-                if next_right_data_vec4.is_empty() { return VecY::new(); }
-                let mut next_right_data_vec5;
-                if next_right_data_vec4.len() == 1 {
-                    next_right_data_vec5 = helper(next_right_data_vec4.into_iter().next().unwrap(), 4);
-                } else {
-                    next_right_data_vec5 = VecY::new();
-                    for right_data in next_right_data_vec4 { next_right_data_vec5.extend(helper(right_data, 4)); }
-                }
-
-                if next_right_data_vec5.is_empty() { return VecY::new(); }
-                if next_right_data_vec5.len() == 1 {
-                    final_right_data = helper(next_right_data_vec5.into_iter().next().unwrap(), 5);
-                } else {
-                    final_right_data = VecY::new();
-                    for right_data in next_right_data_vec5 { final_right_data.extend(helper(right_data, 5)); }
-                }
+            if combinator_index + 1 < self.children.len() {
+                parse_results.right_data_vec
             } else {
-                loop {
-                    if !(combinator_index < self.children.len() && !next_right_data_vec.is_empty()) {
-                        final_right_data = VecY::new();
-                        break;
-                    }
-                    let mut next_next_right_data_vec = VecY::new();
-                    for right_data in next_right_data_vec {
-                        next_next_right_data_vec.extend(helper(right_data, combinator_index));
-                    }
-                    next_right_data_vec = next_next_right_data_vec;
-                    combinator_index += 1;
-                }
-                final_right_data = next_right_data_vec;
+                final_right_data.extend(parse_results.right_data_vec);
+                VecY::new()
             }
-            final_right_data
         };
-        let final_right_data = helper2(parse_results.right_data_vec);
+
+        while combinator_index < self.children.len() && !next_right_data_vec.is_empty() {
+            let mut next_next_right_data_vec = VecY::new();
+            for right_data in next_right_data_vec {
+                next_next_right_data_vec.extend(helper(right_data, combinator_index));
+            }
+            next_right_data_vec = next_next_right_data_vec;
+            combinator_index += 1;
+        }
 
         if parsers.is_empty() {
             return (Parser::FailParser(FailParser), ParseResults::new(final_right_data, true));
