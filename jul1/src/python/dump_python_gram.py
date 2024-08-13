@@ -329,7 +329,7 @@ if __name__ == "__main__":
     remove_left_recursion.assert_not_recursive(custom_grammar)
 
     # Intersperse opt(WS)
-    custom_grammar |= remove_left_recursion.intersperse_separator(custom_grammar, opt(remove_left_recursion.seq(ref('WS'), ref('WS'))))
+    custom_grammar |= remove_left_recursion.intersperse_separator(custom_grammar, remove_left_recursion.seq(opt(ref('WS')), opt(ref('WS'))))
 
     # Forbid some follows
     forbidden_follows_table = {
