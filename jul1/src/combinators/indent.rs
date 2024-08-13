@@ -23,7 +23,7 @@ impl CombinatorTrait for IndentCombinator {
                     if indents.is_empty() {
                         eps().into()
                     } else {
-                        let dedents = indents.len();
+                        let dedents = indents.len().try_into().unwrap();
                         choice_greedy!(
                             // Exit here and register dedents
                             seq!(
@@ -32,7 +32,7 @@ impl CombinatorTrait for IndentCombinator {
                                     let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                                     right_data_inner.dedents = dedents;
                                     // Remove the last `dedents` indents from the indent stack
-                                    right_data_inner.indents.truncate(right_data_inner.indents.len() - dedents);
+                                    right_data_inner.indents.truncate(right_data_inner.indents.len() - dedents as usize);
                                     // println!("Registering {} dedents. Right data: {:?}", dedents, right_data);
                                     true
                                 })

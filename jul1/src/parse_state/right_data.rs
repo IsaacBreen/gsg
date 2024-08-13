@@ -13,8 +13,8 @@ pub struct RightDataInner {
     // pub frame_stack: Option<FrameStack>,
     #[derivative(Hash = "ignore")]
     pub indents: VecX<Vec<u8>>,
-    pub dedents: usize,
-    pub scope_count: usize,
+    pub dedents: u8,
+    pub scope_count: u8,
     pub fstring_start_stack: VecX<PythonQuoteType>,
     #[derivative(Hash = "ignore")]
     pub forbidden_consecutive_matches: ForbidFollowsData,
