@@ -66,13 +66,14 @@ impl CombinatorTrait for Repeat1 {
                 right_data_vec.extend(parse_results.right_data_vec);
             }
             // if !right_data_vec.is_empty() && !next_right_data.is_empty() {
-            //     let end_pos = start_position + bytes.len();
-            //     let pos1 = right_data_vec[0].right_data_inner.fields1.position;
-            //     let pos2 = next_right_data[0].right_data_inner.fields1.position;
-            //     if end_pos < pos1 + 1000 || end_pos < pos2 + 1000 {
-            //         right_data_vec.clear();
-            //     }
+                // let end_pos = start_position + bytes.len();
+                // let pos1 = right_data_vec[0].right_data_inner.fields1.position;
+                // let pos2 = next_right_data[0].right_data_inner.fields1.position;
+                // if end_pos < pos1 + 1000 || end_pos < pos2 + 1000 {
+                //     right_data_vec.clear();
+                // }
             // }
+
             // right_data_vec.extend(next_right_data.clone());
             i = next_i;
             i_parser = next_i_parser;
@@ -83,11 +84,11 @@ impl CombinatorTrait for Repeat1 {
         (
             Parser::Repeat1Parser(Repeat1Parser {
                 a: self.a.clone(),
-                a_parsers: parsers,
+                a_parsers: parsers[i_parser..].to_vec(),
                 position: start_position + bytes.len(),
                 greedy: self.greedy
             }),
-            ParseResults::new(right_data_vec, done)
+            ParseResults::new(right_data_vec[i..].to_vec(), done)
         )
     }
 }
