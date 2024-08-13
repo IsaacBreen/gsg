@@ -5,7 +5,7 @@ use std::num::NonZeroUsize;
 use std::rc::Rc;
 
 use derivative::Derivative;
-use caches::{Cache, DefaultHashBuilder, AdaptiveCache};
+use caches::{Cache, DefaultHashBuilder, SegmentedCache};
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, Squash, U8Set};
 
 macro_rules! profile {
@@ -19,7 +19,7 @@ thread_local! {
 }
 
 struct GlobalCache {
-    new_parsers: HashMap<usize, AdaptiveCache<CacheKey, Rc<RefCell<CacheEntry>>, DefaultHashBuilder>>,
+    new_parsers: HashMap<usize, SegmentedCache<CacheKey, Rc<RefCell<CacheEntry>>, DefaultHashBuilder>>,
     pub(crate) entries: HashMap<usize, Vec<Rc<RefCell<CacheEntry>>>, DefaultHashBuilder>,
     pub(crate) parse_id_counter: usize,
     pub(crate) parse_id: Option<usize>,
@@ -108,7 +108,7 @@ impl CombinatorTrait for CacheContext {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
                 let parse_id = global_cache.parse_id_counter;
-                global_cache.new_parsers.insert(parse_id, AdaptiveCache::new(64).unwrap());
+                global_cache.new_parsers.insert(parse_id, SegmentedCache::new(64, 64).unwrap());
                 global_cache.entries.insert(parse_id, Vec::new());
                 global_cache.parse_id = Some(global_cache.parse_id_counter);
                 global_cache.parse_id_counter += 1;
