@@ -164,11 +164,14 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
 pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start_right_data = RightData::default();
+    let start = Instant::now();
     let (parser, mut parse_results) = profile!("assert_parses_fast parse",
         {
             combinator.parse(start_right_data, &bytes)
         }
     );
+    let duration = start.elapsed();
+    println!("assert_parses_fast parse took {:?}", duration);
     parse_results.squash();
     // Get the line and char number of the max position
     let max_position = parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.right_data_inner.fields1.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).right_data_inner.fields1.position;
