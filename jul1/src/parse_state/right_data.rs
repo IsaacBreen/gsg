@@ -29,7 +29,7 @@ pub struct Fields2 {
 pub struct RightDataInner {
     pub fields1: Fields1,
     #[derivative(Hash = "ignore")]
-    pub fields2: Box<Fields2>,
+    pub fields2: Rc<Fields2>,
 }
 
 #[derive(Derivative)]

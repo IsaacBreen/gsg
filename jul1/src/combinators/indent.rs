@@ -32,7 +32,8 @@ impl CombinatorTrait for IndentCombinator {
                                     let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                                     right_data_inner.fields1.dedents = dedents;
                                     // Remove the last `dedents` indents from the indent stack
-                                    right_data_inner.fields2.indents.truncate(right_data_inner.fields2.indents.len() - dedents as usize);
+                                    let new_size = right_data_inner.fields2.indents.len() - dedents as usize;
+                                    Rc::make_mut(&mut right_data_inner.fields2).indents.truncate(new_size);
                                     // println!("Registering {} dedents. Right data: {:?}", dedents, right_data);
                                     true
                                 })
@@ -59,7 +60,7 @@ impl CombinatorTrait for IndentCombinator {
                     }
                     let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                     right_data_inner.fields1.position += i;
-                    right_data_inner.fields2.indents.push(bytes[0..i].to_vec());
+                    Rc::make_mut(&mut right_data_inner.fields2).indents.push(bytes[0..i].to_vec());
                     (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResults::new_single(right_data, i < bytes.len()))
                 }
             }
@@ -110,7 +111,7 @@ impl ParserTrait for IndentCombinatorParser {
                         let mut right_data = maybe_right_data.as_mut().unwrap();
                         let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                         right_data_inner.fields1.position += 1;
-                        right_data_inner.fields2.indents.last_mut().unwrap().push(byte);
+                        Rc::make_mut(&mut right_data_inner.fields2).indents.last_mut().unwrap().push(byte);
                         right_data_vec.push(right_data.clone());
                     } else {
                         maybe_right_data.take();
