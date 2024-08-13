@@ -16,6 +16,7 @@ pub use negative_lookahead::*;
 pub use fail::*;
 pub use profile::*;
 pub use opt::*;
+pub use seq2::*;
 
 mod choice;
 mod eat_string;
@@ -42,6 +43,7 @@ mod reference;
 mod brute_force_fn;
 mod continuation;
 mod fast;
+mod seq2;
 
 pub use choice::*;
 pub use eat_string::*;
