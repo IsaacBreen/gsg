@@ -52,10 +52,6 @@ impl CombinatorTrait for Repeat1 {
                     if !parse_results.done() {
                         parsers.push(parser);
                     }
-                    if self.greedy && parse_results.succeeds_decisively() {
-                        right_data_vec.clear();
-                        parsers.clear();
-                    }
                     next_right_data.extend(parse_results.right_data_vec);
                 }
                 if !right_data_vec.is_empty() && !next_right_data.is_empty() {
@@ -109,7 +105,7 @@ impl CombinatorTrait for Repeat1 {
                     if !parse_results.done() {
                         parsers.push(parser);
                     }
-                    if self.greedy && parse_results.succeeds_decisively() {
+                    if parse_results.succeeds_decisively() {
                         right_data_vec.clear();
                         parsers.clear();
                     }
