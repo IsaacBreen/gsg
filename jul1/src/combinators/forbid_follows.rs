@@ -1,14 +1,14 @@
 use crate::*;
-use crate::VecX;
+use fixedbitset::FixedBitSet;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub struct ForbidFollowsData {
-    pub prev_match_ids: VecX<usize>,
+    pub prev_match_ids: FixedBitSet,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollows {
-    pub(crate) match_ids: VecX<usize>,
+    pub(crate) match_ids: FixedBitSet,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -35,7 +35,7 @@ impl CombinatorTrait for ForbidFollowsClear {
 
 impl CombinatorTrait for ForbidFollowsCheckNot {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        if right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids.contains(&self.match_id) {
+        if right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids.contains(self.match_id) {
             (combinator::Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else {
             Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids.clear();
@@ -45,7 +45,11 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
 }
 
 pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows {
-    ForbidFollows { match_ids: match_ids.into() }
+    let mut bitset = FixedBitSet::with_capacity(match_ids.iter().max().unwrap_or(&0) + 1);
+    for &id in match_ids {
+        bitset.insert(id);
+    }
+    ForbidFollows { match_ids: bitset }
 }
 
 pub fn forbid_follows_clear() -> ForbidFollowsClear {
