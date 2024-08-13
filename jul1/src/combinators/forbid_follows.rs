@@ -16,7 +16,7 @@ pub struct ForbidFollowsClear {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ForbidFollowsCheckNot {
-    pub(crate) match_id: u8,
+    pub(crate) match_ids: u32,
 }
 
 impl CombinatorTrait for ForbidFollows {
@@ -35,8 +35,7 @@ impl CombinatorTrait for ForbidFollowsClear {
 
 impl CombinatorTrait for ForbidFollowsCheckNot {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let bit = 1 << self.match_id;
-        if right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids & bit != 0 {
+        if right_data.right_data_inner.forbidden_consecutive_matches.prev_match_ids & self.match_ids != 0 {
             (combinator::Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else {
             Rc::make_mut(&mut right_data.right_data_inner).forbidden_consecutive_matches.prev_match_ids = 0;
@@ -58,7 +57,8 @@ pub fn forbid_follows_clear() -> ForbidFollowsClear {
 }
 
 pub fn forbid_follows_check_not(match_id: usize) -> ForbidFollowsCheckNot {
-    ForbidFollowsCheckNot { match_id: match_id.try_into().unwrap() }
+    let bitmask = 1 << match_id;
+    ForbidFollowsCheckNot { match_ids: bitmask }
 }
 
 impl From<ForbidFollows> for Combinator {
