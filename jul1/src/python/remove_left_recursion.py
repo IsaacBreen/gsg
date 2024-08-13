@@ -272,13 +272,14 @@ def assert_not_recursive(rules: dict[Ref, Node]) -> None:
         assert_not_recursive_for_node(node)
 
 def validate(f: Callable[..., Node]) -> Callable[..., Node]:
-    return f
+    # return f
     def wrapper(*args, **kwargs):
         x = f(*args, **kwargs)
         assert_not_recursive_for_node(x)
         return x
     return functools.wraps(f)(wrapper)
 
+@validate
 def resolve_left_recursion_for_rule[T: Node](node: T, ref: Ref, replacements: dict[Ref, Node]) -> Node:
     # Resolve indirect left recursion
     node.replace_left_refs(replacements)
@@ -323,7 +324,9 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
             case Repeat1(child):
                 return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
             case SepRep1(child, sep):
-                return sep_rep1(child, inject_prefix_on_nonnull_for_node(inject_suffix_on_nonnull_for_node(sep, separator, nullable_rules), separator, nullable_rules))
+                sep = inject_prefix_on_nonnull_for_node(sep, separator, nullable_rules)
+                sep = inject_suffix_on_nonnull_for_node(sep, separator, nullable_rules)
+                return sep_rep1(child, sep)
             case Ref(_) | Term(_) | EpsExternal(_):
                 return node
             case Lookahead(child, positive):
@@ -984,6 +987,7 @@ class SepRep1(Node):
     separator: Node
 
     def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
+        return seq(self.child, repeat0(seq(self.separator, self.child))).decompose_on_left_recursion(ref)
         first, recursive = self.child.decompose_on_left_recursion(ref)
         child = self.child.simplify()
         first = first.simplify()
@@ -999,6 +1003,7 @@ class SepRep1(Node):
         return first, recursive
 
     def replace_left_refs(self, replacements: dict[Ref, Node]) -> Node:
+        return seq(self.child, repeat0(seq(self.separator, self.child))).replace_left_refs(replacements)
         first = self.child.replace_left_refs(replacements).simplify()
         child = self.child.simplify()
         if first == child:
@@ -1007,6 +1012,7 @@ class SepRep1(Node):
             return seq(first, repeat0(seq(self.separator, child)))
 
     def simplify(self) -> Node:
+        return self
         self.child = self.child.simplify()
         self.separator = self.separator.simplify()
         if self.child == fail():
