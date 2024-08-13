@@ -329,7 +329,8 @@ if __name__ == "__main__":
     remove_left_recursion.assert_not_recursive(custom_grammar)
 
     # Intersperse opt(WS)
-    custom_grammar |= remove_left_recursion.intersperse_separator(custom_grammar, remove_left_recursion.seq(opt(ref('WS')), opt(ref('WS'))))
+    # custom_grammar |= remove_left_recursion.intersperse_separator(custom_grammar, remove_left_recursion.seq(opt(ref('WS')), opt(ref('WS'))))
+    custom_grammar |= remove_left_recursion.intersperse_separator(custom_grammar, opt(ref('WS')))
 
     # Forbid some follows
     forbidden_follows_table = {
@@ -338,9 +339,9 @@ if __name__ == "__main__":
         ref('NEWLINE'): {ref('WS')},
         ref('INDENT'): {ref('WS')},
         ref('DEDENT'): {ref('WS')},
-        ref('NAME'): {ref('NAME'), ref('NUMBER')},
-        ref('NUMBER'): {ref('NUMBER')},
-        ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
+        # ref('NAME'): {ref('NAME'), ref('NUMBER')},
+        # ref('NUMBER'): {ref('NUMBER')},
+        # ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
     # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
