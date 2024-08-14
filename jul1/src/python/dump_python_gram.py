@@ -170,7 +170,7 @@ def grammar_to_rust(
         elif isinstance(item, pegen.grammar.Opt):
             return f'opt({item_to_rust(item.node)})'
         elif isinstance(item, pegen.grammar.Gather):
-            return f'sep1!({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
+            return f'seprep1({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
         elif isinstance(item, pegen.grammar.Repeat0):
             return f'repeat0({item_to_rust(item.node)})'
         elif isinstance(item, pegen.grammar.Repeat1):
