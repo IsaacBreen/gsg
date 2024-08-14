@@ -30,18 +30,18 @@ fn test_trivial_match() {
 
 #[test]
 fn test_name() {
-    let combinator = seq!(NAME(), eat(";"));
-    assert_parses_fast(&combinator, "x;");
-    assert_parses_fast(&combinator, "xy;");
-    assert_parses_fast(&combinator, "match;");
-    assert_parses_fast(&combinator, "id;");
-    assert_parses_fast(&combinator, "_;");
-    assert_parses_fast(&combinator, "_abc123;");
+    let combinator = seq!(NAME().compile(), eat("\n"));
+    assert_parses_fast(&combinator, "x\n");
+    assert_parses_fast(&combinator, "xy\n");
+    assert_parses_fast(&combinator, "match\n");
+    assert_parses_fast(&combinator, "id\n");
+    assert_parses_fast(&combinator, "_\n");
+    assert_parses_fast(&combinator, "_abc123\n");
 
-    assert_fails_fast(&combinator, "1;");
-    assert_fails_fast(&combinator, "1x;");
-    assert_fails_fast(&combinator, "if;");
-    assert_fails_fast(&combinator, "for;");
+    assert_fails_fast(&combinator, "1\n");
+    assert_fails_fast(&combinator, "1x\n");
+    assert_fails_fast(&combinator, "if\n");
+    assert_fails_fast(&combinator, "for\n");
 }
 
 #[test]

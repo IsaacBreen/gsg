@@ -254,7 +254,7 @@ def grammar_to_rust(
             if remove_left_recursion.ref('WS') not in unresolved_follows_table.get(token_ref, []):
                 expr = f'seq!({expr}, opt(&WS))'
             expr = f'cached({expr})'
-            f.write('fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
+            f.write('pub fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
         f.write('\n')
         return f.getvalue()
 
