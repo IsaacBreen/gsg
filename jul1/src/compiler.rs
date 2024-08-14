@@ -14,10 +14,11 @@ impl Combinator {
                         let strong = strong_ref();
                         let weak = strong.downgrade();
                         deferred_cache.insert(inner.clone(), weak.clone().into());
-                        let mut evaluated = (inner.f)();
+                        let mut lazy = inner.inner.as_ref();
+                        let mut evaluated: Combinator = (**lazy).clone();
                         compile_inner(&mut evaluated, deferred_cache);
                         deferred_cache.insert(inner.clone(), evaluated.clone());
-                        strong.set(evaluated);
+                        strong.set(evaluated.clone());
                         *combinator = strong.into();
                     }
                 }

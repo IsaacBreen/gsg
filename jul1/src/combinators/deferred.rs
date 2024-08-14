@@ -1,29 +1,28 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{LazyCell, RefCell, UnsafeCell};
 use std::collections::HashMap;
 use crate::*;
 use crate::VecX;
 
 thread_local! {
-    static COMBINATOR_CACHE: RefCell<HashMap<Deferred, Rc<Combinator>>> = RefCell::new(HashMap::new());
+    static DEFERRED_CACHE: RefCell<HashMap<usize, Deferred>> = RefCell::new(HashMap::new());
 }
 
 #[derive(Clone)]
 pub struct Deferred {
-    pub(crate) f: &'static dyn Fn() -> Combinator,
+    pub(crate) inner: Rc<LazyCell<Combinator, Box<dyn FnOnce() -> Combinator>>>,
 }
 
 impl Hash for Deferred {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.f, state);
     }
 }
 
 impl PartialEq for Deferred {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.f, other.f)
+        Rc::ptr_eq(&self.inner, &other.inner)
     }
 }
 
@@ -32,35 +31,31 @@ impl Eq for Deferred {}
 impl Debug for Deferred {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Deferred")
-            .field("f", &std::ptr::addr_of!(self.f))
             .finish()
     }
 }
 
 impl CombinatorTrait for Deferred {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        panic!("Deferred combinator should not be used directly. Use deferred() function instead.");
-        let combinator = profile!("Deferred cache check", {
-                COMBINATOR_CACHE.with(|cache| {
-                let mut cache = cache.borrow_mut();
-                cache.entry(self.clone())
-                    .or_insert_with(|| profile!("Deferred init", Rc::new((self.f)())))
-                    .clone()
-            })
-        });
-        combinator.parse(right_data, bytes)
+        self.inner.parse(right_data, bytes)
     }
 }
 
-pub fn deferred(f: &'static impl Fn() -> Combinator) -> Combinator {
-    Deferred { f }.into()
+pub fn deferred(f: impl FnOnce() -> Combinator + 'static) -> Combinator {
+    DEFERRED_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        let f_addr = std::ptr::addr_of!(f) as usize;
+        cache.entry(f_addr)
+            .or_insert_with(|| Deferred { inner: Rc::new(LazyCell::new(Box::new(f))) })
+            .clone().into()
+    })
 }
 
-impl<T> From<&'static T> for Combinator
+impl<T> From<T> for Combinator
 where
-    T: Fn() -> Combinator
+    T: FnOnce() -> Combinator + 'static
 {
-    fn from(value: &'static T) -> Self {
+    fn from(value: T) -> Self {
         deferred(value)
     }
 }
@@ -70,3 +65,28 @@ impl From<Deferred> for Combinator {
         Combinator::Deferred(value)
     }
 }
+
+
+
+
+
+
+
+
+
+
+// enum State<T, F> {
+//     Uninit(F),
+//     Init(T),
+//     Poisoned,
+// }
+//
+// pub struct LazyCell2<T, F = fn() -> T> {
+//     state: UnsafeCell<State<T, F>>,
+// }
+//
+// impl<T, F: FnOnce() -> T> LazyCell2<T, F> {
+//     pub const fn new(f: F) -> LazyCell2<T, F> {
+//         LazyCell2 { state: UnsafeCell::new(State::Uninit(f)) }
+//     }
+// }
