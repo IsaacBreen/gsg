@@ -141,6 +141,8 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
             return pegen.grammar.Group(node_to_rhs(node))
         elif isinstance(node, remove_left_recursion.Repeat1):
             return pegen.grammar.Repeat1(node_to_item(node.child))
+        elif isinstance(node, remove_left_recursion.SepRep1):
+            return pegen.grammar.Gather(node_to_item(node.separator), node_to_item(node.child))
         else:
             raise ValueError(f"Unknown node type: {type(node)}")
 
@@ -330,7 +332,7 @@ if __name__ == "__main__":
 
     # Intersperse opt(WS)
     # custom_grammar |= remove_left_recursion.intersperse_separator(custom_grammar, remove_left_recursion.seq(opt(ref('WS')), opt(ref('WS'))))
-    custom_grammar |= remove_left_recursion.intersperse_separator(custom_grammar, opt(ref('WS')))
+    # custom_grammar |= remove_left_recursion.intersperse_separator(custom_grammar, opt(ref('WS')))
 
     # Forbid some follows
     forbidden_follows_table = {
@@ -349,15 +351,15 @@ if __name__ == "__main__":
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
 
     # For forbidden follows that we can't resolve analytically, use preventers
-    actual_follows = remove_left_recursion.get_follows(custom_grammar)
-    all_unresolved_follows = set()
-    unresolved_follows_table = {}
-    for first, forbidden_follow_set in forbidden_follows_table.items():
-        actual_follow_set = actual_follows.get(first, set())
-        unresolved_follow_set: set[remove_left_recursion.Ref] = forbidden_follow_set & actual_follow_set
-        all_unresolved_follows |= unresolved_follow_set
-        if unresolved_follow_set:
-            unresolved_follows_table[first] = list(sorted(unresolved_follow_set, key=lambda x: str(x)))
+    # actual_follows = remove_left_recursion.get_follows(custom_grammar)
+    # all_unresolved_follows = set()
+    # unresolved_follows_table = {}
+    # for first, forbidden_follow_set in forbidden_follows_table.items():
+    #     actual_follow_set = actual_follows.get(first, set())
+    #     unresolved_follow_set: set[remove_left_recursion.Ref] = forbidden_follow_set & actual_follow_set
+    #     all_unresolved_follows |= unresolved_follow_set
+    #     if unresolved_follow_set:
+    #         unresolved_follows_table[first] = list(sorted(unresolved_follow_set, key=lambda x: str(x)))
         # if len(unresolved_follow_set) > 0:
         #     # Replace all occurrences of first with seq(first, eps_external(Forbid(unresolved_follow_set)))
         #     def map_fn(node: remove_left_recursion.Node) -> remove_left_recursion.Node:
@@ -386,7 +388,7 @@ if __name__ == "__main__":
         resolved_pegen_grammar.rules[rule_name].memo = pegen_grammar.rules[rule_name].memo
 
     # Save to Rust
-    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs', unresolved_follows_table)
+    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs', forbidden_follows_table)
 
     # Print some useful stats
     print("Firsts:")
