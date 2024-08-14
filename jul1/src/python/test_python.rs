@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use crate::{choice, choice_greedy, eat, eat_string, FSTRING_END, FSTRING_START, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, strong_ref, symbol, whitespace, WS, NEWLINE, cache_context};
+use crate::{choice, choice_greedy, eat, eat_string, FSTRING_END, FSTRING_START, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, strong_ref, symbol, whitespace, WS, NEWLINE, cache_context, negative_lookahead, simple_stmt, cached};
 use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, profile_parse};
 
 #[test]
@@ -30,8 +30,7 @@ fn test_trivial_match() {
 
 #[test]
 fn test_name() {
-    // let combinator = cache_context(seq!(crate::python::python_grammar::NAME(), crate::python::python_grammar::NEWLINE()));
-    let combinator = cache_context(crate::python::python_grammar::simple_stmts());
+    let combinator = cache_context(seq!(crate::python::python_grammar::NAME(), crate::python::python_grammar::NEWLINE()));
     assert_parses_fast(&combinator, "x\n");
     assert_parses_fast(&combinator, "xy\n");
     assert_parses_fast(&combinator, "match\n");
@@ -47,7 +46,11 @@ fn test_name() {
 
 #[test]
 fn test_pass() {
-    let combinator = python_file();
+    // let combinator = python_file();
+    // let combinator = cache_context(crate::python::python_grammar::simple_stmts());
+    let combinator = cache_context(seq!(&simple_stmt, &crate::python::python_grammar::NEWLINE));
+    // let combinator = cache_context(seq!(python_literal("pass"), &crate::python::python_grammar::NEWLINE));
+    let combinator = cache_context(seq!(cached(python_literal("pass")), &crate::python::python_grammar::NEWLINE));
     assert_parses_fast(&combinator, "pass\n");
 }
 
