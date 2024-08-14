@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use crate::{choice, choice_greedy, eat, eat_string, FSTRING_END, FSTRING_START, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, strong_ref, symbol, whitespace, WS, NEWLINE, cache_context, negative_lookahead, simple_stmt, cached};
+use crate::{choice, choice_greedy, eat, eat_string, FSTRING_END, FSTRING_START, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, strong_ref, symbol, whitespace, WS, NEWLINE, cache_context, negative_lookahead, simple_stmt, cached, assignment, yield_expr, star_expressions, star_targets};
 use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, profile_parse};
 
 #[test]
@@ -57,7 +57,9 @@ fn test_pass() {
 #[test]
 fn test_simple_assignment() {
     let combinator = python_file();
-    assert_parses_fast(&combinator, "x = 12\n");
+    let combinator = cache_context(seq!(&assignment, &crate::python::python_grammar::NEWLINE)).compile();
+    let combinator = cache_context(seq!(&crate::python::python_grammar::NAME, python_literal("="), &crate::python::python_grammar::NAME, &crate::python::python_grammar::NEWLINE)).compile();
+    assert_parses_fast(&combinator, "x=x\n");
 }
 
 #[test]
