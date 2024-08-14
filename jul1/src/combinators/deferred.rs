@@ -17,6 +17,7 @@ pub struct Deferred {
 
 impl Hash for Deferred {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::addr_of!(self.inner) as usize.hash(state);
     }
 }
 
