@@ -72,7 +72,7 @@ impl From<FastCombinatorWrapper> for Combinator {
     }
 }
 
-impl From<Expr<'_>> for Combinator {
+impl From<Expr> for Combinator {
     fn from(value: Expr) -> Self {
         fast_combinator(value).into()
     }

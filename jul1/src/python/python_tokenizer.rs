@@ -25,15 +25,15 @@ pub fn non_breaking_space() -> Combinator {
     eat_char_choice(" \t").into()
 }
 
-pub fn breaking_space_fast() -> Expr<'static> {
+pub fn breaking_space_fast() -> Expr {
     eat_char_choice_fast("\n\r").into()
 }
 
-pub fn not_breaking_space_fast() -> Expr<'static> {
+pub fn not_breaking_space_fast() -> Expr {
     eat_char_negation_choice_fast("\n\r").into()
 }
 
-pub fn non_breaking_space_fast() -> Expr<'static> {
+pub fn non_breaking_space_fast() -> Expr {
     eat_char_choice_fast(" \t").into()
 }
 
@@ -325,25 +325,25 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
     bytestrings
 }
 
-pub fn id_start_fast() -> Expr<'static> {
+pub fn id_start_fast() -> Expr {
     eat_bytestring_choice_fast(id_start_bytestrings())
     // eat_bytestring_choice_fast(vec![b'_', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z'].into_iter().map(|byte| vec![byte]).collect())
     // eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 }
 
-pub fn id_continue_fast() -> Expr<'static> {
+pub fn id_continue_fast() -> Expr {
     eat_bytestring_choice_fast(id_continue_bytestrings())
     // eat_bytestring_choice_fast(vec![b'_', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9'].into_iter().map(|byte| vec![byte]).collect())
     // eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 }
 
-pub fn xid_start_fast() -> Expr<'static> {
+pub fn xid_start_fast() -> Expr {
     // all characters in id_start whose NFKC normalization is in "id_start xid_continue*"
     // Honestly, I don't know what this means.
     id_start_fast()
 }
 
-pub fn xid_continue_fast() -> Expr<'static> {
+pub fn xid_continue_fast() -> Expr {
     // all characters in id_continue whose NFKC normalization is in "id_continue*"
     // Honestly, I don't know what this means.
     id_continue_fast()
@@ -701,15 +701,15 @@ pub fn NAME() -> Combinator {
 //    single: \N; escape sequence
 //    single: \u; escape sequence
 //    single: \U; escape sequence
-pub fn eat_char_hex_digit() -> Expr<'static> {
+pub fn eat_char_hex_digit() -> Expr {
     eat_char_choice_fast("0123456789abcdefABCDEF")
 }
 
-pub fn eat_char_digit() -> Expr<'static> {
+pub fn eat_char_digit() -> Expr {
     eat_char_choice_fast("0123456789")
 }
 
-pub fn eat_until_terminator(terminator: char) -> Expr<'static> {
+pub fn eat_until_terminator(terminator: char) -> Expr {
     repeat1_fast(eat_char_negation_fast(terminator))
 }
 
@@ -1131,7 +1131,7 @@ pub fn NUMBER() -> Combinator {
 // literal, and ends at the end of the physical line.  A comment signifies the end
 // of the logical line unless the implicit line joining rules are invoked. Comments
 // are ignored by the syntax.
-pub fn comment() -> Expr<'static> {
+pub fn comment() -> Expr {
     seq_fast!(eat_char_fast('#'), repeat0_fast(not_breaking_space_fast()))
 }
 
