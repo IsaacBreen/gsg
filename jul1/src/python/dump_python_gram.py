@@ -266,7 +266,7 @@ def grammar_to_rust(
             if rule.memo:
                 expr = f'cached({expr})'
             expr = f'{expr}.into()'
-            f.write('fn ' + name + '() -> Combinator {\n')
+            f.write('pub fn ' + name + '() -> Combinator {\n')
             f.write(f'{textwrap.indent(expr, "    ")}\n')
             f.write('}\n')
             f.write('\n')

@@ -30,7 +30,8 @@ fn test_trivial_match() {
 
 #[test]
 fn test_name() {
-    let combinator = cache_context(seq!(NAME().compile(), crate::python::python_grammar::NEWLINE()));
+    // let combinator = cache_context(seq!(crate::python::python_grammar::NAME(), crate::python::python_grammar::NEWLINE()));
+    let combinator = cache_context(crate::python::python_grammar::simple_stmts());
     assert_parses_fast(&combinator, "x\n");
     assert_parses_fast(&combinator, "xy\n");
     assert_parses_fast(&combinator, "match\n");
