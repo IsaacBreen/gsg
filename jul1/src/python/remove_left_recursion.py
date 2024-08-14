@@ -203,9 +203,9 @@ def iter_nodes(node: Node) -> Iterable[Node]:
                 yield from iter_nodes(child)
         case Repeat1(child):
             yield from iter_nodes(child)
-        case SepRep1(child, _):
+        case SepRep1(child, separator):
             yield from iter_nodes(child)
-            yield from iter_nodes(node)
+            yield from iter_nodes(separator)
         case EpsExternal(_) | Term(_) | Ref(_):
             pass
         case Lookahead(child):
