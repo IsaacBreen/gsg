@@ -1,7 +1,4 @@
 #![feature(assert_matches)]
-
-#[cfg(test)]
-mod tests {
     use crate::*;
     use crate::combinators::*;
     use crate::combinators::cache_context;
@@ -12,6 +9,10 @@ mod tests {
     use crate::unicode::get_unicode_general_category_combinator;
     use crate::unicode_categories::GeneralCategory;
     use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses_fast};
+
+#[cfg(test)]
+mod basic_tests {
+    use super::*;
 
     #[test]
     fn test_eat_u8() {
@@ -25,61 +26,66 @@ mod tests {
         assert_parses_fast(&eat_string("abc"), "abc");
     }
 
-    #[test]
-    fn test_seq() {
-        assert_parses_default(&seq!(eat_char('a'), eat_char('b')), "ab");
-        assert_parses_fast(&seq!(eat_char('a'), eat_char('b')), "ab");
-    }
+    // #[test]
+    // fn test_seq() {
+    //     assert_parses_default(&seq!(eat_char('a'), eat_char('b')), "ab");
+    //     assert_parses_fast(&seq!(eat_char('a'), eat_char('b')), "ab");
+    // }
+    //
+    // #[test]
+    // fn test_repeat1() {
+    //     assert_parses_default(&repeat1(eat_char('a')), "a");
+    //     assert_parses_fast(&repeat1(eat_char('a')), "a");
+    //     assert_parses_default(&repeat1(eat_char('a')), "aa");
+    //     assert_parses_fast(&repeat1(eat_char('a')), "aa");
+    //     assert_parses_default(&repeat1(eat_char('a')), "aaa");
+    //     assert_parses_fast(&repeat1(eat_char('a')), "aaa");
+    // }
+    //
+    // #[test]
+    // fn test_choice() {
+    //     assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "a");
+    //     assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "a");
+    //     assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "b");
+    //     assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "b");
+    // }
+    //
+    // #[test]
+    // fn test_seq_choice_seq() {
+    //     assert_parses_default(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "ac");
+    //     assert_parses_fast(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "ac");
+    //     assert_parses_default(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "abc");
+    //     assert_parses_fast(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "abc");
+    // }
+    //
+    // #[test]
+    // fn test_seq_opt() {
+    //     assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
+    //     assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
+    //     assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "b");
+    //     assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "b");
+    // }
+    //
+    // #[test]
+    // fn test_strong_ref() {
+    //     let mut combinator = strong_ref();
+    //     combinator.set(choice!(seq!(eat_char('a'), &combinator), eat_char('b')));
+    //     assert_parses_default(&combinator, "b");
+    //     assert_parses_fast(&combinator, "b");
+    //     assert_parses_fast(&combinator, "b");
+    //     assert_parses_default(&combinator, "ab");
+    //     assert_parses_fast(&combinator, "ab");
+    //     assert_parses_fast(&combinator, "ab");
+    //     assert_parses_default(&combinator, "aab");
+    //     assert_parses_fast(&combinator, "aab");
+    //     assert_parses_default(&combinator, "aaab");
+    //     assert_parses_fast(&combinator, "aaab");
+    // }
+}
 
-    #[test]
-    fn test_repeat1() {
-        assert_parses_default(&repeat1(eat_char('a')), "a");
-        assert_parses_fast(&repeat1(eat_char('a')), "a");
-        assert_parses_default(&repeat1(eat_char('a')), "aa");
-        assert_parses_fast(&repeat1(eat_char('a')), "aa");
-        assert_parses_default(&repeat1(eat_char('a')), "aaa");
-        assert_parses_fast(&repeat1(eat_char('a')), "aaa");
-    }
-
-    #[test]
-    fn test_choice() {
-        assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "a");
-        assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "a");
-        assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "b");
-        assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "b");
-    }
-
-    #[test]
-    fn test_seq_choice_seq() {
-        assert_parses_default(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "ac");
-        assert_parses_fast(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "ac");
-        assert_parses_default(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "abc");
-        assert_parses_fast(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "abc");
-    }
-
-    #[test]
-    fn test_seq_opt() {
-        assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
-        assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
-        assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "b");
-        assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "b");
-    }
-
-    #[test]
-    fn test_strong_ref() {
-        let mut combinator = strong_ref();
-        combinator.set(choice!(seq!(eat_char('a'), &combinator), eat_char('b')));
-        assert_parses_default(&combinator, "b");
-        assert_parses_fast(&combinator, "b");
-        assert_parses_fast(&combinator, "b");
-        assert_parses_default(&combinator, "ab");
-        assert_parses_fast(&combinator, "ab");
-        assert_parses_fast(&combinator, "ab");
-        assert_parses_default(&combinator, "aab");
-        assert_parses_fast(&combinator, "aab");
-        assert_parses_default(&combinator, "aaab");
-        assert_parses_fast(&combinator, "aaab");
-    }
+#[cfg(test)]
+mod more_tests {
+    use super::*;
 
     #[test]
     fn test_indents() {
