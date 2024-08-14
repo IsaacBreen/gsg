@@ -14,8 +14,9 @@ impl Combinator {
                         let strong = strong_ref();
                         let weak = strong.downgrade();
                         deferred_cache.insert(inner.clone(), weak.clone().into());
-                        let mut lazy = inner.inner.as_ref();
-                        let mut evaluated: Combinator = (**lazy).clone();
+                        // let mut lazy = inner.inner.as_ref();
+                        // let mut evaluated: Combinator = (**lazy).clone();
+                        let mut evaluated: Combinator = (inner.f)();
                         compile_inner(&mut evaluated, deferred_cache);
                         deferred_cache.insert(inner.clone(), evaluated.clone());
                         strong.set(evaluated.clone());
