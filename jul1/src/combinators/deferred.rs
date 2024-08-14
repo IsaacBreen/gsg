@@ -65,28 +65,3 @@ impl From<Deferred> for Combinator {
         Combinator::Deferred(value)
     }
 }
-
-
-
-
-
-
-
-
-
-
-// enum State<T, F> {
-//     Uninit(F),
-//     Init(T),
-//     Poisoned,
-// }
-//
-// pub struct LazyCell2<T, F = fn() -> T> {
-//     state: UnsafeCell<State<T, F>>,
-// }
-//
-// impl<T, F: FnOnce() -> T> LazyCell2<T, F> {
-//     pub const fn new(f: F) -> LazyCell2<T, F> {
-//         LazyCell2 { state: UnsafeCell::new(State::Uninit(f)) }
-//     }
-// }
