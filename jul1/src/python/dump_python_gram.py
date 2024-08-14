@@ -229,7 +229,7 @@ def grammar_to_rust(
                 match s {
                     "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(&WS)),
                     ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(&WS)),
-                    _ => seq!(eat_string(s), opt(&WS)),
+                    _ => seq!(eat_string(s), forbid_follows_clear(), opt(&WS)),
                 }
             }
         """))
