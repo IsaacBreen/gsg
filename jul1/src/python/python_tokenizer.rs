@@ -1177,7 +1177,7 @@ pub fn comment() -> Expr {
 // representing ASCII LF, is the line terminator).
 pub fn NEWLINE() -> Combinator {
     let end_of_line = seq_fast!(opt_fast(comment()), breaking_space_fast());
-    let blank_line = seq_fast!(repeat0_fast(non_breaking_space_fast()), end_of_line);
+    let blank_line = seq_fast!(repeat0_fast(non_breaking_space_fast()), end_of_line.clone());
     seq!(end_of_line, repeat0_fast(blank_line), dent())
 }
 
