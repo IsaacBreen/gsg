@@ -322,7 +322,7 @@ def intersperse_separator_for_node(node: Node, separator: Node, nullable_rules: 
             case Choice(children):
                 return Choice([intersperse_separator_for_node(child, separator, nullable_rules) for child in children])
             case Repeat1(child):
-                return sep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
+                return seprep1(intersperse_separator_for_node(child, separator, nullable_rules), separator)
             case SepRep1(child, sep):
                 sep = inject_prefix_on_nonnull_for_node(sep, separator, nullable_rules)
                 sep = inject_suffix_on_nonnull_for_node(sep, separator, nullable_rules)
@@ -832,7 +832,7 @@ class Seq(Node):
             case Seq([]):
                 return '\u001b[90meps\u001b[0m()'
             case Seq([x0, Choice([Repeat1(Seq([sep, x1])), Seq([])])]) if x0 == x1:
-                return f'\u001b[32msep1\u001b[0m({str(x0)}, {str(sep)})'
+                return f'\u001b[32mseprep1\u001b[0m({str(x0)}, {str(sep)})'
             case default:
                 return f'\u001b[32mseq\u001b[0m({", ".join(str(child) for child in self.children)})'
 
@@ -935,7 +935,7 @@ class Choice(Node):
             case Choice([Repeat1(child), Seq([])]):
                 return f'\u001b[32mrepeat0\u001b[0m({str(child)})'
             case Choice([Seq([x0, Choice([Repeat1(Seq([sep, x1])), Seq([])])]), Seq([])]) if x0 == x1:
-                return f'\u001b[32msep0\u001b[0m({str(x0)}, {str(sep)})'
+                return f'\u001b[32mseprep0\u001b[0m({str(x0)}, {str(sep)})'
             case Choice([child, Seq([])]):
                 return f'\u001b[32mopt\u001b[0m({str(child)})'
             case default:
@@ -1134,8 +1134,8 @@ def eps() -> Seq: return Seq([])
 def fail() -> Choice: return Choice([])
 def opt(child: Node) -> Node: return choice(child, eps())
 def repeat0(child: Node) -> Node: return opt(repeat1(child))
-def sep1(child: Node, sep: Node) -> Node: return SepRep1(child, sep)
-def sep0(child: Node, sep: Node) -> Node: return opt(sep1(child, sep))
+def seprep1(child: Node, sep: Node) -> Node: return SepRep1(child, sep)
+def seprep0(child: Node, sep: Node) -> Node: return opt(seprep1(child, sep))
 
 
 def prettify_rule(ref: Ref, node: Node) -> str:
@@ -1187,8 +1187,8 @@ if __name__ == '__main__':
         F=fail(),
         G=opt(term('g')),
         H=repeat0(term('h')),
-        I=sep1(term('i'), term(',')),
-        J=sep0(term('j'), term(';'))
+        I=seprep1(term('i'), term(',')),
+        J=seprep0(term('j'), term(';'))
     )
     prettify_rules(rules)
     print()

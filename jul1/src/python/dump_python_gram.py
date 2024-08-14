@@ -73,7 +73,7 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True,
         elif isinstance(item, pegen.grammar.Opt):
             return remove_left_recursion.opt(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.Gather):
-            return remove_left_recursion.sep1(item_to_node(item.node), item_to_node(item.separator))
+            return remove_left_recursion.seprep1(item_to_node(item.node), item_to_node(item.separator))
         elif isinstance(item, pegen.grammar.Repeat0):
             return remove_left_recursion.repeat0(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.Repeat1):
@@ -193,7 +193,7 @@ def grammar_to_rust(
         elif isinstance(item, pegen.grammar.Opt):
             return f'opt({item_to_rust(item.node)})'
         elif isinstance(item, pegen.grammar.Gather):
-            return f'sep1!({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
+            return f'seprep1({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
         elif isinstance(item, pegen.grammar.Repeat0):
             return f'repeat0({item_to_rust(item.node)})'
         elif isinstance(item, pegen.grammar.Repeat1):
