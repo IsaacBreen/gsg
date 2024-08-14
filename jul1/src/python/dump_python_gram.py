@@ -85,7 +85,7 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, omit_invalid: bool = True,
     rules = {}
     for name, rule in grammar.rules.items():
         if not (omit_invalid and name.startswith('invalid_')):
-            rules[remove_left_recursion.ref(name)] = rhs_to_node(rule.rhs)
+            rules[remove_left_recursion.ref(name)] = rhs_to_node(rule.rhs).simplify()
     return rules
 
 
