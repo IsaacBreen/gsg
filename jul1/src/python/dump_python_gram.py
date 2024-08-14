@@ -1,3 +1,4 @@
+# main.py
 import io
 import logging
 import textwrap
@@ -18,6 +19,7 @@ def fetch_grammar(url: str) -> str:
     response.raise_for_status()
     return response.text
 
+
 def parse_grammar(text: str) -> pegen.grammar.Grammar:
     with StringIO(text) as f:
         tokenizer = Tokenizer(tokenize.generate_tokens(f.readline))
@@ -25,7 +27,9 @@ def parse_grammar(text: str) -> pegen.grammar.Grammar:
         grammar = parser.start()
         return grammar
 
-def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True, include_lookaheads: bool = True) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
+
+def pegen_to_custom(grammar: pegen.grammar.Grammar) -> dict[
+    remove_left_recursion.Ref, remove_left_recursion.Node]:
     def rhs_to_node(rhs: pegen.grammar.Rhs) -> remove_left_recursion.Node:
         if len(rhs.alts) == 1:
             return alt_to_node(rhs.alts[0])
@@ -42,10 +46,7 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True,
     def item_to_node(item) -> remove_left_recursion.Node:
         if isinstance(item, pegen.grammar.NameLeaf):
             value = item.value
-            if ignore_invalid and value.startswith('invalid_'):
-                return remove_left_recursion.fail()
-            else:
-                return remove_left_recursion.ref(value)
+            return remove_left_recursion.ref(value)
         elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
             return remove_left_recursion.term(value)
@@ -54,7 +55,7 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True,
         elif isinstance(item, pegen.grammar.Opt):
             return remove_left_recursion.opt(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.Gather):
-            return remove_left_recursion.sep1(item_to_node(item.node), item_to_node(item.separator))
+            return remove_left_recursion.sep_rep1(item_to_node(item.node), item_to_node(item.separator))
         elif isinstance(item, pegen.grammar.Repeat0):
             return remove_left_recursion.repeat0(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.Repeat1):
@@ -62,15 +63,9 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True,
         elif isinstance(item, pegen.grammar.Forced):
             return item_to_node(item.node)
         elif isinstance(item, pegen.grammar.PositiveLookahead):
-            if include_lookaheads:
-                return remove_left_recursion.lookahead(item_to_node(item.node))
-            else:
-                return remove_left_recursion.eps()
+            return remove_left_recursion.lookahead(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.NegativeLookahead):
-            if include_lookaheads:
-                return remove_left_recursion.negative_lookahead(item_to_node(item.node))
-            else:
-                return remove_left_recursion.eps()
+            return remove_left_recursion.negative_lookahead(item_to_node(item.node))
         elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_node(item)
         elif isinstance(item, pegen.grammar.Cut):
@@ -80,10 +75,9 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True,
 
     rules = {}
     for name, rule in grammar.rules.items():
-        ref = remove_left_recursion.ref(name)
-        if not (ignore_invalid and ref.name.startswith('invalid_')):
-            rules[ref] = rhs_to_node(rule.rhs)
+        rules[remove_left_recursion.ref(name)] = rhs_to_node(rule.rhs)
     return rules
+
 
 def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion.Node]) -> pegen.grammar.Grammar:
     def node_to_rhs(node: remove_left_recursion.Node) -> pegen.grammar.Rhs:
@@ -94,7 +88,8 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
     def node_to_alt(node: remove_left_recursion.Node) -> pegen.grammar.Alt:
         if isinstance(node, remove_left_recursion.Seq):
             assert len(node.children) > 0
-            return pegen.grammar.Alt([pegen.grammar.NamedItem(None, node_to_item(child)) for child in node.children])
+            return pegen.grammar.Alt(
+                [pegen.grammar.NamedItem(None, node_to_item(child)) for child in node.children])
         return pegen.grammar.Alt([pegen.grammar.NamedItem(None, node_to_item(node))])
 
     def node_to_item(node: remove_left_recursion.Node):
@@ -128,6 +123,7 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
     for ref, node in rules.items():
         pegen_rules[ref.name] = pegen.grammar.Rule(ref.name, None, node_to_rhs(node.simplify()))
     return pegen.grammar.Grammar(pegen_rules.values(), {})
+
 
 def grammar_to_rust(
         grammar: pegen.grammar.Grammar,
@@ -195,14 +191,17 @@ def grammar_to_rust(
     rules = grammar.rules.items()
     rules = list(reversed(rules))
 
-    tokens = ['WS', 'NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING', 'NEWLINE', 'INDENT', 'DEDENT', 'ENDMARKER']
+    tokens = ['WS', 'NAME', 'TYPE_COMMENT', 'FSTRING_START', 'FSTRING_MIDDLE', 'FSTRING_END', 'NUMBER', 'STRING',
+              'NEWLINE', 'INDENT', 'DEDENT', 'ENDMARKER']
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{cache_context, cached, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n')
+    f.write(
+        'use crate::{cache_context, cached, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n')
     f.write('use super::python_tokenizer::python_literal;\n')
     f.write('use crate::seq;\n')
-    f.write('use crate::{' + ', '.join(f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
+    f.write(
+        'use crate::{' + ', '.join(f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
     f.write('\n')
 
     f.write('enum Forbidden {\n')
@@ -219,10 +218,12 @@ def grammar_to_rust(
             expr = f'{expr}.compile()'
 
             token_ref = remove_left_recursion.ref(token)
-            if token_ref in unresolved_follows_table and any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):
-                expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
+            if token_ref in unresolved_follows_table and any(
+                    token_ref in forbidden_follow_set for forbidden_follow_set in
+                    unresolved_follows_table.values()):
+                expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr}, forbid_follows(&[{", ".join(f"Forbidden::{ref.name} as usize" for ref in unresolved_follows_table.get(token_ref, []))}]))'
             elif token_ref in unresolved_follows_table:
-                expr = f'seq!({expr}, forbid_follows(&[{", ".join(f'Forbidden::{ref.name} as usize' for ref in unresolved_follows_table.get(token_ref, []))}]))'
+                expr = f'seq!({expr}, forbid_follows(&[{", ".join(f"Forbidden::{ref.name} as usize" for ref in unresolved_follows_table.get(token_ref, []))}]))'
             elif any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):
                 expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr})'
             else:
@@ -262,16 +263,18 @@ def grammar_to_rust(
     f.write('}\n')
     return f.getvalue()
 
-def save_grammar_to_rust(grammar: pegen.grammar.Grammar, filename: str, unresolved_follows_table: dict[remove_left_recursion.Ref, list[remove_left_recursion.Ref]]) -> None:
+
+def save_grammar_to_rust(grammar: pegen.grammar.Grammar, filename: str,
+                         unresolved_follows_table: dict[remove_left_recursion.Ref, list[
+                             remove_left_recursion.Ref]]) -> None:
     rust_code = grammar_to_rust(grammar, unresolved_follows_table)
     with open(filename, 'w') as f:
         f.write(rust_code)
 
+
 if __name__ == "__main__":
     grammar_url = "https://raw.githubusercontent.com/python/cpython/main/Grammar/python.gram"
     grammar_text = fetch_grammar(grammar_url)
-    with open('python.gram', 'w') as f:
-        f.write(grammar_text)
     pegen_grammar = parse_grammar(grammar_text)
 
     custom_grammar = pegen_to_custom(pegen_grammar)
