@@ -253,6 +253,10 @@ def grammar_to_rust(
                 expr = f'seq!(forbid_follows_clear(), {expr})'
             expr = f'crate::profile("{token}", {expr})'
             expr = f'tag("{token}", {expr})'
+            if token == 'WS':
+                print(f'WS: {unresolved_follows_table.get(token_ref, set())}')
+            if remove_left_recursion.ref('WS') not in unresolved_follows_table.get(token_ref, set()):
+                expr = f'seq!({expr}, opt(&WS))'
             expr = f'cached({expr})'
             if deferred:
                 f.write('fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
@@ -341,9 +345,9 @@ if __name__ == "__main__":
         ref('NEWLINE'): {ref('WS')},
         ref('INDENT'): {ref('WS')},
         ref('DEDENT'): {ref('WS')},
-        # ref('NAME'): {ref('NAME'), ref('NUMBER')},
-        # ref('NUMBER'): {ref('NUMBER')},
-        # ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
+        ref('NAME'): {ref('NAME'), ref('NUMBER')},
+        ref('NUMBER'): {ref('NUMBER')},
+        ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
     # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
