@@ -1176,8 +1176,9 @@ pub fn comment() -> Expr {
 // the standard C conventions for newline characters (the ``\n`` character,
 // representing ASCII LF, is the line terminator).
 pub fn NEWLINE() -> Combinator {
-    let blank_line = seq_fast!(repeat0_fast(non_breaking_space_fast()), opt_fast(comment()), breaking_space_fast());
-    seq!(repeat1_fast(blank_line), dent())
+    let end_of_line = seq_fast!(opt_fast(comment()), breaking_space_fast());
+    let blank_line = seq_fast!(repeat0_fast(non_breaking_space_fast()), end_of_line);
+    seq!(end_of_line, repeat0_fast(blank_line), dent())
 }
 
 // .. _indentation:

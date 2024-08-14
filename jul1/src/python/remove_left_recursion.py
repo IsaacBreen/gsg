@@ -5,6 +5,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Self
 
+from tqdm import tqdm
+
 
 class Node(abc.ABC):
     @abc.abstractmethod
@@ -28,7 +30,7 @@ def resolve_left_recursion_for_rule[T: Node](node: T, ref: Ref, replacements: di
 
 def resolve_left_recursion(rules: dict[Ref, Node]) -> dict[Ref, Node]:
     replacements = {}
-    for ref, node in rules.items():
+    for ref, node in tqdm(rules.items(), desc="Resolving left recursion"):
         replacements[ref] = resolve_left_recursion_for_rule(node, ref, replacements)
     return replacements
 

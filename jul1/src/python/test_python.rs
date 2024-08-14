@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use crate::{choice, choice_greedy, eat, eat_string, FSTRING_END, FSTRING_START, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, strong_ref, symbol, whitespace, WS};
+use crate::{choice, choice_greedy, eat, eat_string, FSTRING_END, FSTRING_START, NAME, non_breaking_space, opt, python_file, python_literal, seq, STRING, strong_ref, symbol, whitespace, WS, NEWLINE, cache_context};
 use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, profile_parse};
 
 #[test]
@@ -30,7 +30,7 @@ fn test_trivial_match() {
 
 #[test]
 fn test_name() {
-    let combinator = seq!(NAME().compile(), eat("\n"));
+    let combinator = cache_context(seq!(NAME().compile(), crate::python::python_grammar::NEWLINE()));
     assert_parses_fast(&combinator, "x\n");
     assert_parses_fast(&combinator, "xy\n");
     assert_parses_fast(&combinator, "match\n");
@@ -42,6 +42,12 @@ fn test_name() {
     assert_fails_fast(&combinator, "1x\n");
     assert_fails_fast(&combinator, "if\n");
     assert_fails_fast(&combinator, "for\n");
+}
+
+#[test]
+fn test_pass() {
+    let combinator = python_file();
+    assert_parses_fast(&combinator, "pass\n");
 }
 
 #[test]

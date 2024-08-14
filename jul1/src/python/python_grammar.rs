@@ -30,7 +30,7 @@ pub fn python_literal(s: &str) -> Combinator {
         _ => seq!(eat_string(s), opt(&WS)),
     }
 }
-pub fn WS() -> Combinator { cached(tag("WS", crate::profile("WS", seq!(forbid_follows_check_not(Forbidden::WS as usize), token::WS().compile(), forbid_follows(&[Forbidden::WS as usize, Forbidden::NEWLINE as usize, Forbidden::INDENT as usize, Forbidden::DEDENT as usize]))))).into() }
+pub fn WS() -> Combinator { cached(tag("WS", crate::profile("WS", seq!(forbid_follows_check_not(Forbidden::WS as usize), token::WS().compile(), forbid_follows(&[Forbidden::WS as usize, Forbidden::INDENT as usize, Forbidden::DEDENT as usize]))))).into() }
 pub fn NAME() -> Combinator { cached(seq!(tag("NAME", crate::profile("NAME", seq!(forbid_follows_check_not(Forbidden::NAME as usize), token::NAME().compile(), forbid_follows(&[Forbidden::NAME as usize, Forbidden::NUMBER as usize])))), opt(&WS))).into() }
 pub fn TYPE_COMMENT() -> Combinator { cached(seq!(tag("TYPE_COMMENT", crate::profile("TYPE_COMMENT", seq!(forbid_follows_clear(), token::TYPE_COMMENT().compile()))), opt(&WS))).into() }
 pub fn FSTRING_START() -> Combinator { cached(tag("FSTRING_START", crate::profile("FSTRING_START", seq!(token::FSTRING_START().compile(), forbid_follows(&[Forbidden::WS as usize, Forbidden::NEWLINE as usize]))))).into() }
@@ -1091,13 +1091,13 @@ fn compound_stmt() -> Combinator {
 
 fn simple_stmt() -> Combinator {
     cached(tag("simple_stmt", choice!(
+        python_literal("pass"),
         &assignment,
         seq!(lookahead(python_literal("type")), &type_alias),
         &star_expressions,
         seq!(lookahead(python_literal("return")), &return_stmt),
         seq!(lookahead(choice!(python_literal("import"), python_literal("from"))), &import_stmt),
         seq!(lookahead(python_literal("raise")), &raise_stmt),
-        python_literal("pass"),
         seq!(lookahead(python_literal("del")), &del_stmt),
         seq!(lookahead(python_literal("yield")), &yield_stmt),
         seq!(lookahead(python_literal("assert")), &assert_stmt),

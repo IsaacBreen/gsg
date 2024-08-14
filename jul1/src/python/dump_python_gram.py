@@ -311,7 +311,7 @@ if __name__ == "__main__":
         ref('DEDENT'): [ref('WS')],
         ref('NAME'): [ref('NAME'), ref('NUMBER')],
         ref('NUMBER'): [ref('NUMBER')],
-        ref('WS'): [ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')],
+        ref('WS'): [ref('WS'), ref('INDENT'), ref('DEDENT')],
     }
 
     remove_left_recursion.prettify_rules(custom_grammar)
