@@ -27,7 +27,7 @@ pub fn python_literal(s: &str) -> Combinator {
     match s {
         "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(&WS)),
         ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(&WS)),
-        _ => seq!(eat_string(s), opt(&WS)),
+        _ => seq!(eat_string(s), forbid_follows_clear(), opt(&WS)),
     }
 }
 pub fn WS() -> Combinator { cached(tag("WS", crate::profile("WS", seq!(forbid_follows_check_not(Forbidden::WS as usize), token::WS().compile(), forbid_follows(&[Forbidden::WS as usize, Forbidden::INDENT as usize, Forbidden::DEDENT as usize]))))).into() }
