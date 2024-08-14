@@ -28,7 +28,8 @@ def parse_grammar(text: str) -> pegen.grammar.Grammar:
         return grammar
 
 
-def pegen_to_custom(grammar: pegen.grammar.Grammar, omit_invalid: bool = True) -> dict[
+def pegen_to_custom(grammar: pegen.grammar.Grammar, omit_invalid: bool = True,
+                    include_lookaheads: bool = True) -> dict[
     remove_left_recursion.Ref, remove_left_recursion.Node]:
     def rhs_to_node(rhs: pegen.grammar.Rhs) -> remove_left_recursion.Node:
         if len(rhs.alts) == 1:
@@ -66,9 +67,15 @@ def pegen_to_custom(grammar: pegen.grammar.Grammar, omit_invalid: bool = True) -
         elif isinstance(item, pegen.grammar.Forced):
             return item_to_node(item.node)
         elif isinstance(item, pegen.grammar.PositiveLookahead):
-            return remove_left_recursion.lookahead(item_to_node(item.node))
+            if include_lookaheads:
+                return remove_left_recursion.lookahead(item_to_node(item.node))
+            else:
+                return remove_left_recursion.eps()
         elif isinstance(item, pegen.grammar.NegativeLookahead):
-            return remove_left_recursion.negative_lookahead(item_to_node(item.node))
+            if include_lookaheads:
+                return remove_left_recursion.negative_lookahead(item_to_node(item.node))
+            else:
+                return remove_left_recursion.eps()
         elif isinstance(item, pegen.grammar.Rhs):
             return rhs_to_node(item)
         elif isinstance(item, pegen.grammar.Cut):
