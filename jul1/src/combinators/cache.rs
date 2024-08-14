@@ -20,7 +20,7 @@ thread_local! {
 
 #[derive(Debug)]
 struct GlobalCache {
-    new_parsers: HashMap<usize, LruCache<CacheKey, Rc<RefCell<CacheEntry>>>>,
+    new_parsers: HashMap<usize, HashMap<CacheKey, Rc<RefCell<CacheEntry>>>>,
     pub(crate) entries: HashMap<usize, Vec<Rc<RefCell<CacheEntry>>>>,
     pub(crate) parse_id_counter: usize,
     pub(crate) parse_id: Option<usize>,
@@ -51,14 +51,15 @@ struct CacheKey {
 
 impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::mem::discriminant(self.combinator.as_ref()).hash(state);
-        self.right_data.hash(state);
+        // std::mem::discriminant(self.combinator.as_ref()).hash(state);
+        // self.right_data.hash(state);
     }
 }
 
 impl PartialEq for CacheKey {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
+        false
+        // Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
     }
 }
 
@@ -109,7 +110,7 @@ impl CombinatorTrait for CacheContext {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
                 let parse_id = global_cache.parse_id_counter;
-                global_cache.new_parsers.insert(parse_id, LruCache::new(NonZeroUsize::new(64).unwrap()));
+                global_cache.new_parsers.insert(parse_id, HashMap::new());
                 global_cache.entries.insert(parse_id, Vec::new());
                 global_cache.parse_id = Some(global_cache.parse_id_counter);
                 global_cache.parse_id_counter += 1;
@@ -185,7 +186,7 @@ impl CombinatorTrait for Cached {
 
             let mut global_cache = cache.borrow_mut();
             let parse_id = global_cache.parse_id.unwrap();
-            global_cache.new_parsers.get_mut(&parse_id).unwrap().put(key, entry.clone());
+            global_cache.new_parsers.get_mut(&parse_id).unwrap().insert(key, entry.clone());
             if !parse_results.done() {
                 global_cache.entries.get_mut(&parse_id).unwrap().push(entry.clone());
             }
