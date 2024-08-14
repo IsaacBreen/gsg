@@ -350,57 +350,6 @@ class Lookahead(Node):
         else:
             return f'\u001b[35mnegative_lookahead\u001b[0m({str(self.child)})'
 
-#
-# def seq(*children: Node) -> Seq:
-#     return Seq(list(children))
-#
-#
-# def choice(*children: Node) -> Choice:
-#     return Choice(list(children))
-#
-#
-# def repeat1(child: Node) -> Repeat1:
-#     return Repeat1(child)
-#
-#
-# def sep_rep1(child: Node, separator: Node) -> SepRep1:
-#     return SepRep1(child, separator)
-#
-#
-# def ref(name: str) -> Ref:
-#     return Ref(name)
-#
-#
-# def term(value: str) -> Term:
-#     return Term(value)
-#
-#
-# def eps_external[T](data: T) -> EpsExternal[T]:
-#     return EpsExternal(data)
-#
-#
-# def lookahead(child: Node) -> Lookahead:
-#     return Lookahead(child, True)
-#
-#
-# def negative_lookahead(child: Node) -> Lookahead:
-#     return Lookahead(child, False)
-#
-#
-# def eps() -> Seq:
-#     return Seq([])
-#
-#
-# def fail() -> Choice:
-#     return Choice([])
-#
-#
-# def opt(child: Node) -> Node:
-#     return choice(child, eps())
-#
-#
-# def repeat0(child: Node) -> Node:
-#     return opt(repeat1(child))
 
 def seq(*children: Node) -> Node: return Seq(list(children))
 def choice(*children: Node) -> Node: return Choice(list(children))
