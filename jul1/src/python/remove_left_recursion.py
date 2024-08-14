@@ -1,10 +1,9 @@
-# remove_left_recursion.py
 from __future__ import annotations
 
 import abc
-from dataclasses import dataclass
-from typing import Self, Iterable, Callable, Any
 from collections import defaultdict
+from dataclasses import dataclass
+from typing import Self
 
 
 class Node(abc.ABC):

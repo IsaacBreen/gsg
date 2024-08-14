@@ -1,17 +1,16 @@
-# main.py
 import io
 import logging
 import textwrap
 import tokenize
 from io import StringIO
 
-import requests
 import pegen.grammar
+import requests
 from pegen.grammar_parser import GeneratedParser
 from pegen.tokenizer import Tokenizer
 
 import remove_left_recursion
-from remove_left_recursion import ref, term, opt
+from remove_left_recursion import ref
 
 
 def fetch_grammar(url: str) -> str:
