@@ -46,12 +46,18 @@ fn test_name() {
 
 #[test]
 fn test_pass() {
-    // let combinator = python_file();
+    let combinator = python_file();
     // let combinator = cache_context(crate::python::python_grammar::simple_stmts());
-    let combinator = cache_context(seq!(&simple_stmt, &crate::python::python_grammar::NEWLINE));
+    // let combinator = cache_context(seq!(&simple_stmt, &crate::python::python_grammar::NEWLINE));
     // let combinator = cache_context(seq!(python_literal("pass"), &crate::python::python_grammar::NEWLINE));
-    let combinator = cache_context(seq!(cached(python_literal("pass")), &crate::python::python_grammar::NEWLINE));
+    // let combinator = cache_context(seq!(cached(python_literal("pass")), &crate::python::python_grammar::NEWLINE).compile());
     assert_parses_fast(&combinator, "pass\n");
+}
+
+#[test]
+fn test_simple_assignment() {
+    let combinator = python_file();
+    assert_parses_fast(&combinator, "x = 12\n");
 }
 
 #[test]
@@ -63,9 +69,11 @@ fn test_simple() {
     assert_parses_default(&combinator, "11");
     assert_parses_default(&combinator, "111");
     assert_parses_default(&combinator, "1111");
-    // assert_parses_fast(&combinator, "1111");
+    assert_parses_fast(&combinator, "1111\n");
     assert_parses_default(&combinator, "11111111");
     assert_parses_default(&combinator, "1111111111111111");
+
+    assert_parses_fast(&combinator, "x=12\n");
 
     assert_parses_default(&combinator, "x=12\nx=2\nx");
 
