@@ -132,7 +132,7 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
     pegen_rules = {}
     for ref, node in rules.items():
         pegen_rules[ref.name] = pegen.grammar.Rule(ref.name, None, node_to_rhs(node.simplify()))
-    return pegen.grammar.Grammar(pegen_rules.values(), {})
+    return pegen.grammar.Grammar(list(pegen_rules.values()), {})
 
 
 def grammar_to_rust(
@@ -238,7 +238,7 @@ def grammar_to_rust(
                 expr = f'seq!(forbid_follows_clear(), {expr})'
             expr = f'crate::profile("{token}", {expr})'
             expr = f'tag("{token}", {expr})'
-            if remove_left_recursion.ref('WS') not in unresolved_follows_table.get(token_ref, set()):
+            if remove_left_recursion.ref('WS') not in unresolved_follows_table.get(token_ref, []):
                 expr = f'seq!({expr}, opt(&WS))'
             expr = f'cached({expr})'
             f.write('fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
@@ -289,15 +289,16 @@ if __name__ == "__main__":
 
     custom_grammar = remove_left_recursion.resolve_left_recursion(custom_grammar)
 
+    # Use lists instead of sets for values to ensure deterministic order
     forbidden_follows_table = {
-        ref('FSTRING_START'): {ref('WS'), ref('NEWLINE')},
-        ref('FSTRING_MIDDLE'): {ref('FSTRING_MIDDLE'), ref('WS')},
-        ref('NEWLINE'): {ref('WS')},
-        ref('INDENT'): {ref('WS')},
-        ref('DEDENT'): {ref('WS')},
-        ref('NAME'): {ref('NAME'), ref('NUMBER')},
-        ref('NUMBER'): {ref('NUMBER')},
-        ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
+        ref('FSTRING_START'): [ref('WS'), ref('NEWLINE')],
+        ref('FSTRING_MIDDLE'): [ref('FSTRING_MIDDLE'), ref('WS')],
+        ref('NEWLINE'): [ref('WS')],
+        ref('INDENT'): [ref('WS')],
+        ref('DEDENT'): [ref('WS')],
+        ref('NAME'): [ref('NAME'), ref('NUMBER')],
+        ref('NUMBER'): [ref('NUMBER')],
+        ref('WS'): [ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')],
     }
 
     remove_left_recursion.prettify_rules(custom_grammar)
