@@ -139,30 +139,10 @@ def grammar_to_rust(
         grammar: pegen.grammar.Grammar,
         unresolved_follows_table: dict[remove_left_recursion.Ref, list[remove_left_recursion.Ref]]
 ) -> str:
-    def rhs_to_rust(rhs: pegen.grammar.Rhs, top_level: bool = False) -> str:
-        if len(rhs.alts) == 1:
-            return alt_to_rust(rhs.alts[0], top_level=top_level)
-        if top_level:
-            return "choice!(\n    " + ",\n    ".join(alt_to_rust(alt) for alt in rhs.alts) + "\n)"
-        else:
-            return "choice!(" + ", ".join(alt_to_rust(alt) for alt in rhs.alts) + ")"
 
-    def alt_to_rust(alt: pegen.grammar.Alt, top_level: bool = False) -> str:
-        if len(alt.items) == 1:
-            return named_item_to_rust(alt.items[0])
-        if top_level and len(alt.items) > 4:
-            return "seq!(\n    " + ",\n     ".join(named_item_to_rust(item) for item in alt.items) + "\n)"
-        else:
-            s = "seq!(" + ", ".join(named_item_to_rust(item) for item in alt.items) + ")"
-            return s
-
-    def named_item_to_rust(item: pegen.grammar.NamedItem) -> str:
-        return item_to_rust(item.item)
-
-    def item_to_rust(item) -> str:
+    def generate_combinator_expr(item) -> str:
         if isinstance(item, pegen.grammar.NameLeaf):
-            value = item.value
-            return name_to_rust(value)
+            return name_to_rust(item.value)
         elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
             if value[0] == value[-1] in {'"', "'"}:
@@ -171,29 +151,47 @@ def grammar_to_rust(
                 raise ValueError(f"Invalid string literal: {value}")
             return f'python_literal("{value}")'
         elif isinstance(item, pegen.grammar.Group):
-            logging.warning(f"Passing through group: {item}")
-            return item_to_rust(item.rhs)
+            return generate_rhs_expr(item.rhs)
         elif isinstance(item, pegen.grammar.Opt):
-            return f'opt({item_to_rust(item.node)})'
+            return f'opt({generate_combinator_expr(item.node)})'
         elif isinstance(item, pegen.grammar.Gather):
-            return f'seprep1({item_to_rust(item.node)}, {item_to_rust(item.separator)})'
+            return f'seprep1({generate_combinator_expr(item.node)}, {generate_combinator_expr(item.separator)})'
         elif isinstance(item, pegen.grammar.Repeat0):
-            return f'repeat0({item_to_rust(item.node)})'
+            return f'repeat0({generate_combinator_expr(item.node)})'
         elif isinstance(item, pegen.grammar.Repeat1):
-            return f'repeat1({item_to_rust(item.node)})'
+            return f'repeat1({generate_combinator_expr(item.node)})'
         elif isinstance(item, pegen.grammar.Forced):
-            logging.warning(f"Passing through forced: {item}")
-            return item_to_rust(item.node)
+            return generate_combinator_expr(item.node)
         elif isinstance(item, pegen.grammar.PositiveLookahead):
-            return f"lookahead({item_to_rust(item.node)})"
+            return f"lookahead({generate_combinator_expr(item.node)})"
         elif isinstance(item, pegen.grammar.NegativeLookahead):
-            return f"negative_lookahead({item_to_rust(item.node)})"
+            return f"negative_lookahead({generate_combinator_expr(item.node)})"
         elif isinstance(item, pegen.grammar.Rhs):
-            return rhs_to_rust(item)
+            return generate_rhs_expr(item)
         elif isinstance(item, pegen.grammar.Cut):
             return 'cut()'
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
+
+    def generate_rhs_expr(rhs: pegen.grammar.Rhs, top_level: bool = False) -> str:
+        if len(rhs.alts) == 1:
+            return generate_alt_expr(rhs.alts[0], top_level=top_level)
+        if top_level:
+            return "choice!(\n    " + ",\n    ".join(
+                generate_alt_expr(alt) for alt in rhs.alts) + "\n)"
+        else:
+            return "choice!(" + ", ".join(generate_alt_expr(alt) for alt in rhs.alts) + ")"
+
+    def generate_alt_expr(alt: pegen.grammar.Alt, top_level: bool = False) -> str:
+        if len(alt.items) == 1:
+            return generate_combinator_expr(alt.items[0].item)
+        if top_level and len(alt.items) > 4:
+            return "seq!(\n    " + ",\n     ".join(
+                generate_combinator_expr(item.item) for item in alt.items) + "\n)"
+        else:
+            return "seq!(" + ", ".join(
+                generate_combinator_expr(item.item) for item in alt.items) + ")"
+
 
     def name_to_rust(name: str) -> str:
         return f'&{name}'
@@ -250,7 +248,7 @@ def grammar_to_rust(
     def make_rules() -> str:
         f = io.StringIO()
         for name, rule in rules:
-            expr = rhs_to_rust(rule.rhs, top_level=True)
+            expr = generate_rhs_expr(rule.rhs, top_level=True)
             expr = f'tag("{name}", {expr})'
             if rule.memo:
                 expr = f'cached({expr})'
