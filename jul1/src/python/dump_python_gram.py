@@ -205,8 +205,7 @@ def grammar_to_rust(
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
     f.write(
-        'use crate::{cache_context, cached, symbol, Symbol, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n')
-    f.write('use super::python_tokenizer::python_literal;\n')
+        'use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n')
     f.write('use crate::seq;\n')
     f.write(
         'use crate::{' + ', '.join(f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
@@ -221,6 +220,20 @@ def grammar_to_rust(
     def make_tokens() -> str:
         f = io.StringIO()
         f.write('use super::python_tokenizer as token;\n')
+
+        f.write(textwrap.dedent("""
+            pub fn python_literal(s: &str) -> Combinator {
+                let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count += 1; true };
+                let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
+            
+                match s {
+                    "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(&WS)),
+                    ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(&WS)),
+                    _ => seq!(eat_string(s), opt(&WS)),
+                }
+            }
+        """))
+        
         for token in tokens:
             expr = f'token::{token}()'
             expr = f'{expr}.compile()'
