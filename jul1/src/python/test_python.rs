@@ -59,6 +59,10 @@ fn test_simple_assignment() {
     let combinator = python_file();
     let combinator = cache_context(seq!(&assignment, &crate::python::python_grammar::NEWLINE)).compile();
     let combinator = cache_context(seq!(&crate::python::python_grammar::NAME, python_literal("="), &crate::python::python_grammar::NAME, &crate::python::python_grammar::NEWLINE)).compile();
+    // let combinator = cache_context(seq!(&crate::python::python_tokenizer::NAME, python_literal("="), &crate::python::python_tokenizer::NAME, &crate::python::python_grammar::NEWLINE)).compile();
+    // assert_parses_fast(&combinator, "x=x\n");
+
+    let combinator = cache_context(seq!(&crate::python::python_grammar::NAME, &crate::python::python_grammar::NEWLINE)).compile();
     assert_parses_fast(&combinator, "x=x\n");
 }
 
