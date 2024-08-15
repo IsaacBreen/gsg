@@ -59,7 +59,7 @@ pub fn tag(tag: &str, a: impl CombinatorTrait)-> impl CombinatorTrait {
     // TODO: ffs
     // Tagged { inner: Box::new(a.into()), tag: tag.to_string() }.into()
     // Tagged { inner: Box::new(profile(tag, a).into()), tag: tag.to_string() }.into()
-    a.into()
+    a
 }
 
  impl From<Tagged> for Combinator {

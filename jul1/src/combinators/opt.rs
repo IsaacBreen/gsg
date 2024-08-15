@@ -32,8 +32,8 @@ pub fn opt(a: impl CombinatorTrait) -> Opt<Box<Combinator>> {
     Opt { inner: Box::new(a.into()), greedy: false }
 }
 
-pub fn opt_greedy(a: impl CombinatorTrait)-> impl CombinatorTrait {
-    profile_internal("opt_greedy", Opt { inner: Box::new(a.into()), greedy: true })
+pub fn opt_greedy(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+    profile_internal("opt_greedy", Opt { inner: Box::new(a), greedy: true })
 }
 
 impl From<Opt<Box<Combinator>>> for Combinator {

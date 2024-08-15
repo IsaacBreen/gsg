@@ -139,40 +139,40 @@ impl ParserTrait for Repeat1Parser {
     }
 }
 
-pub fn repeat1(a: impl CombinatorTrait)-> impl CombinatorTrait {
+pub fn repeat1(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
     profile_internal("repeat1", Repeat1 {
-        a: Rc::new(a.into()),
+        a: Rc::new(a),
         greedy: false,
     })
 }
 
-pub fn repeat1_greedy(a: impl CombinatorTrait)-> impl CombinatorTrait {
+pub fn repeat1_greedy(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
     profile_internal("repeat1_greedy", Repeat1 {
-        a: Rc::new(a.into()),
+        a: Rc::new(a),
         greedy: true,
     })
 }
 
-pub fn repeat0(a: impl CombinatorTrait)-> impl CombinatorTrait {
-    Combinator::Repeat0(Opt { inner: Repeat1 { a: Rc::new(a.into()), greedy: false }, greedy: false })
+pub fn repeat0(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+    Opt { inner: Repeat1 { a: Rc::new(a), greedy: false }, greedy: false }
 }
 
-pub fn repeat0_greedy(a: impl CombinatorTrait)-> impl CombinatorTrait {
-    Combinator::Repeat0(Opt { inner: Repeat1 { a: Rc::new(a.into()), greedy: true }, greedy: true })
+pub fn repeat0_greedy(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+    Opt { inner: Repeat1 { a: Rc::new(a), greedy: true }, greedy: true }
 }
 
-pub fn seprep1(a: impl CombinatorTrait + Clone, b: impl CombinatorTrait)-> impl CombinatorTrait {
-    Combinator::SepRep1(Seq2 {
-        c0: Box::new(a.clone().into()),
+pub fn seprep1(a: impl CombinatorTrait + Clone + 'static, b: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+    Seq2 {
+        c0: Box::new(a.clone()),
         c1: Opt { inner: Repeat1 { a: Seq2 {
-            c0: b.into(),
-            c1: Rc::new(a.into())
+            c0: b,
+            c1: Rc::new(a)
         }.into(), greedy: false }, greedy: false }.into(),
-    })
-}
-
-impl From<Repeat1<Combinator>> for Combinator {
-    fn from(value: Repeat1<Combinator>) -> Self {
-        Combinator::Repeat1(value)
     }
 }
+
+// impl From<Repeat1<Combinator>> for Combinator {
+//     fn from(value: Repeat1<Combinator>) -> Self {
+//         value
+//     }
+// }

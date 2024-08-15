@@ -128,20 +128,20 @@ impl CombinatorTrait for Deferred {
 }
 
 pub fn deferred(f: &'static impl Fn() -> Combinator) -> impl CombinatorTrait {
-    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(DeferredFn(f))) }.into()
+    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(DeferredFn(f))) }
 }
 
-impl<T> From<&'static T> for Combinator
-where
-    T: Fn()-> Combinator
-{
-    fn from(value: &'static T) -> Self {
-        deferred(value).into()
-    }
-}
+// impl<T> From<&'static T> for Combinator
+// where
+//     T: Fn()-> Combinator
+// {
+//     fn from(value: &'static T) -> Self {
+//         deferred(value).into()
+//     }
+// }
 
-impl From<Deferred> for Combinator {
-    fn from(value: Deferred) -> Self {
-        Combinator::Deferred(value).into()
-    }
-}
+// impl From<Deferred> for Combinator {
+//     fn from(value: Deferred) -> Self {
+//         Combinator::Deferred(value).into()
+//     }
+// }

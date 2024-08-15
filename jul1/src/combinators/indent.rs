@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{choice, choice_greedy, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX, VecY};
+use crate::{choice, choice_greedy, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX, VecY, IntoDyn};
 #[derive(Debug)]
 pub enum IndentCombinator {
     Dent,
@@ -22,9 +22,9 @@ impl CombinatorTrait for IndentCombinator {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
-                fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize)-> impl CombinatorTrait { // TODO: Make this a macro
+                fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait> {
                     if indents.is_empty() {
-                        eps().into()
+                        eps()
                     } else {
                         let dedents = indents.len().try_into().unwrap();
                         choice_greedy!(
@@ -43,7 +43,7 @@ impl CombinatorTrait for IndentCombinator {
                             ),
                             // Or match the indent and continue
                             seq!(eat_bytes(&indents[0]), make_combinator(&indents[1..], total_indents))
-                        ).into()
+                        )
                     }
                 }
                 // println!("Made dent parser with right_data: {:?}", right_data);
@@ -149,8 +149,8 @@ pub fn assert_no_dedents() -> IndentCombinator {
     IndentCombinator::AssertNoDedents
 }
 
-pub fn with_indent(a: impl CombinatorTrait)-> impl CombinatorTrait {
-    seq!(indent(), a, dedent()).into()
+pub fn with_indent(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+    seq!(indent(), a, dedent())
 }
 
 impl From<IndentCombinator> for Combinator {

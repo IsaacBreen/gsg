@@ -3,9 +3,11 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use derivative::Derivative;
 
-use crate::{ForbidFollowsData, FrameStack, LookaheadData, PythonQuoteType};
+use crate::{ForbidFollowsData, FrameStack, LookaheadData};
 use crate::internal_vec::VecZ;
 use crate::VecX;
+
+type PythonQuoteType = u8;
 
 #[repr(packed(1))]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]

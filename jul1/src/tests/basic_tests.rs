@@ -206,7 +206,7 @@ mod more_tests {
     #[test]
     fn test_from_fn() {
         fn A()-> impl CombinatorTrait {
-            choice!(seq!(eat_char('a'), &A), eat_char('b')).into()
+            choice!(seq!(eat_char('a'), deferred(&A)), eat_char('b')).into()
         }
 
         let S: Combinator = From::from(&A);

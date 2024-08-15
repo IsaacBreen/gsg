@@ -116,12 +116,12 @@ impl ParserTrait for ProfiledParser {
 
 pub fn profile(tag: &str, a: impl CombinatorTrait)-> impl CombinatorTrait {
     // Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
-    a.into()
+    a
 }
 
 pub fn profile_internal(tag: &str, a: impl CombinatorTrait)-> impl CombinatorTrait {
     // Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
-    a.into()
+    a
 }
 
 impl From<Profiled> for Combinator {

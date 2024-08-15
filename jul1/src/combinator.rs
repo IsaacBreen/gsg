@@ -39,20 +39,20 @@ pub enum Parser {
     DynParser(Box<dyn ParserTrait>),
 }
 
-impl CombinatorTrait for Box<Combinator> {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let inner = &**self;
-        inner.parse(right_data, bytes)
-    }
-
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        (**self).apply(f);
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        (**self).as_any()
-    }
-}
+// impl CombinatorTrait for Box<Combinator> {
+//     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+//         let inner = &**self;
+//         inner.parse(right_data, bytes)
+//     }
+//
+//     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+//         (**self).apply(f);
+//     }
+//
+//     fn as_any(&self) -> &dyn std::any::Any {
+//         (**self).as_any()
+//     }
+// }
 
 impl ParserTrait for Box<Parser> {
     fn get_u8set(&self) -> U8Set {
@@ -157,17 +157,31 @@ pub trait ParserTrait: std::fmt::Debug {
     }
 }
 
-impl CombinatorTrait for Combinator {
+// impl CombinatorTrait for Combinator {
+//     fn as_any(&self) -> &dyn std::any::Any {
+//         (**self).as_any()
+//     }
+//
+//     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+//         (**self).parse(right_data, bytes)
+//     }
+//
+//     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+//         (**self).apply(f);
+//     }
+// }
+
+impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         (**self).as_any()
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        (**self).parse(right_data, bytes)
-    }
-
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         (**self).apply(f);
+    }
+
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        (**self).parse(right_data, bytes)
     }
 }
 

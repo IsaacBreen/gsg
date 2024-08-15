@@ -223,12 +223,12 @@ impl ParserTrait for CachedParser {
     }
 }
 
-pub fn cache_context(a: impl CombinatorTrait)-> impl CombinatorTrait {
-    profile_internal("cache_context", CacheContext { inner: Box::new(a.into()) })
+pub fn cache_context(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+    profile_internal("cache_context", CacheContext { inner: Box::new(Box::new(a)) })
 }
 
-pub fn cached(a: impl CombinatorTrait)-> impl CombinatorTrait {
-    profile_internal("cached", Cached { inner: Rc::new(a.into()) })
+pub fn cached(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+    profile_internal("cached", Cached { inner: Rc::new(Box::new(a)) })
 }
 
 impl From<CacheContext> for Combinator {
