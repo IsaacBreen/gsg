@@ -45,6 +45,7 @@ pub enum Combinator {
     BruteForce(BruteForce),
     Continuation(Continuation),
     Fast(FastCombinatorWrapper),
+    Dyn(Box<dyn CombinatorTrait>),
 }
 
 #[derive(Debug)]
@@ -116,7 +117,8 @@ macro_rules! match_combinator {
             StrongRef,
             BruteForce,
             Continuation,
-            Fast
+            Fast,
+            Dyn
         )
     };
 }
@@ -145,7 +147,7 @@ macro_rules! match_parser {
     };
 }
 
-pub trait CombinatorTrait {
+pub trait CombinatorTrait: std::fmt::Debug {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
 }
 

@@ -90,6 +90,7 @@ impl Combinator {
             Combinator::BruteForce(_) => {},
             Combinator::Continuation(_) => {},
             Combinator::Fast(_) => {}
+            Combinator::Dyn(inner) => todo!(),
         }
     }
 
