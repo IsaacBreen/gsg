@@ -165,9 +165,9 @@ macro_rules! match_parser {
 }
 
 pub trait CombinatorTrait: std::fmt::Debug {
+    fn as_any(&self) -> &dyn std::any::Any;
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {todo!()}
-    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 pub trait ParserTrait: std::fmt::Debug {
@@ -192,6 +192,10 @@ pub trait ParserTrait: std::fmt::Debug {
 }
 
 impl CombinatorTrait for Combinator {
+    fn as_any(&self) -> &dyn Any {
+        match_combinator!(self, inner => inner.as_any())
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         // let (mut parser, parse_results) = match_combinator!(self, inner => inner.parse(right_data, bytes));
         // if !parse_results.done() && bytes.len() > 100 {
@@ -205,10 +209,6 @@ impl CombinatorTrait for Combinator {
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         match_combinator!(self, inner => inner.apply(f))
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        match_combinator!(self, inner => inner.as_any())
     }
 }
 
