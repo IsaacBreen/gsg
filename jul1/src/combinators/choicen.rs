@@ -18,8 +18,8 @@ macro_rules! define_choice {
 
         impl<$first, $($rest),+> CombinatorTrait for $choice_name<$first, $($rest),+>
         where
-            $first: CombinatorTrait + 'static,
-            $($rest: CombinatorTrait + 'static),+
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
         {
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
                 let mut parsers = Vec::new();
@@ -63,6 +63,16 @@ macro_rules! define_choice {
                     Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
                     combined_results
                 )
+            }
+        }
+
+        impl<$first, $($rest),+> From<$choice_name<$first, $($rest),+>> for Combinator
+        where
+            $first: CombinatorTrait + 'static,
+            $($rest: CombinatorTrait + 'static),+
+        {
+            fn from(c: $choice_name<$first, $($rest),+>) -> Self {
+                Combinator::Dyn(Box::new(c))
             }
         }
     };
