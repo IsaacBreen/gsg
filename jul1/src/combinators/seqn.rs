@@ -11,12 +11,23 @@ macro_rules! profile {
 
 #[macro_export]
 macro_rules! define_seq {
-    ($seq_name:ident, $first:ident, $($rest:ident),+ $(,)?) => {
+    ($seq_name:ident, $seq_parser_name:ident, $first:ident, $($rest:ident),+ $(,)?) => {
         #[derive(Debug)]
         pub struct $seq_name<$first, $($rest),+>
         where
             $($rest: CombinatorTrait),+
         {
+            pub(crate) $first: $first,
+            $(pub(crate) $rest: Rc<$rest>),+
+        }
+
+        #[derive(Debug)]
+        pub struct $seq_parser_name<$first, $($rest),+>
+        where
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
+        {
+            pub(crate) position: usize,
             pub(crate) $first: $first,
             $(pub(crate) $rest: Rc<$rest>),+
         }
@@ -74,11 +85,12 @@ macro_rules! define_seq {
                         return (Parser::FailParser(FailParser), ParseResults::new(final_right_data, true));
                     }
 
-                    let parser = Parser::SeqParser(SeqParser {
+                    let parser = $seq_parser_name {
                         parsers,
-                        combinators: std::rc::Rc::new(vecx![$crate::IntoDyn::into_dyn(Fail), $($crate::IntoDyn::into_dyn(*self.$rest.as_ref().clone())),+]),
                         position: start_position + bytes.len(),
-                    });
+                        $first: self.$first.clone(),
+                        $($rest: self.$rest.clone()),+
+                    };
 
                     let parse_results = ParseResults::new(final_right_data, false);
 
@@ -100,17 +112,60 @@ macro_rules! define_seq {
                 finalizer(next_right_data_vec, parsers)
             }
         }
+
+        impl ParserTrait for $seq_parser_name {
+            fn get_u8set(&self) -> U8Set {
+                let mut u8set = U8Set::none();
+                for (_, parser) in &self.parsers {
+                    u8set = u8set.union(&parser.get_u8set());
+                }
+                u8set
+            }
+
+            fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+                let mut right_data_as = VecY::new();
+                // let mut right_data_as: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
+
+                for mut a_parser in std::mem::take(&mut self.parsers) {
+                    let parse_results = a_parser.parse(bytes);
+                    if !parse_results.done() {
+                        self.parsers.push(a_parser);
+                    }
+                    // right_data_as.entry(parse_results.right_data_vec.len()).or_default().extend(parse_results.right_data_vec);
+                    right_data_as.extend(parse_results.right_data_vec);
+                }
+
+                right_data_as.squash();
+
+                let mut i = 0;
+                while i < right_data_as.len() {
+                    let right_data_a = right_data_as[i].clone();
+                    let offset = right_data_a.right_data_inner.fields1.position - self.position;
+                    let (a_parser, parse_results) = self.combinators[i].parse(right_data_a, &bytes[offset..]);
+                    if !parse_results.done() {
+                        self.parsers.push((i, a_parser));
+                    }
+                    // right_data_as.entry(i).or_default().extend(parse_results.right_data_vec);
+                    right_data_as.extend(parse_results.right_data_vec);
+                    i += 1;
+                }
+
+                self.position += bytes.len();
+
+                ParseResults::new(right_data_as, self.parsers.is_empty())
+            }
+        }
     };
 }
 
-define_seq!(Seq2, c0, c1);
-define_seq!(Seq3, c0, c1, c2);
-define_seq!(Seq4, c0, c1, c2, c3);
-define_seq!(Seq5, c0, c1, c2, c3, c4);
-define_seq!(Seq6, c0, c1, c2, c3, c4, c5);
-define_seq!(Seq7, c0, c1, c2, c3, c4, c5, c6);
-define_seq!(Seq8, c0, c1, c2, c3, c4, c5, c6, c7);
-define_seq!(Seq9, c0, c1, c2, c3, c4, c5, c6, c7, c8);
+define_seq!(Seq2, Seq2Parser, c0, c1);
+define_seq!(Seq3, Seq3Parser, c0, c1, c2);
+define_seq!(Seq4, Seq4Parser, c0, c1, c2, c3);
+define_seq!(Seq5, Seq5Parser, c0, c1, c2, c3, c4);
+define_seq!(Seq6, Seq6Parser, c0, c1, c2, c3, c4, c5);
+define_seq!(Seq7, Seq7Parser, c0, c1, c2, c3, c4, c5, c6);
+define_seq!(Seq8, Seq8Parser, c0, c1, c2, c3, c4, c5, c6, c7);
+define_seq!(Seq9, Seq9Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8);
 
 #[macro_export]
 macro_rules! seq {
