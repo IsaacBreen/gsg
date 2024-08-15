@@ -21,8 +21,8 @@ pub struct Fields1 {
 pub struct Fields2 {
     // #[derivative(Hash = "ignore")]
     // pub frame_stack: Option<FrameStack>,
-    pub indents: Vec<Vec<u8>>,
-    pub fstring_start_stack: Vec<PythonQuoteType>
+    pub indents: VecZ<Vec<u8>>,
+    pub fstring_start_stack: VecZ<PythonQuoteType>
 }
 
 #[derive(Derivative)]

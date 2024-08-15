@@ -1,6 +1,5 @@
 // pub type VecX<T> = smallvec::SmallVec<[T; 5]>;
-pub type VecX<T> = ArrayVec<T, 20>;
-// pub type VecX<T> = Vec<T>;
+pub type VecX<T> = Vec<T>;
 // pub type VecX<T> = crate::my_tinyvec::FastVec<T>;
 
 // pub type VecY<T> = Vec<T>;
@@ -9,7 +8,9 @@ pub type VecX<T> = ArrayVec<T, 20>;
 // pub type VecY<T> = FakeVec<T>;
 pub type VecY<T> = crate::my_tinyvec::FastVec<T>;
 
-pub type VecZ<T> = Vec<T>;
+// pub type VecZ<T> = Vec<T>;
+pub type VecZ<T> = smallvec::SmallVec<[T; 1]>;
+// pub type VecZ<T> = crate::my_tinyvec::FastVec<T>;
 
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut, RangeBounds};
