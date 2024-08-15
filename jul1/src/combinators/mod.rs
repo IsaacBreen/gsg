@@ -17,6 +17,7 @@ pub use fail::*;
 pub use profile::*;
 pub use opt::*;
 pub use seqn::*;
+pub use choicen::*;
 
 mod choice;
 mod eat_string;
@@ -44,6 +45,7 @@ mod brute_force_fn;
 mod continuation;
 mod fast;
 mod seqn;
+mod choicen;
 
 pub use choice::*;
 pub use eat_string::*;
