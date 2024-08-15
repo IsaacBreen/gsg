@@ -248,7 +248,7 @@ def grammar_to_rust(
             elif any(token_ref in forbidden_follow_set for forbidden_follow_set in unresolved_follows_table.values()):
                 expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr})'
             else:
-                expr = f'seq!(forbid_follows_clear(), {expr})'
+                expr = f'seq!({expr}, forbid_follows_clear())'
             expr = f'crate::profile("{token}", {expr})'
             expr = f'tag("{token}", {expr})'
             if remove_left_recursion.ref('WS') not in unresolved_follows_table.get(token_ref, []):
