@@ -55,7 +55,6 @@ macro_rules! define_seq {
                     vec![(0, first_parser)]
                 };
 
-                let mut final_right_data = VecY::new();
                 let mut next_right_data_vec = first_parse_results.right_data_vec;
 
                 fn helper<T: CombinatorTrait>(right_data: RightData, next_combinator: &Rc<T>, bytes: &[u8], start_position: usize, parsers: &mut Vec<(usize, Parser)>) -> VecY<RightData> {
@@ -69,7 +68,28 @@ macro_rules! define_seq {
                     parse_results.right_data_vec
                 }
 
+                let finalizer = |final_right_data: VecY<RightData>, parsers: Vec<(usize, Parser)>| {
+
+                    if parsers.is_empty() {
+                        return (Parser::FailParser(FailParser), ParseResults::new(final_right_data, true));
+                    }
+
+                    let parser = Parser::SeqParser(SeqParser {
+                        parsers,
+                        combinators: std::rc::Rc::new(vecx![Combinator::Fail(Fail), $(Combinator::DynRc(self.$rest.clone())),+]),
+                        position: start_position + bytes.len(),
+                    });
+
+                    let parse_results = ParseResults::new(final_right_data, false);
+
+                    (parser.into(), parse_results)
+                };
+
                 $(
+                    if next_right_data_vec.is_empty() {
+                        return finalizer(next_right_data_vec, parsers);
+                    }
+
                     let mut next_next_right_data_vec = VecY::new();
                     for right_data in next_right_data_vec {
                         next_next_right_data_vec.extend(helper(right_data, &self.$rest, &bytes, start_position, &mut parsers));
@@ -77,21 +97,7 @@ macro_rules! define_seq {
                     next_right_data_vec = next_next_right_data_vec;
                 )+
 
-                final_right_data = next_right_data_vec;
-
-                if parsers.is_empty() {
-                    return (Parser::FailParser(FailParser), ParseResults::new(final_right_data, true));
-                }
-
-                let parser = Parser::SeqParser(SeqParser {
-                    parsers,
-                    combinators: std::rc::Rc::new(vecx![Combinator::Fail(Fail), $(Combinator::DynRc(self.$rest.clone())),+]),
-                    position: start_position + bytes.len(),
-                });
-
-                let parse_results = ParseResults::new(final_right_data, false);
-
-                (parser.into(), parse_results)
+                finalizer(next_right_data_vec, parsers)
             }
         }
 
