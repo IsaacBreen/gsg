@@ -16,7 +16,7 @@ pub struct ChoiceParser {
 }
 
 impl CombinatorTrait for Choice {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
@@ -36,6 +36,12 @@ impl CombinatorTrait for Choice {
             Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
             combined_results
         )
+    }
+
+    fn apply(&self, f: &mut impl FnMut(&Combinator)) {
+        for child in self.children.iter() {
+            f(child);
+        }
     }
 }
 

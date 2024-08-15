@@ -47,7 +47,7 @@ impl GlobalCache {
 #[derive(Debug)]
 struct CacheKey {
     combinator: Rc<Combinator>,
-    right_data: RightData,
+    right_ RightData,
 }
 
 impl Hash for CacheKey {
@@ -107,7 +107,7 @@ pub struct CacheContextParser {
 }
 
 impl CombinatorTrait for CacheContext {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
@@ -125,6 +125,10 @@ impl CombinatorTrait for CacheContext {
             let cache_context_parser = CacheContextParser { inner: Box::new(parser), parse_id };
             (Parser::CacheContextParser(cache_context_parser), results)
         })
+    }
+
+    fn apply(&self, f: &mut impl FnMut(&Combinator)) {
+        f(&self.inner);
     }
 }
 
@@ -163,9 +167,9 @@ impl ParserTrait for CacheContextParser {
 }
 
 impl CombinatorTrait for Cached {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
-            let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
+            let key = CacheKey { combinator: self.inner.clone(), right_ right_data.clone() };
 
             let mut global_cache = cache.borrow_mut();
             let parse_id = global_cache.parse_id.unwrap();
@@ -195,6 +199,10 @@ impl CombinatorTrait for Cached {
             *entry.borrow_mut() = CacheEntry { parser: Some(Box::new(parser)), maybe_parse_results: Some(parse_results.clone()) };
             (Parser::CachedParser(CachedParser { entry }), parse_results)
         })
+    }
+
+    fn apply(&self, f: &mut impl FnMut(&Combinator)) {
+        f(&self.inner);
     }
 }
 
