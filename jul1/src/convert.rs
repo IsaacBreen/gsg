@@ -12,17 +12,6 @@ impl<T: CombinatorTrait> IntoCombinator for T {
     }
 }
 
-// impl<F> IntoCombinator for &F
-// where
-//     F: Fn() -> Combinator
-// {
-//     type Output = Deferred;
-//
-//     fn into_combinator(self) -> Self::Output {
-//         deferred(&self)
-//     }
-// }
-
 impl<T: CombinatorTrait + 'static> IntoCombinator for &Symbol<T> {
     type Output = Symbol<T>;
     fn into_combinator(self) -> Self::Output {
@@ -41,9 +30,8 @@ pub trait IntoDyn {
     fn into_dyn(self) -> Box<dyn CombinatorTrait>;
 }
 
-impl<T: IntoCombinator> IntoDyn for T {
+impl<T: CombinatorTrait + 'static> IntoDyn for T {
     fn into_dyn(self) -> Box<dyn CombinatorTrait> {
-        Box::new(self.into_combinator())
+        Box::new(self)
     }
 }
-

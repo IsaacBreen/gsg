@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use derivative::Derivative;
 use lru::LruCache;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, Squash, U8Set, IntoCombinator};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, Squash, U8Set, IntoCombinator, IntoDyn};
 
 
 macro_rules! profile {
@@ -53,7 +53,7 @@ struct CacheKey {
 
 impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::mem::discriminant(self.combinator.as_ref()).hash(state);
+        // use type_id::TypeId;
         self.right_data.hash(state);
     }
 }
@@ -75,7 +75,7 @@ struct CacheEntry {
 
 #[derive(Debug)]
 pub struct CacheContext {
-    pub inner: Box<Combinator>,
+    pub inner: Combinator,
 }
 
 #[derive(Debug)]
@@ -223,12 +223,12 @@ impl ParserTrait for CachedParser {
     }
 }
 
-pub fn cache_context(a: impl IntoCombinator + 'static)-> impl CombinatorTrait {
-    profile_internal("cache_context", CacheContext { inner: Box::new(Box::new(a.into_combinator())) })
+pub fn cache_context<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: IntoDyn {
+    profile_internal("cache_context", CacheContext { inner: a.into_combinator().into_dyn() })
 }
 
-pub fn cached(a: impl IntoCombinator + 'static)-> impl CombinatorTrait {
-    profile_internal("cached", Cached { inner: Rc::new(Box::new(a.into_combinator())) })
+pub fn cached<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: IntoDyn {
+    profile_internal("cached", Cached { inner: Rc::new(a.into_combinator().into_dyn()) })
 }
 
 // impl From<CacheContext> for Combinator {
