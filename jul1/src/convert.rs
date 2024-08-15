@@ -1,4 +1,4 @@
-use crate::{deferred, Combinator, CombinatorTrait, Deferred, Symbol};
+use crate::{deferred, Combinator, CombinatorTrait, Deferred, StrongRef, Symbol, WeakRef};
 
 pub trait IntoCombinator {
     type Output: CombinatorTrait;
@@ -30,6 +30,13 @@ impl IntoCombinator for &Symbol {
     }
 }
 
+impl IntoCombinator for &StrongRef {
+    type Output = StrongRef;
+    fn into_combinator(self) -> Self::Output {
+        self.clone()
+    }
+}
+
 pub trait IntoDyn {
     fn into_dyn(self) -> Box<dyn CombinatorTrait>;
 }
@@ -39,3 +46,4 @@ impl<T: IntoCombinator> IntoDyn for T {
         Box::new(self.into_combinator())
     }
 }
+

@@ -124,8 +124,8 @@ pub fn profile_internal(tag: &str, a: impl CombinatorTrait)-> impl CombinatorTra
     a
 }
 
-impl From<Profiled> for Combinator {
-    fn from(value: Profiled) -> Self {
-        Combinator::Profiled(value)
-    }
-}
+// impl From<Profiled> for Combinator {
+//     fn from(value: Profiled) -> Self {
+//         Combinator::Profiled(value)
+//     }
+// }

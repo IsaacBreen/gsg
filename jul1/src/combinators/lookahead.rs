@@ -55,15 +55,15 @@ impl CombinatorTrait for Lookahead {
 }
 
 pub fn lookahead(combinator: impl CombinatorTrait) -> Lookahead {
-    Lookahead { combinator: Box::new(combinator.into()), positive: true, persist_with_partial_lookahead: false }
+    Lookahead { combinator: Box::new(Box::new(combinator)), positive: true, persist_with_partial_lookahead: false }
 }
 
 pub fn negative_lookahead(combinator: impl CombinatorTrait) -> Lookahead {
-    Lookahead { combinator: Box::new(combinator.into()), positive: false, persist_with_partial_lookahead: false }
+    Lookahead { combinator: Box::new(Box::new(combinator)), positive: false, persist_with_partial_lookahead: false }
 }
 
-impl From<Lookahead> for Combinator {
-    fn from(lookahead: Lookahead) -> Self {
-        Combinator::Lookahead(lookahead)
-    }
-}
+// impl From<Lookahead> for Combinator {
+//     fn from(lookahead: Lookahead) -> Self {
+//         Combinator::Lookahead(lookahead)
+//     }
+// }

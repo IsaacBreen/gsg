@@ -29,15 +29,15 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
 }
 
 pub fn opt(a: impl CombinatorTrait) -> Opt<Box<Combinator>> {
-    Opt { inner: Box::new(a.into()), greedy: false }
+    Opt { inner: Box::new(Box::new(a)), greedy: false }
 }
 
 pub fn opt_greedy(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
     profile_internal("opt_greedy", Opt { inner: Box::new(a), greedy: true })
 }
 
-impl From<Opt<Box<Combinator>>> for Combinator {
-    fn from(value: Opt<Box<Combinator>>) -> Self {
-        Combinator::Opt(*Box::new(value))
-    }
-}
+// impl From<Opt<Box<Combinator>>> for Combinator {
+//     fn from(value: Opt<Box<Combinator>>) -> Self {
+//         Combinator::Opt(*Box::new(value))
+//     }
+// }

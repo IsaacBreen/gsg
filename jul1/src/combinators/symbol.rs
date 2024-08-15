@@ -23,11 +23,11 @@ impl CombinatorTrait for Symbol {
 }
 
 pub fn symbol(value: impl CombinatorTrait) -> Symbol {
-    Symbol { value: Rc::new(value.into()) }
+    Symbol { value: Rc::new(Box::new(value)) }
 }
 
-impl From<&Symbol> for Combinator {
-    fn from(value: &Symbol) -> Self {
-        Combinator::Symbol(value.clone())
-    }
-}
+// impl From<&Symbol> for Symbol {
+//     fn from(value: &Symbol) -> Self {
+//         Combinator::Symbol(value.clone())
+//     }
+// }

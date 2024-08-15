@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
-use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY, vecx, Fail};
+use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY, vecx, Fail};
 use crate::ChoiceParser;
 
 macro_rules! profile {
@@ -78,16 +78,6 @@ macro_rules! define_choice {
                     Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
                     combined_results
                 )
-            }
-        }
-
-        impl<$first, $($rest),+> From<$choice_name<$first, $($rest),+>> for Combinator
-        where
-            $first: CombinatorTrait + 'static,
-            $($rest: CombinatorTrait + 'static),+
-        {
-            fn from(c: $choice_name<$first, $($rest),+>) -> Self {
-                Combinator::Dyn(Box::new(c))
             }
         }
     };

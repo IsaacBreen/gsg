@@ -44,8 +44,8 @@ pub fn check_right_data(run: impl Fn(&RightData) -> bool + 'static) -> CheckRigh
     CheckRightData { run: Rc::new(run) }
 }
 
-impl From<CheckRightData> for Combinator {
-    fn from(value: CheckRightData) -> Self {
-        Combinator::CheckRightData(value)
-    }
-}
+// impl From<CheckRightData> for Combinator {
+//     fn from(value: CheckRightData) -> Self {
+//         Combinator::CheckRightData(value)
+//     }
+// }

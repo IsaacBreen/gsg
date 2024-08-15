@@ -69,14 +69,14 @@ pub fn fast_combinator(expr: Expr) -> FastCombinatorWrapper {
     FastCombinatorWrapper { regex: Rc::new(regex) }
 }
 
-impl From<FastCombinatorWrapper> for Combinator {
-    fn from(fast_combinator: FastCombinatorWrapper) -> Self {
-        Combinator::Fast(fast_combinator)
-    }
-}
-
-impl From<Expr> for Combinator {
-    fn from(value: Expr) -> Self {
-        fast_combinator(value).into()
-    }
-}
+// impl From<FastCombinatorWrapper> for Combinator {
+//     fn from(fast_combinator: FastCombinatorWrapper) -> Self {
+//         Combinator::Fast(fast_combinator)
+//     }
+// }
+//
+// impl From<Expr> for Combinator {
+//     fn from(value: Expr) -> Self {
+//         fast_combinator(value).into()
+//     }
+// }

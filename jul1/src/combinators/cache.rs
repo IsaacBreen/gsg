@@ -231,14 +231,14 @@ pub fn cached(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
     profile_internal("cached", Cached { inner: Rc::new(Box::new(a)) })
 }
 
-impl From<CacheContext> for Combinator {
-    fn from(value: CacheContext) -> Self {
-        Combinator::CacheContext(value)
-    }
-}
-
-impl From<Cached> for Combinator {
-    fn from(value: Cached) -> Self {
-        Combinator::Cached(value)
-    }
-}
+// impl From<CacheContext> for Combinator {
+//     fn from(value: CacheContext) -> Self {
+//         Combinator::CacheContext(value)
+//     }
+// }
+//
+// impl From<Cached> for Combinator {
+//     fn from(value: Cached) -> Self {
+//         Combinator::Cached(value)
+//     }
+// }

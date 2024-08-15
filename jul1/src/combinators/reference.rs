@@ -85,7 +85,7 @@ pub fn strong_ref() -> StrongRef {
 
 impl StrongRef {
     pub fn set(&self, inner: impl CombinatorTrait) {
-        self.inner.set(inner.into()).ok().expect("Cannot set value more than once");
+        self.inner.set(Box::new(inner)).ok().expect("Cannot set value more than once");
     }
 
     pub fn downgrade(&self) -> WeakRef {
@@ -101,20 +101,20 @@ impl WeakRef {
     }
 }
 
-impl From<WeakRef> for Combinator {
-    fn from(weak_ref: WeakRef) -> Self {
-        Combinator::WeakRef(weak_ref)
-    }
-}
-
-impl From<StrongRef> for Combinator {
-    fn from(strong_ref: StrongRef) -> Self {
-        Combinator::StrongRef(strong_ref)
-    }
-}
-
-impl From<&StrongRef> for Combinator {
-    fn from(strong_ref: &StrongRef) -> Self {
-        Combinator::StrongRef(strong_ref.clone())
-    }
-}
+// impl From<WeakRef> for Combinator {
+//     fn from(weak_ref: WeakRef) -> Self {
+//         Combinator::WeakRef(weak_ref)
+//     }
+// }
+//
+// impl From<StrongRef> for Combinator {
+//     fn from(strong_ref: StrongRef) -> Self {
+//         Combinator::StrongRef(strong_ref)
+//     }
+// }
+//
+// impl From<&StrongRef> for Combinator {
+//     fn from(strong_ref: &StrongRef) -> Self {
+//         Combinator::StrongRef(strong_ref.clone())
+//     }
+// }

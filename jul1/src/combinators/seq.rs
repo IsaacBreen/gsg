@@ -198,9 +198,9 @@ pub fn _seq(v: Vec<Combinator>)-> impl CombinatorTrait {
 //         $crate::_seq(vec![$($expr.into()),+])
 //     };
 // }
-
-impl From<Seq> for Combinator {
-    fn from(value: Seq) -> Self {
-        Combinator::Seq(value)
-    }
-}
+//
+// impl From<Seq> for Combinator {
+//     fn from(value: Seq) -> Self {
+//         Combinator::Seq(value)
+//     }
+// }

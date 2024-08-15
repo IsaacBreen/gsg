@@ -80,8 +80,8 @@ pub fn eat_string_choice(strings: &[&str])-> impl CombinatorTrait {
     eat_bytestring_choice(strings.iter().map(|s| s.as_bytes().to_vec()).collect())
 }
 
-impl From<EatByteStringChoice> for Combinator {
-    fn from(value: EatByteStringChoice) -> Self {
-        Combinator::EatByteStringChoice(value)
-    }
-}
+// impl From<EatByteStringChoice> for Combinator {
+//     fn from(value: EatByteStringChoice) -> Self {
+//         Combinator::EatByteStringChoice(value)
+//     }
+// }

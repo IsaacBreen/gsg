@@ -135,11 +135,11 @@ pub fn brute_force(run: impl Fn(RightData, &[u8]) -> BruteForceResult + 'static)
     BruteForce { run: Rc::new(run) }
 }
 
-impl From<BruteForce> for Combinator {
-    fn from(value: BruteForce) -> Self {
-        Combinator::BruteForce(value)
-    }
-}
+// impl From<BruteForce> for Combinator {
+//     fn from(value: BruteForce) -> Self {
+//         Combinator::BruteForce(value)
+//     }
+// }
 
 pub fn parse_error() -> BruteForceResult {
     Some(Err(ParseFail))

@@ -113,8 +113,8 @@ where
     }
 }
 
-impl From<EatU8> for Combinator {
-    fn from(value: EatU8) -> Self {
-        Combinator::EatU8(value)
-    }
-}
+// impl From<EatU8> for Combinator {
+//     fn from(value: EatU8) -> Self {
+//         Combinator::EatU8(value)
+//     }
+// }

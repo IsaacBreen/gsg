@@ -9,11 +9,11 @@ pub struct EatString {
     pub(crate) string: Rc<Vec<u8>>,
 }
 
-impl From<EatString> for Combinator {
-    fn from(value: EatString) -> Self {
-        Combinator::EatString(value)
-    }
-}
+// impl From<EatString> for Combinator {
+//     fn from(value: EatString) -> Self {
+//         Combinator::EatString(value)
+//     }
+// }
 
 #[derive(Debug)]
 pub struct EatStringParser {

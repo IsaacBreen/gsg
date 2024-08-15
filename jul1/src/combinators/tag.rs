@@ -62,8 +62,8 @@ pub fn tag(tag: &str, a: impl CombinatorTrait)-> impl CombinatorTrait {
     a
 }
 
- impl From<Tagged> for Combinator {
-     fn from(value: Tagged) -> Self {
-         Combinator::Tagged(value)
-     }
- }
+ // impl From<Tagged> for Combinator {
+ //     fn from(value: Tagged) -> Self {
+ //         Combinator::Tagged(value)
+ //     }
+ // }

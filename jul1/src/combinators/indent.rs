@@ -24,10 +24,10 @@ impl CombinatorTrait for IndentCombinator {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
                 fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait> {
                     if indents.is_empty() {
-                        eps()
+                        Box::new(eps())
                     } else {
                         let dedents = indents.len().try_into().unwrap();
-                        choice_greedy!(
+                        Box::new(choice_greedy!(
                             // Exit here and register dedents
                             seq!(
                                 negative_lookahead(eat_char_choice(" \n\r")),
@@ -42,7 +42,7 @@ impl CombinatorTrait for IndentCombinator {
                                 })
                             ),
                             // Or match the indent and continue
-                            seq!(eat_bytes(&indents[0]), make_combinator(&indents[1..], total_indents))
+                            seq!(eat_bytes(&indents[0]), make_combinator(&indents[1..], total_indents)))
                         )
                     }
                 }
@@ -152,9 +152,9 @@ pub fn assert_no_dedents() -> IndentCombinator {
 pub fn with_indent(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
     seq!(indent(), a, dedent())
 }
-
-impl From<IndentCombinator> for Combinator {
-    fn from(value: IndentCombinator) -> Self {
-        Combinator::IndentCombinator(value)
-    }
-}
+//
+// impl From<IndentCombinator> for Combinator {
+//     fn from(value: IndentCombinator) -> Self {
+//         Combinator::IndentCombinator(value)
+//     }
+// }

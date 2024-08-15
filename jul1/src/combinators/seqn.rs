@@ -76,7 +76,7 @@ macro_rules! define_seq {
 
                     let parser = Parser::SeqParser(SeqParser {
                         parsers,
-                        combinators: std::rc::Rc::new(vecx![Combinator::Fail(Fail), $(Combinator::DynRc(self.$rest.clone())),+]),
+                        combinators: std::rc::Rc::new(vecx![$crate::IntoDyn::into_dyn(Fail), $($crate::IntoDyn::into_dyn(*self.$rest.as_ref().clone())),+]),
                         position: start_position + bytes.len(),
                     });
 
@@ -98,16 +98,6 @@ macro_rules! define_seq {
                 )+
 
                 finalizer(next_right_data_vec, parsers)
-            }
-        }
-
-        impl<$first, $($rest),+> From<$seq_name<$first, $($rest),+>> for Combinator
-        where
-            $first: CombinatorTrait + 'static,
-            $($rest: CombinatorTrait + 'static),+
-        {
-            fn from(c: $seq_name<$first, $($rest),+>) -> Self {
-                Combinator::Dyn(Box::new(c))
             }
         }
     };

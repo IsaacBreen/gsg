@@ -30,9 +30,9 @@ impl ParserTrait for EpsParser {
 pub fn eps() -> Eps {
     Eps
 }
-
-impl From<Eps> for Combinator {
-    fn from(value: Eps) -> Self {
-        Combinator::Eps(value)
-    }
-}
+//
+// impl From<Eps> for Combinator {
+//     fn from(value: Eps) -> Self {
+//         Combinator::Eps(value)
+//     }
+// }

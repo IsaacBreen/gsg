@@ -2,7 +2,7 @@ use std::any::Any;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy, Opt, Seq2};
+use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy, Opt, Seq2, IntoCombinator};
 use crate::opt;
 use crate::parse_state::RightData;
 use crate::VecX;
@@ -22,7 +22,7 @@ pub struct Repeat1Parser {
     pub(crate) greedy: bool,
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait> CombinatorTrait for Repeat1<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -139,16 +139,16 @@ impl ParserTrait for Repeat1Parser {
     }
 }
 
-pub fn repeat1(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+pub fn repeat1(a: impl IntoCombinator)-> impl CombinatorTrait {
     profile_internal("repeat1", Repeat1 {
-        a: Rc::new(a),
+        a: Rc::new(a.into_combinator()),
         greedy: false,
     })
 }
 
-pub fn repeat1_greedy(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+pub fn repeat1_greedy(a: impl CombinatorTrait)-> impl CombinatorTrait {
     profile_internal("repeat1_greedy", Repeat1 {
-        a: Rc::new(a),
+        a: Rc::new(a.into_combinator()),
         greedy: true,
     })
 }

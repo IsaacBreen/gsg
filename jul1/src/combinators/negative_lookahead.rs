@@ -71,8 +71,8 @@ pub fn exclude_strings(inner: impl CombinatorTrait + 'static, bytestrings_to_exc
     }
 }
 
-impl From<ExcludeBytestrings> for Combinator {
-    fn from(exclude_bytestrings: ExcludeBytestrings) -> Self {
-        Self::ExcludeBytestrings(exclude_bytestrings)
-    }
-}
+// impl From<ExcludeBytestrings> for Combinator {
+//     fn from(exclude_bytestrings: ExcludeBytestrings) -> Self {
+//         Self::ExcludeBytestrings(exclude_bytestrings)
+//     }
+// }
