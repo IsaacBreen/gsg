@@ -66,6 +66,7 @@ pub enum Parser {
     BruteForceParser(BruteForceParser),
     ContinuationParser(ContinuationParser),
     FastParserWrapper(FastParserWrapper),
+    DynParser(Box<dyn ParserTrait>),
 }
 
 impl CombinatorTrait for Box<Combinator> {
@@ -142,7 +143,8 @@ macro_rules! match_parser {
             ProfiledParser,
             BruteForceParser,
             ContinuationParser,
-            FastParserWrapper
+            FastParserWrapper,
+            DynParser
         )
     };
 }
@@ -151,7 +153,7 @@ pub trait CombinatorTrait: std::fmt::Debug {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
 }
 
-pub trait ParserTrait {
+pub trait ParserTrait: std::fmt::Debug {
     fn get_u8set(&self) -> U8Set;
     fn parse(&mut self, bytes: &[u8]) -> ParseResults;
     fn autoparse(&mut self, max_length: usize) -> (Vec<u8>, ParseResults) {
