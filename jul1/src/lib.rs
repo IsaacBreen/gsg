@@ -23,6 +23,7 @@ pub use crate::u8set::U8Set;
 pub use internal_vec::{VecX, VecY};
 pub use fast_combinator::*;
 pub use fast_combinator::seq_fast;
+pub use convert::*;
 
 mod combinator;
 mod combinators;
@@ -46,3 +47,4 @@ mod trie;
 mod tokenizer;
 mod transpose;
 mod my_tinyvec;
+mod convert;

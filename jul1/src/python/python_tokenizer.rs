@@ -98,7 +98,7 @@ pub fn whitespace() -> Combinator {
             check_right_data(|right_data| right_data.right_data_inner.fields1.scope_count > 0),
             repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n", "\n", "\r"]))
         ),
-    );
+    ).into();
 
     brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
