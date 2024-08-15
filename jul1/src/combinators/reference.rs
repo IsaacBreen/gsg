@@ -1,16 +1,16 @@
-use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
-use std::rc::Weak;
+use std::rc::{Rc, Weak};
+use once_cell::unsync::OnceCell;
 use crate::*;
 
 #[derive(Clone, Debug)]
 pub struct WeakRef {
-    pub inner: Weak<RefCell<Option<Combinator>>>,
+    pub inner: Weak<OnceCell<Combinator>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct StrongRef {
-    pub inner: Rc<RefCell<Option<Combinator>>>,
+    pub inner: Rc<OnceCell<Combinator>>,
 }
 
 impl PartialEq for WeakRef {
@@ -43,25 +43,33 @@ impl Hash for StrongRef {
 
 impl CombinatorTrait for WeakRef {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        self.inner.upgrade().unwrap().borrow().as_ref().unwrap().parse(right_data, bytes)
+        self.inner
+            .upgrade()
+            .unwrap()
+            .get()
+            .unwrap()
+            .parse(right_data, bytes)
     }
 }
 
 impl CombinatorTrait for StrongRef {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        self.inner.borrow().as_ref().unwrap().parse(right_data, bytes)
+        self.inner
+            .get()
+            .unwrap()
+            .parse(right_data, bytes)
     }
 }
 
 pub fn strong_ref() -> StrongRef {
     StrongRef {
-        inner: Rc::new(RefCell::new(None))
+        inner: Rc::new(OnceCell::new())
     }
 }
 
 impl StrongRef {
     pub fn set(&self, inner: Combinator) {
-        *self.inner.borrow_mut() = Some(inner);
+        self.inner.set(inner).ok().expect("Cannot set value more than once");
     }
 
     pub fn downgrade(&self) -> WeakRef {
@@ -73,9 +81,7 @@ impl StrongRef {
 
 impl WeakRef {
     pub fn upgrade(&self) -> Option<StrongRef> {
-        self.inner.upgrade().map(|inner| StrongRef {
-            inner
-        })
+        self.inner.upgrade().map(|inner| StrongRef { inner })
     }
 }
 
