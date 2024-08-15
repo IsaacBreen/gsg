@@ -22,7 +22,7 @@ impl CombinatorTrait for Symbol {
     }
 }
 
-pub fn symbol(value: impl CombinatorTrait) -> Symbol {
+pub fn symbol(value: impl CombinatorTrait + 'static) -> Symbol {
     Symbol { value: Rc::new(Box::new(value)) }
 }
 

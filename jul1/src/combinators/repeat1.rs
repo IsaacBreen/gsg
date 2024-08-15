@@ -139,14 +139,14 @@ impl ParserTrait for Repeat1Parser {
     }
 }
 
-pub fn repeat1(a: impl IntoCombinator)-> impl CombinatorTrait {
+pub fn repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
     profile_internal("repeat1", Repeat1 {
         a: Rc::new(a.into_combinator()),
         greedy: false,
     })
 }
 
-pub fn repeat1_greedy(a: impl CombinatorTrait)-> impl CombinatorTrait {
+pub fn repeat1_greedy<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
     profile_internal("repeat1_greedy", Repeat1 {
         a: Rc::new(a.into_combinator()),
         greedy: true,

@@ -54,11 +54,11 @@ impl CombinatorTrait for Lookahead {
     }
 }
 
-pub fn lookahead(combinator: impl CombinatorTrait) -> Lookahead {
+pub fn lookahead(combinator: impl CombinatorTrait + 'static) -> Lookahead {
     Lookahead { combinator: Box::new(Box::new(combinator)), positive: true, persist_with_partial_lookahead: false }
 }
 
-pub fn negative_lookahead(combinator: impl CombinatorTrait) -> Lookahead {
+pub fn negative_lookahead(combinator: impl CombinatorTrait + 'static) -> Lookahead {
     Lookahead { combinator: Box::new(Box::new(combinator)), positive: false, persist_with_partial_lookahead: false }
 }
 

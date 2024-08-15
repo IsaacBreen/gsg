@@ -84,7 +84,7 @@ pub fn strong_ref() -> StrongRef {
 }
 
 impl StrongRef {
-    pub fn set(&self, inner: impl CombinatorTrait) {
+    pub fn set(&self, inner: impl CombinatorTrait + 'static) {
         self.inner.set(Box::new(inner)).ok().expect("Cannot set value more than once");
     }
 
