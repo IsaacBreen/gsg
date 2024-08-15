@@ -94,6 +94,8 @@ impl Combinator {
             Combinator::Repeat0(Opt { inner: Repeat1 { a: inner, .. }, .. }) => {
                 f(inner);
             }
+            Combinator::SepRep1(_) => todo!(),
+            Combinator::DynRc(_) => todo!(),
         }
     }
 

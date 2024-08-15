@@ -7,16 +7,24 @@ use crate::SeqParser;
 pub struct Seq2<A, B>
 where
     A: CombinatorTrait,
-    B: CombinatorTrait + Clone,
+    B: CombinatorTrait,
 {
     pub(crate) first: A,
-    pub(crate) second: B,
+    pub(crate) second: Rc<B>,
+}
+
+#[derive(Debug)]
+pub struct Seq2Parser {
+    pub(crate) first_parser: Option<Parser>,
+    pub(crate) second_parsers: Vec<Parser>,
+    pub(crate) second_combinator: Rc<dyn CombinatorTrait>,
+    pub(crate) position: usize,
 }
 
 impl<A, B> CombinatorTrait for Seq2<A, B>
 where
     A: CombinatorTrait,
-    B: CombinatorTrait + Clone + Into<Combinator>,
+    B: CombinatorTrait + 'static,
 {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
@@ -65,7 +73,7 @@ where
 
         let parser = Parser::SeqParser(SeqParser {
             parsers,
-            combinators: Rc::new(vecx![Combinator::Fail(Fail), self.second.clone().into()]),
+            combinators: Rc::new(vecx![Combinator::Fail(Fail), Combinator::DynRc(self.second.clone())]),
             position: start_position + bytes.len(),
         });
 

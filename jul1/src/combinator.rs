@@ -41,12 +41,14 @@ pub enum Combinator {
     Profiled(Profiled),
     Opt(Opt<Box<Combinator>>),
     Repeat0(Opt<Repeat1<Combinator>>),
+    SepRep1(Seq2<Box<Combinator>, Opt<Repeat1<Seq2<Combinator, Combinator>>>>),
     WeakRef(WeakRef),
     StrongRef(StrongRef),
     BruteForce(BruteForce),
     Continuation(Continuation),
     Fast(FastCombinatorWrapper),
     Dyn(Box<dyn CombinatorTrait>),
+    DynRc(Rc<dyn CombinatorTrait>),
 }
 
 #[derive(Debug)]
@@ -116,12 +118,14 @@ macro_rules! match_combinator {
             Profiled,
             Opt,
             Repeat0,
+            SepRep1,
             WeakRef,
             StrongRef,
             BruteForce,
             Continuation,
             Fast,
-            Dyn
+            Dyn,
+            DynRc
         )
     };
 }
