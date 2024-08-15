@@ -36,9 +36,7 @@ impl Combinator {
                 f(inner);
             }
             Combinator::SepRep1(_) => todo!(),
-            Combinator::Dyn(inner) => {
-                f(inner);
-            }
+            Combinator::Dyn(inner) => {}
             Combinator::DynRc(_) => {},
         }
     }
