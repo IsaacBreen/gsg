@@ -84,13 +84,89 @@ macro_rules! define_seq {
 
 define_seq!(Seq2, c0, c1);
 define_seq!(Seq3, c0, c1, c2);
+define_seq!(Seq4, c0, c1, c2, c3);
+define_seq!(Seq5, c0, c1, c2, c3, c4);
+define_seq!(Seq6, c0, c1, c2, c3, c4, c5);
+define_seq!(Seq7, c0, c1, c2, c3, c4, c5, c6);
+define_seq!(Seq8, c0, c1, c2, c3, c4, c5, c6, c7);
+define_seq!(Seq9, c0, c1, c2, c3, c4, c5, c6, c7, c8);
 
 #[macro_export]
-macro_rules! seq2 {
-    ($first:expr, $second:expr) => {
+macro_rules! seqn {
+    ($c0:expr, $c1:expr) => {
         $crate::Seq2 {
-            c0: $first,
-            c1: Rc::new($second),
+            c0: $c0,
+            c1: Rc::new($c1),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr) => {
+        $crate::Seq3 {
+            c0: $c0,
+            c1: Rc::new($c1),
+            c2: Rc::new($c2),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr) => {
+        $crate::Seq4 {
+            c0: $c0,
+            c1: Rc::new($c1),
+            c2: Rc::new($c2),
+            c3: Rc::new($c3),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr) => {
+        $crate::Seq5 {
+            c0: $c0,
+            c1: Rc::new($c1),
+            c2: Rc::new($c2),
+            c3: Rc::new($c3),
+            c4: Rc::new($c4),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr) => {
+        $crate::Seq6 {
+            c0: $c0,
+            c1: Rc::new($c1),
+            c2: Rc::new($c2),
+            c3: Rc::new($c3),
+            c4: Rc::new($c4),
+            c5: Rc::new($c5),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr) => {
+        $crate::Seq7 {
+            c0: $c0,
+            c1: Rc::new($c1),
+            c2: Rc::new($c2),
+            c3: Rc::new($c3),
+            c4: Rc::new($c4),
+            c5: Rc::new($c5),
+            c6: Rc::new($c6),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr) => {
+        $crate::Seq8 {
+            c0: $c0,
+            c1: Rc::new($c1),
+            c2: Rc::new($c2),
+            c3: Rc::new($c3),
+            c4: Rc::new($c4),
+            c5: Rc::new($c5),
+            c6: Rc::new($c6),
+            c7: Rc::new($c7),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr) => {
+        $crate::Seq9 {
+            c0: $c0,
+            c1: Rc::new($c1),
+            c2: Rc::new($c2),
+            c3: Rc::new($c3),
+            c4: Rc::new($c4),
+            c5: Rc::new($c5),
+            c6: Rc::new($c6),
+            c7: Rc::new($c7),
+            c8: Rc::new($c8),
         }
     };
 }
