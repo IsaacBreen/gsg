@@ -95,7 +95,7 @@ impl Combinator {
                 f(inner);
             }
             Combinator::SepRep1(_) => todo!(),
-            Combinator::DynRc(_) => todo!(),
+            Combinator::DynRc(_) => {},
         }
     }
 
