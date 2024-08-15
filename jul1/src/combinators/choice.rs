@@ -81,19 +81,19 @@ pub fn _choice_greedy(v: Vec<Combinator>) -> Combinator {
     })
 }
 
-#[macro_export]
-macro_rules! choice {
-    ($($expr:expr),+ $(,)?) => {
-        $crate::_choice(vec![$($expr.into()),+])
-    };
-}
-
-#[macro_export]
-macro_rules! choice_greedy {
-    ($($expr:expr),+ $(,)?) => {
-        $crate::_choice_greedy(vec![$($expr.into()),+])
-    };
-}
+// #[macro_export]
+// macro_rules! choice {
+//     ($($expr:expr),+ $(,)?) => {
+//         $crate::_choice(vec![$($expr.into()),+])
+//     };
+// }
+//
+// #[macro_export]
+// macro_rules! choice_greedy {
+//     ($($expr:expr),+ $(,)?) => {
+//         $crate::_choice_greedy(vec![$($expr.into()),+])
+//     };
+// }
 
 impl From<Choice> for Combinator {
     fn from(value: Choice) -> Self {

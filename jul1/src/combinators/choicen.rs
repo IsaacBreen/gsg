@@ -5,7 +5,7 @@ use crate::ChoiceParser;
 
 #[macro_export]
 macro_rules! define_choice {
-    ($choice_name:ident, $first:ident, $($rest:ident),+) => {
+    ($choice_name:ident, $helper_fn:ident, $first:ident, $($rest:ident),+) => {
         #[derive(Debug)]
         pub struct $choice_name<$first, $($rest),+>
         where
@@ -75,190 +75,204 @@ macro_rules! define_choice {
                 Combinator::Dyn(Box::new(c))
             }
         }
-    };
-}
 
-define_choice!(Choice2, c0, c1);
-define_choice!(Choice3, c0, c1, c2);
-define_choice!(Choice4, c0, c1, c2, c3);
-define_choice!(Choice5, c0, c1, c2, c3, c4);
-define_choice!(Choice6, c0, c1, c2, c3, c4, c5);
-define_choice!(Choice7, c0, c1, c2, c3, c4, c5, c6);
-define_choice!(Choice8, c0, c1, c2, c3, c4, c5, c6, c7);
-define_choice!(Choice9, c0, c1, c2, c3, c4, c5, c6, c7, c8);
-
-#[macro_export]
-macro_rules! choicen {
-    ($c0:expr, $c1:expr) => {
-        $crate::Choice2 {
-            c0: $c0,
-            c1: Rc::new($c1),
-            greedy: false,
-        }
-    };
-    ($c0:expr, $c1:expr, $c2:expr) => {
-        $crate::Choice3 {
-            c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            greedy: false,
-        }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr) => {
-        $crate::Choice4 {
-            c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            greedy: false,
-        }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr) => {
-        $crate::Choice5 {
-            c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            greedy: false,
-        }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr) => {
-        $crate::Choice6 {
-            c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
-            greedy: false,
-        }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr) => {
-        $crate::Choice7 {
-            c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
-            c6: Rc::new($c6),
-            greedy: false,
-        }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr) => {
-        $crate::Choice8 {
-            c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
-            c6: Rc::new($c6),
-            c7: Rc::new($c7),
-            greedy: false,
-        }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr) => {
-        $crate::Choice9 {
-            c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
-            c6: Rc::new($c6),
-            c7: Rc::new($c7),
-            c8: Rc::new($c8),
-            greedy: false,
+        pub fn $helper_fn<$first, $($rest),+>($first: $first, $($rest: $rest),+, ) -> $choice_name<$first, $($rest),+>
+        where
+            $first: CombinatorTrait + 'static,
+            $($rest: CombinatorTrait + 'static),+
+        {
+            $choice_name {
+                c0: $first,
+                $(c$i: $rest),+
+            }
         }
     };
 }
 
+define_choice!(Choice2, _choice2, c0, c1);
+define_choice!(Choice3, _choice3, c0, c1, c2);
+define_choice!(Choice4, _choice4, c0, c1, c2, c3);
+define_choice!(Choice5, _choice5, c0, c1, c2, c3, c4);
+define_choice!(Choice6, _choice6, c0, c1, c2, c3, c4, c5);
+define_choice!(Choice7, _choice7, c0, c1, c2, c3, c4, c5, c6);
+define_choice!(Choice8, _choice8, c0, c1, c2, c3, c4, c5, c6, c7);
+define_choice!(Choice9, _choice9, c0, c1, c2, c3, c4, c5, c6, c7, c8);
+
 #[macro_export]
-macro_rules! choicen_greedy {
-    ($c0:expr, $c1:expr) => {
-        $crate::Choice2 {
+macro_rules! choice {
+    ($c0:expr, $c1:expr $(,)?) => {
+        $crate::_choice2 {
             c0: $c0,
-            c1: Rc::new($c1),
+            c1: $c1,
+            greedy: false,
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr $(,)?) => {
+        $crate::_choice3 {
+            c0: $c0,
+            c1: $c1,
+            c2: $c2,
+            greedy: false,
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr $(,)?) => {
+        $crate::_choice4 {
+            c0: $c0,
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            greedy: false,
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr $(,)?) => {
+        $crate::_choice5 {
+            c0: $c0,
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            c4: $c4,
+            greedy: false,
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr $(,)?) => {
+        $crate::_choice6 {
+            c0: $c0,
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            c4: $c4,
+            c5: $c5,
+            greedy: false,
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr $(,)?) => {
+        $crate::_choice7 {
+            c0: $c0,
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            c4: $c4,
+            c5: $c5,
+            c6: $c6,
+            greedy: false,
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr $(,)?) => {
+        $crate::_choice8 {
+            c0: $c0,
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            c4: $c4,
+            c5: $c5,
+            c6: $c6,
+            c7: $c7,
+            greedy: false,
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr $(,)?) => {
+        $crate::_choice9 {
+            c0: $c0,
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            c4: $c4,
+            c5: $c5,
+            c6: $c6,
+            c7: $c7,
+            c8: $c8,
+            greedy: false,
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! choice_greedy {
+    ($c0:expr, $c1:expr $(,)?) => {
+        $crate::_choice2 {
+            c0: $c0,
+            c1: $c1,
             greedy: true,
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr) => {
-        $crate::Choice3 {
+    ($c0:expr, $c1:expr, $c2:expr $(,)?) => {
+        $crate::_choice3 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
+            c1: $c1,
+            c2: $c2,
             greedy: true,
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr) => {
-        $crate::Choice4 {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr $(,)?) => {
+        $crate::_choice4 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
             greedy: true,
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr) => {
-        $crate::Choice5 {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr $(,)?) => {
+        $crate::_choice5 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            c4: $c4,
             greedy: true,
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr) => {
-        $crate::Choice6 {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr $(,)?) => {
+        $crate::_choice6 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            c4: $c4,
+            c5: $c5,
             greedy: true,
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr) => {
-        $crate::Choice7 {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr $(,)?) => {
+        $crate::_choice7 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
-            c6: Rc::new($c6),
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            c4: $c4,
+            c5: $c5,
+            c6: $c6,
             greedy: true,
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr) => {
-        $crate::Choice8 {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr $(,)?) => {
+        $crate::_choice8 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
-            c6: Rc::new($c6),
-            c7: Rc::new($c7),
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            c4: $c4,
+            c5: $c5,
+            c6: $c6,
+            c7: $c7,
             greedy: true,
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr) => {
-        $crate::Choice9 {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr $(,)?) => {
+        $crate::_choice9 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
-            c6: Rc::new($c6),
-            c7: Rc::new($c7),
-            c8: Rc::new($c8),
+            c1: $c1,
+            c2: $c2,
+            c3: $c3,
+            c4: $c4,
+            c5: $c5,
+            c6: $c6,
+            c7: $c7,
+            c8: $c8,
             greedy: true,
         }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $($rest:expr),+) => {
+        $crate::_choice(vec![$c0.into(), $c1.into(), $c2.into(), $c3.into(), $c4.into(), $c5.into(), $c6.into(), $c7.into(), $c8.into(), $($rest.into()),+])
     };
 }

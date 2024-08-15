@@ -68,8 +68,8 @@ pub fn strong_ref() -> StrongRef {
 }
 
 impl StrongRef {
-    pub fn set(&self, inner: Combinator) {
-        self.inner.set(inner).ok().expect("Cannot set value more than once");
+    pub fn set(&self, inner: impl Into<Combinator>) {
+        self.inner.set(inner.into()).ok().expect("Cannot set value more than once");
     }
 
     pub fn downgrade(&self) -> WeakRef {
