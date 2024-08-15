@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use derivative::Derivative;
 use lru::LruCache;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, Squash, U8Set};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, Squash, U8Set, IntoCombinator};
 
 
 macro_rules! profile {
@@ -223,12 +223,12 @@ impl ParserTrait for CachedParser {
     }
 }
 
-pub fn cache_context(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
-    profile_internal("cache_context", CacheContext { inner: Box::new(Box::new(a)) })
+pub fn cache_context(a: impl IntoCombinator + 'static)-> impl CombinatorTrait {
+    profile_internal("cache_context", CacheContext { inner: Box::new(Box::new(a.into_combinator())) })
 }
 
-pub fn cached(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
-    profile_internal("cached", Cached { inner: Rc::new(Box::new(a)) })
+pub fn cached(a: impl IntoCombinator + 'static)-> impl CombinatorTrait {
+    profile_internal("cached", Cached { inner: Rc::new(Box::new(a.into_combinator())) })
 }
 
 // impl From<CacheContext> for Combinator {

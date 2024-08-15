@@ -22,7 +22,7 @@ pub struct Repeat1Parser {
     pub(crate) greedy: bool,
 }
 
-impl<T: CombinatorTrait> CombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

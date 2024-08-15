@@ -16,49 +16,49 @@ thread_local! {
 }
 
 #[derive(Clone)]
-pub struct Deferred<T: CombinatorTrait, F: Fn() -> T> {
-    pub(crate) inner: RefCell<DeferredInner<T, F>>,
+pub struct Deferred {
+    pub(crate) inner: RefCell<DeferredInner>,
 }
 
 #[derive(Clone, Copy)]
-pub struct DeferredFn<T: CombinatorTrait, F: Fn() -> T>(pub F);
+pub struct DeferredFn(pub &'static dyn Fn()-> Combinator);
 
-impl<T: CombinatorTrait, F: Fn() -> T> PartialEq for DeferredFn<T, F> {
+impl PartialEq for DeferredFn {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self.0, other.0)
     }
 }
 
-impl<T: CombinatorTrait, F: Fn() -> T> Eq for DeferredFn<T, F> {}
+impl Eq for DeferredFn {}
 
-impl<T: CombinatorTrait, F: Fn() -> T> Hash for DeferredFn<T, F> {
+impl Hash for DeferredFn {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(self.0, state);
     }
 }
 
 #[derive(Clone)]
-pub enum DeferredInner<T: CombinatorTrait, F: Fn() -> T> {
-    Uncompiled(DeferredFn<T, F>),
+pub enum DeferredInner {
+    Uncompiled(DeferredFn),
     CompiledStrong(StrongRef),
     CompiledWeak(WeakRef),
 }
 
-impl<T: CombinatorTrait, F: Fn() -> T> PartialEq for Deferred<T, F> {
+impl PartialEq for Deferred {
     fn eq(&self, other: &Self) -> bool {
         self.inner.borrow().eq(&other.inner.borrow())
     }
 }
 
-impl<T: CombinatorTrait, F: Fn() -> T> Eq for Deferred<T, F> {}
+impl Eq for Deferred {}
 
-impl<T: CombinatorTrait, F: Fn() -> T> Hash for Deferred<T, F> {
+impl Hash for Deferred {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.inner.borrow().hash(state)
     }
 }
 
-impl<T: CombinatorTrait, F: Fn() -> T> Hash for DeferredInner<T, F> {
+impl Hash for DeferredInner {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             DeferredInner::Uncompiled(f) => std::ptr::hash(f, state),
@@ -68,7 +68,7 @@ impl<T: CombinatorTrait, F: Fn() -> T> Hash for DeferredInner<T, F> {
     }
 }
 
-impl<T: CombinatorTrait, F: Fn() -> T> PartialEq for DeferredInner<T, F> {
+impl PartialEq for DeferredInner {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (DeferredInner::Uncompiled(f1), DeferredInner::Uncompiled(f2)) => std::ptr::eq(f1, f2),
@@ -79,15 +79,15 @@ impl<T: CombinatorTrait, F: Fn() -> T> PartialEq for DeferredInner<T, F> {
     }
 }
 
-impl<T: CombinatorTrait, F: Fn() -> T> Eq for DeferredInner<T, F> {}
+impl Eq for DeferredInner {}
 
-impl<T: CombinatorTrait, F: Fn() -> T> Debug for Deferred<T, F> {
+impl Debug for Deferred {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Deferred").finish_non_exhaustive()
     }
 }
 
-impl<T: CombinatorTrait, F: Fn() -> T> CombinatorTrait for Deferred<T, F> {
+impl CombinatorTrait for Deferred {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

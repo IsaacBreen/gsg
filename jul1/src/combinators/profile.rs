@@ -119,9 +119,9 @@ pub fn profile(tag: &str, a: impl CombinatorTrait)-> impl CombinatorTrait {
     a
 }
 
-pub fn profile_internal(tag: &str, a: impl CombinatorTrait)-> impl CombinatorTrait {
+pub fn profile_internal(tag: &str, a: impl IntoCombinator)-> impl CombinatorTrait {
     // Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
-    a
+    a.into_combinator()
 }
 
 // impl From<Profiled> for Combinator {

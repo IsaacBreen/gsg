@@ -8,7 +8,7 @@ pub fn seprep1(a: impl CombinatorTrait, b: impl CombinatorTrait + 'static)-> imp
     seq!(&a, repeat0(seq!(b, &a)))
 }
 
-pub fn seprep0(a: impl CombinatorTrait, b: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+pub fn seprep0(a: impl CombinatorTrait + 'static, b: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
     opt(seprep1(a, b))
 }
 

@@ -205,13 +205,12 @@ mod more_tests {
 
     #[test]
     fn test_from_fn() {
-        fn A()-> impl CombinatorTrait {
-            choice!(seq!(eat_char('a'), deferred(&A)), eat_char('b'))
+        fn A()-> Box<dyn CombinatorTrait> {
+            choice!(seq!(eat_char('a'), deferred(&A)), eat_char('b')).into_dyn()
         }
 
-        let S: Combinator = From::from(&A);
-        assert_parses_default(&S, "ab");
-        assert_parses_fast(&S, "ab");
+        assert_parses_default(&A(), "ab");
+        assert_parses_fast(&A(), "ab");
     }
 
     #[test]
