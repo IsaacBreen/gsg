@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
 
-use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_combinator, eat, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast, eat_char_negation_fast, repeatn_fast};
+use crate::{Combinator, EatU8, RightData, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_combinator, eat, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast, eat_char_negation_fast, repeatn_fast, IntoCombinator};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -579,7 +579,7 @@ pub fn NAME() -> Combinator {
 
     let combinator = seq!(exclude_strings(seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
 
-    combinator
+    combinator.into()
 }
 
 // .. _literals:
@@ -921,7 +921,7 @@ pub fn FSTRING_START() -> Combinator {
 
     seq!(
         prefix, quote,
-    )
+    ).into()
 }
 
 pub fn FSTRING_MIDDLE() -> Combinator {
@@ -1178,7 +1178,7 @@ pub fn comment() -> Expr {
 pub fn NEWLINE() -> Combinator {
     let end_of_line = seq_fast!(opt_fast(comment()), breaking_space_fast());
     let blank_line = seq_fast!(repeat0_fast(non_breaking_space_fast()), end_of_line.clone());
-    seq!(end_of_line, repeat0_fast(blank_line), dent())
+    seq!(end_of_line, repeat0_fast(blank_line), dent()).into()
 }
 
 // .. _indentation:

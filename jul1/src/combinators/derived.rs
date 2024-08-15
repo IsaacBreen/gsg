@@ -4,7 +4,7 @@ use crate::VecX;
 
 pub fn seprep1(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
     let a = symbol(a);
-    seq!(&a, repeat0(seq!(b, &a)))
+    seq!(&a, repeat0(seq!(b, &a))).into()
 }
 
 pub fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
@@ -19,7 +19,7 @@ pub fn repeatn(n: usize, a: impl Into<Combinator>) -> Combinator {
 
 pub fn seprep1_greedy(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
     let a = symbol(a);
-    seq!(&a, repeat0_greedy(seq!(b, &a)))
+    seq!(&a, repeat0_greedy(seq!(b, &a))).into()
 }
 
 pub fn seprep0_greedy(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
