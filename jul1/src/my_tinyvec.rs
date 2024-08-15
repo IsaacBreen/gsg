@@ -29,8 +29,11 @@ impl<T> FastVec<T> {
                     vec.push(std::ptr::read(existing_item));
                 }
                 vec.push(item);
-                // todo: the below line is WRONG. We end up double dropping.
-                *self = FastVec::Many(vec);
+                let old_self = std::mem::replace(self, FastVec::Many(vec));
+                if let FastVec::One(_) = old_self {
+                    // The item has been moved, so we don't need to drop it
+                    std::mem::forget(old_self);
+                }
             }
             FastVec::Many(vec) => {
                 // Simply push the item into the existing vector
@@ -129,8 +132,11 @@ impl<T> FastVec<T> {
                     vec.push(std::ptr::read(self_item));
                     vec.push(std::ptr::read(other_item));
                 }
-                // todo: the below lines are WRONG. We end up double dropping.
-                *self = FastVec::Many(vec);
+                let old_self = std::mem::replace(self, FastVec::Many(vec));
+                if let FastVec::One(_) = old_self {
+                    // The item has been moved, so we don't need to drop it
+                    std::mem::forget(old_self);
+                }
                 *other = FastVec::None;
             }
             (FastVec::One(self_item), FastVec::Many(other_vec)) => {
@@ -139,8 +145,11 @@ impl<T> FastVec<T> {
                 unsafe {
                     vec.insert(0, std::ptr::read(self_item));
                 }
-                // todo: the below lines are WRONG. We end up double dropping.
-                *self = FastVec::Many(vec);
+                let old_self = std::mem::replace(self, FastVec::Many(vec));
+                if let FastVec::One(_) = old_self {
+                    // The item has been moved, so we don't need to drop it
+                    std::mem::forget(old_self);
+                }
                 *other = FastVec::None;
             }
             (FastVec::Many(self_vec), FastVec::One(other_item)) => {
@@ -148,8 +157,11 @@ impl<T> FastVec<T> {
                 unsafe {
                     self_vec.push(std::ptr::read(other_item));
                 }
-                // todo: the below line is WRONG. We end up double dropping.
-                *other = FastVec::None;
+                let old_other = std::mem::replace(other, FastVec::None);
+                if let FastVec::One(_) = old_other {
+                    // The item has been moved, so we don't need to drop it
+                    std::mem::forget(old_other);
+                }
             }
             (FastVec::Many(self_vec), FastVec::Many(other_vec)) => {
                 // Append other's vector to self's vector
