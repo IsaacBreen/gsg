@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
-use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY};
+use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY, vecx};
 use crate::SeqParser;
 
 #[derive(Debug)]
@@ -65,7 +65,7 @@ where
 
         let parser = Parser::SeqParser(SeqParser {
             parsers,
-            combinators: Rc::new(vec![self.first.clone().into(), self.second.clone().into()].into()),
+            combinators: Rc::new(vecx![self.first.clone().into(), self.second.clone().into()]),
             position: start_position + bytes.len(),
         });
 

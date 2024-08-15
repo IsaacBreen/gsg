@@ -1,5 +1,6 @@
-// pub type VecX<T> = smallvec::SmallVec<[T; 1]>;
-pub type VecX<T> = Vec<T>;
+// pub type VecX<T> = smallvec::SmallVec<[T; 5]>;
+pub type VecX<T> = ArrayVec<T, 5>;
+// pub type VecX<T> = Vec<T>;
 // pub type VecX<T> = crate::my_tinyvec::FastVec<T>;
 
 // pub type VecY<T> = Vec<T>;
@@ -10,6 +11,7 @@ pub type VecY<T> = crate::my_tinyvec::FastVec<T>;
 
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut, RangeBounds};
+use arrayvec::ArrayVec;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FakeVec<T> {
@@ -107,11 +109,11 @@ impl<T: PartialEq> FakeVec<T> {
 #[macro_export]
 macro_rules! vecx {
     ($($x:expr),*) => {
-        vec![$($x),*].into()
+        vec![$($x),*].into_iter().collect()
     };
 
     ($x:expr; $n:expr) => {
-        vec![$x; $n].into()
+        vec![$x; $n].into_iter().collect()
     };
 }
 
