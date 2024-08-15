@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY};
 use crate::SeqParser;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Seq2<A, B>
 where
     A: Into<Combinator>,

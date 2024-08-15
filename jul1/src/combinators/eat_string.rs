@@ -3,7 +3,7 @@ use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Se
 use crate::internal_vec::VecY;
 use crate::parse_state::RightData;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EatString {
     pub(crate) string: Rc<Vec<u8>>,
 }
@@ -14,7 +14,7 @@ impl From<EatString> for Combinator {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EatStringParser {
     pub(crate) string: Rc<Vec<u8>>,
     index: usize,

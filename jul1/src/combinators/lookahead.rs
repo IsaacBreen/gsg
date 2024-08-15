@@ -1,6 +1,6 @@
 use crate::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartialLookahead {
     pub parser: Box<Parser>,
     pub positive: bool,
@@ -19,7 +19,7 @@ impl Default for LookaheadData {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lookahead {
     pub combinator: Box<Combinator>,
     pub positive: bool,

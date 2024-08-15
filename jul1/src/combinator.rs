@@ -15,7 +15,7 @@ macro_rules! match_enum {
     };
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Combinator {
     Seq(Seq),
     Choice(Choice),
@@ -47,7 +47,7 @@ pub enum Combinator {
     Fast(FastCombinatorWrapper),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Parser {
     SeqParser(SeqParser),
     ChoiceParser(ChoiceParser),

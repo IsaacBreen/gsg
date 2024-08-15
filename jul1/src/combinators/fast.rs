@@ -3,12 +3,12 @@ use std::hash::{Hash, Hasher};
 use crate::*;
 use crate::tokenizer::finite_automata::{Expr, ExprGroups, Regex, RegexState};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FastCombinatorWrapper {
     pub(crate) regex: Rc<Regex>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FastParserWrapper {
     pub(crate) regex_state: RegexState,
     pub(crate) right_data: Option<RightData>,

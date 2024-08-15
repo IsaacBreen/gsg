@@ -63,18 +63,18 @@ impl PartialEq for CacheKey {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug, Clone, PartialEq, Eq, Hash)]
+#[derivative(Debug, Clone, PartialEq, Eq)]
 struct CacheEntry {
     pub(crate) parser: Option<Box<Parser>>,
     maybe_parse_results: Option<ParseResults>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheContext {
     pub inner: Box<Combinator>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cached {
     pub inner: Rc<Combinator>,
 }
@@ -97,7 +97,7 @@ impl PartialEq for CachedParser {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug, Clone, PartialEq, Eq, Hash)]
+#[derivative(Debug, Clone, PartialEq, Eq)]
 pub struct CacheContextParser {
     pub inner: Box<Parser>,
     pub(crate) parse_id: usize,

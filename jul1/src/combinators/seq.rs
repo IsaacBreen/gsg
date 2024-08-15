@@ -11,13 +11,13 @@ macro_rules! profile {
     };
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Seq {
     pub(crate) children: Rc<VecX<Combinator>>,
     pub(crate) start_index: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SeqParser {
     pub(crate) parsers: Vec<(usize, Parser)>,
     pub(crate) combinators: Rc<VecX<Combinator>>,

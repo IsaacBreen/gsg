@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use crate::{choice, choice_greedy, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX, VecY};
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IndentCombinator {
     Dent,
     Indent,
@@ -8,7 +8,7 @@ pub enum IndentCombinator {
     AssertNoDedents,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IndentCombinatorParser {
     DentParser(Box<Parser>),
     IndentParser(Option<RightData>),
