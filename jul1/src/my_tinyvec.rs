@@ -29,6 +29,7 @@ impl<T> FastVec<T> {
                     vec.push(std::ptr::read(existing_item));
                 }
                 vec.push(item);
+                // todo: the below line is WRONG. We end up double dropping.
                 *self = FastVec::Many(vec);
             }
             FastVec::Many(vec) => {
@@ -128,6 +129,7 @@ impl<T> FastVec<T> {
                     vec.push(std::ptr::read(self_item));
                     vec.push(std::ptr::read(other_item));
                 }
+                // todo: the below lines are WRONG. We end up double dropping.
                 *self = FastVec::Many(vec);
                 *other = FastVec::None;
             }
@@ -137,6 +139,7 @@ impl<T> FastVec<T> {
                 unsafe {
                     vec.insert(0, std::ptr::read(self_item));
                 }
+                // todo: the below lines are WRONG. We end up double dropping.
                 *self = FastVec::Many(vec);
                 *other = FastVec::None;
             }
@@ -145,6 +148,7 @@ impl<T> FastVec<T> {
                 unsafe {
                     self_vec.push(std::ptr::read(other_item));
                 }
+                // todo: the below line is WRONG. We end up double dropping.
                 *other = FastVec::None;
             }
             (FastVec::Many(self_vec), FastVec::Many(other_vec)) => {
