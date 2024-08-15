@@ -50,5 +50,7 @@ impl ParseResults {
     }
     pub fn succeeds_decisively(&self) -> bool {
         self.done() && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|rd| rd.failable())
+        // TODO: remove the below line and uncomment the above line
+        // self.done() && !self.right_data_vec.is_empty()
     }
 }
