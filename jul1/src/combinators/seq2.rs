@@ -13,14 +13,6 @@ where
     pub(crate) second: Rc<B>,
 }
 
-#[derive(Debug)]
-pub struct Seq2Parser {
-    pub(crate) first_parser: Option<Parser>,
-    pub(crate) second_parsers: Vec<Parser>,
-    pub(crate) second_combinator: Rc<dyn CombinatorTrait>,
-    pub(crate) position: usize,
-}
-
 impl<A, B> CombinatorTrait for Seq2<A, B>
 where
     A: CombinatorTrait,
@@ -83,7 +75,6 @@ where
     }
 }
 
-
 #[macro_export]
 macro_rules! seq2 {
     ($first:expr, $second:expr) => {
@@ -93,13 +84,3 @@ macro_rules! seq2 {
         }
     };
 }
-//
-// impl<A, B> From<Seq2<A, B>> for Combinator
-// where
-//     A: Into<Combinator>,
-//     B: Into<Combinator>,
-// {
-//     fn from(value: Seq2<A, B>) -> Self {
-//         Combinator::Seq2(value)
-//     }
-// }
