@@ -251,7 +251,7 @@ def grammar_to_rust(
                 expr = f'seq!({expr}, forbid_follows_clear())'
             expr = f'crate::profile("{token}", {expr})'
             expr = f'tag("{token}", {expr})'
-            if remove_left_recursion.ref('WS') not in unresolved_follows_table.get(token_ref, []):
+            if token != 'WS' and remove_left_recursion.ref('WS') not in unresolved_follows_table.get(token_ref, []):
                 expr = f'seq!({expr}, opt(&WS))'
             expr = f'cached({expr})'
             f.write('pub fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
@@ -311,7 +311,7 @@ if __name__ == "__main__":
         ref('DEDENT'): [ref('WS')],
         ref('NAME'): [ref('NAME'), ref('NUMBER')],
         ref('NUMBER'): [ref('NUMBER')],
-        ref('WS'): [ref('WS'), ref('INDENT'), ref('DEDENT')],
+        ref('WS'): [ref('INDENT'), ref('DEDENT')],
     }
 
     remove_left_recursion.prettify_rules(custom_grammar)
