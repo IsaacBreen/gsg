@@ -20,8 +20,8 @@ pub struct Fields1 {
 pub struct Fields2 {
     // #[derivative(Hash = "ignore")]
     // pub frame_stack: Option<FrameStack>,
-    pub indents: VecX<Vec<u8>>,
-    pub fstring_start_stack: VecX<PythonQuoteType>
+    pub indents: Vec<Vec<u8>>,
+    pub fstring_start_stack: Vec<PythonQuoteType>
 }
 
 #[derive(Derivative)]
@@ -45,7 +45,7 @@ impl Default for RightData {
         Self {
             right_data_inner: RightDataInner {
                 // frame_stack: None,
-                fields2: Fields2 { indents: VecX::new(), fstring_start_stack: VecX::new() }.into(),
+                fields2: Fields2 { indents: Vec::new(), fstring_start_stack: Vec::new() }.into(),
                 fields1: Fields1 { dedents: 0, scope_count: 0, forbidden_consecutive_matches: ForbidFollowsData::default(), lookahead_data: LookaheadData::default(), position: 0 },
             }.into()
         }
