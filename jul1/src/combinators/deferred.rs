@@ -72,7 +72,7 @@ use crate::VecX;
 // }
 
 thread_local! {
-    static COMBINATOR_CACHE: RefCell<HashMap<DeferredInner, Rc<Combinator>>> = RefCell::new(HashMap::new());
+    static COMBINATOR_CACHE: RefCell<HashMap<DeferredFn, Rc<Combinator>>> = RefCell::new(HashMap::new());
 }
 
 #[derive(Clone)]
@@ -80,9 +80,26 @@ pub struct Deferred {
     pub(crate) inner: RefCell<DeferredInner>,
 }
 
+#[derive(Clone, Copy)]
+pub struct DeferredFn(pub &'static dyn Fn() -> Combinator);
+
+impl PartialEq for DeferredFn {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0, other.0)
+    }
+}
+
+impl Eq for DeferredFn {}
+
+impl Hash for DeferredFn {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.0, state);
+    }
+}
+
 #[derive(Clone)]
 pub enum DeferredInner {
-    Uncompiled(&'static dyn Fn() -> Combinator),
+    Uncompiled(DeferredFn),
     CompiledStrong(StrongRef),
     CompiledWeak(WeakRef),
 }
@@ -138,8 +155,8 @@ impl CombinatorTrait for Deferred {
                 let combinator = profile!("DeferredInner cache check", {
                         COMBINATOR_CACHE.with(|cache| {
                         let mut cache = cache.borrow_mut();
-                        cache.entry(self.inner.borrow().clone())
-                            .or_insert_with(|| profile!("DeferredInner init", Rc::new((f)())))
+                        cache.entry(f.clone())
+                            .or_insert_with(|| profile!("DeferredInner init", Rc::new((f.0)())))
                             .clone()
                     })
                 });
@@ -152,7 +169,7 @@ impl CombinatorTrait for Deferred {
 }
 
 pub fn deferred(f: &'static impl Fn() -> Combinator) -> Combinator {
-    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(f)) }.into()
+    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(DeferredFn(f))) }.into()
 }
 
 impl<T> From<&'static T> for Combinator

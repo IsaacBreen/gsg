@@ -19,26 +19,23 @@ impl From<Ref> for DeferredInner {
 
 impl Combinator {
     pub fn compile(mut self) -> Combinator {
-        let mut deferred_cache: HashMap<Deferred, Ref> = HashMap::new();
-        fn compile_inner(combinator: &Combinator, deferred_cache: &mut HashMap<Deferred, Ref>) {
+        let mut deferred_cache: HashMap<DeferredFn, Ref> = HashMap::new();
+        fn compile_inner(combinator: &Combinator, deferred_cache: &mut HashMap<DeferredFn, Ref>) {
             match combinator {
                 // Construct the deferred combinator
                 Combinator::Deferred(inner) => {
                     let new_inner: DeferredInner = match inner.inner.borrow().deref() {
                         DeferredInner::Uncompiled(f) => {
-                            if let Some(cached) = deferred_cache.get(&inner) {
-                                // *inner.inner.borrow_mut().deref_mut() = cached.clone().into();
+                            if let Some(cached) = deferred_cache.get(f) {
                                 cached.clone().into()
                             } else {
                                 let strong = strong_ref();
                                 let weak = strong.downgrade();
-                                deferred_cache.insert(inner.clone(), Ref::Weak(weak.clone()));
-                                // let mut lazy = inner.inner.as_ref();
-                                // let mut evaluated: Combinator = (**lazy).clone();
-                                let mut evaluated: Combinator = f();
+                                deferred_cache.insert(*f, Ref::Weak(weak.clone()));
+                                let mut evaluated: Combinator = (f.0)();
                                 compile_inner(&mut evaluated, deferred_cache);
                                 strong.set(evaluated);
-                                deferred_cache.insert(inner.clone(), Ref::Strong(strong.clone()));
+                                deferred_cache.insert(*f, Ref::Strong(strong.clone()));
                                 DeferredInner::CompiledStrong(strong.clone())
                             }
                         }
@@ -50,7 +47,7 @@ impl Combinator {
                         DeferredInner::CompiledWeak(weak) => {
                             let binding = weak.inner.upgrade().unwrap();
                             let inner: &Combinator = binding.get().unwrap();
-                            compile_inner(inner, deferred_cache);
+                            // compile_inner(inner, deferred_cache);
                             DeferredInner::CompiledWeak(weak.clone())
                         }
                     };
