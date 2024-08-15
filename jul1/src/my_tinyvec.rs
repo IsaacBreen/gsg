@@ -1,6 +1,6 @@
 use std::hash::Hash;
 use std::iter::FromIterator;
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, RangeBounds};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum FastVec<T> {
@@ -101,12 +101,8 @@ impl<T> FastVec<T> {
         todo!()
     }
 
-    pub fn drain(&mut self) -> impl Iterator<Item = T> {
-        match std::mem::replace(self, FastVec::None) {
-            FastVec::None => Vec::new().into_iter(),
-            FastVec::One(item) => vec![item].into_iter(),
-            FastVec::Many(vec) => vec.into_iter(),
-        }
+    pub fn drain(&mut self, range: impl RangeBounds<usize>) -> impl Iterator<Item = T> {
+        todo!()
     }
 }
 
