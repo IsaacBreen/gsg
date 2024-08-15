@@ -74,14 +74,14 @@ macro_rules! profile_block {
     }};
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
 pub struct Profiled {
     pub inner: Box<Combinator>,
     pub tag: String,
 }
 
 #[derive(Derivative)]
-#[derivative(Clone, PartialEq, Eq, Debug)]
+#[derivative(Clone, Debug)]
 pub struct ProfiledParser {
     pub inner: Box<Parser>,
     pub tag: String,

@@ -7,7 +7,7 @@ pub struct EatU8 {
     pub(crate) u8set: U8Set,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct EatU8Parser {
     pub(crate) u8set: U8Set,
     pub(crate) right_data: Option<RightData>,

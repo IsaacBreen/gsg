@@ -5,7 +5,7 @@ use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Se
 use crate::parse_state::RightData;
 use crate::trie::{FinishReason, TrieNode};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct EatByteStringChoice {
     pub(crate) root: Rc<TrieNode>,
 }
@@ -16,7 +16,7 @@ impl EatByteStringChoice {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct EatByteStringChoiceParser {
     pub(crate) root: Rc<TrieNode>,
     pub(crate) current_node: Rc<TrieNode>,
