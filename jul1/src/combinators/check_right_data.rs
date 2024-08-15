@@ -28,7 +28,7 @@ impl Debug for CheckRightData {
 }
 
 impl CombinatorTrait for CheckRightData {
-    fn parse(&self, right_ RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&right_data) {
             (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         } else {
@@ -36,7 +36,7 @@ impl CombinatorTrait for CheckRightData {
         }
     }
 
-    fn apply(&self, _f: &mut impl FnMut(&Combinator)) {}
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
 }
 
 pub fn check_right_data(run: impl Fn(&RightData) -> bool + 'static) -> CheckRightData {

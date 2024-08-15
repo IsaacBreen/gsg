@@ -73,12 +73,12 @@ pub enum Parser {
 }
 
 impl CombinatorTrait for Box<Combinator> {
-    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let inner = &**self;
         inner.parse(right_data, bytes)
     }
 
-    fn apply(&self, f: &mut impl FnMut(&Combinator)) {
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         (**self).apply(f);
     }
 }
@@ -160,8 +160,8 @@ macro_rules! match_parser {
 }
 
 pub trait CombinatorTrait: std::fmt::Debug {
-    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults);
-    fn apply(&self, f: &mut impl FnMut(&Combinator));
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {todo!()}
 }
 
 pub trait ParserTrait: std::fmt::Debug {
@@ -186,7 +186,7 @@ pub trait ParserTrait: std::fmt::Debug {
 }
 
 impl CombinatorTrait for Combinator {
-    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         // let (mut parser, parse_results) = match_combinator!(self, inner => inner.parse(right_data, bytes));
         // if !parse_results.done() && bytes.len() > 100 {
             // println!("Combinator {:?} did not consume all input. Positions: {:?}, bytes.len(): {}", self, parse_results.right_data_vec.iter().map(|x| x.position).collect::<Vec<_>>(), bytes.len());
@@ -197,7 +197,7 @@ impl CombinatorTrait for Combinator {
         match_combinator!(self, inner => inner.parse(right_data, bytes))
     }
 
-    fn apply(&self, f: &mut impl FnMut(&Combinator)) {
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         match_combinator!(self, inner => inner.apply(f))
     }
 }
@@ -221,7 +221,7 @@ impl Combinator {
 }
 
 pub trait CombinatorTraitExt: CombinatorTrait {
-    fn parser(&self, right_ RightData) -> (Parser, ParseResults) {
+    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
         self.parse(right_data, &[])
     }
 }

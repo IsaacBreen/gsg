@@ -49,9 +49,9 @@ impl Combinator {
                     *inner.inner.borrow_mut() = new_inner;
                 }
                 _ => {
-                    combinator.apply(&mut |combinator| {
-                        compile_inner(combinator, deferred_cache);
-                    });
+                    // combinator.apply(&mut |combinator| {
+                    //     compile_inner(combinator, deferred_cache);
+                    // });
                 }
             }
         }
