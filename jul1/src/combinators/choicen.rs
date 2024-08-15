@@ -3,6 +3,12 @@ use std::collections::BTreeMap;
 use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY, vecx, Fail};
 use crate::ChoiceParser;
 
+macro_rules! profile {
+    ($tag:expr, $body:expr) => {{
+        $body
+    }};
+}
+
 #[macro_export]
 macro_rules! define_choice {
     ($choice_name:ident, $first:ident, $($rest:ident),+) => {
