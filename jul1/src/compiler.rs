@@ -17,8 +17,12 @@ impl From<Ref> for DeferredInner {
     }
 }
 
-impl Combinator {
-    pub fn compile(mut self) -> Combinator {
+pub trait Compile {
+    fn compile(self) -> Self;
+}
+
+impl<T: CombinatorTrait> Compile for T {
+     fn compile(mut self) -> Self {
         let mut deferred_cache: HashMap<DeferredFn, Ref> = HashMap::new();
         fn compile_inner(combinator: &dyn CombinatorTrait, deferred_cache: &mut HashMap<DeferredFn, Ref>) {
             if let Some(Deferred { inner }) = combinator.as_any().downcast_ref::<Deferred>() {

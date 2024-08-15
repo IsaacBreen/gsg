@@ -1,3 +1,4 @@
+use crate::CombinatorTrait;
 use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
@@ -13,15 +14,15 @@ use crate::{
 use crate::unicode::get_unicode_general_category_bytestrings;
 use crate::unicode_categories::GeneralCategory;
 
-pub fn breaking_space() -> Combinator {
+pub fn breaking_space()-> impl CombinatorTrait {
     eat_char_choice("\n\r").into()
 }
 
-pub fn not_breaking_space() -> Combinator {
+pub fn not_breaking_space()-> impl CombinatorTrait {
     eat_char_negation_choice("\n\r").into()
 }
 
-pub fn non_breaking_space() -> Combinator {
+pub fn non_breaking_space()-> impl CombinatorTrait {
     eat_char_choice(" \t").into()
 }
 
@@ -63,7 +64,7 @@ pub fn non_breaking_space_fast() -> Expr {
 // tokens.  Whitespace is needed between two tokens only if their concatenation
 // could otherwise be interpreted as a different token (e.g., ab is one token, but
 // a b is two tokens).
-pub fn whitespace() -> Combinator {
+pub fn whitespace()-> impl CombinatorTrait {
     // return repeat1(choice!(
     //         // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
     //         seq!(
@@ -133,7 +134,7 @@ pub fn whitespace() -> Combinator {
     }).into()
 }
 
-pub fn WS() -> Combinator {
+pub fn WS()-> impl CombinatorTrait {
     whitespace()
 }
 
@@ -349,19 +350,19 @@ pub fn xid_continue_fast() -> Expr {
     id_continue_fast()
 }
 
-pub fn id_start() -> Combinator {
+pub fn id_start()-> impl CombinatorTrait {
     eat_bytestring_choice(id_start_bytestrings())
 }
 
-pub fn id_continue() -> Combinator {
+pub fn id_continue()-> impl CombinatorTrait {
     eat_bytestring_choice(id_continue_bytestrings())
 }
 
-pub fn xid_start() -> Combinator {
+pub fn xid_start()-> impl CombinatorTrait {
     eat_bytestring_choice(id_start_bytestrings())
 }
 
-pub fn xid_continue() -> Combinator {
+pub fn xid_continue()-> impl CombinatorTrait {
     eat_bytestring_choice(id_continue_bytestrings())
 }
 
@@ -531,7 +532,7 @@ impl NormalizeParseResult<(char, usize)> for Option<Result<(char, usize), Utf8Er
     }
 }
 
-pub fn NAME() -> Combinator {
+pub fn NAME()-> impl CombinatorTrait {
     let combinator = brute_force(|mut right_data, bytes| {
         let mut s = Utf8CharDecoder::new(bytes);
 
@@ -713,7 +714,7 @@ pub fn eat_until_terminator(terminator: char) -> Expr {
     repeat1_fast(eat_char_negation_fast(terminator))
 }
 
-pub fn STRING() -> Combinator {
+pub fn STRING()-> impl CombinatorTrait {
     use crate::fast_combinator::{opt_fast as opt, eat_char_fast as eat_char, eat_char_negation_fast as eat_char_negation, eat_char_choice_fast as eat_char_choice, repeatn_fast as repeatn, eat_char_negation_choice_fast as eat_char_negation_choice, eat_string_fast as eat_string, repeat1_fast as repeat1, repeat0_fast as repeat0};
 
     let stringprefix = opt(choice_fast!(
@@ -905,7 +906,7 @@ pub enum PythonQuoteType {
     ThreeDouble,
 }
 
-pub fn FSTRING_START() -> Combinator {
+pub fn FSTRING_START()-> impl CombinatorTrait {
     let prefix = choice_fast!(
         eat_char_choice_fast("fF"),
         seq_fast!(eat_char_choice_fast("fF"), eat_char_choice_fast("rR")),
@@ -924,7 +925,7 @@ pub fn FSTRING_START() -> Combinator {
     ).into()
 }
 
-pub fn FSTRING_MIDDLE() -> Combinator {
+pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
     let stringescapeseq = choice_fast!(
         seq_fast!(eat_char_fast('\\'), eat_char_choice_fast("\\'\"abfnrtv")),
         seq_fast!(eat_char_fast('\\'), eat_char_fast('x'), repeatn_fast(2, eat_char_hex_digit())),
@@ -956,7 +957,7 @@ pub fn FSTRING_MIDDLE() -> Combinator {
     ).into()
 }
 
-pub fn FSTRING_END() -> Combinator {
+pub fn FSTRING_END()-> impl CombinatorTrait {
     let quote = choice!(
         // seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.right_data_inner).fields2.fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
         seq!(eat_char('\''), mutate_right_data(|right_data| { Rc::make_mut(&mut Rc::make_mut(&mut right_data.right_data_inner).fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::OneSingle })),
@@ -1083,7 +1084,7 @@ pub fn FSTRING_END() -> Combinator {
 // imaginary literals::
 //
 //    3.14j   10.j    10j     .001j   1e100j   3.14e-10j   3.14_15_93j
-pub fn NUMBER() -> Combinator {
+pub fn NUMBER()-> impl CombinatorTrait {
     use crate::fast_combinator::{opt_fast as opt, eat_char_fast as eat_char, eat_char_negation_fast as eat_char_negation, eat_char_choice_fast as eat_char_choice, repeatn_fast as repeatn, eat_char_negation_choice_fast as eat_char_negation_choice, eat_string_fast as eat_string, repeat1_fast as repeat1, repeat0_fast as repeat0, eat_byte_range_fast as eat_byte_range};
 
     let digit = eat_byte_range(b'0', b'9');
@@ -1175,7 +1176,7 @@ pub fn comment() -> Expr {
 // When embedding Python, source code strings should be passed to Python APIs using
 // the standard C conventions for newline characters (the ``\n`` character,
 // representing ASCII LF, is the line terminator).
-pub fn NEWLINE() -> Combinator {
+pub fn NEWLINE()-> impl CombinatorTrait {
     let end_of_line = seq_fast!(opt_fast(comment()), breaking_space_fast());
     let blank_line = seq_fast!(repeat0_fast(non_breaking_space_fast()), end_of_line.clone());
     seq!(end_of_line, repeat0_fast(blank_line), dent()).into()
@@ -1258,19 +1259,19 @@ pub fn NEWLINE() -> Combinator {
 // (Actually, the first three errors are detected by the parser; only the last
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
-pub fn INDENT() -> Combinator {
+pub fn INDENT()-> impl CombinatorTrait {
     indent().into()
 }
 
-pub fn DEDENT() -> Combinator {
+pub fn DEDENT()-> impl CombinatorTrait {
     dedent().into()
 }
 
-pub fn ENDMARKER() -> Combinator {
+pub fn ENDMARKER()-> impl CombinatorTrait {
     eps().into()
 }
 
-pub fn TYPE_COMMENT() -> Combinator {
+pub fn TYPE_COMMENT()-> impl CombinatorTrait {
     // seq!(eat_string("#"), opt(whitespace()), eat_string("type:"), opt(whitespace()), repeat0(eat_char_negation_choice("\n\r")))
     fail().into()
 }

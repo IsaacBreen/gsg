@@ -205,7 +205,7 @@ mod more_tests {
 
     #[test]
     fn test_from_fn() {
-        fn A() -> Combinator {
+        fn A()-> impl CombinatorTrait {
             choice!(seq!(eat_char('a'), &A), eat_char('b')).into()
         }
 

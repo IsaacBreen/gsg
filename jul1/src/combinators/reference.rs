@@ -84,7 +84,7 @@ pub fn strong_ref() -> StrongRef {
 }
 
 impl StrongRef {
-    pub fn set(&self, inner: impl Into<Combinator>) {
+    pub fn set(&self, inner: impl CombinatorTrait) {
         self.inner.set(inner.into()).ok().expect("Cannot set value more than once");
     }
 

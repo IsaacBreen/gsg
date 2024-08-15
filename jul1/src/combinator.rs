@@ -16,41 +16,7 @@ macro_rules! match_enum {
     };
 }
 
-#[derive(Debug)]
-pub enum Combinator {
-    Seq(Seq),
-    Choice(Choice),
-    EatU8(EatU8),
-    EatString(EatString),
-    Eps(Eps),
-    Fail(Fail),
-    CacheContext(CacheContext),
-    Cached(Cached),
-    IndentCombinator(IndentCombinator),
-    MutateRightData(MutateRightData),
-    Repeat1(Repeat1<Combinator>),
-    Symbol(Symbol),
-    Tagged(Tagged),
-    ForbidFollows(ForbidFollows),
-    ForbidFollowsClear(ForbidFollowsClear),
-    ForbidFollowsCheckNot(ForbidFollowsCheckNot),
-    EatByteStringChoice(EatByteStringChoice),
-    CheckRightData(CheckRightData),
-    Deferred(Deferred),
-    Lookahead(Lookahead),
-    ExcludeBytestrings(ExcludeBytestrings),
-    Profiled(Profiled),
-    Opt(Opt<Box<Combinator>>),
-    Repeat0(Opt<Repeat1<Combinator>>),
-    SepRep1(Seq2<Box<Combinator>, Opt<Repeat1<Seq2<Combinator, Combinator>>>>),
-    WeakRef(WeakRef),
-    StrongRef(StrongRef),
-    BruteForce(BruteForce),
-    Continuation(Continuation),
-    Fast(FastCombinatorWrapper),
-    Dyn(Box<dyn CombinatorTrait>),
-    DynRc(Rc<dyn CombinatorTrait>),
-}
+pub type Combinator = Box<dyn CombinatorTrait>;
 
 #[derive(Debug)]
 pub enum Parser {
@@ -193,22 +159,15 @@ pub trait ParserTrait: std::fmt::Debug {
 
 impl CombinatorTrait for Combinator {
     fn as_any(&self) -> &dyn std::any::Any {
-        match_combinator!(self, inner => inner.as_any())
+        (**self).as_any()
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        // let (mut parser, parse_results) = match_combinator!(self, inner => inner.parse(right_data, bytes));
-        // if !parse_results.done() && bytes.len() > 100 {
-            // println!("Combinator {:?} did not consume all input. Positions: {:?}, bytes.len(): {}", self, parse_results.right_data_vec.iter().map(|x| x.position).collect::<Vec<_>>(), bytes.len());
-        // }
-        // profile!("Combinator::transpose", { parser.transpose(); });
-        // (parser, parse_results)
-
-        match_combinator!(self, inner => inner.parse(right_data, bytes))
+        (**self).parse(right_data, bytes)
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        match_combinator!(self, inner => inner.apply(f));
+        (**self).apply(f);
     }
 }
 
@@ -221,12 +180,6 @@ impl ParserTrait for Parser {
         let parse_results = match_parser!(self, inner => inner.parse(bytes));
         // profile!("Parser::transpose", { self.transpose(); });
         parse_results
-    }
-}
-
-impl Combinator {
-    pub fn type_name(&self) -> String {
-        match_combinator!(self, inner => std::any::type_name_of_val(&inner)).to_string()
     }
 }
 

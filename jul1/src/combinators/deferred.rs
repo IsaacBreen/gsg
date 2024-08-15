@@ -21,7 +21,7 @@ pub struct Deferred {
 }
 
 #[derive(Clone, Copy)]
-pub struct DeferredFn(pub &'static dyn Fn() -> Combinator);
+pub struct DeferredFn(pub &'static dyn Fn()-> Combinator);
 
 impl PartialEq for DeferredFn {
     fn eq(&self, other: &Self) -> bool {
@@ -127,13 +127,13 @@ impl CombinatorTrait for Deferred {
     }
 }
 
-pub fn deferred(f: &'static impl Fn() -> Combinator) -> Combinator {
+pub fn deferred(f: &'static impl Fn() -> Combinator) -> impl CombinatorTrait {
     Deferred { inner: RefCell::new(DeferredInner::Uncompiled(DeferredFn(f))) }.into()
 }
 
 impl<T> From<&'static T> for Combinator
 where
-    T: Fn() -> Combinator
+    T: Fn()-> Combinator
 {
     fn from(value: &'static T) -> Self {
         deferred(value).into()

@@ -41,7 +41,6 @@ mod stats;
 mod unicode_categories;
 mod internal_vec;
 mod map;
-mod compiler_greedy;
 mod fast_combinator;
 mod trie;
 mod tokenizer;

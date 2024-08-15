@@ -22,7 +22,7 @@ impl CombinatorTrait for Symbol {
     }
 }
 
-pub fn symbol(value: impl Into<Combinator>) -> Symbol {
+pub fn symbol(value: impl CombinatorTrait) -> Symbol {
     Symbol { value: Rc::new(value.into()) }
 }
 

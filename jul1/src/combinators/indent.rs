@@ -22,7 +22,7 @@ impl CombinatorTrait for IndentCombinator {
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
-                fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize) -> Combinator { // TODO: Make this a macro
+                fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize)-> impl CombinatorTrait { // TODO: Make this a macro
                     if indents.is_empty() {
                         eps().into()
                     } else {
@@ -149,7 +149,7 @@ pub fn assert_no_dedents() -> IndentCombinator {
     IndentCombinator::AssertNoDedents
 }
 
-pub fn with_indent(a: impl Into<Combinator>) -> Combinator {
+pub fn with_indent(a: impl CombinatorTrait)-> impl CombinatorTrait {
     seq!(indent(), a, dedent()).into()
 }
 

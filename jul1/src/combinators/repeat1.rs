@@ -139,29 +139,29 @@ impl ParserTrait for Repeat1Parser {
     }
 }
 
-pub fn repeat1(a: impl Into<Combinator>) -> Combinator {
+pub fn repeat1(a: impl CombinatorTrait)-> impl CombinatorTrait {
     profile_internal("repeat1", Repeat1 {
         a: Rc::new(a.into()),
         greedy: false,
     })
 }
 
-pub fn repeat1_greedy(a: impl Into<Combinator>) -> Combinator {
+pub fn repeat1_greedy(a: impl CombinatorTrait)-> impl CombinatorTrait {
     profile_internal("repeat1_greedy", Repeat1 {
         a: Rc::new(a.into()),
         greedy: true,
     })
 }
 
-pub fn repeat0(a: impl Into<Combinator>) -> Combinator {
+pub fn repeat0(a: impl CombinatorTrait)-> impl CombinatorTrait {
     Combinator::Repeat0(Opt { inner: Repeat1 { a: Rc::new(a.into()), greedy: false }, greedy: false })
 }
 
-pub fn repeat0_greedy(a: impl Into<Combinator>) -> Combinator {
+pub fn repeat0_greedy(a: impl CombinatorTrait)-> impl CombinatorTrait {
     Combinator::Repeat0(Opt { inner: Repeat1 { a: Rc::new(a.into()), greedy: true }, greedy: true })
 }
 
-pub fn seprep1(a: impl Into<Combinator> + Clone, b: impl Into<Combinator>) -> Combinator {
+pub fn seprep1(a: impl CombinatorTrait + Clone, b: impl CombinatorTrait)-> impl CombinatorTrait {
     Combinator::SepRep1(Seq2 {
         c0: Box::new(a.clone().into()),
         c1: Opt { inner: Repeat1 { a: Seq2 {

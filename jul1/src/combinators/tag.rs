@@ -55,7 +55,7 @@ impl CombinatorTrait for Tagged {
     }
 }
 
-pub fn tag(tag: &str, a: impl Into<Combinator>) -> Combinator {
+pub fn tag(tag: &str, a: impl CombinatorTrait)-> impl CombinatorTrait {
     // TODO: ffs
     // Tagged { inner: Box::new(a.into()), tag: tag.to_string() }.into()
     // Tagged { inner: Box::new(profile(tag, a).into()), tag: tag.to_string() }.into()

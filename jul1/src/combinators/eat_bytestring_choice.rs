@@ -72,11 +72,11 @@ impl ParserTrait for EatByteStringChoiceParser {
     }
 }
 
-pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> Combinator {
+pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>)-> impl CombinatorTrait {
     EatByteStringChoice::new(bytestrings).into()
 }
 
-pub fn eat_string_choice(strings: &[&str]) -> Combinator {
+pub fn eat_string_choice(strings: &[&str])-> impl CombinatorTrait {
     eat_bytestring_choice(strings.iter().map(|s| s.as_bytes().to_vec()).collect())
 }
 
