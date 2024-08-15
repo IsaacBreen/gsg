@@ -45,3 +45,4 @@ mod fast_combinator;
 mod trie;
 mod tokenizer;
 mod transpose;
+mod my_tinyvec;
