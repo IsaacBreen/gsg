@@ -1,13 +1,19 @@
 use std::any::Any;
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, U8Set};
-#[derive(Debug, Clone)]
-pub struct Symbol {
-    pub value: Rc<Combinator>,
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, U8Set, IntoCombinator};
+#[derive(Debug)]
+pub struct Symbol<T> {
+    pub value: Rc<T>,
 }
 
-impl CombinatorTrait for Symbol {
+impl<T> Clone for Symbol<T> {
+    fn clone(&self) -> Self {
+        Symbol { value: self.value.clone() }
+    }
+}
+
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -22,8 +28,8 @@ impl CombinatorTrait for Symbol {
     }
 }
 
-pub fn symbol(value: impl CombinatorTrait + 'static) -> Symbol {
-    Symbol { value: Rc::new(Box::new(value)) }
+pub fn symbol<T: IntoCombinator>(value: T)-> Symbol<T::Output> {
+    Symbol { value: Rc::new(value.into_combinator()) }
 }
 
 // impl From<&Symbol> for Symbol {

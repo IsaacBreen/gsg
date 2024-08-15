@@ -23,8 +23,8 @@ impl<T: CombinatorTrait> IntoCombinator for T {
 //     }
 // }
 
-impl IntoCombinator for &Symbol {
-    type Output = Symbol;
+impl<T: CombinatorTrait + 'static> IntoCombinator for &Symbol<T> {
+    type Output = Symbol<T>;
     fn into_combinator(self) -> Self::Output {
         self.clone()
     }
