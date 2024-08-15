@@ -3,6 +3,12 @@ use std::collections::BTreeMap;
 use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY, vecx, Fail};
 use crate::SeqParser;
 
+macro_rules! profile {
+    ($name:expr, $body:expr) => {
+        $body
+    };
+}
+
 #[macro_export]
 macro_rules! define_seq {
     ($seq_name:ident, $first:ident, $($rest:ident),+ $(,)?) => {
