@@ -5,7 +5,7 @@ use crate::SeqParser;
 
 #[macro_export]
 macro_rules! define_seq {
-    ($seq_name:ident, $first:ident, $($rest:ident),+) => {
+    ($seq_name:ident, $first:ident, $($rest:ident),+ $(,)?) => {
         #[derive(Debug)]
         pub struct $seq_name<$first, $($rest),+>
         where
@@ -79,13 +79,23 @@ macro_rules! define_seq {
 
                 let parser = Parser::SeqParser(SeqParser {
                     parsers,
-                    combinators: Rc::new(vecx![Combinator::Fail(Fail), $(Combinator::DynRc(self.$rest.clone())),+]),
+                    combinators: std::rc::Rc::new(vecx![Combinator::Fail(Fail), $(Combinator::DynRc(self.$rest.clone())),+]),
                     position: start_position + bytes.len(),
                 });
 
                 let parse_results = ParseResults::new(final_right_data, false);
 
                 (parser.into(), parse_results)
+            }
+        }
+
+        impl<$first, $($rest),+> From<$seq_name<$first, $($rest),+>> for Combinator
+        where
+            $first: CombinatorTrait + 'static,
+            $($rest: CombinatorTrait + 'static),+
+        {
+            fn from(c: $seq_name<$first, $($rest),+>) -> Self {
+                Combinator::Dyn(Box::new(c))
             }
         }
     };
@@ -101,81 +111,87 @@ define_seq!(Seq8, c0, c1, c2, c3, c4, c5, c6, c7);
 define_seq!(Seq9, c0, c1, c2, c3, c4, c5, c6, c7, c8);
 
 #[macro_export]
-macro_rules! seqn {
-    ($c0:expr, $c1:expr) => {
+macro_rules! seq {
+    ($c0:expr $(,)?) => {
+        $c0
+    };
+    ($c0:expr, $c1:expr $(,)?) => {
         $crate::Seq2 {
             c0: $c0,
-            c1: Rc::new($c1),
+            c1: std::rc::Rc::new($c1),
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr) => {
+    ($c0:expr, $c1:expr, $c2:expr $(,)?) => {
         $crate::Seq3 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
+            c1: std::rc::Rc::new($c1),
+            c2: std::rc::Rc::new($c2),
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr) => {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr $(,)?) => {
         $crate::Seq4 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
+            c1: std::rc::Rc::new($c1),
+            c2: std::rc::Rc::new($c2),
+            c3: std::rc::Rc::new($c3),
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr) => {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr $(,)?) => {
         $crate::Seq5 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
+            c1: std::rc::Rc::new($c1),
+            c2: std::rc::Rc::new($c2),
+            c3: std::rc::Rc::new($c3),
+            c4: std::rc::Rc::new($c4),
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr) => {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr $(,)?) => {
         $crate::Seq6 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
+            c1: std::rc::Rc::new($c1),
+            c2: std::rc::Rc::new($c2),
+            c3: std::rc::Rc::new($c3),
+            c4: std::rc::Rc::new($c4),
+            c5: std::rc::Rc::new($c5),
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr) => {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr $(,)?) => {
         $crate::Seq7 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
-            c6: Rc::new($c6),
+            c1: std::rc::Rc::new($c1),
+            c2: std::rc::Rc::new($c2),
+            c3: std::rc::Rc::new($c3),
+            c4: std::rc::Rc::new($c4),
+            c5: std::rc::Rc::new($c5),
+            c6: std::rc::Rc::new($c6),
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr) => {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr $(,)?) => {
         $crate::Seq8 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
-            c6: Rc::new($c6),
-            c7: Rc::new($c7),
+            c1: std::rc::Rc::new($c1),
+            c2: std::rc::Rc::new($c2),
+            c3: std::rc::Rc::new($c3),
+            c4: std::rc::Rc::new($c4),
+            c5: std::rc::Rc::new($c5),
+            c6: std::rc::Rc::new($c6),
+            c7: std::rc::Rc::new($c7),
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr) => {
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr $(,)?) => {
         $crate::Seq9 {
             c0: $c0,
-            c1: Rc::new($c1),
-            c2: Rc::new($c2),
-            c3: Rc::new($c3),
-            c4: Rc::new($c4),
-            c5: Rc::new($c5),
-            c6: Rc::new($c6),
-            c7: Rc::new($c7),
-            c8: Rc::new($c8),
+            c1: std::rc::Rc::new($c1),
+            c2: std::rc::Rc::new($c2),
+            c3: std::rc::Rc::new($c3),
+            c4: std::rc::Rc::new($c4),
+            c5: std::rc::Rc::new($c5),
+            c6: std::rc::Rc::new($c6),
+            c7: std::rc::Rc::new($c7),
+            c8: std::rc::Rc::new($c8),
         }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $($rest:expr),+ $(,)?) => {
+        $crate::_seq(vec![$c0, $c1, $c2, $c3, $c4, $c5, $c6, $c7, $c8, $($rest),+])
     };
 }

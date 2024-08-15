@@ -150,7 +150,7 @@ pub fn assert_no_dedents() -> IndentCombinator {
 }
 
 pub fn with_indent(a: impl Into<Combinator>) -> Combinator {
-    seq!(indent(), a, dedent())
+    seq!(indent(), a, dedent()).into()
 }
 
 impl From<IndentCombinator> for Combinator {

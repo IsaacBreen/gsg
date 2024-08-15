@@ -192,12 +192,12 @@ pub fn _seq(v: Vec<Combinator>) -> Combinator {
     })
 }
 
-#[macro_export]
-macro_rules! seq {
-    ($($expr:expr),+ $(,)?) => {
-        $crate::_seq(vec![$($expr.into()),+])
-    };
-}
+// #[macro_export]
+// macro_rules! seq {
+//     ($($expr:expr),+ $(,)?) => {
+//         $crate::_seq(vec![$($expr.into()),+])
+//     };
+// }
 
 impl From<Seq> for Combinator {
     fn from(value: Seq) -> Self {
