@@ -1,75 +1,45 @@
+#[macro_export]
 macro_rules! define_seq {
-    ($seq_name:ident, $($types:ident),+) => {
+    ($name:ident, $($child:ident),+) => {
         #[derive(Debug)]
-        pub struct $seq_name<$($types),+>
+        pub struct $name<$($child),+>
         where
-            $($types: CombinatorTrait),+,
+            $($child: CombinatorTrait),+
         {
-            pub(crate) combinators: ( $(Rc<$types>),+ ),
+            $(pub(crate) $child: Rc<$child>),+
         }
 
-        impl<$($types),+> CombinatorTrait for $seq_name<$($types),+>
+        impl<$($child),+> CombinatorTrait for $name<$($child),+>
         where
-            $($types: CombinatorTrait + 'static),+
+            $($child: CombinatorTrait + 'static),+
         {
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
                 let start_position = right_data.right_data_inner.fields1.position;
 
-                let (first_parser, first_parse_results) = profile!(concat!(stringify!($seq_name), " first child parse"), {
-                    self.combinators.0.parse(right_data, &bytes)
-                });
-
-                let done = first_parse_results.done();
-                if done && first_parse_results.right_data_vec.is_empty() {
-                    return (Parser::FailParser(FailParser), first_parse_results);
-                }
-
-                let mut parsers = if done {
-                    vec![]
-                } else {
-                    vec![(0, first_parser)]
-                };
-
+                let mut parsers = Vec::new();
                 let mut final_right_data = VecY::new();
-                let mut next_right_data_vec = first_parse_results.right_data_vec;
+                let mut next_right_data_vec = vecx![right_data];
 
-                fn helper<T: CombinatorTrait>(right_data: RightData, next_combinator: &Rc<T>, bytes: &[u8], start_position: usize, parsers: &mut Vec<(usize, Parser)>) -> VecY<RightData> {
-                    let offset = right_data.right_data_inner.fields1.position - start_position;
-                    let (parser, parse_results) = profile!("Child Parser", {
-                        next_combinator.parse(right_data, &bytes[offset..])
-                    });
-                    if !parse_results.done() {
-                        parsers.push((1, parser));
-                    }
-                    parse_results.right_data_vec
-                }
-
-                let mut next_next_right_data_vec = VecY::new();
-                let combinator_tuple = &self.combinators;
-
-                // Iterate over each combinator except the first one
-                // We'll use recursion to achieve this
-
-                #[allow(non_snake_case)]
-                macro_rules! parse_recursive {
-                    // Base case: when there is no more combinator in the tuple to parse
-                    (@next $right_data_vec:expr, $final_right_data:expr, $start_position:expr, $bytes:expr, $parsers:expr, ) => {
-                        $final_right_data = $right_data_vec;
-                    };
-
-                    // Recursive case: parse the next combinator
-                    (@next $right_data_vec:expr, $final_right_data:expr, $start_position:expr, $bytes:expr, $parsers:expr, $Cn:ident, $($rest:ident,)* ) => {
-                        for right_data in $right_data_vec {
-                            next_next_right_data_vec.extend(helper(right_data, &combinator_tuple.$Cn, $bytes, $start_position, &mut $parsers));
+                $(
+                    let mut next_next_right_data_vec = VecY::new();
+                    for right_data in next_right_data_vec {
+                        let offset = right_data.right_data_inner.fields1.position - start_position;
+                        let (parser, parse_results) = profile!(concat!("seq ", stringify!($name), " child parse"), {
+                            self.$child.parse(right_data, &bytes[offset..])
+                        });
+                        if !parse_results.done() {
+                            parsers.push((parsers.len(), parser));
                         }
-                        let next_right_data_vec = next_next_right_data_vec;
-                        let mut next_next_right_data_vec = VecY::new();
-                        parse_recursive!(@next next_right_data_vec, $final_right_data, $start_position, $bytes, $parsers, $($rest,)*);
-                    };
-                }
+                        next_next_right_data_vec.extend(parse_results.right_data_vec);
+                    }
+                    next_right_data_vec = next_next_right_data_vec;
 
-                parse_recursive!(@next next_right_data_vec, final_right_data, start_position, bytes, parsers, 1, 2, 3,); // You need to put indices corresponding to the combinators
+                    if next_right_data_vec.is_empty() {
+                        return (Parser::FailParser(FailParser), ParseResults::new(VecY::new(), true));
+                    }
+                )+
 
+                final_right_data = next_right_data_vec;
 
                 if parsers.is_empty() {
                     return (Parser::FailParser(FailParser), ParseResults::new(final_right_data, true));
@@ -77,7 +47,7 @@ macro_rules! define_seq {
 
                 let parser = Parser::SeqParser(SeqParser {
                     parsers,
-                    combinators: Rc::new(vecx![Combinator::Fail(Fail), Combinator::DynRc(self.combinators.1.clone())]), // Change to loop through combinators
+                    combinators: Rc::new(vecx![$(Combinator::DynRc(self.$child.clone())),+]),
                     position: start_position + bytes.len(),
                 });
 
@@ -88,17 +58,17 @@ macro_rules! define_seq {
         }
 
         #[macro_export]
-        macro_rules! $seq_name {
-            ($($combinator:expr),+) => {
-                $crate::$seq_name {
-                    combinators: ($($combinator),+),
+        macro_rules! $name {
+            ($($child_expr:expr),+) => {
+                $crate::$name {
+                    $($child: Rc::new($child_expr)),+
                 }
             };
         }
     };
 }
 
-// Use the macro to define Seq2, Seq3, etc.
 define_seq!(Seq2, A, B);
 define_seq!(Seq3, A, B, C);
-// You could continue to define more if needed...
+define_seq!(Seq4, A, B, C, D);
+// ... and so on
