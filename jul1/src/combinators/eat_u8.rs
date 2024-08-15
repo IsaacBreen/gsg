@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::ops::RangeBounds;
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
@@ -14,6 +15,10 @@ pub struct EatU8Parser {
 }
 
 impl CombinatorTrait for EatU8 {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatU8Parser {
             u8set: self.u8set.clone(),

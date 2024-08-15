@@ -17,7 +17,7 @@ pub struct ChoiceParser {
 }
 
 impl CombinatorTrait for Choice {
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 

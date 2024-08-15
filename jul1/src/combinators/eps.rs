@@ -1,3 +1,4 @@
+use std::any::Any;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::RightData;
 #[derive(Debug)]
@@ -7,6 +8,9 @@ pub struct Eps;
 pub struct EpsParser;
 
 impl CombinatorTrait for Eps {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::EpsParser(EpsParser), ParseResults::new_single(right_data, true))

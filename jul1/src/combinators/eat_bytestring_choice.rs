@@ -24,7 +24,7 @@ pub struct EatByteStringChoiceParser {
 }
 
 impl CombinatorTrait for EatByteStringChoice {
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 

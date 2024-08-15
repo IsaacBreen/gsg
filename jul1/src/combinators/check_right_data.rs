@@ -28,7 +28,7 @@ impl Debug for CheckRightData {
 }
 
 impl CombinatorTrait for CheckRightData {
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
     fn parse(&self, right_data: RightData, _bytes: &[u8]) -> (Parser, ParseResults) {

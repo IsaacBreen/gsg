@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecX};
 use crate::internal_vec::VecY;
@@ -22,6 +23,10 @@ pub struct EatStringParser {
 }
 
 impl CombinatorTrait for EatString {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatStringParser {
             string: self.string.clone(),

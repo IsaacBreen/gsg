@@ -83,7 +83,7 @@ impl CombinatorTrait for Box<Combinator> {
         (**self).apply(f);
     }
 
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         (**self).as_any()
     }
 }
@@ -192,7 +192,7 @@ pub trait ParserTrait: std::fmt::Debug {
 }
 
 impl CombinatorTrait for Combinator {
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         match_combinator!(self, inner => inner.as_any())
     }
 

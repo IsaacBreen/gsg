@@ -18,7 +18,7 @@ pub struct ExcludeBytestringsParser {
 }
 
 impl CombinatorTrait for ExcludeBytestrings {
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

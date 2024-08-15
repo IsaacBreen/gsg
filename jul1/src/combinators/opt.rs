@@ -7,10 +7,11 @@ pub struct Opt<T: CombinatorTrait> {
     pub(crate) greedy: bool,
 }
 
-impl<T: CombinatorTrait> CombinatorTrait for Opt<T> {
-    fn as_any(&self) -> &dyn Any {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         if !(self.greedy && parse_results.succeeds_decisively()) {

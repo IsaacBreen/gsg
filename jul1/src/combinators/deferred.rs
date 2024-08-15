@@ -88,7 +88,7 @@ impl Debug for Deferred {
 }
 
 impl CombinatorTrait for Deferred {
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

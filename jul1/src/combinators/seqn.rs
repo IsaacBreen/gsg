@@ -20,6 +20,10 @@ macro_rules! define_seq {
             $first: CombinatorTrait + 'static,
             $($rest: CombinatorTrait + 'static),+
         {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
                 let start_position = right_data.right_data_inner.fields1.position;
 

@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::rc::Rc;
 use std::collections::{BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
@@ -25,6 +26,10 @@ pub struct SeqParser {
 }
 
 impl CombinatorTrait for Seq {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
 

@@ -21,7 +21,7 @@ impl Combinator {
     pub fn compile(mut self) -> Combinator {
         let mut deferred_cache: HashMap<DeferredFn, Ref> = HashMap::new();
         fn compile_inner(combinator: &dyn CombinatorTrait, deferred_cache: &mut HashMap<DeferredFn, Ref>) {
-            if let Ok(Deferred { inner }) = todo!() {
+            if let Some(Deferred { inner }) = combinator.as_any().downcast_ref::<Deferred>() {
                 let new_inner: DeferredInner = match inner.borrow().deref() {
                     DeferredInner::Uncompiled(f) => {
                         if let Some(cached) = deferred_cache.get(f) {

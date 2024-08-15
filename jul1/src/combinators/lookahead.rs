@@ -27,7 +27,7 @@ pub struct Lookahead {
 }
 
 impl CombinatorTrait for Lookahead {
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

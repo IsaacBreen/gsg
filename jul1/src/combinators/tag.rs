@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::fmt::{Debug, Formatter};
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 
@@ -31,6 +32,10 @@ impl Debug for TaggedParser {
 }
 
 impl CombinatorTrait for Tagged {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {

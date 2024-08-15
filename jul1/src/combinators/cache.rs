@@ -108,7 +108,7 @@ pub struct CacheContextParser {
 }
 
 impl CombinatorTrait for CacheContext {
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
@@ -133,10 +133,6 @@ impl CombinatorTrait for CacheContext {
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -175,7 +171,7 @@ impl ParserTrait for CacheContextParser {
 }
 
 impl CombinatorTrait for Cached {
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

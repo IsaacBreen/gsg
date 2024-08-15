@@ -22,11 +22,15 @@ macro_rules! define_choice {
             pub(crate) greedy: bool,
         }
 
-        impl<$first, $($rest),+> CombinatorTrait for $choice_name<$first, $($rest),+>
+        impl<$first: 'static, $($rest: 'static),+> CombinatorTrait for $choice_name<$first, $($rest),+>
         where
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
                 let mut parsers = Vec::new();
                 let mut combined_results = ParseResults::empty_finished();
