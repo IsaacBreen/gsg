@@ -2,7 +2,8 @@
 pub type VecX<T> = Vec<T>;
 
 // pub type VecY<T> = Vec<T>;
-pub type VecY<T> = smallvec::SmallVec<[T; 1]>;
+// pub type VecY<T> = smallvec::SmallVec<[T; 1]>;
+pub type VecY<T> = tinyvec::TinyVec<[T; 1]>;
 // pub type VecY<T> = FakeVec<T>;
 
 use std::iter::FromIterator;
@@ -115,11 +116,11 @@ macro_rules! vecx {
 #[macro_export]
 macro_rules! vecy {
     ($($x:expr),*) => {
-        vec![$($x),*].into()
+        [$($x),*].into_iter().collect()
     };
 
     ($x:expr; $n:expr) => {
-        vec![$x; $n].into()
+        [$x; $n].into_iter().collect()
     };
 }
 
