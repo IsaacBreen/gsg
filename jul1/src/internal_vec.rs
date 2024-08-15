@@ -1,5 +1,6 @@
 // pub type VecX<T> = smallvec::SmallVec<[T; 1]>;
 pub type VecX<T> = Vec<T>;
+// pub type VecX<T> = crate::my_tinyvec::FastVec<T>;
 
 // pub type VecY<T> = Vec<T>;
 // pub type VecY<T> = smallvec::SmallVec<[T; 1]>;

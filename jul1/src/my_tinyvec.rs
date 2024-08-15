@@ -228,8 +228,41 @@ impl<T> FromIterator<T> for FastVec<T> {
 
 impl<T> Extend<T> for FastVec<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        for item in iter {
-            self.push(item);
+        let mut iterator = iter.into_iter();
+
+        match self {
+            FastVec::None => {
+                // If `self` is `None`, we'll start from scratch
+                if let Some(item) = iterator.next() {
+                    *self = FastVec::One(item);
+                    if let Some(item2) = iterator.next() {
+                        // We have more than one item; transition to `Many`
+                        let mut vec = Vec::with_capacity(2);
+                        vec.push(item2);
+                        vec.extend(iterator);
+                        *self = FastVec::Many(vec);
+                    }
+                }
+            }
+            FastVec::One(item) => {
+                // If `self` is `One`, start with the existing item
+                if let Some(new_item) = iterator.next() {
+                    let mut vec = Vec::with_capacity(2);
+                    unsafe {
+                        vec.push(std::ptr::read(item));
+                        std::mem::forget(std::mem::replace(self, FastVec::None));
+                    }
+                    vec.push(new_item);
+                    vec.extend(iterator);
+                    *self = FastVec::Many(vec);
+                }
+            }
+            FastVec::Many(vec) => {
+                // If `self` is `Many`, reserve and extend directly
+                let hint = iterator.size_hint().0;
+                vec.reserve(hint); // Reserve the minimum hint capacity
+                vec.extend(iterator);
+            }
         }
     }
 }
