@@ -96,7 +96,7 @@ impl CombinatorTrait for Deferred {
         match self.inner.borrow().clone() {
             DeferredInner::Uncompiled(f) => {
                 // todo: better error message (this one makes no sense)
-                // panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
+                panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
             }
             DeferredInner::CompiledStrong(inner) => {
                 f(&inner);

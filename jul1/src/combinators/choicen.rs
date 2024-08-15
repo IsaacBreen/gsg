@@ -31,6 +31,11 @@ macro_rules! define_choice {
                 self
             }
 
+            fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+                f(&self.$first);
+                $(f(self.$rest.as_ref());)+
+            }
+
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
                 let mut parsers = Vec::new();
                 let mut combined_results = ParseResults::empty_finished();
@@ -73,11 +78,6 @@ macro_rules! define_choice {
                     Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
                     combined_results
                 )
-            }
-
-            fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-                f(&self.$first);
-                $(f(self.$rest.as_ref());)+
             }
         }
 

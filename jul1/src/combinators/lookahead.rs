@@ -30,6 +30,9 @@ impl CombinatorTrait for Lookahead {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(&self.combinator);
+    }
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, mut parse_results) = self.combinator.parse(right_data.clone(), bytes);
         let has_right_data = !parse_results.right_data_vec.is_empty();
