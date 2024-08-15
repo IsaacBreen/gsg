@@ -7,21 +7,21 @@ use crate::parse_state::RightData;
 use crate::VecX;
 
 #[derive(Debug)]
-pub struct Repeat1 {
-    pub(crate) a: Rc<Combinator>,
+pub struct Repeat1<T: CombinatorTrait> {
+    pub(crate) a: Rc<T>,
     pub(crate) greedy: bool,
 }
 
 #[derive(Debug)]
 pub struct Repeat1Parser {
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
-    pub(crate) a: Rc<Combinator>,
+    pub(crate) a: Rc<dyn CombinatorTrait>,
     pub(crate) a_parsers: Vec<Parser>,
     pub(crate) position: usize,
     pub(crate) greedy: bool,
 }
 
-impl CombinatorTrait for Repeat1 {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
         let (parser, parse_results) = self.a.parse(right_data, bytes);
@@ -152,8 +152,8 @@ pub fn repeat0_greedy(a: impl Into<Combinator>) -> Combinator {
     opt_greedy(repeat1_greedy(a)).into()
 }
 
-impl From<Repeat1> for Combinator {
-    fn from(value: Repeat1) -> Self {
+impl From<Repeat1<Combinator>> for Combinator {
+    fn from(value: Repeat1<Combinator>) -> Self {
         Combinator::Repeat1(value)
     }
 }

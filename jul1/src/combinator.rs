@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, Tagged, TaggedParser, U8Set, ProfiledParser, Profiled, Opt, WeakRef, StrongRef, BruteForceParser, BruteForce, Continuation, ContinuationParser, FastCombinatorWrapper, profile, FastParserWrapper};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, Tagged, TaggedParser, U8Set, ProfiledParser, Profiled, Opt, WeakRef, StrongRef, BruteForceParser, BruteForce, Continuation, ContinuationParser, FastCombinatorWrapper, profile, FastParserWrapper, Seq2};
 use crate::stats::Stats;
 
 #[macro_export]
@@ -27,7 +27,7 @@ pub enum Combinator {
     Cached(Cached),
     IndentCombinator(IndentCombinator),
     MutateRightData(MutateRightData),
-    Repeat1(Repeat1),
+    Repeat1(Repeat1<Combinator>),
     Symbol(Symbol),
     Tagged(Tagged),
     ForbidFollows(ForbidFollows),
@@ -40,7 +40,7 @@ pub enum Combinator {
     ExcludeBytestrings(ExcludeBytestrings),
     Profiled(Profiled),
     Opt(Opt<Box<Combinator>>),
-    Repeat0(Opt<Repeat1>),
+    Repeat0(Opt<Repeat1<Combinator>>),
     WeakRef(WeakRef),
     StrongRef(StrongRef),
     BruteForce(BruteForce),
