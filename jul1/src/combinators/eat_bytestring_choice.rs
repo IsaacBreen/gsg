@@ -24,6 +24,9 @@ pub struct EatByteStringChoiceParser {
 }
 
 impl CombinatorTrait for EatByteStringChoice {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatByteStringChoiceParser {

@@ -108,6 +108,9 @@ pub struct CacheContextParser {
 }
 
 impl CombinatorTrait for CacheContext {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
@@ -172,6 +175,9 @@ impl ParserTrait for CacheContextParser {
 }
 
 impl CombinatorTrait for Cached {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
             let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };

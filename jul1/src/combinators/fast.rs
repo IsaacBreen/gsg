@@ -15,6 +15,9 @@ pub struct FastParserWrapper {
 }
 
 impl CombinatorTrait for FastCombinatorWrapper {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);

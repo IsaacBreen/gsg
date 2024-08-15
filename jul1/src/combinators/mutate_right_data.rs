@@ -28,6 +28,9 @@ impl Debug for MutateRightData {
 }
 
 impl CombinatorTrait for MutateRightData {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, mut right_data: RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&mut right_data) {
             (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))

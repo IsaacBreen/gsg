@@ -81,6 +81,9 @@ impl Debug for ContinuationParser {
 }
 
 impl CombinatorTrait for Continuation {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();

@@ -89,6 +89,9 @@ fn convert_result(result: BruteForceResult) -> BruteForceResult2 {
 // }
 
 impl CombinatorTrait for BruteForce {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();

@@ -16,6 +16,9 @@ pub enum IndentCombinatorParser {
 }
 
 impl CombinatorTrait for IndentCombinator {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = match self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {

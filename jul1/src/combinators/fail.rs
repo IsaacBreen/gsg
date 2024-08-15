@@ -9,6 +9,9 @@ pub struct FailParser;
 pub struct Fail;
 
 impl CombinatorTrait for Fail {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::FailParser(FailParser), ParseResults::empty_finished())
     }

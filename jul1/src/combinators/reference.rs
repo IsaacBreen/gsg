@@ -42,6 +42,9 @@ impl Hash for StrongRef {
 }
 
 impl CombinatorTrait for WeakRef {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         self.inner
             .upgrade()
@@ -53,6 +56,9 @@ impl CombinatorTrait for WeakRef {
 }
 
 impl CombinatorTrait for StrongRef {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         self.inner
             .get()

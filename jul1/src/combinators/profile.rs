@@ -87,6 +87,9 @@ pub struct ProfiledParser {
 }
 
 impl CombinatorTrait for Profiled {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         profile!(&self.tag, {
             let (parser, parse_results) = self.inner.parse(right_data, bytes);

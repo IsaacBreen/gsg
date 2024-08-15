@@ -88,6 +88,9 @@ impl Debug for Deferred {
 }
 
 impl CombinatorTrait for Deferred {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         match self.inner.borrow().clone() {
             DeferredInner::Uncompiled(f) => {

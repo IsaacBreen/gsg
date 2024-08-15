@@ -28,6 +28,9 @@ impl Debug for CheckRightData {
 }
 
 impl CombinatorTrait for CheckRightData {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn parse(&self, right_data: RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&right_data) {
             (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
