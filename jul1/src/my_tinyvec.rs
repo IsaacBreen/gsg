@@ -51,7 +51,7 @@ impl<T> FastVec<T> {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        matches!(self, FastVec::None)
     }
 
     pub fn get(&self, index: usize) -> Option<&T> {
