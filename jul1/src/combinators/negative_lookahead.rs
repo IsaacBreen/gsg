@@ -3,14 +3,14 @@ use crate::*;
 use crate::trie::TrieNode;
 use crate::VecX;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ExcludeBytestrings {
     pub(crate) inner: Box<Combinator>,
     // pub(crate) bytestrings_to_exclude: VecX<Vec<u8>>,
     pub(crate) root: Rc<TrieNode>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ExcludeBytestringsParser {
     pub(crate) inner: Box<Parser>,
     pub(crate) node: Option<Rc<TrieNode>>,

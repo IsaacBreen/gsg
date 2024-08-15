@@ -3,13 +3,13 @@ use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX};
 use crate::parse_state::RightData;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Choice {
     pub(crate) children: Rc<VecX<Combinator>>,
     pub(crate) greedy: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ChoiceParser {
     pub(crate) parsers: Vec<Parser>,
     pub(crate) greedy: bool,

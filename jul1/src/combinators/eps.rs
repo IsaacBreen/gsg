@@ -1,9 +1,9 @@
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::RightData;
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Eps;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct EpsParser;
 
 impl CombinatorTrait for Eps {

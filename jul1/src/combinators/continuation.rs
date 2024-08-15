@@ -25,12 +25,10 @@ pub struct ParseContinuationWrapper(Box<ParseContinuationFn>);
 //     }
 // }
 
-#[derive(Clone)]
 pub struct Continuation {
     pub(crate) run: Rc<ParseFn>,
 }
 
-#[derive(Clone)]
 pub struct ContinuationParser {
     // pub(crate) run: ParseContinuationWrapper,
     // pub(crate) right_data: Option<RightData>,

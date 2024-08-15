@@ -43,7 +43,7 @@ impl GlobalCache {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct CacheKey {
     combinator: Rc<Combinator>,
     right_data: RightData,
@@ -65,23 +65,23 @@ impl PartialEq for CacheKey {
 impl Eq for CacheKey {}
 
 #[derive(Derivative)]
-#[derivative(Debug, Clone)]
+#[derivative(Debug)]
 struct CacheEntry {
     pub(crate) parser: Option<Box<Parser>>,
     maybe_parse_results: Option<ParseResults>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CacheContext {
     pub inner: Box<Combinator>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Cached {
     pub inner: Rc<Combinator>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CachedParser {
     pub entry: Rc<RefCell<CacheEntry>>,
 }
@@ -99,7 +99,7 @@ impl PartialEq for CachedParser {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug, Clone)]
+#[derivative(Debug)]
 pub struct CacheContextParser {
     pub inner: Box<Parser>,
     pub(crate) parse_id: usize,

@@ -3,7 +3,6 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, RightData};
 
-#[derive(Clone)]
 pub struct CheckRightData {
     pub(crate) run: Rc<dyn Fn(&RightData) -> bool>,
 }

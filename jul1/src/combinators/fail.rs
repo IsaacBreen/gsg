@@ -2,10 +2,10 @@ use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Se
 use crate::parse_state::RightData;
 
 #[repr(transparent)]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FailParser;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Fail;
 
 impl CombinatorTrait for Fail {

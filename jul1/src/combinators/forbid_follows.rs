@@ -7,15 +7,15 @@ pub struct ForbidFollowsData {
     pub prev_match_ids: u16, // Using a bitset
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ForbidFollows {
     pub(crate) match_ids: u16, // Using a bitset
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ForbidFollowsClear {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ForbidFollowsCheckNot {
     pub(crate) match_ids: u16,
 }

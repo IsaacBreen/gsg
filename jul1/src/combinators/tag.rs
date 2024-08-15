@@ -4,13 +4,11 @@ use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 use crate::*;
 use crate::VecX;
 
-#[derive(Clone)]
 pub struct Tagged {
     pub inner: Box<Combinator>,
     pub tag: String,
 }
 
-#[derive(Clone)]
 pub struct TaggedParser {
     pub inner: Box<Parser>,
     pub tag: String,

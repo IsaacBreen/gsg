@@ -14,7 +14,7 @@ impl From<EatString> for Combinator {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct EatStringParser {
     pub(crate) string: Rc<Vec<u8>>,
     index: usize,

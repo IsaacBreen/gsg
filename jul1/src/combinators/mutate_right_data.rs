@@ -3,7 +3,6 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::*;
 
-#[derive(Clone)]
 pub struct MutateRightData {
     pub(crate) run: Rc<dyn Fn(&mut RightData) -> bool>,
 }

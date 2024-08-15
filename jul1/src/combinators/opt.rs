@@ -1,7 +1,7 @@
 use crate::*;
 use crate::VecX;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Opt<T: CombinatorTrait> {
     pub(crate) inner: T,
     pub(crate) greedy: bool,

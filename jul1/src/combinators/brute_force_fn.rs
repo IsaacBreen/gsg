@@ -18,12 +18,10 @@ type BruteForceResult2 = Result<RightData, ParseError>;
 pub type BruteForceFn = dyn Fn(RightData, &[u8]) -> BruteForceResult;
 
 
-#[derive(Clone)]
 pub struct BruteForce {
     pub(crate) run: Rc<BruteForceFn>,
 }
 
-#[derive(Clone)]
 pub struct BruteForceParser {
     pub(crate) run: Rc<BruteForceFn>,
     pub(crate) right_data: Option<RightData>,

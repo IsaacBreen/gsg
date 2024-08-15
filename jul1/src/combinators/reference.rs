@@ -3,12 +3,12 @@ use std::rc::{Rc, Weak};
 use once_cell::unsync::OnceCell;
 use crate::*;
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct WeakRef {
     pub inner: Weak<OnceCell<Combinator>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct StrongRef {
     pub inner: Rc<OnceCell<Combinator>>,
 }

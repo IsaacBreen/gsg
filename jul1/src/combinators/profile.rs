@@ -8,7 +8,6 @@ lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());
 }
 
-#[derive(Clone)]
 pub struct ProfileDataInner {
     pub(crate) timings: HashMap<String, Duration>,
     pub(crate) hit_counts: HashMap<String, usize>,
@@ -74,14 +73,14 @@ macro_rules! profile_block {
     }};
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Profiled {
     pub inner: Box<Combinator>,
     pub tag: String,
 }
 
 #[derive(Derivative)]
-#[derivative(Clone, Debug)]
+#[derivative(Debug)]
 pub struct ProfiledParser {
     pub inner: Box<Parser>,
     pub tag: String,

@@ -16,7 +16,7 @@ impl EatByteStringChoice {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct EatByteStringChoiceParser {
     pub(crate) root: Rc<TrieNode>,
     pub(crate) current_node: Rc<TrieNode>,

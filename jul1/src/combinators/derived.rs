@@ -12,8 +12,9 @@ pub fn seprep0(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator
 }
 
 pub fn repeatn(n: usize, a: impl Into<Combinator>) -> Combinator {
-    let a: Combinator = a.into();
-    Choice { children: Rc::new(vecx![a; n]), greedy: false }.into()
+    let a = symbol(a);
+    // Choice { children: Rc::new(vecx![a; n]), greedy: false }.into()
+    Choice { children: Rc::new(vec![a; n].into_iter().map(|x| Combinator::Symbol(x)).collect()), greedy: false }.into()
 }
 
 pub fn seprep1_greedy(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Combinator {
@@ -26,6 +27,6 @@ pub fn seprep0_greedy(a: impl Into<Combinator>, b: impl Into<Combinator>) -> Com
 }
 
 pub fn repeatn_greedy(n: usize, a: impl Into<Combinator>) -> Combinator {
-    let a: Combinator = a.into();
-    Choice { children: Rc::new(vecx![a; n]), greedy: true }.into()
+    let a = symbol(a);
+    Choice { children: Rc::new(vec![a; n].into_iter().map(|x| Combinator::Symbol(x)).collect()), greedy: true }.into()
 }
