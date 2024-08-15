@@ -1,8 +1,10 @@
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::iter::FromIterator;
+use std::ops::{Index, IndexMut};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum FastVec<T> {
+    #[default]
     None,
     One(T),
     Many(Vec<T>),
@@ -14,20 +16,7 @@ impl<T> FastVec<T> {
     }
 
     pub fn push(&mut self, item: T) {
-        match self {
-            FastVec::None => {
-                *self = FastVec::One(item);
-            }
-            FastVec::One(existing_item) => {
-                let mut vec = Vec::with_capacity(2);
-                vec.push(std::mem::replace(existing_item, item));
-                vec.push(item);
-                *self = FastVec::Many(vec);
-            }
-            FastVec::Many(vec) => {
-                vec.push(item);
-            }
-        }
+        todo!()
     }
 
     pub fn len(&self) -> usize {
@@ -105,49 +94,11 @@ impl<T> FastVec<T> {
     }
 
     pub fn append(&mut self, other: &mut Self) {
-        match (self, other) {
-            (FastVec::None, FastVec::None) => {}
-            (FastVec::None, FastVec::One(item)) => {
-                *self = FastVec::One(std::mem::take(item));
-                *other = FastVec::None;
-            }
-            (FastVec::None, FastVec::Many(vec)) => {
-                *self = FastVec::Many(std::mem::take(vec));
-                *other = FastVec::None;
-            }
-            (FastVec::One(_), FastVec::None) => {}
-            (FastVec::One(item), FastVec::One(other_item)) => {
-                let mut vec = Vec::with_capacity(2);
-                vec.push(std::mem::take(item));
-                vec.push(std::mem::take(other_item));
-                *self = FastVec::Many(vec);
-                *other = FastVec::None;
-            }
-            (FastVec::One(item), FastVec::Many(vec)) => {
-                let mut new_vec = Vec::with_capacity(1 + vec.len());
-                new_vec.push(std::mem::take(item));
-                new_vec.append(vec);
-                *self = FastVec::Many(new_vec);
-                *other = FastVec::None;
-            }
-            (FastVec::Many(_), FastVec::None) => {}
-            (FastVec::Many(vec), FastVec::One(other_item)) => {
-                vec.push(std::mem::take(other_item));
-                *other = FastVec::None;
-            }
-            (FastVec::Many(vec), FastVec::Many(other_vec)) => {
-                vec.append(other_vec);
-                *other = FastVec::None;
-            }
-        }
+        todo!()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
-        match self {
-            FastVec::None => Vec::new().iter(),
-            FastVec::One(item) => std::slice::from_ref(item).iter(),
-            FastVec::Many(vec) => vec.iter(),
-        }
+        todo!()
     }
 
     pub fn drain(&mut self) -> impl Iterator<Item = T> {
@@ -190,19 +141,17 @@ impl<T> IntoIterator for FastVec<T> {
     }
 }
 
-impl<T: Hash> Hash for FastVec<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            FastVec::None => 0.hash(state),
-            FastVec::One(item) => {
-                1.hash(state);
-                item.hash(state);
-            }
-            FastVec::Many(vec) => {
-                2.hash(state);
-                vec.hash(state);
-            }
-        }
+impl<T> Index<usize> for FastVec<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        todo!()
+    }
+}
+
+impl<T> IndexMut<usize> for FastVec<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        todo!()
     }
 }
 
