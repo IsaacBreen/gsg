@@ -82,16 +82,15 @@ macro_rules! define_seq {
     };
 }
 
-define_seq!(Seq2, first, second);
-define_seq!(Seq3, first, second, third);
-// You can define more SeqN as needed
+define_seq!(Seq2, c0, c1);
+define_seq!(Seq3, c0, c1, c2);
 
 #[macro_export]
 macro_rules! seq2 {
     ($first:expr, $second:expr) => {
         $crate::Seq2 {
-            first: Rc::new($first),
-            second: Rc::new($second),
+            c0: $first,
+            c1: Rc::new($second),
         }
     };
 }

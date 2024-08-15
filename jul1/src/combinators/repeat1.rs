@@ -154,10 +154,10 @@ pub fn repeat0_greedy(a: impl Into<Combinator>) -> Combinator {
 
 pub fn seprep1(a: impl Into<Combinator> + Clone, b: impl Into<Combinator>) -> Combinator {
     Combinator::SepRep1(Seq2 {
-        first: Box::new(a.clone().into()),
-        second: Opt { inner: Repeat1 { a: Seq2 {
-            first: b.into(),
-            second: Rc::new(a.into())
+        c0: Box::new(a.clone().into()),
+        c1: Opt { inner: Repeat1 { a: Seq2 {
+            c0: b.into(),
+            c1: Rc::new(a.into())
         }.into(), greedy: false }, greedy: false }.into(),
     })
 }
