@@ -69,14 +69,14 @@ impl ParserTrait for ChoiceParser {
 
 pub fn _choice(v: Vec<Combinator>) -> Combinator {
     Choice {
-        children: Rc::new(v.into()),
+        children: Rc::new(v.into_iter().collect()),
         greedy: false,
     }.into()
 }
 
 pub fn _choice_greedy(v: Vec<Combinator>) -> Combinator {
     profile_internal("choice", Choice {
-        children: Rc::new(v.into()),
+        children: Rc::new(v.into_iter().collect()),
         greedy: true,
     })
 }

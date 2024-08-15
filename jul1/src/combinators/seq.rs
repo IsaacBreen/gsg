@@ -176,7 +176,7 @@ impl ParserTrait for SeqParser {
 
 pub fn _seq(v: Vec<Combinator>) -> Combinator {
     profile_internal("seq", Seq {
-        children: Rc::new(v.into()),
+        children: Rc::new(v.into_iter().collect()),
         start_index: 0,
     })
 }
