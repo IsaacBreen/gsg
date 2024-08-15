@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy};
+use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy, Opt, Seq2};
 use crate::opt;
 use crate::parse_state::RightData;
 use crate::VecX;
@@ -145,11 +145,21 @@ pub fn repeat1_greedy(a: impl Into<Combinator>) -> Combinator {
 }
 
 pub fn repeat0(a: impl Into<Combinator>) -> Combinator {
-    opt(repeat1(a)).into()
+    Combinator::Repeat0(Opt { inner: Repeat1 { a: Rc::new(a.into()), greedy: false }, greedy: false })
 }
 
 pub fn repeat0_greedy(a: impl Into<Combinator>) -> Combinator {
-    opt_greedy(repeat1_greedy(a)).into()
+    Combinator::Repeat0(Opt { inner: Repeat1 { a: Rc::new(a.into()), greedy: true }, greedy: true })
+}
+
+pub fn seprep1(a: impl Into<Combinator> + Clone, b: impl Into<Combinator>) -> Combinator {
+    Combinator::SepRep1(Seq2 {
+        first: Box::new(a.clone().into()),
+        second: Opt { inner: Repeat1 { a: Seq2 {
+            first: b.into(),
+            second: Rc::new(a.into())
+        }.into(), greedy: false }, greedy: false }.into(),
+    })
 }
 
 impl From<Repeat1<Combinator>> for Combinator {
