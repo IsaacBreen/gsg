@@ -119,7 +119,14 @@ def custom_to_pegen(rules: dict[remove_left_recursion.Ref, remove_left_recursion
             if remove_left_recursion.eps() in node.children:
                 children = node.children.copy()
                 children.remove(remove_left_recursion.eps())
-                return pegen.grammar.Opt(node_to_rhs(remove_left_recursion.Choice(children)))
+                if len(children) == 1:
+                    child = children[0]
+                    if isinstance(child, remove_left_recursion.Repeat1):
+                        return pegen.grammar.Repeat0(node_to_item(child.child))
+                    else:
+                        return pegen.grammar.Opt(node_to_rhs(remove_left_recursion.Choice(children)))
+                else:
+                    return pegen.grammar.Opt(node_to_rhs(remove_left_recursion.Choice(children)))
             assert len(node.children) > 0
             return pegen.grammar.Group(node_to_rhs(node))
         elif isinstance(node, remove_left_recursion.Repeat1):

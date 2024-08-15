@@ -45,7 +45,7 @@ pub fn ENDMARKER() -> Combinator { cached(seq!(tag("ENDMARKER", crate::profile("
 
 pub fn expression_without_invalid() -> Combinator {
     tag("expression_without_invalid", choice!(
-        seq!(&conjunction, opt(repeat1(seq!(python_literal("or"), &conjunction))), opt(seq!(python_literal("if"), &conjunction, opt(repeat1(seq!(python_literal("or"), &conjunction))), python_literal("else"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))),
+        seq!(&conjunction, repeat0(seq!(python_literal("or"), &conjunction)), opt(seq!(python_literal("if"), &conjunction, repeat0(seq!(python_literal("or"), &conjunction)), python_literal("else"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))),
         seq!(python_literal("lambda"), opt(&lambda_params), python_literal(":"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef))
     )).into()
 }
@@ -59,7 +59,7 @@ pub fn func_type_comment() -> Combinator {
 
 pub fn type_expressions() -> Combinator {
     tag("type_expressions", choice!(
-        seq!(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(repeat1(seq!(python_literal(","), &expression))), opt(seq!(python_literal(","), choice!(seq!(python_literal("*"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(seq!(python_literal(","), python_literal("**"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))), seq!(python_literal("**"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))))),
+        seq!(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), repeat0(seq!(python_literal(","), &expression)), opt(seq!(python_literal(","), choice!(seq!(python_literal("*"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(seq!(python_literal(","), python_literal("**"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))), seq!(python_literal("**"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))))),
         seq!(python_literal("*"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), opt(seq!(python_literal(","), python_literal("**"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)))),
         seq!(python_literal("**"), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef))
     )).into()
@@ -68,14 +68,14 @@ pub fn type_expressions() -> Combinator {
 pub fn del_t_atom() -> Combinator {
     tag("del_t_atom", choice!(
         &NAME,
-        seq!(python_literal("("), choice!(seq!(choice!(seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings), &NUMBER, seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)), seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)), seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(&t_lookahead), opt(repeat1(choice!(seq!(python_literal("."), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), choice!(seq!(&slice, negative_lookahead(python_literal(","))), seq!(seprep1(choice!(&slice, &starred_expression), python_literal(",")), opt(python_literal(",")))), python_literal("]"), lookahead(&t_lookahead)), seq!(python_literal("("), choice!(seq!(choice!(seq!(&NAME, python_literal(":="), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), seq!(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), negative_lookahead(python_literal(":=")))), repeat1(&for_if_clause), python_literal(")"), lookahead(&t_lookahead)), seq!(opt(seq!(&args, opt(python_literal(",")), lookahead(python_literal(")")))), python_literal(")"), lookahead(&t_lookahead))))))), choice!(seq!(python_literal("."), &NAME, negative_lookahead(&t_lookahead)), seq!(python_literal("["), choice!(seq!(&slice, negative_lookahead(python_literal(","))), seq!(seprep1(choice!(&slice, &starred_expression), python_literal(",")), opt(python_literal(",")))), python_literal("]"), negative_lookahead(&t_lookahead)))), &del_t_atom), python_literal(")")), seq!(opt(seq!(seprep1(&del_target, python_literal(",")), opt(python_literal(",")))), python_literal(")")))),
+        seq!(python_literal("("), choice!(seq!(choice!(seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings), &NUMBER, seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)), seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)), seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(&t_lookahead), repeat0(choice!(seq!(python_literal("."), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), choice!(seq!(&slice, negative_lookahead(python_literal(","))), seq!(seprep1(choice!(&slice, &starred_expression), python_literal(",")), opt(python_literal(",")))), python_literal("]"), lookahead(&t_lookahead)), seq!(python_literal("("), choice!(seq!(choice!(seq!(&NAME, python_literal(":="), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), seq!(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), negative_lookahead(python_literal(":=")))), repeat1(&for_if_clause), python_literal(")"), lookahead(&t_lookahead)), seq!(opt(seq!(&args, opt(python_literal(",")), lookahead(python_literal(")")))), python_literal(")"), lookahead(&t_lookahead)))))), choice!(seq!(python_literal("."), &NAME, negative_lookahead(&t_lookahead)), seq!(python_literal("["), choice!(seq!(&slice, negative_lookahead(python_literal(","))), seq!(seprep1(choice!(&slice, &starred_expression), python_literal(",")), opt(python_literal(",")))), python_literal("]"), negative_lookahead(&t_lookahead)))), &del_t_atom), python_literal(")")), seq!(opt(seq!(seprep1(&del_target, python_literal(",")), opt(python_literal(",")))), python_literal(")")))),
         seq!(python_literal("["), opt(seq!(seprep1(&del_target, python_literal(",")), opt(python_literal(",")))), python_literal("]"))
     )).into()
 }
 
 pub fn del_target() -> Combinator {
     cached(tag("del_target", choice!(
-        seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings), &NUMBER, seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)), seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)), seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(&t_lookahead), opt(repeat1(choice!(seq!(python_literal("."), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), choice!(seq!(&slice, negative_lookahead(python_literal(","))), seq!(seprep1(choice!(&slice, &starred_expression), python_literal(",")), opt(python_literal(",")))), python_literal("]"), lookahead(&t_lookahead)), seq!(python_literal("("), choice!(seq!(choice!(seq!(&NAME, python_literal(":="), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), seq!(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), negative_lookahead(python_literal(":=")))), repeat1(&for_if_clause), python_literal(")"), lookahead(&t_lookahead)), seq!(opt(seq!(&args, opt(python_literal(",")), lookahead(python_literal(")")))), python_literal(")"), lookahead(&t_lookahead))))))), choice!(seq!(python_literal("."), &NAME, negative_lookahead(&t_lookahead)), seq!(python_literal("["), choice!(seq!(&slice, negative_lookahead(python_literal(","))), seq!(seprep1(choice!(&slice, &starred_expression), python_literal(",")), opt(python_literal(",")))), python_literal("]"), negative_lookahead(&t_lookahead)))),
+        seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings), &NUMBER, seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)), seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)), seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(&t_lookahead), repeat0(choice!(seq!(python_literal("."), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), choice!(seq!(&slice, negative_lookahead(python_literal(","))), seq!(seprep1(choice!(&slice, &starred_expression), python_literal(",")), opt(python_literal(",")))), python_literal("]"), lookahead(&t_lookahead)), seq!(python_literal("("), choice!(seq!(choice!(seq!(&NAME, python_literal(":="), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), seq!(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), negative_lookahead(python_literal(":=")))), repeat1(&for_if_clause), python_literal(")"), lookahead(&t_lookahead)), seq!(opt(seq!(&args, opt(python_literal(",")), lookahead(python_literal(")")))), python_literal(")"), lookahead(&t_lookahead)))))), choice!(seq!(python_literal("."), &NAME, negative_lookahead(&t_lookahead)), seq!(python_literal("["), choice!(seq!(&slice, negative_lookahead(python_literal(","))), seq!(seprep1(choice!(&slice, &starred_expression), python_literal(",")), opt(python_literal(",")))), python_literal("]"), negative_lookahead(&t_lookahead)))),
         &del_t_atom
     ))).into()
 }
@@ -93,7 +93,7 @@ pub fn t_lookahead() -> Combinator {
 }
 
 pub fn t_primary() -> Combinator {
-    tag("t_primary", seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings), &NUMBER, seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)), seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)), seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(&t_lookahead), opt(repeat1(choice!(seq!(python_literal("."), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), choice!(seq!(&slice, negative_lookahead(python_literal(","))), seq!(seprep1(choice!(&slice, &starred_expression), python_literal(",")), opt(python_literal(",")))), python_literal("]"), lookahead(&t_lookahead)), seq!(python_literal("("), choice!(seq!(choice!(seq!(&NAME, python_literal(":="), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), seq!(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), negative_lookahead(python_literal(":=")))), repeat1(&for_if_clause), python_literal(")"), lookahead(&t_lookahead)), seq!(opt(seq!(&args, opt(python_literal(",")), lookahead(python_literal(")")))), python_literal(")"), lookahead(&t_lookahead))))))))).into()
+    tag("t_primary", seq!(choice!(&NAME, python_literal("True"), python_literal("False"), python_literal("None"), seq!(lookahead(choice!(&STRING, &FSTRING_START)), &strings), &NUMBER, seq!(lookahead(python_literal("(")), choice!(&tuple, &group, &genexp)), seq!(lookahead(python_literal("[")), choice!(&list, &listcomp)), seq!(lookahead(python_literal("{")), choice!(&dict, &set, &dictcomp, &setcomp)), python_literal("...")), lookahead(&t_lookahead), repeat0(choice!(seq!(python_literal("."), &NAME, lookahead(&t_lookahead)), seq!(python_literal("["), choice!(seq!(&slice, negative_lookahead(python_literal(","))), seq!(seprep1(choice!(&slice, &starred_expression), python_literal(",")), opt(python_literal(",")))), python_literal("]"), lookahead(&t_lookahead)), seq!(python_literal("("), choice!(seq!(choice!(seq!(&NAME, python_literal(":="), choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef)), seq!(choice!(seq!(&disjunction, opt(seq!(python_literal("if"), &disjunction, python_literal("else"), &expression))), &lambdef), negative_lookahead(python_literal(":=")))), repeat1(&for_if_clause), python_literal(")"), lookahead(&t_lookahead)), seq!(opt(seq!(&args, opt(python_literal(",")), lookahead(python_literal(")")))), python_literal(")"), lookahead(&t_lookahead)))))))).into()
 }
 
 pub fn single_subscript_attribute_target() -> Combinator {
@@ -139,7 +139,7 @@ pub fn star_targets_list_seq() -> Combinator {
 }
 
 pub fn star_targets() -> Combinator {
-    tag("star_targets", seq!(&star_target, choice!(negative_lookahead(python_literal(",")), seq!(opt(repeat1(seq!(python_literal(","), &star_target))), opt(python_literal(",")))))).into()
+    tag("star_targets", seq!(&star_target, choice!(negative_lookahead(python_literal(",")), seq!(repeat0(seq!(python_literal(","), &star_target)), opt(python_literal(",")))))).into()
 }
 
 pub fn kwarg_or_double_starred() -> Combinator {
@@ -203,8 +203,8 @@ pub fn listcomp() -> Combinator {
 
 pub fn for_if_clause() -> Combinator {
     tag("for_if_clause", choice!(
-        seq!(python_literal("async"), python_literal("for"), &star_targets, python_literal("in"), &conjunction, opt(repeat1(seq!(python_literal("or"), &conjunction))), opt(repeat1(seq!(python_literal("if"), &conjunction, opt(repeat1(seq!(python_literal("or"), &conjunction))))))),
-        seq!(python_literal("for"), &star_targets, python_literal("in"), &conjunction, opt(repeat1(seq!(python_literal("or"), &conjunction))), opt(repeat1(seq!(python_literal("if"), &conjunction, opt(repeat1(seq!(python_literal("or"), &conjunction)))))))
+        seq!(python_literal("async"), python_literal("for"), &star_targets, python_literal("in"), &conjunction, repeat0(seq!(python_literal("or"), &conjunction)), repeat0(seq!(python_literal("if"), &conjunction, repeat0(seq!(python_literal("or"), &conjunction))))),
+        seq!(python_literal("for"), &star_targets, python_literal("in"), &conjunction, repeat0(seq!(python_literal("or"), &conjunction)), repeat0(seq!(python_literal("if"), &conjunction, repeat0(seq!(python_literal("or"), &conjunction)))))
     )).into()
 }
 
@@ -218,7 +218,7 @@ pub fn kvpair() -> Combinator {
 
 pub fn double_starred_kvpair() -> Combinator {
     tag("double_starred_kvpair", choice!(
-        seq!(python_literal("**"), &bitwise_xor, opt(repeat1(seq!(python_literal("|"), &bitwise_xor)))),
+        seq!(python_literal("**"), &bitwise_xor, repeat0(seq!(python_literal("|"), &bitwise_xor))),
         &kvpair
     )).into()
 }
@@ -244,7 +244,7 @@ pub fn list() -> Combinator {
 }
 
 pub fn strings() -> Combinator {
-    cached(tag("strings", repeat1(choice!(seq!(&FSTRING_START, opt(seq!(choice!(&fstring_replacement_field, &FSTRING_MIDDLE), opt(repeat1(&fstring_middle)))), &FSTRING_END), &STRING)))).into()
+    cached(tag("strings", repeat1(choice!(seq!(&FSTRING_START, opt(seq!(choice!(&fstring_replacement_field, &FSTRING_MIDDLE), repeat0(&fstring_middle))), &FSTRING_END), &STRING)))).into()
 }
 
 pub fn string() -> Combinator {
@@ -252,7 +252,7 @@ pub fn string() -> Combinator {
 }
 
 pub fn fstring() -> Combinator {
-    tag("fstring", seq!(&FSTRING_START, opt(seq!(choice!(&fstring_replacement_field, &FSTRING_MIDDLE), opt(repeat1(&fstring_middle)))), &FSTRING_END)).into()
+    tag("fstring", seq!(&FSTRING_START, opt(seq!(choice!(&fstring_replacement_field, &FSTRING_MIDDLE), repeat0(&fstring_middle))), &FSTRING_END)).into()
 }
 
 pub fn fstring_format_spec() -> Combinator {
@@ -263,7 +263,7 @@ pub fn fstring_format_spec() -> Combinator {
 }
 
 pub fn fstring_full_format_spec() -> Combinator {
-    tag("fstring_full_format_spec", seq!(python_literal(":"), opt(repeat1(&fstring_format_spec)))).into()
+    tag("fstring_full_format_spec", seq!(python_literal(":"), repeat0(&fstring_format_spec))).into()
 }
 
 pub fn fstring_conversion() -> Combinator {
@@ -310,13 +310,13 @@ pub fn lambda_kwds() -> Combinator {
 
 pub fn lambda_star_etc() -> Combinator {
     tag("lambda_star_etc", choice!(
-        seq!(python_literal("*"), choice!(seq!(&lambda_param_no_default, opt(repeat1(&lambda_param_maybe_default)), opt(&lambda_kwds)), seq!(python_literal(","), repeat1(&lambda_param_maybe_default), opt(&lambda_kwds)))),
+        seq!(python_literal("*"), choice!(seq!(&lambda_param_no_default, repeat0(&lambda_param_maybe_default), opt(&lambda_kwds)), seq!(python_literal(","), repeat1(&lambda_param_maybe_default), opt(&lambda_kwds)))),
         &lambda_kwds
     )).into()
 }
 
 pub fn lambda_slash_with_default() -> Combinator {
-    tag("lambda_slash_with_default", seq!(opt(repeat1(&lambda_param_no_default)), repeat1(&lambda_param_with_default), python_literal("/"), choice!(python_literal(","), lookahead(python_literal(":"))))).into()
+    tag("lambda_slash_with_default", seq!(repeat0(&lambda_param_no_default), repeat1(&lambda_param_with_default), python_literal("/"), choice!(python_literal(","), lookahead(python_literal(":"))))).into()
 }
 
 pub fn lambda_slash_no_default() -> Combinator {
@@ -325,9 +325,9 @@ pub fn lambda_slash_no_default() -> Combinator {
 
 pub fn lambda_parameters() -> Combinator {
     tag("lambda_parameters", choice!(
-        seq!(&lambda_slash_no_default, opt(repeat1(&lambda_param_no_default)), opt(repeat1(&lambda_param_with_default)), opt(&lambda_star_etc)),
-        seq!(&lambda_slash_with_default, opt(repeat1(&lambda_param_with_default)), opt(&lambda_star_etc)),
-        seq!(repeat1(&lambda_param_no_default), opt(repeat1(&lambda_param_with_default)), opt(&lambda_star_etc)),
+        seq!(&lambda_slash_no_default, repeat0(&lambda_param_no_default), repeat0(&lambda_param_with_default), opt(&lambda_star_etc)),
+        seq!(&lambda_slash_with_default, repeat0(&lambda_param_with_default), opt(&lambda_star_etc)),
+        seq!(repeat1(&lambda_param_no_default), repeat0(&lambda_param_with_default), opt(&lambda_star_etc)),
         seq!(repeat1(&lambda_param_with_default), opt(&lambda_star_etc)),
         &lambda_star_etc
     )).into()
@@ -375,7 +375,7 @@ pub fn slices() -> Combinator {
 }
 
 pub fn primary() -> Combinator {
-    tag("primary", seq!(&atom, opt(repeat1(choice!(seq!(python_literal("."), &NAME), &genexp, seq!(python_literal("("), opt(&arguments), python_literal(")")), seq!(python_literal("["), &slices, python_literal("]"))))))).into()
+    tag("primary", seq!(&atom, repeat0(choice!(seq!(python_literal("."), &NAME), &genexp, seq!(python_literal("("), opt(&arguments), python_literal(")")), seq!(python_literal("["), &slices, python_literal("]")))))).into()
 }
 
 pub fn await_primary() -> Combinator {
@@ -399,27 +399,27 @@ pub fn factor() -> Combinator {
 }
 
 pub fn term() -> Combinator {
-    tag("term", seq!(&factor, opt(repeat1(choice!(seq!(python_literal("*"), &factor), seq!(python_literal("/"), &factor), seq!(python_literal("//"), &factor), seq!(python_literal("%"), &factor), seq!(python_literal("@"), &factor)))))).into()
+    tag("term", seq!(&factor, repeat0(choice!(seq!(python_literal("*"), &factor), seq!(python_literal("/"), &factor), seq!(python_literal("//"), &factor), seq!(python_literal("%"), &factor), seq!(python_literal("@"), &factor))))).into()
 }
 
 pub fn sum() -> Combinator {
-    tag("sum", seq!(&term, opt(repeat1(choice!(seq!(python_literal("+"), &term), seq!(python_literal("-"), &term)))))).into()
+    tag("sum", seq!(&term, repeat0(choice!(seq!(python_literal("+"), &term), seq!(python_literal("-"), &term))))).into()
 }
 
 pub fn shift_expr() -> Combinator {
-    tag("shift_expr", seq!(&sum, opt(repeat1(choice!(seq!(python_literal("<<"), &sum), seq!(python_literal(">>"), &sum)))))).into()
+    tag("shift_expr", seq!(&sum, repeat0(choice!(seq!(python_literal("<<"), &sum), seq!(python_literal(">>"), &sum))))).into()
 }
 
 pub fn bitwise_and() -> Combinator {
-    tag("bitwise_and", seq!(&shift_expr, opt(repeat1(seq!(python_literal("&"), &shift_expr))))).into()
+    tag("bitwise_and", seq!(&shift_expr, repeat0(seq!(python_literal("&"), &shift_expr)))).into()
 }
 
 pub fn bitwise_xor() -> Combinator {
-    tag("bitwise_xor", seq!(&bitwise_and, opt(repeat1(seq!(python_literal("^"), &bitwise_and))))).into()
+    tag("bitwise_xor", seq!(&bitwise_and, repeat0(seq!(python_literal("^"), &bitwise_and)))).into()
 }
 
 pub fn bitwise_or() -> Combinator {
-    tag("bitwise_or", seq!(&bitwise_xor, opt(repeat1(seq!(python_literal("|"), &bitwise_xor))))).into()
+    tag("bitwise_or", seq!(&bitwise_xor, repeat0(seq!(python_literal("|"), &bitwise_xor)))).into()
 }
 
 pub fn is_bitwise_or() -> Combinator {
@@ -478,7 +478,7 @@ pub fn compare_op_bitwise_or_pair() -> Combinator {
 }
 
 pub fn comparison() -> Combinator {
-    tag("comparison", seq!(&bitwise_or, opt(repeat1(&compare_op_bitwise_or_pair)))).into()
+    tag("comparison", seq!(&bitwise_or, repeat0(&compare_op_bitwise_or_pair))).into()
 }
 
 pub fn inversion() -> Combinator {
@@ -489,11 +489,11 @@ pub fn inversion() -> Combinator {
 }
 
 pub fn conjunction() -> Combinator {
-    cached(tag("conjunction", seq!(&inversion, opt(repeat1(seq!(python_literal("and"), &inversion)))))).into()
+    cached(tag("conjunction", seq!(&inversion, repeat0(seq!(python_literal("and"), &inversion))))).into()
 }
 
 pub fn disjunction() -> Combinator {
-    cached(tag("disjunction", seq!(&conjunction, opt(repeat1(seq!(python_literal("or"), &conjunction)))))).into()
+    cached(tag("disjunction", seq!(&conjunction, repeat0(seq!(python_literal("or"), &conjunction))))).into()
 }
 
 pub fn named_expression() -> Combinator {
@@ -595,7 +595,7 @@ pub fn positional_patterns() -> Combinator {
 }
 
 pub fn class_pattern() -> Combinator {
-    tag("class_pattern", seq!(&NAME, opt(repeat1(seq!(python_literal("."), &NAME))), python_literal("("), choice!(python_literal(")"), seq!(&positional_patterns, choice!(seq!(opt(python_literal(",")), python_literal(")")), seq!(python_literal(","), &keyword_patterns, opt(python_literal(",")), python_literal(")")))), seq!(&keyword_patterns, opt(python_literal(",")), python_literal(")"))))).into()
+    tag("class_pattern", seq!(&NAME, repeat0(seq!(python_literal("."), &NAME)), python_literal("("), choice!(python_literal(")"), seq!(&positional_patterns, choice!(seq!(opt(python_literal(",")), python_literal(")")), seq!(python_literal(","), &keyword_patterns, opt(python_literal(",")), python_literal(")")))), seq!(&keyword_patterns, opt(python_literal(",")), python_literal(")"))))).into()
 }
 
 pub fn double_star_pattern() -> Combinator {
@@ -645,7 +645,7 @@ pub fn group_pattern() -> Combinator {
 }
 
 pub fn name_or_attr() -> Combinator {
-    tag("name_or_attr", seq!(&NAME, opt(repeat1(seq!(python_literal("."), &NAME))))).into()
+    tag("name_or_attr", seq!(&NAME, repeat0(seq!(python_literal("."), &NAME)))).into()
 }
 
 pub fn attr() -> Combinator {
@@ -901,13 +901,13 @@ pub fn kwds() -> Combinator {
 
 pub fn star_etc() -> Combinator {
     tag("star_etc", choice!(
-        seq!(python_literal("*"), choice!(seq!(&param_no_default, opt(repeat1(&param_maybe_default)), opt(&kwds)), seq!(&param_no_default_star_annotation, opt(repeat1(&param_maybe_default)), opt(&kwds)), seq!(python_literal(","), repeat1(&param_maybe_default), opt(&kwds)))),
+        seq!(python_literal("*"), choice!(seq!(&param_no_default, repeat0(&param_maybe_default), opt(&kwds)), seq!(&param_no_default_star_annotation, repeat0(&param_maybe_default), opt(&kwds)), seq!(python_literal(","), repeat1(&param_maybe_default), opt(&kwds)))),
         &kwds
     )).into()
 }
 
 pub fn slash_with_default() -> Combinator {
-    tag("slash_with_default", seq!(opt(repeat1(&param_no_default)), repeat1(&param_with_default), python_literal("/"), choice!(python_literal(","), lookahead(python_literal(")"))))).into()
+    tag("slash_with_default", seq!(repeat0(&param_no_default), repeat1(&param_with_default), python_literal("/"), choice!(python_literal(","), lookahead(python_literal(")"))))).into()
 }
 
 pub fn slash_no_default() -> Combinator {
@@ -916,9 +916,9 @@ pub fn slash_no_default() -> Combinator {
 
 pub fn parameters() -> Combinator {
     tag("parameters", choice!(
-        seq!(&slash_no_default, opt(repeat1(&param_no_default)), opt(repeat1(&param_with_default)), opt(&star_etc)),
-        seq!(&slash_with_default, opt(repeat1(&param_with_default)), opt(&star_etc)),
-        seq!(repeat1(&param_no_default), opt(repeat1(&param_with_default)), opt(&star_etc)),
+        seq!(&slash_no_default, repeat0(&param_no_default), repeat0(&param_with_default), opt(&star_etc)),
+        seq!(&slash_with_default, repeat0(&param_with_default), opt(&star_etc)),
+        seq!(repeat1(&param_no_default), repeat0(&param_with_default), opt(&star_etc)),
         seq!(repeat1(&param_with_default), opt(&star_etc)),
         &star_etc
     )).into()
@@ -972,7 +972,7 @@ pub fn block() -> Combinator {
 }
 
 pub fn dotted_name() -> Combinator {
-    tag("dotted_name", seq!(&NAME, opt(repeat1(seq!(python_literal("."), &NAME))))).into()
+    tag("dotted_name", seq!(&NAME, repeat0(seq!(python_literal("."), &NAME)))).into()
 }
 
 pub fn dotted_as_name() -> Combinator {
@@ -1000,7 +1000,7 @@ pub fn import_from_targets() -> Combinator {
 }
 
 pub fn import_from() -> Combinator {
-    tag("import_from", seq!(python_literal("from"), choice!(seq!(opt(repeat1(choice!(python_literal("."), python_literal("...")))), &dotted_name, python_literal("import"), &import_from_targets), seq!(repeat1(choice!(python_literal("."), python_literal("..."))), python_literal("import"), &import_from_targets)))).into()
+    tag("import_from", seq!(python_literal("from"), choice!(seq!(repeat0(choice!(python_literal("."), python_literal("..."))), &dotted_name, python_literal("import"), &import_from_targets), seq!(repeat1(choice!(python_literal("."), python_literal("..."))), python_literal("import"), &import_from_targets)))).into()
 }
 
 pub fn import_name() -> Combinator {
@@ -1142,13 +1142,13 @@ pub fn func_type() -> Combinator {
          python_literal(")"),
          python_literal("->"),
          &expression,
-         opt(repeat1(&NEWLINE)),
+         repeat0(&NEWLINE),
          &ENDMARKER
     )).into()
 }
 
 pub fn eval() -> Combinator {
-    tag("eval", seq!(&expressions, opt(repeat1(&NEWLINE)), &ENDMARKER)).into()
+    tag("eval", seq!(&expressions, repeat0(&NEWLINE), &ENDMARKER)).into()
 }
 
 pub fn interactive() -> Combinator {
