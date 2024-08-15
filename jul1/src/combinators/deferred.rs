@@ -149,9 +149,9 @@ impl Debug for Deferred {
 
 impl CombinatorTrait for Deferred {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        // panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
         match self.inner.borrow().clone() {
             DeferredInner::Uncompiled(f) => {
+                panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
                 let combinator = profile!("DeferredInner cache check", {
                         COMBINATOR_CACHE.with(|cache| {
                         let mut cache = cache.borrow_mut();

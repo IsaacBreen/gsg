@@ -40,14 +40,9 @@ impl Combinator {
                             }
                         }
                         DeferredInner::CompiledStrong(strong) => {
-                            let inner: &Combinator = strong.inner.get().unwrap();
-                            compile_inner(inner, deferred_cache);
                             DeferredInner::CompiledStrong(strong.clone())
                         }
                         DeferredInner::CompiledWeak(weak) => {
-                            // let binding = weak.inner.upgrade().unwrap();
-                            // let inner: &Combinator = binding.get().unwrap();
-                            // compile_inner(inner, deferred_cache);
                             DeferredInner::CompiledWeak(weak.clone())
                         }
                     };
