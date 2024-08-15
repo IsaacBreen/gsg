@@ -235,16 +235,19 @@ impl<T> FastVec<T> {
         match self {
             FastVec::None => {}
             FastVec::One(_) => {
-                if len == 1 {
+                if len == 0 {
                     *self = FastVec::None;
                 }
             }
             FastVec::Many(vec) => {
-                vec.truncate(len);
-                if vec.len() == 1 {
-                    if let Some(last_item) = vec.pop() {
-                        *self = FastVec::One(last_item);
-                    }
+                if len == 0 {
+                    *self = FastVec::None;
+                } else if len == 1 {
+                    let last_item = vec.pop().unwrap();
+                    let first_item_mut = vec.first_mut().unwrap();
+                    *self = FastVec::One(std::mem::replace(first_item_mut, last_item));
+                } else {
+                    vec.truncate(len);
                 }
             }
         }
