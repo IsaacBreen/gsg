@@ -91,6 +91,22 @@ impl CombinatorTrait for Deferred {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        match self.inner.borrow().clone() {
+            DeferredInner::Uncompiled(f) => {
+                // todo: better error message (this one makes no sense)
+                panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
+            }
+            DeferredInner::CompiledStrong(inner) => {
+                inner.apply(f);
+            }
+            DeferredInner::CompiledWeak(inner) => {
+                inner.apply(f);
+            }
+        }
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         match self.inner.borrow().clone() {
             DeferredInner::Uncompiled(f) => {

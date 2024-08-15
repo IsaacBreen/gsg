@@ -90,6 +90,11 @@ impl CombinatorTrait for Profiled {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        self.inner.apply(f);
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         profile!(&self.tag, {
             let (parser, parse_results) = self.inner.parse(right_data, bytes);

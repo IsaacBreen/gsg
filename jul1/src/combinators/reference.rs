@@ -45,6 +45,11 @@ impl CombinatorTrait for WeakRef {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        self.inner.upgrade().unwrap().get().unwrap().apply(f);
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         self.inner
             .upgrade()
@@ -59,6 +64,11 @@ impl CombinatorTrait for StrongRef {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        self.inner.get().unwrap().apply(f);
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         self.inner
             .get()

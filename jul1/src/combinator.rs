@@ -166,8 +166,8 @@ macro_rules! match_parser {
 
 pub trait CombinatorTrait: std::fmt::Debug {
     fn as_any(&self) -> &dyn std::any::Any;
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {todo!()}
 }
 
 pub trait ParserTrait: std::fmt::Debug {

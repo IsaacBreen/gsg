@@ -12,6 +12,10 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
         self
     }
 
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        self.inner.apply(f);
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         if !(self.greedy && parse_results.succeeds_decisively()) {

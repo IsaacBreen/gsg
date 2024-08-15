@@ -36,6 +36,10 @@ impl CombinatorTrait for Tagged {
         self
     }
 
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        self.inner.apply(f);
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {

@@ -24,6 +24,11 @@ macro_rules! define_seq {
                 self
             }
 
+            fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+                f(&self.$first);
+                $(f(self.$rest.as_ref());)+
+            }
+
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
                 let start_position = right_data.right_data_inner.fields1.position;
 

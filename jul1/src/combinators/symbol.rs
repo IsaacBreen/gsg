@@ -12,6 +12,10 @@ impl CombinatorTrait for Symbol {
         self
     }
 
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(self.value.as_ref());
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = self.value.parse(right_data, bytes);
         (parser, parse_results)
