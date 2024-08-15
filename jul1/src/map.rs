@@ -91,6 +91,9 @@ impl Combinator {
             Combinator::Continuation(_) => {},
             Combinator::Fast(_) => {}
             Combinator::Dyn(inner) => todo!(),
+            Combinator::Repeat0(Opt { inner: Repeat1 { a: inner, .. }, .. }) => {
+                f(inner);
+            }
         }
     }
 
