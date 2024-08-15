@@ -9,8 +9,8 @@ pub type VecX<T> = Vec<T>;
 pub type VecY<T> = crate::my_tinyvec::FastVec<T>;
 
 // pub type VecZ<T> = Vec<T>;
-pub type VecZ<T> = smallvec::SmallVec<[T; 1]>;
-// pub type VecZ<T> = crate::my_tinyvec::FastVec<T>;
+// pub type VecZ<T> = smallvec::SmallVec<[T; 1]>;
+pub type VecZ<T> = crate::my_tinyvec::FastVec<T>;
 
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut, RangeBounds};

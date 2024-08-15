@@ -1,6 +1,6 @@
 use std::hash::Hash;
 use std::iter::FromIterator;
-use std::ops::{Index, IndexMut, RangeBounds, Bound};
+use std::ops::{Index, IndexMut, RangeBounds, Bound, Deref};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum FastVec<T> {
@@ -214,6 +214,41 @@ impl<T> FastVec<T> {
             }
         }
     }
+
+    pub fn last(&self) -> Option<&T> {
+        match self {
+            FastVec::None => None,
+            FastVec::One(item) => Some(item),
+            FastVec::Many(vec) => vec.last(),
+        }
+    }
+
+    pub fn last_mut(&mut self) -> Option<&mut T> {
+        match self {
+            FastVec::None => None,
+            FastVec::One(item) => Some(item),
+            FastVec::Many(vec) => vec.last_mut(),
+        }
+    }
+
+    pub fn truncate(&mut self, len: usize) {
+        match self {
+            FastVec::None => {}
+            FastVec::One(_) => {
+                if len == 1 {
+                    *self = FastVec::None;
+                }
+            }
+            FastVec::Many(vec) => {
+                vec.truncate(len);
+                if vec.len() == 1 {
+                    if let Some(last_item) = vec.pop() {
+                        *self = FastVec::One(last_item);
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl<T> FromIterator<T> for FastVec<T> {
@@ -310,6 +345,18 @@ impl<T> IndexMut<usize> for FastVec<T> {
                 }
             }
             FastVec::Many(vec) => &mut vec[index],
+        }
+    }
+}
+
+impl<T> Deref for FastVec<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &[T] {
+        match self {
+            FastVec::None => &[],
+            FastVec::One(item) => std::slice::from_ref(item),
+            FastVec::Many(vec) => vec.deref(),
         }
     }
 }
