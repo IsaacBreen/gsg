@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::rc::Rc;
 
 use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX};
@@ -42,6 +43,10 @@ impl CombinatorTrait for Choice {
         for child in self.children.iter() {
             f(child);
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

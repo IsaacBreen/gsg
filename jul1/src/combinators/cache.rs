@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -129,6 +130,10 @@ impl CombinatorTrait for CacheContext {
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

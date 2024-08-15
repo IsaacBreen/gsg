@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
@@ -81,6 +82,10 @@ impl CombinatorTrait for Box<Combinator> {
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         (**self).apply(f);
     }
+
+    fn as_any(&self) -> &dyn Any {
+        (**self).as_any()
+    }
 }
 
 impl ParserTrait for Box<Parser> {
@@ -162,6 +167,7 @@ macro_rules! match_parser {
 pub trait CombinatorTrait: std::fmt::Debug {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {todo!()}
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 pub trait ParserTrait: std::fmt::Debug {
@@ -199,6 +205,10 @@ impl CombinatorTrait for Combinator {
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         match_combinator!(self, inner => inner.apply(f))
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        match_combinator!(self, inner => inner.as_any())
     }
 }
 
