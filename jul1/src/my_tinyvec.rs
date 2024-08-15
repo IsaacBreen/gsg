@@ -108,31 +108,31 @@ impl<T> FastVec<T> {
         match (self, other) {
             (FastVec::None, FastVec::None) => {}
             (FastVec::None, FastVec::One(item)) => {
-                *self = FastVec::One(std::mem::replace(item, unsafe { std::mem::zeroed() }));
+                *self = FastVec::One(std::mem::take(item));
                 *other = FastVec::None;
             }
             (FastVec::None, FastVec::Many(vec)) => {
-                *self = FastVec::Many(std::mem::replace(vec, Vec::new()));
+                *self = FastVec::Many(std::mem::take(vec));
                 *other = FastVec::None;
             }
-            (FastVec::One(item), FastVec::None) => {}
+            (FastVec::One(_), FastVec::None) => {}
             (FastVec::One(item), FastVec::One(other_item)) => {
                 let mut vec = Vec::with_capacity(2);
-                vec.push(std::mem::replace(item, unsafe { std::mem::zeroed() }));
-                vec.push(std::mem::replace(other_item, unsafe { std::mem::zeroed() }));
+                vec.push(std::mem::take(item));
+                vec.push(std::mem::take(other_item));
                 *self = FastVec::Many(vec);
                 *other = FastVec::None;
             }
             (FastVec::One(item), FastVec::Many(vec)) => {
                 let mut new_vec = Vec::with_capacity(1 + vec.len());
-                new_vec.push(std::mem::replace(item, unsafe { std::mem::zeroed() }));
+                new_vec.push(std::mem::take(item));
                 new_vec.append(vec);
                 *self = FastVec::Many(new_vec);
                 *other = FastVec::None;
             }
-            (FastVec::Many(vec), FastVec::None) => {}
+            (FastVec::Many(_), FastVec::None) => {}
             (FastVec::Many(vec), FastVec::One(other_item)) => {
-                vec.push(std::mem::replace(other_item, unsafe { std::mem::zeroed() }));
+                vec.push(std::mem::take(other_item));
                 *other = FastVec::None;
             }
             (FastVec::Many(vec), FastVec::Many(other_vec)) => {
@@ -145,7 +145,7 @@ impl<T> FastVec<T> {
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         match self {
             FastVec::None => Vec::new().iter(),
-            FastVec::One(item) => vec![item].iter(),
+            FastVec::One(item) => std::slice::from_ref(item).iter(),
             FastVec::Many(vec) => vec.iter(),
         }
     }
