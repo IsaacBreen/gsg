@@ -71,6 +71,12 @@ use crate::VecX;
 //     }
 // }
 
+macro_rules! profile {
+    ($name:expr, $e:expr) => {
+        $e
+    };
+}
+
 thread_local! {
     static COMBINATOR_CACHE: RefCell<HashMap<DeferredFn, Rc<Combinator>>> = RefCell::new(HashMap::new());
 }
