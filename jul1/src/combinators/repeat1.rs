@@ -28,7 +28,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        self.a.apply(f);
+        f(self.a.as_ref());
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

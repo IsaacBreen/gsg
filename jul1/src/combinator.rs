@@ -208,7 +208,7 @@ impl CombinatorTrait for Combinator {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        match_combinator!(self, inner => inner.apply(f))
+        match_combinator!(self, inner => inner.apply(f));
     }
 }
 

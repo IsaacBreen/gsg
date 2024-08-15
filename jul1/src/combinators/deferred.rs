@@ -99,10 +99,10 @@ impl CombinatorTrait for Deferred {
                 // panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
             }
             DeferredInner::CompiledStrong(inner) => {
-                inner.apply(f);
+                f(&inner);
             }
             DeferredInner::CompiledWeak(inner) => {
-                inner.apply(f);
+                f(&inner);
             }
         }
     }

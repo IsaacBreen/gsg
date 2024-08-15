@@ -38,8 +38,6 @@ impl CombinatorTrait for CheckRightData {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
         }
     }
-
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
 }
 
 pub fn check_right_data(run: impl Fn(&RightData) -> bool + 'static) -> CheckRightData {

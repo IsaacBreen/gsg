@@ -47,7 +47,7 @@ impl CombinatorTrait for WeakRef {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        self.inner.upgrade().unwrap().get().unwrap().apply(f);
+        f(self.inner.upgrade().unwrap().get().unwrap());
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
@@ -66,7 +66,7 @@ impl CombinatorTrait for StrongRef {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        self.inner.get().unwrap().apply(f);
+        f(self.inner.get().unwrap());
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

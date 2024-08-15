@@ -13,7 +13,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        self.inner.apply(f);
+        f(&self.inner);
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
