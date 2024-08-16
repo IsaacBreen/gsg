@@ -74,8 +74,8 @@ struct CacheEntry {
 }
 
 #[derive(Debug)]
-pub struct CacheContext {
-    pub inner: Combinator,
+pub struct CacheContext<T: CombinatorTrait> {
+    pub inner: T,
 }
 
 #[derive(Debug)]
@@ -107,7 +107,7 @@ pub struct CacheContextParser {
     pub(crate) parse_id: usize,
 }
 
-impl CombinatorTrait for CacheContext {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for CacheContext<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
