@@ -15,27 +15,27 @@ use crate::unicode::get_unicode_general_category_bytestrings;
 use crate::unicode_categories::GeneralCategory;
 
 pub fn breaking_space()-> impl CombinatorTrait {
-    eat_char_choice("\n\r").into()
+    eat_char_choice("\n\r")
 }
 
 pub fn not_breaking_space()-> impl CombinatorTrait {
-    eat_char_negation_choice("\n\r").into()
+    eat_char_negation_choice("\n\r")
 }
 
 pub fn non_breaking_space()-> impl CombinatorTrait {
-    eat_char_choice(" \t").into()
+    eat_char_choice(" \t")
 }
 
 pub fn breaking_space_fast() -> Expr {
-    eat_char_choice_fast("\n\r").into()
+    eat_char_choice_fast("\n\r")
 }
 
 pub fn not_breaking_space_fast() -> Expr {
-    eat_char_negation_choice_fast("\n\r").into()
+    eat_char_negation_choice_fast("\n\r")
 }
 
 pub fn non_breaking_space_fast() -> Expr {
-    eat_char_choice_fast(" \t").into()
+    eat_char_choice_fast(" \t")
 }
 
 // .. _blank-lines:
@@ -99,39 +99,39 @@ pub fn whitespace()-> impl CombinatorTrait {
             check_right_data(|right_data| right_data.right_data_inner.fields1.scope_count > 0),
             repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n", "\n", "\r"]))
         ),
-    ).into();
+    );
 
-    brute_force(|mut right_data, bytes| {
-        let mut s = Utf8CharDecoder::new(bytes);
-        let mut total_offset = 0;
-        loop {
-            match s.next()? {
-                Ok((c, next_offset)) => {
-                    if matches!(c, '\n' | '\r') {
-                        if right_data.right_data_inner.fields1.scope_count == 0 {
-                            break;
-                        }
-                        total_offset += next_offset;
-                    } else if c.is_whitespace() {
-                        total_offset += next_offset;
-                    } else if c == '\\' {
-                        match s.next()? {
-                            Ok(('\n' | '\r', next_offset2)) => {
-                                total_offset += next_offset + next_offset2;
-                            },
-                            _ => break,
-                        }
-                    } else {
-                        break;
-                    }
-                },
-                Err(_) => break,
-            }
-        }
-
-        right_data.advance(total_offset);
-        parse_ok(right_data)
-    }).into()
+    // brute_force(|mut right_data, bytes| {
+    //     let mut s = Utf8CharDecoder::new(bytes);
+    //     let mut total_offset = 0;
+    //     loop {
+    //         match s.next()? {
+    //             Ok((c, next_offset)) => {
+    //                 if matches!(c, '\n' | '\r') {
+    //                     if right_data.right_data_inner.fields1.scope_count == 0 {
+    //                         break;
+    //                     }
+    //                     total_offset += next_offset;
+    //                 } else if c.is_whitespace() {
+    //                     total_offset += next_offset;
+    //                 } else if c == '\\' {
+    //                     match s.next()? {
+    //                         Ok(('\n' | '\r', next_offset2)) => {
+    //                             total_offset += next_offset + next_offset2;
+    //                         },
+    //                         _ => break,
+    //                     }
+    //                 } else {
+    //                     break;
+    //                 }
+    //             },
+    //             Err(_) => break,
+    //         }
+    //     }
+    //
+    //     right_data.advance(total_offset);
+    //     parse_ok(right_data)
+    // })
 }
 
 pub fn WS()-> impl CombinatorTrait {
@@ -580,7 +580,7 @@ pub fn NAME()-> impl CombinatorTrait {
 
     let combinator = seq!(exclude_strings(seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
 
-    combinator.into()
+    combinator
 }
 
 // .. _literals:
@@ -714,7 +714,7 @@ pub fn eat_until_terminator(terminator: char) -> Expr {
     repeat1_fast(eat_char_negation_fast(terminator))
 }
 
-pub fn STRING()-> impl CombinatorTrait {
+pub fn STRING()-> impl IntoCombinator {
     use crate::fast_combinator::{opt_fast as opt, eat_char_fast as eat_char, eat_char_negation_fast as eat_char_negation, eat_char_choice_fast as eat_char_choice, repeatn_fast as repeatn, eat_char_negation_choice_fast as eat_char_negation_choice, eat_string_fast as eat_string, repeat1_fast as repeat1, repeat0_fast as repeat0};
 
     let stringprefix = opt(choice_fast!(
@@ -754,7 +754,7 @@ pub fn STRING()-> impl CombinatorTrait {
         seq_fast!(eat_string("\"\"\""), repeat0(longstringitem), eat_string("\"\"\""))
     );
 
-    seq_fast!(stringprefix, choice_fast!(shortstring, longstring)).into()
+    seq_fast!(stringprefix, choice_fast!(shortstring, longstring))
 }
 
 // From https://peps.python.org/pep-0701/
@@ -922,7 +922,7 @@ pub fn FSTRING_START()-> impl CombinatorTrait {
 
     seq!(
         prefix, quote,
-    ).into()
+    )
 }
 
 pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
@@ -954,7 +954,7 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
             seq!(eat_char('}'), eat_char('}')),
             newline,
         )
-    ).into()
+    )
 }
 
 pub fn FSTRING_END()-> impl CombinatorTrait {
@@ -966,7 +966,7 @@ pub fn FSTRING_END()-> impl CombinatorTrait {
         seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { Rc::make_mut(&mut Rc::make_mut(&mut right_data.right_data_inner).fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
     );
 
-    quote.into()
+    quote
 }
 
 // .. _numbers:
@@ -1084,7 +1084,7 @@ pub fn FSTRING_END()-> impl CombinatorTrait {
 // imaginary literals::
 //
 //    3.14j   10.j    10j     .001j   1e100j   3.14e-10j   3.14_15_93j
-pub fn NUMBER()-> impl CombinatorTrait {
+pub fn NUMBER()-> impl IntoCombinator {
     use crate::fast_combinator::{opt_fast as opt, eat_char_fast as eat_char, eat_char_negation_fast as eat_char_negation, eat_char_choice_fast as eat_char_choice, repeatn_fast as repeatn, eat_char_negation_choice_fast as eat_char_negation_choice, eat_string_fast as eat_string, repeat1_fast as repeat1, repeat0_fast as repeat0, eat_byte_range_fast as eat_byte_range};
 
     let digit = eat_byte_range(b'0', b'9');
@@ -1117,7 +1117,7 @@ pub fn NUMBER()-> impl CombinatorTrait {
 
     let imagnumber = seq_fast!(choice_fast!(floatnumber.clone(), digitpart), eat_char_choice("jJ"));
 
-    choice_fast!(integer, floatnumber, imagnumber).into()
+    choice_fast!(integer, floatnumber, imagnumber)
 }
 
 // .. _comments:
@@ -1179,7 +1179,7 @@ pub fn comment() -> Expr {
 pub fn NEWLINE()-> impl CombinatorTrait {
     let end_of_line = seq_fast!(opt_fast(comment()), breaking_space_fast());
     let blank_line = seq_fast!(repeat0_fast(non_breaking_space_fast()), end_of_line.clone());
-    seq!(end_of_line, repeat0_fast(blank_line), dent()).into()
+    seq!(end_of_line, repeat0_fast(blank_line), dent())
 }
 
 // .. _indentation:
@@ -1260,18 +1260,18 @@ pub fn NEWLINE()-> impl CombinatorTrait {
 // error is found by the lexical analyzer --- the indentation of ``return r`` does
 // not match a level popped off the stack.)
 pub fn INDENT()-> impl CombinatorTrait {
-    indent().into()
+    indent()
 }
 
 pub fn DEDENT()-> impl CombinatorTrait {
-    dedent().into()
+    dedent()
 }
 
 pub fn ENDMARKER()-> impl CombinatorTrait {
-    eps().into()
+    eps()
 }
 
 pub fn TYPE_COMMENT()-> impl CombinatorTrait {
     // seq!(eat_string("#"), opt(whitespace()), eat_string("type:"), opt(whitespace()), repeat0(eat_char_negation_choice("\n\r")))
-    fail().into()
+    fail()
 }

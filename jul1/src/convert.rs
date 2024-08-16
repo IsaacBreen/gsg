@@ -1,4 +1,5 @@
-use crate::{deferred, Combinator, CombinatorTrait, Deferred, StrongRef, Symbol, WeakRef};
+use crate::{deferred, fast_combinator, Combinator, CombinatorTrait, Deferred, FastCombinatorWrapper, StrongRef, Symbol, WeakRef};
+use crate::tokenizer::finite_automata::Expr;
 
 pub trait IntoCombinator {
     type Output: CombinatorTrait;
@@ -6,9 +7,16 @@ pub trait IntoCombinator {
 }
 
 impl<T: CombinatorTrait> IntoCombinator for T {
-    type Output = T;
+    type Output = Self;
     fn into_combinator(self) -> Self::Output {
         self
+    }
+}
+
+impl<T: IntoCombinator, F: Fn() -> T> IntoCombinator for F {
+    type Output = T::Output;
+    fn into_combinator(self) -> Self::Output {
+        self().into_combinator()
     }
 }
 
@@ -23,6 +31,13 @@ impl IntoCombinator for &StrongRef {
     type Output = StrongRef;
     fn into_combinator(self) -> Self::Output {
         self.clone()
+    }
+}
+
+impl IntoCombinator for Expr {
+    type Output = FastCombinatorWrapper;
+    fn into_combinator(self) -> Self::Output {
+        fast_combinator(self)
     }
 }
 

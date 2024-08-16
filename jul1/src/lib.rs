@@ -34,7 +34,7 @@ mod bitset256;
 // Include tests
 mod tests;
 mod frame_stack;
-// mod python;
+mod python;
 mod unicode;
 mod compiler;
 mod stats;

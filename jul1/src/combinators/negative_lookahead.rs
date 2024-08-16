@@ -63,10 +63,10 @@ impl ParserTrait for ExcludeBytestringsParser {
     }
 }
 
-pub fn exclude_strings(inner: impl CombinatorTrait + 'static, bytestrings_to_exclude: Vec<&str>)-> impl CombinatorTrait {
+pub fn exclude_strings(inner: impl IntoCombinator + 'static, bytestrings_to_exclude: Vec<&str>)-> impl CombinatorTrait {
     let bytestrings_to_exclude: Vec<Vec<u8>> = bytestrings_to_exclude.iter().map(|s| s.as_bytes().to_vec()).collect();
     ExcludeBytestrings {
-        inner: Box::new(Box::new(inner)),
+        inner: Box::new(Box::new(inner.into_combinator())),
         root: Rc::new(bytestrings_to_exclude.into()),
     }
 }

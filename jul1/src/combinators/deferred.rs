@@ -21,7 +21,7 @@ pub struct Deferred {
 }
 
 #[derive(Clone, Copy)]
-pub struct DeferredFn(pub &'static dyn Fn()-> Combinator);
+pub struct DeferredFn(pub &'static dyn Fn() -> Combinator);
 
 impl PartialEq for DeferredFn {
     fn eq(&self, other: &Self) -> bool {
@@ -133,7 +133,7 @@ pub fn deferred(f: &'static impl Fn() -> Combinator) -> impl CombinatorTrait {
 
 // impl<T> From<&'static T> for Combinator
 // where
-//     T: Fn()-> Combinator
+//     T: Fn() -> Combinator
 // {
 //     fn from(value: &'static T) -> Self {
 //         deferred(value).into()
