@@ -41,12 +41,12 @@ impl IntoCombinator for Expr {
     }
 }
 
-pub trait IntoDyn {
-    fn into_dyn(self) -> Box<dyn CombinatorTrait>;
+pub trait IntoDyn<'a> {
+    fn into_dyn(self) -> impl CombinatorTrait + 'a;
 }
 
-impl<T: CombinatorTrait + 'static> IntoDyn for T {
-    fn into_dyn(self) -> Box<dyn CombinatorTrait> {
-        Box::new(self)
+impl<'a, T: CombinatorTrait + 'a> IntoDyn<'a> for T {
+    fn into_dyn(self) -> impl CombinatorTrait + 'a {
+        self
     }
 }

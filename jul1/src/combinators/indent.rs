@@ -23,12 +23,12 @@ impl CombinatorTrait for IndentCombinator {
     fn parse<'a>(&'a self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser<'a>, ParseResults) = match self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
-                fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait> {
+                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> impl CombinatorTrait + 'a {
                     if indents.is_empty() {
-                        Box::new(eps())
+                        eps().into_dyn()
                     } else {
                         let dedents = indents.len().try_into().unwrap();
-                        Box::new(choice_greedy!(
+                        choice_greedy!(
                             // Exit here and register dedents
                             seq!(
                                 negative_lookahead(eat_char_choice(" \n\r")),
@@ -43,8 +43,8 @@ impl CombinatorTrait for IndentCombinator {
                                 })
                             ),
                             // Or match the indent and continue
-                            seq!(eat_bytes(&indents[0]), make_combinator(&indents[1..], total_indents)))
-                        )
+                            seq!(eat_bytes(&indents[0]), make_combinator(&indents[1..], total_indents))
+                        ).into_dyn()
                     }
                 }
                 // println!("Made dent parser with right_data: {:?}", right_data);
