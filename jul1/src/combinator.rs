@@ -28,7 +28,7 @@ pub enum Parser<'a> {
     FailParser(FailParser),
     CacheContextParser(CacheContextParser<'a>),
     CachedParser(CachedParser<'a>),
-    IndentCombinatorParser(IndentCombinatorParser<'a>),
+    IndentCombinatorParser(IndentCombinatorParser),
     Repeat1Parser(Repeat1Parser<'a>),
     EatByteStringChoiceParser(EatByteStringChoiceParser),
     ExcludeBytestringsParser(ExcludeBytestringsParser<'a>),
@@ -37,7 +37,7 @@ pub enum Parser<'a> {
     ContinuationParser(ContinuationParser),
     FastParserWrapper(FastParserWrapper),
     DynParser(Box<dyn ParserTrait>),
-    OwningParser(OwningParser<'a, Box<dyn CombinatorTrait + 'a>>),
+    OwningParser(OwningParser<Box<dyn CombinatorTrait>>),
 }
 
 // impl CombinatorTrait for Box<Combinator> {
