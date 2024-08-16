@@ -42,11 +42,11 @@ impl IntoCombinator for Expr {
 }
 
 pub trait IntoDyn<'a> {
-    fn into_dyn(self) -> impl CombinatorTrait + 'a;
+    fn into_dyn(self) -> Box<dyn CombinatorTrait + 'a>;
 }
 
 impl<'a, T: CombinatorTrait + 'a> IntoDyn<'a> for T {
-    fn into_dyn(self) -> impl CombinatorTrait + 'a {
-        self
+    fn into_dyn(self) -> Box<dyn CombinatorTrait + 'a> {
+        Box::new(self)
     }
 }

@@ -223,12 +223,14 @@ impl ParserTrait for CachedParser<'_> {
     }
 }
 
-pub fn cache_context<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: IntoDyn {
-    profile_internal("cache_context", CacheContext { inner: a.into_combinator().into_dyn() })
+pub fn cache_context<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: IntoDyn<'a> {
+    // profile_internal("cache_context", CacheContext { inner: a.into_combinator().into_dyn() })
+    a.into_combinator()
 }
 
-pub fn cached<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: IntoDyn {
-    profile_internal("cached", Cached { inner: Rc::new(a.into_combinator().into_dyn()) })
+pub fn cached<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: IntoDyn<'a> {
+    // profile_internal("cached", Cached { inner: Rc::new(a.into_combinator().into_dyn()) })
+    a.into_combinator()
 }
 
 // impl From<CacheContext> for Combinator {
