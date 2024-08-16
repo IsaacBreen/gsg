@@ -57,7 +57,7 @@ macro_rules! define_seq {
 
                 let mut next_right_data_vec = first_parse_results.right_data_vec;
 
-                fn helper<T: CombinatorTrait>(right_data: RightData, next_combinator: &T, bytes: &[u8], start_position: usize, parsers: &mut Vec<(usize, Parser)>) -> VecY<RightData> {
+                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize, parsers: &mut Vec<(usize, Parser<'a>)>) -> VecY<RightData> {
                     let offset = right_data.right_data_inner.fields1.position - start_position;
                     let (parser, parse_results) = profile!(stringify!($seq_name, " child parse"), {
                         next_combinator.parse(right_data, &bytes[offset..])
