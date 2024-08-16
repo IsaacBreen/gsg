@@ -91,6 +91,10 @@ define_choice!(Choice6, c0, c1, c2, c3, c4, c5);
 define_choice!(Choice7, c0, c1, c2, c3, c4, c5, c6);
 define_choice!(Choice8, c0, c1, c2, c3, c4, c5, c6, c7);
 define_choice!(Choice9, c0, c1, c2, c3, c4, c5, c6, c7, c8);
+define_choice!(Choice10, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
+define_choice!(Choice11, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
+define_choice!(Choice12, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
+define_choice!(Choice13, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);
 
 #[macro_export]
 macro_rules! choice {
@@ -266,10 +270,58 @@ macro_rules! choice_greedy {
             greedy: true,
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $($rest:expr),+) => {{
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr) => {
+        $crate::Choice10 {
+            c0: crate::IntoCombinator::into_combinator($c0),
+            c1: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c1)),
+            c2: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c2)),
+            c3: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c3)),
+            c4: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c4)),
+            c5: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c5)),
+            c6: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c6)),
+            c7: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c7)),
+            c8: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c8)),
+            c9: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c9)),
+            greedy: true,
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr) => {
+        $crate::Choice11 {
+            c0: crate::IntoCombinator::into_combinator($c0),
+            c1: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c1)),
+            c2: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c2)),
+            c3: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c3)),
+            c4: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c4)),
+            c5: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c5)),
+            c6: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c6)),
+            c7: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c7)),
+            c8: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c8)),
+            c9: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c9)),
+            c10: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c10)),
+            greedy: true,
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr) => {
+        $crate::Choice12 {
+            c0: crate::IntoCombinator::into_combinator($c0),
+            c1: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c1)),
+            c2: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c2)),
+            c3: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c3)),
+            c4: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c4)),
+            c5: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c5)),
+            c6: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c6)),
+            c7: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c7)),
+            c8: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c8)),
+            c9: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c9)),
+            c10: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c10)),
+            c11: std::rc::Rc::new(crate::IntoCombinator::into_combinator($c11)),
+            greedy: true,
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $($rest:expr),+) => {{
         fn convert(x: impl $crate::IntoCombinator + 'static) -> Box<dyn $crate::CombinatorTrait> {
             Box::new(x.into_combinator())
         }
-        $crate::_choice(vec![convert($c0), convert($c1), convert($c2), convert($c3), convert($c4), convert($c5), convert($c6), convert($c7), convert($c8), $(convert($rest)),+])
+        $crate::_choice(vec![convert($c0), convert($c1), convert($c2), convert($c3), convert($c4), convert($c5), convert($c6), convert($c7), convert($c8), convert($c9), convert($c10), convert($c11), $(convert($rest)),+])
     }};
 }
