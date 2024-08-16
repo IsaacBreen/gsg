@@ -40,7 +40,7 @@ impl<'a, T: CombinatorTrait> OwningParser<'a, T> {
         (owning_parser, parse_results)
     }
 
-    fn start(&mut self, right_data: RightData, bytes: &[u8]) -> ParseResults {
+    fn start<'b>(&'b mut self, right_data: RightData<>, bytes: &[u8]) -> ParseResults {
         let (parser, parse_results) = self.combinator.parse(right_data, bytes);
         self.parser = Some(Box::new(parser));
         parse_results
