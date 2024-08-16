@@ -3,9 +3,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use derivative::Derivative;
 
-use crate::{ForbidFollowsData, FrameStack, LookaheadData};
+use crate::{ForbidFollowsData, FrameStack, LookaheadData, PythonQuoteType};
 use crate::internal_vec::VecZ;
-// use crate::python::PythonQuoteType;
 use crate::VecX;
 
 #[repr(packed(1))]
@@ -23,7 +22,7 @@ pub struct Fields2 {
     // #[derivative(Hash = "ignore")]
     // pub frame_stack: Option<FrameStack>,
     pub indents: VecZ<Vec<u8>>,
-    // pub fstring_start_stack: VecZ<PythonQuoteType>
+    pub fstring_start_stack: VecZ<PythonQuoteType>
 }
 
 #[derive(Derivative)]
@@ -47,7 +46,7 @@ impl Default for RightData {
         Self {
             right_data_inner: RightDataInner {
                 // frame_stack: None,
-                fields2: Fields2 { indents: VecZ::new() }.into(),
+                fields2: Fields2 { indents: VecZ::new(), fstring_start_stack: VecZ::new() }.into(),
                 fields1: Fields1 { dedents: 0, scope_count: 0, forbidden_consecutive_matches: ForbidFollowsData::default(), lookahead_data: LookaheadData::default(), position: 0 },
             }.into()
         }
