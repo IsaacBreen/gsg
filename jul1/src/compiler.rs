@@ -8,7 +8,7 @@ enum Ref {
     Weak(WeakRef),
 }
 
-impl From<Ref> for DeferredInner {
+impl<T: CombinatorTrait> From<Ref> for DeferredInner<T> {
     fn from(value: Ref) -> Self {
         match value {
             Ref::Strong(strong) => DeferredInner::CompiledStrong(strong),
