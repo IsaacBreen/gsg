@@ -150,8 +150,9 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: impl Fn() -> T + 'static) -> De
     Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))) }
 }
 
-pub fn deferred2<F: Fn() -> Choice2<Seq2<EatU8, Deferred>, EatU8> + 'static>(f: &'static F) -> Deferred {
+pub fn deferred2(f: &'static impl Fn() -> Choice2<Seq2<EatU8, Deferred>, EatU8>) -> Deferred {
     let addr = std::ptr::addr_of!(f) as usize;
+    // let addr = f as *const () as usize;
     dbg!(addr);
     Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))) }
 }
