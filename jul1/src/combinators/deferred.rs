@@ -145,15 +145,15 @@ impl CombinatorTrait for Deferred {
 pub fn deferred<T: CombinatorTrait + 'static>(f: &'static impl Fn() -> T) -> Deferred {
     // dbg!(f as *const ());
     // let addr = &f as *const _ as usize;
-    let addr = std::ptr::addr_of!(f) as usize;
-    dbg!(addr);
+    let addr = std::ptr::addr_of!(*f) as usize;
+    dbg!(std::ptr::addr_of!(*f));
     Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))) }
 }
 
 pub fn deferred2<F: Fn() -> Choice2<Seq2<EatU8, Deferred>, EatU8>>(f: &'static F) -> Deferred {
     // dbg!(f as *const ());
     // let addr = &f as *const _ as usize;
-    let addr = std::ptr::addr_of!(f) as usize;
+    let addr = std::ptr::addr_of!(*f) as usize;
     dbg!(addr);
     Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))) }
 }

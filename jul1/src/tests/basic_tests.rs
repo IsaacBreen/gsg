@@ -206,12 +206,12 @@ mod more_tests {
 
     #[test]
     fn test_from_fn() {
-        // fn B() -> Deferred {
-        //     deferred(&A)
-        // }
+        fn B() -> Deferred {
+            deferred(&A)
+        }
 
         fn A() -> Choice2<Seq2<EatU8, Deferred>, EatU8> {
-            choice!(seq!(eat_char('a'), deferred2(&A)), eat_char('b'))
+            choice!(seq!(eat_char('a'), deferred(&B)), eat_char('b'))
         }
 
         assert_parses_default(&A().compile(), "ab");
