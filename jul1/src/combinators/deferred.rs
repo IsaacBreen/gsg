@@ -47,7 +47,8 @@ impl<T: CombinatorTrait + 'static> EvaluateDeferredFnToBoxedDynCombinator for De
         Box::new(self.0())
     }
     fn get_addr(&self) -> usize {
-        dbg!(self.1)
+        // dbg!(self.1)
+        self.1
     }
 }
 
@@ -142,7 +143,6 @@ impl CombinatorTrait for Deferred {
 }
 
 pub fn deferred<T: CombinatorTrait + 'static>(f: &'static impl Fn() -> T) -> Deferred {
-    let addr = std::ptr::addr_of!(f) as usize;
-    dbg!(std::ptr::addr_of!(f));
-    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, std::ptr::addr_of!(f) as usize)))) }
+    let addr = f as *const _ as usize;
+    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))) }
 }
