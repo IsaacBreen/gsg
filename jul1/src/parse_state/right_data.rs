@@ -47,7 +47,7 @@ impl Default for RightData {
         Self {
             right_data_inner: RightDataInner {
                 // frame_stack: None,
-                fields2: Fields2 { indents: VecZ::new(), fstring_start_stack: VecZ::new() }.into(),
+                fields2: Fields2 { indents: VecZ::new() }.into(),
                 fields1: Fields1 { dedents: 0, scope_count: 0, forbidden_consecutive_matches: ForbidFollowsData::default(), lookahead_data: LookaheadData::default(), position: 0 },
             }.into()
         }

@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use crate::{choice, choice_greedy, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX, VecY, IntoDyn};
+
 #[derive(Debug)]
 pub enum IndentCombinator {
     Dent,
@@ -19,8 +20,8 @@ impl CombinatorTrait for IndentCombinator {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (parser, parse_results) = match self {
+    fn parse<'a>(&'a self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+        let (parser, parse_results): (IndentCombinatorParser<'a>, ParseResults) = match self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
                 fn make_combinator(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait> {
                     if indents.is_empty() {

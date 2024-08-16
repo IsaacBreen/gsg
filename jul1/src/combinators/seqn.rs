@@ -32,7 +32,7 @@ macro_rules! define_seq {
 
             fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
                 f(&self.$first);
-                $(f(self.$rest.as_ref());)+
+                $(f(&self.$rest);)+
             }
 
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
@@ -57,7 +57,7 @@ macro_rules! define_seq {
 
                 let mut next_right_data_vec = first_parse_results.right_data_vec;
 
-                fn helper<T: CombinatorTrait>(right_data: RightData, next_combinator: &Rc<T>, bytes: &[u8], start_position: usize, parsers: &mut Vec<(usize, Parser)>) -> VecY<RightData> {
+                fn helper<T: CombinatorTrait>(right_data: RightData, next_combinator: &T, bytes: &[u8], start_position: usize, parsers: &mut Vec<(usize, Parser)>) -> VecY<RightData> {
                     let offset = right_data.right_data_inner.fields1.position - start_position;
                     let (parser, parse_results) = profile!(stringify!($seq_name, " child parse"), {
                         next_combinator.parse(right_data, &bytes[offset..])
@@ -74,11 +74,12 @@ macro_rules! define_seq {
                         return (Parser::FailParser(FailParser), ParseResults::new(final_right_data, true));
                     }
 
-                    let parser = Parser::SeqParser(SeqParser {
-                        parsers,
-                        combinators: std::rc::Rc::new(vecx![$crate::IntoDyn::into_dyn(Fail), $($crate::IntoDyn::into_dyn($crate::Symbol { value: self.$rest.clone() })),+]),
-                        position: start_position + bytes.len(),
-                    });
+                    // let parser = Parser::SeqParser(SeqParser {
+                    //     parsers,
+                    //     combinators: vecx![$crate::IntoDyn::into_dyn(Fail), $($crate::IntoDyn::into_dyn($crate::Symbol { value: self.$rest.clone() })),+],
+                    //     position: start_position + bytes.len(),
+                    // });
+                    let parser = Parser::FailParser(FailParser);
 
                     let parse_results = ParseResults::new(final_right_data, false);
 
@@ -119,8 +120,8 @@ define_seq!(Seq14, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13);
 define_seq!(Seq15, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
 define_seq!(Seq16, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15);
 
-pub fn seqn_helper<T: IntoCombinator>(x: T) -> Rc<T::Output> {
-    Rc::new(IntoCombinator::into_combinator(x))
+pub fn seqn_helper<T: IntoCombinator>(x: T) -> T::Output {
+    IntoCombinator::into_combinator(x)
 }
 
 #[macro_export]
