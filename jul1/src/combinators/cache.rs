@@ -47,7 +47,7 @@ impl GlobalCache {
 
 #[derive(Debug)]
 struct CacheKey {
-    combinator: Rc<Combinator>,
+    combinator: Rc<dyn CombinatorTrait>,
     right_data: RightData,
 }
 
@@ -79,8 +79,8 @@ pub struct CacheContext<T: CombinatorTrait> {
 }
 
 #[derive(Debug)]
-pub struct Cached {
-    pub inner: Rc<Combinator>,
+pub struct Cached<T: CombinatorTrait> {
+    pub inner: Rc<T>,
 }
 
 #[derive(Debug)]
@@ -170,7 +170,7 @@ impl ParserTrait for CacheContextParser {
     }
 }
 
-impl CombinatorTrait for Cached {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
