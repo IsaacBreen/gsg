@@ -18,6 +18,7 @@ impl<T> FastVec<T> {
     unsafe fn take_unchecked(&mut self) -> T {
         match self {
             FastVec::One(item) => {
+                // TODO: optimisation opportunity here and in places where this is called
                 let item = std::ptr::read(item);
                 std::ptr::write(self as *mut _, Self::None);
                 item
