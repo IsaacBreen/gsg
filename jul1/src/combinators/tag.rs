@@ -5,8 +5,8 @@ use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 use crate::*;
 use crate::VecX;
 
-pub struct Tagged {
-    pub inner: Box<Combinator>,
+pub struct Tagged<T: CombinatorTrait> {
+    pub inner: Box<T>,
     pub tag: String,
 }
 
@@ -15,7 +15,7 @@ pub struct TaggedParser {
     pub tag: String,
 }
 
-impl Debug for Tagged {
+impl<T: CombinatorTrait> Debug for Tagged<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Tagged")
             .field("tag", &self.tag)
@@ -31,7 +31,7 @@ impl Debug for TaggedParser {
     }
 }
 
-impl CombinatorTrait for Tagged {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
