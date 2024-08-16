@@ -15,25 +15,29 @@ impl<T> FastVec<T> {
         FastVec::None
     }
 
+    unsafe fn take_unchecked(&mut self) -> T {
+        match self {
+            FastVec::One(item) => {
+                let item = std::ptr::read(item);
+                std::ptr::write(self as *mut _, Self::None);
+                item
+            }
+            _ => panic!("Cannot take from empty FastVec"),
+        }
+    }
+
     pub fn push(&mut self, item: T) {
         match self {
             FastVec::None => {
                 // Transition from None to One
                 *self = FastVec::One(item);
             }
-            FastVec::One(existing_item) => {
+            FastVec::One(_) => {
                 // Transition from One to Many
                 let mut vec = Vec::with_capacity(2);
-                unsafe {
-                    // Move the existing item into the vector
-                    vec.push(std::ptr::read(existing_item));
-                }
+                vec.push(unsafe { self.take_unchecked() });
                 vec.push(item);
-                let old_self = std::mem::replace(self, FastVec::Many(vec));
-                if let FastVec::One(_) = old_self {
-                    // The item has been moved, so we don't need to drop it
-                    std::mem::forget(old_self);
-                }
+                *self = FastVec::Many(vec);
             }
             FastVec::Many(vec) => {
                 // Simply push the item into the existing vector
@@ -125,43 +129,22 @@ impl<T> FastVec<T> {
             (_, FastVec::None) => {
                 // Do nothing, as other is empty
             }
-            (FastVec::One(self_item), FastVec::One(other_item)) => {
+            (FastVec::One(_), FastVec::One(_)) => {
                 // Move self's item to a new vector, then append other's item
                 let mut vec = Vec::with_capacity(2);
-                unsafe {
-                    vec.push(std::ptr::read(self_item));
-                    vec.push(std::ptr::read(other_item));
-                }
-                let old_self = std::mem::replace(self, FastVec::Many(vec));
-                if let FastVec::One(_) = old_self {
-                    // The item has been moved, so we don't need to drop it
-                    std::mem::forget(old_self);
-                }
-                *other = FastVec::None;
+                vec.push(unsafe { self.take_unchecked() });
+                vec.push(unsafe { other.take_unchecked() });
+                *self = FastVec::Many(vec);
             }
-            (FastVec::One(self_item), FastVec::Many(other_vec)) => {
+            (FastVec::One(_), FastVec::Many(other_vec)) => {
                 // Move self's item to the front of other's vector, then take ownership
                 let mut vec = std::mem::take(other_vec);
-                unsafe {
-                    vec.insert(0, std::ptr::read(self_item));
-                }
-                let old_self = std::mem::replace(self, FastVec::Many(vec));
-                if let FastVec::One(_) = old_self {
-                    // The item has been moved, so we don't need to drop it
-                    std::mem::forget(old_self);
-                }
-                *other = FastVec::None;
+                vec.insert(0, unsafe { self.take_unchecked() });
+                *self = FastVec::Many(vec);
             }
-            (FastVec::Many(self_vec), FastVec::One(other_item)) => {
+            (FastVec::Many(self_vec), FastVec::One(_)) => {
                 // Append other's item to self's vector
-                unsafe {
-                    self_vec.push(std::ptr::read(other_item));
-                }
-                let old_other = std::mem::replace(other, FastVec::None);
-                if let FastVec::One(_) = old_other {
-                    // The item has been moved, so we don't need to drop it
-                    std::mem::forget(old_other);
-                }
+                self_vec.push(unsafe { other.take_unchecked() });
             }
             (FastVec::Many(self_vec), FastVec::Many(other_vec)) => {
                 // Append other's vector to self's vector
