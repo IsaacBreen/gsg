@@ -10,8 +10,8 @@ pub struct Tagged<T: CombinatorTrait> {
     pub tag: String,
 }
 
-pub struct TaggedParser {
-    pub inner: Box<Parser>,
+pub struct TaggedParser<'a> {
+    pub inner: Box<Parser<'a>>,
     pub tag: String,
 }
 
@@ -23,7 +23,7 @@ impl<T: CombinatorTrait> Debug for Tagged<T> {
     }
 }
 
-impl Debug for TaggedParser {
+impl Debug for TaggedParser<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaggedParser")
             .field("tag", &self.tag)

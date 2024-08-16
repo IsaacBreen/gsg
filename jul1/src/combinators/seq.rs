@@ -14,14 +14,14 @@ macro_rules! profile {
 
 #[derive(Debug)]
 pub struct Seq {
-    pub(crate) children: Rc<VecX<Combinator>>,
+    pub(crate) children: VecX<Combinator>,
     pub(crate) start_index: usize,
 }
 
 #[derive(Debug)]
-pub struct SeqParser {
-    pub(crate) parsers: Vec<(usize, Parser)>,
-    pub(crate) combinators: Rc<VecX<Combinator>>,
+pub struct SeqParser<'a> {
+    pub(crate) parsers: Vec<(usize, Parser<'a>)>,
+    pub(crate) combinators: &'a VecX<Combinator>,
     pub(crate) position: usize,
 }
 
@@ -108,7 +108,7 @@ impl CombinatorTrait for Seq {
 
         let parser = Parser::SeqParser(SeqParser {
             parsers,
-            combinators: self.children.clone(),
+            combinators: &self.children,
             position: start_position + bytes.len(),
         });
 
@@ -118,7 +118,7 @@ impl CombinatorTrait for Seq {
     }
 }
 
-impl ParserTrait for SeqParser {
+impl ParserTrait for SeqParser<'_> {
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::none();
         for (_, parser) in &self.parsers {
@@ -187,7 +187,7 @@ impl ParserTrait for SeqParser {
 
 pub fn _seq(v: Vec<Combinator>)-> impl CombinatorTrait {
     profile_internal("seq", Seq {
-        children: Rc::new(v.into_iter().collect()),
+        children: v.into_iter().collect(),
         start_index: 0,
     })
 }

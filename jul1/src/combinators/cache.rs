@@ -17,18 +17,18 @@ macro_rules! profile {
 }
 
 thread_local! {
-    pub static GLOBAL_CACHE: RefCell<GlobalCache> = RefCell::new(GlobalCache::new());
+    pub static GLOBAL_CACHE: RefCell<GlobalCache<'static>> = RefCell::new(GlobalCache::new());
 }
 
 #[derive(Debug)]
-struct GlobalCache {
-    new_parsers: HashMap<usize, HashMap<CacheKey, Rc<RefCell<CacheEntry>>>>,
-    pub(crate) entries: HashMap<usize, Vec<Rc<RefCell<CacheEntry>>>>,
+struct GlobalCache<'a> {
+    new_parsers: HashMap<usize, HashMap<CacheKey, Rc<RefCell<CacheEntry<'a>>>>>,
+    pub(crate) entries: HashMap<usize, Vec<Rc<RefCell<CacheEntry<'a>>>>>,
     pub(crate) parse_id_counter: usize,
     pub(crate) parse_id: Option<usize>,
 }
 
-impl GlobalCache {
+impl GlobalCache<'_> {
     fn new() -> Self {
         Self {
             new_parsers: HashMap::new(),
@@ -68,8 +68,8 @@ impl Eq for CacheKey {}
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-struct CacheEntry {
-    pub(crate) parser: Option<Box<Parser>>,
+struct CacheEntry<'a> {
+    pub(crate) parser: Option<Box<Parser<'a>>>,
     maybe_parse_results: Option<ParseResults>,
 }
 
@@ -84,17 +84,17 @@ pub struct Cached<T: CombinatorTrait> {
 }
 
 #[derive(Debug)]
-pub struct CachedParser {
-    pub entry: Rc<RefCell<CacheEntry>>,
+pub struct CachedParser<'a> {
+    pub entry: Rc<RefCell<CacheEntry<'a>>>,
 }
 
-impl Hash for CachedParser {
+impl Hash for CachedParser<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(self.entry.as_ref() as *const RefCell<CacheEntry>, state);
     }
 }
 
-impl PartialEq for CachedParser {
+impl PartialEq for CachedParser<'_> {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.entry, &other.entry)
     }
@@ -102,8 +102,8 @@ impl PartialEq for CachedParser {
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct CacheContextParser {
-    pub inner: Box<Parser>,
+pub struct CacheContextParser<'a> {
+    pub inner: Box<Parser<'a>>,
     pub(crate) parse_id: usize,
 }
 
@@ -136,7 +136,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for CacheContext<T> {
     }
 }
 
-impl ParserTrait for CacheContextParser {
+impl ParserTrait for CacheContextParser<'_> {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }
@@ -213,7 +213,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
     }
 }
 
-impl ParserTrait for CachedParser {
+impl ParserTrait for CachedParser<'_> {
     fn get_u8set(&self) -> U8Set {
         self.entry.borrow().parser.as_ref().unwrap().get_u8set()
     }

@@ -81,8 +81,8 @@ pub struct Profiled<T> {
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct ProfiledParser {
-    pub inner: Box<Parser>,
+pub struct ProfiledParser<'a> {
+    pub inner: Box<Parser<'a>>,
     pub tag: String,
 }
 
@@ -104,7 +104,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
     }
 }
 
-impl ParserTrait for ProfiledParser {
+impl ParserTrait for ProfiledParser<'_> {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }

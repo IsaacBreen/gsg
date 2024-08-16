@@ -11,8 +11,8 @@ pub struct Choice {
 }
 
 #[derive(Debug)]
-pub struct ChoiceParser {
-    pub(crate) parsers: Vec<Parser>,
+pub struct ChoiceParser<'a> {
+    pub(crate) parsers: Vec<Parser<'a>>,
     pub(crate) greedy: bool,
 }
 
@@ -50,7 +50,7 @@ impl CombinatorTrait for Choice {
     }
 }
 
-impl ParserTrait for ChoiceParser {
+impl ParserTrait for ChoiceParser<'_> {
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::none();
         for parser in &self.parsers {

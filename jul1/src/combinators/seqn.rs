@@ -18,7 +18,7 @@ macro_rules! define_seq {
             $($rest: CombinatorTrait),+
         {
             pub(crate) $first: $first,
-            $(pub(crate) $rest: Rc<$rest>),+
+            $(pub(crate) $rest: $rest),+
         }
 
         impl<$first, $($rest),+> CombinatorTrait for $seq_name<$first, $($rest),+>

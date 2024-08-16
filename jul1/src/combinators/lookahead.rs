@@ -1,8 +1,8 @@
 use crate::*;
 
 #[derive(Debug)]
-pub struct PartialLookahead {
-    pub parser: Box<Parser>,
+pub struct PartialLookahead<'a> {
+    pub parser: Box<Parser<'a>>,
     pub positive: bool,
 }
 

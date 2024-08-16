@@ -2,7 +2,7 @@ use std::any::Any;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy, Opt, Seq2, IntoCombinator};
+use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy, Opt, Seq2, IntoCombinator, fail};
 use crate::opt;
 use crate::parse_state::RightData;
 use crate::VecX;
@@ -14,10 +14,10 @@ pub struct Repeat1<T: CombinatorTrait> {
 }
 
 #[derive(Debug)]
-pub struct Repeat1Parser {
+pub struct Repeat1Parser<'a> {
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
-    pub(crate) a: Rc<dyn CombinatorTrait>,
-    pub(crate) a_parsers: Vec<Parser>,
+    pub(crate) a: &'a dyn CombinatorTrait,
+    pub(crate) a_parsers: Vec<Parser<'a>>,
     pub(crate) position: usize,
     pub(crate) greedy: bool,
 }
@@ -31,7 +31,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
         f(self.a.as_ref());
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
         let (parser, parse_results) = self.a.parse(right_data, bytes);
         if parse_results.done() && parse_results.right_data_vec.is_empty() {
@@ -39,7 +39,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
             return (parser, parse_results);
         } else if parse_results.right_data_vec.is_empty() {
             return (Parser::Repeat1Parser(Repeat1Parser {
-                a: self.a.clone(),
+                a: self.a.as_ref(),
                 a_parsers: vec![parser],
                 position: start_position + bytes.len(),
                 greedy: self.greedy
@@ -86,7 +86,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
 
         (
             Parser::Repeat1Parser(Repeat1Parser {
-                a: self.a.clone(),
+                a: self.a.as_ref(),
                 a_parsers: parsers,
                 position: start_position + bytes.len(),
                 greedy: self.greedy
@@ -96,7 +96,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     }
 }
 
-impl ParserTrait for Repeat1Parser {
+impl ParserTrait for Repeat1Parser<'_> {
     fn get_u8set(&self) -> U8Set {
         if self.a_parsers.is_empty() {
             U8Set::none()
@@ -161,14 +161,15 @@ pub fn repeat0_greedy(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait 
     Opt { inner: Repeat1 { a: Rc::new(a), greedy: true }, greedy: true }
 }
 
-pub fn seprep1(a: impl CombinatorTrait + Clone + 'static, b: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
-    Seq2 {
-        c0: Box::new(a.clone()),
-        c1: Opt { inner: Repeat1 { a: Seq2 {
-            c0: b,
-            c1: Rc::new(a)
-        }.into(), greedy: false }, greedy: false }.into(),
-    }
+pub fn seprep1(a: impl CombinatorTrait + Clone, b: impl CombinatorTrait)-> impl CombinatorTrait {
+    // Seq2 {
+    //     c0: Box::new(a.clone()),
+    //     c1: Opt { inner: Repeat1 { a: Seq2 {
+    //         c0: b,
+    //         c1: a
+    //     }.into(), greedy: false }, greedy: false }.into(),
+    // }
+    fail()
 }
 
 // impl From<Repeat1<Combinator>> for Combinator {

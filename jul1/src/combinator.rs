@@ -19,20 +19,20 @@ macro_rules! match_enum {
 pub type Combinator = Box<dyn CombinatorTrait>;
 
 #[derive(Debug)]
-pub enum Parser {
-    SeqParser(SeqParser),
-    ChoiceParser(ChoiceParser),
+pub enum Parser<'a> {
+    SeqParser(SeqParser<'a>),
+    ChoiceParser(ChoiceParser<'a>),
     EatU8Parser(EatU8Parser),
     EatStringParser(EatStringParser),
     EpsParser(EpsParser),
     FailParser(FailParser),
-    CacheContextParser(CacheContextParser),
-    CachedParser(CachedParser),
-    IndentCombinatorParser(IndentCombinatorParser),
-    Repeat1Parser(Repeat1Parser),
+    CacheContextParser(CacheContextParser<'a>),
+    CachedParser(CachedParser<'a>),
+    IndentCombinatorParser(IndentCombinatorParser<'a>),
+    Repeat1Parser(Repeat1Parser<'a>),
     EatByteStringChoiceParser(EatByteStringChoiceParser),
-    ExcludeBytestringsParser(ExcludeBytestringsParser),
-    ProfiledParser(ProfiledParser),
+    ExcludeBytestringsParser(ExcludeBytestringsParser<'a>),
+    ProfiledParser(ProfiledParser<'a>),
     BruteForceParser(BruteForceParser),
     ContinuationParser(ContinuationParser),
     FastParserWrapper(FastParserWrapper),
@@ -54,7 +54,7 @@ pub enum Parser {
 //     }
 // }
 
-impl ParserTrait for Box<Parser> {
+impl ParserTrait for Box<Parser<'_>> {
     fn get_u8set(&self) -> U8Set {
         let inner = &**self;
         inner.get_u8set()
@@ -133,7 +133,7 @@ macro_rules! match_parser {
 pub trait CombinatorTrait: std::fmt::Debug {
     fn as_any(&self) -> &dyn std::any::Any;
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
+    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults);
 }
 
 pub trait ParserTrait: std::fmt::Debug {
@@ -185,7 +185,7 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
     }
 }
 
-impl ParserTrait for Parser {
+impl ParserTrait for Parser<'_> {
     fn get_u8set(&self) -> U8Set {
         match_parser!(self, inner => inner.get_u8set())
     }

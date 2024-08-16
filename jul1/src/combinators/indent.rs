@@ -9,8 +9,8 @@ pub enum IndentCombinator {
 }
 
 #[derive(Debug)]
-pub enum IndentCombinatorParser {
-    DentParser(Box<Parser>),
+pub enum IndentCombinatorParser<'a> {
+    DentParser(Box<Parser<'a>>),
     IndentParser(Option<RightData>),
     Done,
 }
@@ -81,7 +81,7 @@ impl CombinatorTrait for IndentCombinator {
     }
 }
 
-impl ParserTrait for IndentCombinatorParser {
+impl ParserTrait for IndentCombinatorParser<'_> {
     fn get_u8set(&self) -> U8Set {
         match self {
             IndentCombinatorParser::DentParser(parser) => parser.get_u8set(),

@@ -11,8 +11,8 @@ pub struct ExcludeBytestrings<T: CombinatorTrait> {
 }
 
 #[derive(Debug)]
-pub struct ExcludeBytestringsParser {
-    pub(crate) inner: Box<Parser>,
+pub struct ExcludeBytestringsParser<'a> {
+    pub(crate) inner: Box<Parser<'a>>,
     pub(crate) node: Option<Rc<TrieNode>>,
     pub(crate) start_position: usize,
 }
@@ -43,7 +43,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
     }
 }
 
-impl ParserTrait for ExcludeBytestringsParser {
+impl ParserTrait for ExcludeBytestringsParser<'_> {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }
