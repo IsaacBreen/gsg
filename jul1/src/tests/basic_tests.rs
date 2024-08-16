@@ -212,7 +212,7 @@ mod more_tests {
 
         fn A() -> Choice2<Seq2<EatU8, Deferred>, EatU8> {
             dbg!(A as *const ());
-            choice!(seq!(eat_char('a'), deferred2(A)), eat_char('b'))
+            choice!(seq!(eat_char('a'), deferred(A)), eat_char('b'))
         }
 
         assert_parses_default(&A().compile(), "ab");
