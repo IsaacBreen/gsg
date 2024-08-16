@@ -31,7 +31,7 @@ impl CombinatorTrait for MutateRightData {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a, 'b>(&'b self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
+    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
         if (self.run)(&mut right_data) {
             (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         } else {
