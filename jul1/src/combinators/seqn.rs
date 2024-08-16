@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
-use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY, vecx, Fail};
+use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator};
 use crate::SeqParser;
 
 macro_rules! profile {
@@ -112,6 +112,16 @@ define_seq!(Seq7, c0, c1, c2, c3, c4, c5, c6);
 define_seq!(Seq8, c0, c1, c2, c3, c4, c5, c6, c7);
 define_seq!(Seq9, c0, c1, c2, c3, c4, c5, c6, c7, c8);
 define_seq!(Seq10, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
+define_seq!(Seq11, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
+define_seq!(Seq12, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
+define_seq!(Seq13, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);
+define_seq!(Seq14, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13);
+define_seq!(Seq15, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
+define_seq!(Seq16, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15);
+
+pub fn seqn_helper<T: IntoCombinator>(x: T) -> Rc<T::Output> {
+    Rc::new(IntoCombinator::into_combinator(x))
+}
 
 #[macro_export]
 macro_rules! seq {
@@ -121,97 +131,202 @@ macro_rules! seq {
     ($c0:expr, $c1:expr $(,)?) => {
         $crate::Seq2 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c1)),
+            c1: $crate::seqn_helper($c1),
         }
     };
     ($c0:expr, $c1:expr, $c2:expr $(,)?) => {
         $crate::Seq3 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c1)),
-            c2: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c2)),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
         }
     };
     ($c0:expr, $c1:expr, $c2:expr, $c3:expr $(,)?) => {
         $crate::Seq4 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c1)),
-            c2: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c2)),
-            c3: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c3)),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
         }
     };
     ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr $(,)?) => {
         $crate::Seq5 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c1)),
-            c2: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c2)),
-            c3: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c3)),
-            c4: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c4)),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
         }
     };
     ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr $(,)?) => {
         $crate::Seq6 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c1)),
-            c2: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c2)),
-            c3: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c3)),
-            c4: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c4)),
-            c5: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c5)),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
         }
     };
     ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr $(,)?) => {
         $crate::Seq7 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c1)),
-            c2: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c2)),
-            c3: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c3)),
-            c4: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c4)),
-            c5: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c5)),
-            c6: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c6)),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
+            c6: $crate::seqn_helper($c6),
         }
     };
     ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr $(,)?) => {
         $crate::Seq8 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c1)),
-            c2: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c2)),
-            c3: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c3)),
-            c4: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c4)),
-            c5: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c5)),
-            c6: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c6)),
-            c7: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c7)),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
+            c6: $crate::seqn_helper($c6),
+            c7: $crate::seqn_helper($c7),
         }
     };
     ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr $(,)?) => {
         $crate::Seq9 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c1)),
-            c2: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c2)),
-            c3: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c3)),
-            c4: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c4)),
-            c5: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c5)),
-            c6: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c6)),
-            c7: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c7)),
-            c8: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c8)),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
+            c6: $crate::seqn_helper($c6),
+            c7: $crate::seqn_helper($c7),
+            c8: $crate::seqn_helper($c8),
         }
     };
     ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr $(,)?) => {
         $crate::Seq10 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c1)),
-            c2: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c2)),
-            c3: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c3)),
-            c4: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c4)),
-            c5: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c5)),
-            c6: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c6)),
-            c7: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c7)),
-            c8: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c8)),
-            c9: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c9)),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
+            c6: $crate::seqn_helper($c6),
+            c7: $crate::seqn_helper($c7),
+            c8: $crate::seqn_helper($c8),
+            c9: $crate::seqn_helper($c9),
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $($rest:expr),+ $(,)?) => {{
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr $(,)?) => {
+        $crate::Seq11 {
+            c0: $crate::IntoCombinator::into_combinator($c0),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
+            c6: $crate::seqn_helper($c6),
+            c7: $crate::seqn_helper($c7),
+            c8: $crate::seqn_helper($c8),
+            c9: $crate::seqn_helper($c9),
+            c10: $crate::seqn_helper($c10),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr $(,)?) => {
+        $crate::Seq12 {
+            c0: $crate::IntoCombinator::into_combinator($c0),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
+            c6: $crate::seqn_helper($c6),
+            c7: $crate::seqn_helper($c7),
+            c8: $crate::seqn_helper($c8),
+            c9: $crate::seqn_helper($c9),
+            c10: $crate::seqn_helper($c10),
+            c11: $crate::seqn_helper($c11),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr $(,)?) => {
+        $crate::Seq13 {
+            c0: $crate::IntoCombinator::into_combinator($c0),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
+            c6: $crate::seqn_helper($c6),
+            c7: $crate::seqn_helper($c7),
+            c8: $crate::seqn_helper($c8),
+            c9: $crate::seqn_helper($c9),
+            c10: $crate::seqn_helper($c10),
+            c11: $crate::seqn_helper($c11),
+            c12: $crate::seqn_helper($c12),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr $(,)?) => {
+        $crate::Seq14 {
+            c0: $crate::IntoCombinator::into_combinator($c0),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
+            c6: $crate::seqn_helper($c6),
+            c7: $crate::seqn_helper($c7),
+            c8: $crate::seqn_helper($c8),
+            c9: $crate::seqn_helper($c9),
+            c10: $crate::seqn_helper($c10),
+            c11: $crate::seqn_helper($c11),
+            c12: $crate::seqn_helper($c12),
+            c13: $crate::seqn_helper($c13),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr $(,)?) => {
+        $crate::Seq15 {
+            c0: $crate::IntoCombinator::into_combinator($c0),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
+            c6: $crate::seqn_helper($c6),
+            c7: $crate::seqn_helper($c7),
+            c8: $crate::seqn_helper($c8),
+            c9: $crate::seqn_helper($c9),
+            c10: $crate::seqn_helper($c10),
+            c11: $crate::seqn_helper($c11),
+            c12: $crate::seqn_helper($c12),
+            c13: $crate::seqn_helper($c13),
+            c14: $crate::seqn_helper($c14),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr, $c15:expr $(,)?) => {
+        $crate::Seq16 {
+            c0: $crate::IntoCombinator::into_combinator($c0),
+            c1: $crate::seqn_helper($c1),
+            c2: $crate::seqn_helper($c2),
+            c3: $crate::seqn_helper($c3),
+            c4: $crate::seqn_helper($c4),
+            c5: $crate::seqn_helper($c5),
+            c6: $crate::seqn_helper($c6),
+            c7: $crate::seqn_helper($c7),
+            c8: $crate::seqn_helper($c8),
+            c9: $crate::seqn_helper($c9),
+            c10: $crate::seqn_helper($c10),
+            c11: $crate::seqn_helper($c11),
+            c12: $crate::seqn_helper($c12),
+            c13: $crate::seqn_helper($c13),
+            c14: $crate::seqn_helper($c14),
+            c15: $crate::seqn_helper($c15),
+        }
+    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr, $c15:expr, $($rest:expr),+ $(,)?) => {{
         fn convert(x: impl $crate::IntoCombinator + 'static) -> Box<dyn $crate::CombinatorTrait> {
             Box::new(x.into_combinator())
         }
-        $crate::_seq(vec![convert($c0), convert($c1), convert($c2), convert($c3), convert($c4), convert($c5), convert($c6), convert($c7), convert($c8), convert($c9), $(convert($rest)),+])
+        $crate::_seq(vec![convert($c0), convert($c1), convert($c2), convert($c3), convert($c4), convert($c5), convert($c6), convert($c7), convert($c8), convert($c9), convert($c10), convert($c11), convert($c12), convert($c13), convert($c14), convert($c15), $(convert($rest)),+])
     }};
 }
