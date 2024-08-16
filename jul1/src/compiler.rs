@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use crate::*;
 
@@ -28,16 +29,19 @@ impl<T: CombinatorTrait> Compile for T {
             if let Some(Deferred { inner }) = combinator.as_any().downcast_ref::<Deferred>() {
                 let new_inner: DeferredInner = match inner.borrow().deref() {
                     DeferredInner::Uncompiled(f) => {
-                        if let Some(cached) = deferred_cache.get(f) {
+                        fn get_addr(f: &dyn EvaluateDeferredFnToBoxedDynCombinator) -> usize {
+                            std::ptr::addr_of!(f) as usize
+                        }
+                        if let Some(cached) = deferred_cache.get(&get_addr(f.as_ref())) {
                             cached.clone().into()
                         } else {
                             let strong = strong_ref();
                             let weak = strong.downgrade();
-                            deferred_cache.insert(*f, Ref::Weak(weak.clone()));
-                            let mut evaluated: Combinator = (f.0)();
+                            deferred_cache.insert(get_addr(f.as_ref()), Ref::Weak(weak.clone()));
+                            let mut evaluated: Combinator = f.evaluate_deferred_fn_to_combinator();
                             compile_inner(&mut evaluated, deferred_cache);
                             strong.set(evaluated);
-                            deferred_cache.insert(*f, Ref::Strong(strong.clone()));
+                            deferred_cache.insert(get_addr(f.as_ref()), Ref::Strong(strong.clone()));
                             DeferredInner::CompiledStrong(strong.clone())
                         }
                     }

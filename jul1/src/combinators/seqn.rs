@@ -193,7 +193,10 @@ macro_rules! seq {
             c8: std::rc::Rc::new($crate::IntoCombinator::into_combinator($c8)),
         }
     };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $($rest:expr),+ $(,)?) => {
-        $crate::_seq(vec![$crate::IntoCombinator::into_combinator($c0), $crate::IntoCombinator::into_combinator($c1), $crate::IntoCombinator::into_combinator($c2), $crate::IntoCombinator::into_combinator($c3), $crate::IntoCombinator::into_combinator($c4), $crate::IntoCombinator::into_combinator($c5), $crate::IntoCombinator::into_combinator($c6), $crate::IntoCombinator::into_combinator($c7), $crate::IntoCombinator::into_combinator($c8), $($crate::IntoCombinator::into_combinator($rest)),+])
-    };
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $($rest:expr),+ $(,)?) => {{
+        fn convert(x: impl $crate::IntoCombinator) -> Box<dyn $crate::CombinatorTrait> {
+            Box::new(x.into())
+        }
+        $crate::_seq(vec![convert($c0), convert($c1), convert($c2), convert($c3), convert($c4), convert($c5), convert($c6), convert($c7), convert($c8), $(convert($rest)),+])
+    }};
 }

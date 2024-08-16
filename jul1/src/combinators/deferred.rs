@@ -37,19 +37,19 @@ impl<T: CombinatorTrait + 'static> Hash for DeferredFn<T> {
     }
 }
 
-trait EvaluateDeferredFnToBoxedDynCombinator {
-    fn evaluate_deferred_fn_to_combinator(self) -> Combinator;
+pub trait EvaluateDeferredFnToBoxedDynCombinator {
+    fn evaluate_deferred_fn_to_combinator(&self) -> Combinator;
 }
 
 impl<T: CombinatorTrait + 'static> EvaluateDeferredFnToBoxedDynCombinator for DeferredFn<T> {
-    fn evaluate_deferred_fn_to_combinator(self) -> Combinator {
-        (self.0)().into()
+    fn evaluate_deferred_fn_to_combinator(&self) -> Combinator {
+        Box::new(self.0())
     }
 }
 
 #[derive(Clone)]
 pub enum DeferredInner {
-    Uncompiled(Box<dyn EvaluateDeferredFnToBoxedDynCombinator>),
+    Uncompiled(Rc<dyn EvaluateDeferredFnToBoxedDynCombinator>),
     CompiledStrong(StrongRef),
     CompiledWeak(WeakRef),
 }
@@ -121,15 +121,15 @@ impl CombinatorTrait for Deferred {
         match self.inner.borrow().clone() {
             DeferredInner::Uncompiled(f) => {
                 panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
-                let combinator = profile!("DeferredInner cache check", {
-                        COMBINATOR_CACHE.with(|cache| {
-                        let mut cache = cache.borrow_mut();
-                        cache.entry(f.clone())
-                            .or_insert_with(|| profile!("DeferredInner init", Rc::new((f.0)())))
-                            .clone()
-                    })
-                });
-                combinator.parse(right_data, bytes)
+                // let combinator = profile!("DeferredInner cache check", {
+                //         COMBINATOR_CACHE.with(|cache| {
+                //         let mut cache = cache.borrow_mut();
+                //         cache.entry(f.clone())
+                //             .or_insert_with(|| profile!("DeferredInner init", Rc::new((f.0)())))
+                //             .clone()
+                //     })
+                // });
+                // combinator.parse(right_data, bytes)
             }
             DeferredInner::CompiledStrong(combinator) => combinator.parse(right_data, bytes),
             DeferredInner::CompiledWeak(combinator) => combinator.parse(right_data, bytes),
@@ -137,6 +137,6 @@ impl CombinatorTrait for Deferred {
     }
 }
 
-pub fn deferred<T: CombinatorTrait + 'static>(f: &'static impl Fn() -> T) -> impl CombinatorTrait {
-    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Box::new(DeferredFn(f)))) }
+pub fn deferred<T: CombinatorTrait + 'static>(f: &'static impl Fn() -> T) -> Deferred {
+    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f)))) }
 }
