@@ -137,8 +137,8 @@ impl CombinatorTrait for Deferred {
                 // });
                 // combinator.parse(right_data, bytes)
             }
-            DeferredInner::CompiledStrong(combinator) => todo!(),
-            DeferredInner::CompiledWeak(combinator) => todo!()
+            DeferredInner::CompiledStrong(combinator) => todo!("fix lifetimes"),
+            DeferredInner::CompiledWeak(combinator) => todo!("fix lifetimes")
         }
     }
 }

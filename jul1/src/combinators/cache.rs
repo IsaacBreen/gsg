@@ -206,7 +206,7 @@ impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
             // }
             // *entry.borrow_mut() = CacheEntry { parser: Some(Box::new(parser)), maybe_parse_results: Some(parse_results.clone()) };
             // (Parser::CachedParser(CachedParser { entry }), parse_results)
-            todo!()
+            todo!("fix lifetimes")
         })
     }
 

@@ -35,7 +35,7 @@ impl<'a, T: CombinatorTrait + 'a> ParserTrait for OwningParser<'a, T> {
 
 impl<'a, T: CombinatorTrait + 'a> OwningParser<'a, T> {
     pub fn init(combinator: T, right_data: RightData, bytes: &[u8]) -> (OwningParser<'a, T>, ParseResults) {
-        todo!()
+        todo!("fix lifetimes")
     }
 }
 
