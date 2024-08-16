@@ -206,12 +206,13 @@ mod more_tests {
 
     #[test]
     fn test_from_fn() {
-        fn A()-> impl CombinatorTrait {
-            choice!(seq!(eat_char('a'), deferred(&A)), eat_char('b'))
+        fn B()-> impl CombinatorTrait {
+            deferred(&A)
         }
 
-        dbg!(A as *const ());
-        dbg!(A as *const ());
+        fn A()-> impl CombinatorTrait {
+            choice!(seq!(eat_char('a'), deferred(&B)), eat_char('b'))
+        }
 
         assert_parses_default(&A().compile(), "ab");
         assert_parses_fast(&A().compile(), "ab");
