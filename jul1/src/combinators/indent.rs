@@ -19,7 +19,7 @@ pub enum IndentCombinatorParser<'a> {
 // A parser that owns its combinator
 #[derive(Debug)]
 pub struct OwningParser<'a, T: CombinatorTrait + 'a> {
-    pub(crate) combinator: Rc<T>,
+    pub(crate) combinator: Box<T>,
     pub(crate) parser: Option<Box<Parser<'a>>>,
 }
 
@@ -33,14 +33,14 @@ impl<'a, T: CombinatorTrait + 'a> ParserTrait for OwningParser<'a, T> {
     }
 }
 
-impl<'a, T: CombinatorTrait + 'a> OwningParser<'a, T> {
-    pub fn init(combinator: Rc<T>, right_data: RightData, bytes: &[u8]) -> (OwningParser<'a, T>, ParseResults) {
-        let mut owning_parser = OwningParser { combinator, parser: None };
+impl<'a, T: CombinatorTrait> OwningParser<'a, T> {
+    pub fn init(combinator: T, right_data: RightData, bytes: &[u8]) -> (OwningParser<'a, T>, ParseResults) {
+        let mut owning_parser = OwningParser { combinator: Box::new(combinator), parser: None };
         let parse_results = owning_parser.start(right_data, bytes);
         (owning_parser, parse_results)
     }
 
-    fn start(&'a mut self, right_data: RightData, bytes: &[u8]) -> ParseResults {
+    fn start(&mut self, right_data: RightData, bytes: &[u8]) -> ParseResults {
         let (parser, parse_results) = self.combinator.parse(right_data, bytes);
         self.parser = Some(Box::new(parser));
         parse_results
@@ -80,7 +80,7 @@ impl CombinatorTrait for IndentCombinator {
                 }
                 // println!("Made dent parser with right_data: {:?}", right_data);
                 let combinator: Box<dyn CombinatorTrait + 'a> = make_combinator(&right_data.right_data_inner.fields2.indents, right_data.right_data_inner.fields2.indents.len());
-                let (parser, parse_results) = OwningParser::init(Rc::new(combinator), right_data, bytes);
+                let (parser, parse_results) = OwningParser::init(combinator, right_data, bytes);
                 (IndentCombinatorParser::DentParser(parser), parse_results)
             }
             IndentCombinator::Indent if right_data.right_data_inner.fields1.dedents == 0 => {
