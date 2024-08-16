@@ -39,11 +39,15 @@ impl<T: CombinatorTrait + 'static> Hash for DeferredFn<T> {
 
 pub trait EvaluateDeferredFnToBoxedDynCombinator {
     fn evaluate_deferred_fn_to_combinator(&self) -> Combinator;
+    fn get_addr(&self) -> usize;
 }
 
 impl<T: CombinatorTrait + 'static> EvaluateDeferredFnToBoxedDynCombinator for DeferredFn<T> {
     fn evaluate_deferred_fn_to_combinator(&self) -> Combinator {
         Box::new(self.0())
+    }
+    fn get_addr(&self) -> usize {
+        dbg!(std::ptr::addr_of!(self.0) as usize)
     }
 }
 
