@@ -31,7 +31,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
         f(self.a.as_ref());
     }
 
-    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'a: 'b {
+    fn parse<'a, 'b, 'c>(&'c self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where Self: 'a, 'a: 'b {
         let start_position = right_data.right_data_inner.fields1.position;
         let (parser, parse_results) = self.a.parse(right_data, bytes);
         if parse_results.done() && parse_results.right_data_vec.is_empty() {

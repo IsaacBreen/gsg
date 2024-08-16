@@ -12,7 +12,7 @@ impl CombinatorTrait for Eps {
         self
     }
 
-    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'a: 'b {
+    fn parse<'a, 'b, 'c>(&'c self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where Self: 'a, 'a: 'b {
         (Parser::EpsParser(EpsParser), ParseResults::new_single(right_data, true))
     }
 }

@@ -267,7 +267,7 @@ impl Parser<'_> {
             Parser::Repeat1Parser(Repeat1Parser { a_parsers, .. }) => {
                 a_parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
             }
-            Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => parser.parser.collect_stats(stats, current_tag),
+            Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => parser.parser.as_ref().unwrap().collect_stats(stats, current_tag),
 
             Parser::EpsParser(_) |
             Parser::FailParser(_) |
