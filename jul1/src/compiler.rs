@@ -29,19 +29,22 @@ impl<T: CombinatorTrait> Compile for T {
             if let Some(Deferred { inner }) = combinator.as_any().downcast_ref::<Deferred>() {
                 let new_inner: DeferredInner = match inner.borrow().deref() {
                     DeferredInner::Uncompiled(f) => {
-                        fn get_addr(f: &dyn EvaluateDeferredFnToBoxedDynCombinator) -> usize {
-                            std::ptr::addr_of!(f) as usize
+                        fn get_addr(f: &Rc<dyn EvaluateDeferredFnToBoxedDynCombinator>) -> usize {
+                            let thin_ptr = f.as_ref() as *const dyn EvaluateDeferredFnToBoxedDynCombinator;
+                            let addr = std::ptr::addr_of!(thin_ptr) as usize;
+                            println!("addr: {addr:?}");
+                            addr
                         }
-                        if let Some(cached) = deferred_cache.get(&get_addr(f.as_ref())) {
+                        if let Some(cached) = deferred_cache.get(&get_addr(f)) {
                             cached.clone().into()
                         } else {
                             let strong = strong_ref();
                             let weak = strong.downgrade();
-                            deferred_cache.insert(get_addr(f.as_ref()), Ref::Weak(weak.clone()));
+                            deferred_cache.insert(get_addr(f), Ref::Weak(weak.clone()));
                             let mut evaluated: Combinator = f.evaluate_deferred_fn_to_combinator();
                             compile_inner(&mut evaluated, deferred_cache);
                             strong.set(evaluated);
-                            deferred_cache.insert(get_addr(f.as_ref()), Ref::Strong(strong.clone()));
+                            deferred_cache.insert(get_addr(f), Ref::Strong(strong.clone()));
                             DeferredInner::CompiledStrong(strong.clone())
                         }
                     }
