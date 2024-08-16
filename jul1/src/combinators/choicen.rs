@@ -267,8 +267,8 @@ macro_rules! choice_greedy {
         }
     };
     ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $($rest:expr),+) => {{
-        fn convert(x: impl $crate::IntoCombinator) -> Box<dyn $crate::CombinatorTrait> {
-            Box::new(x.into())
+        fn convert(x: impl $crate::IntoCombinator + 'static) -> Box<dyn $crate::CombinatorTrait> {
+            Box::new(x.into_combinator())
         }
         $crate::_choice(vec![convert($c0), convert($c1), convert($c2), convert($c3), convert($c4), convert($c5), convert($c6), convert($c7), convert($c8), $(convert($rest)),+])
     }};
