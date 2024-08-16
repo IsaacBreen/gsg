@@ -21,19 +21,19 @@ pub struct Deferred {
 }
 
 #[derive(Clone, Copy)]
-pub struct DeferredFn<T: CombinatorTrait + 'static>(pub &'static dyn Fn() -> T, pub usize);
+pub struct DeferredFn<T: CombinatorTrait + 'static, F: Fn() -> T>(pub F, pub usize);
 
-impl<T: CombinatorTrait + 'static> PartialEq for DeferredFn<T> {
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> PartialEq for DeferredFn<T, F> {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.0, other.0)
+        std::ptr::eq(&self.0, &other.0)
     }
 }
 
-impl<T: CombinatorTrait + 'static> Eq for DeferredFn<T> {}
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> Eq for DeferredFn<T, F> {}
 
-impl<T: CombinatorTrait + 'static> Hash for DeferredFn<T> {
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> Hash for DeferredFn<T, F> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.0, state);
+        std::ptr::hash(&self.0, state);
     }
 }
 
@@ -42,7 +42,7 @@ pub trait EvaluateDeferredFnToBoxedDynCombinator {
     fn get_addr(&self) -> usize;
 }
 
-impl<T: CombinatorTrait + 'static> EvaluateDeferredFnToBoxedDynCombinator for DeferredFn<T> {
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> EvaluateDeferredFnToBoxedDynCombinator for DeferredFn<T, F> {
     fn evaluate_deferred_fn_to_combinator(&self) -> Combinator {
         Box::new(self.0())
     }
@@ -142,11 +142,11 @@ impl CombinatorTrait for Deferred {
     }
 }
 
-pub fn deferred<T: CombinatorTrait + 'static>(f: &'static impl Fn() -> T) -> Deferred {
+pub fn deferred<T: CombinatorTrait + 'static>(f: impl Fn() -> T + 'static) -> Deferred {
     // dbg!(f as *const ());
-    // let addr = &f as *const _ as usize;
-    let addr = std::ptr::addr_of!(*f) as usize;
-    dbg!(std::ptr::addr_of!(*f));
+    // let addr = f as *const () as usize;
+    let addr = std::ptr::addr_of!(f) as usize;
+    dbg!(addr);
     Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))) }
 }
 
