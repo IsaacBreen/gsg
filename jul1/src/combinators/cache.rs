@@ -107,11 +107,11 @@ pub struct CacheContextParser<'a> {
     pub(crate) parse_id: usize,
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for CacheContext<T> {
+impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        todo!()
     }
-    fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
+    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
@@ -170,12 +170,12 @@ impl ParserTrait for CacheContextParser<'_> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
+impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        todo!()
     }
-    fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
-        GLOBAL_CACHE.with(|cache| {
+    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
+        GLOBAL_CACHE.with(move |cache| {
             let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
 
             let mut global_cache = cache.borrow_mut();

@@ -31,7 +31,7 @@ impl CombinatorTrait for CheckRightData {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a>(&self, right_data: RightData, _bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
+    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
         if (self.run)(&right_data) {
             (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         } else {

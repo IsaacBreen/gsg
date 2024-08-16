@@ -2,7 +2,7 @@ use std::any::Any;
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, Tagged, TaggedParser, U8Set, ProfiledParser, Profiled, Opt, WeakRef, StrongRef, BruteForceParser, BruteForce, Continuation, ContinuationParser, FastCombinatorWrapper, profile, FastParserWrapper, Seq2, Choice2};
+use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, Tagged, TaggedParser, U8Set, ProfiledParser, Profiled, Opt, WeakRef, StrongRef, BruteForceParser, BruteForce, Continuation, ContinuationParser, FastCombinatorWrapper, profile, FastParserWrapper, Seq2, Choice2, OwningParser};
 use crate::stats::Stats;
 
 #[macro_export]
@@ -37,10 +37,11 @@ pub enum Parser<'a> {
     ContinuationParser(ContinuationParser),
     FastParserWrapper(FastParserWrapper),
     DynParser(Box<dyn ParserTrait>),
+    OwningParser(OwningParser<'a, Box<dyn CombinatorTrait + 'a>>),
 }
 
 // impl CombinatorTrait for Box<Combinator> {
-//     fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
+//     fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
 //         let inner = &**self;
 //         inner.parse(right_data, bytes)
 //     }
@@ -125,7 +126,8 @@ macro_rules! match_parser {
             BruteForceParser,
             ContinuationParser,
             FastParserWrapper,
-            DynParser
+            DynParser,
+            OwningParser
         )
     };
 }
@@ -133,7 +135,7 @@ macro_rules! match_parser {
 pub trait CombinatorTrait: std::fmt::Debug {
     fn as_any(&self) -> &dyn std::any::Any;
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
-    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a;
+    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a;
 }
 
 pub trait ParserTrait: std::fmt::Debug {
@@ -162,7 +164,7 @@ pub trait ParserTrait: std::fmt::Debug {
 //         (**self).as_any()
 //     }
 //
-//     fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
+//     fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
 //         (**self).parse(right_data, bytes)
 //     }
 //
@@ -180,7 +182,7 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
         (**self).apply(f);
     }
 
-    fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
+    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
         (**self).parse(right_data, bytes)
     }
 }

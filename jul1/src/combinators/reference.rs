@@ -50,7 +50,7 @@ impl CombinatorTrait for WeakRef {
         f(self.inner.upgrade().unwrap().get().unwrap());
     }
 
-    fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
+    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
         self.inner
             .upgrade()
             .unwrap()
@@ -69,7 +69,7 @@ impl CombinatorTrait for StrongRef {
         f(self.inner.get().unwrap());
     }
 
-    fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
+    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
         self.inner
             .get()
             .unwrap()

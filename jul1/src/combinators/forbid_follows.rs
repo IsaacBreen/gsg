@@ -24,7 +24,7 @@ impl CombinatorTrait for ForbidFollows {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a>(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
+    fn parse<'a, 'b>(&'b self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
         Rc::make_mut(&mut right_data.right_data_inner).fields1.forbidden_consecutive_matches.prev_match_ids = self.match_ids;
         (combinator::Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
     }
@@ -34,7 +34,7 @@ impl CombinatorTrait for ForbidFollowsClear {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a>(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
+    fn parse<'a, 'b>(&'b self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
         Rc::make_mut(&mut right_data.right_data_inner).fields1.forbidden_consecutive_matches.prev_match_ids = 0;
         (combinator::Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
     }
@@ -44,7 +44,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a>(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
+    fn parse<'a, 'b>(&'b self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
         if right_data.right_data_inner.fields1.forbidden_consecutive_matches.prev_match_ids & self.match_ids != 0 {
             (combinator::Parser::FailParser(FailParser), ParseResults::empty_finished())
         } else {
