@@ -142,6 +142,7 @@ impl CombinatorTrait for Deferred {
 }
 
 pub fn deferred<T: CombinatorTrait + 'static>(f: &'static impl Fn() -> T) -> Deferred {
-    dbg!(
+    let addr = std::ptr::addr_of!(f) as usize;
+    dbg!(std::ptr::addr_of!(f));
     Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, std::ptr::addr_of!(f) as usize)))) }
 }
