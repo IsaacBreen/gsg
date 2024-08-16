@@ -127,7 +127,7 @@ impl CombinatorTrait for Deferred {
     }
 }
 
-pub fn deferred(f: &'static impl Fn() -> Combinator) -> impl CombinatorTrait {
+pub fn deferred<T: CombinatorTrait>(f: &'static impl Fn() -> T) -> impl CombinatorTrait {
     Deferred { inner: RefCell::new(DeferredInner::Uncompiled(DeferredFn(f))) }
 }
 

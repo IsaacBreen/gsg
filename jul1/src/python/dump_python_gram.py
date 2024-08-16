@@ -201,7 +201,7 @@ def grammar_to_rust(
 
 
     def name_to_rust(name: str) -> str:
-        return f'deferred({name})'
+        return f'deferred(&{name})'
 
     rules = grammar.rules.items()
     rules = list(reversed(rules))
@@ -211,11 +211,10 @@ def grammar_to_rust(
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write(
-        'use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n')
+    f.write('use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n')
     f.write('use crate::seq;\n')
-    f.write(
-        'use crate::{' + ', '.join(f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
+    f.write('use crate::{' + ', '.join(f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
+    f.write('use crate::compiler::Compile;\n')
     f.write('\n')
 
     f.write('enum Forbidden {\n')
@@ -229,14 +228,14 @@ def grammar_to_rust(
         f.write('use super::python_tokenizer as token;\n')
 
         f.write(textwrap.dedent("""
-            pub fn python_literal(s: &str) -> Combinator {
+            pub fn python_literal(s: &str) -> impl CombinatorTrait {
                 let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count += 1; true };
                 let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
             
                 match s {
-                    "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(&WS)),
-                    ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(&WS)),
-                    _ => seq!(eat_string(s), forbid_follows_clear(), opt(&WS)),
+                    "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(&WS))),
+                    ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(deferred(&WS))),
+                    _ => seq!(eat_string(s), forbid_follows_clear(), opt(deferred(&WS))),
                 }
             }
         """))
@@ -259,9 +258,9 @@ def grammar_to_rust(
             expr = f'crate::profile("{token}", {expr})'
             expr = f'tag("{token}", {expr})'
             if token != 'WS' and remove_left_recursion.ref('WS') not in unresolved_follows_table.get(token_ref, []):
-                expr = f'seq!({expr}, opt(&WS))'
+                expr = f'seq!({expr}, opt(deferred(&WS)))'
             expr = f'cached({expr})'
-            f.write('pub fn ' + token + '() -> Combinator { ' + expr + '.into() }\n')
+            f.write('pub fn ' + token + '() -> impl CombinatorTrait { ' + expr + ' }\n')
         f.write('\n')
         return f.getvalue()
 
@@ -272,8 +271,8 @@ def grammar_to_rust(
             expr = f'tag("{name}", {expr})'
             if rule.memo:
                 expr = f'cached({expr})'
-            expr = f'{expr}.into()'
-            f.write('pub fn ' + name + '() -> Combinator {\n')
+            expr = f'{expr}'
+            f.write('pub fn ' + name + '() -> impl CombinatorTrait {\n')
             f.write(f'{textwrap.indent(expr, "    ")}\n')
             f.write('}\n')
             f.write('\n')
@@ -283,7 +282,7 @@ def grammar_to_rust(
     f.write(make_tokens())
     f.write(make_rules())
 
-    f.write('pub fn python_file() -> Combinator {\n')
+    f.write('pub fn python_file() -> impl CombinatorTrait {\n')
     expr = f'seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")})'
     expr = f'tag("main", {expr})'
     expr = f'cache_context({expr})'

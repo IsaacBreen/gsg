@@ -13,12 +13,12 @@ impl<T: CombinatorTrait> IntoCombinator for T {
     }
 }
 
-impl<T: IntoCombinator, F: Fn() -> T> IntoCombinator for F {
-    type Output = T::Output;
-    fn into_combinator(self) -> Self::Output {
-        self().into_combinator()
-    }
-}
+// impl<T: IntoCombinator, F: Fn() -> T> IntoCombinator for F {
+//     type Output = T::Output;
+//     fn into_combinator(self) -> Self::Output {
+//         self().into_combinator()
+//     }
+// }
 
 impl<T: CombinatorTrait + 'static> IntoCombinator for &Symbol<T> {
     type Output = Symbol<T>;
