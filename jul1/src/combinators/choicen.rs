@@ -105,428 +105,458 @@ pub fn choicen_helper<T: IntoCombinator>(x: T) -> Rc<T::Output> {
 
 #[macro_export]
 macro_rules! choice {
-    ($c0:expr, $c1:expr $(,)?) => {
+    ($c0:expr, $c1:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice2 {
             c0: $crate::IntoCombinator::into_combinator($c0),
             c1: crate::choicen_helper($c1),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice3 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
+            c1: h($c1),
+            c2: h($c2),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice4 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice5 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice6 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice7 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice8 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice9 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice10 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice11 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice12 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
-            c11: $crate::choicen_helper($c11),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
+            c11: h($c11),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice13 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
-            c11: $crate::choicen_helper($c11),
-            c12: $crate::choicen_helper($c12),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
+            c11: h($c11),
+            c12: h($c12),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice14 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
-            c11: $crate::choicen_helper($c11),
-            c12: $crate::choicen_helper($c12),
-            c13: $crate::choicen_helper($c13),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
+            c11: h($c11),
+            c12: h($c12),
+            c13: h($c13),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice15 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
-            c11: $crate::choicen_helper($c11),
-            c12: $crate::choicen_helper($c12),
-            c13: $crate::choicen_helper($c13),
-            c14: $crate::choicen_helper($c14),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
+            c11: h($c11),
+            c12: h($c12),
+            c13: h($c13),
+            c14: h($c14),
             greedy: false,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr, $c15:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr, $c15:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice16 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
-            c11: $crate::choicen_helper($c11),
-            c12: $crate::choicen_helper($c12),
-            c13: $crate::choicen_helper($c13),
-            c14: $crate::choicen_helper($c14),
-            c15: $crate::choicen_helper($c15),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
+            c11: h($c11),
+            c12: h($c12),
+            c13: h($c13),
+            c14: h($c14),
+            c15: h($c15),
             greedy: false,
         }
-    };
+    }};
 }
 
 #[macro_export]
 macro_rules! choice_greedy {
-    ($c0:expr, $c1:expr $(,)?) => {
+    ($c0:expr, $c1:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice2 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
+            c1: h($c1),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice3 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
+            c1: h($c1),
+            c2: h($c2),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice4 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice5 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice6 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice7 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice8 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice9 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice10 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice11 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice12 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
-            c11: $crate::choicen_helper($c11),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
+            c11: h($c11),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice13 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
-            c11: $crate::choicen_helper($c11),
-            c12: $crate::choicen_helper($c12),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
+            c11: h($c11),
+            c12: h($c12),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice14 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
-            c11: $crate::choicen_helper($c11),
-            c12: $crate::choicen_helper($c12),
-            c13: $crate::choicen_helper($c13),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
+            c11: h($c11),
+            c12: h($c12),
+            c13: h($c13),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice15 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
-            c11: $crate::choicen_helper($c11),
-            c12: $crate::choicen_helper($c12),
-            c13: $crate::choicen_helper($c13),
-            c14: $crate::choicen_helper($c14),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
+            c11: h($c11),
+            c12: h($c12),
+            c13: h($c13),
+            c14: h($c14),
             greedy: true,
         }
-    };
-    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr, $c15:expr $(,)?) => {
+    }};
+    ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr, $c15:expr $(,)?) => {{
+        use $crate::seqn_helper as h;
         $crate::Choice16 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: $crate::choicen_helper($c1),
-            c2: $crate::choicen_helper($c2),
-            c3: $crate::choicen_helper($c3),
-            c4: $crate::choicen_helper($c4),
-            c5: $crate::choicen_helper($c5),
-            c6: $crate::choicen_helper($c6),
-            c7: $crate::choicen_helper($c7),
-            c8: $crate::choicen_helper($c8),
-            c9: $crate::choicen_helper($c9),
-            c10: $crate::choicen_helper($c10),
-            c11: $crate::choicen_helper($c11),
-            c12: $crate::choicen_helper($c12),
-            c13: $crate::choicen_helper($c13),
-            c14: $crate::choicen_helper($c14),
-            c15: $crate::choicen_helper($c15),
+            c1: h($c1),
+            c2: h($c2),
+            c3: h($c3),
+            c4: h($c4),
+            c5: h($c5),
+            c6: h($c6),
+            c7: h($c7),
+            c8: h($c8),
+            c9: h($c9),
+            c10: h($c10),
+            c11: h($c11),
+            c12: h($c12),
+            c13: h($c13),
+            c14: h($c14),
+            c15: h($c15),
             greedy: true,
         }
-    };
+    }};
 }
