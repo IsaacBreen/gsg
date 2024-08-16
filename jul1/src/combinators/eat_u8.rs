@@ -19,7 +19,7 @@ impl CombinatorTrait for EatU8 {
         self
     }
 
-    fn parse<'a, 'b, 'c>(&'c self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where Self: 'a, 'a: 'b {
+    fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
         let mut parser = EatU8Parser {
             u8set: self.u8set.clone(),
             right_data: Some(right_data),

@@ -22,7 +22,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
         f(self.value.as_ref());
     }
 
-    fn parse<'a, 'b, 'c>(&'c self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where Self: 'a, 'a: 'b {
+    fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
         let (parser, parse_results) = self.value.parse(right_data, bytes);
         (parser, parse_results)
     }

@@ -36,7 +36,7 @@ macro_rules! define_choice {
                 $(f(self.$rest.as_ref());)+
             }
 
-            fn parse<'a, 'b, 'c>(&'c self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where Self: 'a, 'a: 'b {
+            fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
                 let mut parsers = Vec::new();
                 let mut combined_results = ParseResults::empty_finished();
 

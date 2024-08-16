@@ -40,7 +40,7 @@ impl<'a, T: CombinatorTrait + 'a> OwningParser<'a, T> {
         (owning_parser, parse_results)
     }
 
-    fn start<'b>(&'b mut self, right_data: RightData, bytes: &[u8]) -> ParseResults {
+    fn start(&'a mut self, right_data: RightData, bytes: &[u8]) -> ParseResults {
         let (parser, parse_results) = self.combinator.parse(right_data, bytes);
         self.parser = Some(Box::new(parser));
         parse_results
@@ -51,7 +51,7 @@ impl CombinatorTrait for IndentCombinator {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a, 'b, 'c>(&'c self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where Self: 'a, 'a: 'b {
+    fn parse<'a, 'b>(&'a self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
                 fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {
