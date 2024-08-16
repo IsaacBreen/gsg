@@ -207,7 +207,7 @@ mod more_tests {
     #[test]
     fn test_from_fn() {
         fn B() -> Deferred {
-            deferred(&A)
+            deferred(A)
         }
 
         fn A() -> Choice2<Seq2<EatU8, Deferred>, EatU8> {

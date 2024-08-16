@@ -201,7 +201,7 @@ def grammar_to_rust(
 
 
     def name_to_rust(name: str) -> str:
-        return f'deferred(&{name})'
+        return f'deferred({name})'
 
     rules = grammar.rules.items()
     rules = list(reversed(rules))
@@ -234,9 +234,9 @@ def grammar_to_rust(
                 let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
             
                 match s {
-                    "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(&WS))).into_dyn(),
-                    ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(deferred(&WS))).into_dyn(),
-                    _ => seq!(eat_string(s), forbid_follows_clear(), opt(deferred(&WS))).into_dyn(),
+                    "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(WS))).into_dyn(),
+                    ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(deferred(WS))).into_dyn(),
+                    _ => seq!(eat_string(s), forbid_follows_clear(), opt(deferred(WS))).into_dyn(),
                 }
             }
         """))
@@ -259,7 +259,7 @@ def grammar_to_rust(
             expr = f'crate::profile("{token}", {expr})'
             expr = f'tag("{token}", {expr})'
             if token != 'WS' and remove_left_recursion.ref('WS') not in unresolved_follows_table.get(token_ref, []):
-                expr = f'seq!({expr}, opt(deferred(&WS)))'
+                expr = f'seq!({expr}, opt(deferred(WS)))'
             expr = f'cached({expr})'
             f.write('pub fn ' + token + '() -> impl CombinatorTrait { ' + expr + ' }\n')
         f.write('\n')
