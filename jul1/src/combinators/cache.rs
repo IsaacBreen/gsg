@@ -111,7 +111,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for CacheContext<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
@@ -174,7 +174,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
         GLOBAL_CACHE.with(|cache| {
             let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
 

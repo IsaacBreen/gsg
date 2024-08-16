@@ -28,7 +28,7 @@ impl CombinatorTrait for EatByteStringChoice {
         self
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
         let mut parser = EatByteStringChoiceParser {
             root: Rc::clone(&self.root),
             current_node: Rc::clone(&self.root),

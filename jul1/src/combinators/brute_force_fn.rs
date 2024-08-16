@@ -92,7 +92,7 @@ impl CombinatorTrait for BruteForce {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse<'a>(&self, right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
         match convert_result(result) {

@@ -9,9 +9,11 @@ pub enum IndentCombinator {
     AssertNoDedents,
 }
 
+type DentParserContents<'a> = (Box<dyn CombinatorTrait + 'a>, Option<Box<Parser<'a>>>);
+
 #[derive(Debug)]
 pub enum IndentCombinatorParser<'a> {
-    DentParser(Box<Parser<'a>>),
+    DentParser(DentParserContents<'a>),
     IndentParser(Option<RightData>),
     Done,
 }
@@ -20,10 +22,10 @@ impl CombinatorTrait for IndentCombinator {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a>(&'a self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+    fn parse<'a>(&self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a {
         let (parser, parse_results): (IndentCombinatorParser<'a>, ParseResults) = match self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
-                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> impl CombinatorTrait + 'a {
+                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {
                     if indents.is_empty() {
                         eps().into_dyn()
                     } else {
@@ -48,10 +50,15 @@ impl CombinatorTrait for IndentCombinator {
                     }
                 }
                 // println!("Made dent parser with right_data: {:?}", right_data);
-                let combinator = make_combinator(&right_data.right_data_inner.fields2.indents, right_data.right_data_inner.fields2.indents.len());
-                let (parser, parse_results) = combinator.parse(right_data, bytes);
-
-                (IndentCombinatorParser::DentParser(Box::new(parser)), parse_results)
+                let combinator: Box<dyn CombinatorTrait + 'a> = make_combinator(&right_data.right_data_inner.fields2.indents, right_data.right_data_inner.fields2.indents.len());
+                let mut dent_parser_contents = (combinator, None);
+                {
+                    let c = dent_parser_contents.0;
+                    let (parser, parse_results): (Parser<'a>, ParseResults) = c.parse(right_data, bytes);
+                    dent_parser_contents.1 = Some(Box::new(parser));
+                }
+                // todo: temp parse results. fix this.
+                (IndentCombinatorParser::DentParser(dent_parser_contents), ParseResults::empty_finished())
             }
             IndentCombinator::Indent if right_data.right_data_inner.fields1.dedents == 0 => {
                 if !bytes.is_empty() && bytes[0] != b' ' {
@@ -85,7 +92,7 @@ impl CombinatorTrait for IndentCombinator {
 impl ParserTrait for IndentCombinatorParser<'_> {
     fn get_u8set(&self) -> U8Set {
         match self {
-            IndentCombinatorParser::DentParser(parser) => parser.get_u8set(),
+            IndentCombinatorParser::DentParser((_, parser)) => parser.as_ref().unwrap().get_u8set(),
             IndentCombinatorParser::IndentParser(_) => U8Set::from_byte(b' '),
             IndentCombinatorParser::Done => U8Set::none(),
         }
@@ -101,9 +108,9 @@ impl ParserTrait for IndentCombinatorParser<'_> {
 
         for &byte in bytes {
             match self {
-                IndentCombinatorParser::DentParser(parser) => {
+                IndentCombinatorParser::DentParser((_, parser)) => {
                     // let ParseResults { right_data_vec: mut new_right_data_vec, done: new_done } = parser.parse(&[byte]);
-                    let mut parse_results = parser.parse(&[byte]);
+                    let mut parse_results = parser.as_mut().unwrap().parse(&[byte]);
                     right_data_vec.append(&mut parse_results.right_data_vec);
                     done = parse_results.done();
                     if done {
