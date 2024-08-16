@@ -51,12 +51,13 @@ impl CombinatorTrait for WeakRef {
     }
 
     fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
-        self.inner
-            .upgrade()
-            .unwrap()
-            .get()
-            .unwrap()
-            .parse(right_data, bytes)
+        // self.inner
+        //     .upgrade()
+        //     .unwrap()
+        //     .get()
+        //     .unwrap()
+        //     .parse(right_data, bytes)
+        todo!()
     }
 }
 

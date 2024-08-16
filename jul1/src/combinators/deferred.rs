@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ops::Deref;
 use crate::*;
 
 macro_rules! profile {
@@ -123,7 +124,7 @@ impl CombinatorTrait for Deferred {
     }
 
     fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
-        match self.inner.borrow().clone() {
+        match self.inner.borrow().deref() {
             DeferredInner::Uncompiled(f) => {
                 panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
                 // let combinator = profile!("DeferredInner cache check", {
@@ -136,8 +137,8 @@ impl CombinatorTrait for Deferred {
                 // });
                 // combinator.parse(right_data, bytes)
             }
-            DeferredInner::CompiledStrong(combinator) => combinator.parse(right_data, bytes),
-            DeferredInner::CompiledWeak(combinator) => combinator.parse(right_data, bytes),
+            DeferredInner::CompiledStrong(combinator) => todo!(),
+            DeferredInner::CompiledWeak(combinator) => todo!()
         }
     }
 }
