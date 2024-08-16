@@ -4,8 +4,8 @@ use crate::trie::TrieNode;
 use crate::VecX;
 
 #[derive(Debug)]
-pub struct ExcludeBytestrings {
-    pub(crate) inner: Box<Combinator>,
+pub struct ExcludeBytestrings<T: CombinatorTrait> {
+    pub(crate) inner: Box<T>,
     // pub(crate) bytestrings_to_exclude: VecX<Vec<u8>>,
     pub(crate) root: Rc<TrieNode>,
 }
@@ -17,7 +17,7 @@ pub struct ExcludeBytestringsParser {
     pub(crate) start_position: usize,
 }
 
-impl CombinatorTrait for ExcludeBytestrings {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

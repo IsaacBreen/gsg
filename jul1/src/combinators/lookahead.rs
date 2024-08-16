@@ -20,13 +20,13 @@ impl Default for LookaheadData {
 }
 
 #[derive(Debug)]
-pub struct Lookahead {
-    pub combinator: Box<Combinator>,
+pub struct Lookahead<T: CombinatorTrait> {
+    pub combinator: Box<T>,
     pub positive: bool,
     pub persist_with_partial_lookahead: bool,
 }
 
-impl CombinatorTrait for Lookahead {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -54,11 +54,11 @@ impl CombinatorTrait for Lookahead {
     }
 }
 
-pub fn lookahead(combinator: impl CombinatorTrait + 'static) -> Lookahead {
+pub fn lookahead(combinator: impl CombinatorTrait + 'static) -> impl CombinatorTrait {
     Lookahead { combinator: Box::new(Box::new(combinator)), positive: true, persist_with_partial_lookahead: false }
 }
 
-pub fn negative_lookahead(combinator: impl CombinatorTrait + 'static) -> Lookahead {
+pub fn negative_lookahead(combinator: impl CombinatorTrait + 'static) -> impl CombinatorTrait {
     Lookahead { combinator: Box::new(Box::new(combinator)), positive: false, persist_with_partial_lookahead: false }
 }
 

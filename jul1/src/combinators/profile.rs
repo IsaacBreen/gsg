@@ -74,8 +74,8 @@ macro_rules! profile_block {
 }
 
 #[derive(Debug)]
-pub struct Profiled {
-    pub inner: Box<Combinator>,
+pub struct Profiled<T> {
+    pub inner: Box<T>,
     pub tag: String,
 }
 
@@ -86,7 +86,7 @@ pub struct ProfiledParser {
     pub tag: String,
 }
 
-impl CombinatorTrait for Profiled {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
