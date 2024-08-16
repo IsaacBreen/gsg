@@ -75,8 +75,8 @@ pub fn fast_combinator(expr: Expr) -> FastCombinatorWrapper {
 //     }
 // }
 //
-// impl From<Expr> for Combinator {
-//     fn from(value: Expr) -> Self {
-//         fast_combinator(value).into()
-//     }
-// }
+impl From<Expr> for FastCombinatorWrapper {
+    fn from(value: Expr) -> Self {
+        fast_combinator(value)
+    }
+}

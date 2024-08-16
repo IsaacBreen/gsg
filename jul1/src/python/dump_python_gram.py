@@ -215,6 +215,7 @@ def grammar_to_rust(
     f.write('use crate::seq;\n')
     f.write('use crate::{' + ', '.join(f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
     f.write('use crate::compiler::Compile;\n')
+    f.write('use crate::IntoDyn;\n')
     f.write('\n')
 
     f.write('enum Forbidden {\n')
@@ -233,9 +234,9 @@ def grammar_to_rust(
                 let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
             
                 match s {
-                    "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(&WS))),
-                    ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(deferred(&WS))),
-                    _ => seq!(eat_string(s), forbid_follows_clear(), opt(deferred(&WS))),
+                    "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(&WS))).into_dyn(),
+                    ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(deferred(&WS))).into_dyn(),
+                    _ => seq!(eat_string(s), forbid_follows_clear(), opt(deferred(&WS))).into_dyn(),
                 }
             }
         """))

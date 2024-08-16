@@ -12,53 +12,63 @@ macro_rules! profile {
 }
 
 thread_local! {
-    static COMBINATOR_CACHE: RefCell<HashMap<DeferredFn, Rc<Combinator>>> = RefCell::new(HashMap::new());
+    static COMBINATOR_CACHE: RefCell<HashMap<usize, Rc<Combinator>>> = RefCell::new(HashMap::new());
 }
 
 #[derive(Clone)]
-pub struct Deferred<T: CombinatorTrait> {
-    pub(crate) inner: RefCell<DeferredInner<T>>,
+pub struct Deferred {
+    pub(crate) inner: RefCell<DeferredInner>,
 }
 
 #[derive(Clone, Copy)]
-pub struct DeferredFn<T: CombinatorTrait>(pub &'static dyn Fn() -> T);
+pub struct DeferredFn<T: CombinatorTrait + 'static>(pub &'static dyn Fn() -> T);
 
-impl<T: CombinatorTrait> PartialEq for DeferredFn<T> {
+impl<T: CombinatorTrait + 'static> PartialEq for DeferredFn<T> {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self.0, other.0)
     }
 }
 
-impl<T: CombinatorTrait> Eq for DeferredFn<T> {}
+impl<T: CombinatorTrait + 'static> Eq for DeferredFn<T> {}
 
-impl<T: CombinatorTrait> Hash for DeferredFn<T> {
+impl<T: CombinatorTrait + 'static> Hash for DeferredFn<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(self.0, state);
     }
 }
 
+trait EvaluateDeferredFnToBoxedDynCombinator {
+    fn evaluate_deferred_fn_to_combinator(self) -> Combinator;
+}
+
+impl<T: CombinatorTrait + 'static> EvaluateDeferredFnToBoxedDynCombinator for DeferredFn<T> {
+    fn evaluate_deferred_fn_to_combinator(self) -> Combinator {
+        (self.0)().into()
+    }
+}
+
 #[derive(Clone)]
-pub enum DeferredInner<T: CombinatorTrait> {
-    Uncompiled(DeferredFn<T>),
+pub enum DeferredInner {
+    Uncompiled(Box<dyn EvaluateDeferredFnToBoxedDynCombinator>),
     CompiledStrong(StrongRef),
     CompiledWeak(WeakRef),
 }
 
-impl<T: CombinatorTrait> PartialEq for Deferred<T> {
+impl PartialEq for Deferred {
     fn eq(&self, other: &Self) -> bool {
         self.inner.borrow().eq(&other.inner.borrow())
     }
 }
 
-impl<T: CombinatorTrait> Eq for Deferred<T> {}
+impl Eq for Deferred {}
 
-impl<T: CombinatorTrait> Hash for Deferred<T> {
+impl Hash for Deferred {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.inner.borrow().hash(state)
     }
 }
 
-impl<T: CombinatorTrait> Hash for DeferredInner<T> {
+impl Hash for DeferredInner {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             DeferredInner::Uncompiled(f) => std::ptr::hash(f, state),
@@ -68,7 +78,7 @@ impl<T: CombinatorTrait> Hash for DeferredInner<T> {
     }
 }
 
-impl<T: CombinatorTrait> PartialEq for DeferredInner<T> {
+impl PartialEq for DeferredInner {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (DeferredInner::Uncompiled(f1), DeferredInner::Uncompiled(f2)) => std::ptr::eq(f1, f2),
@@ -79,15 +89,15 @@ impl<T: CombinatorTrait> PartialEq for DeferredInner<T> {
     }
 }
 
-impl<T: CombinatorTrait> Eq for DeferredInner<T> {}
+impl Eq for DeferredInner {}
 
-impl<T: CombinatorTrait> Debug for Deferred<T> {
+impl Debug for Deferred {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Deferred").finish_non_exhaustive()
     }
 }
 
-impl<T: CombinatorTrait> CombinatorTrait for Deferred<T> {
+impl CombinatorTrait for Deferred {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -127,11 +137,11 @@ impl<T: CombinatorTrait> CombinatorTrait for Deferred<T> {
     }
 }
 
-pub fn deferred<T: CombinatorTrait>(f: &'static impl Fn() -> T) -> impl CombinatorTrait {
-    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(DeferredFn(f))) }
+pub fn deferred<T: CombinatorTrait + 'static>(f: &'static impl Fn() -> T) -> impl CombinatorTrait {
+    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Box::new(DeferredFn(f)))) }
 }
 
-// impl<T> From<&'static T> for Combinator
+// impl From<&'static T> for Combinator
 // where
 //     T: Fn() -> Combinator
 // {

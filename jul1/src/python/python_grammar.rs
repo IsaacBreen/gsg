@@ -3,6 +3,7 @@ use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData,
 use crate::seq;
 use crate::{opt_greedy as opt, choice_greedy as choice, seprep0_greedy as seprep0, seprep1_greedy as seprep1, repeat0_greedy as repeat0, repeat1_greedy as repeat1};
 use crate::compiler::Compile;
+use crate::IntoDyn;
 
 enum Forbidden {
     WS,
@@ -26,9 +27,9 @@ pub fn python_literal(s: &str) -> impl CombinatorTrait {
     let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
 
     match s {
-        "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(&WS))),
-        ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(deferred(&WS))),
-        _ => seq!(eat_string(s), forbid_follows_clear(), opt(deferred(&WS))),
+        "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(&WS))).into_dyn(),
+        ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(deferred(&WS))).into_dyn(),
+        _ => seq!(eat_string(s), forbid_follows_clear(), opt(deferred(&WS))).into_dyn(),
     }
 }
 pub fn WS() -> impl CombinatorTrait { cached(tag("WS", crate::profile("WS", seq!(forbid_follows_check_not(Forbidden::WS as usize), token::WS().compile(), forbid_follows(&[Forbidden::INDENT as usize, Forbidden::DEDENT as usize]))))) }

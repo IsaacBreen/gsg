@@ -714,7 +714,7 @@ pub fn eat_until_terminator(terminator: char) -> Expr {
     repeat1_fast(eat_char_negation_fast(terminator))
 }
 
-pub fn STRING()-> impl IntoCombinator {
+pub fn STRING()-> impl CombinatorTrait {
     use crate::fast_combinator::{opt_fast as opt, eat_char_fast as eat_char, eat_char_negation_fast as eat_char_negation, eat_char_choice_fast as eat_char_choice, repeatn_fast as repeatn, eat_char_negation_choice_fast as eat_char_negation_choice, eat_string_fast as eat_string, repeat1_fast as repeat1, repeat0_fast as repeat0};
 
     let stringprefix = opt(choice_fast!(
@@ -754,7 +754,7 @@ pub fn STRING()-> impl IntoCombinator {
         seq_fast!(eat_string("\"\"\""), repeat0(longstringitem), eat_string("\"\"\""))
     );
 
-    seq_fast!(stringprefix, choice_fast!(shortstring, longstring))
+    fast_combinator(seq_fast!(stringprefix, choice_fast!(shortstring, longstring)))
 }
 
 // From https://peps.python.org/pep-0701/
@@ -1084,7 +1084,7 @@ pub fn FSTRING_END()-> impl CombinatorTrait {
 // imaginary literals::
 //
 //    3.14j   10.j    10j     .001j   1e100j   3.14e-10j   3.14_15_93j
-pub fn NUMBER()-> impl IntoCombinator {
+pub fn NUMBER() -> impl CombinatorTrait {
     use crate::fast_combinator::{opt_fast as opt, eat_char_fast as eat_char, eat_char_negation_fast as eat_char_negation, eat_char_choice_fast as eat_char_choice, repeatn_fast as repeatn, eat_char_negation_choice_fast as eat_char_negation_choice, eat_string_fast as eat_string, repeat1_fast as repeat1, repeat0_fast as repeat0, eat_byte_range_fast as eat_byte_range};
 
     let digit = eat_byte_range(b'0', b'9');
@@ -1117,7 +1117,7 @@ pub fn NUMBER()-> impl IntoCombinator {
 
     let imagnumber = seq_fast!(choice_fast!(floatnumber.clone(), digitpart), eat_char_choice("jJ"));
 
-    choice_fast!(integer, floatnumber, imagnumber)
+    fast_combinator(choice_fast!(integer, floatnumber, imagnumber))
 }
 
 // .. _comments:
