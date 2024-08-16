@@ -33,14 +33,21 @@ impl<'a, T: CombinatorTrait + 'a> ParserTrait for OwningParser<'a, T> {
     }
 }
 
-impl<'a, T: CombinatorTrait> OwningParser<'a, T> {
+impl<'a, T: CombinatorTrait + 'a> OwningParser<'a, T> {
     pub fn init(combinator: T, right_data: RightData, bytes: &[u8]) -> (OwningParser<'a, T>, ParseResults) {
         let mut owning_parser = OwningParser { combinator: Box::new(combinator), parser: None };
-        let parse_results = owning_parser.start(right_data, bytes);
+
+        // Use a block to ensure the borrow ends before returning
+        let parse_results = {
+            let (parser, parse_results) = owning_parser.combinator.parse(right_data, bytes);
+            owning_parser.parser = Some(Box::new(parser));
+            parse_results
+        };
+
         (owning_parser, parse_results)
     }
 
-    fn start<'b>(&'b mut self, right_data: RightData<>, bytes: &[u8]) -> ParseResults {
+    fn start<'b>(&'b mut self, right_data: RightData, bytes: &[u8]) -> ParseResults {
         let (parser, parse_results) = self.combinator.parse(right_data, bytes);
         self.parser = Some(Box::new(parser));
         parse_results
