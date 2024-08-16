@@ -16,10 +16,9 @@ pub struct Repeat1<T: CombinatorTrait> {
 #[derive(Debug)]
 pub struct Repeat1Parser<'a> {
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
-    pub(crate) a: &'a dyn CombinatorTrait,
+    pub(crate) combinator: &'a Repeat1<dyn CombinatorTrait>,
     pub(crate) a_parsers: Vec<Parser<'a>>,
     pub(crate) position: usize,
-    pub(crate) greedy: bool,
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
@@ -31,7 +30,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
         f(self.a.as_ref());
     }
 
-    fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
+    fn parse<'b>(&self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
         let (parser, parse_results) = self.a.parse(right_data, bytes);
         if parse_results.done() && parse_results.right_data_vec.is_empty() {

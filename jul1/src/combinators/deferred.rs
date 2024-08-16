@@ -123,7 +123,7 @@ impl CombinatorTrait for Deferred {
         }
     }
 
-    fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
+    fn parse<'b>(&self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) {
         match self.inner.borrow().deref() {
             DeferredInner::Uncompiled(f) => {
                 panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
