@@ -21,7 +21,7 @@ impl CombinatorTrait for Choice {
         self
     }
 
-    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
+    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'a: 'b {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 

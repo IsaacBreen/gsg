@@ -35,7 +35,7 @@ macro_rules! define_seq {
                 $(f(&self.$rest);)+
             }
 
-            fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
+            fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'a: 'b {
                 let start_position = right_data.right_data_inner.fields1.position;
 
                 let first_combinator = &self.$first;

@@ -18,7 +18,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'b: 'a {
+    fn parse<'a, 'b>(&'b self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) where Self: 'a, 'a: 'b {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
         if regex_state.failed() {
