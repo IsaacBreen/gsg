@@ -1,4 +1,6 @@
+use std::mem::transmute;
 use std::rc::Rc;
+use aliasable::boxed::AliasableBox;
 use crate::{choice, choice_greedy, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, RightData, seq, U8Set, VecX, VecY, IntoDyn};
 
 #[derive(Debug)]
@@ -11,46 +13,52 @@ pub enum IndentCombinator {
 
 #[derive(Debug)]
 pub enum IndentCombinatorParser<'a> {
-    DentParser(OwningParser<'a, Box<dyn CombinatorTrait + 'a>>),
+    DentParser(OwningParser<'a>),
     IndentParser(Option<RightData>),
     Done,
 }
 
-// A parser that owns its combinator
 #[derive(Debug)]
-pub struct OwningParser<'a, T: CombinatorTrait + 'a> {
-    pub(crate) combinator: Box<T>,
+pub struct OwningParser<'a> {
+    combinator: AliasableBox<dyn CombinatorTrait + 'a>,
     pub(crate) parser: Option<Box<Parser<'a>>>,
 }
 
-impl<'a, T: CombinatorTrait + 'a> ParserTrait for OwningParser<'a, T> {
+impl<'a> OwningParser<'a> {
+    pub fn init(
+        combinator: Box<dyn CombinatorTrait + 'a>,
+        right_data: RightData,
+        bytes: &[u8],
+    ) -> (OwningParser<'a>, ParseResults) {
+        let mut owning_parser = OwningParser {
+            combinator: AliasableBox::from_unique(combinator),
+            parser: None,
+        };
+
+        let (parser, parse_results) = unsafe {
+            // Create the parser using the combinator
+            let (parser, parse_results) = owning_parser.combinator.parse(right_data, bytes);
+
+            // Transmute the parser's lifetime to 'static
+            let parser = transmute(parser);
+
+            // Set the parser in the OwningParser
+            owning_parser.parser = Some(Box::new(parser));
+
+            (owning_parser.parser.as_mut().unwrap(), parse_results)
+        };
+
+        (owning_parser, parse_results)
+    }
+}
+
+impl<'a> ParserTrait for OwningParser<'a> {
     fn get_u8set(&self) -> U8Set {
         self.parser.as_ref().unwrap().get_u8set()
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.parser.as_mut().unwrap().parse(bytes)
-    }
-}
-
-impl<'a, T: CombinatorTrait + 'a> OwningParser<'a, T> {
-    pub fn init(combinator: T, right_data: RightData, bytes: &[u8]) -> (OwningParser<'a, T>, ParseResults) {
-        let mut owning_parser = OwningParser { combinator: Box::new(combinator), parser: None };
-
-        // Use a block to ensure the borrow ends before returning
-        let parse_results = {
-            let (parser, parse_results) = owning_parser.combinator.parse(right_data, bytes);
-            owning_parser.parser = Some(Box::new(parser));
-            parse_results
-        };
-
-        (owning_parser, parse_results)
-    }
-
-    fn start<'b>(&'b mut self, right_data: RightData, bytes: &[u8]) -> ParseResults {
-        let (parser, parse_results) = self.combinator.parse(right_data, bytes);
-        self.parser = Some(Box::new(parser));
-        parse_results
     }
 }
 

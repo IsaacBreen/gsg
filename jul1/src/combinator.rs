@@ -37,7 +37,7 @@ pub enum Parser<'a> {
     ContinuationParser(ContinuationParser),
     FastParserWrapper(FastParserWrapper),
     DynParser(Box<dyn ParserTrait>),
-    OwningParser(OwningParser<'a, Box<dyn CombinatorTrait + 'a>>),
+    OwningParser(OwningParser<'a>),
 }
 
 // impl CombinatorTrait for Box<Combinator> {
