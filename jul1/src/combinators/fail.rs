@@ -12,7 +12,7 @@ impl CombinatorTrait for Fail {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
+    fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
         (Parser::FailParser(FailParser), ParseResults::empty_finished())
     }
 }

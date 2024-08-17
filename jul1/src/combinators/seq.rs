@@ -36,7 +36,7 @@ impl CombinatorTrait for Seq {
         }
     }
 
-    fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
+    fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
 
         let mut combinator_index = self.start_index;
