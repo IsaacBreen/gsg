@@ -36,7 +36,7 @@ pub enum Parser<'a> {
     BruteForceParser(BruteForceParser),
     ContinuationParser(ContinuationParser),
     FastParserWrapper(FastParserWrapper),
-    DynParser(Box<dyn ParserTrait>),
+    DynParser(Box<dyn ParserTrait + 'a>),
     OwningParser(OwningParser<'a>),
 }
 
