@@ -41,7 +41,7 @@ pub enum Parser<'a> {
 }
 
 // impl CombinatorTrait for Box<Combinator> {
-//     fn parse<'b>(&self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) {
+//     fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
 //         let inner = &**self;
 //         inner.parse(right_data, bytes)
 //     }
@@ -135,7 +135,7 @@ macro_rules! match_parser {
 pub trait CombinatorTrait: std::fmt::Debug {
     fn as_any(&self) -> &dyn std::any::Any;
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
-    fn parse<'b>(&self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults);
+    fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b;
 }
 
 pub trait ParserTrait: std::fmt::Debug {
@@ -164,7 +164,7 @@ pub trait ParserTrait: std::fmt::Debug {
 //         (**self).as_any()
 //     }
 //
-//     fn parse<'b>(&self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) {
+//     fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
 //         (**self).parse(right_data, bytes)
 //     }
 //
@@ -182,7 +182,7 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
         (**self).apply(f);
     }
 
-    fn parse<'b>(&self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) {
+    fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
         (**self).parse(right_data, bytes)
     }
 }

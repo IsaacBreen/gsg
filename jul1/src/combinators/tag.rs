@@ -40,7 +40,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
         f(&self.inner);
     }
 
-    fn parse<'b>(&self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) {
+    fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (

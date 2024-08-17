@@ -16,9 +16,10 @@ pub enum IndentCombinatorParser<'a> {
     Done,
 }
 
+// A parser that owns its combinator
 #[derive(Debug)]
 pub struct OwningParser<'a, T: CombinatorTrait + 'a> {
-    pub(crate) combinator: T,
+    pub(crate) combinator: Box<T>,
     pub(crate) parser: Option<Box<Parser<'a>>>,
 }
 
@@ -34,10 +35,22 @@ impl<'a, T: CombinatorTrait + 'a> ParserTrait for OwningParser<'a, T> {
 
 impl<'a, T: CombinatorTrait + 'a> OwningParser<'a, T> {
     pub fn init(combinator: T, right_data: RightData, bytes: &[u8]) -> (OwningParser<'a, T>, ParseResults) {
-        let mut owning_parser = OwningParser { combinator, parser: None };
-        let (parser, parse_results) = owning_parser.combinator.parse(right_data, bytes);
-        owning_parser.parser = Some(Box::new(parser));
+        let mut owning_parser = OwningParser { combinator: Box::new(combinator), parser: None };
+
+        // Use a block to ensure the borrow ends before returning
+        let parse_results = {
+            let (parser, parse_results) = owning_parser.combinator.parse(right_data, bytes);
+            owning_parser.parser = Some(Box::new(parser));
+            parse_results
+        };
+
         (owning_parser, parse_results)
+    }
+
+    fn start<'b>(&'b mut self, right_data: RightData, bytes: &[u8]) -> ParseResults {
+        let (parser, parse_results) = self.combinator.parse(right_data, bytes);
+        self.parser = Some(Box::new(parser));
+        parse_results
     }
 }
 
@@ -45,7 +58,7 @@ impl CombinatorTrait for IndentCombinator {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'b>(&self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) {
+    fn parse<'a, 'b>(&'a self, mut right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
                 fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {
@@ -73,7 +86,7 @@ impl CombinatorTrait for IndentCombinator {
                     }
                 }
                 // println!("Made dent parser with right_data: {:?}", right_data);
-                let combinator = make_combinator(&right_data.right_data_inner.fields2.indents, right_data.right_data_inner.fields2.indents.len());
+                let combinator: Box<dyn CombinatorTrait + 'a> = make_combinator(&right_data.right_data_inner.fields2.indents, right_data.right_data_inner.fields2.indents.len());
                 let (parser, parse_results) = OwningParser::init(combinator, right_data, bytes);
                 (IndentCombinatorParser::DentParser(parser), parse_results)
             }

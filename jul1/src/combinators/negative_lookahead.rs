@@ -26,7 +26,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
         f(&self.inner);
     }
 
-    fn parse<'b>(&self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) {
+    fn parse<'a, 'b>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'b>, ParseResults) where 'a: 'b {
         let (inner, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         let (indices, node) = self.root.get_indices(bytes);
         let indices: HashSet<usize> = indices.into_iter().collect();
