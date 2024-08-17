@@ -37,6 +37,7 @@ impl<T: CombinatorTrait> Compile for T {
                             deferred_cache.insert(f.get_addr(), Ref::Weak(weak.clone()));
                             let mut evaluated: Combinator = f.evaluate_deferred_fn_to_combinator();
                             compile_inner(&mut evaluated, deferred_cache);
+                            dbg!(&evaluated);
                             strong.set(evaluated);
                             deferred_cache.insert(f.get_addr(), Ref::Strong(strong.clone()));
                             DeferredInner::CompiledStrong(strong.clone())
@@ -50,11 +51,13 @@ impl<T: CombinatorTrait> Compile for T {
                     }
                 };
                 *inner.borrow_mut() = new_inner;
+                // dbg!(&inner);
             } else {
                 combinator.apply(&mut |combinator| {
                     compile_inner(combinator, deferred_cache);
                 });
             }
+            dbg!(&combinator);
         }
         compile_inner(&mut self, &mut deferred_cache);
         self

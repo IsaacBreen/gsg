@@ -16,13 +16,19 @@ thread_local! {
     static COMBINATOR_CACHE: RefCell<HashMap<usize, Rc<Combinator>>> = RefCell::new(HashMap::new());
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Deferred {
     pub(crate) inner: RefCell<DeferredInner>,
 }
 
 #[derive(Clone, Copy)]
 pub struct DeferredFn<T: CombinatorTrait + 'static, F: Fn() -> T>(pub F, pub usize);
+
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> Debug for DeferredFn<T, F> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DeferredFn").finish_non_exhaustive()
+    }
+}
 
 impl<T: CombinatorTrait + 'static, F: Fn() -> T> PartialEq for DeferredFn<T, F> {
     fn eq(&self, other: &Self) -> bool {
@@ -38,7 +44,7 @@ impl<T: CombinatorTrait + 'static, F: Fn() -> T> Hash for DeferredFn<T, F> {
     }
 }
 
-pub trait EvaluateDeferredFnToBoxedDynCombinator {
+pub trait EvaluateDeferredFnToBoxedDynCombinator: Debug {
     fn evaluate_deferred_fn_to_combinator(&self) -> Combinator;
     fn get_addr(&self) -> usize;
 }
@@ -53,7 +59,7 @@ impl<T: CombinatorTrait + 'static, F: Fn() -> T> EvaluateDeferredFnToBoxedDynCom
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum DeferredInner {
     Uncompiled(Rc<dyn EvaluateDeferredFnToBoxedDynCombinator>),
     CompiledStrong(StrongRef),
@@ -96,12 +102,6 @@ impl PartialEq for DeferredInner {
 }
 
 impl Eq for DeferredInner {}
-
-impl Debug for Deferred {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Deferred").finish_non_exhaustive()
-    }
-}
 
 impl CombinatorTrait for Deferred {
     fn as_any(&self) -> &dyn std::any::Any {
