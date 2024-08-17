@@ -74,12 +74,12 @@ macro_rules! define_seq {
                         return (Parser::FailParser(FailParser), ParseResults::new(final_right_data, true));
                     }
 
-                    // let parser = Parser::SeqParser(SeqParser {
-                    //     parsers,
-                    //     combinators: vecx![$crate::IntoDyn::into_dyn(Fail), $($crate::IntoDyn::into_dyn($crate::Symbol { value: self.$rest.clone() })),+],
-                    //     position: start_position + bytes.len(),
-                    // });
-                    let parser = Parser::FailParser(FailParser);
+                    let parser = Parser::SeqParser(SeqParser {
+                        parsers,
+                        // todo: actually, this is invalid and causes an error. The children don't necessarily implement `Clone`.
+                        combinators: vecx![$crate::IntoDyn::into_dyn(Fail), $($crate::IntoDyn::into_dyn(self.$rest.clone())),+],
+                        position: start_position + bytes.len(),
+                    });
 
                     let parse_results = ParseResults::new(final_right_data, false);
 
