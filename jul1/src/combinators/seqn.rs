@@ -83,7 +83,7 @@ macro_rules! define_seq {
                         return (Parser::FailParser(FailParser), ParseResults::new(final_right_data, true));
                     }
 
-                    let parser = Parser::SeqParser(Box::new($seq_parser_name {
+                    let parser = Parser::DynParser(Box::new($seq_parser_name {
                         combinator: self,
                         parsers,
                         position: start_position + bytes.len(),
@@ -148,12 +148,12 @@ macro_rules! define_seq {
                     while let Some((combinator_index, right_data_squasher)) = parser_initialization_queue.pop_first() {
                         for right_data in right_data_squasher.finish() {
                             let offset = right_data.right_data_inner.fields1.position - self.position;
-                            let combinator = self.combinator.children().get(*combinator_index).unwrap();
+                            let combinator = self.combinator.children().get(combinator_index).unwrap();
                             let (parser, parse_results) = profile!(stringify!($seq_parser_name, "::parse child Combinator::parse"), {
                                 combinator.parse(right_data, &bytes[offset..])
                             });
                             if !parse_results.done() {
-                                self.parsers.push((*combinator_index, parser));
+                                self.parsers.push((combinator_index, parser));
                             }
                             if combinator_index + 1 < self.combinator.children().len() {
                                 profile!(stringify!($seq_parser_name, "::parse extend parser_initialization_queue"), {
