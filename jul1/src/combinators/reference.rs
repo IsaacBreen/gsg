@@ -51,13 +51,7 @@ impl CombinatorTrait for WeakRef {
     }
 
     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
-        // self.inner
-        //     .upgrade()
-        //     .unwrap()
-        //     .get()
-        //     .unwrap()
-        //     .parse(right_data, bytes)
-        todo!("fix lifetimes")
+        self.get().unwrap().parse(right_data, bytes)
     }
 }
 
@@ -99,6 +93,20 @@ impl StrongRef {
 impl WeakRef {
     pub fn upgrade(&self) -> Option<StrongRef> {
         self.inner.upgrade().map(|inner| StrongRef { inner })
+    }
+
+    pub fn get(&self) -> Option<&Combinator> {
+        // Upgrade the weak reference to a strong reference
+        let strong_ref = self.inner.upgrade()?;
+
+        // Safely access the inner Combinator
+        // Note: We use unsafe code here to transmute the lifetime.
+        // This is safe because the OnceCell guarantees that the value,
+        // once set, will live as long as the Rc/Weak, which is 'static.
+        unsafe {
+            let combinator: &Combinator = std::mem::transmute(strong_ref.get().unwrap());
+            Some(combinator)
+        }
     }
 }
 
