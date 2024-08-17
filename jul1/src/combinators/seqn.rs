@@ -26,7 +26,8 @@ macro_rules! define_seq {
             $($rest: CombinatorTrait),+
         {
             pub(crate) combinator: &'a $seq_name<$first, $($rest),+>,
-            pub(crate) parsers: Vec<(usize, Parser<'a>)>,
+            pub(crate) $first: Vec<Parser<'a>>,
+            $(pub(crate) $rest: Vec<Parser<'a>>,)+
             pub(crate) position: usize,
         }
 
@@ -58,57 +59,46 @@ macro_rules! define_seq {
                     return (Parser::FailParser(FailParser), first_parse_results);
                 }
 
-                let mut parsers = if done {
-                    vec![]
-                } else {
-                    vec![(0, first_parser)]
+                let mut parser = $seq_parser_name {
+                    combinator: self,
+                    $first: if done { vec![] } else { vec![first_parser] },
+                    $($rest: vec![],)+
+                    position: start_position + bytes.len(),
                 };
 
                 let mut next_right_data_vec = first_parse_results.right_data_vec;
 
-                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize, parsers: &mut Vec<(usize, Parser<'a>)>) -> VecY<RightData> {
+                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (Parser<'a>, ParseResults) {
                     let offset = right_data.right_data_inner.fields1.position - start_position;
-                    let (parser, parse_results) = profile!(stringify!($seq_name, " child parse"), {
+                    profile!(stringify!($seq_name, " child parse"), {
                         next_combinator.parse(right_data, &bytes[offset..])
-                    });
-                    if !parse_results.done() {
-                        parsers.push((parsers.len(), parser));
-                    }
-                    parse_results.right_data_vec
+                    })
                 }
 
-                let finalizer = |final_right_data: VecY<RightData>, parsers: Vec<(usize, Parser)>| {
-
-                    if parsers.is_empty() {
-                        return (Parser::FailParser(FailParser), ParseResults::new(final_right_data, true));
-                    }
-
-                    let self_static_ref: &'a Self = unsafe { std::mem::transmute(&self) };
-
-                    let parser = Parser::DynParser(Box::new($seq_parser_name {
-                        combinator: self_static_ref,
-                        parsers,
-                        position: start_position + bytes.len(),
-                    }));
-
-                    let parse_results = ParseResults::new(final_right_data, false);
-
-                    (parser.into(), parse_results)
-                };
-
+                // Macro to process each child combinator
                 $(
                     if next_right_data_vec.is_empty() {
-                        return finalizer(next_right_data_vec, parsers);
+                        return (Parser::DynParser(Box::new(parser)), ParseResults::new(next_right_data_vec, true));
                     }
 
                     let mut next_next_right_data_vec = VecY::new();
+                    let mut $rest = Vec::new();
                     for right_data in next_right_data_vec {
-                        next_next_right_data_vec.extend(helper(right_data, &self.$rest, &bytes, start_position, &mut parsers));
+                        let (parser, parse_results) = helper(right_data, &self.$rest, &bytes, start_position);
+                        if !parse_results.done() {
+                            $rest.push(parser);
+                        }
+                        next_next_right_data_vec.extend(parse_results.right_data_vec);
                     }
                     next_right_data_vec = next_next_right_data_vec;
+
+                    // Update the parser with the new parsers for this child
+                    parser.$rest = $rest;
                 )+
 
-                finalizer(next_right_data_vec, parsers)
+                let parse_results = ParseResults::new(next_right_data_vec, false);
+
+                (Parser::DynParser(Box::new(parser)), parse_results)
             }
         }
 
@@ -119,57 +109,70 @@ macro_rules! define_seq {
         {
             fn get_u8set(&self) -> U8Set {
                 let mut u8set = U8Set::none();
-                for (_, parser) in &self.parsers {
+                for parser in &self.$first {
                     u8set = u8set.union(&parser.get_u8set());
                 }
+                $(
+                    for parser in &self.$rest {
+                        u8set = u8set.union(&parser.get_u8set());
+                    }
+                )+
                 u8set
             }
 
             fn parse(&mut self, bytes: &[u8]) -> ParseResults {
                 profile!(stringify!($seq_parser_name, "::parse"), {
-                    let mut final_right_data: VecY<RightData> = VecY::new();
-                    let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
+                    let mut new_right_data: VecY<RightData> = VecY::new();
 
-                    self.parsers.retain_mut(|(combinator_index, parser)| {
+                    // First child
+                    self.$first.retain_mut(|parser| {
                         let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), {
                             parser.parse(bytes)
                         });
                         let done = parse_results.done();
-                        if *combinator_index + 1 < self.combinator.children().len() {
-                            profile!(stringify!($seq_parser_name, "::parse extend parser_initialization_queue"), {
-                                parser_initialization_queue.entry(*combinator_index + 1).or_default().extend(parse_results.right_data_vec);
-                            });
-                        } else {
-                            profile!(stringify!($seq_parser_name, "::parse extend final_right_data"), {
-                                final_right_data.extend(parse_results.right_data_vec);
-                            });
+                        if !done {
+                            return true;
                         }
-                        !done
+                        if self.combinator.children().len() == 1 {
+                            new_right_data.extend(parse_results.right_data_vec);
+                        }
+                        false
                     });
 
-                    while let Some((combinator_index, right_data_squasher)) = parser_initialization_queue.pop_first() {
-                        for right_data in right_data_squasher.finish() {
+                    $(
+                        // Subsequent children
+                        for right_data in std::mem::take(&mut new_right_data) {
                             let offset = right_data.right_data_inner.fields1.position - self.position;
-                            let combinator = self.combinator.children().get(combinator_index).unwrap();
+                            let combinator = &self.combinator.$rest;
                             let (parser, parse_results) = profile!(stringify!($seq_parser_name, "::parse child Combinator::parse"), {
                                 combinator.parse(right_data, &bytes[offset..])
                             });
                             if !parse_results.done() {
-                                self.parsers.push((combinator_index, parser));
+                                self.$rest.push(parser);
                             }
-                            if combinator_index + 1 < self.combinator.children().len() {
-                                profile!(stringify!($seq_parser_name, "::parse extend parser_initialization_queue"), {
-                                    parser_initialization_queue.entry(combinator_index + 1).or_default().extend(parse_results.right_data_vec);
-                                });
-                            } else {
-                                final_right_data.extend(parse_results.right_data_vec);
+                            if self.combinator.children().len() == 2 {
+                                new_right_data.extend(parse_results.right_data_vec);
                             }
                         }
-                    }
+
+                        self.$rest.retain_mut(|parser| {
+                            let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), {
+                                parser.parse(bytes)
+                            });
+                            let done = parse_results.done();
+                            if !done {
+                                return true;
+                            }
+                            if self.combinator.children().len() == 2 {
+                                new_right_data.extend(parse_results.right_data_vec);
+                            }
+                            false
+                        });
+                    )+
 
                     self.position += bytes.len();
 
-                    ParseResults::new(final_right_data, self.parsers.is_empty())
+                    ParseResults::new(new_right_data, self.$first.is_empty() $( && self.$rest.is_empty() )+)
                 })
             }
         }
