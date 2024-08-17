@@ -109,16 +109,16 @@ impl CombinatorTrait for Deferred {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        match self.inner.borrow().clone() {
+        match self.inner.borrow().deref() {
             DeferredInner::Uncompiled(f) => {
                 // todo: better error message (this one makes no sense)
                 panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
             }
             DeferredInner::CompiledStrong(inner) => {
-                f(&inner);
+                f(inner);
             }
             DeferredInner::CompiledWeak(inner) => {
-                f(&inner);
+                f(inner);
             }
         }
     }
