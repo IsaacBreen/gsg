@@ -27,7 +27,7 @@ pub enum Parser<'a> {
     EpsParser(EpsParser),
     FailParser(FailParser),
     CacheContextParser(CacheContextParser<'a>),
-    CachedParser(CachedParser<'a>),
+    CachedParser(CachedParser),
     IndentCombinatorParser(IndentCombinatorParser<'a>),
     Repeat1Parser(Repeat1Parser<'a>),
     EatByteStringChoiceParser(EatByteStringChoiceParser),

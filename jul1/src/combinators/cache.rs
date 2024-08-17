@@ -2,6 +2,7 @@ use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::intrinsics::transmute;
 use std::num::NonZeroUsize;
 use std::rc::Rc;
 
@@ -17,18 +18,18 @@ macro_rules! profile {
 }
 
 thread_local! {
-    pub static GLOBAL_CACHE: RefCell<GlobalCache<'static>> = RefCell::new(GlobalCache::new());
+    pub static GLOBAL_CACHE: RefCell<GlobalCache> = RefCell::new(GlobalCache::new());
 }
 
 #[derive(Debug)]
-struct GlobalCache<'a> {
-    new_parsers: HashMap<usize, HashMap<CacheKey, Rc<RefCell<CacheEntry<'a>>>>>,
-    pub(crate) entries: HashMap<usize, Vec<Rc<RefCell<CacheEntry<'a>>>>>,
+struct GlobalCache {
+    new_parsers: HashMap<usize, HashMap<CacheKey, Rc<RefCell<CacheEntry>>>>,
+    pub(crate) entries: HashMap<usize, Vec<Rc<RefCell<CacheEntry>>>>,
     pub(crate) parse_id_counter: usize,
     pub(crate) parse_id: Option<usize>,
 }
 
-impl GlobalCache<'_> {
+impl GlobalCache {
     fn new() -> Self {
         Self {
             new_parsers: HashMap::new(),
@@ -68,8 +69,8 @@ impl Eq for CacheKey {}
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-struct CacheEntry<'a> {
-    pub(crate) parser: Option<Box<Parser<'a>>>,
+struct CacheEntry {
+    pub(crate) parser: Option<Box<Parser<'static>>>,
     maybe_parse_results: Option<ParseResults>,
 }
 
@@ -84,17 +85,17 @@ pub struct Cached<T: CombinatorTrait> {
 }
 
 #[derive(Debug)]
-pub struct CachedParser<'a> {
-    pub entry: Rc<RefCell<CacheEntry<'a>>>,
+pub struct CachedParser {
+    pub entry: Rc<RefCell<CacheEntry>>,
 }
 
-impl Hash for CachedParser<'_> {
+impl Hash for CachedParser {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(self.entry.as_ref() as *const RefCell<CacheEntry>, state);
     }
 }
 
-impl PartialEq for CachedParser<'_> {
+impl PartialEq for CachedParser {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.entry, &other.entry)
     }
@@ -170,43 +171,42 @@ impl ParserTrait for CacheContextParser<'_> {
     }
 }
 
-impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         todo!()
     }
-    fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(move |cache| {
-            // let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
-            //
-            // let mut global_cache = cache.borrow_mut();
-            // let parse_id = global_cache.parse_id.unwrap();
-            // if let Some(entry) = profile!("Cached.parse: check cache: get entry", {
-            //     global_cache.new_parsers.get_mut(&parse_id).unwrap().get(&key).cloned()
-            // }) {
-            //     profile!("Cached.parse: cache hit", {});
-            //     let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
-            //     return (Parser::CachedParser(CachedParser { entry }), parse_results);
-            // }
-            // drop(global_cache);
-            //
-            // profile!("Cached.parse: cache miss", {});
-            // let entry = Rc::new(RefCell::new(CacheEntry {
-            //     parser: None,
-            //     maybe_parse_results: None,
-            // }));
-            // let inner = self.inner.clone();
-            // let (parser, mut parse_results) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
-            // profile!("Cached.parse: parse_results.squash", parse_results.squash());
-            //
-            // let mut global_cache = cache.borrow_mut();
-            // let parse_id = global_cache.parse_id.unwrap();
-            // global_cache.new_parsers.get_mut(&parse_id).unwrap().insert(key, entry.clone());
-            // if !parse_results.done() {
-            //     global_cache.entries.get_mut(&parse_id).unwrap().push(entry.clone());
-            // }
-            // *entry.borrow_mut() = CacheEntry { parser: Some(Box::new(parser)), maybe_parse_results: Some(parse_results.clone()) };
-            // (Parser::CachedParser(CachedParser { entry }), parse_results)
-            todo!("fix lifetimes")
+            let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
+
+            let mut global_cache = cache.borrow_mut();
+            let parse_id = global_cache.parse_id.unwrap();
+            if let Some(entry) = profile!("Cached.parse: check cache: get entry", {
+                global_cache.new_parsers.get_mut(&parse_id).unwrap().get(&key).cloned()
+            }) {
+                profile!("Cached.parse: cache hit", {});
+                let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
+                return (Parser::CachedParser(CachedParser { entry }), parse_results);
+            }
+            drop(global_cache);
+
+            profile!("Cached.parse: cache miss", {});
+            let entry = Rc::new(RefCell::new(CacheEntry {
+                parser: None,
+                maybe_parse_results: None,
+            }));
+            let inner: &'static T = unsafe { transmute(self.inner.as_ref()) };
+            let (parser, mut parse_results): (Parser<'static>, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
+            profile!("Cached.parse: parse_results.squash", parse_results.squash());
+
+            let mut global_cache = cache.borrow_mut();
+            let parse_id = global_cache.parse_id.unwrap();
+            global_cache.new_parsers.get_mut(&parse_id).unwrap().insert(key, entry.clone());
+            if !parse_results.done() {
+                global_cache.entries.get_mut(&parse_id).unwrap().push(entry.clone());
+            }
+            *entry.borrow_mut() = CacheEntry { parser: Some(Box::new(parser)), maybe_parse_results: Some(parse_results.clone()) };
+            (Parser::CachedParser(CachedParser { entry }), parse_results)
         })
     }
 
@@ -215,7 +215,7 @@ impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
     }
 }
 
-impl ParserTrait for CachedParser<'_> {
+impl ParserTrait for CachedParser {
     fn get_u8set(&self) -> U8Set {
         self.entry.borrow().parser.as_ref().unwrap().get_u8set()
     }
