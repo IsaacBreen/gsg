@@ -137,8 +137,18 @@ impl CombinatorTrait for Deferred {
                 // });
                 // combinator.parse(right_data, bytes)
             }
-            DeferredInner::CompiledStrong(combinator) => todo!("fix lifetimes"),
-            DeferredInner::CompiledWeak(combinator) => todo!("fix lifetimes")
+            DeferredInner::CompiledStrong(combinator) => {
+                combinator.clone().parse(right_data, bytes)
+                // todo!()
+                // let mut combinator2: &'static StrongRef = unsafe { std::mem::transmute(&combinator) };
+                // combinator2.parse(right_data, bytes)
+            },
+            DeferredInner::CompiledWeak(combinator) => {
+                // combinator.parse(right_data, bytes)
+                todo!()
+                // let mut combinator2: &'static WeakRef = unsafe { std::mem::transmute(&combinator) };
+                // combinator2.parse(right_data, bytes)
+            },
         }
     }
 }

@@ -60,6 +60,7 @@ impl<T: CombinatorTrait> Compile for T {
             dbg!(&combinator);
         }
         compile_inner(&mut self, &mut deferred_cache);
+         dbg!(&self);
         self
     }
 }
