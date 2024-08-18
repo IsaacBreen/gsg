@@ -1,5 +1,6 @@
 import io
 import logging
+import random
 import textwrap
 import tokenize
 from io import StringIO
@@ -201,12 +202,14 @@ def grammar_to_rust(
 
 
     def name_to_rust(name: str, already_defined) -> str:
-        if name in already_defined:
+        # if name in already_defined:
+        if name in already_defined and random.random() < 0.1:
             # return f'deferred({name})'
-            return f'deferred({name}).into_dyn()'
+            return f'deferred({name})'
             # return f'{name}()'
         else:
             return f'deferred({name}).into_dyn()'
+            # return f'deferred({name})'
 
     rules = grammar.rules.items()
     rules = list(reversed(rules))
