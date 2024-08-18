@@ -19,12 +19,11 @@ nom = "7.1.3"
 arrayvec = "0.7.4"
 aliasable = "0.1.3"
 
-# Run tests with opt level 3
 #[profile.dev]
 #opt-level = 1
 
-#[profile.test]
-#opt-level = 2
+[profile.test]
+opt-level = 2
 ## Keep debug info
 #debug = "full"
 
