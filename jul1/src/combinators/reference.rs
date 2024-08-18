@@ -116,9 +116,9 @@ impl<T> StrongRef<T> {
     }
 
     pub fn new(inner: T) -> Self {
-        Self {
-            inner: Rc::new(OnceCell::new())
-        }
+        let cell = OnceCell::new();
+        cell.set(inner).ok().expect("Cannot set value more than once");
+        Self { inner: Rc::new(cell) }
     }
 }
 
