@@ -22,8 +22,8 @@ aliasable = "0.1.3"
 #[profile.dev]
 #opt-level = 1
 
-#[profile.test]
-#opt-level = 2
+[profile.test]
+opt-level = 2
 ## Keep debug info
 #debug = "full"
 
