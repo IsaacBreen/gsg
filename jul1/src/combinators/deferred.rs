@@ -1,9 +1,10 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
+use once_cell::unsync::OnceCell;
 use crate::*;
 
 macro_rules! profile {
@@ -18,7 +19,7 @@ thread_local! {
 
 #[derive(Clone, Debug)]
 pub struct Deferred {
-    pub(crate) inner: RefCell<DeferredInner>,
+    pub(crate) inner: OnceCell<DeferredInner>,
 }
 
 #[derive(Clone, Copy)]
@@ -68,7 +69,7 @@ pub enum DeferredInner {
 
 impl PartialEq for Deferred {
     fn eq(&self, other: &Self) -> bool {
-        self.inner.borrow().eq(&other.inner.borrow())
+        self.inner.get().eq(&other.inner.get())
     }
 }
 
@@ -76,7 +77,7 @@ impl Eq for Deferred {}
 
 impl Hash for Deferred {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.inner.borrow().hash(state)
+        self.inner.get().hash(state)
     }
 }
 
@@ -109,23 +110,24 @@ impl CombinatorTrait for Deferred {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        match self.inner.borrow().deref() {
-            DeferredInner::Uncompiled(f) => {
+        match self.inner.get() {
+            Some(DeferredInner::Uncompiled(f)) => {
                 // todo: better error message (this one makes no sense)
                 panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
             }
-            DeferredInner::CompiledStrong(inner) => {
+            Some(DeferredInner::CompiledStrong(inner)) => {
                 f(inner);
             }
-            DeferredInner::CompiledWeak(inner) => {
+            Some(DeferredInner::CompiledWeak(inner)) => {
                 f(inner);
             }
+            None => panic!("DeferredInner not initialized"),
         }
     }
 
     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
-        let (parser, parse_results) = Ref::map(self.inner.borrow(), |inner| match inner {
-            DeferredInner::Uncompiled(f) => {
+        match self.inner.get() {
+            Some(DeferredInner::Uncompiled(_f)) => {
                 panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
                 // let combinator = profile!("DeferredInner cache check", {
                 //         COMBINATOR_CACHE.with(|cache| {
@@ -137,10 +139,10 @@ impl CombinatorTrait for Deferred {
                 // });
                 // combinator.parse(right_data, bytes)
             }
-            DeferredInner::CompiledStrong(combinator) => &combinator.parse(right_data, bytes),
-            DeferredInner::CompiledWeak(combinator) => todo!(),
-        }).deref();
-
+            Some(DeferredInner::CompiledStrong(combinator)) => combinator.parse(right_data, bytes),
+            Some(DeferredInner::CompiledWeak(combinator)) => combinator.parse(right_data, bytes),
+            None => panic!("DeferredInner not initialized"),
+        }
     }
 }
 
@@ -156,7 +158,7 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred {
     let addr = f as *const () as usize;
     // dbg!(std::ptr::addr_of!(f) as usize);
     // dbg!(f as *const () as usize);
-    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))) }
+    Deferred { inner: OnceCell::new().set(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))).unwrap() }
 }
 
 pub fn deferred2(f: fn() -> Choice2<Seq2<EatU8, Deferred>, EatU8>) -> Deferred {
@@ -164,5 +166,5 @@ pub fn deferred2(f: fn() -> Choice2<Seq2<EatU8, Deferred>, EatU8>) -> Deferred {
     let addr = f as *const () as usize;
     dbg!(addr);
     dbg!(f as *const ());
-    Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))) }
+    Deferred { inner: OnceCell::new().set(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))).unwrap() }
 }
