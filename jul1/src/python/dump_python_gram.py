@@ -206,6 +206,7 @@ def grammar_to_rust(
         # if name in already_defined:
         if name in already_defined:
             return f'deferred({name})'
+            return f'deferred({name}).into_dyn()'
             # return f'deferred_dyn({name})'
             # return f'{name}()'
         else:

@@ -1,5 +1,5 @@
-use std::cell::RefCell;
 // src/combinators/deferred.rs
+use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -13,6 +13,7 @@ thread_local! {
 #[derive(Clone, Debug)]
 pub struct Deferred<T: CombinatorTrait + 'static> {
     deferred_fn: Rc<dyn DeferredFnTrait<T>>,
+    inner: OnceCell<T>, // Added inner field
 }
 
 // Made non-public
@@ -74,19 +75,25 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        todo!()
+        f(self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator()))
     }
 
     fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
-        todo!()
+        f(self.inner.get_mut().unwrap())
     }
 
     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
-        todo!()
+        let combinator = self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator());
+        combinator.parse(right_data, bytes)
     }
 
     fn compile_mut(&mut self) {
-        todo!()
+        // Force evaluation and compilation of the inner combinator
+        let _ = self.inner.get_or_init(|| {
+            let mut combinator = self.deferred_fn.evaluate_to_combinator();
+            combinator.compile_mut();
+            combinator
+        });
     }
 }
 
@@ -95,5 +102,6 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<T> {
     let addr = f as *const () as usize;
     Deferred {
         deferred_fn: Rc::new(DeferredFn(f, addr)),
+        inner: OnceCell::new(), // Initialize inner
     }
 }
