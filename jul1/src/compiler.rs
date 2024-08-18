@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::*;
-use castaway::{cast, LifetimeFree};
+use castaway::cast;
 
 enum Ref<T> {
     Strong(StrongRef<T>),
@@ -30,7 +30,7 @@ pub trait Compile {
 }
 
 // Trait for interacting with Deferred combinators
-pub trait DeferredCompiler: CombinatorTrait + LifetimeFree {
+pub trait DeferredCompiler {
     fn get_deferred_addr(&self) -> usize;
     fn evaluate_to_combinator(&self) -> Combinator;
     fn is_compiled(&self) -> bool;
@@ -41,8 +41,8 @@ impl<T: CombinatorTrait> Compile for T {
     fn compile(mut self) -> Self {
         let mut deferred_cache: HashMap<usize, Ref<Combinator>> = HashMap::new();
         fn compile_inner(combinator: &dyn CombinatorTrait, deferred_cache: &mut HashMap<usize, Ref<Combinator>>) {
-            // Use castaway for dynamic check for the Deferred trait
-            if let Ok(deferred) = cast!(combinator, &dyn DeferredCompiler) {
+            // Use a dynamic check for the Deferred trait
+            if let Ok(deferred) = cast!(combinator.as_any(), Box<dyn DeferredCompiler>) {
                 if deferred.is_compiled() {
                     return;
                 }

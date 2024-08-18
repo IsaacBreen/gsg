@@ -153,6 +153,3 @@ impl<T: CombinatorTrait + 'static> DeferredCompiler for Deferred<T> {
         self.inner.set(inner).ok().expect("Cannot set inner value more than once");
     }
 }
-
-// Implement LifetimeFree for Deferred
-unsafe impl<T: CombinatorTrait + 'static> LifetimeFree for Deferred<T> {}
