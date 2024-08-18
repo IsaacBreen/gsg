@@ -204,7 +204,6 @@ def grammar_to_rust(
         if name in already_defined:
             return f'deferred({name})'
         else:
-            already_defined.add(name)
             return f'deferred({name}).into_dyn()'
 
     rules = grammar.rules.items()
@@ -268,6 +267,7 @@ def grammar_to_rust(
                 expr = f'seq!({expr}, opt(deferred(WS)))'
             expr = f'cached({expr})'
             f.write('pub fn ' + token + '() -> impl CombinatorTrait { ' + expr + ' }\n')
+            already_defined.add(token)
         f.write('\n')
         return f.getvalue()
 
