@@ -1,18 +1,14 @@
-// src/combinators/deferred.rs
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ops::Deref;
 use crate::*;
 use once_cell::unsync::OnceCell;
 use crate::compiler::DeferredCompiler;
 
 #[derive(Clone, Debug)]
 pub struct Deferred<T: CombinatorTrait + 'static> {
-    pub(crate) inner: OnceCell<DeferredInner<T>>,
-    pub(crate) deferred_fn: Rc<dyn DeferredFnTrait<T>>,
+    inner: OnceCell<DeferredInner<T>>,
+    deferred_fn: Rc<dyn DeferredFnTrait<T>>,
 }
 
 // Made non-public
@@ -135,6 +131,7 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<T> {
     }
 }
 
+// Implement DeferredCompiler for Deferred<T>
 impl<T: CombinatorTrait + 'static> DeferredCompiler for Deferred<T> {
     fn get_deferred_addr(&self) -> usize {
         self.deferred_fn.get_addr()
@@ -143,16 +140,15 @@ impl<T: CombinatorTrait + 'static> DeferredCompiler for Deferred<T> {
     fn evaluate_to_combinator(&self) -> Combinator {
         Box::new(self.deferred_fn.evaluate_to_combinator())
     }
-}
 
-impl<T: CombinatorTrait + 'static> Deferred<T> {
-    // Helper function to check if the combinator is compiled
-    pub(crate) fn is_compiled(&self) -> bool {
+    fn is_compiled(&self) -> bool {
         self.inner.get().is_some()
     }
 
-    // Helper function to set the inner combinator
-    pub(crate) fn set_inner(&self, inner: DeferredInner<T>) {
+    fn set_inner(&self, inner: DeferredInner<Combinator>) {
+        // This is safe because we know the inner type is Combinator due to the
+        // implementation of DeferredCompiler for Deferred<T>
+        let inner = unsafe { std::mem::transmute::<DeferredInner<Combinator>, DeferredInner<T>>(inner) };
         self.inner.set(inner).ok().expect("Cannot set inner value more than once");
     }
 }
