@@ -4,8 +4,8 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
-use once_cell::unsync::OnceCell;
 use crate::*;
+use once_cell::unsync::OnceCell;
 
 macro_rules! profile {
     ($name:expr, $e:expr) => {
@@ -19,7 +19,8 @@ thread_local! {
 
 #[derive(Clone, Debug)]
 pub struct Deferred {
-    pub(crate) inner: OnceCell<DeferredInner>,
+    pub(crate) inner: OnceCell<StrongRef>,
+    pub(crate) f: Rc<dyn EvaluateDeferredFnToBoxedDynCombinator>,
 }
 
 #[derive(Clone, Copy)]
@@ -60,16 +61,9 @@ impl<T: CombinatorTrait + 'static, F: Fn() -> T> EvaluateDeferredFnToBoxedDynCom
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum DeferredInner {
-    Uncompiled(Rc<dyn EvaluateDeferredFnToBoxedDynCombinator>),
-    CompiledStrong(StrongRef),
-    CompiledWeak(WeakRef),
-}
-
 impl PartialEq for Deferred {
     fn eq(&self, other: &Self) -> bool {
-        self.inner.get().eq(&other.inner.get())
+        std::ptr::eq(&self.f, &other.f)
     }
 }
 
@@ -77,32 +71,9 @@ impl Eq for Deferred {}
 
 impl Hash for Deferred {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.inner.get().hash(state)
+        std::ptr::hash(&self.f, state)
     }
 }
-
-impl Hash for DeferredInner {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            DeferredInner::Uncompiled(f) => std::ptr::hash(f, state),
-            DeferredInner::CompiledStrong(f) => std::ptr::hash(f, state),
-            DeferredInner::CompiledWeak(f) => std::ptr::hash(f, state),
-        }
-    }
-}
-
-impl PartialEq for DeferredInner {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (DeferredInner::Uncompiled(f1), DeferredInner::Uncompiled(f2)) => std::ptr::eq(f1, f2),
-            (DeferredInner::CompiledStrong(f1), DeferredInner::CompiledStrong(f2)) => f1 == f2,
-            (DeferredInner::CompiledWeak(f1), DeferredInner::CompiledWeak(f2)) => f1 == f2,
-            _ => false,
-        }
-    }
-}
-
-impl Eq for DeferredInner {}
 
 impl CombinatorTrait for Deferred {
     fn as_any(&self) -> &dyn std::any::Any {
@@ -110,55 +81,32 @@ impl CombinatorTrait for Deferred {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        match self.inner.get() {
-            Some(DeferredInner::Uncompiled(f)) => {
-                // todo: better error message (this one makes no sense)
-                panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
-            }
-            Some(DeferredInner::CompiledStrong(inner)) => {
-                f(inner);
-            }
-            Some(DeferredInner::CompiledWeak(inner)) => {
-                f(inner);
-            }
-            None => panic!("DeferredInner not initialized"),
-        }
+        let strong_ref = self.inner.get_or_init(|| {
+            let combinator = self.f.evaluate_deferred_fn_to_combinator();
+            let strong_ref = strong_ref();
+            strong_ref.set(combinator);
+            strong_ref
+        });
+        f(strong_ref);
     }
 
     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
-        match self.inner.get() {
-            Some(DeferredInner::Uncompiled(_f)) => {
-                panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
-                // let combinator = profile!("DeferredInner cache check", {
-                //         COMBINATOR_CACHE.with(|cache| {
-                //         let mut cache = cache.borrow_mut();
-                //         cache.entry(f.clone())
-                //             .or_insert_with(|| profile!("DeferredInner init", Rc::new((f.0)())))
-                //             .clone()
-                //     })
-                // });
-                // combinator.parse(right_data, bytes)
-            }
-            Some(DeferredInner::CompiledStrong(combinator)) => combinator.parse(right_data, bytes),
-            Some(DeferredInner::CompiledWeak(combinator)) => combinator.parse(right_data, bytes),
-            None => panic!("DeferredInner not initialized"),
-        }
+        let strong_ref = self.inner.get_or_init(|| {
+            let combinator = self.f.evaluate_deferred_fn_to_combinator();
+            let strong_ref = strong_ref();
+            strong_ref.set(combinator);
+            strong_ref
+        });
+        strong_ref.parse(right_data, bytes)
     }
 }
 
-// pub fn deferred<T: CombinatorTrait + 'static>(f: impl Fn() -> T + 'static) -> Deferred {
-//     // dbg!(f as *const ());
-//     // let addr = f as *const () as usize;
-//     let addr = std::ptr::addr_of!(f) as usize;
-//     dbg!(addr);
-//     Deferred { inner: RefCell::new(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))) }
-// }
-
 pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred {
     let addr = f as *const () as usize;
-    // dbg!(std::ptr::addr_of!(f) as usize);
-    // dbg!(f as *const () as usize);
-    Deferred { inner: OnceCell::new().set(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))).unwrap() }
+    Deferred {
+        inner: OnceCell::new(),
+        f: Rc::new(DeferredFn(f, addr))
+    }
 }
 
 pub fn deferred2(f: fn() -> Choice2<Seq2<EatU8, Deferred>, EatU8>) -> Deferred {
@@ -166,5 +114,8 @@ pub fn deferred2(f: fn() -> Choice2<Seq2<EatU8, Deferred>, EatU8>) -> Deferred {
     let addr = f as *const () as usize;
     dbg!(addr);
     dbg!(f as *const ());
-    Deferred { inner: OnceCell::new().set(DeferredInner::Uncompiled(Rc::new(DeferredFn(f, addr)))).unwrap() }
+    Deferred {
+        inner: OnceCell::new(),
+        f: Rc::new(DeferredFn(f, addr))
+    }
 }
