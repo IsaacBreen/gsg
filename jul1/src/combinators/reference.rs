@@ -114,6 +114,12 @@ impl<T> StrongRef<T> {
             inner: Rc::downgrade(&self.inner)
         }
     }
+
+    pub fn new(inner: T) -> Self {
+        Self {
+            inner: Rc::new(OnceCell::new())
+        }
+    }
 }
 
 impl<T> WeakRef<T> {
