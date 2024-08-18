@@ -162,7 +162,7 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<T> {
     }
 }
 
-pub fn deferred_dyn<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<Box<dyn CombinatorTrait>> {
+pub fn deferred_dyn<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<Combinator> {
     let addr = f as *const () as usize;
     Deferred {
         inner: OnceCell::new(),

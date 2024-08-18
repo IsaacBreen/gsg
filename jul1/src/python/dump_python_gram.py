@@ -204,10 +204,10 @@ def grammar_to_rust(
 
     def name_to_rust(name: str, already_defined) -> str:
         # if name in already_defined:
-        if name in already_defined and random.random() < 0.2:
+        if name in already_defined:
             # return f'deferred({name})'
-            return f'deferred({name})'
-            # return f'{name}()'
+            # return f'deferred_dyn({name})'
+            return f'{name}()'
         else:
             return f'deferred_dyn({name})'
             # return f'deferred({name})'
