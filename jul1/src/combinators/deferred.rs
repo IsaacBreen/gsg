@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::ops::Deref;
 use crate::*;
@@ -124,7 +124,7 @@ impl CombinatorTrait for Deferred {
     }
 
     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
-        match self.inner.borrow().deref() {
+        let (parser, parse_results) = Ref::map(self.inner.borrow(), |inner| match inner {
             DeferredInner::Uncompiled(f) => {
                 panic!("DeferredInner combinator should not be used directly. Use DeferredInner() function instead.");
                 // let combinator = profile!("DeferredInner cache check", {
@@ -137,9 +137,10 @@ impl CombinatorTrait for Deferred {
                 // });
                 // combinator.parse(right_data, bytes)
             }
-            DeferredInner::CompiledStrong(combinator) => combinator.parse(right_data, bytes),
-            DeferredInner::CompiledWeak(combinator) => combinator.parse(right_data, bytes),
-        }
+            DeferredInner::CompiledStrong(combinator) => &combinator.parse(right_data, bytes),
+            DeferredInner::CompiledWeak(combinator) => todo!(),
+        }).deref();
+
     }
 }
 
