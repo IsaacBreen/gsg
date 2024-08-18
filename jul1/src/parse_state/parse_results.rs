@@ -24,17 +24,17 @@ impl ParseResults {
             done,
         }
     }
-    pub fn empty_unfinished() -> Self {
+    pub fn empty(done: bool) -> Self {
         ParseResults {
             right_data_vec: VecY::new(),
-            done: false,
+            done,
         }
     }
+    pub fn empty_unfinished() -> Self {
+        ParseResults::empty(false)
+    }
     pub fn empty_finished() -> Self {
-        ParseResults {
-            right_data_vec: VecY::new(),
-            done: true,
-        }
+        ParseResults::empty(true)
     }
     pub(crate) fn merge_assign(&mut self, mut p0: ParseResults) {
         self.right_data_vec.append(&mut p0.right_data_vec);

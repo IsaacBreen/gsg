@@ -53,15 +53,15 @@ macro_rules! define_seq {
                     first_combinator.parse(right_data, &bytes)
                 });
 
-                let done = first_parse_results.done();
-                if done && first_parse_results.right_data_vec.is_empty() {
+                let mut all_done = first_parse_results.done();
+                if all_done && first_parse_results.right_data_vec.is_empty() {
                     // Shortcut
                     return (Parser::FailParser(FailParser), first_parse_results);
                 }
 
                 let mut parser = $seq_parser_name {
                     combinator: self,
-                    $first: if done { vec![] } else { vec![first_parser] },
+                    $first: if all_done { vec![] } else { vec![first_parser] },
                     $($rest: vec![],)+
                     position: start_position + bytes.len(),
                 };
@@ -78,13 +78,14 @@ macro_rules! define_seq {
                 // Macro to process each child combinator
                 $(
                     if next_right_data_vec.is_empty() {
-                        return (Parser::DynParser(Box::new(parser)), ParseResults::new(next_right_data_vec, true));
+                        return (Parser::DynParser(Box::new(parser)), ParseResults::empty(all_done));
                     }
 
                     let mut next_next_right_data_vec = VecY::new();
                     let mut $rest = Vec::new();
                     for right_data in next_right_data_vec {
                         let (parser, parse_results) = helper(right_data, &self.$rest, &bytes, start_position);
+                        all_done &= parse_results.done();
                         if !parse_results.done() {
                             $rest.push(parser);
                         }
@@ -96,7 +97,7 @@ macro_rules! define_seq {
                     parser.$rest = $rest;
                 )+
 
-                let parse_results = ParseResults::new(next_right_data_vec, false);
+                let parse_results = ParseResults::new(next_right_data_vec, all_done);
 
                 (Parser::DynParser(Box::new(parser)), parse_results)
             }
