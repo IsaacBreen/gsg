@@ -85,13 +85,14 @@ macro_rules! define_seq {
                     let mut $rest = Vec::new();
                     for right_data in next_right_data_vec {
                         let (parser, parse_results) = helper(right_data, &self.$rest, &bytes, start_position);
-                        all_done &= parse_results.done();
                         if !parse_results.done() {
                             $rest.push(parser);
                         }
                         next_next_right_data_vec.extend(parse_results.right_data_vec);
                     }
                     next_right_data_vec = next_next_right_data_vec;
+
+                    all_done &= $rest.is_empty();
 
                     // Update the parser with the new parsers for this child
                     parser.$rest = $rest;
@@ -125,24 +126,32 @@ macro_rules! define_seq {
                 profile!(stringify!($seq_parser_name, "::parse"), {
                     let mut new_right_data: VecY<RightData> = VecY::new();
 
-                    // First child
+                    // first child
                     self.$first.retain_mut(|parser| {
-                        let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), {
-                            parser.parse(bytes)
-                        });
+                        let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), { parser.parse(bytes) });
                         let done = parse_results.done();
-                        if !done {
-                            return true;
-                        }
-                        if self.combinator.children().len() == 1 {
-                            new_right_data.extend(parse_results.right_data_vec);
-                        }
-                        false
+                        new_right_data.extend(parse_results.right_data_vec);
+                        !done
                     });
 
+                    let mut all_done = self.$first.is_empty();
+
+                    // rest of the children
                     $(
-                        // Subsequent children
-                        for right_data in std::mem::take(&mut new_right_data) {
+                        let right_data_to_init_this_child = std::mem::take(&mut new_right_data);
+
+                        // step existing parsers for this child
+                        self.$rest.retain_mut(|parser| {
+                            let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), {
+                                parser.parse(bytes)
+                            });
+                            let done = parse_results.done();
+                            new_right_data.extend(parse_results.right_data_vec);
+                            !done
+                        });
+
+                        // new parsers for this child, one for each right_data emitted by the previous child
+                        for right_data in right_data_to_init_this_child {
                             let offset = right_data.right_data_inner.fields1.position - self.position;
                             let combinator = &self.combinator.$rest;
                             let (parser, parse_results) = profile!(stringify!($seq_parser_name, "::parse child Combinator::parse"), {
@@ -151,29 +160,15 @@ macro_rules! define_seq {
                             if !parse_results.done() {
                                 self.$rest.push(parser);
                             }
-                            if self.combinator.children().len() == 2 {
-                                new_right_data.extend(parse_results.right_data_vec);
-                            }
+                            new_right_data.extend(parse_results.right_data_vec);
                         }
 
-                        self.$rest.retain_mut(|parser| {
-                            let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), {
-                                parser.parse(bytes)
-                            });
-                            let done = parse_results.done();
-                            if !done {
-                                return true;
-                            }
-                            if self.combinator.children().len() == 2 {
-                                new_right_data.extend(parse_results.right_data_vec);
-                            }
-                            false
-                        });
+                        all_done &= self.$rest.is_empty();
                     )+
 
                     self.position += bytes.len();
 
-                    ParseResults::new(new_right_data, self.$first.is_empty() $( && self.$rest.is_empty() )+)
+                    ParseResults::new(new_right_data, all_done)
                 })
             }
         }
