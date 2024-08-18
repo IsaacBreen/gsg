@@ -11,8 +11,8 @@ use crate::compiler::DeferredCompiler;
 
 #[derive(Clone, Debug)]
 pub struct Deferred<T: CombinatorTrait + 'static> {
-    inner: OnceCell<DeferredInner<T>>,
-    deferred_fn: Rc<dyn DeferredFnTrait<T>>,
+    pub(crate) inner: OnceCell<DeferredInner<T>>,
+    pub(crate) deferred_fn: Rc<dyn DeferredFnTrait<T>>,
 }
 
 // Made non-public

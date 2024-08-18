@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use crate::*;
+use std::any::Any;
 
 enum Ref<T> {
     Strong(StrongRef<T>),
@@ -41,7 +42,8 @@ impl<T: CombinatorTrait> Compile for T {
     fn compile(mut self) -> Self {
         let mut deferred_cache: HashMap<usize, Ref<Combinator>> = HashMap::new();
         fn compile_inner(combinator: &dyn CombinatorTrait, deferred_cache: &mut HashMap<usize, Ref<Combinator>>) {
-            if let Some(deferred) = combinator.as_any().downcast_ref::<Deferred<Combinator>>() {
+            // Use a dynamic check for the Deferred trait
+            if let Some(deferred) = combinator.as_any().downcast_ref::<dyn DeferredCompiler>() {
                 if deferred.is_compiled() {
                     return;
                 }
@@ -72,5 +74,30 @@ impl<T: CombinatorTrait> Compile for T {
         }
         compile_inner(&mut self, &mut deferred_cache);
         self
+    }
+}
+
+// Add this trait implementation to Deferred<T>
+impl<T: CombinatorTrait + 'static> DeferredCompiler for Deferred<T> {
+    fn get_deferred_addr(&self) -> usize {
+        self.deferred_fn.get_addr()
+    }
+
+    fn evaluate_to_combinator(&self) -> Combinator {
+        Box::new(self.deferred_fn.evaluate_to_combinator())
+    }
+}
+
+// Add a method for checking if the Deferred is compiled
+impl<T: CombinatorTrait + 'static> Deferred<T> {
+    fn is_compiled(&self) -> bool {
+        self.inner.get().is_some()
+    }
+
+    fn set_inner(&self, inner: DeferredInner<Combinator>) {
+        // This is safe because we know the inner type is Combinator due to the
+        // implementation of DeferredCompiler for Deferred<T>
+        let inner = unsafe { std::mem::transmute::<DeferredInner<Combinator>, DeferredInner<T>>(inner) };
+        self.inner.set(inner).ok().expect("Cannot set inner value more than once");
     }
 }
