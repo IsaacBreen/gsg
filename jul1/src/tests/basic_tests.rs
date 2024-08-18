@@ -85,7 +85,6 @@ mod basic_tests {
 
 #[cfg(test)]
 mod more_tests {
-    use crate::compiler::Compile;
     use super::*;
 
     #[test]

@@ -1,9 +1,12 @@
+// src/combinator.rs
+use std::collections::HashMap;
 use std::any::Any;
 use std::fmt::Display;
 use std::ops::AddAssign;
 use std::rc::Rc;
 use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatByteStringChoice, EatByteStringChoiceParser, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, RightData, Seq, SeqParser, Symbol, Tagged, TaggedParser, U8Set, ProfiledParser, Profiled, Opt, WeakRef, StrongRef, BruteForceParser, BruteForce, Continuation, ContinuationParser, FastCombinatorWrapper, profile, FastParserWrapper, Seq2, Choice2, OwningParser};
 use crate::stats::Stats;
+use std::cell::RefCell;
 
 #[macro_export]
 macro_rules! match_enum {
@@ -39,21 +42,6 @@ pub enum Parser<'a> {
     DynParser(Box<dyn ParserTrait + 'a>),
     OwningParser(OwningParser<'a>),
 }
-
-// impl CombinatorTrait for Box<Combinator> {
-//     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
-//         let inner = &**self;
-//         inner.parse(right_data, bytes)
-//     }
-//
-//     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-//         (**self).apply(f);
-//     }
-//
-//     fn as_any(&self) -> &dyn std::any::Any {
-//         (**self).as_any()
-//     }
-// }
 
 impl ParserTrait for Box<Parser<'_>> {
     fn get_u8set(&self) -> U8Set {
@@ -135,7 +123,15 @@ macro_rules! match_parser {
 pub trait CombinatorTrait: std::fmt::Debug {
     fn as_any(&self) -> &dyn std::any::Any;
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
+    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {}
     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults);
+    fn compile(mut self) -> Self where Self: Sized {
+        self.compile_mut();
+        self
+    }
+    fn compile_mut(&mut self) {
+        self.apply_mut(&mut |combinator| combinator.compile_mut());
+    }
 }
 
 pub trait ParserTrait: std::fmt::Debug {
@@ -159,20 +155,6 @@ pub trait ParserTrait: std::fmt::Debug {
     }
 }
 
-// impl CombinatorTrait for Combinator {
-//     fn as_any(&self) -> &dyn std::any::Any {
-//         (**self).as_any()
-//     }
-//
-//     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
-//         (**self).parse(right_data, bytes)
-//     }
-//
-//     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-//         (**self).apply(f);
-//     }
-// }
-
 impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         (**self).as_any()
@@ -180,6 +162,10 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         (**self).apply(f);
+    }
+
+    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
+        (**self).apply_mut(f);
     }
 
     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
@@ -194,7 +180,6 @@ impl ParserTrait for Parser<'_> {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let parse_results = match_parser!(self, inner => inner.parse(bytes));
-        // profile!("Parser::transpose", { self.transpose(); });
         parse_results
     }
 }

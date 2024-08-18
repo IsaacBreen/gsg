@@ -36,7 +36,6 @@ mod tests;
 mod frame_stack;
 mod python;
 mod unicode;
-mod compiler;
 mod stats;
 mod unicode_categories;
 mod internal_vec;
