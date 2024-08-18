@@ -147,9 +147,9 @@ def grammar_to_rust(
         unresolved_follows_table: dict[remove_left_recursion.Ref, list[remove_left_recursion.Ref]]
 ) -> str:
 
-    def generate_combinator_expr(item) -> str:
+    def generate_combinator_expr(item, already_defined) -> str:
         if isinstance(item, pegen.grammar.NameLeaf):
-            return name_to_rust(item.value)
+            return name_to_rust(item.value, already_defined)
         elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
             if value[0] == value[-1] in {'"', "'"}:
@@ -158,50 +158,54 @@ def grammar_to_rust(
                 raise ValueError(f"Invalid string literal: {value}")
             return f'python_literal("{value}")'
         elif isinstance(item, pegen.grammar.Group):
-            return generate_rhs_expr(item.rhs)
+            return generate_rhs_expr(item.rhs, already_defined)
         elif isinstance(item, pegen.grammar.Opt):
-            return f'opt({generate_combinator_expr(item.node)})'
+            return f'opt({generate_combinator_expr(item.node, already_defined)})'
         elif isinstance(item, pegen.grammar.Gather):
-            return f'seprep1({generate_combinator_expr(item.node)}, {generate_combinator_expr(item.separator)})'
+            return f'seprep1({generate_combinator_expr(item.node, already_defined)}, {generate_combinator_expr(item.separator, already_defined)})'
         elif isinstance(item, pegen.grammar.Repeat0):
-            return f'repeat0({generate_combinator_expr(item.node)})'
+            return f'repeat0({generate_combinator_expr(item.node, already_defined)})'
         elif isinstance(item, pegen.grammar.Repeat1):
-            return f'repeat1({generate_combinator_expr(item.node)})'
+            return f'repeat1({generate_combinator_expr(item.node, already_defined)})'
         elif isinstance(item, pegen.grammar.Forced):
-            return generate_combinator_expr(item.node)
+            return generate_combinator_expr(item.node, already_defined)
         elif isinstance(item, pegen.grammar.PositiveLookahead):
-            return f"lookahead({generate_combinator_expr(item.node)})"
+            return f"lookahead({generate_combinator_expr(item.node, already_defined)})"
         elif isinstance(item, pegen.grammar.NegativeLookahead):
-            return f"negative_lookahead({generate_combinator_expr(item.node)})"
+            return f"negative_lookahead({generate_combinator_expr(item.node, already_defined)})"
         elif isinstance(item, pegen.grammar.Rhs):
-            return generate_rhs_expr(item)
+            return generate_rhs_expr(item, already_defined)
         elif isinstance(item, pegen.grammar.Cut):
             return 'cut()'
         else:
             raise ValueError(f"Unknown item type: {type(item)}")
 
-    def generate_rhs_expr(rhs: pegen.grammar.Rhs, top_level: bool = False) -> str:
+    def generate_rhs_expr(rhs: pegen.grammar.Rhs, already_defined, top_level: bool = False) -> str:
         if len(rhs.alts) == 1:
-            return generate_alt_expr(rhs.alts[0], top_level=top_level)
+            return generate_alt_expr(rhs.alts[0], already_defined, top_level=top_level)
         if top_level:
             return "choice!(\n    " + ",\n    ".join(
-                generate_alt_expr(alt) for alt in rhs.alts) + "\n)"
+                generate_alt_expr(alt, already_defined) for alt in rhs.alts) + "\n)"
         else:
-            return "choice!(" + ", ".join(generate_alt_expr(alt) for alt in rhs.alts) + ")"
+            return "choice!(" + ", ".join(generate_alt_expr(alt, already_defined) for alt in rhs.alts) + ")"
 
-    def generate_alt_expr(alt: pegen.grammar.Alt, top_level: bool = False) -> str:
+    def generate_alt_expr(alt: pegen.grammar.Alt, already_defined, top_level: bool = False) -> str:
         if len(alt.items) == 1:
-            return generate_combinator_expr(alt.items[0].item)
+            return generate_combinator_expr(alt.items[0].item, already_defined)
         if top_level and len(alt.items) > 4:
             return "seq!(\n    " + ",\n     ".join(
-                generate_combinator_expr(item.item) for item in alt.items) + "\n)"
+                generate_combinator_expr(item.item, already_defined) for item in alt.items) + "\n)"
         else:
             return "seq!(" + ", ".join(
-                generate_combinator_expr(item.item) for item in alt.items) + ")"
+                generate_combinator_expr(item.item, already_defined) for item in alt.items) + ")"
 
 
-    def name_to_rust(name: str) -> str:
-        return f'deferred({name}).into_dyn()'
+    def name_to_rust(name: str, already_defined) -> str:
+        if name in already_defined:
+            return f'deferred({name})'
+        else:
+            already_defined.add(name)
+            return f'deferred({name}).into_dyn()'
 
     rules = grammar.rules.items()
     rules = list(reversed(rules))
@@ -223,6 +227,8 @@ def grammar_to_rust(
         f.write(f'    {token},\n')
     f.write('}\n')
     f.write('\n')
+
+    already_defined = set()
 
     def make_tokens() -> str:
         f = io.StringIO()
@@ -268,7 +274,7 @@ def grammar_to_rust(
     def make_rules() -> str:
         f = io.StringIO()
         for name, rule in rules:
-            expr = generate_rhs_expr(rule.rhs, top_level=True)
+            expr = generate_rhs_expr(rule.rhs, already_defined, top_level=True)
             expr = f'tag("{name}", {expr})'
             if rule.memo:
                 expr = f'cached({expr})'
@@ -277,6 +283,7 @@ def grammar_to_rust(
             f.write(f'{textwrap.indent(expr, "    ")}\n')
             f.write('}\n')
             f.write('\n')
+            already_defined.add(name)
         f.write('\n')
         return f.getvalue()
 
@@ -284,7 +291,7 @@ def grammar_to_rust(
     f.write(make_rules())
 
     f.write('pub fn python_file() -> impl CombinatorTrait {\n')
-    expr = f'seq!(opt({name_to_rust("NEWLINE")}), {name_to_rust("file")})'
+    expr = f'seq!(opt({name_to_rust("NEWLINE", already_defined)}), {name_to_rust("file", already_defined)})'
     expr = f'tag("main", {expr})'
     expr = f'cache_context({expr})'
     f.write(f'\n    {expr}.compile()\n')
