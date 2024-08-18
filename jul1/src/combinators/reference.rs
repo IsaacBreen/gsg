@@ -1,47 +1,56 @@
+// src/combinators/reference.rs
 use std::hash::{Hash, Hasher};
 use std::rc::{Rc, Weak};
 use once_cell::unsync::OnceCell;
 use crate::*;
 
 #[derive(Debug, Clone)]
-pub struct WeakRef {
-    pub inner: Weak<OnceCell<Combinator>>,
+pub struct WeakRef<T> {
+    pub inner: Weak<OnceCell<T>>,
 }
 
-#[derive(Debug, Clone)]
-pub struct StrongRef {
-    pub inner: Rc<OnceCell<Combinator>>,
+#[derive(Debug)]
+pub struct StrongRef<T> {
+    pub inner: Rc<OnceCell<T>>,
 }
 
-impl PartialEq for WeakRef {
+impl<T> Clone for StrongRef<T> {
+    fn clone(&self) -> Self {
+        StrongRef {
+            inner: self.inner.clone()
+        }
+    }
+}
+
+impl<T> PartialEq for WeakRef<T> {
     fn eq(&self, other: &Self) -> bool {
         self.inner.ptr_eq(&other.inner)
     }
 }
 
-impl Eq for WeakRef {}
+impl<T> Eq for WeakRef<T> {}
 
-impl Hash for WeakRef {
+impl<T> Hash for WeakRef<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(&self.inner, state);
     }
 }
 
-impl PartialEq for StrongRef {
+impl<T> PartialEq for StrongRef<T> {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.inner, &other.inner)
     }
 }
 
-impl Eq for StrongRef {}
+impl<T> Eq for StrongRef<T> {}
 
-impl Hash for StrongRef {
+impl<T> Hash for StrongRef<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(&self.inner, state);
     }
 }
 
-impl CombinatorTrait for WeakRef {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -55,7 +64,7 @@ impl CombinatorTrait for WeakRef {
     }
 }
 
-impl CombinatorTrait for StrongRef {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for StrongRef<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -72,30 +81,30 @@ impl CombinatorTrait for StrongRef {
     }
 }
 
-pub fn strong_ref() -> StrongRef {
+pub fn strong_ref<T>() -> StrongRef<T> {
     StrongRef {
         inner: Rc::new(OnceCell::new())
     }
 }
 
-impl StrongRef {
-    pub fn set(&self, inner: impl CombinatorTrait + 'static) {
-        self.inner.set(Box::new(inner)).ok().expect("Cannot set value more than once");
+impl<T> StrongRef<T> {
+    pub fn set(&self, inner: T) {
+        self.inner.set(inner).ok().expect("Cannot set value more than once");
     }
 
-    pub fn downgrade(&self) -> WeakRef {
+    pub fn downgrade(&self) -> WeakRef<T> {
         WeakRef {
             inner: Rc::downgrade(&self.inner)
         }
     }
 }
 
-impl WeakRef {
-    pub fn upgrade(&self) -> Option<StrongRef> {
+impl<T> WeakRef<T> {
+    pub fn upgrade(&self) -> Option<StrongRef<T>> {
         self.inner.upgrade().map(|inner| StrongRef { inner })
     }
 
-    pub fn get(&self) -> Option<&Combinator> {
+    pub fn get(&self) -> Option<&T> {
         // Upgrade the weak reference to a strong reference
         let strong_ref = self.inner.upgrade()?;
 
@@ -104,26 +113,8 @@ impl WeakRef {
         // This is safe because the OnceCell guarantees that the value,
         // once set, will live as long as the Rc/Weak, which is 'static.
         unsafe {
-            let combinator: &Combinator = std::mem::transmute(strong_ref.get().unwrap());
+            let combinator: &T = std::mem::transmute(strong_ref.get().unwrap());
             Some(combinator)
         }
     }
 }
-
-// impl From<WeakRef> for Combinator {
-//     fn from(weak_ref: WeakRef) -> Self {
-//         Combinator::WeakRef(weak_ref)
-//     }
-// }
-//
-// impl From<StrongRef> for Combinator {
-//     fn from(strong_ref: StrongRef) -> Self {
-//         Combinator::StrongRef(strong_ref)
-//     }
-// }
-//
-// impl From<&StrongRef> for Combinator {
-//     fn from(strong_ref: &StrongRef) -> Self {
-//         Combinator::StrongRef(strong_ref.clone())
-//     }
-// }

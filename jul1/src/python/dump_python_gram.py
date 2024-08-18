@@ -201,7 +201,7 @@ def grammar_to_rust(
 
 
     def name_to_rust(name: str) -> str:
-        return f'deferred({name})'
+        return f'deferred({name}).into_dyn()'
 
     rules = grammar.rules.items()
     rules = list(reversed(rules))

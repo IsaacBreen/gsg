@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use crate::{choice, choice_greedy, eat, eat_string, opt, seq, strong_ref, symbol, cache_context, negative_lookahead, cached};
+use crate::{choice, choice_greedy, eat, eat_string, opt, seq, strong_ref, symbol, cache_context, negative_lookahead, cached, IntoDyn};
 use crate::python::python_grammar::{python_file, python_literal, simple_stmt, assignment, yield_expr, star_expressions, star_targets, NAME, WS, STRING, FSTRING_START, FSTRING_MIDDLE, FSTRING_END, NUMBER, NEWLINE, INDENT, DEDENT, ENDMARKER};
 use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, profile_parse};
 
@@ -421,7 +421,7 @@ fn test_yet_another_fstring_issue_distilled() {
     let FSTRING_END = FSTRING_END();
     let NUMBER = symbol(eat("1"));
     let mut fstring = strong_ref();
-    fstring.set(seq!(FSTRING_START, eat('{'), choice!(&NUMBER, &fstring), eat('}'), FSTRING_END));
+    fstring.set(seq!(FSTRING_START, eat('{'), choice!(&NUMBER, &fstring), eat('}'), FSTRING_END).into_dyn());
     let combinator = symbol(&fstring);
 
     let s = "f'{f'{1}'}'";

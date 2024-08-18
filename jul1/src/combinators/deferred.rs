@@ -1,3 +1,4 @@
+// src/combinators/deferred.rs
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -6,25 +7,17 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use crate::*;
 use once_cell::unsync::OnceCell;
-
-macro_rules! profile {
-    ($name:expr, $e:expr) => {
-        $e
-    };
-}
-
-thread_local! {
-    static COMBINATOR_CACHE: RefCell<HashMap<usize, Rc<Combinator>>> = RefCell::new(HashMap::new());
-}
+use crate::compiler::DeferredCompiler;
 
 #[derive(Clone, Debug)]
-pub struct Deferred {
-    pub(crate) inner: OnceCell<DeferredInner>,
-    pub(crate) deferred_fn: Rc<dyn EvaluateDeferredFnToBoxedDynCombinator>,
+pub struct Deferred<T: CombinatorTrait + 'static> {
+    inner: OnceCell<DeferredInner<T>>,
+    deferred_fn: Rc<dyn DeferredFnTrait<T>>,
 }
 
+// Made non-public
 #[derive(Clone, Copy)]
-pub struct DeferredFn<T: CombinatorTrait + 'static, F: Fn() -> T>(pub F, pub usize);
+struct DeferredFn<T: CombinatorTrait + 'static, F: Fn() -> T>(pub F, pub usize);
 
 impl<T: CombinatorTrait + 'static, F: Fn() -> T> Debug for DeferredFn<T, F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -46,41 +39,43 @@ impl<T: CombinatorTrait + 'static, F: Fn() -> T> Hash for DeferredFn<T, F> {
     }
 }
 
-pub trait EvaluateDeferredFnToBoxedDynCombinator: Debug {
-    fn evaluate_deferred_fn_to_combinator(&self) -> Combinator;
+// Trait for evaluating the deferred function
+pub trait DeferredFnTrait<T: CombinatorTrait + 'static>: Debug {
+    fn evaluate_to_combinator(&self) -> T;
     fn get_addr(&self) -> usize;
 }
 
-impl<T: CombinatorTrait + 'static, F: Fn() -> T> EvaluateDeferredFnToBoxedDynCombinator for DeferredFn<T, F> {
-    fn evaluate_deferred_fn_to_combinator(&self) -> Combinator {
-        Box::new(self.0())
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
+    fn evaluate_to_combinator(&self) -> T {
+        (self.0)()
     }
     fn get_addr(&self) -> usize {
         self.1
     }
 }
 
+// Made non-public
 #[derive(Clone, Debug)]
-pub enum DeferredInner {
-    CompiledStrong(StrongRef),
-    CompiledWeak(WeakRef),
+pub enum DeferredInner<T> {
+    CompiledStrong(StrongRef<T>),
+    CompiledWeak(WeakRef<T>),
 }
 
-impl PartialEq for Deferred {
+impl<T: CombinatorTrait> PartialEq for Deferred<T> {
     fn eq(&self, other: &Self) -> bool {
         self.inner.get().eq(&other.inner.get())
     }
 }
 
-impl Eq for Deferred {}
+impl<T: CombinatorTrait> Eq for Deferred<T> {}
 
-impl Hash for Deferred {
+impl<T: CombinatorTrait> Hash for Deferred<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.inner.get().hash(state)
     }
 }
 
-impl Hash for DeferredInner {
+impl<T> Hash for DeferredInner<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             DeferredInner::CompiledStrong(f) => std::ptr::hash(f, state),
@@ -89,7 +84,7 @@ impl Hash for DeferredInner {
     }
 }
 
-impl PartialEq for DeferredInner {
+impl<T> PartialEq for DeferredInner<T> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (DeferredInner::CompiledStrong(f1), DeferredInner::CompiledStrong(f2)) => f1 == f2,
@@ -99,9 +94,9 @@ impl PartialEq for DeferredInner {
     }
 }
 
-impl Eq for DeferredInner {}
+impl<T> Eq for DeferredInner<T> {}
 
-impl CombinatorTrait for Deferred {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -131,18 +126,34 @@ impl CombinatorTrait for Deferred {
     }
 }
 
-pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred {
-    let addr = f as *const () as usize;
+// Public function for creating a Deferred combinator
+pub fn deferred<T: CombinatorTrait + 'static, F: Fn() -> T>(f: F) -> Deferred<T> {
+    // let addr = f as *const () as usize;
+    let addr = todo!();
     Deferred {
         inner: OnceCell::new(),
         deferred_fn: Rc::new(DeferredFn(f, addr)),
     }
 }
 
-pub fn deferred2(f: fn() -> Choice2<Seq2<EatU8, Deferred>, EatU8>) -> Deferred {
-    let addr = f as *const () as usize;
-    Deferred {
-        inner: OnceCell::new(),
-        deferred_fn: Rc::new(DeferredFn(f, addr)),
+impl<T: CombinatorTrait + 'static> DeferredCompiler for Deferred<T> {
+    fn get_deferred_addr(&self) -> usize {
+        self.deferred_fn.get_addr()
+    }
+
+    fn evaluate_to_combinator(&self) -> Combinator {
+        Box::new(self.deferred_fn.evaluate_to_combinator())
+    }
+}
+
+impl<T: CombinatorTrait + 'static> Deferred<T> {
+    // Helper function to check if the combinator is compiled
+    pub(crate) fn is_compiled(&self) -> bool {
+        self.inner.get().is_some()
+    }
+
+    // Helper function to set the inner combinator
+    pub(crate) fn set_inner(&self, inner: DeferredInner<T>) {
+        self.inner.set(inner).ok().expect("Cannot set inner value more than once");
     }
 }
