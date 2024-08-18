@@ -127,9 +127,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
 }
 
 // Public function for creating a Deferred combinator
-pub fn deferred<T: CombinatorTrait + 'static, F: Fn() -> T>(f: F) -> Deferred<T> {
-    // let addr = f as *const () as usize;
-    let addr = todo!();
+pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<T> {
+    let addr = f as *const () as usize;
     Deferred {
         inner: OnceCell::new(),
         deferred_fn: Rc::new(DeferredFn(f, addr)),
