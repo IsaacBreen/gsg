@@ -217,8 +217,8 @@ mod more_tests {
 
         let combinator = A().compile();
         dbg!(&combinator);
-        assert_parses_fast(&combinator, "ab");
         assert_parses_default(&combinator, "ab");
+        assert_parses_fast(&combinator, "ab");
     }
 
     #[test]
