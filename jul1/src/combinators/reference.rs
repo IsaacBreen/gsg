@@ -47,7 +47,7 @@ impl CombinatorTrait for WeakRef {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(self.inner.upgrade().unwrap().get().unwrap());
+        f(self.inner.upgrade().expect("WeakRef is already dropped").get().expect("Combinator hasn't been set"));
     }
 
     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
