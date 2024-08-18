@@ -48,7 +48,7 @@ impl CombinatorTrait for Deferred {
         if let Some(inner) = self.inner.get() {
             match inner {
                 DeferredInner::CompiledStrong(inner) => f(inner),
-                DeferredInner::CompiledWeak(inner) => f(inner),
+                DeferredInner::CompiledWeak(inner) => todo!(),
             }
         }
     }
