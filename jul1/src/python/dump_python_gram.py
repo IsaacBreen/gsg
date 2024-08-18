@@ -13,6 +13,7 @@ from pegen.tokenizer import Tokenizer
 import remove_left_recursion
 from remove_left_recursion import ref
 
+random.seed(0)
 
 def fetch_grammar(url: str) -> str:
     response = requests.get(url)
@@ -203,12 +204,12 @@ def grammar_to_rust(
 
     def name_to_rust(name: str, already_defined) -> str:
         # if name in already_defined:
-        if name in already_defined and random.random() < 0.1:
+        if name in already_defined and random.random() < 0.2:
             # return f'deferred({name})'
             return f'deferred({name})'
             # return f'{name}()'
         else:
-            return f'deferred({name}).into_dyn()'
+            return f'deferred_dyn({name})'
             # return f'deferred({name})'
 
     rules = grammar.rules.items()
@@ -219,7 +220,7 @@ def grammar_to_rust(
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n')
+    f.write('use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData, Choice, deferred, deferred_dyn, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n')
     f.write('use crate::seq;\n')
     f.write('use crate::{' + ', '.join(f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
     f.write('use crate::compiler::Compile;\n')

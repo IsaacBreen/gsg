@@ -50,6 +50,37 @@ impl<T: CombinatorTrait + 'static, F: Fn() -> T> DeferredFnTrait<T> for Deferred
     }
 }
 
+pub struct DeferredFnBoxDyn<T: CombinatorTrait + 'static, F: Fn() -> T>(pub F, pub usize);
+
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> Debug for DeferredFnBoxDyn<T, F> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DeferredFnBoxDyn").finish_non_exhaustive()
+    }
+}
+
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> PartialEq for DeferredFnBoxDyn<T, F> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(&self.0, &other.0)
+    }
+}
+
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> Eq for DeferredFnBoxDyn<T, F> {}
+
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> Hash for DeferredFnBoxDyn<T, F> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(&self.0, state);
+    }
+}
+
+impl<T: CombinatorTrait + 'static, F: Fn() -> T> DeferredFnTrait<Box<dyn CombinatorTrait>> for DeferredFnBoxDyn<T, F> {
+    fn evaluate_to_combinator(&self) -> Box<dyn CombinatorTrait> {
+        Box::new((self.0)())
+    }
+    fn get_addr(&self) -> usize {
+        self.1
+    }
+}
+
 // Made non-public
 #[derive(Clone, Debug)]
 pub enum DeferredInner<T> {
@@ -130,6 +161,15 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<T> {
         deferred_fn: Rc::new(DeferredFn(f, addr)),
     }
 }
+
+pub fn deferred_dyn<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<Box<dyn CombinatorTrait>> {
+    let addr = f as *const () as usize;
+    Deferred {
+        inner: OnceCell::new(),
+        deferred_fn: Rc::new(DeferredFnBoxDyn(f, addr)),
+    }
+}
+
 
 // Implement DeferredCompiler for Deferred<T>
 impl<T: CombinatorTrait + 'static> DeferredCompiler for Deferred<T> {
