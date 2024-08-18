@@ -28,10 +28,7 @@ impl<T: CombinatorTrait> Compile for T {
         fn compile_inner(combinator: &dyn CombinatorTrait, deferred_cache: &mut HashMap<usize, Ref>) {
             if let Some(deferred) = combinator.as_any().downcast_ref::<Deferred>() {
                     match deferred.inner.get() {
-                        Some(inner) => {}
-                        // Some(inner) => combinator.apply(&mut |combinator| {
-                        //     compile_inner(combinator, deferred_cache);
-                        // }),
+                        Some(_) => {}
                         None => {
                             let addr = deferred.deferred_fn.get_addr();
                             let new_inner: DeferredInner = if let Some(cached) = deferred_cache.get(&addr) {
