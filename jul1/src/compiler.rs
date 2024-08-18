@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use crate::*;
-use castaway::cast;
 
 enum Ref<T> {
     Strong(StrongRef<T>),
@@ -37,12 +36,12 @@ pub trait DeferredCompiler {
     fn set_inner(&self, inner: DeferredInner<Combinator>);
 }
 
-impl<T: CombinatorTrait + 'static> Compile for T {
+impl<T: CombinatorTrait> Compile for T {
     fn compile(mut self) -> Self {
         let mut deferred_cache: HashMap<usize, Ref<Combinator>> = HashMap::new();
-        fn compile_inner(combinator: Rc<dyn CombinatorTrait>, deferred_cache: &mut HashMap<usize, Ref<Combinator>>) {
+        fn compile_inner(combinator: &dyn CombinatorTrait, deferred_cache: &mut HashMap<usize, Ref<Combinator>>) {
             // Use a dynamic check for the Deferred trait
-            if let Ok(deferred) = cast!(combinator.as_any(), Box<dyn DeferredCompiler>) {
+            if let Some(deferred) = combinator.as_any().downcast_ref::<dyn DeferredCompiler>() {
                 if deferred.is_compiled() {
                     return;
                 }
@@ -57,7 +56,7 @@ impl<T: CombinatorTrait + 'static> Compile for T {
                     deferred_cache.insert(addr, Ref::Weak(weak.clone()));
 
                     let mut evaluated: Combinator = deferred.evaluate_to_combinator();
-                    compile_inner(evaluated.into(), deferred_cache);
+                    compile_inner(&mut evaluated, deferred_cache);
 
                     strong.set(evaluated);
                     deferred_cache.insert(addr, Ref::Strong(strong.clone()));
@@ -67,12 +66,11 @@ impl<T: CombinatorTrait + 'static> Compile for T {
                 deferred.set_inner(new_inner);
             } else {
                 combinator.apply(&mut |combinator| {
-                    compile_inner(Rc::new(combinator.clone()), deferred_cache);
+                    compile_inner(combinator, deferred_cache);
                 });
             }
         }
-        let mut x = Rc::new(self);
-        compile_inner(x.clone(), &mut deferred_cache);
-        todo!()
+        compile_inner(&mut self, &mut deferred_cache);
+        self
     }
 }

@@ -1,4 +1,3 @@
-use castaway::LifetimeFree;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
