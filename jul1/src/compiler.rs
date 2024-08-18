@@ -36,12 +36,23 @@ pub trait DeferredCompiler {
     fn set_inner(&self, inner: DeferredInner<Combinator>);
 }
 
+// Intermediate trait for downcasting to DeferredCompiler
+pub trait AsDeferredCompiler {
+    fn as_deferred_compiler(&self) -> Option<&dyn DeferredCompiler>;
+}
+
+impl<T: CombinatorTrait + ?Sized> AsDeferredCompiler for T {
+    fn as_deferred_compiler(&self) -> Option<&dyn DeferredCompiler> {
+        self.as_any().downcast_ref::<dyn DeferredCompiler>()
+    }
+}
+
 impl<T: CombinatorTrait> Compile for T {
     fn compile(mut self) -> Self {
         let mut deferred_cache: HashMap<usize, Ref<Combinator>> = HashMap::new();
         fn compile_inner(combinator: &dyn CombinatorTrait, deferred_cache: &mut HashMap<usize, Ref<Combinator>>) {
             // Use a dynamic check for the Deferred trait
-            if let Some(deferred) = combinator.as_any().downcast_ref::<dyn DeferredCompiler>() {
+            if let Some(deferred) = combinator.as_deferred_compiler() {
                 if deferred.is_compiled() {
                     return;
                 }
