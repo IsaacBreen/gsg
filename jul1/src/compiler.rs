@@ -4,10 +4,18 @@ use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use crate::*;
 
-#[derive(Clone)]
 enum Ref<T> {
     Strong(StrongRef<T>),
     Weak(WeakRef<T>),
+}
+
+impl<T> Clone for Ref<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Ref::Strong(strong) => Ref::Strong(strong.clone()),
+            Ref::Weak(weak) => Ref::Weak(weak.clone()),
+        }
+    }
 }
 
 impl<T> From<Ref<T>> for DeferredInner<T> {
@@ -41,7 +49,7 @@ impl<T: CombinatorTrait> Compile for T {
                 let addr = deferred.get_deferred_addr();
 
                 let new_inner: DeferredInner<Combinator> = if let Some(cached) = deferred_cache.get(&addr) {
-                    cached
+                    cached.clone().into()
                 } else {
                     let strong = strong_ref();
                     let weak = strong.downgrade();

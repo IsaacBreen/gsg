@@ -4,7 +4,7 @@ use std::rc::{Rc, Weak};
 use once_cell::unsync::OnceCell;
 use crate::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct WeakRef<T> {
     pub inner: Weak<OnceCell<T>>,
 }
@@ -17,6 +17,14 @@ pub struct StrongRef<T> {
 impl<T> Clone for StrongRef<T> {
     fn clone(&self) -> Self {
         StrongRef {
+            inner: self.inner.clone()
+        }
+    }
+}
+
+impl<T> Clone for WeakRef<T> {
+    fn clone(&self) -> Self {
+        WeakRef {
             inner: self.inner.clone()
         }
     }
