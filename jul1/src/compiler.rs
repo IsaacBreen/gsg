@@ -41,7 +41,7 @@ impl<T: CombinatorTrait> Compile for T {
         let mut deferred_cache: HashMap<usize, Ref<Combinator>> = HashMap::new();
         fn compile_inner(combinator: &dyn CombinatorTrait, deferred_cache: &mut HashMap<usize, Ref<Combinator>>) {
             // Use a dynamic check for the Deferred trait
-            if let Some(deferred) = combinator.as_any().downcast_ref::<dyn DeferredCompiler>() {
+            if let Some(deferred) = combinator.as_any().downcast_ref::<Deferred<Combinator>>() {
                 if deferred.is_compiled() {
                     return;
                 }
