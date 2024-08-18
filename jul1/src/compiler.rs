@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::ops::{Deref, DerefMut};
 use crate::*;
+use std::collections::HashMap;
+use std::hash::Hash;
 
 #[derive(Clone)]
 enum Ref {
@@ -23,11 +22,11 @@ pub trait Compile {
 }
 
 impl<T: CombinatorTrait> Compile for T {
-     fn compile(mut self) -> Self {
-        let mut deferred_cache: HashMap<*const (), Ref> = HashMap::new();
-        fn compile_inner(combinator: &dyn CombinatorTrait, deferred_cache: &mut HashMap<*const (), Ref>) {
+    fn compile(mut self) -> Self {
+        let mut deferred_cache: HashMap<usize, Ref> = HashMap::new();
+        fn compile_inner(combinator: &dyn CombinatorTrait, deferred_cache: &mut HashMap<usize, Ref>) {
             if let Some(deferred) = combinator.as_any().downcast_ref::<Deferred>() {
-                let f_ptr = &*deferred.f as *const _;
+                let f_ptr = deferred.f.as_ref() as *const _ as *const () as usize;
                 if let Some(cached) = deferred_cache.get(&f_ptr) {
                     deferred.inner.set(cached.clone().into()).ok();
                 } else {

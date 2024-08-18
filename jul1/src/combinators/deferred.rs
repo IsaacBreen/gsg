@@ -5,10 +5,18 @@ use std::cell::OnceCell;
 use std::collections::HashMap;
 use crate::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Deferred {
-    inner: OnceCell<DeferredInner>,
-    f: Rc<dyn Fn() -> Combinator>,
+    pub(crate) inner: OnceCell<DeferredInner>,
+    pub(crate) f: Rc<dyn Fn() -> Combinator>,
+}
+
+impl Debug for Deferred {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Deferred")
+            .field("inner", &self.inner)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Clone, Debug)]
