@@ -40,6 +40,10 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
         f(&self.inner);
     }
 
+    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
+        f(&mut self.inner);
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {

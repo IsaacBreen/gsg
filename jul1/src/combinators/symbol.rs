@@ -22,6 +22,10 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
         f(self.value.as_ref());
     }
 
+    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
+        panic!("Symbol::apply_mut is not implemented");
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, parse_results) = self.value.parse(right_data, bytes);
         (parser, parse_results)

@@ -33,6 +33,11 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.combinator);
     }
+
+    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
+        f(&mut self.combinator);
+    }
+
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, mut parse_results) = self.combinator.parse(right_data.clone(), bytes);
         let has_right_data = !parse_results.right_data_vec.is_empty();

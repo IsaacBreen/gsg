@@ -36,6 +36,12 @@ impl CombinatorTrait for Seq {
         }
     }
 
+    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
+        for child in self.children.iter_mut() {
+            f(child);
+        }
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
 
