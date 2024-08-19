@@ -1,5 +1,5 @@
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
-use crate::parse_state::RightData;
+use crate::parse_state::{RightData, ParseResultTrait};
 
 #[repr(transparent)]
 #[derive(Debug)]

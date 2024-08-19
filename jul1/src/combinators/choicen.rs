@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator};
+use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData};
 use crate::ChoiceParser;
 
 macro_rules! profile {

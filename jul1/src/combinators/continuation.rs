@@ -1,7 +1,8 @@
+use crate::RightData;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, U8Set};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, ParseResultTrait, U8Set};
 
 pub type ParseFn = dyn Fn(RightData, &[u8]) -> (Parser, ParseResults);
 

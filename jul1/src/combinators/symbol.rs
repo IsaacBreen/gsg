@@ -1,7 +1,8 @@
+use crate::RightData;
 use std::any::Any;
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, RightData, U8Set, IntoCombinator};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, ParseResultTrait, U8Set, IntoCombinator};
 #[derive(Debug)]
 pub struct Symbol<T> {
     pub value: Rc<T>,

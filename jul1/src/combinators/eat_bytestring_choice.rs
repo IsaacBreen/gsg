@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecY};
-use crate::parse_state::RightData;
+use crate::parse_state::{RightData, ParseResultTrait};
 use crate::trie::{FinishReason, TrieNode};
 
 #[derive(Debug)]

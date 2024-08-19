@@ -2,7 +2,7 @@
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, RightData};
+use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, RightData, ParseResultTrait};
 
 pub struct CheckRightData {
     pub(crate) run: Box<dyn Fn(&RightData) -> bool>,

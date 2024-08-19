@@ -1,8 +1,9 @@
+use crate::RightData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use kdam::tqdm;
 
-use crate::{CombinatorTrait, CombinatorTraitExt, GLOBAL_PROFILE_DATA, ParseResults, ParserTrait, ParserTraitExt, profile, RightData, Squash};
+use crate::{CombinatorTrait, CombinatorTraitExt, GLOBAL_PROFILE_DATA, ParseResults, ParserTrait, ParserTraitExt, profile, ParseResultTrait, Squash};
 
 use std::time::{Duration, Instant};
 use std::collections::HashMap;

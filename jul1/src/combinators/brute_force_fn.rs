@@ -1,7 +1,8 @@
+use crate::RightData;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, RightData, U8Set};
+use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, ParseResultTrait, U8Set};
 
 pub struct Incomplete;
 

@@ -1,7 +1,8 @@
+use crate::RightData;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::{LookaheadData, ParseResults, profile, RightData, U8Set, VecX, VecY};
+use crate::{LookaheadData, ParseResults, profile, ParseResultTrait, U8Set, VecX, VecY};
 
 // macro_rules! profile {
 //     ($tag:expr, $body:expr) => {{

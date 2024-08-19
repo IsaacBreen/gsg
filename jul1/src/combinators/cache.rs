@@ -1,4 +1,5 @@
 // src/combinators/cache.rs
+use crate::RightData;
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -9,7 +10,7 @@ use std::rc::Rc;
 
 use derivative::Derivative;
 use lru::LruCache;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, Squash, U8Set, IntoCombinator, IntoDyn, count_hit};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, Squash, U8Set, IntoCombinator, IntoDyn, count_hit};
 
 
 macro_rules! profile {

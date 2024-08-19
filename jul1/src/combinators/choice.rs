@@ -3,7 +3,7 @@ use std::any::Any;
 use std::rc::Rc;
 
 use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX};
-use crate::parse_state::RightData;
+use crate::parse_state::{RightData, ParseResultTrait};
 
 #[derive(Debug)]
 pub struct Choice {

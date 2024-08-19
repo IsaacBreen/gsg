@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::{Combinator, CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy, Opt, Seq2, IntoCombinator, fail};
 use crate::opt;
-use crate::parse_state::RightData;
+use crate::parse_state::{RightData, ParseResultTrait};
 use crate::VecX;
 
 #[derive(Debug)]
