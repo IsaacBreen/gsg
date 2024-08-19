@@ -17,6 +17,8 @@ macro_rules! profile {
     }};
 }
 
+macro_rules! count_hit { ($tag:expr) => {} }
+
 thread_local! {
     pub static GLOBAL_CACHE: RefCell<GlobalCache> = RefCell::new(GlobalCache::new());
 }
