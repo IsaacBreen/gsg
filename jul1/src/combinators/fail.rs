@@ -12,11 +12,11 @@ impl CombinatorTrait for Fail {
         f(self);
     }
 
-    fn one_shot_parse(&self, _right_ RightData, _bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, right_data: RightData, _bytes: &[u8]) -> UnambiguousParseResults {
         UnambiguousParseResults::Err(UnambiguousParseError::Fail)
     }
 
-    fn parse(&self, _right_ RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
         (
             Parser::FailParser(crate::FailParser),
             ParseResults::empty_finished(),
