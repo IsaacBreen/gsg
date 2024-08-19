@@ -11,14 +11,15 @@ thread_local! {
     static DEFERRED_CACHE: RefCell<HashMap<usize, CacheEntry>> = RefCell::new(HashMap::new());
 }
 
-#[derive(Debug)]
-pub struct Deferred<T: CombinatorTrait + 'static> {
+#[derive(Clone, Debug)]
+pub struct Deferred<T: CombinatorTrait + Clone + 'static> {
     deferred_fn: Rc<dyn DeferredFnTrait<T>>,
     inner: OnceCell<T>,
 }
 
 // Made non-public
-struct DeferredFn<T: CombinatorTrait + 'static, F: Fn() -> T>(pub F, pub usize);
+#[derive(Clone, Copy)]
+struct DeferredFn<T: CombinatorTrait + Clone + 'static, F: Fn() -> T>(pub F, pub usize);
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T, F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
