@@ -3,15 +3,25 @@ use std::hash::{Hash, Hasher};
 use crate::*;
 use crate::tokenizer::finite_automata::{Expr, ExprGroups, Regex, RegexState};
 
-#[derive(Debug)]
 pub struct FastCombinatorWrapper {
     pub(crate) regex: Rc<Regex>,
 }
 
-#[derive(Debug)]
 pub struct FastParserWrapper {
     pub(crate) regex_state: RegexState,
     pub(crate) right_data: Option<RightData>,
+}
+
+impl Debug for FastCombinatorWrapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FastCombinatorWrapper").finish_non_exhaustive()
+    }
+}
+
+impl Debug for FastParserWrapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FastParserWrapper").finish_non_exhaustive()
+    }
 }
 
 impl CombinatorTrait for FastCombinatorWrapper {
