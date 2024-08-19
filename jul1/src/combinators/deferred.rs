@@ -64,26 +64,14 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                 } else {
                     // Improved error message with type name and value string
                     eprintln!("Cache dump:");
-                    for (i, (addr, CacheEntry { type_name: entry_type_name, value_str: entry_value_str, .. })) in cache.iter().enumerate() {
-                        if entry_type_name.len() + entry_value_str.len() < 100 {
-                            eprintln!("- cache entry {}, addr: {}, type_name: {}, value_str: {}", i, addr, entry_type_name, entry_value_str);
-                        } else {
-                            eprintln!("- cache entry {}", i);
-                            eprintln!("  - addr: {}", addr);
-                            eprintln!("  - type_name: {}", entry_type_name);
-                            eprintln!("  - value_str: {}", entry_value_str);
-                        }
+                    for (i, (addr, CacheEntry { type_name, value_str, .. })) in cache.iter().enumerate() {
+                        // Use a macro to simplify the conditional printing
+                        print_entry!(i, addr, type_name, value_str);
                     }
                     let actual_type_name = std::any::type_name::<T>();
                     let actual_value_str = format!("{:?}", self.0());
-                    if actual_type_name.len() + actual_value_str.len() < 100 {
-                        eprintln!("- actual value, addr: {}, type_name: {}, value_str: {}", self.1, actual_type_name, actual_value_str);
-                    } else {
-                        eprintln!("- actual value");
-                        eprintln!("  - addr: {}", self.1);
-                        eprintln!("  - type_name: {}", actual_type_name);
-                        eprintln!("  - value_str: {}", actual_value_str);
-                    }
+                    // Use the macro for the actual value as well
+                    print_entry!("actual value", self.1, actual_type_name, &actual_value_str);
                     panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.1, std::any::TypeId::of::<T>(), entry.value.type_id());
                 }
             } else {
@@ -98,6 +86,21 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
     fn get_addr(&self) -> usize {
         self.1
     }
+}
+
+// Macro for printing cache entries
+#[macro_export]
+macro_rules! print_entry {
+    ($index:expr, $addr:expr, $type_name:expr, $value_str:expr) => {
+        if $type_name.len() + $value_str.len() < 100 {
+            eprintln!("- cache entry {}, addr: {}, type_name: {}, value_str: {}", $index, $addr, $type_name, $value_str);
+        } else {
+            eprintln!("- cache entry {}", $index);
+            eprintln!("  - addr: {}", $addr);
+            eprintln!("  - type_name: {}", $type_name);
+            eprintln!("  - value_str: {}", $value_str);
+        }
+    };
 }
 
 impl<T: CombinatorTrait + Clone> PartialEq for Deferred<T> {
