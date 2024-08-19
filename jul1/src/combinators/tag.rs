@@ -44,7 +44,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (
-                parser,
+                Parser::TaggedParser(TaggedParser { inner: Box::new(parser), tag: self.tag.clone() }),
                 parse_results,
             ),
             Err(err) => {
@@ -52,6 +52,16 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
                 resume_unwind(err);
             }
         }
+    }
+}
+
+impl ParserTrait for TaggedParser<'_> {
+    fn get_u8set(&self) -> U8Set {
+        self.inner.get_u8set()
+    }
+
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        self.inner.parse(bytes)
     }
 }
 

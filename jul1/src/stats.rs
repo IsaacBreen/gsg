@@ -286,6 +286,9 @@ impl Parser<'_> {
             Parser::FastParserWrapper(_) => {}
             Parser::DynParser(_) => todo!(),
             Parser::OwningParser(_) => todo!(),
+            Parser::TaggedParser(TaggedParser { inner, tag }) => {
+                inner.collect_stats(stats, Some(tag));
+            },
         }
         stats.active_parser_type_counts.entry(self.type_name()).or_default().add_assign(1);
     }

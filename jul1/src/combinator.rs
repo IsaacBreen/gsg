@@ -41,6 +41,7 @@ pub enum Parser<'a> {
     FastParserWrapper(FastParserWrapper),
     DynParser(Box<dyn ParserTrait + 'a>),
     OwningParser(OwningParser<'a>),
+    TaggedParser(TaggedParser<'a>),
 }
 
 impl ParserTrait for Box<Parser<'_>> {
@@ -115,7 +116,8 @@ macro_rules! match_parser {
             ContinuationParser,
             FastParserWrapper,
             DynParser,
-            OwningParser
+            OwningParser,
+            TaggedParser
         )
     };
 }
