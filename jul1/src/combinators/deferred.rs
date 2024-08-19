@@ -63,6 +63,9 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     value.clone()
                 } else {
                     // Improved error message with type name and value string
+                    for (addr, entry) in cache.iter() {
+                        println!("addr: {}, type_name: {}, value_str: {}", addr, entry.type_name, entry.value_str);
+                    }
                     panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}\nexpected type_name: {}, actual type_name: {}, value: {}", self.1, std::any::TypeId::of::<T>(), entry.value.type_id(), std::any::type_name::<T>(), entry.type_name, entry.value_str);
                 }
             } else {
