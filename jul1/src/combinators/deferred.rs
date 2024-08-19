@@ -52,8 +52,14 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
         DEFERRED_CACHE.with(|cache| {
             let mut cache = cache.borrow_mut();
             if let Some(value) = cache.get(&self.1) {
-                // value.downcast_ref::<T>().expect(format!("Expected value at address {} to be of type {} (typeid: {:?}), but it had typeid: {:?}", self.1, std::any::type_name::<T>(), std::any::TypeId::of::<T>(), value.type_id()).as_str()).clone()
-                value.downcast_ref::<T>().expect(format!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}\nexpected type_name: {}", self.1, std::any::TypeId::of::<T>(), value.type_id(), std::any::type_name::<T>()).as_str()).clone()
+                if let Some(value) = value.downcast_ref::<T>() {
+                    value.clone()
+                } else {
+                    for (addr, value) in cache.iter() {
+                        println!("addr: {}, value: {:?}, typeid: {:?}", addr, value, value.type_id());
+                    }
+                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}\nexpected type_name: {}", self.1, std::any::TypeId::of::<T>(), value.type_id(), std::any::type_name::<T>());
+                }
             } else {
                 let value = (self.0)();
                 cache.insert(self.1, Box::new(value.clone()));
