@@ -18,7 +18,7 @@ pub struct Deferred<T: CombinatorTrait + 'static> {
 }
 
 // Made non-public
-struct DeferredFn<T: CombinatorTrait + Clone + 'static, F: Fn() -> T>(pub F, pub usize);
+struct DeferredFn<T: CombinatorTrait + 'static, F: Fn() -> T>(pub F, pub usize);
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T, F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -71,7 +71,7 @@ impl<T: CombinatorTrait + Clone> PartialEq for Deferred<T> {
 impl<T: CombinatorTrait + Clone> Eq for Deferred<T> {}
 
 impl<T: CombinatorTrait + Clone> Hash for Deferred<T> {
-    fn hash<'a, 'b, H: Hasher>(&'a self, state: &'b mut H) {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(&self.deferred_fn, state);
     }
 }
