@@ -54,17 +54,16 @@ struct CacheEntry {
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
     fn evaluate_to_combinator(&self) -> T {
-        let key = self.1;
         DEFERRED_CACHE.with(|cache| {
-            if cache.borrow().contains_key(&key) {
+            if cache.borrow().contains_key(&self.1) {
                 let borrowed = cache.borrow();
-                let entry = borrowed.get(&key).unwrap();
+                let entry = borrowed.get(&self.1).unwrap();
                 if let Some(value) = entry.value.as_any().downcast_ref::<T>() {
                     value.clone()
                 } else {
                     // Richer error printing
                     eprintln!("Deferred Cache: {:#?}", borrowed);
-                    eprintln!("Key: {:?}", key);
+                    eprintln!("Key: {:?}", self.1);
                     eprintln!("Conflicting Entry: {:?}", entry);
                     eprintln!("Existing Type Name: {:?}", entry.value.type_name());
                     eprintln!("Expected Type Name: {}", std::any::type_name::<T>());
@@ -72,7 +71,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                 }
             } else {
                 let value = (self.0)();
-                cache.borrow_mut().insert(key, CacheEntry {
+                cache.borrow_mut().insert(self.1, CacheEntry {
                     value: Box::new(value.clone()),
                     caller_locations: RefCell::new(HashSet::new()),
                 });
