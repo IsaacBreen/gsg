@@ -12,11 +12,11 @@ impl CombinatorTrait for Eps {
         f(self);
     }
 
-    fn one_shot_parse(&self, right_ RightData, _bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, right_data: RightData, _bytes: &[u8]) -> UnambiguousParseResults {
         UnambiguousParseResults::Ok(right_data)
     }
 
-    fn parse(&self, right_ RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
         (
             Parser::FailParser(crate::FailParser),
             ParseResults::new_single(right_data, true),

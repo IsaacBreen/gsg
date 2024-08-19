@@ -27,7 +27,7 @@ impl CombinatorTrait for Choice {
         }
     }
 
-    fn one_shot_parse(&self, right_ RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         for child in self.children.iter() {
             let result = child.one_shot_parse(right_data.clone(), bytes);
             if result.is_ok() {
@@ -37,7 +37,7 @@ impl CombinatorTrait for Choice {
         UnambiguousParseResults::Err(UnambiguousParseError::Fail)
     }
 
-    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parsers = VecX::new();
         let mut parse_results = VecX::new();
         for child in self.children.iter() {

@@ -10,7 +10,7 @@ pub struct EatString {
 pub struct EatStringParser {
     pub string: &'static [u8],
     pub index: usize,
-    pub right_ Option<RightData>,
+    pub right_data: Option<RightData>,
 }
 
 impl CombinatorTrait for EatString {
@@ -22,11 +22,11 @@ impl CombinatorTrait for EatString {
         f(self);
     }
 
-    fn one_shot_parse(&self, right_ RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut parser = EatStringParser {
             string: self.string.as_slice(),
             index: 0,
-            right_ Some(right_data),
+            right_data: Some(right_data),
         };
         let parse_results = parser.parse(bytes);
         if parse_results.done() && parse_results.right_data_vec.len() == 1 {
@@ -36,12 +36,12 @@ impl CombinatorTrait for EatString {
         }
     }
 
-    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (
             Parser::EatStringParser(EatStringParser {
                 string: self.string.as_slice(),
                 index: 0,
-                right_ Some(right_data),
+                right_data: Some(right_data),
             }),
             ParseResults::new(VecY::new(), false),
         )
