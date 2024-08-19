@@ -69,13 +69,11 @@ impl ParserTrait for EatStringParser<'_> {
                     let mut right_data = self.right_data.take().unwrap();
                     let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                     right_data_inner.fields1.position += 1;
-                    right_data_inner.fields2.byte_offset += 1;
                     return ParseResults::new_single(right_data, true);
                 } else {
                     let mut right_data = self.right_data.as_mut().unwrap();
                     let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                     right_data_inner.fields1.position += 1;
-                    right_data_inner.fields2.byte_offset += 1;
                     return ParseResults::new_single(right_data.clone(), false);
                 }
             }
@@ -85,9 +83,9 @@ impl ParserTrait for EatStringParser<'_> {
     }
 }
 
-pub fn eat_string(string: &[u8]) -> EatString {
+pub fn eat_string(string: &str) -> EatString {
     EatString {
-        string: string.to_vec(),
+        string: string.as_bytes().to_vec(),
     }
 }
 

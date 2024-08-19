@@ -3,17 +3,14 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Choice {
-    pub children: Vec<Rc<dyn CombinatorTrait>>,
+    pub children: Vec<Box<dyn CombinatorTrait>>,
     pub greedy: bool,
 }
 
 #[derive(Debug)]
 pub struct ChoiceParser<'a> {
-    pub children: Vec<Rc<dyn CombinatorTrait>>,
     pub greedy: bool,
     pub parsers: VecX<Parser<'a>>,
-    pub parse_results: VecX<ParseResults>,
-    pub finished: bool,
 }
 
 impl CombinatorTrait for Choice {
@@ -47,7 +44,6 @@ impl CombinatorTrait for Choice {
         }
         (
             Parser::ChoiceParser(ChoiceParser {
-                children: self.children.clone(),
                 greedy: self.greedy,
                 parsers,
                 parse_results,
@@ -62,7 +58,7 @@ impl ParserTrait for ChoiceParser<'_> {
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::new();
         for parser in self.parsers.iter() {
-            u8set = u8set.union(parser.get_u8set());
+            u8set = u8set.union(&parser.get_u8set());
         }
         u8set
     }
@@ -98,14 +94,14 @@ impl ParserTrait for ChoiceParser<'_> {
 
 pub fn _choice(children: Vec<Combinator>) -> Choice {
     Choice {
-        children: children.into_iter().map(|child| Rc::new(child) as Rc<dyn CombinatorTrait>).collect(),
+        children: children.into_iter().map(|child| Box::new(child) as Box<dyn CombinatorTrait>).collect(),
         greedy: false,
     }
 }
 
 pub fn _choice_greedy(children: Vec<Combinator>) -> Choice {
     Choice {
-        children: children.into_iter().map(|child| Rc::new(child) as Rc<dyn CombinatorTrait>).collect(),
+        children: children.into_iter().map(|child| Box::new(child) as Box<dyn CombinatorTrait>).collect(),
         greedy: true,
     }
 }
