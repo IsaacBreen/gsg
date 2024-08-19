@@ -61,10 +61,10 @@ impl ProfileDataInner {
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
         // $crate::ProfileDataInner::push_tag($tag.to_string());
-        let result = $body;
-        $crate::ProfileDataInner::pop_tag();
-        result
-        // $body
+        // let result = $body;
+        // $crate::ProfileDataInner::pop_tag();
+        // result
+        $body
     }};
 }
 
