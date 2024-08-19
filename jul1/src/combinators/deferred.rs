@@ -1,8 +1,10 @@
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
+use std::panic::Location;
 use std::rc::Rc;
 use crate::*;
 use once_cell::unsync::OnceCell;
@@ -42,9 +44,10 @@ struct CacheKey {
     type_id: TypeId,
 }
 
-// CacheEntry struct to hold the Any
+// CacheEntry struct to hold the Any and caller locations
 struct CacheEntry {
     value: Box<dyn Any>,
+    caller_locations: RefCell<HashSet<String>>,
 }
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
@@ -66,6 +69,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                 let value = (self.0)();
                 cache.borrow_mut().insert(key, CacheEntry {
                     value: Box::new(value.clone()),
+                    caller_locations: RefCell::new(HashSet::new()),
                 });
                 value
             }
@@ -119,8 +123,21 @@ impl<T: CombinatorTrait + Clone + 'static> CombinatorTrait for Deferred<T> {
 }
 
 // Public function for creating a Deferred combinator
+#[track_caller]
 pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRef<T>> {
     let addr = f as *const () as usize;
+    let location = Location::caller();
+    let caller_location_str = location.to_string();
+    let key = CacheKey {
+        addr,
+        type_id: std::any::TypeId::of::<T>(),
+    };
+    DEFERRED_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if let Some(entry) = cache.get_mut(&key) {
+            entry.caller_locations.borrow_mut().insert(caller_location_str);
+        }
+    });
     let f = move || StrongRef::new(f());
     Deferred {
         deferred_fn: Rc::new(DeferredFn(f, addr)),
