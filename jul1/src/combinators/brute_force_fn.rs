@@ -95,12 +95,7 @@ impl CombinatorTrait for BruteForce {
         self
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        let result = (self.run)(right_data.clone(), bytes);
-        match convert_result(result) {
-            Ok(right_data) => UnambiguousParseResults::Ok(right_data),
-            Err(ParseError::Fail) => UnambiguousParseResults::Err(UnambiguousParseError::Fail),
-            Err(ParseError::Incomplete) => UnambiguousParseResults::Err(UnambiguousParseError::Incomplete),
-        }
+        todo!()
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
