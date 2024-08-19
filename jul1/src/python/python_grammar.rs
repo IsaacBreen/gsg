@@ -176,7 +176,7 @@ pub fn args() -> impl CombinatorTrait {
 }
 
 pub fn arguments() -> impl CombinatorTrait {
-    cached(tag("arguments", seq!(deferred(args), opt(python_literal(",")), lookahead(python_literal(")")))))
+    cached(tag("arguments", seq!(deferred(args).into_dyn(), opt(python_literal(",")), lookahead(python_literal(")")))))
 }
 
 pub fn dictcomp() -> impl CombinatorTrait {
@@ -210,7 +210,7 @@ pub fn for_if_clause() -> impl CombinatorTrait {
 }
 
 pub fn for_if_clauses() -> impl CombinatorTrait {
-    tag("for_if_clauses", repeat1(deferred(for_if_clause)))
+    tag("for_if_clauses", repeat1(deferred(for_if_clause).into_dyn()))
 }
 
 pub fn kvpair() -> impl CombinatorTrait {
@@ -354,7 +354,7 @@ pub fn atom() -> impl CombinatorTrait {
         python_literal("None"),
         seq!(lookahead(choice!(deferred(STRING), deferred(FSTRING_START))), deferred(strings)),
         deferred(NUMBER),
-        seq!(lookahead(python_literal("(")), choice!(deferred(tuple), deferred(group), deferred(genexp))),
+        seq!(lookahead(python_literal("(")), choice!(deferred(tuple), deferred(group).into_dyn(), deferred(genexp))),
         seq!(lookahead(python_literal("[")), choice!(deferred(list), deferred(listcomp))),
         seq!(lookahead(python_literal("{")), choice!(deferred(dict), deferred(set), deferred(dictcomp), deferred(setcomp))),
         python_literal("...")
@@ -505,7 +505,7 @@ pub fn named_expression() -> impl CombinatorTrait {
 }
 
 pub fn assignment_expression() -> impl CombinatorTrait {
-    tag("assignment_expression", seq!(deferred(NAME), python_literal(":="), choice!(seq!(deferred(disjunction), opt(seq!(python_literal("if"), deferred(disjunction), python_literal("else"), deferred(expression).into_dyn()))), deferred(lambdef))))
+    tag("assignment_expression", seq!(deferred(NAME).into_dyn(), python_literal(":="), choice!(seq!(deferred(disjunction), opt(seq!(python_literal("if"), deferred(disjunction), python_literal("else"), deferred(expression).into_dyn()))), deferred(lambdef))))
 }
 
 pub fn star_named_expression() -> impl CombinatorTrait {
@@ -559,9 +559,9 @@ pub fn type_param_bound() -> impl CombinatorTrait {
 
 pub fn type_param() -> impl CombinatorTrait {
     cached(tag("type_param", choice!(
-        seq!(deferred(NAME), opt(deferred(type_param_bound)), opt(deferred(type_param_default))),
-        seq!(python_literal("*"), deferred(NAME), opt(deferred(type_param_starred_default))),
-        seq!(python_literal("**"), deferred(NAME), opt(deferred(type_param_default)))
+        seq!(deferred(NAME).into_dyn(), opt(deferred(type_param_bound)), opt(deferred(type_param_default))),
+        seq!(python_literal("*"), deferred(NAME).into_dyn(), opt(deferred(type_param_starred_default))),
+        seq!(python_literal("**"), deferred(NAME).into_dyn(), opt(deferred(type_param_default)))
     )))
 }
 
@@ -576,7 +576,7 @@ pub fn type_params() -> impl CombinatorTrait {
 pub fn type_alias() -> impl CombinatorTrait {
     tag("type_alias", seq!(
         python_literal("type"),
-         deferred(NAME),
+         deferred(NAME).into_dyn(),
          opt(deferred(type_params)),
          python_literal("="),
          deferred(expression)
@@ -584,7 +584,7 @@ pub fn type_alias() -> impl CombinatorTrait {
 }
 
 pub fn keyword_pattern() -> impl CombinatorTrait {
-    tag("keyword_pattern", seq!(deferred(NAME), python_literal("="), choice!(deferred(as_pattern).into_dyn(), deferred(or_pattern).into_dyn())))
+    tag("keyword_pattern", seq!(deferred(NAME).into_dyn(), python_literal("="), choice!(deferred(as_pattern).into_dyn(), deferred(or_pattern).into_dyn())))
 }
 
 pub fn keyword_patterns() -> impl CombinatorTrait {
@@ -596,15 +596,15 @@ pub fn positional_patterns() -> impl CombinatorTrait {
 }
 
 pub fn class_pattern() -> impl CombinatorTrait {
-    tag("class_pattern", seq!(deferred(NAME), repeat0(seq!(python_literal("."), deferred(NAME))), python_literal("("), choice!(python_literal(")"), seq!(deferred(positional_patterns), choice!(seq!(opt(python_literal(",")), python_literal(")")), seq!(python_literal(","), deferred(keyword_patterns), opt(python_literal(",")), python_literal(")")))), seq!(deferred(keyword_patterns), opt(python_literal(",")), python_literal(")")))))
+    tag("class_pattern", seq!(deferred(NAME).into_dyn(), repeat0(seq!(python_literal("."), deferred(NAME).into_dyn())), python_literal("("), choice!(python_literal(")"), seq!(deferred(positional_patterns), choice!(seq!(opt(python_literal(",")), python_literal(")")), seq!(python_literal(","), deferred(keyword_patterns), opt(python_literal(",")), python_literal(")")))), seq!(deferred(keyword_patterns), opt(python_literal(",")), python_literal(")")))))
 }
 
 pub fn double_star_pattern() -> impl CombinatorTrait {
-    tag("double_star_pattern", seq!(python_literal("**"), negative_lookahead(python_literal("_")), deferred(NAME), negative_lookahead(choice!(python_literal("."), python_literal("("), python_literal("=")))))
+    tag("double_star_pattern", seq!(python_literal("**"), negative_lookahead(python_literal("_")), deferred(NAME).into_dyn(), negative_lookahead(choice!(python_literal("."), python_literal("("), python_literal("=")))))
 }
 
 pub fn key_value_pattern() -> impl CombinatorTrait {
-    tag("key_value_pattern", seq!(choice!(choice!(seq!(deferred(signed_number).into_dyn(), negative_lookahead(choice!(python_literal("+"), python_literal("-")))), deferred(complex_number).into_dyn(), deferred(strings), python_literal("None"), python_literal("True"), python_literal("False")), seq!(deferred(name_or_attr).into_dyn(), python_literal("."), deferred(NAME))), python_literal(":"), choice!(deferred(as_pattern).into_dyn(), deferred(or_pattern).into_dyn())))
+    tag("key_value_pattern", seq!(choice!(choice!(seq!(deferred(signed_number).into_dyn(), negative_lookahead(choice!(python_literal("+"), python_literal("-")))), deferred(complex_number).into_dyn(), deferred(strings), python_literal("None"), python_literal("True"), python_literal("False")), seq!(deferred(name_or_attr).into_dyn(), python_literal("."), deferred(NAME).into_dyn())), python_literal(":"), choice!(deferred(as_pattern).into_dyn(), deferred(or_pattern).into_dyn())))
 }
 
 pub fn items_pattern() -> impl CombinatorTrait {
@@ -616,7 +616,7 @@ pub fn mapping_pattern() -> impl CombinatorTrait {
 }
 
 pub fn star_pattern() -> impl CombinatorTrait {
-    cached(tag("star_pattern", seq!(python_literal("*"), choice!(seq!(negative_lookahead(python_literal("_")), deferred(NAME), negative_lookahead(choice!(python_literal("."), python_literal("("), python_literal("=")))), python_literal("_")))))
+    cached(tag("star_pattern", seq!(python_literal("*"), choice!(seq!(negative_lookahead(python_literal("_")), deferred(NAME).into_dyn(), negative_lookahead(choice!(python_literal("."), python_literal("("), python_literal("=")))), python_literal("_")))))
 }
 
 pub fn maybe_star_pattern() -> impl CombinatorTrait {
@@ -646,11 +646,11 @@ pub fn group_pattern() -> impl CombinatorTrait {
 }
 
 pub fn name_or_attr() -> impl CombinatorTrait {
-    tag("name_or_attr", seq!(deferred(NAME), repeat0(seq!(python_literal("."), deferred(NAME)))))
+    tag("name_or_attr", seq!(deferred(NAME).into_dyn(), repeat0(seq!(python_literal("."), deferred(NAME).into_dyn()))))
 }
 
 pub fn attr() -> impl CombinatorTrait {
-    tag("attr", seq!(deferred(name_or_attr), python_literal("."), deferred(NAME)))
+    tag("attr", seq!(deferred(name_or_attr), python_literal("."), deferred(NAME).into_dyn()))
 }
 
 pub fn value_pattern() -> impl CombinatorTrait {
@@ -662,7 +662,7 @@ pub fn wildcard_pattern() -> impl CombinatorTrait {
 }
 
 pub fn pattern_capture_target() -> impl CombinatorTrait {
-    tag("pattern_capture_target", seq!(negative_lookahead(python_literal("_")), deferred(NAME), negative_lookahead(choice!(python_literal("."), python_literal("("), python_literal("=")))))
+    tag("pattern_capture_target", seq!(negative_lookahead(python_literal("_")), deferred(NAME).into_dyn(), negative_lookahead(choice!(python_literal("."), python_literal("("), python_literal("=")))))
 }
 
 pub fn capture_pattern() -> impl CombinatorTrait {
@@ -794,18 +794,18 @@ pub fn except_star_block() -> impl CombinatorTrait {
         python_literal("except"),
          python_literal("*"),
          deferred(expression),
-         opt(seq!(python_literal("as"), deferred(NAME))),
+         opt(seq!(python_literal("as"), deferred(NAME).into_dyn())),
          python_literal(":"),
          choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE))))
     ))
 }
 
 pub fn except_block() -> impl CombinatorTrait {
-    tag("except_block", seq!(python_literal("except"), choice!(seq!(deferred(expression), opt(seq!(python_literal("as"), deferred(NAME))), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE))))), seq!(python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE))))))))
+    tag("except_block", seq!(python_literal("except"), choice!(seq!(deferred(expression), opt(seq!(python_literal("as"), deferred(NAME).into_dyn())), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE))))), seq!(python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE))))))))
 }
 
 pub fn try_stmt() -> impl CombinatorTrait {
-    tag("try_stmt", seq!(python_literal("try"), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE)))), choice!(deferred(finally_block), seq!(repeat1(deferred(except_block)), opt(seq!(python_literal("else"), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE)))))), opt(deferred(finally_block))), seq!(repeat1(deferred(except_star_block)), opt(seq!(python_literal("else"), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE)))))), opt(deferred(finally_block))))))
+    tag("try_stmt", seq!(python_literal("try"), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE)))), choice!(deferred(finally_block), seq!(repeat1(deferred(except_block).into_dyn()), opt(seq!(python_literal("else"), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE)))))), opt(deferred(finally_block))), seq!(repeat1(deferred(except_star_block)), opt(seq!(python_literal("else"), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE)))))), opt(deferred(finally_block))))))
 }
 
 pub fn with_item() -> impl CombinatorTrait {
@@ -814,15 +814,15 @@ pub fn with_item() -> impl CombinatorTrait {
 
 pub fn with_stmt() -> impl CombinatorTrait {
     tag("with_stmt", choice!(
-        seq!(python_literal("with"), choice!(seq!(python_literal("("), seprep1(deferred(with_item), python_literal(",")), opt(python_literal(",")), python_literal(")"), python_literal(":"), opt(deferred(TYPE_COMMENT)), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE))))), seq!(seprep1(deferred(with_item), python_literal(",")), python_literal(":"), opt(deferred(TYPE_COMMENT)), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE))))))),
-        seq!(python_literal("async"), python_literal("with"), choice!(seq!(python_literal("("), seprep1(deferred(with_item), python_literal(",")), opt(python_literal(",")), python_literal(")"), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE))))), seq!(seprep1(deferred(with_item), python_literal(",")), python_literal(":"), opt(deferred(TYPE_COMMENT)), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE)))))))
+        seq!(python_literal("with"), choice!(seq!(python_literal("("), seprep1(deferred(with_item), python_literal(",")), opt(python_literal(",")), python_literal(")"), python_literal(":"), opt(deferred(TYPE_COMMENT)), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE))))), seq!(seprep1(deferred(with_item), python_literal(",")), python_literal(":"), opt(deferred(TYPE_COMMENT)), choice!(seq!(deferred(NEWLINE).into_dyn(), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn())))))),
+        seq!(python_literal("async"), python_literal("with"), choice!(seq!(python_literal("("), seprep1(deferred(with_item), python_literal(",")), opt(python_literal(",")), python_literal(")"), python_literal(":"), choice!(seq!(deferred(NEWLINE).into_dyn(), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn())))), seq!(seprep1(deferred(with_item), python_literal(",")), python_literal(":"), opt(deferred(TYPE_COMMENT)), choice!(seq!(deferred(NEWLINE).into_dyn(), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn()))))))
     ))
 }
 
 pub fn for_stmt() -> impl CombinatorTrait {
     tag("for_stmt", choice!(
-        seq!(python_literal("for"), deferred(star_targets), python_literal("in"), deferred(star_expressions), python_literal(":"), opt(deferred(TYPE_COMMENT)), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE)))), opt(seq!(python_literal("else"), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE))))))),
-        seq!(python_literal("async"), python_literal("for"), deferred(star_targets), python_literal("in"), deferred(star_expressions), python_literal(":"), opt(deferred(TYPE_COMMENT)), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE)))), opt(seq!(python_literal("else"), python_literal(":"), choice!(seq!(deferred(NEWLINE), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE)), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn()))))))
+        seq!(python_literal("for"), deferred(star_targets), python_literal("in"), deferred(star_expressions), python_literal(":"), opt(deferred(TYPE_COMMENT)), choice!(seq!(deferred(NEWLINE).into_dyn(), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn()))), opt(seq!(python_literal("else"), python_literal(":"), choice!(seq!(deferred(NEWLINE).into_dyn(), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn())))))),
+        seq!(python_literal("async"), python_literal("for"), deferred(star_targets), python_literal("in"), deferred(star_expressions), python_literal(":"), opt(deferred(TYPE_COMMENT)), choice!(seq!(deferred(NEWLINE).into_dyn(), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn()))), opt(seq!(python_literal("else"), python_literal(":"), choice!(seq!(deferred(NEWLINE).into_dyn(), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn()))))))
     ))
 }
 
@@ -873,11 +873,11 @@ pub fn annotation() -> impl CombinatorTrait {
 }
 
 pub fn param_star_annotation() -> impl CombinatorTrait {
-    tag("param_star_annotation", seq!(deferred(NAME), deferred(star_annotation)))
+    tag("param_star_annotation", seq!(deferred(NAME).into_dyn(), deferred(star_annotation)))
 }
 
 pub fn param() -> impl CombinatorTrait {
-    tag("param", seq!(deferred(NAME), opt(deferred(annotation))))
+    tag("param", seq!(deferred(NAME).into_dyn(), opt(deferred(annotation))))
 }
 
 pub fn param_maybe_default() -> impl CombinatorTrait {
@@ -931,7 +931,7 @@ pub fn params() -> impl CombinatorTrait {
 
 pub fn function_def_raw() -> impl CombinatorTrait {
     tag("function_def_raw", choice!(
-        seq!(python_literal("def"), deferred(NAME), opt(deferred(type_params)), python_literal("("), opt(deferred(params)), python_literal(")"), opt(seq!(python_literal("->"), deferred(expression))), python_literal(":"), opt(deferred(func_type_comment)), choice!(seq!(deferred(NEWLINE).into_dyn(), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn())))),
+        seq!(python_literal("def"), deferred(NAME).into_dyn(), opt(deferred(type_params)), python_literal("("), opt(deferred(params)), python_literal(")"), opt(seq!(python_literal("->"), deferred(expression))), python_literal(":"), opt(deferred(func_type_comment)), choice!(seq!(deferred(NEWLINE).into_dyn(), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn())))),
         seq!(python_literal("async"), python_literal("def"), deferred(NAME).into_dyn(), opt(deferred(type_params)), python_literal("("), opt(deferred(params)), python_literal(")"), opt(seq!(python_literal("->"), deferred(expression))), python_literal(":"), opt(deferred(func_type_comment)), choice!(seq!(deferred(NEWLINE).into_dyn(), deferred(INDENT), repeat1(deferred(statement).into_dyn()), deferred(DEDENT)), choice!(seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()), seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn()))))
     ))
 }
@@ -956,13 +956,13 @@ pub fn class_def_raw() -> impl CombinatorTrait {
 
 pub fn class_def() -> impl CombinatorTrait {
     tag("class_def", choice!(
-        seq!(repeat1(seq!(python_literal("@"), deferred(named_expression), deferred(NEWLINE).into_dyn())), deferred(class_def_raw)),
-        deferred(class_def_raw)
+        seq!(repeat1(seq!(python_literal("@"), deferred(named_expression), deferred(NEWLINE).into_dyn())), deferred(class_def_raw).into_dyn()),
+        deferred(class_def_raw).into_dyn()
     ))
 }
 
 pub fn decorators() -> impl CombinatorTrait {
-    tag("decorators", repeat1(seq!(python_literal("@"), deferred(named_expression), deferred(NEWLINE).into_dyn())))
+    tag("decorators", repeat1(seq!(python_literal("@"), deferred(named_expression).into_dyn(), deferred(NEWLINE).into_dyn())))
 }
 
 pub fn block() -> impl CombinatorTrait {
@@ -1085,14 +1085,14 @@ pub fn compound_stmt() -> impl CombinatorTrait {
         seq!(lookahead(choice!(python_literal("with"), python_literal("async"))), deferred(with_stmt).into_dyn()),
         seq!(lookahead(choice!(python_literal("for"), python_literal("async"))), deferred(for_stmt).into_dyn()),
         seq!(lookahead(python_literal("try")), deferred(try_stmt).into_dyn()),
-        seq!(lookahead(python_literal("while")), deferred(while_stmt)),
+        seq!(lookahead(python_literal("while")), deferred(while_stmt).into_dyn()),
         deferred(match_stmt)
     ))
 }
 
 pub fn simple_stmt() -> impl CombinatorTrait {
     cached(tag("simple_stmt", choice!(
-        deferred(assignment),
+        deferred(assignment).into_dyn(),
         seq!(lookahead(python_literal("type")), deferred(type_alias)),
         deferred(star_expressions),
         seq!(lookahead(python_literal("return")), deferred(return_stmt)),
@@ -1111,14 +1111,14 @@ pub fn simple_stmt() -> impl CombinatorTrait {
 
 pub fn simple_stmts() -> impl CombinatorTrait {
     tag("simple_stmts", choice!(
-        seq!(deferred(simple_stmt), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()),
-        seq!(seprep1(deferred(simple_stmt), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn())
+        seq!(deferred(simple_stmt).into_dyn(), negative_lookahead(python_literal(";")), deferred(NEWLINE).into_dyn()),
+        seq!(seprep1(deferred(simple_stmt).into_dyn(), python_literal(";")), opt(python_literal(";")), deferred(NEWLINE).into_dyn())
     ))
 }
 
 pub fn statement_newline() -> impl CombinatorTrait {
     tag("statement_newline", choice!(
-        seq!(deferred(compound_stmt), deferred(NEWLINE).into_dyn()),
+        seq!(deferred(compound_stmt).into_dyn(), deferred(NEWLINE).into_dyn()),
         deferred(simple_stmts),
         deferred(NEWLINE).into_dyn(),
         deferred(ENDMARKER)
@@ -1127,7 +1127,7 @@ pub fn statement_newline() -> impl CombinatorTrait {
 
 pub fn statement() -> impl CombinatorTrait {
     tag("statement", choice!(
-        deferred(compound_stmt),
+        deferred(compound_stmt).into_dyn(),
         deferred(simple_stmts)
     ))
 }
