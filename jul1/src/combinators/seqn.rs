@@ -71,6 +71,13 @@ macro_rules! define_seq {
                     })
                 }
 
+                let mut seqn_parser = $seq_parser_name {
+                    combinator: self,
+                    $first: first_parser_vec,
+                    $($rest: vec![],)+
+                    position: start_position + bytes.len(),
+                };
+
                 // Macro to process each child combinator
                 $(
                     if next_right_data_vec.is_empty() {
@@ -81,32 +88,27 @@ macro_rules! define_seq {
                         //     position: start_position + bytes.len(),
                         // };
                         // todo: hack
-                        // (Parser::DynParser(Box::new(self)), ParseResults::empty(all_done))
-                        return (Parser::FailParser(FailParser), ParseResults::empty(all_done));
+                        return (Parser::DynParser(Box::new(seqn_parser)), ParseResults::empty(all_done));
+                        // return (Parser::FailParser(FailParser), ParseResults::empty(all_done));
                     }
 
                     let mut next_next_right_data_vec = VecY::new();
-                    // let mut $rest = Vec::new();
                     for right_data in next_right_data_vec {
                         let (parser, parse_results) = helper(right_data, &self.$rest, &bytes, start_position);
-                        // if !parse_results.done() {
-                        //     all_done = false;
-                        //     $rest.push(parser);
-                        // }
+                        if !parse_results.done() {
+                            all_done = false;
+                            seqn_parser.$rest.push(parser);
+                        }
                         next_next_right_data_vec.extend(parse_results.right_data_vec);
                     }
                     next_right_data_vec = next_next_right_data_vec;
-
-
-                    // Update the parser with the new parsers for this child
-                    // parser.$rest = $rest;
                 )+
 
                 let parse_results = ParseResults::new(next_right_data_vec, all_done);
 
                 // todo: hack
-                // (Parser::DynParser(Box::new(parser)), parse_results)
-                (Parser::FailParser(FailParser), parse_results)
+                (Parser::DynParser(Box::new(seqn_parser)), parse_results)
+                // (Parser::FailParser(FailParser), parse_results)
             }
         }
 
