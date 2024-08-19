@@ -78,6 +78,10 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
         f(self.inner.upgrade().expect("WeakRef is already dropped").get().expect("Combinator hasn't been set"));
     }
 
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let combinator = self.get().unwrap();
         combinator.parse(right_data, bytes)
@@ -91,6 +95,10 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for StrongRef<T> {
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(self.inner.get().unwrap());
+    }
+
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

@@ -33,6 +33,10 @@ impl CombinatorTrait for CheckRightData {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&right_data) {
             (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))

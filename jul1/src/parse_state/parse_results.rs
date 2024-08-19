@@ -15,7 +15,7 @@ pub enum UnambiguousParseError {
     Fail,
 }
 
-type UnambiguousParseResults = Result<RightData, UnambiguousParseError>;
+pub type UnambiguousParseResults = Result<RightData, UnambiguousParseError>;
 
 pub trait ParseResultTrait {
     fn done(&self) -> bool;

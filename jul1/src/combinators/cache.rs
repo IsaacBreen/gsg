@@ -116,6 +116,10 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         todo!()
     }
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
@@ -179,6 +183,10 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         todo!()
     }
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(move |cache| {
             let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn CombinatorTrait, right_data: right_data.clone() };

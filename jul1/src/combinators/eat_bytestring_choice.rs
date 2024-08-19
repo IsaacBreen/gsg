@@ -29,6 +29,10 @@ impl CombinatorTrait for EatByteStringChoice {
         self
     }
 
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatByteStringChoiceParser {
             root: self.root.as_ref(),

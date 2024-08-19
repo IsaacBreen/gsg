@@ -40,6 +40,10 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
         f(&self.inner);
     }
 
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         count_hit!(self.tag);
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));

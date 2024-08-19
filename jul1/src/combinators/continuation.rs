@@ -85,6 +85,10 @@ impl CombinatorTrait for Continuation {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
+
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
