@@ -51,14 +51,14 @@ pub trait DeferredFnTrait<T: CombinatorTrait + Clone + 'static>: Debug {
 struct CacheEntry {
     value: Box<dyn Any>,
     type_name: String,
-    value_str: String,
+    debug_value: Box<dyn Debug>,
 }
 
 impl Debug for CacheEntry {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CacheEntry")
             .field("type_name", &self.type_name)
-            .field("value_str", &self.value_str)
+            .field("debug_value", &self.debug_value)
             .finish_non_exhaustive()
     }
 }
@@ -78,12 +78,10 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                         eprintln!("{:#?}", entry);
                     }
                     let actual_type_name = std::any::type_name::<T>();
-                    let actual_value = self.0();
-                    let actual_value_str = format!("{:#?}", actual_value);
                     let actual_entry = CacheEntry {
-                        value: Box::new(actual_value),
+                        value: Box::new(self.0()),
                         type_name: actual_type_name.to_string(),
-                        value_str: actual_value_str,
+                        debug_value: Box::new(self.0()),
                     };
                     eprintln!("matched cache entry, addr: {}", self.1);
                     eprintln!("{:#?}", entry);
@@ -95,8 +93,8 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
             } else {
                 let value = (self.0)();
                 let type_name = std::any::type_name::<T>().to_string();
-                let value_str = format!("{:#?}", value);
-                cache.insert(self.1, CacheEntry { value: Box::new(value.clone()), type_name, value_str });
+                let debug_value = Box::new(value.clone());
+                cache.insert(self.1, CacheEntry { value: Box::new(value.clone()), type_name, debug_value });
                 value
             }
         })
