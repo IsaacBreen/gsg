@@ -36,6 +36,9 @@ pub trait DeferredFnTrait<T: CombinatorTrait + Clone + 'static>: Debug {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct CacheKey {
     addr: usize,
+    // TODO: it really seems wrong to use TypeId here. It works fine with just addr when we use opt level 0.
+    //  But at opt level 2, we get a collision between two keys with the same address but different typeids.
+    //  Obviously something weird is going on with function pointers that I don't quite understand.
     type_id: TypeId,
 }
 
