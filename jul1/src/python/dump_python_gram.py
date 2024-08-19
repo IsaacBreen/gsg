@@ -218,7 +218,7 @@ def grammar_to_rust(
             if extra_info.rule_complexity[name] > MAX_RULE_COMPLEXITY:
                 return f'deferred({name}).into_dyn()'
             else:
-                extra_info.rule_complexity[name] += 1
+                extra_info.rule_complexity[extra_info.current_rule] += extra_info.rule_complexity[name]
                 return f'deferred({name})'
         else:
             return f'deferred({name}).into_dyn()'
