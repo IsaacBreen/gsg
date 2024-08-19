@@ -17,7 +17,7 @@ macro_rules! profile {
     }};
 }
 
-macro_rules! count_hit { ($tag:expr) => {} }
+// macro_rules! count_hit { ($tag:expr) => {} }
 
 thread_local! {
     pub static GLOBAL_CACHE: RefCell<GlobalCache> = RefCell::new(GlobalCache::new());
@@ -228,14 +228,14 @@ impl ParserTrait for CachedParser {
 }
 
 pub fn cache_context<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait {
-    // profile_internal("cache_context", CacheContext { inner: a.into_combinator() })
-    a.into_combinator()
+    profile_internal("cache_context", CacheContext { inner: a.into_combinator() })
+    // a.into_combinator()
 }
 
 // todo: do we really need to make this 'static?
 pub fn cached<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
-    // profile_internal("cached", Cached { inner: Rc::new(a.into_combinator()) })
-    a.into_combinator()
+    profile_internal("cached", Cached { inner: Rc::new(a.into_combinator()) })
+    // a.into_combinator()
 }
 
 // impl From<CacheContext> for Combinator {
