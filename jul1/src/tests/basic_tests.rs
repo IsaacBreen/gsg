@@ -208,16 +208,16 @@ mod more_tests {
         // fn B() -> Deferred<impl CombinatorTrait + 'static> {
         //     deferred(A)
         // }
-        //
-        // fn A() -> Choice2<Seq2<EatU8, Deferred<impl CombinatorTrait + 'static>>, EatU8> {
-        //     dbg!(A as *const ());
-        //     choice!(seq!(eat_char('a'), deferred(A)), eat_char('b'))
-        // }
-        //
-        // let combinator = A().compile();
-        // dbg!(&combinator);
-        // assert_parses_default(&combinator, "ab");
-        // assert_parses_fast(&combinator, "ab");
+
+        fn A() -> impl CombinatorTrait {
+            dbg!(A as *const ());
+            choice!(seq!(eat_char('a'), deferred(A)), eat_char('b'))
+        }
+
+        let combinator = A().compile();
+        dbg!(&combinator);
+        assert_parses_default(&combinator, "ab");
+        assert_parses_fast(&combinator, "ab");
     }
 
     #[test]

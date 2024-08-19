@@ -51,7 +51,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
         DEFERRED_CACHE.with(|cache| {
             let mut cache = cache.borrow_mut();
             if let Some(value) = cache.get(&self.1) {
-                value.downcast_ref::<T>().unwrap().clone()
+                value.downcast_ref::<T>().expect(format!("Expected value at address {} to be of type T", self.1).as_str()).clone()
             } else {
                 let value = (self.0)();
                 cache.insert(self.1, Box::new(value.clone()));
