@@ -26,7 +26,7 @@ pub struct BruteForce {
 
 pub struct BruteForceParser {
     pub(crate) run: Rc<BruteForceFn>,
-    pub(crate) right_data: Option<RightData>,
+    pub(crate) right_ Option<RightData>,
     pub(crate) bytes: Vec<u8>,
 }
 
@@ -94,11 +94,16 @@ impl CombinatorTrait for BruteForce {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+    fn one_shot_parse(&self, right_ RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        let result = (self.run)(right_data.clone(), bytes);
+        match convert_result(result) {
+            Ok(right_data) => UnambiguousParseResults::Ok(right_data),
+            Err(ParseError::Fail) => UnambiguousParseResults::Err(UnambiguousParseError::Fail),
+            Err(ParseError::Incomplete) => UnambiguousParseResults::Err(UnambiguousParseError::Incomplete),
+        }
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
         match convert_result(result) {
@@ -111,7 +116,7 @@ impl CombinatorTrait for BruteForce {
                 ParseResults::empty_finished()
             ),
             Err(ParseError::Incomplete) => (
-                Parser::BruteForceParser(BruteForceParser { run, right_data: Some(right_data), bytes: bytes.to_vec() }),
+                Parser::BruteForceParser(BruteForceParser { run, right_ Some(right_data), bytes: bytes.to_vec() }),
                 ParseResults::empty_unfinished()
             ),
         }
@@ -155,7 +160,7 @@ pub fn parse_incomplete() -> BruteForceResult {
     None
 }
 
-pub fn parse_ok(right_data: RightData) -> BruteForceResult {
+pub fn parse_ok(right_ RightData) -> BruteForceResult {
     Some(Ok(right_data))
 }
 
@@ -167,6 +172,6 @@ pub fn parse_ok(right_data: RightData) -> BruteForceResult {
 //     Err(ParseError::Incomplete)
 // }
 //
-// pub fn parse_ok(right_data: RightData) -> BruteForceResult {
+// pub fn parse_ok(right_ RightData) -> BruteForceResult {
 //     Ok(right_data)
 // }

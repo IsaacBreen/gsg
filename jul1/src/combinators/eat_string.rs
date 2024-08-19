@@ -1,27 +1,16 @@
-// src/combinators/eat_string.rs
-use crate::UnambiguousParseResults;
-use std::any::Any;
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, ParseResultTrait, RightData, U8Set, VecX, VecY};
 use std::rc::Rc;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecX};
-use crate::internal_vec::VecY;
-use crate::parse_state::{RightData, ParseResultTrait};
 
 #[derive(Debug)]
 pub struct EatString {
-    pub(crate) string: Vec<u8>,
+    pub string: Vec<u8>,
 }
 
-// impl From<EatString> for Combinator {
-//     fn from(value: EatString) -> Self {
-//         Combinator::EatString(value)
-//     }
-// }
-
 #[derive(Debug)]
-pub struct EatStringParser<'a> {
-    pub(crate) string: &'a [u8],
-    index: usize,
-    pub(crate) right_data: Option<RightData>,
+pub struct EatStringParser {
+    pub string: &'static [u8],
+    pub index: usize,
+    pub right_ Option<RightData>,
 }
 
 impl CombinatorTrait for EatString {
@@ -29,24 +18,43 @@ impl CombinatorTrait for EatString {
         self
     }
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(self);
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn one_shot_parse(&self, right_ RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut parser = EatStringParser {
             string: self.string.as_slice(),
             index: 0,
-            right_data: Some(right_data),
+            right_ Some(right_data),
         };
         let parse_results = parser.parse(bytes);
-        (Parser::EatStringParser(parser), parse_results)
+        if parse_results.done() && parse_results.right_data_vec.len() == 1 {
+            UnambiguousParseResults::Ok(parse_results.right_data_vec.into_iter().next().unwrap())
+        } else {
+            UnambiguousParseResults::Err(UnambiguousParseError::Fail)
+        }
+    }
+
+    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        (
+            Parser::EatStringParser(EatStringParser {
+                string: self.string.as_slice(),
+                index: 0,
+                right_ Some(right_data),
+            }),
+            ParseResults::new(VecY::new(), false),
+        )
     }
 }
 
-impl ParserTrait for EatStringParser<'_> {
+impl ParserTrait for EatStringParser {
     fn get_u8set(&self) -> U8Set {
-        U8Set::from_byte(self.string[self.index])
+        if self.index < self.string.len() {
+            U8Set::from_byte(self.string[self.index])
+        } else {
+            U8Set::none()
+        }
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
@@ -54,38 +62,37 @@ impl ParserTrait for EatStringParser<'_> {
             return ParseResults::empty_unfinished();
         }
 
-        let mut right_data_vec = VecY::new();
-        let mut done = false;
-
-        for &byte in bytes {
-            if self.string[self.index] == byte {
+        if self.index < self.string.len() {
+            if bytes[0] == self.string[self.index] {
                 self.index += 1;
                 if self.index == self.string.len() {
-                    let mut right_data = self.right_data.take().expect("right_data already taken");
-                    Rc::make_mut(&mut right_data.right_data_inner).fields1.position += self.string.len();
-                    right_data_vec.push(right_data);
-                    done = true;
-                    break;
+                    let mut right_data = self.right_data.take().unwrap();
+                    let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
+                    right_data_inner.fields1.position += 1;
+                    right_data_inner.fields2.byte_offset += 1;
+                    return ParseResults::new_single(right_data, true);
+                } else {
+                    let mut right_data = self.right_data.as_mut().unwrap();
+                    let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
+                    right_data_inner.fields1.position += 1;
+                    right_data_inner.fields2.byte_offset += 1;
+                    return ParseResults::new_single(right_data.clone(), false);
                 }
-            } else {
-                done = true;
-                self.right_data.take();
-                break;
             }
         }
 
-        ParseResults::new(right_data_vec, done)
+        ParseResults::empty_finished()
     }
 }
 
-pub fn eat_string(string: &str) -> EatString {
-    EatString { string: string.as_bytes().to_vec() }
+pub fn eat_string(string: &[u8]) -> EatString {
+    EatString {
+        string: string.to_vec(),
+    }
 }
 
-pub fn eat_bytes(bytes: &[u8]) -> EatString {
-    EatString { string: bytes.to_vec() }
-}
-
-pub fn eat(string: impl Into<String>) -> EatString {
-    EatString { string: string.into().into_bytes() }
-}
+// impl From<EatString> for Combinator {
+//     fn from(value: EatString) -> Self {
+//         Combinator::EatString(value)
+//     }
+// }

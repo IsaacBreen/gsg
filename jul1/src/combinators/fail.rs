@@ -1,10 +1,4 @@
-use crate::UnambiguousParseResults;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
-use crate::parse_state::{RightData, ParseResultTrait};
-
-#[repr(transparent)]
-#[derive(Debug)]
-pub struct FailParser;
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, RightData};
 
 #[derive(Debug)]
 pub struct Fail;
@@ -13,22 +7,20 @@ impl CombinatorTrait for Fail {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+
+    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(self);
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        (Parser::FailParser(FailParser), ParseResults::empty_finished())
-    }
-}
-
-impl ParserTrait for FailParser {
-    fn get_u8set(&self) -> U8Set {
-        panic!("FailParser.get_u8set() called")
+    fn one_shot_parse(&self, _right_ RightData, _bytes: &[u8]) -> UnambiguousParseResults {
+        UnambiguousParseResults::Err(UnambiguousParseError::Fail)
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        panic!("FailParser already consumed")
+    fn parse(&self, _right_ RightData, _bytes: &[u8]) -> (Parser, ParseResults) {
+        (
+            Parser::FailParser(crate::FailParser),
+            ParseResults::empty_finished(),
+        )
     }
 }
 
