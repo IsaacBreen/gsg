@@ -211,7 +211,7 @@ mod more_tests {
 
         fn A() -> impl CombinatorTrait {
             dbg!(A as *const ());
-            choice!(seq!(eat_char('a'), deferred(A)), eat_char('b'))
+            choice!(seq!(eat_char('a'), deferred(A).into_dyn()), eat_char('b'))
         }
 
         let combinator = A().compile();
