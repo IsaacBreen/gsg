@@ -69,10 +69,16 @@ macro_rules! define_choice {
                     }
                 )+
 
-                (
-                    Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
-                    combined_results
-                )
+                if parsers.len() == 0 {
+                    return (Parser::FailParser(FailParser), combined_results);
+                } else if parsers.len() == 1 {
+                    return (parsers.pop().unwrap(), combined_results);
+                } else {
+                    (
+                        Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
+                        combined_results
+                    )
+                }
             }
         }
     };
