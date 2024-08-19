@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use derivative::Derivative;
 use lru::LruCache;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, Squash, U8Set, IntoCombinator, IntoDyn};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, RightData, Squash, U8Set, IntoCombinator, IntoDyn, count_hit};
 
 
 macro_rules! profile {
@@ -184,13 +184,13 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
             if let Some(entry) = profile!("Cached.parse: check cache: get entry", {
                 global_cache.new_parsers.get_mut(&parse_id).unwrap().get(&key).cloned()
             }) {
-                profile!("Cached.parse: cache hit", {});
+                count_hit!("Cached.parse: cache hit");
                 let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
                 return (Parser::CachedParser(CachedParser { entry }), parse_results);
             }
             drop(global_cache);
 
-            profile!("Cached.parse: cache miss", {});
+            count_hit!("Cached.parse: cache miss");
             let entry = Rc::new(RefCell::new(CacheEntry {
                 parser: None,
                 maybe_parse_results: None,
