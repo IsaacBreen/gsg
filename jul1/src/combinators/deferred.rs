@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
@@ -8,7 +8,7 @@ use crate::*;
 use once_cell::unsync::OnceCell;
 
 thread_local! {
-    static DEFERRED_CACHE: RefCell<HashMap<usize, CacheEntry>> = RefCell::new(HashMap::new());
+    static DEFERRED_CACHE: RefCell<HashMap<CacheKey, CacheEntry>> = RefCell::new(HashMap::new());
 }
 
 #[derive(Clone, Debug)]
@@ -33,6 +33,12 @@ pub trait DeferredFnTrait<T: CombinatorTrait + Clone + 'static>: Debug {
     fn get_addr(&self) -> usize;
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct CacheKey {
+    addr: usize,
+    type_id: TypeId,
+}
+
 // CacheEntry struct to hold the Any
 struct CacheEntry {
     value: Box<dyn Any>,
@@ -40,10 +46,14 @@ struct CacheEntry {
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
     fn evaluate_to_combinator(&self) -> T {
+        let key = CacheKey {
+            addr: self.1,
+            type_id: std::any::TypeId::of::<T>(),
+        };
         DEFERRED_CACHE.with(|cache| {
-            if cache.borrow().contains_key(&self.1) {
+            if cache.borrow().contains_key(&key) {
                 let mut borrowed = cache.borrow_mut();
-                let entry = borrowed.get_mut(&self.1).unwrap();
+                let entry = borrowed.get_mut(&key).unwrap();
                 if let Some(value) = entry.value.downcast_ref::<T>() {
                     value.clone()
                 } else {
@@ -51,7 +61,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                 }
             } else {
                 let value = (self.0)();
-                cache.borrow_mut().insert(self.1, CacheEntry {
+                cache.borrow_mut().insert(key, CacheEntry {
                     value: Box::new(value.clone()),
                 });
                 value
