@@ -22,7 +22,7 @@ pub struct Deferred<T: CombinatorTrait + Clone + 'static> {
 
 // Made non-public
 #[derive(Clone, Copy)]
-struct DeferredFn<T: CombinatorTrait + Clone + 'static, F: Fn() -> T>(pub F, pub usize);
+struct DeferredFn<T: CombinatorTrait + Clone + 'static, F: Fn() -> T>(pub F, pub CacheKey);
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T, F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -54,10 +54,7 @@ struct CacheEntry {
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
     fn evaluate_to_combinator(&self) -> T {
-        let key = CacheKey {
-            addr: self.1,
-            type_id: std::any::TypeId::of::<T>(),
-        };
+        let key = self.1;
         DEFERRED_CACHE.with(|cache| {
             if cache.borrow().contains_key(&key) {
                 let borrowed = cache.borrow();
@@ -71,7 +68,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     eprintln!("Conflicting Entry: {:?}", entry);
                     eprintln!("Existing Type Name: {:?}", entry.value.type_name());
                     eprintln!("Expected Type Name: {}", std::any::type_name::<T>());
-                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.1, std::any::TypeId::of::<T>(), entry.value.as_any().type_id());
+                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.1.addr, std::any::TypeId::of::<T>(), entry.value.as_any().type_id());
                 }
             } else {
                 let value = (self.0)();
@@ -84,7 +81,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
         })
     }
     fn get_addr(&self) -> usize {
-        self.1
+        self.1.addr
     }
 }
 
@@ -148,7 +145,7 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRe
     });
     let f = move || StrongRef::new(f());
     Deferred {
-        deferred_fn: Rc::new(DeferredFn(f, addr)),
+        deferred_fn: Rc::new(DeferredFn(f, key)),
         inner: OnceCell::new(),
     }
 }
