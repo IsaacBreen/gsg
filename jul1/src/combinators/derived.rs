@@ -15,7 +15,7 @@ pub fn seprep0(a: impl CombinatorTrait + 'static, b: impl CombinatorTrait + 'sta
 pub fn repeatn(n: usize, a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
     let a = symbol(a);
     // Choice { children: Rc::new(vecx![a; n]), greedy: false }.into()
-    Choice { children: Rc::new(vec![a; n].into_iter().map(IntoDyn::into_dyn).collect()), greedy: false }
+    Choice { children: vec![a; n].into_iter().map(IntoDyn::into_dyn).collect(), greedy: false }
 }
 
 pub fn seprep1_greedy(a: impl CombinatorTrait + 'static, b: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
@@ -29,5 +29,5 @@ pub fn seprep0_greedy(a: impl CombinatorTrait + 'static, b: impl CombinatorTrait
 
 pub fn repeatn_greedy(n: usize, a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
     let a = symbol(a);
-    Choice { children: Rc::new(vec![a; n].into_iter().map(IntoDyn::into_dyn).collect()), greedy: true }
+    Choice { children: vec![a; n].into_iter().map(IntoDyn::into_dyn).collect(), greedy: true }
 }
