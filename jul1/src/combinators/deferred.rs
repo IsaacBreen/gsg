@@ -8,13 +8,13 @@ use crate::*;
 use once_cell::unsync::OnceCell;
 
 thread_local! {
-    static DEFERRED_CACHE: RefCell<HashMap<usize, Box<dyn std::any::Any>>> = RefCell::new(HashMap::new());
+    static DEFERRED_CACHE: RefCell<HashMap<usize, CacheEntry>> = RefCell::new(HashMap::new());
 }
 
 #[derive(Clone, Debug)]
 pub struct Deferred<T: CombinatorTrait + Clone + 'static> {
     deferred_fn: Rc<dyn DeferredFnTrait<T>>,
-    inner: OnceCell<T>, // Added inner field
+    inner: OnceCell<T>,
 }
 
 // Made non-public
@@ -47,22 +47,29 @@ pub trait DeferredFnTrait<T: CombinatorTrait + Clone + 'static>: Debug {
     fn get_addr(&self) -> usize;
 }
 
+// CacheEntry struct to hold the Any, type name, and string representation
+struct CacheEntry {
+    value: Box<dyn Any>,
+    type_name: String,
+    value_str: String,
+}
+
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
     fn evaluate_to_combinator(&self) -> T {
         DEFERRED_CACHE.with(|cache| {
             let mut cache = cache.borrow_mut();
-            if let Some(value) = cache.get(&self.1) {
-                if let Some(value) = value.downcast_ref::<T>() {
+            if let Some(entry) = cache.get(&self.1) {
+                if let Some(value) = entry.value.downcast_ref::<T>() {
                     value.clone()
                 } else {
-                    for (addr, value) in cache.iter() {
-                        println!("addr: {}, value: {:?}, typeid: {:?}", addr, value, value.type_id());
-                    }
-                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}\nexpected type_name: {}", self.1, std::any::TypeId::of::<T>(), value.type_id(), std::any::type_name::<T>());
+                    // Improved error message with type name and value string
+                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}\nexpected type_name: {}, actual type_name: {}, value: {}", self.1, std::any::TypeId::of::<T>(), entry.value.type_id(), std::any::type_name::<T>(), entry.type_name, entry.value_str);
                 }
             } else {
                 let value = (self.0)();
-                cache.insert(self.1, Box::new(value.clone()));
+                let type_name = std::any::type_name::<T>().to_string();
+                let value_str = format!("{:?}", value);
+                cache.insert(self.1, CacheEntry { value: Box::new(value.clone()), type_name, value_str });
                 value
             }
         })
@@ -120,6 +127,6 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRe
     let f = move || StrongRef::new(f());
     Deferred {
         deferred_fn: Rc::new(DeferredFn(f, addr)),
-        inner: OnceCell::new(), // Initialize inner
+        inner: OnceCell::new(),
     }
 }
