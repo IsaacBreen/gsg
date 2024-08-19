@@ -1,21 +1,23 @@
+// src/combinators/check_right_data.rs
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, RightData};
 
 pub struct CheckRightData {
-    pub(crate) run: Rc<dyn Fn(&RightData) -> bool>,
+    pub(crate) run: Box<dyn Fn(&RightData) -> bool>,
 }
 
 impl Hash for CheckRightData {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(Rc::as_ptr(&self.run) as *const (), state);
+        let ptr = std::ptr::addr_of!(self.run) as *const ();
+        ptr.hash(state);
     }
 }
 
 impl PartialEq for CheckRightData {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.run, &other.run)
+        std::ptr::eq(&self.run, &other.run)
     }
 }
 
@@ -41,7 +43,7 @@ impl CombinatorTrait for CheckRightData {
 }
 
 pub fn check_right_data(run: impl Fn(&RightData) -> bool + 'static) -> CheckRightData {
-    CheckRightData { run: Rc::new(run) }
+    CheckRightData { run: Box::new(run) }
 }
 
 // impl From<CheckRightData> for Combinator {

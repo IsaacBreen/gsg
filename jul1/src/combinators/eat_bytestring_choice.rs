@@ -1,3 +1,4 @@
+// src/combinators/eat_bytestring_choice.rs
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
@@ -5,7 +6,7 @@ use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Se
 use crate::parse_state::RightData;
 use crate::trie::{FinishReason, TrieNode};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct EatByteStringChoice {
     pub(crate) root: Rc<TrieNode>,
 }
@@ -17,9 +18,9 @@ impl EatByteStringChoice {
 }
 
 #[derive(Debug)]
-pub struct EatByteStringChoiceParser {
-    pub(crate) root: Rc<TrieNode>,
-    pub(crate) current_node: Rc<TrieNode>,
+pub struct EatByteStringChoiceParser<'a> {
+    pub(crate) root: &'a TrieNode,
+    pub(crate) current_node: &'a TrieNode,
     pub(crate) right_data: RightData,
 }
 
@@ -30,8 +31,8 @@ impl CombinatorTrait for EatByteStringChoice {
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatByteStringChoiceParser {
-            root: Rc::clone(&self.root),
-            current_node: Rc::clone(&self.root),
+            root: self.root.as_ref(),
+            current_node: self.root.as_ref(),
             right_data,
         };
         let parse_results = parser.parse(bytes);
@@ -39,7 +40,7 @@ impl CombinatorTrait for EatByteStringChoice {
     }
 }
 
-impl ParserTrait for EatByteStringChoiceParser {
+impl ParserTrait for EatByteStringChoiceParser<'_> {
     fn get_u8set(&self) -> U8Set {
         if self.current_node.valid_bytes.is_empty() {
             U8Set::none()
@@ -66,7 +67,7 @@ impl ParserTrait for EatByteStringChoiceParser {
             right_data_vec.push(right_data);
         }
         Rc::make_mut(&mut self.right_data.right_data_inner).fields1.position += bytes.len();
-        self.current_node = Rc::new(node.clone());
+        self.current_node = node;
         let done = reason != FinishReason::EndOfInput;
         ParseResults::new(right_data_vec, done)
     }

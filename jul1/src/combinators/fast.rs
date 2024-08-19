@@ -1,10 +1,11 @@
+// src/combinators/fast.rs
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use crate::*;
 use crate::tokenizer::finite_automata::{Expr, ExprGroups, Regex, RegexState};
 
 pub struct FastCombinatorWrapper {
-    pub(crate) regex: Rc<Regex>,
+    pub(crate) regex: Regex,
 }
 
 pub struct FastParserWrapper {
@@ -76,17 +77,5 @@ impl ParserTrait for FastParserWrapper {
 
 pub fn fast_combinator(expr: Expr) -> FastCombinatorWrapper {
     let regex = expr.build();
-    FastCombinatorWrapper { regex: Rc::new(regex) }
-}
-
-// impl From<FastCombinatorWrapper> for Combinator {
-//     fn from(fast_combinator: FastCombinatorWrapper) -> Self {
-//         Combinator::Fast(fast_combinator)
-//     }
-// }
-//
-impl From<Expr> for FastCombinatorWrapper {
-    fn from(value: Expr) -> Self {
-        fast_combinator(value)
-    }
+    FastCombinatorWrapper { regex }
 }

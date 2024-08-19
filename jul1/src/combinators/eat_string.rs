@@ -1,10 +1,11 @@
+// src/combinators/eat_string.rs
 use std::any::Any;
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecX};
 use crate::internal_vec::VecY;
 use crate::parse_state::RightData;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct EatString {
     pub(crate) string: Rc<Vec<u8>>,
 }
@@ -16,8 +17,8 @@ pub struct EatString {
 // }
 
 #[derive(Debug)]
-pub struct EatStringParser {
-    pub(crate) string: Rc<Vec<u8>>,
+pub struct EatStringParser<'a> {
+    pub(crate) string: &'a [u8],
     index: usize,
     pub(crate) right_data: Option<RightData>,
 }
@@ -29,7 +30,7 @@ impl CombinatorTrait for EatString {
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatStringParser {
-            string: self.string.clone(),
+            string: self.string.as_slice(),
             index: 0,
             right_data: Some(right_data),
         };
@@ -38,7 +39,7 @@ impl CombinatorTrait for EatString {
     }
 }
 
-impl ParserTrait for EatStringParser {
+impl ParserTrait for EatStringParser<'_> {
     fn get_u8set(&self) -> U8Set {
         U8Set::from_byte(self.string[self.index])
     }
