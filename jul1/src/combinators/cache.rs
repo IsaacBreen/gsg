@@ -1,4 +1,5 @@
 // src/combinators/cache.rs
+use crate::UnambiguousParseResults;
 use crate::RightData;
 use std::any::{Any, TypeId};
 use std::cell::RefCell;

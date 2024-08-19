@@ -1,3 +1,4 @@
+use crate::UnambiguousParseResults;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, ParseResultTrait};
 

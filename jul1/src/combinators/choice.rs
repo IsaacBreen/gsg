@@ -2,7 +2,7 @@
 use std::any::Any;
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX, UnambiguousParseResults};
 use crate::parse_state::{RightData, ParseResultTrait};
 
 #[derive(Debug)]

@@ -1,3 +1,4 @@
+use crate::UnambiguousParseResults;
 use crate::RightData;
 use std::any::Any;
 use std::rc::Rc;

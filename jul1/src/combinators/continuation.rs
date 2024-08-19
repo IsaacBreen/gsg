@@ -1,3 +1,4 @@
+use crate::UnambiguousParseResults;
 use crate::RightData;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};

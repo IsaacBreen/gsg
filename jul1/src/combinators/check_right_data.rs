@@ -1,4 +1,5 @@
 // src/combinators/check_right_data.rs
+use crate::UnambiguousParseResults;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;

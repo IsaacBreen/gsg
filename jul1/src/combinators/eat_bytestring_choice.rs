@@ -1,4 +1,5 @@
 // src/combinators/eat_bytestring_choice.rs
+use crate::UnambiguousParseResults;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;

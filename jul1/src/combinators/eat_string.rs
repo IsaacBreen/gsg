@@ -1,4 +1,5 @@
 // src/combinators/eat_string.rs
+use crate::UnambiguousParseResults;
 use std::any::Any;
 use std::rc::Rc;
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecX};
