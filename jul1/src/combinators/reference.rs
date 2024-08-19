@@ -79,7 +79,12 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        let (parser, parse_results) = self.parse(right_data, bytes);
+        if parse_results.done() && parse_results.right_data_vec.len() == 1 {
+            UnambiguousParseResults::Ok(parse_results.right_data_vec.into_iter().next().unwrap())
+        } else {
+            UnambiguousParseResults::Err(UnambiguousParseError::Fail)
+        }
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
@@ -98,7 +103,10 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for StrongRef<T> {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        self.inner
+            .get()
+            .unwrap()
+            .one_shot_parse(right_data, bytes)
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
