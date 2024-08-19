@@ -4,18 +4,19 @@ use std::rc::Rc;
 use crate::*;
 
 pub struct MutateRightData {
-    pub(crate) run: Rc<dyn Fn(&mut RightData) -> bool>,
+    pub(crate) run: Box<dyn Fn(&mut RightData) -> bool>,
 }
 
 impl Hash for MutateRightData {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(Rc::as_ptr(&self.run) as *const (), state);
+        let ptr = std::ptr::addr_of!(self.run) as *const ();
+        std::ptr::hash(ptr, state);
     }
 }
 
 impl PartialEq for MutateRightData {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.run, &other.run)
+        std::ptr::eq(&self.run, &other.run)
     }
 }
 
@@ -41,7 +42,7 @@ impl CombinatorTrait for MutateRightData {
 }
 
 pub fn mutate_right_data(run: impl Fn(&mut RightData) -> bool + 'static) -> MutateRightData {
-    MutateRightData { run: Rc::new(run) }
+    MutateRightData { run: Box::new(run) }
 }
 //
 // impl From<MutateRightData> for Combinator {
