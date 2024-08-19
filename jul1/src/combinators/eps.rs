@@ -1,14 +1,38 @@
---- a/jul1/src/combinators/eps.rs
-+++ b/jul1/src/combinators/eps.rs
-@@ -15,6 +15,10 @@
-     fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-         (Parser::EpsParser(EpsParser), ParseResults::new_single(right_data, true))
-     }
-+
-+    fn unambiguous_parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, UnambiguousParseResults) {
-+        (Parser::EpsParser(EpsParser), UnambiguousParseResults::new_single(right_data, true))
-+    }
- }
- 
- impl ParserTrait for EpsParser {
+use std::any::Any;
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
+use crate::parse_state::{RightData, ParseResultTrait};
+#[derive(Debug)]
+pub struct Eps;
 
+#[derive(Debug)]
+pub struct EpsParser;
+
+impl CombinatorTrait for Eps {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        (Parser::EpsParser(EpsParser), ParseResults::new_single(right_data, true))
+    }
+}
+
+impl ParserTrait for EpsParser {
+    fn get_u8set(&self) -> U8Set {
+        panic!("EpsParser.get_u8set() called")
+    }
+
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        panic!("EpsParser already consumed")
+    }
+}
+
+pub fn eps() -> Eps {
+    Eps
+}
+//
+// impl From<Eps> for Combinator {
+//     fn from(value: Eps) -> Self {
+//         Combinator::Eps(value)
+//     }
+// }
