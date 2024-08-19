@@ -54,19 +54,11 @@ struct CacheEntry {
     value_str: String,
 }
 
-
-// Macro for printing cache entries
-macro_rules! print_entry {
-    ($index:expr, $addr:expr, $type_name:expr, $value_str:expr) => {
-        if $type_name.len() + $value_str.len() < 100 {
-            eprintln!("- cache entry {}, addr: {}, type_name: {}, value_str: {}", $index, $addr, $type_name, $value_str);
-        } else {
-            eprintln!("- cache entry {}", $index);
-            eprintln!("  - addr: {}", $addr);
-            eprintln!("  - type_name: {}", $type_name);
-            eprintln!("  - value_str: {}", $value_str);
-        }
-    };
+// Function for printing cache entries
+fn print_entry(entry: &CacheEntry) {
+    let CacheEntry { value: _, type_name, value_str } = entry;
+    eprintln!("  - type_name: {}", type_name);
+    eprintln!("  - value_str: {}", value_str);
 }
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
@@ -79,21 +71,29 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                 } else {
                     // Improved error message with type name and value string
                     eprintln!("Cache dump:");
-                    for (i, (addr, CacheEntry { type_name, value_str, .. })) in cache.iter().enumerate() {
-                        // Use a macro to simplify the conditional printing
-                        print_entry!(i, addr, type_name, value_str);
+                    for (addr, entry) in cache.iter() {
+                        eprintln!("- cache entry, addr: {}", addr);
+                        print_entry(entry);
                     }
                     let actual_type_name = std::any::type_name::<T>();
-                    let actual_value_str = format!("{:?}", self.0());
-                    // Use the macro for the actual value as well
-                    print_entry!("matched cache entry", self.1, entry.type_name, &entry.value_str);
-                    print_entry!("actual value", self.1, actual_type_name, &actual_value_str);
+                    let actual_value = self.0();
+                    let actual_value_str = format!("{:#?}", actual_value);
+                    let actual_entry = CacheEntry {
+                        value: Box::new(actual_value),
+                        type_name: actual_type_name.to_string(),
+                        value_str: actual_value_str,
+                    };
+                    eprintln!("- matched cache entry, addr: {}", self.1);
+                    print_entry(entry);
+                    eprintln!("- actual value, addr: {}", self.1);
+                    print_entry(&actual_entry);
+
                     panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.1, std::any::TypeId::of::<T>(), entry.value.type_id());
                 }
             } else {
                 let value = (self.0)();
                 let type_name = std::any::type_name::<T>().to_string();
-                let value_str = format!("{:?}", value);
+                let value_str = format!("{:#?}", value);
                 cache.insert(self.1, CacheEntry { value: Box::new(value.clone()), type_name, value_str });
                 value
             }
