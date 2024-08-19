@@ -126,9 +126,9 @@ impl ParserTrait for ProfiledParser<'_> {
     }
 }
 
-pub fn profile(tag: &str, a: impl CombinatorTrait)-> impl CombinatorTrait {
+pub fn profile<T: IntoCombinator>(tag: &str, a: T)-> impl CombinatorTrait where T::Output: 'static {
     // Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
-    a
+    a.into_combinator()
 }
 
 pub fn profile_internal(tag: &str, a: impl IntoCombinator)-> impl CombinatorTrait {
