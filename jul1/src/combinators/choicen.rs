@@ -40,19 +40,16 @@ macro_rules! define_choice {
                 let (first_parser, first_parse_results) = profile!(stringify!($choice_name, " first child parse"), {
                     first_combinator.parse(right_data.clone(), bytes)
                 });
+                let discard_rest = self.greedy && first_parse_results.succeeds_decisively();
+                if discard_rest {
+                    return (first_parser, first_parse_results);
+                }
                 let mut parsers = if !first_parse_results.done() {
                     vec![first_parser]
                 } else {
                     Vec::new()
                 };
-                let discard_rest = self.greedy && first_parse_results.succeeds_decisively();
                 let mut combined_results = first_parse_results;
-                if discard_rest {
-                    return (
-                        Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
-                        combined_results
-                    );
-                }
 
                 $(
                     let next_combinator = &self.$rest;
