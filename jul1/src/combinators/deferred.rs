@@ -66,9 +66,8 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     eprintln!("Cache dump:");
                     for (i, (addr, CacheEntry { type_name, value_str, .. })) in cache.iter().enumerate() {
                         if type_name.len() + value_str.len() < 100 {
-                            eprintln!("addr: {}, type_name: {}, value_str: {}", addr, type_name, value_str);
+                            eprintln!("- {}, {}, {}", addr, type_name, value_str);
                         } else {
-                        eprintln!("- {}", i);
                             eprintln!("- {}", i);
                             eprintln!("  - addr: {}", addr);
                             eprintln!("  - type_name: {}", type_name);
