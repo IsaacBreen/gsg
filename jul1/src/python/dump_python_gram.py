@@ -210,7 +210,7 @@ def grammar_to_rust(
                 generate_combinator_expr(item.item, extra_info) for item in alt.items) + ")"
 
 
-    MAX_RULE_COMPLEXITY = 10
+    MAX_RULE_COMPLEXITY = 5
 
     def name_to_rust(name: str, extra_info: ExtraInfo) -> str:
         # if name in extra_info:
