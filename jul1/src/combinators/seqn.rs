@@ -60,13 +60,7 @@ macro_rules! define_seq {
                     // Shortcut
                     return (Parser::FailParser(FailParser), first_parse_results);
                 }
-
-                let mut parser = $seq_parser_name {
-                    combinator: self,
-                    $first: if all_done { vec![] } else { vec![first_parser] },
-                    $($rest: vec![],)+
-                    position: start_position + bytes.len(),
-                };
+                let first_parser_vec = if all_done { vec![] } else { vec![first_parser] };
 
                 let mut next_right_data_vec = first_parse_results.right_data_vec;
 
@@ -80,7 +74,15 @@ macro_rules! define_seq {
                 // Macro to process each child combinator
                 $(
                     if next_right_data_vec.is_empty() {
-                        return (Parser::DynParser(Box::new(parser)), ParseResults::empty(all_done));
+                        // let mut parser = $seq_parser_name {
+                        //     combinator: self,
+                        //     $first: first_parser_vec,
+                        //     $($rest: vec![],)+
+                        //     position: start_position + bytes.len(),
+                        // };
+                        // todo: hack
+                        // (Parser::DynParser(Box::new(self)), ParseResults::empty(all_done))
+                        return (Parser::FailParser(FailParser), ParseResults::empty(all_done));
                     }
 
                     let mut next_next_right_data_vec = VecY::new();
@@ -97,12 +99,14 @@ macro_rules! define_seq {
                     all_done &= $rest.is_empty();
 
                     // Update the parser with the new parsers for this child
-                    parser.$rest = $rest;
+                    // parser.$rest = $rest;
                 )+
 
                 let parse_results = ParseResults::new(next_right_data_vec, all_done);
 
-                (Parser::DynParser(Box::new(parser)), parse_results)
+                // todo: hack
+                // (Parser::DynParser(Box::new(parser)), parse_results)
+                (Parser::FailParser(FailParser), parse_results)
             }
         }
 
