@@ -49,6 +49,11 @@ impl ProfileDataInner {
         }
         profile_data.start_time = Instant::now();
     }
+
+    pub fn count_hit(tag: String) {
+        let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+        *profile_data.hit_counts.entry(tag).or_default() += 1;
+    }
 }
 
 
@@ -71,6 +76,13 @@ macro_rules! profile_block {
         // $crate::ProfileDataInner::pop_tag();
         result
     }};
+}
+
+#[macro_export]
+macro_rules! count_hit {
+    ($tag:expr) => {
+        $crate::ProfileDataInner::count_hit($tag.to_string());
+    };
 }
 
 #[derive(Debug)]

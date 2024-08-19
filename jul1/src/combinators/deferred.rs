@@ -59,6 +59,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
     fn evaluate_to_combinator(&self) -> T {
         DEFERRED_CACHE.with(|cache| {
             if cache.borrow().contains_key(&self.key) {
+                count_hit!("deferred cache hit");
                 let borrowed = cache.borrow();
                 let entry = borrowed.get(&self.key).unwrap();
                 if let Some(value) = entry.value.as_any().downcast_ref::<T>() {
@@ -73,6 +74,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.key.addr, TypeId::of::<T>(), entry.value.as_any().type_id());
                 }
             } else {
+                count_hit!("deferred cache miss");
                 let value = (self.f)();
                 cache.borrow_mut().insert(self.key, CacheEntry {
                     value: Box::new(value.clone()),
