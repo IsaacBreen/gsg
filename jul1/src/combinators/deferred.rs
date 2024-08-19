@@ -22,11 +22,14 @@ pub struct Deferred<T: CombinatorTrait + Clone + 'static> {
 
 // Made non-public
 #[derive(Clone, Copy)]
-struct DeferredFn<T: CombinatorTrait + Clone + 'static, F: Fn() -> T>(pub F, pub CacheKey);
+struct DeferredFn<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> {
+    pub f: F,
+    pub key: CacheKey,
+}
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T, F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("DeferredFn").field(&self.1).finish()
+        f.debug_tuple("DeferredFn").field(&self.key).finish()
     }
 }
 
@@ -55,23 +58,23 @@ struct CacheEntry {
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
     fn evaluate_to_combinator(&self) -> T {
         DEFERRED_CACHE.with(|cache| {
-            if cache.borrow().contains_key(&self.1) {
+            if cache.borrow().contains_key(&self.key) {
                 let borrowed = cache.borrow();
-                let entry = borrowed.get(&self.1).unwrap();
+                let entry = borrowed.get(&self.key).unwrap();
                 if let Some(value) = entry.value.as_any().downcast_ref::<T>() {
                     value.clone()
                 } else {
                     // Richer error printing
                     eprintln!("Deferred Cache: {:#?}", borrowed);
-                    eprintln!("Key: {:?}", self.1);
+                    eprintln!("Key: {:?}", self.key);
                     eprintln!("Conflicting Entry: {:?}", entry);
                     eprintln!("Existing Type Name: {:?}", entry.value.type_name());
                     eprintln!("Expected Type Name: {}", std::any::type_name::<T>());
-                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.1.addr, std::any::TypeId::of::<T>(), entry.value.as_any().type_id());
+                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.key.addr, std::any::TypeId::of::<T>(), entry.value.as_any().type_id());
                 }
             } else {
-                let value = (self.0)();
-                cache.borrow_mut().insert(self.1, CacheEntry {
+                let value = (self.f)();
+                cache.borrow_mut().insert(self.key, CacheEntry {
                     value: Box::new(value.clone()),
                     caller_locations: RefCell::new(HashSet::new()),
                 });
@@ -80,7 +83,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
         })
     }
     fn get_addr(&self) -> usize {
-        self.1.addr
+        self.key.addr
     }
 }
 
@@ -144,7 +147,10 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRe
     });
     let f = move || StrongRef::new(f());
     Deferred {
-        deferred_fn: Rc::new(DeferredFn(f, key)),
+        deferred_fn: Rc::new(DeferredFn {
+            f: f,
+            key: key
+        }),
         inner: OnceCell::new(),
     }
 }
