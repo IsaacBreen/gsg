@@ -1,6 +1,4 @@
-use crate::{RightData, Squash, vecy};
-use crate::internal_vec::VecY;
-use crate::VecX;
+use crate::RightData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UnambiguousParseResults {
