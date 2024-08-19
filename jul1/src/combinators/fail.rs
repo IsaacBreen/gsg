@@ -1,7 +1,10 @@
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, RightData};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, RightData, ParserTrait, U8Set, UnambiguousParseError, UnambiguousParseResults, ParseResultTrait};
 
 #[derive(Debug)]
 pub struct Fail;
+
+#[derive(Debug)]
+pub struct FailParser;
 
 impl CombinatorTrait for Fail {
     fn as_any(&self) -> &dyn std::any::Any {
@@ -21,6 +24,16 @@ impl CombinatorTrait for Fail {
             Parser::FailParser(crate::FailParser),
             ParseResults::empty_finished(),
         )
+    }
+}
+
+impl ParserTrait for FailParser {
+    fn get_u8set(&self) -> U8Set {
+        panic!("fail parser has no u8set")
+    }
+
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        panic!("fail parser has no parse")
     }
 }
 

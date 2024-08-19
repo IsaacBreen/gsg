@@ -1,7 +1,10 @@
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, RightData};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, RightData, UnambiguousParseResults, ParseResultTrait, ParserTrait, U8Set};
 
 #[derive(Debug)]
 pub struct Eps;
+
+#[derive(Debug)]
+pub struct EpsParser;
 
 impl CombinatorTrait for Eps {
     fn as_any(&self) -> &dyn std::any::Any {
@@ -21,6 +24,16 @@ impl CombinatorTrait for Eps {
             Parser::FailParser(crate::FailParser),
             ParseResults::new_single(right_data, true),
         )
+    }
+}
+
+impl ParserTrait for EpsParser {
+    fn get_u8set(&self) -> U8Set {
+        panic!("eps parser has no u8set")
+    }
+
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        panic!("eps parser has no parse")
     }
 }
 
