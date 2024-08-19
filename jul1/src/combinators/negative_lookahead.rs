@@ -1,3 +1,4 @@
+// src/combinators/negative_lookahead.rs
 use std::collections::HashSet;
 use crate::*;
 use crate::trie::TrieNode;
@@ -13,7 +14,7 @@ pub struct ExcludeBytestrings<T: CombinatorTrait> {
 #[derive(Debug)]
 pub struct ExcludeBytestringsParser<'a> {
     pub(crate) inner: Box<Parser<'a>>,
-    pub(crate) node: Option<Rc<TrieNode>>,
+    pub(crate) node: Option<&'a TrieNode>,
     pub(crate) start_position: usize,
 }
 
@@ -37,7 +38,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
         });
         (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
             inner: Box::new(inner),
-            node: node.map(|node| Rc::new(node.clone())),
+            node: node.map(|node| node),
             start_position,
         }), parse_results)
     }
@@ -50,13 +51,13 @@ impl ParserTrait for ExcludeBytestringsParser<'_> {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut parse_results = self.inner.parse(bytes);
-        if let Some(node) = &self.node {
+        if let Some(node) = self.node {
             let (indices, node) = node.get_indices(bytes);
             let indices: HashSet<usize> = indices.into_iter().collect();
             parse_results.right_data_vec.retain(|right_data| {
                 !indices.contains(&(right_data.right_data_inner.fields1.position - self.start_position))
             });
-            self.node = node.map(|node| Rc::new(node.clone()));
+            self.node = node;
         }
         self.start_position += bytes.len();
         parse_results
