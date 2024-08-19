@@ -36,18 +36,17 @@ macro_rules! define_choice {
             }
 
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-                let mut parsers = Vec::new();
-                let mut combined_results = ParseResults::empty_finished();
-
                 let first_combinator = &self.$first;
                 let (first_parser, first_parse_results) = profile!(stringify!($choice_name, " first child parse"), {
                     first_combinator.parse(right_data.clone(), bytes)
                 });
-                if !first_parse_results.done() {
-                    parsers.push(first_parser);
-                }
+                let mut parsers = if !first_parse_results.done() {
+                    vec![first_parser]
+                } else {
+                    Vec::new()
+                };
                 let discard_rest = self.greedy && first_parse_results.succeeds_decisively();
-                combined_results.merge_assign(first_parse_results);
+                let mut combined_results = first_parse_results;
                 if discard_rest {
                     return (
                         Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
