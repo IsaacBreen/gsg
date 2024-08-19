@@ -44,7 +44,7 @@ impl CombinatorTrait for Choice {
         }
     }
 
-    fn one_shot_parse(&self, right_ RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if self.greedy {
             for child in &self.children {
                 let result = child.one_shot_parse(right_data.clone(), bytes);
@@ -63,7 +63,7 @@ impl CombinatorTrait for Choice {
         }
     }
 
-    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         todo!()
     }
 }

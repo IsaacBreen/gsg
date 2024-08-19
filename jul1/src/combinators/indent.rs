@@ -28,7 +28,7 @@ pub struct OwningParser<'a> {
 impl<'a> OwningParser<'a> {
     pub fn init(
         combinator: Box<dyn CombinatorTrait + 'a>,
-        right_ RightData,
+        right_data: RightData,
         bytes: &[u8],
     ) -> (OwningParser<'a>, ParseResults) {
         let mut owning_parser = OwningParser {
@@ -68,12 +68,12 @@ impl CombinatorTrait for IndentCombinator {
         self
     }
 
-    fn one_shot_parse(&self, right_ RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let (_, parse_results) = self.parse(right_data, bytes);
         parse_results.into()
     }
 
-    fn parse<'a>(&'a self, mut right_ RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+    fn parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
                 fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {
@@ -85,7 +85,7 @@ impl CombinatorTrait for IndentCombinator {
                             // Exit here and register dedents
                             seq!(
                                 negative_lookahead(eat_char_choice(" \n\r")),
-                                mutate_right_data(move |right_ &mut RightData| {
+                                mutate_right_data(move |right_data: &mut RightData| {
                                     let right_data_inner = Rc::make_mut(&mut right_data.right_data_inner);
                                     right_data_inner.fields1.dedents = dedents;
                                     // Remove the last `dedents` indents from the indent stack
@@ -100,7 +100,7 @@ impl CombinatorTrait for IndentCombinator {
                         ).into_dyn()
                     }
                 }
-                // println!("Made dent parser with right_ {:?}", right_data);
+                // println!("Made dent parser with right_data: {:?}", right_data);
                 let combinator: Box<dyn CombinatorTrait + 'a> = make_combinator(&right_data.right_data_inner.fields2.indents, right_data.right_data_inner.fields2.indents.len());
                 let (parser, parse_results) = OwningParser::init(combinator, right_data, bytes);
                 (IndentCombinatorParser::DentParser(parser), parse_results)

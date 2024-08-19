@@ -78,12 +78,12 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
         f(self.inner.upgrade().expect("WeakRef is already dropped").get().expect("Combinator hasn't been set"));
     }
 
-    fn one_shot_parse(&self, right_ RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.get().unwrap();
         combinator.one_shot_parse(right_data, bytes)
     }
 
-    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let combinator = self.get().unwrap();
         combinator.parse(right_data, bytes)
     }
@@ -98,12 +98,12 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for StrongRef<T> {
         f(self.inner.get().unwrap());
     }
 
-    fn one_shot_parse(&self, right_ RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().unwrap();
         combinator.one_shot_parse(right_data, bytes)
     }
 
-    fn parse(&self, right_ RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         self.inner
             .get()
             .unwrap()
