@@ -56,7 +56,7 @@ struct CacheKey {
 
 impl Hash for CacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // use type_id::TypeId;
+        Rc::as_ptr(&self.combinator).hash(state);
         self.right_data.hash(state);
     }
 }
