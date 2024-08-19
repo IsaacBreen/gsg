@@ -70,7 +70,9 @@ fn print_entry(entry: &CacheEntry) {
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
     fn evaluate_to_combinator(&self) -> T {
         DEFERRED_CACHE.with(|cache| {
-            if let Some(entry) = cache.borrow().get(&self.1) {
+            if cache.borrow().contains_key(&self.1) {
+                let mut borrowed = cache.borrow_mut();
+                let entry = borrowed.get_mut(&self.1).unwrap();
                 if let Some(value) = entry.value.downcast_ref::<T>() {
                     value.clone()
                 } else {
