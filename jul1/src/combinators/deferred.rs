@@ -64,17 +64,27 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                 } else {
                     // Improved error message with type name and value string
                     eprintln!("Cache dump:");
-                    for (i, (addr, CacheEntry { type_name, value_str, .. })) in cache.iter().enumerate() {
-                        if type_name.len() + value_str.len() < 100 {
-                            eprintln!("- {}, {}, {}", addr, type_name, value_str);
+                    for (i, (addr, CacheEntry { type_name: entry_type_name, value_str: entry_value_str, .. })) in cache.iter().enumerate() {
+                        if entry_type_name.len() + entry_value_str.len() < 100 {
+                            eprintln!("- cache entry {}, addr: {}, type_name: {}, value_str: {}", i, addr, entry_type_name, entry_value_str);
                         } else {
-                            eprintln!("- {}", i);
+                            eprintln!("- cache entry {}", i);
                             eprintln!("  - addr: {}", addr);
-                            eprintln!("  - type_name: {}", type_name);
-                            eprintln!("  - value_str: {}", value_str);
+                            eprintln!("  - type_name: {}", entry_type_name);
+                            eprintln!("  - value_str: {}", entry_value_str);
                         }
                     }
-                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}\nexpected type_name: {}, actual type_name: {}, value: {}", self.1, std::any::TypeId::of::<T>(), entry.value.type_id(), std::any::type_name::<T>(), entry.type_name, entry.value_str);
+                    let actual_type_name = std::any::type_name::<T>();
+                    let actual_value_str = format!("{:?}", self.0());
+                    if actual_type_name.len() + actual_value_str.len() < 100 {
+                        eprintln!("- actual value, addr: {}, type_name: {}, value_str: {}", self.1, actual_type_name, actual_value_str);
+                    } else {
+                        eprintln!("- actual value");
+                        eprintln!("  - addr: {}", self.1);
+                        eprintln!("  - type_name: {}", actual_type_name);
+                        eprintln!("  - value_str: {}", actual_value_str);
+                    }
+                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.1, std::any::TypeId::of::<T>(), entry.value.type_id());
                 }
             } else {
                 let value = (self.0)();
