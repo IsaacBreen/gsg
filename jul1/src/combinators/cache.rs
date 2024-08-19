@@ -228,13 +228,14 @@ impl ParserTrait for CachedParser {
 }
 
 pub fn cache_context<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait {
-    profile_internal("cache_context", CacheContext { inner: a.into_combinator() })
+    // profile_internal("cache_context", CacheContext { inner: a.into_combinator() })
+    a.into_combinator()
 }
 
 // todo: do we really need to make this 'static?
 pub fn cached<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
-    profile_internal("cached", Cached { inner: Rc::new(a.into_combinator()) })
-    // a.into_combinator()
+    // profile_internal("cached", Cached { inner: Rc::new(a.into_combinator()) })
+    a.into_combinator()
 }
 
 // impl From<CacheContext> for Combinator {
