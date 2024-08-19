@@ -54,11 +54,13 @@ struct CacheEntry {
     value_str: String,
 }
 
-// Function for printing cache entries
-fn print_entry(entry: &CacheEntry) {
-    let CacheEntry { value: _, type_name, value_str } = entry;
-    eprintln!("  - type_name: {}", type_name);
-    eprintln!("  - value_str: {}", value_str);
+impl Debug for CacheEntry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CacheEntry")
+            .field("type_name", &self.type_name)
+            .field("value_str", &self.value_str)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
@@ -73,7 +75,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     eprintln!("Cache dump:");
                     for (addr, entry) in cache.iter() {
                         eprintln!("- cache entry, addr: {}", addr);
-                        print_entry(entry);
+                        eprintln!("{:#?}", entry);
                     }
                     let actual_type_name = std::any::type_name::<T>();
                     let actual_value = self.0();
@@ -83,10 +85,10 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                         type_name: actual_type_name.to_string(),
                         value_str: actual_value_str,
                     };
-                    eprintln!("- matched cache entry, addr: {}", self.1);
-                    print_entry(entry);
-                    eprintln!("- actual value, addr: {}", self.1);
-                    print_entry(&actual_entry);
+                    eprintln!("matched cache entry, addr: {}", self.1);
+                    eprintln!("{:#?}", entry);
+                    eprintln!("actual value, addr: {}", self.1);
+                    eprintln!("{:#?}", actual_entry);
 
                     panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.1, std::any::TypeId::of::<T>(), entry.value.type_id());
                 }
