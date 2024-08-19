@@ -86,17 +86,17 @@ macro_rules! define_seq {
                     }
 
                     let mut next_next_right_data_vec = VecY::new();
-                    let mut $rest = Vec::new();
+                    // let mut $rest = Vec::new();
                     for right_data in next_right_data_vec {
                         let (parser, parse_results) = helper(right_data, &self.$rest, &bytes, start_position);
-                        if !parse_results.done() {
-                            $rest.push(parser);
-                        }
+                        // if !parse_results.done() {
+                        //     all_done = false;
+                        //     $rest.push(parser);
+                        // }
                         next_next_right_data_vec.extend(parse_results.right_data_vec);
                     }
                     next_right_data_vec = next_next_right_data_vec;
 
-                    all_done &= $rest.is_empty();
 
                     // Update the parser with the new parsers for this child
                     // parser.$rest = $rest;
