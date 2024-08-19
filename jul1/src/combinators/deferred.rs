@@ -70,13 +70,13 @@ fn print_entry(entry: &CacheEntry) {
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
     fn evaluate_to_combinator(&self) -> T {
         DEFERRED_CACHE.with(|cache| {
-            if let Some(entry) = cache.borrow_mut().get(&self.1) {
+            if let Some(entry) = cache.borrow().get(&self.1) {
                 if let Some(value) = entry.value.downcast_ref::<T>() {
                     value.clone()
                 } else {
                     // Improved error message with type name and value string
                     eprintln!("Cache dump:");
-                    for (addr, entry) in cache.borrow_mut().iter() {
+                    for (addr, entry) in cache.borrow().iter() {
                         eprintln!("- cache entry, addr: {}", addr);
                         print_entry(entry);
                     }
