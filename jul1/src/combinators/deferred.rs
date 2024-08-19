@@ -70,7 +70,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     eprintln!("Conflicting Entry: {:?}", entry);
                     eprintln!("Existing Type Name: {:?}", entry.value.type_name());
                     eprintln!("Expected Type Name: {}", std::any::type_name::<T>());
-                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.key.addr, std::any::TypeId::of::<T>(), entry.value.as_any().type_id());
+                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.key.addr, TypeId::of::<T>(), entry.value.as_any().type_id());
                 }
             } else {
                 let value = (self.f)();
@@ -102,7 +102,7 @@ impl<T: CombinatorTrait + Clone> Hash for Deferred<T> {
 }
 
 impl<T: CombinatorTrait + Clone + 'static> CombinatorTrait for Deferred<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 
@@ -137,7 +137,7 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRe
     let caller_location_str = location.to_string();
     let key = CacheKey {
         addr,
-        type_id: std::any::TypeId::of::<T>(),
+        type_id: TypeId::of::<T>(),
     };
     DEFERRED_CACHE.with(|cache| {
         let mut cache = cache.borrow_mut();
@@ -148,8 +148,8 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRe
     let f = move || StrongRef::new(f());
     Deferred {
         deferred_fn: Rc::new(DeferredFn {
-            f: f,
-            key: key
+            f,
+            key
         }),
         inner: OnceCell::new(),
     }
