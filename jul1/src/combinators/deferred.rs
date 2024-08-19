@@ -53,7 +53,7 @@ struct CacheEntry {
     value: Box<dyn Any>,
     type_name: String,
     value_str: String,
-    caller_locations: HashSet<String>,
+    caller_locations: RefCell<HashSet<String>>,
 }
 
 // Function for printing cache entries
@@ -62,7 +62,7 @@ fn print_entry(entry: &CacheEntry) {
     eprintln!("  - type_name: {}", type_name);
     eprintln!("  - value_str: {}", value_str);
     eprintln!("  - caller_locations:");
-    for location in caller_locations {
+    for location in caller_locations.borrow().iter() {
         eprintln!("    - {}", location);
     }
 }
@@ -70,14 +70,13 @@ fn print_entry(entry: &CacheEntry) {
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
     fn evaluate_to_combinator(&self) -> T {
         DEFERRED_CACHE.with(|cache| {
-            let mut cache = cache.borrow_mut();
-            if let Some(entry) = cache.get(&self.1) {
+            if let Some(entry) = cache.borrow_mut().get(&self.1) {
                 if let Some(value) = entry.value.downcast_ref::<T>() {
                     value.clone()
                 } else {
                     // Improved error message with type name and value string
                     eprintln!("Cache dump:");
-                    for (addr, entry) in cache.iter() {
+                    for (addr, entry) in cache.borrow_mut().iter() {
                         eprintln!("- cache entry, addr: {}", addr);
                         print_entry(entry);
                     }
@@ -88,7 +87,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                         value: Box::new(actual_value),
                         type_name: actual_type_name.to_string(),
                         value_str: actual_value_str,
-                        caller_locations: HashSet::new(), // We don't track caller locations for the actual value
+                        caller_locations: RefCell::new(HashSet::new()), // We don't track caller locations for the actual value
                     };
                     eprintln!("- matched cache entry, addr: {}", self.1);
                     print_entry(entry);
@@ -101,11 +100,11 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                 let value = (self.0)();
                 let type_name = std::any::type_name::<T>().to_string();
                 let value_str = format!("{:#?}", value);
-                cache.insert(self.1, CacheEntry {
+                cache.borrow_mut().insert(self.1, CacheEntry {
                     value: Box::new(value.clone()),
                     type_name,
                     value_str,
-                    caller_locations: HashSet::new(),
+                    caller_locations: RefCell::new(HashSet::new()),
                 });
                 value
             }
@@ -165,9 +164,9 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRe
     let location = Location::caller();
     let caller_location_str = location.to_string();
     DEFERRED_CACHE.with(|cache| {
-        let mut cache = cache.borrow_mut();
-        if let Some(entry) = cache.get_mut(&addr) {
-            entry.caller_locations.insert(caller_location_str);
+        let mut cache = cache.borrow();
+        if let Some(entry) = cache.get(&addr) {
+            entry.caller_locations.borrow_mut().insert(caller_location_str);
         }
     });
     let f = move || StrongRef::new(f());
