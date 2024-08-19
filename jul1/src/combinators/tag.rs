@@ -41,6 +41,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        count_hit!(self.tag);
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (
@@ -65,10 +66,11 @@ impl ParserTrait for TaggedParser<'_> {
     }
 }
 
-pub fn tag<T: IntoCombinator>(tag: &str, a: T)-> impl CombinatorTrait where T::Output: 'static {
+pub fn tag<T: IntoCombinator + 'static>(tag: &'static str, a: T)-> impl CombinatorTrait + 'static where T::Output: 'static {
     // TODO: ffs
-    // Tagged { inner: Box::new(profile(tag, a)), tag: tag.to_string() }
-    a.into_combinator()
+    Tagged { inner: Box::new(profile(tag, a)), tag: tag.to_string() }
+    // Tagged { inner: Box::new(a.into_combinator()), tag: tag.to_string() }
+    // a.into_combinator()
 }
 
  // impl From<Tagged> for Combinator {
