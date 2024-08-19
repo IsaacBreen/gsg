@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use std::collections::BTreeMap;
 use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator};
 use crate::ChoiceParser;
@@ -18,7 +17,7 @@ macro_rules! define_choice {
             $($rest: CombinatorTrait),+
         {
             pub(crate) $first: $first,
-            $(pub(crate) $rest: Rc<$rest>,)+
+            $(pub(crate) $rest: $rest,)+
             pub(crate) greedy: bool,
         }
 
@@ -33,7 +32,7 @@ macro_rules! define_choice {
 
             fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
                 f(&self.$first);
-                $(f(self.$rest.as_ref());)+
+                $(f(&self.$rest);)+
             }
 
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
@@ -99,8 +98,8 @@ define_choice!(Choice14, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, 
 define_choice!(Choice15, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
 define_choice!(Choice16, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15);
 
-pub fn choicen_helper<T: IntoCombinator>(x: T) -> Rc<T::Output> {
-        Rc::new(IntoCombinator::into_combinator(x))
+pub fn choicen_helper<T: IntoCombinator>(x: T) -> T::Output {
+        IntoCombinator::into_combinator(x)
 }
 
 #[macro_export]
