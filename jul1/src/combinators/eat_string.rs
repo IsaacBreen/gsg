@@ -1,4 +1,4 @@
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, ParseResultTrait, RightData, U8Set, VecX, VecY};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, ParseResultTrait, RightData, U8Set, VecX, VecY, UnambiguousParseResults, UnambiguousParseError};
 use std::rc::Rc;
 
 #[derive(Debug)]
@@ -7,8 +7,8 @@ pub struct EatString {
 }
 
 #[derive(Debug)]
-pub struct EatStringParser {
-    pub string: &'static [u8],
+pub struct EatStringParser<'a> {
+    pub string: &'a [u8],
     pub index: usize,
     pub right_data: Option<RightData>,
 }
@@ -48,7 +48,7 @@ impl CombinatorTrait for EatString {
     }
 }
 
-impl ParserTrait for EatStringParser {
+impl ParserTrait for EatStringParser<'_> {
     fn get_u8set(&self) -> U8Set {
         if self.index < self.string.len() {
             U8Set::from_byte(self.string[self.index])
@@ -88,6 +88,18 @@ impl ParserTrait for EatStringParser {
 pub fn eat_string(string: &[u8]) -> EatString {
     EatString {
         string: string.to_vec(),
+    }
+}
+
+pub fn eat_bytes(bytes: &[u8]) -> EatString {
+    EatString {
+        string: bytes.to_vec(),
+    }
+}
+
+pub fn eat(s: impl Into<String>) -> EatString {
+    EatString {
+        string: s.into().into_bytes(),
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::RightData;
+use crate::{RightData, UnambiguousParseError, UnambiguousParseResults};
 use std::mem::transmute;
 use std::rc::Rc;
 use aliasable::boxed::AliasableBox;

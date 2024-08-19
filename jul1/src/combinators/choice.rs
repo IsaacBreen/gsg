@@ -1,4 +1,4 @@
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, ParseResultTrait, RightData, U8Set, VecX, VecY};
+use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, ParseResultTrait, RightData, U8Set, VecX, VecY, UnambiguousParseResults, UnambiguousParseError};
 use std::rc::Rc;
 
 #[derive(Debug)]
@@ -96,14 +96,14 @@ impl ParserTrait for ChoiceParser<'_> {
     }
 }
 
-pub fn choice(children: Vec<Combinator>) -> Choice {
+pub fn _choice(children: Vec<Combinator>) -> Choice {
     Choice {
         children: children.into_iter().map(|child| Rc::new(child) as Rc<dyn CombinatorTrait>).collect(),
         greedy: false,
     }
 }
 
-pub fn choice_greedy(children: Vec<Combinator>) -> Choice {
+pub fn _choice_greedy(children: Vec<Combinator>) -> Choice {
     Choice {
         children: children.into_iter().map(|child| Rc::new(child) as Rc<dyn CombinatorTrait>).collect(),
         greedy: true,
