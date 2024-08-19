@@ -14,15 +14,13 @@ thread_local! {
     static DEFERRED_CACHE: RefCell<HashMap<CacheKey, CacheEntry>> = RefCell::new(HashMap::new());
 }
 
-#[derive(Clone, Debug)]
-pub struct Deferred<T: CombinatorTrait + Clone + 'static> {
+#[derive(Debug)]
+pub struct Deferred<T: CombinatorTrait + 'static> {
     deferred_fn: Rc<dyn DeferredFnTrait<T>>,
     inner: OnceCell<T>,
 }
 
-// Made non-public
-#[derive(Clone, Copy)]
-struct DeferredFn<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> {
+struct DeferredFn<T: CombinatorTrait + 'static, F: Fn() -> T> {
     pub f: F,
     pub key: CacheKey,
 }
@@ -35,7 +33,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T,
 
 // todo: this trait is really messy. Any way to clean it up?
 // Trait for evaluating the deferred function
-trait DeferredFnTrait<T: CombinatorTrait + Clone + 'static>: Debug {
+trait DeferredFnTrait<T: CombinatorTrait + 'static>: Debug {
     // todo: the fact that we need this struct right now is dumb. Aim to remove it. But we don't want to have to return a (bool, T) tuple - that's even worse and it's what we're trying to avoid by using the struct.
     fn evaluate_to_combinator(&self) -> EvaluateToCombinatorResult<T>;
     fn get_addr(&self) -> usize;
@@ -102,21 +100,21 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
     }
 }
 
-impl<T: CombinatorTrait + Clone> PartialEq for Deferred<T> {
+impl<T: CombinatorTrait + 'static> PartialEq for Deferred<T> {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.deferred_fn, &other.deferred_fn)
     }
 }
 
-impl<T: CombinatorTrait + Clone> Eq for Deferred<T> {}
+impl<T: CombinatorTrait + 'static> Eq for Deferred<T> {}
 
-impl<T: CombinatorTrait + Clone> Hash for Deferred<T> {
+impl<T: CombinatorTrait + 'static> Hash for Deferred<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(&self.deferred_fn, state);
     }
 }
 
-impl<T: CombinatorTrait + Clone + 'static> CombinatorTrait for Deferred<T> {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
