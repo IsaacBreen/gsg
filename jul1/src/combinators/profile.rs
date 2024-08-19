@@ -60,7 +60,7 @@ impl ProfileDataInner {
 #[macro_export]
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
-        $crate::ProfileDataInner::push_tag($tag.to_string());
+        // $crate::ProfileDataInner::push_tag($tag.to_string());
         let result = $body;
         $crate::ProfileDataInner::pop_tag();
         result
@@ -72,16 +72,17 @@ macro_rules! profile {
 macro_rules! profile_block {
     ($body:expr) => {{
         // $crate::ProfileDataInner::push_tag(format!("{}:{}", file!(), line!()));
-        let result = $body;
+        // let result = $body;
         // $crate::ProfileDataInner::pop_tag();
-        result
+        // result
+        $body
     }};
 }
 
 #[macro_export]
 macro_rules! count_hit {
     ($tag:expr) => {
-        $crate::ProfileDataInner::count_hit($tag.to_string());
+        // $crate::ProfileDataInner::count_hit($tag.to_string());
     };
 }
 
