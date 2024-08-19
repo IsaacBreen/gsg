@@ -1,3 +1,4 @@
+// src/combinators/deferred.rs
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -44,9 +45,10 @@ struct CacheKey {
     type_id: TypeId,
 }
 
-// CacheEntry struct to hold the Any and caller locations
+// CacheEntry struct to hold the CombinatorTrait and caller locations
+#[derive(Debug)]
 struct CacheEntry {
-    value: Box<dyn Any>,
+    value: Box<dyn CombinatorTrait>,
     caller_locations: RefCell<HashSet<String>>,
 }
 
@@ -58,12 +60,18 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
         };
         DEFERRED_CACHE.with(|cache| {
             if cache.borrow().contains_key(&key) {
-                let mut borrowed = cache.borrow_mut();
-                let entry = borrowed.get_mut(&key).unwrap();
-                if let Some(value) = entry.value.downcast_ref::<T>() {
+                let borrowed = cache.borrow();
+                let entry = borrowed.get(&key).unwrap();
+                if let Some(value) = entry.value.as_any().downcast_ref::<T>() {
                     value.clone()
                 } else {
-                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.1, std::any::TypeId::of::<T>(), entry.value.type_id());
+                    // Richer error printing
+                    eprintln!("Deferred Cache: {:#?}", borrowed);
+                    eprintln!("Key: {:?}", key);
+                    eprintln!("Conflicting Entry: {:?}", entry);
+                    eprintln!("Existing Type Name: {:?}", entry.value.type_name());
+                    eprintln!("Expected Type Name: {}", std::any::type_name::<T>());
+                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.1, std::any::TypeId::of::<T>(), entry.value.as_any().type_id());
                 }
             } else {
                 let value = (self.0)();

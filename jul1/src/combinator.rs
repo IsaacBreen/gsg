@@ -122,6 +122,9 @@ macro_rules! match_parser {
 
 pub trait CombinatorTrait: std::fmt::Debug {
     fn as_any(&self) -> &dyn std::any::Any;
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
     fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {}
     fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults);
@@ -158,6 +161,10 @@ pub trait ParserTrait: std::fmt::Debug {
 impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         (**self).as_any()
+    }
+
+    fn type_name(&self) -> &'static str {
+        (**self).type_name()
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
