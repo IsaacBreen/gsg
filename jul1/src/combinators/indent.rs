@@ -2,7 +2,7 @@ use crate::RightData;
 use std::mem::transmute;
 use std::rc::Rc;
 use aliasable::boxed::AliasableBox;
-use crate::{choice, choice_greedy, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, ParseResultTrait, seq, U8Set, VecX, VecY, IntoDyn, UnambiguousParseResults};
+use crate::{choice, choice_greedy, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, ParseResultTrait, seq, U8Set, VecX, VecY, IntoDyn};
 
 #[derive(Debug)]
 pub enum IndentCombinator {
@@ -67,12 +67,6 @@ impl CombinatorTrait for IndentCombinator {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        let (_, parse_results) = self.parse(right_data, bytes);
-        parse_results.into()
-    }
-
     fn parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
@@ -91,7 +85,7 @@ impl CombinatorTrait for IndentCombinator {
                                     // Remove the last `dedents` indents from the indent stack
                                     let new_size = right_data_inner.fields2.indents.len() - dedents as usize;
                                     Rc::make_mut(&mut right_data_inner.fields2).indents.truncate(new_size);
-                                    // println!("Registering {} dedents. Right  {:?}", dedents, right_data);
+                                    // println!("Registering {} dedents. Right data: {:?}", dedents, right_data);
                                     true
                                 })
                             ),
