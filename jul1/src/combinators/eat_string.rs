@@ -27,7 +27,7 @@ impl CombinatorTrait for EatString {
         self
     }
 
-    fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatStringParser {
             string: self.string.clone(),
             index: 0,

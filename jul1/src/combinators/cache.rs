@@ -112,7 +112,7 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         todo!()
     }
-    fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();

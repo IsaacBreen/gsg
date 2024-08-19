@@ -116,7 +116,7 @@ impl<T: CombinatorTrait + Clone + 'static> CombinatorTrait for Deferred<T> {
         f(self.inner.get_mut().unwrap())
     }
 
-    fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let combinator = self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator());
         combinator.parse(right_data, bytes)
     }

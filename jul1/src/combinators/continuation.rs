@@ -84,7 +84,7 @@ impl CombinatorTrait for Continuation {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a>(&'a self, right_data: RightData<>, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
         // match result {
