@@ -9,7 +9,7 @@ use crate::VecX;
 
 #[derive(Debug)]
 pub struct Repeat1<T: CombinatorTrait> {
-    pub(crate) a: Rc<T>,
+    pub(crate) a: T,
     pub(crate) greedy: bool,
 }
 
@@ -28,7 +28,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(self.a.as_ref());
+        f(&self.a);
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
@@ -39,7 +39,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
             return (parser, parse_results);
         } else if parse_results.right_data_vec.is_empty() {
             return (Parser::Repeat1Parser(Repeat1Parser {
-                a: self.a.as_ref(),
+                a: &self.a,
                 a_parsers: vec![parser],
                 position: start_position + bytes.len(),
                 greedy: self.greedy
@@ -86,7 +86,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
 
         (
             Parser::Repeat1Parser(Repeat1Parser {
-                a: self.a.as_ref(),
+                a: &self.a,
                 a_parsers: parsers,
                 position: start_position + bytes.len(),
                 greedy: self.greedy
@@ -141,24 +141,24 @@ impl ParserTrait for Repeat1Parser<'_> {
 
 pub fn repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
     profile_internal("repeat1", Repeat1 {
-        a: Rc::new(a.into_combinator()),
+        a: a.into_combinator(),
         greedy: false,
     })
 }
 
 pub fn repeat1_greedy<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
     profile_internal("repeat1_greedy", Repeat1 {
-        a: Rc::new(a.into_combinator()),
+        a: a.into_combinator(),
         greedy: true,
     })
 }
 
 pub fn repeat0(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
-    Opt { inner: Repeat1 { a: Rc::new(a), greedy: false }, greedy: false }
+    Opt { inner: Repeat1 { a, greedy: false }, greedy: false }
 }
 
 pub fn repeat0_greedy(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
-    Opt { inner: Repeat1 { a: Rc::new(a), greedy: true }, greedy: true }
+    Opt { inner: Repeat1 { a, greedy: true }, greedy: true }
 }
 
 pub fn seprep1(a: impl CombinatorTrait + Clone, b: impl CombinatorTrait)-> impl CombinatorTrait {

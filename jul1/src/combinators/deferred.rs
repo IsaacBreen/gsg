@@ -33,10 +33,17 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T,
     }
 }
 
+// todo: this trait is really messy. Any way to clean it up?
 // Trait for evaluating the deferred function
-pub trait DeferredFnTrait<T: CombinatorTrait + Clone + 'static>: Debug {
-    fn evaluate_to_combinator(&self) -> T;
+trait DeferredFnTrait<T: CombinatorTrait + Clone + 'static>: Debug {
+    // todo: the fact that we need this struct right now is dumb. Aim to remove it. But we don't want to have to return a (bool, T) tuple - that's even worse and it's what we're trying to avoid by using the struct.
+    fn evaluate_to_combinator(&self) -> EvaluateToCombinatorResult<T>;
     fn get_addr(&self) -> usize;
+}
+
+struct EvaluateToCombinatorResult<T> {
+    combinator: T,
+    cache_hit: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -56,14 +63,17 @@ struct CacheEntry {
 }
 
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
-    fn evaluate_to_combinator(&self) -> T {
+    fn evaluate_to_combinator(&self) -> EvaluateToCombinatorResult<T> {
         DEFERRED_CACHE.with(|cache| {
             if cache.borrow().contains_key(&self.key) {
                 count_hit!("deferred cache hit");
                 let borrowed = cache.borrow();
                 let entry = borrowed.get(&self.key).unwrap();
                 if let Some(value) = entry.value.as_any().downcast_ref::<T>() {
-                    value.clone()
+                    return EvaluateToCombinatorResult {
+                        combinator: value.clone(),
+                        cache_hit: true,
+                    };
                 } else {
                     // Richer error printing
                     eprintln!("Deferred Cache: {:#?}", borrowed);
@@ -80,7 +90,10 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     value: Box::new(value.clone()),
                     caller_locations: RefCell::new(HashSet::new()),
                 });
-                value
+                return EvaluateToCombinatorResult {
+                    combinator: value,
+                    cache_hit: false,
+                };
             }
         })
     }
@@ -109,11 +122,7 @@ impl<T: CombinatorTrait + Clone + 'static> CombinatorTrait for Deferred<T> {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator()))
-    }
-
-    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
-        f(self.inner.get_mut().unwrap())
+        f(self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator().combinator))
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
@@ -122,12 +131,14 @@ impl<T: CombinatorTrait + Clone + 'static> CombinatorTrait for Deferred<T> {
         combinator.parse(right_data, bytes)
     }
 
-    fn compile_mut(&mut self) {
+    fn compile_inner(&self) {
         // Force evaluation and compilation of the inner combinator
         let _ = self.inner.get_or_init(|| {
-            let mut combinator = self.deferred_fn.evaluate_to_combinator();
-            combinator.compile_mut();
-            combinator
+            let result = self.deferred_fn.evaluate_to_combinator();
+            if !result.cache_hit {
+                result.combinator.compile_inner();
+            }
+            result.combinator
         });
     }
 }

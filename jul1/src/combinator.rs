@@ -128,14 +128,13 @@ pub trait CombinatorTrait: std::fmt::Debug {
         std::any::type_name::<Self>()
     }
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
-    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {}
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
     fn compile(mut self) -> Self where Self: Sized {
-        self.compile_mut();
+        self.compile_inner();
         self
     }
-    fn compile_mut(&mut self) {
-        self.apply_mut(&mut |combinator| combinator.compile_mut());
+    fn compile_inner(&self) {
+        self.apply(&mut |combinator| combinator.compile_inner());
     }
 }
 
@@ -173,12 +172,12 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
         (**self).apply(f);
     }
 
-    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
-        (**self).apply_mut(f);
-    }
-
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (**self).parse(right_data, bytes)
+    }
+
+    fn compile_inner(&self) {
+        (**self).compile_inner();
     }
 }
 
