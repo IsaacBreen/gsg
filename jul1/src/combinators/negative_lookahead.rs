@@ -26,10 +26,6 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
         f(&self.inner);
     }
 
-    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
-        f(&mut self.inner);
-    }
-
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (inner, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         let (indices, node) = self.root.get_indices(bytes);

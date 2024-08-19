@@ -107,10 +107,6 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
         f(&self.inner);
     }
 
-    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
-        f(&mut self.inner);
-    }
-
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         profile!(&self.tag, {
             let (parser, parse_results) = self.inner.parse(right_data, bytes);

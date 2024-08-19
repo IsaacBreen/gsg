@@ -48,12 +48,6 @@ impl CombinatorTrait for Choice {
             f(child);
         }
     }
-
-    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
-        for child in self.children.iter_mut() {
-            f(child);
-        }
-    }
 }
 
 impl ParserTrait for ChoiceParser<'_> {

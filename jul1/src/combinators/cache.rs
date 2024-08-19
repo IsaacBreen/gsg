@@ -48,7 +48,7 @@ impl GlobalCache {
 
 #[derive(Debug)]
 struct CacheKey {
-    combinator: &'static dyn CombinatorTrait,
+    combinator: Rc<dyn CombinatorTrait>,
     right_data: RightData,
 }
 
@@ -61,7 +61,7 @@ impl Hash for CacheKey {
 
 impl PartialEq for CacheKey {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
+        Rc::ptr_eq(&self.combinator, &other.combinator) && self.right_data == other.right_data
     }
 }
 
@@ -81,7 +81,7 @@ pub struct CacheContext<T: CombinatorTrait> {
 
 #[derive(Debug)]
 pub struct Cached<T: CombinatorTrait> {
-    pub inner: T,
+    pub inner: Rc<T>,
 }
 
 #[derive(Debug)]
@@ -135,10 +135,6 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
     }
-
-    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
-        f(&mut self.inner);
-    }
 }
 
 impl ParserTrait for CacheContextParser<'_> {
@@ -181,7 +177,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
     }
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(move |cache| {
-            let key = CacheKey { combinator: &self.inner, right_data: right_data.clone() };
+            let key = CacheKey { combinator: self.inner.clone(), right_data: right_data.clone() };
 
             let mut global_cache = cache.borrow_mut();
             let parse_id = global_cache.parse_id.unwrap();
@@ -199,7 +195,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
                 parser: None,
                 maybe_parse_results: None,
             }));
-            let inner: &'static T = unsafe { transmute(&self.inner) };
+            let inner: &'static T = unsafe { transmute(self.inner.as_ref()) };
             let (parser, mut parse_results): (Parser<'static>, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
             profile!("Cached.parse: parse_results.squash", parse_results.squash());
 
@@ -215,11 +211,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(&self.inner);
-    }
-
-    fn apply_mut(&mut self, f: &mut dyn FnMut(&mut dyn CombinatorTrait)) {
-        f(&mut self.inner);
+        f(self.inner.as_ref());
     }
 }
 
@@ -239,7 +231,7 @@ pub fn cache_context<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait {
 
 // todo: do we really need to make this 'static?
 pub fn cached<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
-    profile_internal("cached", Cached { inner: a.into_combinator() })
+    profile_internal("cached", Cached { inner: Rc::new(a.into_combinator()) })
     // a.into_combinator()
 }
 
