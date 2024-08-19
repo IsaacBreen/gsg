@@ -16,7 +16,7 @@ thread_local! {
 
 #[derive(Debug)]
 pub struct Deferred<T: CombinatorTrait + 'static> {
-    deferred_fn: Rc<dyn DeferredFnTrait<T>>,
+    deferred_fn: Box<dyn DeferredFnTrait<T>>,
     inner: OnceCell<T>,
 }
 
@@ -102,7 +102,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
 
 impl<T: CombinatorTrait + 'static> PartialEq for Deferred<T> {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.deferred_fn, &other.deferred_fn)
+        std::ptr::eq(&self.deferred_fn, &other.deferred_fn)
     }
 }
 
@@ -159,7 +159,7 @@ pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRe
     });
     let f = move || StrongRef::new(f());
     Deferred {
-        deferred_fn: Rc::new(DeferredFn {
+        deferred_fn: Box::new(DeferredFn {
             f,
             key
         }),
