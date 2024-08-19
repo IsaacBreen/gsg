@@ -38,7 +38,7 @@ pub enum Parser<'a> {
     ProfiledParser(ProfiledParser<'a>),
     BruteForceParser(BruteForceParser),
     ContinuationParser(ContinuationParser),
-    FastParserWrapper(FastParserWrapper),
+    FastParserWrapper(FastParserWrapper<'a>),
     DynParser(Box<dyn ParserTrait + 'a>),
     OwningParser(OwningParser<'a>),
     TaggedParser(TaggedParser<'a>),

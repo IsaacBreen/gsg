@@ -8,8 +8,8 @@ pub struct FastCombinatorWrapper {
     pub(crate) regex: Regex,
 }
 
-pub struct FastParserWrapper {
-    pub(crate) regex_state: RegexState,
+pub struct FastParserWrapper<'a> {
+    pub(crate) regex_state: RegexState<'a>,
     pub(crate) right_data: Option<RightData>,
 }
 
@@ -19,7 +19,7 @@ impl Debug for FastCombinatorWrapper {
     }
 }
 
-impl Debug for FastParserWrapper {
+impl Debug for FastParserWrapper<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FastParserWrapper").finish_non_exhaustive()
     }
@@ -48,7 +48,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
     }
 }
 
-impl ParserTrait for FastParserWrapper {
+impl ParserTrait for FastParserWrapper<'_> {
     fn get_u8set(&self) -> U8Set {
         self.regex_state.get_u8set()
     }

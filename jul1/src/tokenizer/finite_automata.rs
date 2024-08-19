@@ -39,21 +39,9 @@ pub struct DFA {
     start_state: usize,
 }
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug)]
 pub struct Regex {
-    dfa: Rc<DFA>,
-}
-
-impl PartialEq for Regex {
-    fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.dfa, &other.dfa)
-    }
-}
-
-impl Hash for Regex {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.dfa.states.len().hash(state);
-    }
+    dfa: DFA,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -68,9 +56,9 @@ pub struct FinalStateReport {
     pub inner: Option<Match>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RegexState {
-    pub regex: Regex,
+#[derive(Debug)]
+pub struct RegexState<'a> {
+    pub regex: &'a Regex,
     pub(crate) position: usize,
     current_state: usize,
     prev_finalizer: Option<Finalizer>,
@@ -241,7 +229,7 @@ impl NFAState {
 impl ExprGroups {
     pub fn build(self) -> Regex {
         Regex {
-            dfa: Rc::new(self.build_nfa().to_dfa()),
+            dfa: self.build_nfa().to_dfa(),
         }
     }
 
@@ -470,7 +458,7 @@ impl NFA {
     }
 }
 
-impl RegexState {
+impl RegexState<'_> {
     pub fn execute(&mut self, text: &[u8]) {
         let dfa = &self.regex.dfa;
         let mut local_position = 0;
@@ -525,7 +513,7 @@ impl RegexState {
     }
 }
 
-impl RegexState {
+impl RegexState<'_> {
     pub fn get_u8set(&self) -> U8Set {
         // Get all possible u8s that can match next
         let mut u8set = U8Set::new();
@@ -570,7 +558,7 @@ impl RegexState {
 impl Regex {
     pub fn init(&self) -> RegexState {
         RegexState {
-            regex: self.clone(),
+            regex: self,
             position: 0,
             current_state: 0,
             prev_finalizer: self.dfa.states[self.dfa.start_state].finalizer,
