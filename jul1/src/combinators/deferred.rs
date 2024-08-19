@@ -75,7 +75,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     eprintln!("Cache dump:");
                     for (addr, entry) in cache.iter() {
                         eprintln!("- cache entry, addr: {}", addr);
-                        eprintln!("{:#?}", entry);
+                        eprintln!("{:?}", entry);
                     }
                     let actual_type_name = std::any::type_name::<T>();
                     let actual_entry = CacheEntry {
