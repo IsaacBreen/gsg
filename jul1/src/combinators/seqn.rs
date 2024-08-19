@@ -2,11 +2,13 @@ use std::rc::Rc;
 use std::collections::BTreeMap;
 use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, RightData, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator};
 
-// macro_rules! profile {
-//     ($name:expr, $body:expr) => {
-//         $body
-//     };
-// }
+macro_rules! profile {
+    ($name:expr, $body:expr) => {
+        $body
+    };
+}
+
+macro_rules! count_hit { ($tag:expr) => {} }
 
 #[macro_export]
 macro_rules! define_seq {
