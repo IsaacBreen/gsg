@@ -54,6 +54,21 @@ struct CacheEntry {
     value_str: String,
 }
 
+
+// Macro for printing cache entries
+macro_rules! print_entry {
+    ($index:expr, $addr:expr, $type_name:expr, $value_str:expr) => {
+        if $type_name.len() + $value_str.len() < 100 {
+            eprintln!("- cache entry {}, addr: {}, type_name: {}, value_str: {}", $index, $addr, $type_name, $value_str);
+        } else {
+            eprintln!("- cache entry {}", $index);
+            eprintln!("  - addr: {}", $addr);
+            eprintln!("  - type_name: {}", $type_name);
+            eprintln!("  - value_str: {}", $value_str);
+        }
+    };
+}
+
 impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
     fn evaluate_to_combinator(&self) -> T {
         DEFERRED_CACHE.with(|cache| {
@@ -71,6 +86,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     let actual_type_name = std::any::type_name::<T>();
                     let actual_value_str = format!("{:?}", self.0());
                     // Use the macro for the actual value as well
+                    print_entry!("matched cache entry", self.1, entry.type_name, &entry.value_str);
                     print_entry!("actual value", self.1, actual_type_name, &actual_value_str);
                     panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.1, std::any::TypeId::of::<T>(), entry.value.type_id());
                 }
@@ -86,21 +102,6 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
     fn get_addr(&self) -> usize {
         self.1
     }
-}
-
-// Macro for printing cache entries
-#[macro_export]
-macro_rules! print_entry {
-    ($index:expr, $addr:expr, $type_name:expr, $value_str:expr) => {
-        if $type_name.len() + $value_str.len() < 100 {
-            eprintln!("- cache entry {}, addr: {}, type_name: {}, value_str: {}", $index, $addr, $type_name, $value_str);
-        } else {
-            eprintln!("- cache entry {}", $index);
-            eprintln!("  - addr: {}", $addr);
-            eprintln!("  - type_name: {}", $type_name);
-            eprintln!("  - value_str: {}", $value_str);
-        }
-    };
 }
 
 impl<T: CombinatorTrait + Clone> PartialEq for Deferred<T> {
