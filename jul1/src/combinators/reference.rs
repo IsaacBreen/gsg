@@ -1,17 +1,28 @@
+use std::fmt::{Debug, Formatter};
 // src/combinators/reference.rs
 use std::hash::{Hash, Hasher};
 use std::rc::{Rc, Weak};
 use once_cell::unsync::OnceCell;
 use crate::*;
 
-#[derive(Debug)]
 pub struct WeakRef<T> {
     pub inner: Weak<OnceCell<T>>,
 }
 
-#[derive(Debug)]
 pub struct StrongRef<T> {
     pub inner: Rc<OnceCell<T>>,
+}
+
+impl<T> Debug for WeakRef<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WeakRef").finish_non_exhaustive()
+    }
+}
+
+impl<T: Debug> Debug for StrongRef<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StrongRef").finish_non_exhaustive()
+    }
 }
 
 impl<T> Clone for StrongRef<T> {
