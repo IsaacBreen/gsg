@@ -439,7 +439,7 @@ macro_rules! seq {
         }
     }};
     ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr, $c15:expr, $($rest:expr),+ $(,)?) => {{
-        fn convert(x: impl $crate::IntoCombinator) -> Box<dyn $crate::CombinatorTrait> where Self::Output: 'static {
+        fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output: 'static {
             Box::new(x.into_combinator())
         }
 
