@@ -63,7 +63,8 @@ macro_rules! define_choice {
                     $(
                         let next_combinator = &self.$rest;
                         let mut parse_result = next_combinator.one_shot_parse(right_data.clone(), bytes);
-                        match (parse_result, final_parse_result) {
+                        // TODO: avoid this clone
+                        match (parse_result.clone(), final_parse_result) {
                             (Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete), _) => {
                                 return parse_result;
                             },
