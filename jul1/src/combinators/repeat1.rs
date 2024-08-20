@@ -84,7 +84,9 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
                 }
                 Err(UnambiguousParseError::Ambiguous) => {
                     let (parser, mut parse_results_rest) = self.old_parse(right_data, &bytes[offset..]);
-                    assert!(!parse_results_rest.right_data_vec.is_empty());
+                    if let Ok(prev_right_data) = prev_parse_result {
+                        parse_results_rest.right_data_vec.push(prev_right_data);
+                    }
                     return (parser, parse_results_rest);
                 }
                 Err(UnambiguousParseError::Incomplete) => {
