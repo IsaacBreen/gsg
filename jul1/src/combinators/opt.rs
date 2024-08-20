@@ -18,10 +18,18 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.inner.one_shot_parse(right_data.clone(), bytes);
-        match parse_result {
-            Ok(right_data) => Ok(right_data),
-            Err(UnambiguousParseError::Fail) => Ok(right_data),
-            Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => parse_result,
+        if self.greedy {
+            match parse_result {
+                Ok(right_data) => Ok(right_data),
+                Err(UnambiguousParseError::Fail) => Ok(right_data),
+                Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => parse_result,
+            }
+        } else {
+            match parse_result {
+                Ok(right_data) => Err(UnambiguousParseError::Ambiguous),
+                Err(UnambiguousParseError::Fail) => Ok(right_data),
+                Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => parse_result,
+            }
         }
     }
 

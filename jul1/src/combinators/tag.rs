@@ -73,8 +73,8 @@ impl ParserTrait for TaggedParser<'_> {
 pub fn tag<T: IntoCombinator + 'static>(tag: &'static str, a: T)-> impl CombinatorTrait + 'static where T::Output: 'static {
     // TODO: ffs
     // Tagged { inner: Box::new(profile(tag, a)), tag: tag.to_string() }
-    // Tagged { inner: Box::new(a.into_combinator()), tag: tag.to_string() }
-    a.into_combinator()
+    Tagged { inner: Box::new(a.into_combinator()), tag: tag.to_string() }
+    // a.into_combinator()
 }
 
  // impl From<Tagged> for Combinator {
