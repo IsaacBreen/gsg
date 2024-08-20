@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
-use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData};
+use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, Squash};
 
 macro_rules! profile {
     ($name:expr, $body:expr) => {
@@ -156,7 +156,8 @@ macro_rules! define_seq {
 
                     // rest of the children
                     $(
-                        let right_data_to_init_this_child = std::mem::take(&mut new_right_data);
+                        let mut right_data_to_init_this_child = std::mem::take(&mut new_right_data);
+                        right_data_to_init_this_child.squash();
 
                         // step existing parsers for this child
                         self.$rest.retain_mut(|parser| {
