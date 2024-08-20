@@ -48,14 +48,10 @@ macro_rules! define_seq {
             }
 
             fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
-                let first_combinator = &self.$first;
-                right_data = first_combinator.one_shot_parse(right_data, bytes)?;
-
+                right_data = (&self.$).one_shot_parse(right_data, bytes)?;
                 $(
-                    let rest_combinator = &self.$rest;
-                    right_data = rest_combinator.one_shot_parse(right_data, bytes)?;
+                    right_data = (&self.$).one_shot_parse(right_data, bytes)?;
                 )+
-
                 $crate::UnambiguousParseResults::Ok(right_data)
             }
 
