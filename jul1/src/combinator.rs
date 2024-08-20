@@ -152,7 +152,7 @@ pub trait CombinatorTrait: std::fmt::Debug {
 }
 
 pub fn dumb_one_shot_parse<T: CombinatorTrait>(combinator: &T, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-    let (parser, parse_results) = combinator.parse(right_data, bytes);
+    let (parser, parse_results) = combinator.old_parse(right_data, bytes);
     UnambiguousParseResults::from(parse_results)
 }
 
