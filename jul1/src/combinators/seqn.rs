@@ -48,9 +48,11 @@ macro_rules! define_seq {
             }
 
             fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
+                let start_position = right_data.right_data_inner.fields1.position;
                 right_data = self.$first.one_shot_parse(right_data, bytes)?;
                 $(
-                    right_data = self.$rest.one_shot_parse(right_data, bytes)?;
+                    let offset = right_data.right_data_inner.fields1.position - start_position;
+                    right_data = self.$rest.one_shot_parse(right_data, &bytes[offset..])?;
                 )+
                 $crate::UnambiguousParseResults::Ok(right_data)
             }
