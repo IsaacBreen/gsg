@@ -60,7 +60,7 @@ impl GlobalCache {
 
 #[derive(Debug)]
 struct CacheKey {
-    combinator: *const dyn CombinatorTrait,
+    combinator: *const dyn CombinatorTrait<Parser=dyn ParserTrait>,
     right_data: RightData,
 }
 
