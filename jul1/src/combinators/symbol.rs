@@ -31,7 +31,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
 }
 
 impl<T: CombinatorTrait + 'static> ApplyToChildren for Symbol<T> {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {
         f(self.value.as_ref());
     }
 }

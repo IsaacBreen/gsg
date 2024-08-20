@@ -90,7 +90,7 @@ impl CombinatorTrait for Choice {
 }
 
 impl ApplyToChildren for Choice {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {
         for child in self.children.iter() {
             f(child);
         }

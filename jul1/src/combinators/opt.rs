@@ -42,7 +42,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
 }
 
 impl<T: CombinatorTrait + 'static> ApplyToChildren for Opt<T> {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {
         f(&self.inner);
     }
 }

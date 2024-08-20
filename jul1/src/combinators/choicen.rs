@@ -129,7 +129,7 @@ macro_rules! define_choice {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
-            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {
                 f(&self.$first);
                 $(f(&self.$rest);)+
             }
