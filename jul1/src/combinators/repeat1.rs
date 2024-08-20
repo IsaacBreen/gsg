@@ -57,6 +57,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     }
 
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        // return self.old_parse(right_data, bytes);
         let start_position = right_data.right_data_inner.fields1.position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
@@ -65,16 +66,27 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
             match parse_result {
                 Ok(new_right_data) => {
                     if !self.greedy && prev_parse_result.is_ok() {
-                        return self.old_parse(right_data, bytes);
+                        let (parser, mut parse_results_rest) = self.old_parse(right_data, &bytes[offset..]);
+                        let right_data = parse_results_rest.right_data_vec.pop().unwrap();
+                        parse_results_rest.right_data_vec.push(right_data);
+                        return (parser, parse_results_rest);
                     }
                     prev_parse_result = Ok(new_right_data.clone());
                     right_data = new_right_data;
                 }
                 Err(UnambiguousParseError::Fail) => {
-                    return (Parser::FailParser(FailParser), ParseResults::empty_unfinished());
+                    if let Ok(right_data) = prev_parse_result {
+                        return (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true));
+                    } else {
+                        return (Parser::FailParser(FailParser), ParseResults::empty_unfinished());
+                    }
                 }
                 Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete) => {
-                    return self.old_parse(right_data, &bytes[offset..]);
+                    let (parser, mut parse_results_rest) = self.old_parse(right_data, &bytes[offset..]);
+                    if let Ok(right_data) = prev_parse_result {
+                        parse_results_rest.right_data_vec.push(right_data);
+                    }
+                    return (parser, parse_results_rest);
                 }
             }
         }
