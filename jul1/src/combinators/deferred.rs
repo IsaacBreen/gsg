@@ -132,7 +132,7 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Deferred<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator().combinator))
     }
     fn compile_inner(&self) {

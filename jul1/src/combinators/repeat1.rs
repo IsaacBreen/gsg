@@ -162,7 +162,7 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Repeat1<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(&self.a);
     }
 }

@@ -86,7 +86,7 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for WeakRef<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(self.inner.upgrade().expect("WeakRef is already dropped").get().expect("Combinator hasn't been set"));
     }
 }
@@ -109,7 +109,7 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for StrongRef<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(self.inner.get().unwrap());
     }
 }

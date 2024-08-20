@@ -139,7 +139,7 @@ pub trait BaseCombinatorTrait {
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {}
     fn compile(mut self) -> Self
     where
         Self: Sized
@@ -199,7 +199,7 @@ impl<T: CombinatorTrait + ?Sized> BaseCombinatorTrait for Box<T> {
     fn type_name(&self) -> &'static str {
         (**self).type_name()
     }
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         (**self).apply_to_children(f);
     }
     fn compile_inner(&self) {

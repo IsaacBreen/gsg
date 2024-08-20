@@ -185,14 +185,14 @@ macro_rules! define_seq {
 
         impl<$first: 'static, $($rest: 'static),+> BaseCombinatorTrait for $seq_name<$first, $($rest),+>
         where
-            $first: BaseCombinatorTrait,
-            $($rest: BaseCombinatorTrait),+
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
         {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
 
-            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
                 f(&self.$first);
                 $(f(&self.$rest);)+
             }

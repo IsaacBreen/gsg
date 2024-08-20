@@ -126,7 +126,7 @@ macro_rules! define_choice {
                 self
             }
 
-            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
                 f(&self.$first);
                 $(f(&self.$rest);)+
             }

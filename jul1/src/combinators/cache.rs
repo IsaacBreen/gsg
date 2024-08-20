@@ -166,7 +166,7 @@ impl<T: CombinatorTrait> BaseCombinatorTrait for CacheContext<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         todo!()
     }
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(&self.inner);
     }
 }
@@ -270,7 +270,7 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Cached<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         todo!()
     }
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(&self.inner);
     }
 }
