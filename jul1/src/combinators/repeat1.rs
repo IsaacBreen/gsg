@@ -58,6 +58,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
 
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         // return self.old_parse(right_data, bytes);
+        // let start_right_data = right_data.clone();
         let start_position = right_data.right_data_inner.fields1.position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
@@ -67,24 +68,31 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
                 Ok(new_right_data) => {
                     if !self.greedy && prev_parse_result.is_ok() {
                         let (parser, mut parse_results_rest) = self.old_parse(right_data, &bytes[offset..]);
-                        let right_data = parse_results_rest.right_data_vec.pop().unwrap();
-                        parse_results_rest.right_data_vec.push(right_data);
+                        let prev_right_data = parse_results_rest.right_data_vec.pop().unwrap();
+                        parse_results_rest.right_data_vec.push(prev_right_data);
                         return (parser, parse_results_rest);
                     }
                     prev_parse_result = Ok(new_right_data.clone());
                     right_data = new_right_data;
                 }
                 Err(UnambiguousParseError::Fail) => {
-                    if let Ok(right_data) = prev_parse_result {
-                        return (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true));
+                    if let Ok(prev_right_data) = prev_parse_result {
+                        return (Parser::FailParser(FailParser), ParseResults::new_single(prev_right_data, true));
                     } else {
                         return (Parser::FailParser(FailParser), ParseResults::empty_finished());
                     }
                 }
-                Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete) => {
+                Err(UnambiguousParseError::Ambiguous) => {
                     let (parser, mut parse_results_rest) = self.old_parse(right_data, &bytes[offset..]);
-                    if let Ok(right_data) = prev_parse_result {
-                        parse_results_rest.right_data_vec.push(right_data);
+                    assert!(!parse_results_rest.right_data_vec.is_empty());
+                    return (parser, parse_results_rest);
+                }
+                Err(UnambiguousParseError::Incomplete) => {
+                    let (parser, mut parse_results_rest) = self.old_parse(right_data, &bytes[offset..]);
+                    if !self.greedy {
+                        if let Ok(prev_right_data) = prev_parse_result {
+                            parse_results_rest.right_data_vec.push(prev_right_data);
+                        }
                     }
                     return (parser, parse_results_rest);
                 }
