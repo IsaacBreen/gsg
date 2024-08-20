@@ -128,7 +128,7 @@ pub trait CombinatorTrait: std::fmt::Debug {
         std::any::type_name::<Self>()
     }
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults;
     fn compile(mut self) -> Self where Self: Sized {
         self.compile_inner();
@@ -140,7 +140,7 @@ pub trait CombinatorTrait: std::fmt::Debug {
 }
 
 pub fn dumb_one_shot_parse<T: CombinatorTrait>(combinator: &T, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-    let (parser, parse_results) = combinator.parse(right_data, bytes);
+    let (parser, parse_results) = combinator.old_parse(right_data, bytes);
     UnambiguousParseResults::from(parse_results)
 }
 
@@ -182,8 +182,8 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
         (**self).one_shot_parse(right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        (**self).parse(right_data, bytes)
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        (**self).old_parse(right_data, bytes)
     }
 
     fn compile_inner(&self) {
@@ -204,7 +204,7 @@ impl ParserTrait for Parser<'_> {
 
 pub trait CombinatorTraitExt: CombinatorTrait {
     fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
-        self.parse(right_data, &[])
+        self.old_parse(right_data, &[])
     }
 }
 

@@ -56,9 +56,9 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
         }
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
-        let (parser, parse_results) = self.a.parse(right_data, bytes);
+        let (parser, parse_results) = self.a.old_parse(right_data, bytes);
         if parse_results.done() && parse_results.right_data_vec.is_empty() {
             // Shortcut
             return (parser, parse_results);
@@ -82,7 +82,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
         while next_right_data.len() > 0 {
             for new_right_data in std::mem::take(&mut next_right_data) {
                 let offset = new_right_data.right_data_inner.fields1.position - start_position;
-                let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
+                let (parser, parse_results) = self.a.old_parse(new_right_data, &bytes[offset..]);
                 if !parse_results.done() {
                     parsers.push(parser);
                 }
@@ -149,7 +149,7 @@ impl ParserTrait for Repeat1Parser<'_> {
         while i < right_data_as.len() {
             let right_data_a = right_data_as[i].clone();
             let offset = right_data_a.right_data_inner.fields1.position - self.position;
-            let (a_parser, parse_results) = self.a.parse(right_data_a, &bytes[offset..]);
+            let (a_parser, parse_results) = self.a.old_parse(right_data_a, &bytes[offset..]);
             if !parse_results.done() {
                 self.a_parsers.push(a_parser);
             }

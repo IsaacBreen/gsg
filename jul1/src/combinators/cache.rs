@@ -143,7 +143,7 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
         })
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
@@ -154,7 +154,7 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
                 global_cache.parse_id_counter += 1;
                 parse_id
             };
-            let (parser, results) = self.inner.parse(right_data, bytes);
+            let (parser, results) = self.inner.old_parse(right_data, bytes);
             let mut global_cache = cache.borrow_mut();
             global_cache.entries.get_mut(&parse_id).unwrap().reverse();
             global_cache.cleanup();
@@ -230,7 +230,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
         })
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         GLOBAL_CACHE.with(move |cache| {
             let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn CombinatorTrait, right_data: right_data.clone() };
 
@@ -251,7 +251,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
                 maybe_parse_results: None,
             }));
             let inner: &'static T = unsafe { transmute(&self.inner) };
-            let (parser, mut parse_results): (Parser<'static>, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
+            let (parser, mut parse_results): (Parser<'static>, ParseResults) = profile!("Cached.parse: inner.parse", inner.old_parse(right_data, bytes));
             profile!("Cached.parse: parse_results.squash", parse_results.squash());
 
             let mut global_cache = cache.borrow_mut();

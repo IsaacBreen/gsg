@@ -34,7 +34,7 @@ impl CombinatorTrait for EatByteStringChoice {
         dumb_one_shot_parse(self, right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatByteStringChoiceParser {
             root: self.root.as_ref(),
             current_node: self.root.as_ref(),

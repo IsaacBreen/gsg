@@ -24,7 +24,7 @@ impl CombinatorTrait for EatU8 {
         dumb_one_shot_parse(self, right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatU8Parser {
             u8set: self.u8set.clone(),
             right_data: Some(right_data),

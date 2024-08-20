@@ -47,7 +47,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
         }
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
         if regex_state.failed() {

@@ -33,8 +33,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
         }
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let (parser, mut parse_results) = self.inner.old_parse(right_data.clone(), bytes);
         if !(self.greedy && parse_results.succeeds_decisively()) {
             // TODO: remove the condition below. It's a hack.
             if parse_results.right_data_vec.is_empty() {  // TODO: remove this line

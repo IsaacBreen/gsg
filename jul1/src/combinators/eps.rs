@@ -17,7 +17,7 @@ impl CombinatorTrait for Eps {
         dumb_one_shot_parse(self, right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (Parser::EpsParser(EpsParser), ParseResults::new_single(right_data, true))
     }
 }

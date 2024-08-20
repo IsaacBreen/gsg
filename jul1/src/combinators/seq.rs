@@ -42,7 +42,7 @@ impl CombinatorTrait for Seq {
         dumb_one_shot_parse(self, right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
 
         let mut combinator_index = self.start_index;
@@ -53,7 +53,7 @@ impl CombinatorTrait for Seq {
 
         let combinator = &self.children[combinator_index];
         let (parser, parse_results) = profile!("seq first child parse", {
-            combinator.parse(right_data, &bytes)
+            combinator.old_parse(right_data, &bytes)
         });
         let done = parse_results.done();
         if done && parse_results.right_data_vec.is_empty() {
@@ -81,7 +81,7 @@ impl CombinatorTrait for Seq {
             let offset = right_data.right_data_inner.fields1.position - start_position;
             let combinator = &self.children[combinator_index];
             let (parser, parse_results) = profile!("seq other child parse", {
-                combinator.parse(right_data, &bytes[offset..])
+                combinator.old_parse(right_data, &bytes[offset..])
             });
             if !parse_results.done() {
                 parsers.push((combinator_index, parser));
@@ -168,7 +168,7 @@ impl ParserTrait for SeqParser<'_> {
                 let offset = right_data.right_data_inner.fields1.position - self.position;
                 let combinator = &self.combinators[combinator_index];
                 let (parser, parse_results) = profile!("SeqParser::parse child Combinator::parse", {
-                    combinator.parse(right_data, &bytes[offset..])
+                    combinator.old_parse(right_data, &bytes[offset..])
                 });
                 if !parse_results.done() {
                     self.parsers.push((combinator_index, parser));

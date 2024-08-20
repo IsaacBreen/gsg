@@ -33,7 +33,7 @@ impl CombinatorTrait for EatString {
         dumb_one_shot_parse(self, right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let mut parser = EatStringParser {
             string: self.string.as_slice(),
             index: 0,

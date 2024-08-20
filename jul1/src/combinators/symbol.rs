@@ -28,8 +28,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
         self.value.one_shot_parse(right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (parser, parse_results) = self.value.parse(right_data, bytes);
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let (parser, parse_results) = self.value.old_parse(right_data, bytes);
         (parser, parse_results)
     }
 }

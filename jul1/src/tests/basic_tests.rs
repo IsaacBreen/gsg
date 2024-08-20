@@ -340,7 +340,7 @@ mod more_tests {
             }
         });
 
-        let (mut parser, parse_results) = combinator.parse(RightData::default(), b"hello");
+        let (mut parser, parse_results) = combinator.old_parse(RightData::default(), b"hello");
         assert!(parse_results.done());
         // assert_eq!(parse_results.right_data_vec.len(), 1);
         // assert_eq!(parse_results.right_data_vec[0].right_data_inner.fields1.position, 5);
@@ -360,7 +360,7 @@ mod more_tests {
             }
         });
 
-        let (mut parser, parse_results) = combinator.parse(RightData::default(), b"hell");
+        let (mut parser, parse_results) = combinator.old_parse(RightData::default(), b"hell");
         assert!(!parse_results.done());
         assert_eq!(parse_results.right_data_vec.len(), 0);
 
@@ -384,7 +384,7 @@ mod more_tests {
             }
         });
 
-        let (mut parser, parse_results) = combinator.parse(RightData::default(), b"hell");
+        let (mut parser, parse_results) = combinator.old_parse(RightData::default(), b"hell");
         assert!(!parse_results.done());
         assert_eq!(parse_results.right_data_vec.len(), 0);
 

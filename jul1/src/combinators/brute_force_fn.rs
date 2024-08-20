@@ -103,7 +103,7 @@ impl CombinatorTrait for BruteForce {
         }
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
         match convert_result(result) {

@@ -38,7 +38,7 @@ impl CombinatorTrait for CheckRightData {
         dumb_one_shot_parse(self, right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&right_data) {
             (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         } else {

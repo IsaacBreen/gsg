@@ -128,10 +128,10 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
         combinator.one_shot_parse(right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         // let combinator = self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator());
         let combinator = self.inner.get().expect("inner combinator not initialized");
-        combinator.parse(right_data, bytes)
+        combinator.old_parse(right_data, bytes)
     }
 
     fn compile_inner(&self) {

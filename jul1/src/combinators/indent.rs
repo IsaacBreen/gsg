@@ -38,7 +38,7 @@ impl<'a> OwningParser<'a> {
 
         let (parser, parse_results) = unsafe {
             // Create the parser using the combinator
-            let (parser, parse_results) = owning_parser.combinator.parse(right_data, bytes);
+            let (parser, parse_results) = owning_parser.combinator.old_parse(right_data, bytes);
 
             // Transmute the parser's lifetime to 'static
             let parser = transmute(parser);
@@ -67,7 +67,7 @@ impl CombinatorTrait for IndentCombinator {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+    fn old_parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
                 fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {
