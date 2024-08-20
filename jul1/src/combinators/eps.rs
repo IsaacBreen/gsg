@@ -14,7 +14,7 @@ impl CombinatorTrait for Eps {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+        Ok(right_data)
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

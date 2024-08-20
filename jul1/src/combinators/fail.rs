@@ -1,4 +1,4 @@
-use crate::{dumb_one_shot_parse, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, UnambiguousParseError, UnambiguousParseResults};
 use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, ParseResultTrait};
 
@@ -14,7 +14,7 @@ impl CombinatorTrait for Fail {
         self
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+        Err(UnambiguousParseError::Fail)
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

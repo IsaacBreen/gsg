@@ -32,8 +32,12 @@ impl CombinatorTrait for MutateRightData {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+    fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        if (self.run)(&mut right_data) {
+            Ok(right_data)
+        } else {
+            Err(UnambiguousParseError::Fail)
+        }
     }
     fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if (self.run)(&mut right_data) {
