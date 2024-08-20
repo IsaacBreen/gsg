@@ -29,7 +29,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (parser, parse_results) = self.value.old_parse(right_data, bytes);
+        let (parser, parse_results) = self.value.parse(right_data, bytes);
         (parser, parse_results)
     }
 }

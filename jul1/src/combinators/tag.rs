@@ -46,7 +46,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         count_hit!(self.tag);
-        let result = catch_unwind(AssertUnwindSafe(|| self.inner.old_parse(right_data, bytes)));
+        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (
                 Parser::TaggedParser(TaggedParser { inner: Box::new(parser), tag: self.tag.clone() }),

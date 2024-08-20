@@ -38,7 +38,7 @@ impl<'a> OwningParser<'a> {
 
         let (parser, parse_results) = unsafe {
             // Create the parser using the combinator
-            let (parser, parse_results) = owning_parser.combinator.old_parse(right_data, bytes);
+            let (parser, parse_results) = owning_parser.combinator.parse(right_data, bytes);
 
             // Transmute the parser's lifetime to 'static
             let parser = transmute(parser);

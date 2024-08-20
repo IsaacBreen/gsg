@@ -49,7 +49,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
         }
     }
     fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (parser, mut parse_results) = self.combinator.old_parse(right_data.clone(), bytes);
+        let (parser, mut parse_results) = self.combinator.parse(right_data.clone(), bytes);
         let has_right_data = !parse_results.right_data_vec.is_empty();
         let succeeds = if self.positive {
             // A positive lookahead succeeds if it yields right data now or it *could* yield right data later (i.e. it's not done yet)

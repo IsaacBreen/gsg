@@ -43,7 +43,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
         }
     }
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let (inner, mut parse_results) = self.inner.old_parse(right_data.clone(), bytes);
+        let (inner, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         let (indices, node) = self.root.get_indices(bytes);
         let indices: HashSet<usize> = indices.into_iter().collect();
         // Retain only results that don't coincide with the indices
