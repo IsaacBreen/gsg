@@ -104,8 +104,12 @@ impl TrieNode {
         self.is_end
     }
 
+    pub fn is_terminal(&self) -> bool {
+        self.valid_bytes.is_empty()
+    }
+
     pub fn is_absolute_end(&self) -> bool {
-        self.is_end && self.valid_bytes.is_empty()
+        self.is_end && self.is_terminal()
     }
 }
 

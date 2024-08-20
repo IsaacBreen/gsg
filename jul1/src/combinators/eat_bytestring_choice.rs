@@ -1,5 +1,5 @@
 // src/combinators/eat_bytestring_choice.rs
-use crate::{dumb_one_shot_parse, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, UnambiguousParseError, UnambiguousParseResults};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
@@ -31,7 +31,20 @@ impl CombinatorTrait for EatByteStringChoice {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+        let node = self.root.eat_all(bytes);
+        if let Some(node) = node {
+            if !node.is_end() {
+                Err(UnambiguousParseError::Incomplete)
+            } else {
+                if node.is_terminal() {
+                    Ok(right_data)
+                } else {
+                    Err(UnambiguousParseError::Ambiguous)
+                }
+            }
+        } else {
+            Err(UnambiguousParseError::Fail)
+        }
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
