@@ -32,15 +32,16 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
         f(&self.a);
     }
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
             let offset = right_data.right_data_inner.fields1.position - start_position;
             let parse_result = self.a.one_shot_parse(right_data.clone(), &bytes[offset..]);
             match parse_result {
-                Ok(parse_results) => {
-                    prev_parse_result = Ok(parse_results);
+                Ok(new_right_data) => {
+                    prev_parse_result = Ok(new_right_data.clone());
+                    right_data = new_right_data;
                 }
                 Err(UnambiguousParseError::Fail) => {
                     return prev_parse_result;

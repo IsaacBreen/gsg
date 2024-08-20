@@ -1,4 +1,4 @@
-use crate::RightData;
+use crate::{RightData, UnambiguousParseResults};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use kdam::tqdm;
@@ -345,6 +345,12 @@ pub fn assert_parses_one_shot<T: CombinatorTrait, S: ToString>(combinator: &T, i
     // Get the right data with the highest position
     // Ensure the parser finished with right data at the end
     assert!(right_data.right_data_inner.fields1.position == bytes.len(), "Expected parser to finish with right data at the end position {}. right_data: {:?}", bytes.len(), right_data);
+}
+
+pub fn assert_parses_one_shot_with_result<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, expected_result: UnambiguousParseResults) {
+    let bytes = input.to_string().bytes().collect::<Vec<_>>();
+    let parse_result = combinator.one_shot_parse(RightData::default(), &bytes);
+    assert_eq!(parse_result, expected_result, "Expected parse result {:?}, but got {:?}", expected_result, parse_result);
 }
 
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {

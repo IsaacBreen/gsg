@@ -12,7 +12,7 @@
 
 #[cfg(test)]
 mod basic_tests {
-    use crate::utils::assert_parses_one_shot;
+    use crate::utils::{assert_parses_one_shot, assert_parses_one_shot_with_result};
     use super::*;
 
     #[test]
@@ -40,15 +40,19 @@ mod basic_tests {
     fn test_repeat1() {
         assert_parses_default(&repeat1(eat_char('a')), "a");
         assert_parses_fast(&repeat1(eat_char('a')), "a");
-        assert_parses_one_shot(&repeat1(eat_char('a')), "a");
+        assert_parses_one_shot_with_result(&repeat1(eat_char('a')), "a", Err(UnambiguousParseError::Incomplete));
 
         assert_parses_default(&repeat1(eat_char('a')), "aa");
         assert_parses_fast(&repeat1(eat_char('a')), "aa");
-        assert_parses_one_shot(&repeat1(eat_char('a')), "aa");
+        assert_parses_one_shot_with_result(&repeat1(eat_char('a')), "aa", Err(UnambiguousParseError::Incomplete));
 
         assert_parses_default(&repeat1(eat_char('a')), "aaa");
         assert_parses_fast(&repeat1(eat_char('a')), "aaa");
-        assert_parses_one_shot(&repeat1(eat_char('a')), "aaa");
+        assert_parses_one_shot_with_result(&repeat1(eat_char('a')), "aaa", Err(UnambiguousParseError::Incomplete));
+
+        assert_parses_default(&seq!(repeat1(eat_char('a')), eat_char('b')), "aaab");
+        assert_parses_fast(&seq!(repeat1(eat_char('a')), eat_char('b')), "aaab");
+        assert_parses_one_shot_with_result(&seq!(repeat1(eat_char('a')), eat_char('b')), "aaab", Ok(RightData::default().with_position(4)));
     }
 
     #[test]
