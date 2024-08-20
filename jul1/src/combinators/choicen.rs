@@ -65,13 +65,13 @@ macro_rules! define_choice {
                         let parse_result = next_combinator.one_shot_parse(right_data.clone(), bytes);
                         match (&parse_result, &final_parse_result) {
                             (Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete), _) => {
-                                return parse_result.clone();
+                                return parse_result;
                             },
                             (Ok(_), Ok(_)) => {
-                                return parse_result.clone(); // Clone here
+                                return parse_result;
                             },
                             (Ok(_), Err(UnambiguousParseError::Fail)) => {
-                                final_parse_result = parse_result.clone();
+                                final_parse_result = parse_result;
                             },
                             (Ok(_), Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous)) => unreachable!(),
                             (Err(UnambiguousParseError::Fail), _) => {},
