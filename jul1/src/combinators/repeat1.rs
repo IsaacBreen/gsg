@@ -58,7 +58,6 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
 
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         // return self.old_parse(right_data, bytes);
-        // let start_right_data = right_data.clone();
         let start_position = right_data.right_data_inner.fields1.position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
