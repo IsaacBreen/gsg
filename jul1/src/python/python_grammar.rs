@@ -23,8 +23,8 @@ enum Forbidden {
 use super::python_tokenizer as token;
 
 pub fn python_literal(s: &str) -> impl CombinatorTrait {
-    let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count += 1; true };
-    let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
+    let increment_scope_count = |right_data: &mut RightData| { right_data.get_inner_mut().fields1.scope_count += 1; true };
+    let decrement_scope_count = |right_data: &mut RightData| { right_data.get_inner_mut().fields1.scope_count -= 1; true };
 
     match s {
         "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(WS))).into_dyn(),

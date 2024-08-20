@@ -66,4 +66,8 @@ impl RightData {
     pub fn failable(&self) -> bool {
         self.right_data_inner.fields1.lookahead_data.has_omitted_partial_lookaheads
     }
+
+    pub fn get_inner_mut(&mut self) -> &mut RightDataInner {
+        Rc::make_mut(&mut self.right_data_inner)
+    }
 }

@@ -27,7 +27,7 @@ impl CombinatorTrait for EatU8 {
 
         let mut right_data = right_data;
         if self.u8set.contains(bytes[0]) {
-            Rc::make_mut(&mut right_data.right_data_inner).fields1.position += 1;
+            right_data.get_inner_mut().fields1.position += 1;
             ParseResultTrait::new_single(right_data, true)
         } else {
             ParseResultTrait::empty_finished()
@@ -57,7 +57,7 @@ impl ParserTrait for EatU8Parser {
 
         let mut right_data = self.right_data.take().unwrap();
         if self.u8set.contains(bytes[0]) {
-            Rc::make_mut(&mut right_data.right_data_inner).fields1.position += 1;
+            right_data.get_inner_mut().fields1.position += 1;
             ParseResults::new_single(right_data, true)
         } else {
             ParseResults::empty_finished()

@@ -35,7 +35,7 @@ impl CombinatorTrait for EatString {
         }
 
         if self.string == bytes[..self.string.len()] {
-            Rc::make_mut(&mut right_data.right_data_inner).fields1.position += self.string.len();
+            right_data.get_inner_mut().fields1.position += self.string.len();
             Ok(right_data)
         } else {
             Err(UnambiguousParseError::Fail)
@@ -71,7 +71,7 @@ impl ParserTrait for EatStringParser<'_> {
                 self.index += 1;
                 if self.index == self.string.len() {
                     let mut right_data = self.right_data.take().expect("right_data already taken");
-                    Rc::make_mut(&mut right_data.right_data_inner).fields1.position += self.string.len();
+                    right_data.get_inner_mut().fields1.position += self.string.len();
                     right_data_vec.push(right_data);
                     done = true;
                     break;

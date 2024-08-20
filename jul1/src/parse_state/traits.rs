@@ -84,7 +84,7 @@ impl RightDataSquasher {
     }
 
     pub fn push(&mut self, mut right_data: RightData) {
-        let lookahead_data = std::mem::take(&mut Rc::make_mut(&mut right_data.right_data_inner).fields1.lookahead_data);
+        let lookahead_data = std::mem::take(&mut right_data.get_inner_mut().fields1.lookahead_data);
         let mut existing_lookahead_data = self.decomposed.entry(right_data).or_insert_with_key(|_| lookahead_data.clone());
         // TODO: In general, all the lookaheads needs to be satisfied, i.e. it's an AND operation between Vecs of lookaheads. But this implies OR.
         existing_lookahead_data.has_omitted_partial_lookaheads &= lookahead_data.has_omitted_partial_lookaheads;
@@ -102,7 +102,7 @@ impl RightDataSquasher {
         profile!("RightDataSquasher::finish", {
             let mut result = VecY::new();
             for (mut right_data, lookahead_data) in self.decomposed {
-                Rc::make_mut(&mut right_data.right_data_inner).fields1.lookahead_data = lookahead_data;
+                right_data.get_inner_mut().fields1.lookahead_data = lookahead_data;
                 result.push(right_data);
             }
             result
