@@ -1,5 +1,5 @@
 // src/combinators/eat_string.rs
-use crate::{dumb_one_shot_parse, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, ApplyToChildren, UnambiguousParseError, UnambiguousParseResults};
 use std::any::Any;
 use std::rc::Rc;
 use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecX};
@@ -52,6 +52,8 @@ impl CombinatorTrait for EatString {
         (Parser::EatStringParser(parser), parse_results)
     }
 }
+
+impl ApplyToChildren for EatString {}
 
 impl ParserTrait for EatStringParser<'_> {
     fn get_u8set(&self) -> U8Set {

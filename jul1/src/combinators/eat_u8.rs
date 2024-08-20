@@ -1,4 +1,4 @@
-use crate::{dumb_one_shot_parse, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, ApplyToChildren, UnambiguousParseResults};
 use std::any::Any;
 use std::ops::RangeBounds;
 use std::rc::Rc;
@@ -43,6 +43,8 @@ impl CombinatorTrait for EatU8 {
         (Parser::EatU8Parser(parser), parse_results)
     }
 }
+
+impl ApplyToChildren for EatU8 {}
 
 impl ParserTrait for EatU8Parser {
     fn get_u8set(&self) -> U8Set {

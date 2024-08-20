@@ -1,5 +1,5 @@
 // src/combinators/cache.rs
-use crate::UnambiguousParseResults;
+use crate::{ApplyToChildren, UnambiguousParseResults};
 use crate::RightData;
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
@@ -163,7 +163,9 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
             (Parser::CacheContextParser(cache_context_parser), results)
         })
     }
+}
 
+impl<T: CombinatorTrait> ApplyToChildren for CacheContext<T> {
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
     }
@@ -265,7 +267,9 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
             (Parser::CachedParser(CachedParser { entry }), parse_results)
         })
     }
+}
 
+impl<T: CombinatorTrait + 'static> ApplyToChildren for Cached<T> {
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
     }

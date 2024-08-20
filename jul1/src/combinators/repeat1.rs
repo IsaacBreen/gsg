@@ -1,4 +1,4 @@
-use crate::{FailParser, UnambiguousParseError, UnambiguousParseResults};
+use crate::{ApplyToChildren, FailParser, UnambiguousParseError, UnambiguousParseResults};
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -26,10 +26,6 @@ pub struct Repeat1Parser<'a> {
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(&self.a);
     }
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -163,6 +159,12 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
             }),
             ParseResults::new(right_data_vec, done)
         )
+    }
+}
+
+impl<T: CombinatorTrait + 'static> ApplyToChildren for Repeat1<T> {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(&self.a);
     }
 }
 

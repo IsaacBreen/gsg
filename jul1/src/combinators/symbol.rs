@@ -1,4 +1,4 @@
-use crate::UnambiguousParseResults;
+use crate::{ApplyToChildren, UnambiguousParseResults};
 use crate::RightData;
 use std::any::Any;
 use std::rc::Rc;
@@ -20,10 +20,6 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
         self
     }
 
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(self.value.as_ref());
-    }
-
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.value.one_shot_parse(right_data, bytes)
     }
@@ -34,7 +30,13 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
     }
 }
 
-pub fn symbol<T: IntoCombinator>(value: T)-> Symbol<T::Output> {
+impl<T: CombinatorTrait + 'static> ApplyToChildren for Symbol<T> {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(self.value.as_ref());
+    }
+}
+
+pub fn symbol<T: IntoCombinator>(value: T) -> Symbol<T::Output> {
     Symbol { value: Rc::new(value.into_combinator()) }
 }
 

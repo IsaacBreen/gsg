@@ -9,6 +9,7 @@ use std::panic::Location;
 use std::rc::Rc;
 use crate::*;
 use once_cell::unsync::OnceCell;
+use crate::ApplyToChildren;
 
 thread_local! {
     static DEFERRED_CACHE: RefCell<HashMap<CacheKey, CacheEntry>> = RefCell::new(HashMap::new());
@@ -119,10 +120,6 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
         self
     }
 
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator().combinator))
-    }
-
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().expect("inner combinator not initialized");
         combinator.one_shot_parse(right_data, bytes)
@@ -143,6 +140,12 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
             }
             result.combinator
         });
+    }
+}
+
+impl<T: CombinatorTrait + 'static> ApplyToChildren for Deferred<T> {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator().combinator))
     }
 }
 

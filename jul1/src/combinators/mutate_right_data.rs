@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::*;
+use crate::ApplyToChildren;
 
 pub struct MutateRightData {
     pub(crate) run: Box<dyn Fn(&mut RightData) -> bool>,
@@ -47,6 +48,8 @@ impl CombinatorTrait for MutateRightData {
         }
     }
 }
+
+impl ApplyToChildren for MutateRightData {}
 
 pub fn mutate_right_data(run: impl Fn(&mut RightData) -> bool + 'static) -> MutateRightData {
     MutateRightData { run: Box::new(run) }

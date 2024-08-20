@@ -1,4 +1,4 @@
-use crate::{dumb_one_shot_parse, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, ApplyToChildren, UnambiguousParseResults};
 use crate::RightData;
 use std::any::Any;
 use std::rc::Rc;
@@ -30,12 +30,6 @@ pub struct SeqParser<'a> {
 impl CombinatorTrait for Seq {
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        for child in self.children.iter() {
-            f(child);
-        }
     }
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -126,6 +120,14 @@ impl CombinatorTrait for Seq {
         let parse_results = ParseResults::new(final_right_data, false);
 
         (parser.into(), parse_results)
+    }
+}
+
+impl ApplyToChildren for Seq {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        for child in self.children.iter() {
+            f(child);
+        }
     }
 }
 

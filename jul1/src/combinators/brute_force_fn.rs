@@ -1,4 +1,4 @@
-use crate::{UnambiguousParseError, UnambiguousParseResults};
+use crate::{ApplyToChildren, UnambiguousParseError, UnambiguousParseResults};
 use crate::RightData;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -122,6 +122,8 @@ impl CombinatorTrait for BruteForce {
         }
     }
 }
+
+impl ApplyToChildren for BruteForce {}
 
 impl ParserTrait for BruteForceParser {
     fn get_u8set(&self) -> U8Set {

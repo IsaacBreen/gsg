@@ -1,4 +1,4 @@
-use crate::{dumb_one_shot_parse, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, ApplyToChildren, UnambiguousParseError, UnambiguousParseResults};
 use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, ParseResultTrait};
 
@@ -21,6 +21,8 @@ impl CombinatorTrait for Fail {
         (Parser::FailParser(FailParser), ParseResults::empty_finished())
     }
 }
+
+impl ApplyToChildren for Fail {}
 
 impl ParserTrait for FailParser {
     fn get_u8set(&self) -> U8Set {

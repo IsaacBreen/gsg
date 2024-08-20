@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 
 use crate::*;
-use crate::VecX;
+use crate::{ApplyToChildren, VecX};
 
 pub struct Tagged<T: CombinatorTrait> {
     pub inner: Box<T>,
@@ -36,10 +36,6 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
         self
     }
 
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(&self.inner);
-    }
-
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.inner.one_shot_parse(right_data, bytes)
     }
@@ -57,6 +53,12 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
                 resume_unwind(err);
             }
         }
+    }
+}
+
+impl<T: CombinatorTrait + 'static> ApplyToChildren for Tagged<T> {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(&self.inner);
     }
 }
 

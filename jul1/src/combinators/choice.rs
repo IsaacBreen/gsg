@@ -2,7 +2,7 @@
 use std::any::Any;
 use std::rc::Rc;
 
-use crate::{CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX, UnambiguousParseResults, UnambiguousParseError};
+use crate::{CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX, UnambiguousParseResults, UnambiguousParseError, ApplyToChildren};
 use crate::parse_state::{RightData, ParseResultTrait};
 
 #[derive(Debug)]
@@ -87,7 +87,9 @@ impl CombinatorTrait for Choice {
             combined_results
         )
     }
+}
 
+impl ApplyToChildren for Choice {
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         for child in self.children.iter() {
             f(child);

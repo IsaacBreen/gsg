@@ -1,5 +1,5 @@
 // src/combinators/eat_bytestring_choice.rs
-use crate::{dumb_one_shot_parse, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, ApplyToChildren, UnambiguousParseError, UnambiguousParseResults};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
@@ -57,6 +57,8 @@ impl CombinatorTrait for EatByteStringChoice {
         (Parser::EatByteStringChoiceParser(parser), parse_results)
     }
 }
+
+impl ApplyToChildren for EatByteStringChoice {}
 
 impl ParserTrait for EatByteStringChoiceParser<'_> {
     fn get_u8set(&self) -> U8Set {
