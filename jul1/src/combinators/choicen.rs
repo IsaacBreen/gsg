@@ -35,8 +35,51 @@ macro_rules! define_choice {
                 $(f(&self.$rest);)+
             }
 
-            fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-                
+            fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
+                use $crate::{UnambiguousParseResults, UnambiguousParseError};
+                if self.greedy {
+                    let first_combinator = &self.$first;
+                    let parse_result = first_combinator.one_shot_parse(right_data.clone(), bytes);
+                    if matches!(parse_result, Ok(_) | Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete)) {
+                        return parse_result;
+                    }
+
+                    $(
+                        let next_combinator = &self.$rest;
+                        let parse_result = next_combinator.one_shot_parse(right_data.clone(), bytes);
+                        if matches!(parse_result, Ok(_) | Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete)) {
+                            return parse_result;
+                        }
+                    )+
+
+                    Err(UnambiguousParseError::Fail)
+                } else {
+                    let first_combinator = &self.$first;
+                    let mut final_parse_result = first_combinator.one_shot_parse(right_data.clone(), bytes);
+                    if matches!(final_parse_result, Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete)) {
+                        return final_parse_result;
+                    }
+
+                    $(
+                        let next_combinator = &self.$rest;
+                        let mut parse_result = next_combinator.one_shot_parse(right_data.clone(), bytes);
+                        match (parse_result, final_parse_result) {
+                            (Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete), _) => {
+                                return parse_result;
+                            },
+                            (Ok(_), Ok(_)) => {
+                                return parse_result;
+                            },
+                            (Ok(_), Err(UnambiguousParseError::Fail)) => {
+                                final_parse_result = parse_result;
+                            },
+                            (Ok(_), Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous)) => todo!(),
+                            (Err(UnambiguousParseError::Fail), _) => todo!(),
+                        }
+                    )+
+
+                    Err(UnambiguousParseError::Fail)
+                }
             }
 
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
