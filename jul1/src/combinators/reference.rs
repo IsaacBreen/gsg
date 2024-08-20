@@ -74,7 +74,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
         self
     }
 
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(self.inner.upgrade().expect("WeakRef is already dropped").get().expect("Combinator hasn't been set"));
     }
 
@@ -94,7 +94,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for StrongRef<T> {
         self
     }
 
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(self.inner.get().unwrap());
     }
 

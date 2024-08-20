@@ -125,7 +125,7 @@ pub trait CombinatorTrait: std::fmt::Debug {
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         self.old_parse(right_data, bytes)
@@ -142,7 +142,7 @@ pub trait CombinatorTrait: std::fmt::Debug {
         self
     }
     fn compile_inner(&self) {
-        self.apply(&mut |combinator| combinator.compile_inner());
+        self.apply_to_children(&mut |combinator| combinator.compile_inner());
     }
 }
 
@@ -181,8 +181,8 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
         (**self).type_name()
     }
 
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        (**self).apply(f);
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        (**self).apply_to_children(f);
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {

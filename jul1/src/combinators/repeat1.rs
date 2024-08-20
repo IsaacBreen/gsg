@@ -28,7 +28,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
         self
     }
 
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.a);
     }
 

@@ -32,7 +32,7 @@ impl CombinatorTrait for Seq {
         self
     }
 
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         for child in self.children.iter() {
             f(child);
         }

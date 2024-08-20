@@ -30,7 +30,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.combinator);
     }
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {

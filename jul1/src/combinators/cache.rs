@@ -164,7 +164,7 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
         })
     }
 
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
     }
 }
@@ -266,7 +266,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
         })
     }
 
-    fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
     }
 }
