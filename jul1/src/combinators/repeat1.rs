@@ -78,7 +78,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
                     if let Ok(right_data) = prev_parse_result {
                         return (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true));
                     } else {
-                        return (Parser::FailParser(FailParser), ParseResults::empty_unfinished());
+                        return (Parser::FailParser(FailParser), ParseResults::empty_finished());
                     }
                 }
                 Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete) => {
