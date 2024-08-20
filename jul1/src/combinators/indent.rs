@@ -1,4 +1,4 @@
-use crate::{dumb_one_shot_parse, RightData, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, BaseCombinatorTrait, RightData, UnambiguousParseError, UnambiguousParseResults};
 use std::mem::transmute;
 use std::rc::Rc;
 use aliasable::boxed::AliasableBox;
@@ -64,9 +64,6 @@ impl<'a> ParserTrait for OwningParser<'a> {
 }
 
 impl CombinatorTrait for IndentCombinator {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
     fn old_parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
@@ -183,6 +180,12 @@ impl CombinatorTrait for IndentCombinator {
             }
             _ => ParseResultTrait::empty_finished(),
         }
+    }
+}
+
+impl BaseCombinatorTrait for IndentCombinator {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

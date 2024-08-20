@@ -1,5 +1,5 @@
 use crate::*;
-use crate::VecX;
+use crate::{BaseCombinatorTrait, VecX};
 
 #[derive(Debug)]
 pub struct Opt<T: CombinatorTrait> {
@@ -8,14 +8,6 @@ pub struct Opt<T: CombinatorTrait> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(&self.inner);
-    }
-
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.inner.one_shot_parse(right_data.clone(), bytes);
         if self.greedy {
@@ -42,6 +34,15 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
             }
         }
         (parser, parse_results)
+    }
+}
+
+impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Opt<T> {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(&self.inner);
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::RightData;
+use crate::{BaseCombinatorTrait, RightData};
 use std::rc::Rc;
 use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, ParseResults, ParseResultTrait, Choice, deferred, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};
 use crate::seq;

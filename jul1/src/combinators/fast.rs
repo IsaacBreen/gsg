@@ -2,6 +2,7 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use crate::*;
+use crate::BaseCombinatorTrait;
 use crate::tokenizer::finite_automata::{Expr, ExprGroups, Regex, RegexState};
 
 pub struct FastCombinatorWrapper {
@@ -26,9 +27,6 @@ impl Debug for FastParserWrapper<'_> {
 }
 
 impl CombinatorTrait for FastCombinatorWrapper {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
@@ -61,6 +59,12 @@ impl CombinatorTrait for FastCombinatorWrapper {
             }
             (Parser::FastParserWrapper(FastParserWrapper { regex_state, right_data: Some(right_data) }), ParseResults::new(right_data_vec, done))
         }
+    }
+}
+
+impl BaseCombinatorTrait for FastCombinatorWrapper {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

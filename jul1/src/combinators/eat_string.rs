@@ -1,5 +1,5 @@
 // src/combinators/eat_string.rs
-use crate::{dumb_one_shot_parse, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 use std::any::Any;
 use std::rc::Rc;
 use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecX};
@@ -25,10 +25,6 @@ pub struct EatStringParser<'a> {
 }
 
 impl CombinatorTrait for EatString {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if bytes.len() < self.string.len() {
             return Err(UnambiguousParseError::Incomplete);
@@ -50,6 +46,12 @@ impl CombinatorTrait for EatString {
         };
         let parse_results = parser.parse(bytes);
         (Parser::EatStringParser(parser), parse_results)
+    }
+}
+
+impl BaseCombinatorTrait for EatString {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

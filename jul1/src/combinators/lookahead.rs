@@ -1,4 +1,5 @@
 use crate::*;
+use crate::BaseCombinatorTrait;
 
 #[derive(Debug)]
 pub struct PartialLookahead<'a> {
@@ -27,12 +28,6 @@ pub struct Lookahead<T: CombinatorTrait> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(&self.combinator);
-    }
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.combinator.one_shot_parse(right_data.clone(), bytes);
         if self.positive {
@@ -66,6 +61,15 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
         } else {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
         }
+    }
+}
+
+impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Lookahead<T> {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(&self.combinator);
     }
 }
 

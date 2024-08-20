@@ -1,4 +1,4 @@
-use crate::{UnambiguousParseError, UnambiguousParseResults};
+use crate::{BaseCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 use crate::RightData;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -91,9 +91,6 @@ fn convert_result(result: BruteForceResult) -> BruteForceResult2 {
 // }
 
 impl CombinatorTrait for BruteForce {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let result = (self.run)(right_data.clone(), bytes);
         match convert_result(result) {
@@ -120,6 +117,12 @@ impl CombinatorTrait for BruteForce {
                 ParseResults::empty_unfinished()
             ),
         }
+    }
+}
+
+impl BaseCombinatorTrait for BruteForce {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

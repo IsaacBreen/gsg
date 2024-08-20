@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::*;
+use crate::BaseCombinatorTrait;
 
 pub struct MutateRightData {
     pub(crate) run: Box<dyn Fn(&mut RightData) -> bool>,
@@ -29,9 +30,6 @@ impl Debug for MutateRightData {
 }
 
 impl CombinatorTrait for MutateRightData {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if (self.run)(&mut right_data) {
             Ok(right_data)
@@ -45,6 +43,12 @@ impl CombinatorTrait for MutateRightData {
         } else {
             (Parser::FailParser(FailParser), ParseResults::empty_finished())
         }
+    }
+}
+
+impl BaseCombinatorTrait for MutateRightData {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

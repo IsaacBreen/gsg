@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::rc::{Rc, Weak};
 use once_cell::unsync::OnceCell;
 use crate::*;
+use crate::BaseCombinatorTrait;
 
 pub struct WeakRef<T> {
     pub inner: Weak<OnceCell<T>>,
@@ -70,14 +71,6 @@ impl<T> Hash for StrongRef<T> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(self.inner.upgrade().expect("WeakRef is already dropped").get().expect("Combinator hasn't been set"));
-    }
-
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.get().unwrap();
         combinator.one_shot_parse(right_data, bytes)
@@ -89,15 +82,16 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for StrongRef<T> {
+impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for WeakRef<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(self.inner.get().unwrap());
+        f(self.inner.upgrade().expect("WeakRef is already dropped").get().expect("Combinator hasn't been set"));
     }
+}
 
+impl<T: CombinatorTrait + 'static> CombinatorTrait for StrongRef<T> {
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().unwrap();
         combinator.one_shot_parse(right_data, bytes)
@@ -108,6 +102,15 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for StrongRef<T> {
             .get()
             .unwrap()
             .parse(right_data, bytes)
+    }
+}
+
+impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for StrongRef<T> {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(self.inner.get().unwrap());
     }
 }
 

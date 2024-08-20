@@ -1,5 +1,6 @@
 use crate::*;
 use std::rc::Rc;
+use crate::BaseCombinatorTrait;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
@@ -21,9 +22,6 @@ pub struct ForbidFollowsCheckNot {
 }
 
 impl CombinatorTrait for ForbidFollows {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         right_data.get_inner_mut().fields1.forbidden_consecutive_matches.prev_match_ids = self.match_ids;
         Ok(right_data)
@@ -34,10 +32,13 @@ impl CombinatorTrait for ForbidFollows {
     }
 }
 
-impl CombinatorTrait for ForbidFollowsClear {
+impl BaseCombinatorTrait for ForbidFollows {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+}
+
+impl CombinatorTrait for ForbidFollowsClear {
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(right_data)
     }
@@ -47,10 +48,13 @@ impl CombinatorTrait for ForbidFollowsClear {
     }
 }
 
-impl CombinatorTrait for ForbidFollowsCheckNot {
+impl BaseCombinatorTrait for ForbidFollowsClear {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+}
+
+impl CombinatorTrait for ForbidFollowsCheckNot {
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(right_data)
     }
@@ -61,6 +65,12 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
             right_data.get_inner_mut().fields1.forbidden_consecutive_matches.prev_match_ids = 0;
             (combinator::Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
         }
+    }
+}
+
+impl BaseCombinatorTrait for ForbidFollowsCheckNot {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

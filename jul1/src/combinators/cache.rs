@@ -1,5 +1,5 @@
 // src/combinators/cache.rs
-use crate::UnambiguousParseResults;
+use crate::{BaseCombinatorTrait, UnambiguousParseResults};
 use crate::RightData;
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
@@ -121,9 +121,6 @@ pub struct CacheContextParser<'a> {
 }
 
 impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
-        todo!()
-    }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
@@ -163,7 +160,12 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
             (Parser::CacheContextParser(cache_context_parser), results)
         })
     }
+}
 
+impl<T: CombinatorTrait> BaseCombinatorTrait for CacheContext<T> {
+    fn as_any(&self) -> &dyn std::any::Any {
+        todo!()
+    }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
     }
@@ -204,9 +206,6 @@ impl ParserTrait for CacheContextParser<'_> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
-        todo!()
-    }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(move |cache| {
             let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn CombinatorTrait, right_data: right_data.clone() };
@@ -265,7 +264,12 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
             (Parser::CachedParser(CachedParser { entry }), parse_results)
         })
     }
+}
 
+impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Cached<T> {
+    fn as_any(&self) -> &dyn std::any::Any {
+        todo!()
+    }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
     }

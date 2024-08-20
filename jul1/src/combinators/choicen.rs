@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, UnambiguousParseResults};
+use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, UnambiguousParseResults, BaseCombinatorTrait};
 use crate::ChoiceParser;
 
 macro_rules! profile {
@@ -12,10 +12,7 @@ macro_rules! profile {
 macro_rules! define_choice {
     ($choice_name:ident, $first:ident, $($rest:ident),+) => {
         #[derive(Debug)]
-        pub struct $choice_name<$first, $($rest),+>
-        where
-            $($rest: CombinatorTrait),+
-        {
+        pub struct $choice_name<$first, $($rest),+> {
             pub(crate) $first: $first,
             $(pub(crate) $rest: $rest,)+
             pub(crate) greedy: bool,
@@ -26,15 +23,6 @@ macro_rules! define_choice {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
-            }
-
-            fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-                f(&self.$first);
-                $(f(&self.$rest);)+
-            }
-
             fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 use $crate::{UnambiguousParseResults, UnambiguousParseError};
                 if self.greedy {
@@ -126,6 +114,21 @@ macro_rules! define_choice {
                         combined_results
                     )
                 }
+            }
+        }
+
+        impl<$first: 'static, $($rest: 'static),+> BaseCombinatorTrait for $choice_name<$first, $($rest),+>
+        where
+            $first: BaseCombinatorTrait,
+            $($rest: BaseCombinatorTrait),+
+        {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+                f(&self.$first);
+                $(f(&self.$rest);)+
             }
         }
     };

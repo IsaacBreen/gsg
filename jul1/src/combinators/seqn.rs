@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
-use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, Squash};
+use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, Squash, BaseCombinatorTrait};
 
 macro_rules! profile {
     ($name:expr, $body:expr) => {
@@ -38,15 +38,6 @@ macro_rules! define_seq {
             $first: CombinatorTrait + 'static,
             $($rest: CombinatorTrait + 'static),+
         {
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
-            }
-
-            fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-                f(&self.$first);
-                $(f(&self.$rest);)+
-            }
-
             fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 let start_position = right_data.right_data_inner.fields1.position;
                 right_data = self.$first.one_shot_parse(right_data, bytes)?;
@@ -189,6 +180,21 @@ macro_rules! define_seq {
 
                     ParseResults::new(new_right_data, all_done)
                 })
+            }
+        }
+
+        impl<$first: 'static, $($rest: 'static),+> BaseCombinatorTrait for $seq_name<$first, $($rest),+>
+        where
+            $first: BaseCombinatorTrait,
+            $($rest: BaseCombinatorTrait),+
+        {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+                f(&self.$first);
+                $(f(&self.$rest);)+
             }
         }
     };

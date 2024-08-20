@@ -3,6 +3,7 @@ use std::time::{Instant, Duration};
 use std::sync::Mutex;
 use derivative::Derivative;
 use crate::*;
+use crate::BaseCombinatorTrait;
 
 lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());
@@ -100,14 +101,6 @@ pub struct ProfiledParser<'a> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(&self.inner);
-    }
-
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         profile!(&self.tag, self.inner.one_shot_parse(right_data, bytes))
     }
@@ -118,6 +111,15 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
             let parser = Parser::ProfiledParser(ProfiledParser { inner: Box::new(parser), tag: self.tag.clone() });
             (parser, parse_results)
         })
+    }
+}
+
+impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Profiled<T> {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(&self.inner);
     }
 }
 

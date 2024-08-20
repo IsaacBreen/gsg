@@ -1,4 +1,4 @@
-use crate::{dumb_one_shot_parse, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseResults};
 use std::any::Any;
 use std::ops::RangeBounds;
 use std::rc::Rc;
@@ -16,10 +16,6 @@ pub struct EatU8Parser {
 }
 
 impl CombinatorTrait for EatU8 {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if bytes.is_empty() {
             return ParseResultTrait::empty_unfinished();
@@ -41,6 +37,12 @@ impl CombinatorTrait for EatU8 {
         };
         let parse_results = parser.parse(bytes);
         (Parser::EatU8Parser(parser), parse_results)
+    }
+}
+
+impl BaseCombinatorTrait for EatU8 {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

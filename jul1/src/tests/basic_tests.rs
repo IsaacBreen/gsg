@@ -112,6 +112,7 @@ mod basic_tests {
 
 #[cfg(test)]
 mod more_tests {
+    use crate::BaseCombinatorTrait;
     use super::*;
 
     #[test]

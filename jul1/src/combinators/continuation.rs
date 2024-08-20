@@ -1,4 +1,4 @@
-use crate::UnambiguousParseResults;
+use crate::{BaseCombinatorTrait, UnambiguousParseResults};
 use crate::RightData;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -83,9 +83,6 @@ impl Debug for ContinuationParser {
 }
 
 impl CombinatorTrait for Continuation {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         todo!("one_shot_parse")
     }
@@ -108,6 +105,12 @@ impl CombinatorTrait for Continuation {
         //     ),
         // }
         todo!()
+    }
+}
+
+impl BaseCombinatorTrait for Continuation {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

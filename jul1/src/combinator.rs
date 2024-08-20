@@ -120,12 +120,7 @@ macro_rules! match_parser {
     };
 }
 
-pub trait CombinatorTrait: std::fmt::Debug {
-    fn as_any(&self) -> &dyn std::any::Any;
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
+pub trait CombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         self.old_parse(right_data, bytes)
@@ -137,7 +132,18 @@ pub trait CombinatorTrait: std::fmt::Debug {
         // (parser, parse_results)
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults;
-    fn compile(mut self) -> Self where Self: Sized {
+}
+
+pub trait BaseCombinatorTrait {
+    fn as_any(&self) -> &dyn std::any::Any;
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
+    fn compile(mut self) -> Self
+    where
+        Self: Sized
+    {
         self.compile_inner();
         self
     }
@@ -173,18 +179,6 @@ pub trait ParserTrait: std::fmt::Debug {
 }
 
 impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
-        (**self).as_any()
-    }
-
-    fn type_name(&self) -> &'static str {
-        (**self).type_name()
-    }
-
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        (**self).apply_to_children(f);
-    }
-
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         (**self).one_shot_parse(right_data, bytes)
     }
@@ -196,7 +190,18 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         (**self).parse(right_data, bytes)
     }
+}
 
+impl<T: CombinatorTrait + ?Sized> BaseCombinatorTrait for Box<T> {
+    fn as_any(&self) -> &dyn std::any::Any {
+        (**self).as_any()
+    }
+    fn type_name(&self) -> &'static str {
+        (**self).type_name()
+    }
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        (**self).apply_to_children(f);
+    }
     fn compile_inner(&self) {
         (**self).compile_inner();
     }
