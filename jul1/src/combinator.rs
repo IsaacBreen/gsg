@@ -130,16 +130,12 @@ pub trait CombinatorTrait: std::fmt::Debug {
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        return self.old_parse(right_data, bytes);
-        let parse_result = self.one_shot_parse(right_data.clone(), bytes);
-        match parse_result {
-            Ok(right_data) => (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true)),
-            Err(UnambiguousParseError::Fail) => (Parser::FailParser(FailParser), ParseResults::empty_finished()),
-            Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => {
-                self.old_parse(right_data, bytes)
-            }
+        let (mut parser, mut parse_results) = self.old_parse(right_data, &[]);
+        if !parse_results.done() {
+            let new_parse_results = parser.parse(bytes);
+            parse_results.merge_assign(new_parse_results);
         }
-
+        (parser, parse_results)
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults;
     fn compile(mut self) -> Self where Self: Sized {
