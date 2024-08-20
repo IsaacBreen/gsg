@@ -62,24 +62,23 @@ macro_rules! define_choice {
 
                     $(
                         let next_combinator = &self.$rest;
-                        let mut parse_result = next_combinator.one_shot_parse(right_data.clone(), bytes);
-                        // TODO: avoid these clones
-                        match (parse_result.clone(), final_parse_result.clone()) {
+                        let parse_result = next_combinator.one_shot_parse(right_data.clone(), bytes);
+                        match (&parse_result, &final_parse_result) {
                             (Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete), _) => {
-                                return parse_result;
+                                return parse_result.clone();
                             },
                             (Ok(_), Ok(_)) => {
-                                return parse_result;
+                                return parse_result.clone(); // Clone here
                             },
                             (Ok(_), Err(UnambiguousParseError::Fail)) => {
-                                final_parse_result = parse_result;
+                                final_parse_result = parse_result.clone();
                             },
                             (Ok(_), Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous)) => unreachable!(),
                             (Err(UnambiguousParseError::Fail), _) => {},
                         }
                     )+
 
-                    Err(UnambiguousParseError::Fail)
+                    final_parse_result
                 }
             }
 
