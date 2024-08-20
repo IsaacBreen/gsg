@@ -29,9 +29,10 @@ impl Squash for VecY<RightData> {
     fn squashed(self) -> Self::Output {
         if self.len() > SQUASH_THRESHOLD {
             profile!("RightDataSquasher::squashed", {
-                let mut squasher = RightDataSquasher::new();
-                squasher.extend(self.into_iter());
-                squasher.finish()
+                // let mut squasher = RightDataSquasher::new();
+                // squasher.extend(self.into_iter());
+                // squasher.finish()
+                self.into_iter().collect::<HashSet<_>>().into_iter().collect()
             })
         } else {
             self
