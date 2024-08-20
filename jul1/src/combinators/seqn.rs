@@ -47,24 +47,25 @@ macro_rules! define_seq {
                 $(f(&self.$rest);)+
             }
 
-            fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
+            fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 let first_combinator = &self.$first;
                 let parse_result = first_combinator.one_shot_parse(right_data, bytes);
-                let Ok(right_data) = parse_result else {
-                    return parse_result
+                right_data = match parse_result {
+                    Ok(right_data) => right_data,
+                    Err(err) => return Err(err),
                 };
 
                 $(
                     let rest_combinator = &self.$rest;
                     let parse_result = rest_combinator.one_shot_parse(right_data, bytes);
-                    let Ok(right_data) = parse_result else {
-                        return parse_result
+                    right_data = match parse_result {
+                        Ok(right_data) => right_data,
+                        Err(err) => return Err(err),
                     };
                 )+
 
                 $crate::UnambiguousParseResults::Ok(right_data)
             }
-
             fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
                 let start_position = right_data.right_data_inner.fields1.position;
 
