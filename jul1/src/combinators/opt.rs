@@ -26,7 +26,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
             }
         } else {
             match parse_result {
-                Ok(right_data) => Err(UnambiguousParseError::Ambiguous),
+                Ok(_) => Err(UnambiguousParseError::Ambiguous),
                 Err(UnambiguousParseError::Fail) => Ok(right_data),
                 Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => parse_result,
             }
