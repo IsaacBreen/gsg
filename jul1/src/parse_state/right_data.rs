@@ -71,3 +71,9 @@ impl RightData {
         Rc::make_mut(&mut self.right_data_inner)
     }
 }
+
+impl RightDataInner {
+    pub fn get_fields2_mut(&mut self) -> &mut Fields2 {
+        Rc::make_mut(&mut self.fields2)
+    }
+}

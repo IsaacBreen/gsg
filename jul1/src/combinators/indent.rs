@@ -84,7 +84,7 @@ impl CombinatorTrait for IndentCombinator {
                                     right_data_inner.fields1.dedents = dedents;
                                     // Remove the last `dedents` indents from the indent stack
                                     let new_size = right_data_inner.fields2.indents.len() - dedents as usize;
-                                    Rc::make_mut(&mut right_data_inner.fields2).indents.truncate(new_size);
+                                    right_data_inner.get_fields2_mut().indents.truncate(new_size);
                                     // println!("Registering {} dedents. Right  {:?}", dedents, right_data);
                                     true
                                 })
@@ -110,7 +110,7 @@ impl CombinatorTrait for IndentCombinator {
                     }
                     let right_data_inner = right_data.get_inner_mut();
                     right_data_inner.fields1.position += i;
-                    Rc::make_mut(&mut right_data_inner.fields2).indents.push(bytes[0..i].to_vec());
+                    right_data_inner.get_fields2_mut().indents.push(bytes[0..i].to_vec());
                     (IndentCombinatorParser::IndentParser(Some(right_data.clone())), ParseResultTrait::new_single(right_data, i < bytes.len()))
                 }
             }
@@ -144,7 +144,7 @@ impl CombinatorTrait for IndentCombinator {
                                     right_data_inner.fields1.dedents = dedents;
                                     // Remove the last `dedents` indents from the indent stack
                                     let new_size = right_data_inner.fields2.indents.len() - dedents as usize;
-                                    Rc::make_mut(&mut right_data_inner.fields2).indents.truncate(new_size);
+                                    right_data_inner.get_fields2_mut().indents.truncate(new_size);
                                     // println!("Registering {} dedents. Right  {:?}", dedents, right_data);
                                     true
                                 })
@@ -169,7 +169,7 @@ impl CombinatorTrait for IndentCombinator {
                     }
                     let right_data_inner = right_data.get_inner_mut();
                     right_data_inner.fields1.position += i;
-                    Rc::make_mut(&mut right_data_inner.fields2).indents.push(bytes[0..i].to_vec());
+                    right_data_inner.get_fields2_mut().indents.push(bytes[0..i].to_vec());
                     ParseResultTrait::new_single(right_data, i < bytes.len())
                 }
             }
@@ -219,7 +219,7 @@ impl ParserTrait for IndentCombinatorParser<'_> {
                         let mut right_data = maybe_right_data.as_mut().unwrap();
                         let right_data_inner = right_data.get_inner_mut();
                         right_data_inner.fields1.position += 1;
-                        Rc::make_mut(&mut right_data_inner.fields2).indents.last_mut().unwrap().push(byte);
+                        right_data_inner.get_fields2_mut().indents.last_mut().unwrap().push(byte);
                         right_data_vec.push(right_data.clone());
                     } else {
                         maybe_right_data.take();

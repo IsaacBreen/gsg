@@ -914,10 +914,10 @@ pub fn FSTRING_START()-> impl CombinatorTrait {
     );
 
     let quote = choice!(
-        seq!(eat_char('\''), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.get_inner_mut().fields2).fstring_start_stack.push(PythonQuoteType::OneSingle); true })),
-        seq!(eat_char('"'), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.get_inner_mut().fields2).fstring_start_stack.push(PythonQuoteType::OneDouble); true })),
-        seq!(eat_string("'''"), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.get_inner_mut().fields2).fstring_start_stack.push(PythonQuoteType::ThreeSingle); true })),
-        seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.get_inner_mut().fields2).fstring_start_stack.push(PythonQuoteType::ThreeDouble); true }))
+        seq!(eat_char('\''), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.push(PythonQuoteType::OneSingle); true })),
+        seq!(eat_char('"'), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.push(PythonQuoteType::OneDouble); true })),
+        seq!(eat_string("'''"), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.push(PythonQuoteType::ThreeSingle); true })),
+        seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.push(PythonQuoteType::ThreeDouble); true }))
     );
 
     seq!(
@@ -960,10 +960,10 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
 pub fn FSTRING_END()-> impl CombinatorTrait {
     let quote = choice!(
         // seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { right_data.get_inner_mut().fields2.fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
-        seq!(eat_char('\''), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.get_inner_mut().fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::OneSingle })),
-        seq!(eat_char('"'), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.get_inner_mut().fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::OneDouble })),
-        seq!(eat_string("'''"), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.get_inner_mut().fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeSingle })),
-        seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { Rc::make_mut(&mut right_data.get_inner_mut().fields2).fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
+        seq!(eat_char('\''), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.pop().unwrap() == PythonQuoteType::OneSingle })),
+        seq!(eat_char('"'), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.pop().unwrap() == PythonQuoteType::OneDouble })),
+        seq!(eat_string("'''"), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeSingle })),
+        seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
     );
 
     quote
