@@ -133,6 +133,7 @@ pub trait CombinatorTrait: std::fmt::Debug {
         todo!()
     }
     fn compile(mut self) -> Self where Self: Sized {
+        println!("compiling");
         self.compile_inner();
         self
     }
