@@ -42,7 +42,7 @@ impl CombinatorTrait for Choice {
                 let parse_result = parser.one_shot_parse(right_data.clone(), bytes);
                 match parse_result {
                     Ok(right_data) => {
-                        for (j, parser2) in self.children.iter().enumerate() {
+                        for (j, parser2) in self.children[i+1..].iter().enumerate() {
                             let parse_result2 = parser2.one_shot_parse(right_data.clone(), bytes);
                             match parse_result2 {
                                 Ok(_) => {
