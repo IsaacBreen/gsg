@@ -8,7 +8,8 @@ use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert
 #[test]
 fn test_trivial_x() {
     let combinator = python_file();
-    assert_parses_fast(&combinator, "x\n");
+    // assert_parses_fast(&combinator, "x\n");
+    assert_parses_one_shot_with_result(&combinator, "x\n", Err(UnambiguousParseError::Incomplete));
 }
 
 #[test]

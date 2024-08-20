@@ -33,8 +33,11 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.combinator);
     }
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+    fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        match self.combinator.one_shot_parse(right_data.clone(), bytes) {
+            Ok(_) | Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete) => Ok(right_data),
+            Err(UnambiguousParseError::Fail) => Err(UnambiguousParseError::Fail),
+        }
     }
     fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (parser, mut parse_results) = self.combinator.parse(right_data.clone(), bytes);

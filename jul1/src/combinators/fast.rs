@@ -30,7 +30,21 @@ impl CombinatorTrait for FastCombinatorWrapper {
         self
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+        let mut regex_state = self.regex.init();
+        regex_state.execute(bytes);
+        if regex_state.failed() {
+            ParseResults::empty_finished().into()
+        } else {
+            let mut right_data_vec: VecY<RightData> = vecy![];
+            let done = regex_state.done();
+            if let Some(new_match) = regex_state.prev_match() {
+                let mut new_right_data = right_data.clone();
+                let position = new_match.position;
+                new_right_data.advance(position);
+                right_data_vec.push(new_right_data);
+            }
+            ParseResults::new(right_data_vec, done).into()
+        }
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

@@ -28,9 +28,11 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+        match self.inner.one_shot_parse(right_data.clone(), bytes) {
+            Ok(_) | Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete) => Ok(right_data),
+            Err(UnambiguousParseError::Fail) => Err(UnambiguousParseError::Fail),
+        }
     }
-
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         let (inner, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         let (indices, node) = self.root.get_indices(bytes);
