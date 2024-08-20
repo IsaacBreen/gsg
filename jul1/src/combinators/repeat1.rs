@@ -1,4 +1,4 @@
-use crate::UnambiguousParseResults;
+use crate::{UnambiguousParseError, UnambiguousParseResults};
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -33,7 +33,21 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        let mut prev_parse_result = Err(UnambiguousParseError::Fail);
+        loop {
+            let parse_result = self.a.one_shot_parse(right_data.clone(), bytes);
+            match parse_result {
+                Ok(parse_results) => {
+                    prev_parse_result = Ok(parse_results);
+                }
+                Err(UnambiguousParseError::Fail) => {
+                    return prev_parse_result;
+                }
+                Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete) => {
+                    return parse_result;
+                }
+            }
+        }
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
