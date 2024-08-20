@@ -25,7 +25,6 @@ impl CombinatorTrait for EatU8 {
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let s = format!("{:?}", self);
         let mut parser = EatU8Parser {
             u8set: self.u8set.clone(),
             right_data: Some(right_data),

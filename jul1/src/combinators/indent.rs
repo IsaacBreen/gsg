@@ -1,4 +1,4 @@
-use crate::{RightData, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, RightData, UnambiguousParseError, UnambiguousParseResults};
 use std::mem::transmute;
 use std::rc::Rc;
 use aliasable::boxed::AliasableBox;
@@ -128,12 +128,7 @@ impl CombinatorTrait for IndentCombinator {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        let (parser, parse_results) = self.parse(right_data, bytes);
-        if parse_results.done() && parse_results.right_data_vec.len() == 1 {
-            UnambiguousParseResults::Ok(parse_results.right_data_vec.into_iter().next().unwrap())
-        } else {
-            UnambiguousParseResults::Err(UnambiguousParseError::Fail)
-        }
+        dumb_one_shot_parse(self, right_data, bytes)
     }
 }
 

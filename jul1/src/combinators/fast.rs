@@ -33,7 +33,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
         if regex_state.failed() {
-            ParseResults::empty_finished().into()
+            ParseResultTrait::empty_finished()
         } else {
             let mut right_data_vec: VecY<RightData> = vecy![];
             let done = regex_state.done();
@@ -43,7 +43,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
                 new_right_data.advance(position);
                 right_data_vec.push(new_right_data);
             }
-            ParseResults::new(right_data_vec, done).into()
+            ParseResultTrait::new(right_data_vec, done)
         }
     }
 

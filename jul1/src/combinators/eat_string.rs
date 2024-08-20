@@ -30,13 +30,7 @@ impl CombinatorTrait for EatString {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        let mut parser = EatStringParser {
-            string: self.string.as_slice(),
-            index: 0,
-            right_data: Some(right_data),
-        };
-        let parse_results = parser.parse(bytes);
-        parse_results.into()
+        dumb_one_shot_parse(self, right_data, bytes)
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
