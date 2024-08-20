@@ -12,58 +12,76 @@
 
 #[cfg(test)]
 mod basic_tests {
+    use crate::utils::assert_parses_one_shot;
     use super::*;
 
     #[test]
     fn test_eat_u8() {
         assert_parses_default(&eat_char('a'), "a");
         assert_parses_fast(&eat_char('a'), "a");
+        assert_parses_one_shot(&eat_char('a'), "a");
     }
 
     #[test]
     fn test_eat_string() {
         assert_parses_default(&eat_string("abc"), "abc");
         assert_parses_fast(&eat_string("abc"), "abc");
+        assert_parses_one_shot(&eat_string("abc"), "abc");
     }
 
     #[test]
     fn test_seq() {
         assert_parses_default(&seq!(eat_char('a'), eat_char('b')), "ab");
         assert_parses_fast(&seq!(eat_char('a'), eat_char('b')), "ab");
+        assert_parses_one_shot(&seq!(eat_char('a'), eat_char('b')), "ab");
     }
 
     #[test]
     fn test_repeat1() {
         assert_parses_default(&repeat1(eat_char('a')), "a");
         assert_parses_fast(&repeat1(eat_char('a')), "a");
+        assert_parses_one_shot(&repeat1(eat_char('a')), "a");
+
         assert_parses_default(&repeat1(eat_char('a')), "aa");
         assert_parses_fast(&repeat1(eat_char('a')), "aa");
+        assert_parses_one_shot(&repeat1(eat_char('a')), "aa");
+
         assert_parses_default(&repeat1(eat_char('a')), "aaa");
         assert_parses_fast(&repeat1(eat_char('a')), "aaa");
+        assert_parses_one_shot(&repeat1(eat_char('a')), "aaa");
     }
 
     #[test]
     fn test_choice() {
         assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "a");
         assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "a");
+        assert_parses_one_shot(&choice!(eat_char('a'), eat_char('b')), "a");
+
         assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "b");
         assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "b");
+        assert_parses_one_shot(&choice!(eat_char('a'), eat_char('b')), "b");
     }
 
     #[test]
     fn test_seq_choice_seq() {
         assert_parses_default(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "ac");
         assert_parses_fast(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "ac");
+        assert_parses_one_shot(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "ac");
+
         assert_parses_default(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "abc");
         assert_parses_fast(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "abc");
+        assert_parses_one_shot(&seq!(choice!(eat_char('a'), seq!(eat_char('a'), eat_char('b'))), eat_char('c')), "abc");
     }
 
     #[test]
     fn test_seq_opt() {
         assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
         assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
+        assert_parses_one_shot(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
+
         assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "b");
         assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "b");
+        assert_parses_one_shot(&seq!(opt(eat_char('a')), eat_char('b')), "b");
     }
 
     #[test]
@@ -72,14 +90,19 @@ mod basic_tests {
         combinator.set(choice!(seq!(eat_char('a'), combinator.clone().into_dyn()), eat_char('b')));
         assert_parses_default(&combinator, "b");
         assert_parses_fast(&combinator, "b");
-        assert_parses_fast(&combinator, "b");
+        assert_parses_one_shot(&combinator, "b");
+
         assert_parses_default(&combinator, "ab");
         assert_parses_fast(&combinator, "ab");
-        assert_parses_fast(&combinator, "ab");
+        assert_parses_one_shot(&combinator, "ab");
+
         assert_parses_default(&combinator, "aab");
         assert_parses_fast(&combinator, "aab");
+        assert_parses_one_shot(&combinator, "aab");
+
         assert_parses_default(&combinator, "aaab");
         assert_parses_fast(&combinator, "aaab");
+        assert_parses_one_shot(&combinator, "aaab");
     }
 }
 
