@@ -192,7 +192,7 @@ macro_rules! define_seq {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
-            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {
+            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
                 f(&self.$first);
                 $(f(&self.$rest);)+
             }

@@ -68,7 +68,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
 }
 
 impl<T: CombinatorTrait + 'static> ApplyToChildren for Lookahead<T> {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.combinator);
     }
 }

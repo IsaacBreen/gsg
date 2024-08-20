@@ -146,7 +146,7 @@ pub trait CombinatorTrait: ApplyToChildren + std::fmt::Debug {
 }
 
 pub trait ApplyToChildren {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {}
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
 }
 
 pub fn dumb_one_shot_parse<T: CombinatorTrait>(combinator: &T, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -202,7 +202,7 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
 }
 
 impl<T: CombinatorTrait + ?Sized> ApplyToChildren for Box<T> {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         (**self).apply_to_children(f);
     }
 }

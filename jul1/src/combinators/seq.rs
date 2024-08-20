@@ -124,7 +124,7 @@ impl CombinatorTrait for Seq {
 }
 
 impl ApplyToChildren for Seq {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         for child in self.children.iter() {
             f(child);
         }

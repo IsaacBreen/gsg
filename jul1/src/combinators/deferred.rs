@@ -144,7 +144,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
 }
 
 impl<T: CombinatorTrait + 'static> ApplyToChildren for Deferred<T> {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator().combinator))
     }
 }

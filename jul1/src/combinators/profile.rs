@@ -119,7 +119,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
 }
 
 impl<T: CombinatorTrait + 'static> ApplyToChildren for Profiled<T> {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn ApplyToChildren)) {
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
     }
 }
