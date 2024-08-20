@@ -390,24 +390,24 @@ macro_rules! choice_generalised {
     }};
 }
 
-// #[macro_export]
-// macro_rules! choice {
-//     ($($rest:expr),+ $(,)?) => {{
-//         // $crate::choice_generalised!(false, $($rest),+)
-//         fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output: 'static {
-//             Box::new(x.into_combinator())
-//         }
-//         $crate::_choice(vec![$(convert($rest)),+])
-//     }};
-// }
-//
-// #[macro_export]
-// macro_rules! choice_greedy {
-//     ($($rest:expr),+ $(,)?) => {{
-//         // $crate::choice_generalised!(true, $($rest),+)
-//         fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output: 'static {
-//             Box::new(x.into_combinator())
-//         }
-//         $crate::_choice_greedy(vec![$(convert($rest)),+])
-//     }};
-// }
+#[macro_export]
+macro_rules! choice {
+    ($($rest:expr),+ $(,)?) => {{
+        $crate::choice_generalised!(false, $($rest),+)
+        // fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output: 'static {
+        //     Box::new(x.into_combinator())
+        // }
+        // $crate::_choice(vec![$(convert($rest)),+])
+    }};
+}
+
+#[macro_export]
+macro_rules! choice_greedy {
+    ($($rest:expr),+ $(,)?) => {{
+        $crate::choice_generalised!(true, $($rest),+)
+        // fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output: 'static {
+        //     Box::new(x.into_combinator())
+        // }
+        // $crate::_choice_greedy(vec![$(convert($rest)),+])
+    }};
+}
