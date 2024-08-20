@@ -33,7 +33,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
             Ok(right_data) => {
                 let end_position = right_data.right_data_inner.fields1.position;
                 let offset = end_position - start_position;
-                if let Some(node) = self.root.eat_all(&bytes[..offset]) {
+                if self.root.fully_matches(&bytes[..offset]) {
                     return Err(UnambiguousParseError::Fail);
                 } else {
                      Ok(right_data)

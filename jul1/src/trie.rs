@@ -92,6 +92,14 @@ impl TrieNode {
         (indices, Some(current_node))
     }
 
+    pub fn fully_matches(&self, bytes: &[u8]) -> bool {
+        let node = self.eat_all(bytes);
+        match node {
+            Some(node) => node.is_end(),
+            None => false,
+        }
+    }
+
     pub fn is_end(&self) -> bool {
         self.is_end
     }
