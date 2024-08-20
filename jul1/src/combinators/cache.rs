@@ -150,6 +150,7 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
                 let parse_id = global_cache.parse_id_counter;
                 global_cache.new_parsers.insert(parse_id, LruCache::new(NonZeroUsize::new(64).unwrap()));
                 global_cache.entries.insert(parse_id, Vec::new());
+                global_cache.one_shot_results.insert(parse_id, LruCache::new(NonZeroUsize::new(64).unwrap()));
                 global_cache.parse_id = Some(global_cache.parse_id_counter);
                 global_cache.parse_id_counter += 1;
                 parse_id
@@ -161,6 +162,10 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
             let cache_context_parser = CacheContextParser { inner: Box::new(parser), parse_id };
             (Parser::CacheContextParser(cache_context_parser), results)
         })
+    }
+
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        self.old_parse(right_data, bytes)
     }
 
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
