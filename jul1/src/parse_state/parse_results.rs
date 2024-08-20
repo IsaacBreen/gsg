@@ -32,11 +32,13 @@ pub trait ParseResultTrait {
 
 impl From<ParseResults> for UnambiguousParseResults {
     fn from(value: ParseResults) -> Self {
-        match (value.done(), value.right_data_vec.as_slice()) {
-            (true, []) => Err(UnambiguousParseError::Fail),
-            (true, [right_data]) => Ok(right_data.clone()),
-            (true, [_, _, ..]) => Err(UnambiguousParseError::Ambiguous),
-            (false, _) => Err(UnambiguousParseError::Incomplete),
+        if !value.done() {
+            return Err(UnambiguousParseError::Incomplete);
+        }
+        match value.right_data_vec.as_slice() {
+            [] => Err(UnambiguousParseError::Fail),
+            [right_data] => Ok(right_data.clone()),
+            [_, _, ..] => Err(UnambiguousParseError::Ambiguous),
         }
     }
 }
