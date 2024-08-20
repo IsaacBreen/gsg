@@ -164,10 +164,6 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
         })
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        self.old_parse(right_data, bytes)
-    }
-
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
         f(&self.inner);
     }
