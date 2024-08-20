@@ -56,7 +56,7 @@ struct CacheKey {
 // CacheEntry struct to hold the CombinatorTrait and caller locations
 #[derive(Debug)]
 struct CacheEntry {
-    value: Box<dyn CombinatorTrait<Parser=dyn ParserTrait>>,
+    value: Box<dyn CombinatorTrait>,
     caller_locations: RefCell<HashSet<String>>,
 }
 

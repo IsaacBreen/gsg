@@ -21,7 +21,7 @@ pub enum IndentCombinatorParser<'a> {
 
 #[derive(Debug)]
 pub struct OwningParser<'a> {
-    combinator: AliasableBox<dyn CombinatorTrait<Parser=dyn ParserTrait> + 'a>,
+    combinator: AliasableBox<dyn CombinatorTrait + 'a>,
     pub(crate) parser: Option<Box<Parser<'a>>>,
 }
 
@@ -70,7 +70,7 @@ impl CombinatorTrait for IndentCombinator {
     fn old_parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
-                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait<Parser=dyn ParserTrait> + 'a> {
+                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {
                     if indents.is_empty() {
                         eps().into_dyn()
                     } else {
@@ -130,7 +130,7 @@ impl CombinatorTrait for IndentCombinator {
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
-                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait<Parser=dyn ParserTrait> + 'a> {
+                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {
                     if indents.is_empty() {
                         eps().into_dyn()
                     } else {

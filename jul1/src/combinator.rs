@@ -19,7 +19,7 @@ macro_rules! match_enum {
     };
 }
 
-pub type Combinator = Box<dyn CombinatorTrait<Parser=dyn ParserTrait>>;
+pub type Combinator = Box<dyn CombinatorTrait>;
 
 #[derive(Debug)]
 pub enum Parser<'a> {
@@ -123,7 +123,6 @@ macro_rules! match_parser {
 }
 
 pub trait CombinatorTrait: std::fmt::Debug {
-    type Parser: ParserTrait;
     fn as_any(&self) -> &dyn std::any::Any;
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
