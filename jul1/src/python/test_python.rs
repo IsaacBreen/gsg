@@ -279,11 +279,12 @@ fn test_actual_python_file_one_shot() {
     let combinator = python_file();
 
     let test_cases = [
-        ("Simple string", "x = 12\nx = 2\nx"),
+        // ("Simple string", "x = 12\nx = 2\nx"),
         // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
         // ("remove_left_recursion.py", include_str!("../python/remove_left_recursion.py")),
         // ("test_input.py", include_str!("../tests/test_input.py")),
         // ("test_input2.py", include_str!("../tests/test_input2.py")),
+        ("test_input2.py", include_str!("../tests/test_input3.py")),
         // ("test_input_simplified.py", include_str!("../tests/test_input_simplified.py")),
     ];
 
