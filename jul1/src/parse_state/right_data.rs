@@ -68,7 +68,8 @@ impl RightData {
     }
 
     pub fn get_inner_mut(&mut self) -> &mut RightDataInner {
-        Rc::make_mut(&mut self.right_data_inner)
+        // Rc::make_mut(&mut self.right_data_inner)
+        &mut self.right_data_inner
     }
 }
 
