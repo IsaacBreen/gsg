@@ -344,7 +344,7 @@ pub fn assert_parses_one_shot<T: CombinatorTrait, S: ToString>(combinator: &T, i
     // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
     // Get the right data with the highest position
     // Ensure the parser finished with right data at the end
-    assert!(right_data.right_data_inner.fields1.position == bytes.len(), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), right_data);
+    assert!(right_data.right_data_inner.fields1.position == bytes.len(), "Expected parser to finish with right data at the end position {}. right_data: {:?}", bytes.len(), right_data);
 }
 
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
