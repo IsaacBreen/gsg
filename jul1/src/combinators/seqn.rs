@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
-use crate::{Combinator, CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, Squash};
+use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, Squash};
 
 macro_rules! profile {
     ($name:expr, $body:expr) => {

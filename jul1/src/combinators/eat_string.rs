@@ -2,7 +2,7 @@
 use crate::{dumb_one_shot_parse, UnambiguousParseError, UnambiguousParseResults};
 use std::any::Any;
 use std::rc::Rc;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecX};
+use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecX};
 use crate::internal_vec::VecY;
 use crate::parse_state::{RightData, ParseResultTrait};
 

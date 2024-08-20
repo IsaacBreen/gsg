@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 use derivative::Derivative;
 use lru::LruCache;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, Squash, U8Set, IntoCombinator, IntoDyn, count_hit};
+use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, Squash, U8Set, IntoCombinator, IntoDyn, count_hit};
 
 
 macro_rules! profile {

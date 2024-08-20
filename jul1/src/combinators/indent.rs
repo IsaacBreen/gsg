@@ -2,7 +2,7 @@ use crate::{dumb_one_shot_parse, RightData, UnambiguousParseError, UnambiguousPa
 use std::mem::transmute;
 use std::rc::Rc;
 use aliasable::boxed::AliasableBox;
-use crate::{choice, choice_greedy, Combinator, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, ParseResultTrait, seq, U8Set, VecX, VecY, IntoDyn};
+use crate::{choice, choice_greedy, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, ParseResultTrait, seq, U8Set, VecX, VecY, IntoDyn};
 
 #[derive(Debug)]
 pub enum IndentCombinator {

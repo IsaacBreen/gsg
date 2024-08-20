@@ -3,7 +3,7 @@ use crate::{dumb_one_shot_parse, UnambiguousParseError, UnambiguousParseResults}
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecY};
+use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, VecY};
 use crate::parse_state::{RightData, ParseResultTrait};
 use crate::trie::{FinishReason, TrieNode};
 

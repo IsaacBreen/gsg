@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::collections::{BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
 use lru::DefaultHasher;
-use crate::{Combinator, CombinatorTrait, eps, FailParser, Parser, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, RightDataSquasher, Squash, U8Set, VecY};
+use crate::{CombinatorTrait, eps, FailParser, Parser, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, RightDataSquasher, Squash, U8Set, VecY};
 use crate::VecX;
 
 macro_rules! profile {
@@ -16,14 +16,14 @@ macro_rules! profile {
 
 #[derive(Debug)]
 pub struct Seq {
-    pub(crate) children: VecX<Combinator>,
+    pub(crate) children: VecX<Box<dyn CombinatorTrait>>,
     pub(crate) start_index: usize,
 }
 
 #[derive(Debug)]
 pub struct SeqParser<'a> {
     pub(crate) parsers: Vec<(usize, Parser<'a>)>,
-    pub(crate) combinators: &'a VecX<Combinator>,
+    pub(crate) combinators: &'a VecX<Box<dyn CombinatorTrait>>,
     pub(crate) position: usize,
 }
 
@@ -196,7 +196,7 @@ impl ParserTrait for SeqParser<'_> {
     }
 }
 
-pub fn _seq(v: Vec<Combinator>)-> impl CombinatorTrait {
+pub fn _seq(v: Vec<Box<dyn CombinatorTrait>>) -> impl CombinatorTrait {
     profile_internal("seq", Seq {
         children: v.into_iter().collect(),
         start_index: 0,

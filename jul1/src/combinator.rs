@@ -19,8 +19,6 @@ macro_rules! match_enum {
     };
 }
 
-pub type Combinator = Box<dyn CombinatorTrait>;
-
 #[derive(Debug)]
 pub enum Parser<'a> {
     SeqParser(SeqParser<'a>),

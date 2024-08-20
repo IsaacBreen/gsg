@@ -1,5 +1,5 @@
 use crate::{dumb_one_shot_parse, UnambiguousParseError, UnambiguousParseResults};
-use crate::{Combinator, CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
+use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, ParseResultTrait};
 
 #[repr(transparent)]
