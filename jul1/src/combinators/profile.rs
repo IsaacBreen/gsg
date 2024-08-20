@@ -109,7 +109,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        profile!(&self.tag, self.inner.one_shot_parse(right_data, bytes))
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

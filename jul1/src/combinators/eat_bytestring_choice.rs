@@ -1,5 +1,5 @@
 // src/combinators/eat_bytestring_choice.rs
-use crate::UnambiguousParseResults;
+use crate::{dumb_one_shot_parse, UnambiguousParseResults};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
@@ -31,7 +31,7 @@ impl CombinatorTrait for EatByteStringChoice {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        dumb_one_shot_parse(self, right_data, bytes)
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

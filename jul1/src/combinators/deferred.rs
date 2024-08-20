@@ -124,7 +124,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        let combinator = self.inner.get().expect("inner combinator not initialized");
+        combinator.one_shot_parse(right_data, bytes)
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

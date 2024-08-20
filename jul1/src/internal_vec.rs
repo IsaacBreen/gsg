@@ -107,6 +107,10 @@ impl<T: PartialEq> FakeVec<T> {
             None
         }
     }
+
+    pub fn as_slice(&self) -> &[T] {
+        self.item.as_ref().map(|item| std::slice::from_ref(item)).unwrap_or(&[])
+    }
 }
 
 #[macro_export]

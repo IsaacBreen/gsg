@@ -1,4 +1,4 @@
-use crate::UnambiguousParseResults;
+use crate::{dumb_one_shot_parse, UnambiguousParseResults};
 use std::any::Any;
 use std::ops::RangeBounds;
 use std::rc::Rc;
@@ -21,7 +21,7 @@ impl CombinatorTrait for EatU8 {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        dumb_one_shot_parse(self, right_data, bytes)
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

@@ -30,6 +30,17 @@ pub trait ParseResultTrait {
     fn empty_finished() -> Self where Self: Sized;
 }
 
+impl From<ParseResults> for UnambiguousParseResults {
+    fn from(value: ParseResults) -> Self {
+        match (value.done(), value.right_data_vec.as_slice()) {
+            (true, []) => Err(UnambiguousParseError::Fail),
+            (true, [right_data]) => Ok(right_data.clone()),
+            (true, [_, _, ..]) => Err(UnambiguousParseError::Ambiguous),
+            (false, _) => Err(UnambiguousParseError::Incomplete),
+        }
+    }
+}
+
 impl ParseResultTrait for ParseResults {
     fn done(&self) -> bool {
         self.done

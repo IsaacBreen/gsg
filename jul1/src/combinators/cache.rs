@@ -30,6 +30,7 @@ thread_local! {
 struct GlobalCache {
     new_parsers: HashMap<usize, LruCache<CacheKey, Rc<RefCell<CacheEntry>>>>,
     pub(crate) entries: HashMap<usize, Vec<Rc<RefCell<CacheEntry>>>>,
+    pub one_shot_results: HashMap<usize, LruCache<CacheKey, UnambiguousParseResults>>,
     pub(crate) parse_id_counter: usize,
     pub(crate) parse_id: Option<usize>,
 }
@@ -39,6 +40,7 @@ impl GlobalCache {
         Self {
             new_parsers: HashMap::new(),
             entries: HashMap::new(),
+            one_shot_results: HashMap::new(),
             parse_id_counter: 0,
             parse_id: None,
         }
@@ -48,6 +50,11 @@ impl GlobalCache {
         let parse_id = self.parse_id.take().unwrap();
         self.new_parsers.get_mut(&parse_id).unwrap().clear();
         self.entries.get_mut(&parse_id).unwrap().retain(|entry| !entry.borrow().maybe_parse_results.as_ref().unwrap().done());
+    }
+
+    fn one_shot_cleanup(&mut self) {
+        let parse_id = self.parse_id.take().unwrap();
+        self.one_shot_results.get_mut(&parse_id).unwrap().clear();
     }
 }
 
@@ -118,7 +125,22 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
         todo!()
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        GLOBAL_CACHE.with(|cache| {
+            let parse_id = {
+                let mut global_cache = cache.borrow_mut();
+                let parse_id = global_cache.parse_id_counter;
+                global_cache.new_parsers.insert(parse_id, LruCache::new(NonZeroUsize::new(64).unwrap()));
+                global_cache.entries.insert(parse_id, Vec::new());
+                global_cache.one_shot_results.insert(parse_id, LruCache::new(NonZeroUsize::new(64).unwrap()));
+                global_cache.parse_id = Some(global_cache.parse_id_counter);
+                global_cache.parse_id_counter += 1;
+                parse_id
+            };
+            let parse_result = self.inner.one_shot_parse(right_data, bytes);
+            let mut global_cache = cache.borrow_mut();
+            global_cache.one_shot_cleanup();
+            parse_result
+        })
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
@@ -185,7 +207,27 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
         todo!()
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        GLOBAL_CACHE.with(move |cache| {
+            let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn CombinatorTrait, right_data: right_data.clone() };
+
+            let mut global_cache = cache.borrow_mut();
+            let parse_id = global_cache.parse_id.unwrap();
+            if let Some(entry) = profile!("Cached.parse: check cache: get entry", {
+                global_cache.one_shot_results.get_mut(&parse_id).unwrap().get(&key).cloned()
+            }) {
+                count_hit!("Cached.parse: cache hit");
+                return entry;
+            }
+            drop(global_cache);
+
+            count_hit!("Cached.parse: cache miss");
+            let inner = &self.inner;
+            let parse_result: UnambiguousParseResults = profile!("Cached.parse: inner.one_shot_parse", inner.one_shot_parse(right_data, bytes));
+            let mut global_cache = cache.borrow_mut();
+            let parse_id = global_cache.parse_id.unwrap();
+            global_cache.one_shot_results.get_mut(&parse_id).unwrap().put(key, parse_result.clone());
+            parse_result
+        })
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

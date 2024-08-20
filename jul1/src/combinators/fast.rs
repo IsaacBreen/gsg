@@ -30,7 +30,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
         self
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        dumb_one_shot_parse(self, right_data, bytes)
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

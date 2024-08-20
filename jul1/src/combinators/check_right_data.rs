@@ -1,5 +1,5 @@
 // src/combinators/check_right_data.rs
-use crate::UnambiguousParseResults;
+use crate::{dumb_one_shot_parse, UnambiguousParseResults};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -35,7 +35,7 @@ impl CombinatorTrait for CheckRightData {
         self
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        dumb_one_shot_parse(self, right_data, bytes)
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
