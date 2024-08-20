@@ -82,7 +82,7 @@ macro_rules! define_choice {
                 }
             }
 
-            fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
                 let first_combinator = &self.$first;
                 let (first_parser, first_parse_results) = profile!(stringify!($choice_name, " first child parse"), {
                     first_combinator.parse(right_data.clone(), bytes)

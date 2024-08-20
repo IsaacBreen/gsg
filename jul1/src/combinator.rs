@@ -129,6 +129,9 @@ pub trait CombinatorTrait: std::fmt::Debug {
     }
     fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        self.old_parse(right_data, bytes)
+    }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults;
     fn compile(mut self) -> Self where Self: Sized {
         self.compile_inner();
