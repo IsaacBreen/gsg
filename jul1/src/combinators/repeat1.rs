@@ -40,6 +40,9 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
             let parse_result = self.a.one_shot_parse(right_data.clone(), &bytes[offset..]);
             match parse_result {
                 Ok(new_right_data) => {
+                    if self.greedy && prev_parse_result.is_ok() {
+                        return Err(UnambiguousParseError::Ambiguous);
+                    }
                     prev_parse_result = Ok(new_right_data.clone());
                     right_data = new_right_data;
                 }
