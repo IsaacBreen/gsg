@@ -1,4 +1,4 @@
-use crate::{UnambiguousParseError, UnambiguousParseResults};
+use crate::{FailParser, UnambiguousParseError, UnambiguousParseResults};
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -51,6 +51,30 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
                 }
                 Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete) => {
                     return parse_result;
+                }
+            }
+        }
+    }
+
+    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        let start_position = right_data.right_data_inner.fields1.position;
+        let mut prev_parse_result = Err(UnambiguousParseError::Fail);
+        loop {
+            let offset = right_data.right_data_inner.fields1.position - start_position;
+            let parse_result = self.a.one_shot_parse(right_data.clone(), &bytes[offset..]);
+            match parse_result {
+                Ok(new_right_data) => {
+                    if !self.greedy && prev_parse_result.is_ok() {
+                        return self.old_parse(right_data, bytes);
+                    }
+                    prev_parse_result = Ok(new_right_data.clone());
+                    right_data = new_right_data;
+                }
+                Err(UnambiguousParseError::Fail) => {
+                    return (Parser::FailParser(FailParser), ParseResults::empty_unfinished());
+                }
+                Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete) => {
+                    return self.old_parse(right_data, &bytes[offset..]);
                 }
             }
         }
