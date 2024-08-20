@@ -30,14 +30,16 @@ pub struct Fields2 {
 pub struct RightDataInner {
     pub fields1: Fields1,
     #[derivative(Hash = "ignore")]
-    pub fields2: Rc<Fields2>,
+    // pub fields2: Rc<Fields2>,
+    pub fields2: Box<Fields2>,
+    // pub fields2: Fields2,
 }
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct RightData {
-    // pub right_data_inner: Rc<RightDataInner>,
-    pub right_data_inner: Box<RightDataInner>,
+    pub right_data_inner: Rc<RightDataInner>,
+    // pub right_data_inner: Box<RightDataInner>,
     // pub right_data_inner: RightDataInner,
 }
 
@@ -70,14 +72,16 @@ impl RightData {
     }
 
     pub fn get_inner_mut(&mut self) -> &mut RightDataInner {
-        // Rc::make_mut(&mut self.right_data_inner)
-        &mut *self.right_data_inner
+        Rc::make_mut(&mut self.right_data_inner)
+        // &mut *self.right_data_inner
         // &mut self.right_data_inner
     }
 }
 
 impl RightDataInner {
     pub fn get_fields2_mut(&mut self) -> &mut Fields2 {
-        Rc::make_mut(&mut self.fields2)
+        // Rc::make_mut(&mut self.fields2)
+        &mut *self.fields2
+        // &mut self.fields2
     }
 }
