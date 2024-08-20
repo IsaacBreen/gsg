@@ -32,18 +32,16 @@ impl CombinatorTrait for FastCombinatorWrapper {
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
-        if regex_state.failed() {
-            ParseResultTrait::empty_finished()
+        if !regex_state.done() {
+            Err(UnambiguousParseError::Incomplete)
+        } else if let Some(new_match) = regex_state.prev_match() {
+            let mut new_right_data = right_data.clone();
+            let position = new_match.position;
+            new_right_data.advance(position);
+            Ok(new_right_data)
         } else {
-            let mut right_data_vec: VecY<RightData> = vecy![];
-            let done = regex_state.done();
-            if let Some(new_match) = regex_state.prev_match() {
-                let mut new_right_data = right_data.clone();
-                let position = new_match.position;
-                new_right_data.advance(position);
-                right_data_vec.push(new_right_data);
-            }
-            ParseResultTrait::new(right_data_vec, done)
+            assert!(regex_state.failed());
+            Err(UnambiguousParseError::Fail)
         }
     }
 
