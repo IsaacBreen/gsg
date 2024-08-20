@@ -38,9 +38,9 @@ pub struct RightDataInner {
 #[derive(Derivative)]
 #[derivative(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct RightData {
-    // pub right_data_inner: Rc<RightDataInner>,
+    pub right_data_inner: Rc<RightDataInner>,
     // pub right_data_inner: Box<RightDataInner>,
-    pub right_data_inner: RightDataInner,
+    // pub right_data_inner: RightDataInner,
 }
 
 impl Default for RightData {
@@ -72,9 +72,9 @@ impl RightData {
     }
 
     pub fn get_inner_mut(&mut self) -> &mut RightDataInner {
-        // Rc::make_mut(&mut self.right_data_inner)
+        Rc::make_mut(&mut self.right_data_inner)
         // &mut *self.right_data_inner
-        &mut self.right_data_inner
+        // &mut self.right_data_inner
     }
 }
 
