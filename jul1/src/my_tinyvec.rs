@@ -236,6 +236,14 @@ impl<T> FastVec<T> {
             }
         }
     }
+
+    pub fn as_slice(&self) -> &[T] {
+        match self {
+            FastVec::None => &[],
+            FastVec::One(item) => std::slice::from_ref(item),
+            FastVec::Many(vec) => vec.deref(),
+        }
+    }
 }
 
 impl<T> FromIterator<T> for FastVec<T> {
