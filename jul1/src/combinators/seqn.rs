@@ -191,16 +191,6 @@ macro_rules! define_seq {
                 })
             }
         }
-
-        impl<$first, $($rest),+> $seq_name<$first, $($rest),+>
-        where
-            $first: CombinatorTrait,
-            $($rest: CombinatorTrait),+
-        {
-            fn children(&self) -> Vec<&dyn CombinatorTrait> {
-                vec![&self.$first, $( &self.$rest ),+]
-            }
-        }
     };
 }
 
