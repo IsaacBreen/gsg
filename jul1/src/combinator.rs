@@ -198,6 +198,10 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
         (**self).old_parse(right_data, bytes)
     }
 
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+        (**self).parse(right_data, bytes)
+    }
+
     fn compile_inner(&self) {
         (**self).compile_inner();
     }
