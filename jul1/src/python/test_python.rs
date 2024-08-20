@@ -275,6 +275,27 @@ fn test_actual_python_file_fast() {
 }
 
 #[test]
+fn test_actual_python_file_one_shot() {
+    let combinator = python_file();
+
+    let test_cases = [
+        ("Simple string", "x = 12\nx = 2\nx"),
+        // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
+        // ("remove_left_recursion.py", include_str!("../python/remove_left_recursion.py")),
+        // ("test_input.py", include_str!("../tests/test_input.py")),
+        // ("test_input2.py", include_str!("../tests/test_input2.py")),
+        // ("test_input_simplified.py", include_str!("../tests/test_input_simplified.py")),
+    ];
+
+    for (name, content) in test_cases.iter() {
+        let start = Instant::now();
+        assert_parses_one_shot_with_result(&combinator, content, Err(UnambiguousParseError::Incomplete));
+        let duration = start.elapsed();
+        println!("{:<25} parsed in {:?}", name, duration);
+    }}
+
+
+#[test]
 fn profile_python_file() {
     let combinator = python_file();
 
