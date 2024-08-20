@@ -21,7 +21,17 @@ impl CombinatorTrait for EatU8 {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+        if bytes.is_empty() {
+            return ParseResultTrait::empty_unfinished();
+        }
+
+        let mut right_data = right_data;
+        if self.u8set.contains(bytes[0]) {
+            Rc::make_mut(&mut right_data.right_data_inner).fields1.position += 1;
+            ParseResultTrait::new_single(right_data, true)
+        } else {
+            ParseResultTrait::empty_finished()
+        }
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
