@@ -2,7 +2,7 @@
 use std::any::Any;
 use std::rc::Rc;
 
-use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX, UnambiguousParseResults};
+use crate::{Combinator, CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX, UnambiguousParseResults, UnambiguousParseError};
 use crate::parse_state::{RightData, ParseResultTrait};
 
 #[derive(Debug)]
@@ -23,7 +23,47 @@ impl CombinatorTrait for Choice {
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        if self.greedy {
+            for parser in self.children.iter() {
+                let parse_result = parser.one_shot_parse(right_data.clone(), bytes);
+                match parse_result {
+                    Ok(right_data) => {
+                        return Ok(right_data);
+                    }
+                    Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => {
+                        return parse_result;
+                    }
+                    Err(UnambiguousParseError::Fail) => {}
+                }
+            }
+            Err(UnambiguousParseError::Fail)
+        } else {
+            for (i, parser) in self.children.iter().enumerate() {
+                let parse_result = parser.one_shot_parse(right_data.clone(), bytes);
+                match parse_result {
+                    Ok(right_data) => {
+                        for (j, parser2) in self.children.iter().enumerate() {
+                            let parse_result2 = parser2.one_shot_parse(right_data.clone(), bytes);
+                            match parse_result2 {
+                                Ok(_) => {
+                                    return Err(UnambiguousParseError::Ambiguous);
+                                }
+                                Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => {
+                                    return parse_result2;
+                                }
+                                Err(UnambiguousParseError::Fail) => {}
+                            }
+                        }
+                        return Ok(right_data);
+                    }
+                    Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => {
+                        return parse_result;
+                    }
+                    Err(UnambiguousParseError::Fail) => {}
+                }
+            };
+            Err(UnambiguousParseError::Fail)
+        }
     }
 
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
