@@ -120,11 +120,12 @@ macro_rules! match_parser {
     };
 }
 
-pub trait CombinatorTrait: ApplyToChildren + std::fmt::Debug {
+pub trait CombinatorTrait: std::fmt::Debug {
     fn as_any(&self) -> &dyn std::any::Any;
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         self.old_parse(right_data, bytes)
@@ -143,10 +144,6 @@ pub trait CombinatorTrait: ApplyToChildren + std::fmt::Debug {
     fn compile_inner(&self) {
         self.apply_to_children(&mut |combinator| combinator.compile_inner());
     }
-}
-
-pub trait ApplyToChildren {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {}
 }
 
 pub fn dumb_one_shot_parse<T: CombinatorTrait>(combinator: &T, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -184,6 +181,10 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
         (**self).type_name()
     }
 
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        (**self).apply_to_children(f);
+    }
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         (**self).one_shot_parse(right_data, bytes)
     }
@@ -198,12 +199,6 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
 
     fn compile_inner(&self) {
         (**self).compile_inner();
-    }
-}
-
-impl<T: CombinatorTrait + ?Sized> ApplyToChildren for Box<T> {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        (**self).apply_to_children(f);
     }
 }
 

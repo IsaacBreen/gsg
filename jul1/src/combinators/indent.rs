@@ -1,4 +1,4 @@
-use crate::{dumb_one_shot_parse, ApplyToChildren, RightData, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, RightData, UnambiguousParseError, UnambiguousParseResults};
 use std::mem::transmute;
 use std::rc::Rc;
 use aliasable::boxed::AliasableBox;
@@ -185,8 +185,6 @@ impl CombinatorTrait for IndentCombinator {
         }
     }
 }
-
-impl ApplyToChildren for IndentCombinator {}
 
 impl ParserTrait for IndentCombinatorParser<'_> {
     fn get_u8set(&self) -> U8Set {

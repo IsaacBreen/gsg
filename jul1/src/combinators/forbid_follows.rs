@@ -1,6 +1,5 @@
 use crate::*;
 use std::rc::Rc;
-use crate::ApplyToChildren;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
@@ -35,8 +34,6 @@ impl CombinatorTrait for ForbidFollows {
     }
 }
 
-impl ApplyToChildren for ForbidFollows {}
-
 impl CombinatorTrait for ForbidFollowsClear {
     fn as_any(&self) -> &dyn std::any::Any {
         self
@@ -49,8 +46,6 @@ impl CombinatorTrait for ForbidFollowsClear {
         (combinator::Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
     }
 }
-
-impl ApplyToChildren for ForbidFollowsClear {}
 
 impl CombinatorTrait for ForbidFollowsCheckNot {
     fn as_any(&self) -> &dyn std::any::Any {
@@ -68,8 +63,6 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
         }
     }
 }
-
-impl ApplyToChildren for ForbidFollowsCheckNot {}
 
 pub fn forbid_follows(match_ids: &[usize]) -> ForbidFollows { // Using a bitset
     let mut bitset = 0;

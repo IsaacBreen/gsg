@@ -1,4 +1,4 @@
-use crate::{ApplyToChildren, UnambiguousParseResults};
+use crate::UnambiguousParseResults;
 use crate::RightData;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -110,8 +110,6 @@ impl CombinatorTrait for Continuation {
         todo!()
     }
 }
-
-impl ApplyToChildren for Continuation {}
 
 impl ParserTrait for ContinuationParser {
     fn get_u8set(&self) -> U8Set {

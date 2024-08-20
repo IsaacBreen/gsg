@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, UnambiguousParseResults, ApplyToChildren};
+use crate::{CombinatorTrait, FailParser, Parser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, UnambiguousParseResults};
 use crate::ChoiceParser;
 
 macro_rules! profile {
@@ -28,6 +28,11 @@ macro_rules! define_choice {
         {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
+            }
+
+            fn apply(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+                f(&self.$first);
+                $(f(&self.$rest);)+
             }
 
             fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
@@ -121,17 +126,6 @@ macro_rules! define_choice {
                         combined_results
                     )
                 }
-            }
-        }
-
-        impl<$first, $($rest),+> ApplyToChildren for $choice_name<$first, $($rest),+>
-        where
-            $first: CombinatorTrait,
-            $($rest: CombinatorTrait),+
-        {
-            fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-                f(&self.$first);
-                $(f(&self.$rest);)+
             }
         }
     };

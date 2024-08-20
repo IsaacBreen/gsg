@@ -1,5 +1,5 @@
 // src/combinators/check_right_data.rs
-use crate::{dumb_one_shot_parse, ApplyToChildren, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, UnambiguousParseError, UnambiguousParseResults};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -50,8 +50,6 @@ impl CombinatorTrait for CheckRightData {
         }
     }
 }
-
-impl ApplyToChildren for CheckRightData {}
 
 pub fn check_right_data(run: impl Fn(&RightData) -> bool + 'static) -> CheckRightData {
     CheckRightData { run: Box::new(run) }

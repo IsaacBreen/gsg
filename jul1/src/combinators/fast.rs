@@ -2,7 +2,6 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use crate::*;
-use crate::ApplyToChildren;
 use crate::tokenizer::finite_automata::{Expr, ExprGroups, Regex, RegexState};
 
 pub struct FastCombinatorWrapper {
@@ -64,8 +63,6 @@ impl CombinatorTrait for FastCombinatorWrapper {
         }
     }
 }
-
-impl ApplyToChildren for FastCombinatorWrapper {}
 
 impl ParserTrait for FastParserWrapper<'_> {
     fn get_u8set(&self) -> U8Set {

@@ -2,7 +2,7 @@
 use std::collections::HashSet;
 use crate::*;
 use crate::trie::TrieNode;
-use crate::{ApplyToChildren, VecX};
+use crate::VecX;
 
 #[derive(Debug)]
 pub struct ExcludeBytestrings<T: CombinatorTrait> {
@@ -21,6 +21,10 @@ pub struct ExcludeBytestringsParser<'a> {
 impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
+        f(&self.inner);
     }
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -52,12 +56,6 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
             node: node.map(|node| node),
             start_position,
         }), parse_results)
-    }
-}
-
-impl<T: CombinatorTrait + 'static> ApplyToChildren for ExcludeBytestrings<T> {
-    fn apply_to_children(&self, f: &mut dyn FnMut(&dyn CombinatorTrait)) {
-        f(&self.inner);
     }
 }
 
