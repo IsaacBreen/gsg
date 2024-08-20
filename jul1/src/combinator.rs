@@ -131,7 +131,6 @@ pub trait CombinatorTrait: std::fmt::Debug {
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults;
     fn compile(mut self) -> Self where Self: Sized {
-        println!("compiling");
         self.compile_inner();
         self
     }
