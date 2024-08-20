@@ -275,6 +275,78 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
     assert!(parse_results.right_data_vec.iter().max_by_key(|right_data| right_data.right_data_inner.fields1.position).expect(format!("Expected at least one right data. parse_results: {:?}", parse_results).as_str()).right_data_inner.fields1.position >= bytes.len().saturating_sub(tolerance), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
 }
 
+pub fn assert_parses_one_shot<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
+    let bytes = input.to_string().bytes().collect::<Vec<_>>();
+    let start_right_data = RightData::default();
+    let start = Instant::now();
+    let parse_results = profile!("assert_parses_fast parse",
+        {
+            combinator.one_shot_parse(start_right_data, &bytes)
+        }
+    );
+    let right_data = match parse_results {
+        Ok(right_data) => right_data,
+        Err(e) => panic!("Error parsing input: {:?}", e),
+    };
+    let duration = start.elapsed();
+    println!("assert_parses_fast parse took {:?}", duration);
+    // Get the line and char number of the max position
+    let max_position = right_data.right_data_inner.fields1.position;
+    let mut line_number = 0;
+    let mut char_number = 0;
+    for byte in bytes[0..max_position].iter().cloned() {
+        if byte == b'\n' {
+            line_number += 1;
+            char_number = 0;
+        } else {
+            char_number += 1;
+        }
+    }
+
+    // Print profile results
+    let profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+    let mut profile_vec: Vec<(String, Duration)> = profile_data.timings.iter().map(|(tag, duration)| (tag.clone(), *duration)).collect::<Vec<_>>();
+    let total_time = profile_data.timings.iter().map(|(_, duration)| *duration).sum::<Duration>();
+    // Sort simply by duration
+    profile_vec.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
+    println!("Profile results:");
+    println!("Total time: {:?}", total_time);
+    for (tag, duration) in profile_vec.clone() {
+        let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
+        println!("{:>9} {:6.2}% {}", format!("{:.3?}", duration), percent, tag);
+    }
+    println!("Hit counts:");
+    let total_hit_count = profile_data.hit_counts.values().sum::<usize>();
+    let mut hit_counts = profile_data.hit_counts.iter().collect::<Vec<_>>();
+    hit_counts.sort_by(|(_, hit_count_a), (_, hit_count_b)| hit_count_b.partial_cmp(hit_count_a).unwrap());
+    for (tag, hit_count) in hit_counts.clone() {
+        let percent = *hit_count as f64 / total_hit_count as f64 * 100.0;
+        println!("{:>9} {:6.2}% {}", format!("{:.3?}", hit_count), percent, tag);
+    }
+    // Duration per hit
+    println!("Duration per hit:");
+    let mut duration_per_hit: HashMap<String, Duration> = HashMap::new();
+    for (tag, hits) in profile_data.hit_counts.iter() {
+        if let Some(duration) = profile_data.timings.get(tag) {
+            duration_per_hit.insert(tag.clone(), *duration / *hits as u32);
+        }
+    }
+    let mut duration_per_hit: Vec<(String, Duration)> = duration_per_hit.into_iter().collect::<Vec<_>>();
+    duration_per_hit.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
+    for (tag, duration) in duration_per_hit.clone() {
+        let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
+        println!("{:>9} {:6.2}% {}", format!("{:.3?}", duration), percent, tag);
+    }
+    drop(profile_data);
+
+    println!("max_position: {max_position}, line_number: {line_number}, char_number: {char_number}");
+    // todo: uncomment this for unambiguous parses
+    // let [right_data] = parse_results.right_data_vec.as_slice() else { panic!("Expected one right data, but found {:?}", parse_results.right_data_vec) };
+    // Get the right data with the highest position
+    // Ensure the parser finished with right data at the end
+    assert!(right_data.right_data_inner.fields1.position == bytes.len(), "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), right_data);
+}
+
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     let mut input = input.to_string();
     println!("beginning assert_fails {}", desc);

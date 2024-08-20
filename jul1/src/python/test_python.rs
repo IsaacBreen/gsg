@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use crate::{choice, choice_greedy, eat, eat_string, opt, seq, strong_ref, symbol, cache_context, negative_lookahead, cached, IntoDyn};
 use crate::python::python_grammar::{python_file, python_literal, simple_stmt, assignment, yield_expr, star_expressions, star_targets, NAME, WS, STRING, FSTRING_START, FSTRING_MIDDLE, FSTRING_END, NUMBER, NEWLINE, INDENT, DEDENT, ENDMARKER};
-use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, profile_parse};
+use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, assert_parses_one_shot, profile_parse};
 
 #[test]
 fn test_trivial_x() {
@@ -189,6 +189,14 @@ fn test_test_input_fast() {
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses_fast(&combinator, &file);
+}
+
+#[test]
+fn test_test_input_one_shot() {
+    let path = Path::new("src/tests/test_input.py");
+    let file = std::fs::read_to_string(path).unwrap();
+    let combinator = python_file();
+    assert_parses_one_shot(&combinator, &file);
 }
 
 #[test]
