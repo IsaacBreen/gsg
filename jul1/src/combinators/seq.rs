@@ -38,8 +38,13 @@ impl CombinatorTrait for Seq {
         }
     }
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+    fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        let start_position = right_data.right_data_inner.fields1.position;
+        for combinator in self.children.iter() {
+            let offset = right_data.right_data_inner.fields1.position - start_position;
+            right_data = combinator.one_shot_parse(right_data, &bytes[offset..])?;
+        }
+        Ok(right_data)
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {

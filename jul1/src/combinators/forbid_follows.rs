@@ -24,8 +24,9 @@ impl CombinatorTrait for ForbidFollows {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+    fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        Rc::make_mut(&mut right_data.right_data_inner).fields1.forbidden_consecutive_matches.prev_match_ids = self.match_ids;
+        Ok(right_data)
     }
     fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         Rc::make_mut(&mut right_data.right_data_inner).fields1.forbidden_consecutive_matches.prev_match_ids = self.match_ids;
@@ -38,7 +39,7 @@ impl CombinatorTrait for ForbidFollowsClear {
         self
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+        Ok(right_data)
     }
     fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         Rc::make_mut(&mut right_data.right_data_inner).fields1.forbidden_consecutive_matches.prev_match_ids = 0;
@@ -51,7 +52,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
         self
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        dumb_one_shot_parse(self, right_data, bytes)
+        Ok(right_data)
     }
     fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
         if right_data.right_data_inner.fields1.forbidden_consecutive_matches.prev_match_ids & self.match_ids != 0 {
