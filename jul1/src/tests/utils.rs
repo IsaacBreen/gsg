@@ -276,12 +276,9 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
 }
 
 pub fn assert_parses_one_shot<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
-    println!("HI!!!!!!!!!!!!!!!!");
-    panic!();
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start_right_data = RightData::default();
     let start = Instant::now();
-    println!("beginning assert_parses_one_shot");
     let parse_results = profile!("assert_parses_fast parse",
         {
             combinator.one_shot_parse(start_right_data, &bytes)
