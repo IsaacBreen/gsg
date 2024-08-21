@@ -1,4 +1,5 @@
 // src/combinators/cache.rs
+// src/combinators/cache.rs
 use crate::{BaseCombinatorTrait, UnambiguousParseResults};
 use crate::RightData;
 use std::any::{Any, TypeId};
@@ -11,7 +12,7 @@ use std::rc::Rc;
 
 use derivative::Derivative;
 use lru::LruCache;
-use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, Squash, U8Set, IntoCombinator, IntoDyn, count_hit};
+use crate::{CombinatorTrait, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, Squash, U8Set, IntoCombinator, IntoDyn, count_hit};
 
 
 macro_rules! profile {
@@ -82,7 +83,7 @@ impl Eq for CacheKey {}
 #[derive(Derivative)]
 #[derivative(Debug)]
 struct CacheEntry {
-    pub(crate) parser: Option<Box<Parser<'static>>>,
+    pub(crate) parser: Option<Box<dyn ParserTrait + 'static>>,
     maybe_parse_results: Option<ParseResults>,
 }
 
@@ -116,11 +117,13 @@ impl PartialEq for CachedParser {
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct CacheContextParser<'a> {
-    pub inner: Box<Parser<'a>>,
+    pub inner: Box<dyn ParserTrait + 'a>,
     pub(crate) parse_id: usize,
 }
 
 impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
+    type Parser<'a> = CacheContextParser<'a>;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
@@ -140,7 +143,7 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
         })
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
@@ -156,8 +159,8 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
             let mut global_cache = cache.borrow_mut();
             global_cache.entries.get_mut(&parse_id).unwrap().reverse();
             global_cache.cleanup();
-            let cache_context_parser = CacheContextParser { inner: Box::new(parser), parse_id };
-            (Parser::CacheContextParser(cache_context_parser), results)
+            let cache_context_parser = CacheContextParser { inner: parser, parse_id };
+            (cache_context_parser, results)
         })
     }
 }
@@ -206,6 +209,8 @@ impl ParserTrait for CacheContextParser<'_> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
+    type Parser<'a> = CachedParser;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(move |cache| {
             let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn CombinatorTrait, right_data: right_data.clone() };
@@ -230,7 +235,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
         })
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         GLOBAL_CACHE.with(move |cache| {
             let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn CombinatorTrait, right_data: right_data.clone() };
 
@@ -241,7 +246,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
             }) {
                 count_hit!("Cached.parse: cache hit");
                 let parse_results = entry.borrow().maybe_parse_results.clone().expect("CachedParser.parser: parse_results is None");
-                return (Parser::CachedParser(CachedParser { entry }), parse_results);
+                return (CachedParser { entry }, parse_results);
             }
             drop(global_cache);
 
@@ -251,7 +256,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
                 maybe_parse_results: None,
             }));
             let inner: &'static T = unsafe { transmute(&self.inner) };
-            let (parser, mut parse_results): (Parser<'static>, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
+            let (parser, mut parse_results): (Box<dyn ParserTrait + 'static>, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
             profile!("Cached.parse: parse_results.squash", parse_results.squash());
 
             let mut global_cache = cache.borrow_mut();
@@ -260,8 +265,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
             if !parse_results.done() {
                 global_cache.entries.get_mut(&parse_id).unwrap().push(entry.clone());
             }
-            *entry.borrow_mut() = CacheEntry { parser: Some(Box::new(parser)), maybe_parse_results: Some(parse_results.clone()) };
-            (Parser::CachedParser(CachedParser { entry }), parse_results)
+            *entry.borrow_mut() = CacheEntry { parser: Some(parser), maybe_parse_results: Some(parse_results.clone()) };
+            (CachedParser { entry }, parse_results)
         })
     }
 }

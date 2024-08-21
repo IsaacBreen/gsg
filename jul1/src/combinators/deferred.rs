@@ -1,4 +1,5 @@
 // src/combinators/deferred.rs
+// src/combinators/deferred.rs
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -116,12 +117,14 @@ impl<T: CombinatorTrait + 'static> Hash for Deferred<T> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
+    type Parser<'a> = T::Parser<'a>;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().expect("inner combinator not initialized");
         combinator.one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         // let combinator = self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator());
         let combinator = self.inner.get().expect("inner combinator not initialized");
         combinator.parse(right_data, bytes)

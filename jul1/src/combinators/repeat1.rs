@@ -1,9 +1,10 @@
+// src/combinators/repeat1.rs
 use crate::{BaseCombinatorTrait, FailParser, UnambiguousParseError, UnambiguousParseResults};
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use crate::{CombinatorTrait, opt_greedy, Parser, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy, Opt, Seq2, IntoCombinator, fail};
+use crate::{CombinatorTrait, opt_greedy, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy, Opt, Seq2, IntoCombinator, fail};
 use crate::opt;
 use crate::parse_state::{RightData, ParseResultTrait};
 use crate::VecX;
@@ -18,12 +19,14 @@ pub struct Repeat1<T: CombinatorTrait> {
 pub struct Repeat1Parser<'a> {
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
     pub(crate) a: &'a dyn CombinatorTrait,
-    pub(crate) a_parsers: Vec<Parser<'a>>,
+    pub(crate) a_parsers: Vec<Box<dyn ParserTrait + 'a>>,
     pub(crate) position: usize,
     pub(crate) greedy: bool,
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
+    type Parser<'a> = Repeat1Parser<'a>;
+
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
@@ -48,7 +51,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
         }
     }
 
-    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         // return self.old_parse(right_data, bytes);
         let start_position = right_data.right_data_inner.fields1.position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
@@ -68,9 +71,19 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
                 }
                 Err(UnambiguousParseError::Fail) => {
                     if let Ok(prev_right_data) = prev_parse_result {
-                        return (Parser::FailParser(FailParser), ParseResults::new_single(prev_right_data, true));
+                        return (Repeat1Parser {
+                            a: &self.a,
+                            a_parsers: vec![],
+                            position: start_position + bytes.len(),
+                            greedy: self.greedy
+                        }, ParseResults::new_single(prev_right_data, true));
                     } else {
-                        return (Parser::FailParser(FailParser), ParseResults::empty_finished());
+                        return (Repeat1Parser {
+                            a: &self.a,
+                            a_parsers: vec![],
+                            position: start_position + bytes.len(),
+                            greedy: self.greedy
+                        }, ParseResults::empty_finished());
                     }
                 }
                 Err(UnambiguousParseError::Ambiguous) => {
@@ -93,19 +106,24 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
         let (parser, parse_results) = self.a.parse(right_data, bytes);
         if parse_results.done() && parse_results.right_data_vec.is_empty() {
             // Shortcut
-            return (parser, parse_results);
+            return (Repeat1Parser {
+                a: &self.a,
+                a_parsers: vec![],
+                position: start_position + bytes.len(),
+                greedy: self.greedy
+            }, parse_results);
         } else if parse_results.right_data_vec.is_empty() {
-            return (Parser::Repeat1Parser(Repeat1Parser {
+            return (Repeat1Parser {
                 a: &self.a,
                 a_parsers: vec![parser],
                 position: start_position + bytes.len(),
                 greedy: self.greedy
-            }), ParseResults::new(vecy![], false));
+            }, ParseResults::new(vecy![], false));
         }
         let mut parsers = if parse_results.done() {
             vec![]
@@ -147,12 +165,12 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
         let done = parsers.is_empty();
 
         (
-            Parser::Repeat1Parser(Repeat1Parser {
+            Repeat1Parser {
                 a: &self.a,
                 a_parsers: parsers,
                 position: start_position + bytes.len(),
                 greedy: self.greedy
-            }),
+            },
             ParseResults::new(right_data_vec, done)
         )
     }

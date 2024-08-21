@@ -1,6 +1,6 @@
 use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseResults};
 use std::any::Any;
-use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set};
+use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, ParseResultTrait};
 #[derive(Debug)]
 pub struct Eps;

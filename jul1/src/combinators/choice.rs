@@ -1,8 +1,9 @@
 // src/combinators/choice.rs
+// src/combinators/choice.rs
 use std::any::Any;
 use std::rc::Rc;
 
-use crate::{CombinatorTrait, eps, Parser, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX, UnambiguousParseResults, UnambiguousParseError, BaseCombinatorTrait};
+use crate::{CombinatorTrait, eps, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX, UnambiguousParseResults, UnambiguousParseError, BaseCombinatorTrait};
 use crate::parse_state::{RightData, ParseResultTrait};
 
 #[derive(Debug)]
@@ -13,11 +14,13 @@ pub struct Choice {
 
 #[derive(Debug)]
 pub struct ChoiceParser<'a> {
-    pub(crate) parsers: Vec<Parser<'a>>,
+    pub(crate) parsers: Vec<Box<dyn ParserTrait + 'a>>,
     pub(crate) greedy: bool,
 }
 
 impl CombinatorTrait for Choice {
+    type Parser<'a> = ChoiceParser<'a>;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if self.greedy {
             for parser in self.children.iter() {
@@ -62,7 +65,7 @@ impl CombinatorTrait for Choice {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
@@ -79,7 +82,7 @@ impl CombinatorTrait for Choice {
         }
 
         (
-            Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
+            ChoiceParser { parsers, greedy: self.greedy },
             combined_results
         )
     }
@@ -156,4 +159,4 @@ pub fn _choice_greedy(v: Vec<Box<dyn CombinatorTrait>>) -> impl CombinatorTrait 
 //     fn from(value: Choice) -> Self {
 //
 //     }
-// }
+//

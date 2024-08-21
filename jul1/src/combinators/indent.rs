@@ -1,8 +1,9 @@
+// src/combinators/indent.rs
 use crate::{dumb_one_shot_parse, BaseCombinatorTrait, RightData, UnambiguousParseError, UnambiguousParseResults};
 use std::mem::transmute;
 use std::rc::Rc;
 use aliasable::boxed::AliasableBox;
-use crate::{choice, choice_greedy, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, Parser, ParseResults, ParserTrait, ParseResultTrait, seq, U8Set, VecX, VecY, IntoDyn};
+use crate::{choice, choice_greedy, CombinatorTrait, eat_byte_choice, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, ParseResults, ParserTrait, ParseResultTrait, seq, U8Set, VecX, VecY, IntoDyn};
 
 #[derive(Debug)]
 pub enum IndentCombinator {
@@ -22,7 +23,7 @@ pub enum IndentCombinatorParser<'a> {
 #[derive(Debug)]
 pub struct OwningParser<'a> {
     combinator: AliasableBox<dyn CombinatorTrait + 'a>,
-    pub(crate) parser: Option<Box<Parser<'a>>>,
+    pub(crate) parser: Option<Box<dyn ParserTrait + 'a>>,
 }
 
 impl<'a> OwningParser<'a> {
@@ -44,7 +45,7 @@ impl<'a> OwningParser<'a> {
             let parser = transmute(parser);
 
             // Set the parser in the OwningParser
-            owning_parser.parser = Some(Box::new(parser));
+            owning_parser.parser = Some(parser);
 
             (owning_parser.parser.as_mut().unwrap(), parse_results)
         };
@@ -64,7 +65,9 @@ impl<'a> ParserTrait for OwningParser<'a> {
 }
 
 impl CombinatorTrait for IndentCombinator {
-    fn old_parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Parser<'a>, ParseResults) {
+    type Parser<'a> = IndentCombinatorParser<'a>;
+
+    fn old_parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
                 fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {
@@ -121,7 +124,7 @@ impl CombinatorTrait for IndentCombinator {
             }
             _ => (IndentCombinatorParser::Done, ParseResultTrait::empty_finished()),
         };
-        (Parser::IndentCombinatorParser(parser), parse_results)
+        (parser, parse_results)
     }
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {

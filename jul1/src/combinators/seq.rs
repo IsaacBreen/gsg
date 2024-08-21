@@ -1,3 +1,4 @@
+// src/combinators/seq.rs
 use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseResults};
 use crate::RightData;
 use std::any::Any;
@@ -5,7 +6,7 @@ use std::rc::Rc;
 use std::collections::{BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
 use lru::DefaultHasher;
-use crate::{CombinatorTrait, eps, FailParser, Parser, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, RightDataSquasher, Squash, U8Set, VecY};
+use crate::{CombinatorTrait, eps, FailParser, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, RightDataSquasher, Squash, U8Set, VecY};
 use crate::VecX;
 
 macro_rules! profile {
@@ -22,12 +23,14 @@ pub struct Seq {
 
 #[derive(Debug)]
 pub struct SeqParser<'a> {
-    pub(crate) parsers: Vec<(usize, Parser<'a>)>,
+    pub(crate) parsers: Vec<(usize, Box<dyn ParserTrait + 'a>)>,
     pub(crate) combinators: &'a VecX<Box<dyn CombinatorTrait>>,
     pub(crate) position: usize,
 }
 
 impl CombinatorTrait for Seq {
+    type Parser<'a> = SeqParser<'a>;
+
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;
         for combinator in self.children.iter() {
@@ -37,7 +40,7 @@ impl CombinatorTrait for Seq {
         Ok(right_data)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
 
         let mut combinator_index = self.start_index;
@@ -53,9 +56,13 @@ impl CombinatorTrait for Seq {
         let done = parse_results.done();
         if done && parse_results.right_data_vec.is_empty() {
             // Shortcut
-            return (Parser::FailParser(FailParser), parse_results);
+            return (SeqParser {
+                parsers: vec![],
+                combinators: &self.children,
+                position: start_position + bytes.len(),
+            }, parse_results);
         }
-        let mut parsers: Vec<(usize, Parser)> = if done {
+        let mut parsers: Vec<(usize, Box<dyn ParserTrait>)> = if done {
             vec![]
         } else {
             vec![(combinator_index, parser)]
@@ -104,18 +111,22 @@ impl CombinatorTrait for Seq {
         }
 
         if parsers.is_empty() {
-            return (Parser::FailParser(FailParser), ParseResults::new(final_right_data, true));
+            return (SeqParser {
+                parsers: vec![],
+                combinators: &self.children,
+                position: start_position + bytes.len(),
+            }, ParseResults::new(final_right_data, true));
         }
 
-        let parser = Parser::SeqParser(SeqParser {
+        let parser = SeqParser {
             parsers,
             combinators: &self.children,
             position: start_position + bytes.len(),
-        });
+        };
 
         let parse_results = ParseResults::new(final_right_data, false);
 
-        (parser.into(), parse_results)
+        (parser, parse_results)
     }
 }
 

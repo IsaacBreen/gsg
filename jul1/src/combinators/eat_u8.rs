@@ -2,7 +2,7 @@ use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseResults};
 use std::any::Any;
 use std::ops::RangeBounds;
 use std::rc::Rc;
-use crate::{CombinatorTrait, Parser, ParseResults, ParserTrait, U8Set, ParseResultTrait};
+use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set, ParseResultTrait};
 use crate::parse_state::{RightData};
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatU8 {

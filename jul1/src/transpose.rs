@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{ChoiceParser, Opt, Parser, Repeat1, Repeat1Parser, Seq, SeqParser};
+use crate::{ChoiceParser, Opt, Repeat1, Repeat1Parser, Seq, SeqParser};
 
 // impl Parser {
 //     pub fn transpose(&mut self) {

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::AddAssign;
 
-use crate::{BruteForceParser, CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, GLOBAL_CACHE, IndentCombinatorParser, match_parser, Parser, ProfiledParser, Repeat1Parser, SeqParser, TaggedParser, U8Set};
+use crate::{BruteForceParser, CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, GLOBAL_CACHE, IndentCombinatorParser, ProfiledParser, Repeat1Parser, SeqParser, TaggedParser, U8Set, BaseCombinatorTrait};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Stats {
@@ -237,64 +237,72 @@ impl Stats {
     }
 }
 
-impl Parser<'_> {
-    pub fn stats(&self) -> Stats {
+pub trait MakeStats {
+    fn stats(&self) -> Stats;
+    fn collect_stats(&self, stats: &mut Stats, current_tag: Option<&String>);
+    fn type_name(&self) -> String;
+}
+
+impl<T: BaseCombinatorTrait> MakeStats for T {
+    fn stats(&self) -> Stats {
         let mut stats = Stats::default();
         self.collect_stats(&mut stats, None);
         stats
     }
 
     fn collect_stats(&self, stats: &mut Stats, current_tag: Option<&String>) {
-        match self {
-            Parser::SeqParser(SeqParser { parsers, .. }) => {
-                parsers.iter().for_each(|(_, parser)| parser.collect_stats(stats, current_tag));
-            }
-            Parser::ChoiceParser(ChoiceParser { parsers, greedy }) => {
-                parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
-            }
-            Parser::EatU8Parser(EatU8Parser { u8set, .. }) => {
-                stats.active_u8_matchers.entry(u8set.clone()).or_default().add_assign(1);
-            }
-            Parser::EatStringParser(EatStringParser { string, .. }) => {
-                stats.active_string_matchers.entry(String::from_utf8_lossy(string).to_string()).or_default().add_assign(1);
-            }
-            Parser::CacheContextParser(CacheContextParser { inner, .. }) => {
-                inner.collect_stats(stats, current_tag);
-                // for entry in GLOBAL_CACHE.with(|cache| cache.borrow().entries.iter()) {
-                //     entry.borrow().parser.as_ref().map(|p| p.collect_stats(stats, current_tag));
-                // }
-            }
-            Parser::Repeat1Parser(Repeat1Parser { a_parsers, .. }) => {
-                a_parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
-            }
-            Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => parser.parser.as_ref().unwrap().collect_stats(stats, current_tag),
-
-            Parser::EpsParser(_) |
-            Parser::FailParser(_) |
-            Parser::CachedParser(_) |
-            Parser::EatByteStringChoiceParser(_) => { },
-            Parser::ExcludeBytestringsParser(ExcludeBytestringsParser { inner, .. }) => {
-                inner.collect_stats(stats, current_tag);
-            }
-            Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(_)) |
-            Parser::IndentCombinatorParser(IndentCombinatorParser::Done) => {}
-            Parser::ProfiledParser(ProfiledParser { inner, .. }) => {
-                inner.collect_stats(stats, current_tag);
-            },
-            Parser::BruteForceParser(_) => {},
-            Parser::ContinuationParser(_) => {},
-            Parser::FastParserWrapper(_) => {}
-            Parser::DynParser(_) => todo!(),
-            Parser::OwningParser(_) => todo!(),
-            Parser::TaggedParser(TaggedParser { inner, tag }) => {
-                inner.collect_stats(stats, Some(tag));
-            },
-        }
-        stats.active_parser_type_counts.entry(self.type_name()).or_default().add_assign(1);
+        todo!()
+    //     match self {
+    //         Parser::SeqParser(SeqParser { parsers, .. }) => {
+    //             parsers.iter().for_each(|(_, parser)| parser.collect_stats(stats, current_tag));
+    //         }
+    //         Parser::ChoiceParser(ChoiceParser { parsers, greedy }) => {
+    //             parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
+    //         }
+    //         Parser::EatU8Parser(EatU8Parser { u8set, .. }) => {
+    //             stats.active_u8_matchers.entry(u8set.clone()).or_default().add_assign(1);
+    //         }
+    //         Parser::EatStringParser(EatStringParser { string, .. }) => {
+    //             stats.active_string_matchers.entry(String::from_utf8_lossy(string).to_string()).or_default().add_assign(1);
+    //         }
+    //         Parser::CacheContextParser(CacheContextParser { inner, .. }) => {
+    //             inner.collect_stats(stats, current_tag);
+    //             // for entry in GLOBAL_CACHE.with(|cache| cache.borrow().entries.iter()) {
+    //             //     entry.borrow().parser.as_ref().map(|p| p.collect_stats(stats, current_tag));
+    //             // }
+    //         }
+    //         Parser::Repeat1Parser(Repeat1Parser { a_parsers, .. }) => {
+    //             a_parsers.iter().for_each(|p| p.collect_stats(stats, current_tag));
+    //         }
+    //         Parser::IndentCombinatorParser(IndentCombinatorParser::DentParser(parser)) => parser.parser.as_ref().unwrap().collect_stats(stats, current_tag),
+    //
+    //         Parser::EpsParser(_) |
+    //         Parser::FailParser(_) |
+    //         Parser::CachedParser(_) |
+    //         Parser::EatByteStringChoiceParser(_) => { },
+    //         Parser::ExcludeBytestringsParser(ExcludeBytestringsParser { inner, .. }) => {
+    //             inner.collect_stats(stats, current_tag);
+    //         }
+    //         Parser::IndentCombinatorParser(IndentCombinatorParser::IndentParser(_)) |
+    //         Parser::IndentCombinatorParser(IndentCombinatorParser::Done) => {}
+    //         Parser::ProfiledParser(ProfiledParser { inner, .. }) => {
+    //             inner.collect_stats(stats, current_tag);
+    //         },
+    //         Parser::BruteForceParser(_) => {},
+    //         Parser::ContinuationParser(_) => {},
+    //         Parser::FastParserWrapper(_) => {}
+    //         Parser::DynParser(_) => todo!(),
+    //         Parser::OwningParser(_) => todo!(),
+    //         Parser::TaggedParser(TaggedParser { inner, tag }) => {
+    //             inner.collect_stats(stats, Some(tag));
+    //         },
+    //     }
+    //     stats.active_parser_type_counts.entry(self.type_name()).or_default().add_assign(1);
     }
 
     fn type_name(&self) -> String {
-        match_parser!(self, inner => std::any::type_name_of_val(&inner)).to_string()
+        // match_parser!(self, inner => std::any::type_name_of_val(&inner)).to_string()
+        todo!()
     }
 }
 

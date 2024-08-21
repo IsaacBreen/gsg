@@ -19,110 +19,12 @@ macro_rules! match_enum {
     };
 }
 
-#[derive(Debug)]
-pub enum Parser<'a> {
-    SeqParser(SeqParser<'a>),
-    ChoiceParser(ChoiceParser<'a>),
-    EatU8Parser(EatU8Parser),
-    EatStringParser(EatStringParser<'a>),
-    EpsParser(EpsParser),
-    FailParser(FailParser),
-    CacheContextParser(CacheContextParser<'a>),
-    CachedParser(CachedParser),
-    IndentCombinatorParser(IndentCombinatorParser<'a>),
-    Repeat1Parser(Repeat1Parser<'a>),
-    EatByteStringChoiceParser(EatByteStringChoiceParser<'a>),
-    ExcludeBytestringsParser(ExcludeBytestringsParser<'a>),
-    ProfiledParser(ProfiledParser<'a>),
-    BruteForceParser(BruteForceParser),
-    ContinuationParser(ContinuationParser),
-    FastParserWrapper(FastParserWrapper<'a>),
-    DynParser(Box<dyn ParserTrait + 'a>),
-    OwningParser(OwningParser<'a>),
-    TaggedParser(TaggedParser<'a>),
-}
-
-impl ParserTrait for Box<Parser<'_>> {
-    fn get_u8set(&self) -> U8Set {
-        let inner = &**self;
-        inner.get_u8set()
-    }
-
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let inner = &mut **self;
-        inner.parse(bytes)
-    }
-}
-
-macro_rules! match_combinator {
-    ($expr:expr, $inner:ident => $arm:expr) => {
-        $crate::match_enum!($expr, Combinator, $inner => $arm,
-            Seq,
-            Choice,
-            EatU8,
-            EatString,
-            Eps,
-            Fail,
-            CacheContext,
-            Cached,
-            IndentCombinator,
-            MutateRightData,
-            Repeat1,
-            Symbol,
-            Tagged,
-            ForbidFollows,
-            ForbidFollowsClear,
-            ForbidFollowsCheckNot,
-            EatByteStringChoice,
-            CheckRightData,
-            Deferred,
-            Lookahead,
-            ExcludeBytestrings,
-            Profiled,
-            Opt,
-            Repeat0,
-            SepRep1,
-            WeakRef,
-            StrongRef,
-            BruteForce,
-            Continuation,
-            Fast,
-            Dyn,
-            DynRc
-        )
-    };
-}
-
-#[macro_export]
-macro_rules! match_parser {
-    ($expr:expr, $inner:ident => $arm:expr) => {
-        $crate::match_enum!($expr, Parser, $inner => $arm,
-            SeqParser,
-            ChoiceParser,
-            EatU8Parser,
-            EatStringParser,
-            EatByteStringChoiceParser,
-            EpsParser,
-            FailParser,
-            CacheContextParser,
-            CachedParser,
-            IndentCombinatorParser,
-            Repeat1Parser,
-            ExcludeBytestringsParser,
-            ProfiledParser,
-            BruteForceParser,
-            ContinuationParser,
-            FastParserWrapper,
-            DynParser,
-            OwningParser,
-            TaggedParser
-        )
-    };
-}
+// Removed Parser enum
 
 pub trait CombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults);
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    type Parser<'a>: ParserTrait + 'a;
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults);
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         self.old_parse(right_data, bytes)
         // let (mut parser, mut parse_results) = self.old_parse(right_data, &[]);
         // if !parse_results.done() {
@@ -179,15 +81,17 @@ pub trait ParserTrait: std::fmt::Debug {
 }
 
 impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
+    type Parser<'a> = T::Parser<'a>;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         (**self).one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         (**self).old_parse(right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         (**self).parse(right_data, bytes)
     }
 }
@@ -207,19 +111,10 @@ impl<T: CombinatorTrait + ?Sized> BaseCombinatorTrait for Box<T> {
     }
 }
 
-impl ParserTrait for Parser<'_> {
-    fn get_u8set(&self) -> U8Set {
-        match_parser!(self, inner => inner.get_u8set())
-    }
-
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let parse_results = match_parser!(self, inner => inner.parse(bytes));
-        parse_results
-    }
-}
+// Removed ParserTrait implementation for Parser enum
 
 pub trait CombinatorTraitExt: CombinatorTrait {
-    fn parser(&self, right_data: RightData) -> (Parser, ParseResults) {
+    fn parser(&self, right_data: RightData) -> (Self::Parser<'_>, ParseResults) {
         self.old_parse(right_data, &[])
     }
 }
