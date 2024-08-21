@@ -16,6 +16,8 @@ pub struct EatU8Parser {
 }
 
 impl CombinatorTrait for EatU8 {
+    type Parser<'a> = EatU8Parser;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if bytes.is_empty() {
             return ParseResultTrait::empty_unfinished();
@@ -30,13 +32,13 @@ impl CombinatorTrait for EatU8 {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let mut parser = EatU8Parser {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        let parser = EatU8Parser {
             u8set: self.u8set.clone(),
             right_data: Some(right_data),
         };
         let parse_results = parser.parse(bytes);
-        (Parser::EatU8Parser(parser), parse_results)
+        (parser, parse_results)
     }
 }
 

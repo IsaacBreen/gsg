@@ -31,6 +31,8 @@ impl Debug for CheckRightData {
 }
 
 impl CombinatorTrait for CheckRightData {
+    type Parser<'a> = FailParser;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if (self.run)(&right_data) {
             Ok(right_data)
@@ -39,11 +41,11 @@ impl CombinatorTrait for CheckRightData {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         if (self.run)(&right_data) {
-            (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
+            (FailParser, ParseResults::new_single(right_data, true))
         } else {
-            (Parser::FailParser(FailParser), ParseResults::empty_finished())
+            (FailParser, ParseResults::empty_finished())
         }
     }
 }
@@ -62,4 +64,4 @@ pub fn check_right_data(run: impl Fn(&RightData) -> bool + 'static) -> CheckRigh
 //     fn from(value: CheckRightData) -> Self {
 //         Combinator::CheckRightData(value)
 //     }
-// }
+// 

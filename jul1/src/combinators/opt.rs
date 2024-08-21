@@ -8,6 +8,8 @@ pub struct Opt<T: CombinatorTrait> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
+    type Parser<'a> = T::Parser<'a>;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.inner.one_shot_parse(right_data.clone(), bytes);
         if self.greedy {
@@ -25,7 +27,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         if !(self.greedy && parse_results.succeeds_decisively()) {
             // TODO: remove the condition below. It's a hack.
@@ -51,7 +53,7 @@ pub fn opt<T: IntoCombinator>(a: T) -> Opt<T::Output> {
 }
 
 pub fn opt_greedy(a: impl IntoCombinator + 'static)-> impl CombinatorTrait {
-    profile_internal("opt_greedy", Opt { inner: Box::new(a.into_combinator()), greedy: true })
+    profile_internal("opt_greedy", Opt { inner: a.into_combinator(), greedy: true })
 }
 
 // impl From<Opt<Box<Combinator>>> for Combinator {

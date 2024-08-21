@@ -27,6 +27,8 @@ impl Debug for FastParserWrapper<'_> {
 }
 
 impl CombinatorTrait for FastCombinatorWrapper {
+    type Parser<'a> = FastParserWrapper<'a>;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
@@ -43,11 +45,11 @@ impl CombinatorTrait for FastCombinatorWrapper {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
         if regex_state.failed() {
-            (Parser::FailParser(FailParser), ParseResults::empty_finished())
+            (FastParserWrapper { regex_state, right_data: None }, ParseResults::empty_finished())
         } else {
             let mut right_data_vec: VecY<RightData> = vecy![];
             let done = regex_state.done();
@@ -57,7 +59,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
                 new_right_data.advance(position);
                 right_data_vec.push(new_right_data);
             }
-            (Parser::FastParserWrapper(FastParserWrapper { regex_state, right_data: Some(right_data) }), ParseResults::new(right_data_vec, done))
+            (FastParserWrapper { regex_state, right_data: Some(right_data) }, ParseResults::new(right_data_vec, done))
         }
     }
 }

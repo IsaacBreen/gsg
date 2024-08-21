@@ -23,6 +23,8 @@ macro_rules! define_choice {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
+            type Parser<'a> = ChoiceParser<'a>;
+
             fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 use $crate::{UnambiguousParseResults, UnambiguousParseError};
                 if self.greedy {
@@ -70,7 +72,7 @@ macro_rules! define_choice {
                 }
             }
 
-            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
                 let first_combinator = &self.$first;
                 let (first_parser, first_parse_results) = profile!(stringify!($choice_name, " first child parse"), {
                     first_combinator.parse(right_data.clone(), bytes)
@@ -98,19 +100,19 @@ macro_rules! define_choice {
                     combined_results.merge_assign(next_parse_results);
                     if discard_rest {
                         return (
-                            Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
+                            ChoiceParser { parsers, greedy: self.greedy },
                             combined_results
                         );
                     }
                 )+
 
                 if parsers.len() == 0 {
-                    return (Parser::FailParser(FailParser), combined_results);
+                    return (ChoiceParser { parsers: vec![], greedy: self.greedy }, combined_results);
                 } else if parsers.len() == 1 {
-                    return (parsers.pop().unwrap(), combined_results);
+                    return (ChoiceParser { parsers, greedy: self.greedy }, combined_results);
                 } else {
                     (
-                        Parser::ChoiceParser(ChoiceParser { parsers, greedy: self.greedy }),
+                        ChoiceParser { parsers, greedy: self.greedy },
                         combined_results
                     )
                 }

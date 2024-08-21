@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use crate::{CombinatorTrait, FailParser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, Squash, BaseCombinatorTrait};
 
 macro_rules! profile {
-    ($name:expr, $body:expr) => {
-        $body
+    ($name:expr, $expr:expr) => {
+        $expr
     };
 }
 
@@ -28,8 +28,8 @@ macro_rules! define_seq {
             $($rest: CombinatorTrait),+
         {
             pub(crate) combinator: &'a $seq_name<$first, $($rest),+>,
-            pub(crate) $first: Vec<Parser<'a>>,
-            $(pub(crate) $rest: Vec<Parser<'a>>,)+
+            pub(crate) $first: Vec<Box<dyn ParserTrait + 'a>>,
+            $(pub(crate) $rest: Vec<Box<dyn ParserTrait + 'a>>,)+
             pub(crate) position: usize,
         }
 
@@ -38,6 +38,8 @@ macro_rules! define_seq {
             $first: CombinatorTrait + 'static,
             $($rest: CombinatorTrait + 'static),+
         {
+            type Parser<'a> = $seq_parser_name<'a, $first, $($rest),+>;
+
             fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 let start_position = right_data.right_data_inner.fields1.position;
                 right_data = self.$first.one_shot_parse(right_data, bytes)?;
@@ -48,7 +50,7 @@ macro_rules! define_seq {
                 $crate::UnambiguousParseResults::Ok(right_data)
             }
 
-            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
                 let start_position = right_data.right_data_inner.fields1.position;
 
                 let first_combinator = &self.$first;
@@ -59,13 +61,21 @@ macro_rules! define_seq {
                 let mut all_done = first_parse_results.done();
                 if all_done && first_parse_results.right_data_vec.is_empty() {
                     // Shortcut
-                    return (Parser::FailParser(FailParser), first_parse_results);
+                    return (
+                        $seq_parser_name {
+                            combinator: self,
+                            $first: vec![],
+                            $($rest: vec![],)+
+                            position: start_position + bytes.len(),
+                        },
+                        first_parse_results
+                    );
                 }
                 let first_parser_vec = if all_done { vec![] } else { vec![first_parser] };
 
                 let mut next_right_data_vec = first_parse_results.right_data_vec;
 
-                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (Parser<'a>, ParseResults) {
+                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
                     let offset = right_data.right_data_inner.fields1.position - start_position;
                     profile!(stringify!($seq_name, " child parse"), {
                         next_combinator.parse(right_data, &bytes[offset..])
@@ -89,7 +99,7 @@ macro_rules! define_seq {
                         //     position: start_position + bytes.len(),
                         // };
                         // todo: hack
-                        return (Parser::DynParser(Box::new(seqn_parser)), ParseResults::empty(all_done));
+                        return (seqn_parser, ParseResults::empty(all_done));
                         // return (Parser::FailParser(FailParser), ParseResults::empty(all_done));
                     }
 
@@ -108,7 +118,7 @@ macro_rules! define_seq {
                 let parse_results = ParseResults::new(next_right_data_vec, all_done);
 
                 // todo: hack
-                (Parser::DynParser(Box::new(seqn_parser)), parse_results)
+                (seqn_parser, parse_results)
                 // (Parser::FailParser(FailParser), parse_results)
             }
         }
@@ -453,4 +463,4 @@ macro_rules! seq {
 //
 //         $crate::_seq(vec![$(convert($x)),+])
 //     }};
-// }
+// 

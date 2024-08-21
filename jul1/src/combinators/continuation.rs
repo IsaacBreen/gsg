@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::{CombinatorTrait, ParseResults, ParserTrait, ParseResultTrait, U8Set};
 
-pub type ParseFn = dyn Fn(RightData, &[u8]) -> (Parser, ParseResults);
+pub type ParseFn = dyn Fn(RightData, &[u8]) -> (Box<dyn ParserTrait>, ParseResults);
 
 pub type ParseContinuationFn = dyn FnMut(&[u8]) -> ParseResults;
 
@@ -83,11 +83,13 @@ impl Debug for ContinuationParser {
 }
 
 impl CombinatorTrait for Continuation {
+    type Parser<'a> = ContinuationParser;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         todo!("one_shot_parse")
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
         // match result {

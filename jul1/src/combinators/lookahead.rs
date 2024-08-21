@@ -3,7 +3,7 @@ use crate::BaseCombinatorTrait;
 
 #[derive(Debug)]
 pub struct PartialLookahead<'a> {
-    pub parser: Box<Parser<'a>>,
+    pub parser: Box<dyn ParserTrait + 'a>,
     pub positive: bool,
 }
 
@@ -28,6 +28,8 @@ pub struct Lookahead<T: CombinatorTrait> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
+    type Parser<'a> = FailParser;
+
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.combinator.one_shot_parse(right_data.clone(), bytes);
         if self.positive {
@@ -43,7 +45,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
             }
         }
     }
-    fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let (parser, mut parse_results) = self.combinator.parse(right_data.clone(), bytes);
         let has_right_data = !parse_results.right_data_vec.is_empty();
         let succeeds = if self.positive {
@@ -57,9 +59,9 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
             if !parse_results.done() {
                     right_data.get_inner_mut().fields1.lookahead_data.has_omitted_partial_lookaheads = true;
             }
-            (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
+            (FailParser, ParseResults::new_single(right_data, true))
         } else {
-            (Parser::FailParser(FailParser), ParseResults::empty_finished())
+            (FailParser, ParseResults::empty_finished())
         }
     }
 }

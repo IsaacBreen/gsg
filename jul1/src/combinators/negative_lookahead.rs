@@ -13,12 +13,14 @@ pub struct ExcludeBytestrings<T: CombinatorTrait> {
 
 #[derive(Debug)]
 pub struct ExcludeBytestringsParser<'a> {
-    pub(crate) inner: Box<Parser<'a>>,
+    pub(crate) inner: Box<dyn ParserTrait + 'a>,
     pub(crate) node: Option<&'a TrieNode>,
     pub(crate) start_position: usize,
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
+    type Parser<'a> = ExcludeBytestringsParser<'a>;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;
         match self.inner.one_shot_parse(right_data, bytes) {
@@ -34,7 +36,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
             Err(err) => Err(err),
         }
     }
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let (inner, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         let (indices, node) = self.root.get_indices(bytes);
         let indices: HashSet<usize> = indices.into_iter().collect();
@@ -43,11 +45,11 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
         parse_results.right_data_vec.retain(|right_data| {
             !indices.contains(&(right_data.right_data_inner.fields1.position - start_position))
         });
-        (Parser::ExcludeBytestringsParser(ExcludeBytestringsParser {
-            inner: Box::new(inner),
+        (ExcludeBytestringsParser {
+            inner,
             node: node.map(|node| node),
             start_position,
-        }), parse_results)
+        }, parse_results)
     }
 }
 
@@ -92,4 +94,4 @@ pub fn exclude_strings(inner: impl IntoCombinator + 'static, bytestrings_to_excl
 //     fn from(exclude_bytestrings: ExcludeBytestrings) -> Self {
 //         Self::ExcludeBytestrings(exclude_bytestrings)
 //     }
-// }
+// 

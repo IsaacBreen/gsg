@@ -30,6 +30,8 @@ impl Debug for MutateRightData {
 }
 
 impl CombinatorTrait for MutateRightData {
+    type Parser<'a> = FailParser;
+
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if (self.run)(&mut right_data) {
             Ok(right_data)
@@ -37,11 +39,11 @@ impl CombinatorTrait for MutateRightData {
             Err(UnambiguousParseError::Fail)
         }
     }
-    fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         if (self.run)(&mut right_data) {
-            (Parser::FailParser(FailParser), ParseResults::new_single(right_data, true))
+            (FailParser, ParseResults::new_single(right_data, true))
         } else {
-            (Parser::FailParser(FailParser), ParseResults::empty_finished())
+            (FailParser, ParseResults::empty_finished())
         }
     }
 }

@@ -10,12 +10,14 @@ pub struct FailParser;
 pub struct Fail;
 
 impl CombinatorTrait for Fail {
+    type Parser<'a> = FailParser;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Err(UnambiguousParseError::Fail)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        (Parser::FailParser(FailParser), ParseResults::empty_finished())
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        (FailParser, ParseResults::empty_finished())
     }
 }
 

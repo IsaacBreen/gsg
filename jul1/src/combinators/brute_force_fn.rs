@@ -91,6 +91,8 @@ fn convert_result(result: BruteForceResult) -> BruteForceResult2 {
 // }
 
 impl CombinatorTrait for BruteForce {
+    type Parser<'a> = BruteForceParser;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let result = (self.run)(right_data.clone(), bytes);
         match convert_result(result) {
@@ -100,20 +102,20 @@ impl CombinatorTrait for BruteForce {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
         match convert_result(result) {
             Ok(right_data) => (
-                Parser::FailParser(FailParser),
+                BruteForceParser { run, right_data: None, bytes: vec![] },
                 ParseResults::new_single(right_data, true)
             ),
             Err(ParseError::Fail) => (
-                Parser::FailParser(FailParser),
+                BruteForceParser { run, right_data: None, bytes: vec![] },
                 ParseResults::empty_finished()
             ),
             Err(ParseError::Incomplete) => (
-                Parser::BruteForceParser(BruteForceParser { run, right_data: Some(right_data), bytes: bytes.to_vec() }),
+                BruteForceParser { run, right_data: Some(right_data), bytes: bytes.to_vec() },
                 ParseResults::empty_unfinished()
             ),
         }

@@ -11,7 +11,7 @@ pub struct Tagged<T: CombinatorTrait> {
 }
 
 pub struct TaggedParser<'a> {
-    pub inner: Box<Parser<'a>>,
+    pub inner: Box<dyn ParserTrait + 'a>,
     pub tag: String,
 }
 
@@ -32,16 +32,18 @@ impl Debug for TaggedParser<'_> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
+    type Parser<'a> = TaggedParser<'a>;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.inner.one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         count_hit!(self.tag);
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (
-                Parser::TaggedParser(TaggedParser { inner: Box::new(parser), tag: self.tag.clone() }),
+                TaggedParser { inner: parser, tag: self.tag.clone() },
                 parse_results,
             ),
             Err(err) => {

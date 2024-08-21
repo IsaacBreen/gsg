@@ -9,12 +9,14 @@ pub struct Eps;
 pub struct EpsParser;
 
 impl CombinatorTrait for Eps {
+    type Parser<'a> = EpsParser;
+
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(right_data)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        (Parser::EpsParser(EpsParser), ParseResults::new_single(right_data, true))
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        (EpsParser, ParseResults::new_single(right_data, true))
     }
 }
 

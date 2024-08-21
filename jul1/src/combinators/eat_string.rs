@@ -25,6 +25,8 @@ pub struct EatStringParser<'a> {
 }
 
 impl CombinatorTrait for EatString {
+    type Parser<'a> = EatStringParser<'a>;
+
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if bytes.len() < self.string.len() {
             return Err(UnambiguousParseError::Incomplete);
@@ -38,14 +40,14 @@ impl CombinatorTrait for EatString {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Parser, ParseResults) {
-        let mut parser = EatStringParser {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        let parser = EatStringParser {
             string: self.string.as_slice(),
             index: 0,
             right_data: Some(right_data),
         };
         let parse_results = parser.parse(bytes);
-        (Parser::EatStringParser(parser), parse_results)
+        (parser, parse_results)
     }
 }
 
