@@ -17,14 +17,14 @@ macro_rules! profile {
 
 #[derive(Debug)]
 pub struct Seq {
-    pub(crate) children: VecX<Box<dyn CombinatorTrait>>,
+    pub(crate) children: VecX<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>,
     pub(crate) start_index: usize,
 }
 
 #[derive(Debug)]
 pub struct SeqParser<'a> {
     pub(crate) parsers: Vec<(usize, Box<dyn ParserTrait + 'a>)>,
-    pub(crate) combinators: &'a VecX<Box<dyn CombinatorTrait>>,
+    pub(crate) combinators: &'a VecX<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>,
     pub(crate) position: usize,
 }
 
@@ -208,7 +208,7 @@ impl ParserTrait for SeqParser<'_> {
     }
 }
 
-pub fn _seq(v: Vec<Box<dyn CombinatorTrait>>) -> impl CombinatorTrait {
+pub fn _seq(v: Vec<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>) -> impl CombinatorTrait {
     profile_internal("seq", Seq {
         children: v.into_iter().collect(),
         start_index: 0,

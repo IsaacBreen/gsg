@@ -46,6 +46,7 @@ mod continuation;
 mod fast;
 mod seqn;
 mod choicen;
+mod dyn_parser;
 
 pub use choice::*;
 pub use eat_string::*;
