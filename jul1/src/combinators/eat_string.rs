@@ -25,7 +25,7 @@ pub struct EatStringParser<'a> {
 }
 
 impl CombinatorTrait for EatString {
-    type Parser = EatStringParser<'a>;
+    type Parser<'a> = EatStringParser<'a>;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if bytes.len() < self.string.len() {

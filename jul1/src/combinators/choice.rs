@@ -8,13 +8,13 @@ use crate::parse_state::{RightData, ParseResultTrait};
 
 #[derive(Debug)]
 pub struct Choice {
-    pub(crate) children: VecX<Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>,
+    pub(crate) children: VecX<Box<dyn for<'a> CombinatorTrait<Parser<'a> = Box<dyn ParserTrait>>>>,
     pub(crate) greedy: bool,
 }
 
 #[derive(Debug)]
 pub struct ChoiceParser<'a> {
-    pub(crate) parsers: Vec<Box<dyn ParserTrait>>,
+    pub(crate) parsers: Vec<Box<dyn ParserTrait + 'a>>,
     pub(crate) greedy: bool,
 }
 
@@ -127,14 +127,14 @@ impl ParserTrait for ChoiceParser<'_> {
 
 }
 
-pub fn _choice(v: Vec<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>) -> impl CombinatorTrait {
+pub fn _choice(v: Vec<Box<dyn for<'a> CombinatorTrait<Parser<'a>=Box<dyn ParserTrait>>>>) -> impl CombinatorTrait {
     Choice {
         children: v.into_iter().collect(),
         greedy: false,
     }
 }
 
-pub fn _choice_greedy(v: Vec<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>) -> impl CombinatorTrait {
+pub fn _choice_greedy(v: Vec<Box<dyn for<'a> CombinatorTrait<Parser<'a>=Box<dyn ParserTrait>>>>) -> impl CombinatorTrait {
     profile_internal("choice", Choice {
         children: v.into_iter().collect(),
         greedy: true,

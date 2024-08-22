@@ -28,8 +28,8 @@ macro_rules! define_seq {
             $($rest: CombinatorTrait),+
         {
             pub(crate) combinator: &'a $seq_name<$first, $($rest),+>,
-            pub(crate) $first: Vec<Box<dyn ParserTrait>>,
-            $(pub(crate) $rest: Vec<Box<dyn ParserTrait>>,)+
+            pub(crate) $first: Vec<Box<dyn ParserTrait + 'a>>,
+            $(pub(crate) $rest: Vec<Box<dyn ParserTrait + 'a>>,)+
             pub(crate) position: usize,
         }
 
@@ -38,7 +38,7 @@ macro_rules! define_seq {
             $first: CombinatorTrait + 'static,
             $($rest: CombinatorTrait + 'static),+
         {
-            type Parser = $seq_parser_name<'a, $first, $($rest),+>;
+            type Parser<'a> = $seq_parser_name<'a, $first, $($rest),+>;
 
             fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 let start_position = right_data.right_data_inner.fields1.position;
@@ -75,7 +75,7 @@ macro_rules! define_seq {
 
                 let mut next_right_data_vec = first_parse_results.right_data_vec;
 
-                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (Box<dyn ParserTrait>, ParseResults) {
+                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
                     let offset = right_data.right_data_inner.fields1.position - start_position;
                     profile!(stringify!($seq_name, " child parse"), {
                         next_combinator.parse(right_data, &bytes[offset..])

@@ -8,7 +8,7 @@ pub struct Opt<T: CombinatorTrait> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
-    type Parser = T::Parser;
+    type Parser<'a> = T::Parser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.inner.one_shot_parse(right_data.clone(), bytes);

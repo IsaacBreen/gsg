@@ -22,9 +22,9 @@ macro_rules! match_enum {
 // Removed Parser enum
 
 pub trait CombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
-    type Parser: ParserTrait;
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults);
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    type Parser<'a>: ParserTrait + 'a where Self: 'a;
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults);
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         self.old_parse(right_data, bytes)
         // let (mut parser, mut parse_results) = self.old_parse(right_data, &[]);
         // if !parse_results.done() {
@@ -81,7 +81,7 @@ pub trait ParserTrait: std::fmt::Debug {
 }
 
 impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
-    type Parser = T::Parser;
+    type Parser<'a> = T::Parser<'a> where T: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         (**self).one_shot_parse(right_data, bytes)

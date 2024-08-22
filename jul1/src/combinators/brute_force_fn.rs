@@ -91,7 +91,7 @@ fn convert_result(result: BruteForceResult) -> BruteForceResult2 {
 // }
 
 impl CombinatorTrait for BruteForce {
-    type Parser = BruteForceParser;
+    type Parser<'a> = BruteForceParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let result = (self.run)(right_data.clone(), bytes);
