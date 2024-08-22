@@ -13,7 +13,7 @@ pub trait ParserTrait {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults;
 }
 
-impl<T: CombinatorTrait> CombinatorTrait for Box<T> {
+impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
     type Parser = T::Parser;
 
     fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a {
@@ -73,12 +73,19 @@ impl<T: CombinatorTrait> CombinatorTrait for DynWrapper<T> where T::Parser: 'sta
     }
 }
 fn dyn_wrapper<T: CombinatorTrait + 'static>(inner: T) -> Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>> {
-    Box::new(DynWrapper { inner })
+    let wrapper = DynWrapper { inner };
+    Box::new(wrapper)
 }
 
 #[test]
 fn test() {
-    let terminal = dyn_wrapper(Terminal);
-    let (mut parser, _) = terminal.parse((), &[]);
+    fn make() -> Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>> {
+        let terminal = dyn_wrapper(Terminal);
+        let wrapper = dyn_wrapper(terminal);
+        wrapper
+    }
+
+    let c = make();
+    let (mut parser, _) = c.parse((), &[]);
     parser.parse(&[]);
 }
