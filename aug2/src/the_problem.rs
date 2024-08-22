@@ -5,17 +5,17 @@ type ParseResults = ();
 type UnambiguousParseResults = ();
 type U8Set = ();
 
-pub trait CombinatorTrait<'a> where Self: 'a {
-    type Parser: ParserTrait + 'a where Self: 'a;
-    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults);
+pub trait CombinatorTrait {
+    type Parser: ParserTrait;
+    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a;
 }
 pub trait ParserTrait {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults;
 }
 
-impl<'a, T: CombinatorTrait<'a> + 'a + ?Sized> CombinatorTrait<'a> for Box<T> {
+impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
     type Parser = T::Parser;
-    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a {
         self.as_ref().parse(right_data, bytes)
     }
 }
@@ -27,9 +27,9 @@ impl<T: ParserTrait + ?Sized> ParserTrait for Box<T> {
 
 struct Terminal;
 struct TerminalParser;
-impl<'a> CombinatorTrait<'a> for Terminal {
+impl CombinatorTrait for Terminal {
     type Parser = TerminalParser;
-    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a {
         (TerminalParser, ())
     }
 }
@@ -42,38 +42,38 @@ impl ParserTrait for TerminalParser {
 struct Wrapper<T> {
     inner: T,
 }
-struct WrapperParser<'a, T: CombinatorTrait<'a>> {
+struct WrapperParser<'a, T: CombinatorTrait> {
     combinator: &'a T,
     inner: T::Parser,
 }
-impl<'a, T: CombinatorTrait<'a> + 'a> CombinatorTrait<'a> for Wrapper<T> {
-    type Parser = WrapperParser<'a, T>;
-    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+impl<T: CombinatorTrait> CombinatorTrait for Wrapper<T> {
+    type Parser = WrapperParser<'b, T>;
+    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a {
         let (inner, results) = self.inner.parse(right_data, bytes);
         (WrapperParser { combinator: &self.inner, inner }, results)
     }
 }
-impl<'a, T: CombinatorTrait<'a> + 'a> ParserTrait for WrapperParser<'a, T> {
+impl<'a, T: CombinatorTrait> ParserTrait for WrapperParser<'a, T> {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.inner.parse(bytes)
     }
 }
-fn wrapper<'a, T: CombinatorTrait<'a> + 'a>(inner: T) -> Wrapper<T> {
+fn wrapper<T: CombinatorTrait>(inner: T) -> Wrapper<T> {
     Wrapper { inner }
 }
 
 struct DynWrapper<T> {
     inner: T,
 }
-impl<'a, T: CombinatorTrait<'a> + 'a> CombinatorTrait<'a> for DynWrapper<T> {
-    type Parser = Box<dyn ParserTrait + 'a>;
+impl<'b, T: CombinatorTrait> CombinatorTrait for DynWrapper<T> {
+    type Parser = Box<dyn ParserTrait + 'b>;
 
-    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a {
         let (inner, results) = self.inner.parse(right_data, bytes);
         (Box::new(inner), results)
     }
 }
-fn dyn_wrapper<'a>(inner: impl CombinatorTrait<'a>) -> impl CombinatorTrait<'a, Parser = impl ParserTrait + 'a> + 'a {
+fn dyn_wrapper(inner: impl CombinatorTrait) -> impl CombinatorTrait<Parser = impl ParserTrait> {
     let wrapper = DynWrapper { inner };
     Box::new(wrapper)
 }
@@ -84,7 +84,7 @@ fn test() {
     //     Terminal
     // }
 
-    fn make() -> impl for<'a> CombinatorTrait<'a> {
+    fn make() -> impl CombinatorTrait {
         dyn_wrapper(Terminal)
     }
 
