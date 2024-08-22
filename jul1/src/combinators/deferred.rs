@@ -117,7 +117,7 @@ impl<T: CombinatorTrait + 'static> Hash for Deferred<T> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
-    type Parser<'a> = T::Parser<'a>;
+    type Parser = T::Parser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().expect("inner combinator not initialized");

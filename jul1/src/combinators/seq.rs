@@ -24,12 +24,12 @@ pub struct Seq {
 #[derive(Debug)]
 pub struct SeqParser<'a> {
     pub(crate) parsers: Vec<(usize, Box<dyn ParserTrait + 'a>)>,
-    pub(crate) combinators: &'a VecX<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>,
+    pub(crate) combinators: &'a VecX<Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>,
     pub(crate) position: usize,
 }
 
 impl CombinatorTrait for Seq {
-    type Parser<'a> = SeqParser<'a>;
+    type Parser = SeqParser<'a>;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;

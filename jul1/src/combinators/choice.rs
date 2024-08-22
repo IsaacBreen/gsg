@@ -8,7 +8,7 @@ use crate::parse_state::{RightData, ParseResultTrait};
 
 #[derive(Debug)]
 pub struct Choice {
-    pub(crate) children: VecX<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>,
+    pub(crate) children: VecX<Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>,
     pub(crate) greedy: bool,
 }
 
@@ -19,7 +19,7 @@ pub struct ChoiceParser<'a> {
 }
 
 impl CombinatorTrait for Choice {
-    type Parser<'a> = ChoiceParser<'a>;
+    type Parser = ChoiceParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if self.greedy {

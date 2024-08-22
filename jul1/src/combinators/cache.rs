@@ -61,7 +61,7 @@ impl GlobalCache {
 
 #[derive(Debug)]
 struct CacheKey {
-    combinator: *const dyn CombinatorTrait,
+    combinator: *const dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>,
     right_data: RightData,
 }
 
@@ -122,7 +122,7 @@ pub struct CacheContextParser<'a> {
 }
 
 impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
-    type Parser<'a> = CacheContextParser<'a>;
+    type Parser = CacheContextParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(|cache| {
@@ -209,7 +209,7 @@ impl ParserTrait for CacheContextParser<'_> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
-    type Parser<'a> = CachedParser;
+    type Parser = CachedParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(move |cache| {

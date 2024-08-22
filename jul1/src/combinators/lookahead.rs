@@ -28,7 +28,7 @@ pub struct Lookahead<T: CombinatorTrait> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
-    type Parser<'a> = FailParser;
+    type Parser = FailParser;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.combinator.one_shot_parse(right_data.clone(), bytes);

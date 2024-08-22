@@ -22,7 +22,7 @@ pub struct ForbidFollowsCheckNot {
 }
 
 impl CombinatorTrait for ForbidFollows {
-    type Parser<'a> = FailParser;
+    type Parser = FailParser;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         right_data.get_inner_mut().fields1.forbidden_consecutive_matches.prev_match_ids = self.match_ids;
@@ -41,7 +41,7 @@ impl BaseCombinatorTrait for ForbidFollows {
 }
 
 impl CombinatorTrait for ForbidFollowsClear {
-    type Parser<'a> = FailParser;
+    type Parser = FailParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(right_data)
@@ -59,7 +59,7 @@ impl BaseCombinatorTrait for ForbidFollowsClear {
 }
 
 impl CombinatorTrait for ForbidFollowsCheckNot {
-    type Parser<'a> = FailParser;
+    type Parser = FailParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(right_data)
