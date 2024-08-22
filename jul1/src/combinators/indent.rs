@@ -64,10 +64,10 @@ impl<'a> ParserTrait for OwningParser<'a> {
     }
 }
 
-impl CombinatorTrait for IndentCombinator {
+impl<'a> CombinatorTrait for IndentCombinator {
     type Parser = IndentCombinatorParser<'a>;
 
-    fn old_parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
                 fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {

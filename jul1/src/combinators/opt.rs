@@ -27,7 +27,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         if !(self.greedy && parse_results.succeeds_decisively()) {
             // TODO: remove the condition below. It's a hack.

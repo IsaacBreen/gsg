@@ -39,7 +39,7 @@ impl CombinatorTrait for MutateRightData {
             Err(UnambiguousParseError::Fail)
         }
     }
-    fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         if (self.run)(&mut right_data) {
             (FailParser, ParseResults::new_single(right_data, true))
         } else {

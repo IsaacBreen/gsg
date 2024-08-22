@@ -18,7 +18,7 @@ pub struct ExcludeBytestringsParser<'a> {
     pub(crate) start_position: usize,
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
+impl<'a, T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
     type Parser = ExcludeBytestringsParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -36,7 +36,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
             Err(err) => Err(err),
         }
     }
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (inner, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         let (indices, node) = self.root.get_indices(bytes);
         let indices: HashSet<usize> = indices.into_iter().collect();

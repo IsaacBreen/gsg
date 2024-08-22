@@ -87,11 +87,11 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
         (**self).one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         (**self).old_parse(right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         (**self).parse(right_data, bytes)
     }
 }
@@ -114,7 +114,7 @@ impl<T: CombinatorTrait + ?Sized> BaseCombinatorTrait for Box<T> {
 // Removed ParserTrait implementation for Parser enum
 
 pub trait CombinatorTraitExt: CombinatorTrait {
-    fn parser(&self, right_data: RightData) -> (Self::Parser<'_>, ParseResults) {
+    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
         self.old_parse(right_data, &[])
     }
 }

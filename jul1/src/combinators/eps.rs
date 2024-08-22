@@ -15,7 +15,7 @@ impl CombinatorTrait for Eps {
         Ok(right_data)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         (EpsParser, ParseResults::new_single(right_data, true))
     }
 }

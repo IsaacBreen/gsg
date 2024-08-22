@@ -28,7 +28,7 @@ pub struct SeqParser<'a> {
     pub(crate) position: usize,
 }
 
-impl CombinatorTrait for Seq {
+impl<'a> CombinatorTrait for Seq {
     type Parser = SeqParser<'a>;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -40,7 +40,7 @@ impl CombinatorTrait for Seq {
         Ok(right_data)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
 
         let mut combinator_index = self.start_index;

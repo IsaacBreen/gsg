@@ -25,7 +25,7 @@ pub struct EatByteStringChoiceParser<'a> {
     pub(crate) right_data: RightData,
 }
 
-impl CombinatorTrait for EatByteStringChoice {
+impl<'a> CombinatorTrait for EatByteStringChoice {
     type Parser = EatByteStringChoiceParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -45,7 +45,7 @@ impl CombinatorTrait for EatByteStringChoice {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let parser = EatByteStringChoiceParser {
             root: self.root.as_ref(),
             current_node: self.root.as_ref(),

@@ -78,7 +78,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
         combinator.one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let combinator = self.get().unwrap();
         combinator.parse(right_data, bytes)
     }
@@ -101,7 +101,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for StrongRef<T> {
         combinator.one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         self.inner
             .get()
             .unwrap()

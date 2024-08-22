@@ -100,14 +100,14 @@ pub struct ProfiledParser<'a> {
     pub tag: String,
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
+impl<'a, T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
     type Parser = ProfiledParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         profile!(&self.tag, self.inner.one_shot_parse(right_data, bytes))
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         profile!(&self.tag, {
             let (parser, parse_results) = self.inner.parse(right_data, bytes);
             let parser = ProfiledParser { inner: parser, tag: self.tag.clone() };
