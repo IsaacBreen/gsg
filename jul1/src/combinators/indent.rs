@@ -28,7 +28,7 @@ pub struct OwningParser<'a> {
 
 impl<'a> OwningParser<'a> {
     pub fn init(
-        combinator: Box<dyn CombinatorTrait + 'a>,
+        combinator: Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>> + 'a>,
         right_data: RightData,
         bytes: &[u8],
     ) -> (OwningParser<'a>, ParseResults) {
@@ -70,7 +70,7 @@ impl<'a> CombinatorTrait for IndentCombinator {
     fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
-                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {
+                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>> + 'a> {
                     if indents.is_empty() {
                         eps().into_dyn()
                     } else {
@@ -95,7 +95,7 @@ impl<'a> CombinatorTrait for IndentCombinator {
                     }
                 }
                 // println!("Made dent parser with right_data: {:?}", right_data);
-                let combinator: Box<dyn CombinatorTrait + 'a> = make_combinator(&right_data.right_data_inner.fields2.indents, right_data.right_data_inner.fields2.indents.len());
+                let combinator: Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>> + 'a> = make_combinator(&right_data.right_data_inner.fields2.indents, right_data.right_data_inner.fields2.indents.len());
                 let (parser, parse_results) = OwningParser::init(combinator, right_data, bytes);
                 (IndentCombinatorParser::DentParser(parser), parse_results)
             }
@@ -130,7 +130,7 @@ impl<'a> CombinatorTrait for IndentCombinator {
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
-                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {
+                fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>> + 'a> {
                     if indents.is_empty() {
                         eps().into_dyn()
                     } else {

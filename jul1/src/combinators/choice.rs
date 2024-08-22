@@ -13,13 +13,13 @@ pub struct Choice {
 }
 
 #[derive(Debug)]
-pub struct ChoiceParser<'a> {
+pub struct ChoiceParser {
     pub(crate) parsers: Vec<Box<dyn ParserTrait>>,
     pub(crate) greedy: bool,
 }
 
 impl CombinatorTrait for Choice {
-    type Parser<'a> = ChoiceParser<'a>;
+    type Parser = ChoiceParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if self.greedy {
@@ -99,7 +99,7 @@ impl BaseCombinatorTrait for Choice {
     }
 }
 
-impl ParserTrait for ChoiceParser<'_> {
+impl ParserTrait for ChoiceParser {
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::none();
         for parser in &self.parsers {
