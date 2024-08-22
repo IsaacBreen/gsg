@@ -78,7 +78,7 @@ impl<T: BaseCombinatorTrait> BaseCombinatorTrait for DynWrapper<T> {
         self.inner.apply_to_children(f);
     }
 }
-impl<T: CombinatorTrait> CombinatorTrait for DynWrapper<T> {
+impl<'b, T: CombinatorTrait + 'b> CombinatorTrait for DynWrapper<T> where T::Parser: 'b, Self: 'b {
     type Parser = Box<dyn ParserTrait>;
 
     fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a {
@@ -86,9 +86,9 @@ impl<T: CombinatorTrait> CombinatorTrait for DynWrapper<T> {
         (Box::new(inner), results)
     }
 }
-fn dyn_wrapper<T: CombinatorTrait>(inner: T) -> Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>> {
-    Box::new(DynWrapper { inner })
-}
+// fn dyn_wrapper<T: CombinatorTrait>(inner: T) -> Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>> {
+//     Box::new(DynWrapper { inner })
+// }
 
 #[test]
 fn test() {}
