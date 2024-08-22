@@ -40,26 +40,25 @@ impl ParserTrait for TerminalParser {
     }
 }
 
-// struct Wrapper<T> {
-//     inner: T,
-// }
-// struct WrapperParser<'a, T: CombinatorTrait> {
-//     combinator: &'a T,
-//     inner: T::Parser,
-// }
-// impl<T: CombinatorTrait> CombinatorTrait for Wrapper<T> {
-//     type Parser = WrapperParser<T>;
-//
-//     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
-//         let (inner, results) = self.inner.parse(right_data, bytes);
-//         (WrapperParser { combinator: self, inner }, results)
-//     }
-// }
-// impl<T: ParserTrait> ParserTrait for Wrapper<T> {
-//     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-//         self.inner.parse(bytes)
-//     }
-// }
+struct Wrapper<T> {
+    inner: T,
+}
+struct WrapperParser<T: CombinatorTrait + 'static> {
+    combinator: &'static Wrapper<T>,
+    inner: T::Parser,
+}
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Wrapper<T> {
+    type Parser = WrapperParser<T>;
+    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a {
+        let (inner, results) = self.inner.parse(right_data, bytes);
+        (WrapperParser { combinator: self, inner }, results)
+    }
+}
+impl<T: CombinatorTrait + 'static> ParserTrait for WrapperParser<T> {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        self.inner.parse(bytes)
+    }
+}
 
 struct DynWrapper<T> {
     inner: T,
