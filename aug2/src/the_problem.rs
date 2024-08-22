@@ -28,6 +28,17 @@ impl<T: ParserTrait + ?Sized> ParserTrait for Box<T> {
 
 struct Terminal;
 struct TerminalParser;
+impl CombinatorTrait for Terminal {
+    type Parser = TerminalParser;
+    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a {
+        (TerminalParser, ())
+    }
+}
+impl ParserTrait for TerminalParser {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        ()
+    }
+}
 
 // struct Wrapper<T> {
 //     inner: T,
@@ -68,6 +79,6 @@ fn dyn_wrapper<T: CombinatorTrait + 'static>(inner: T) -> Box<dyn CombinatorTrai
 #[test]
 fn test() {
     let terminal = dyn_wrapper(Terminal);
-    let mut parser = terminal.parse((), &[]);
-    assert_eq!(parser.parse(&[]), ());
+    let (mut parser, _) = terminal.parse((), &[]);
+    parser.parse(&[]);
 }
