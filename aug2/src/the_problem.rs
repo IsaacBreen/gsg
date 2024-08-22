@@ -81,10 +81,7 @@ fn dyn_wrapper<'a, T: CombinatorTrait<'a> + 'a>(inner: T) -> Box<dyn CombinatorT
 #[test]
 fn test() {
     fn make<'a>() -> impl CombinatorTrait<'a> {
-        let terminal = Terminal;
-        let wrapper = wrapper(terminal);
-        wrapper
-        // Terminal
+        Terminal
     }
 
     let c = make();
