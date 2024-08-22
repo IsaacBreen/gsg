@@ -5,7 +5,7 @@ type ParseResults = ();
 type UnambiguousParseResults = ();
 type U8Set = ();
 
-pub trait CombinatorTrait<'a>  where Self: 'a {
+pub trait CombinatorTrait<'a> where Self: 'a {
     type Parser: ParserTrait + 'a where Self: 'a;
     fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults);
 }
