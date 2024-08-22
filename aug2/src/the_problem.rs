@@ -44,14 +44,14 @@ struct Wrapper<T> {
     inner: T,
 }
 struct WrapperParser<T: CombinatorTrait + 'static> {
-    combinator: &'static Wrapper<T>,
+    combinator: &'static T,
     inner: T::Parser,
 }
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Wrapper<T> {
     type Parser = WrapperParser<T>;
     fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a {
         let (inner, results) = self.inner.parse(right_data, bytes);
-        (WrapperParser { combinator: self, inner }, results)
+        (WrapperParser { combinator: &self.inner, inner }, results)
     }
 }
 impl<T: CombinatorTrait + 'static> ParserTrait for WrapperParser<T> {
