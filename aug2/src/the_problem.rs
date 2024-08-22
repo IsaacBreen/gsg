@@ -5,8 +5,8 @@ type ParseResults = ();
 type UnambiguousParseResults = ();
 type U8Set = ();
 
-pub trait CombinatorTrait<'a> {
-    type Parser: ParserTrait where Self: 'a;
+pub trait CombinatorTrait<'a>  where Self: 'a {
+    type Parser: ParserTrait + 'a where Self: 'a;
     fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults);
 }
 pub trait ParserTrait {
@@ -73,18 +73,23 @@ impl<'a, T: CombinatorTrait<'a> + 'a> CombinatorTrait<'a> for DynWrapper<T> {
         (Box::new(inner), results)
     }
 }
-fn dyn_wrapper<'a, T: CombinatorTrait<'a> + 'a>(inner: T) -> Box<dyn CombinatorTrait<'a, Parser = Box<dyn ParserTrait + 'a>> + 'a> {
+fn dyn_wrapper<'a>(inner: impl CombinatorTrait<'a>) -> impl CombinatorTrait<'a, Parser = impl ParserTrait + 'a> + 'a {
     let wrapper = DynWrapper { inner };
     Box::new(wrapper)
 }
 
 #[test]
 fn test() {
-    fn make<'a>() -> impl CombinatorTrait<'a> {
-        Terminal
+    // fn make() -> impl for<'a> CombinatorTrait<'a> {
+    //     Terminal
+    // }
+
+    fn make() -> impl for<'a> CombinatorTrait<'a> {
+        dyn_wrapper(Terminal)
     }
 
     let c = make();
     let (mut parser, _) = c.parse((), &[]);
     parser.parse(&[]);
+    drop(parser);
 }
