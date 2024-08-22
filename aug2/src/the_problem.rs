@@ -8,7 +8,7 @@ type U8Set = ();
 
 pub trait CombinatorTrait {
     type Parser: ParserTrait;
-    fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'b, 'a: 'b;
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults);
 }
 pub trait ParserTrait {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults;
@@ -16,7 +16,7 @@ pub trait ParserTrait {
 
 impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
     type Parser = T::Parser;
-    fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'b, 'a: 'b {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         self.as_ref().parse(right_data, bytes)
     }
 }
@@ -30,7 +30,7 @@ struct Terminal;
 struct TerminalParser;
 impl CombinatorTrait for Terminal {
     type Parser = TerminalParser;
-    fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'b, 'a: 'b {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         (TerminalParser, ())
     }
 }
@@ -50,7 +50,7 @@ struct WrapperParser<'a, T: CombinatorTrait> {
 }
 impl<'inner, T: CombinatorTrait> CombinatorTrait for Wrapper<'inner, T> {
     type Parser = WrapperParser<'inner, T>;
-    fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'b, 'a: 'b {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (inner, results) = self.inner.parse(right_data, bytes);
         (WrapperParser { combinator: &self.inner, inner }, results)
     }
@@ -71,7 +71,7 @@ struct DynWrapper<'inner, T> {
 impl<'inner, T: CombinatorTrait> CombinatorTrait for DynWrapper<'inner, T> {
     type Parser = Box<dyn ParserTrait + 'inner>;
 
-    fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'b, 'a: 'b {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (inner, results) = self.inner.parse(right_data, bytes);
         (Box::new(inner), results)
     }
