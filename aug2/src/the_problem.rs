@@ -43,18 +43,18 @@ impl ParserTrait for TerminalParser {
 struct Wrapper<T> {
     inner: T,
 }
-struct WrapperParser<T: CombinatorTrait + 'static> {
-    combinator: &'static T,
+struct WrapperParser<'a, T: CombinatorTrait + 'a> {
+    combinator: &'a T,
     inner: T::Parser,
 }
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Wrapper<T> {
-    type Parser = WrapperParser<T>;
+    type Parser = WrapperParser<'static, T>;
     fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) where Self::Parser: 'a {
         let (inner, results) = self.inner.parse(right_data, bytes);
         (WrapperParser { combinator: &self.inner, inner }, results)
     }
 }
-impl<T: CombinatorTrait + 'static> ParserTrait for WrapperParser<T> {
+impl<T: CombinatorTrait + 'static> ParserTrait for WrapperParser<'_, T> {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.inner.parse(bytes)
     }
