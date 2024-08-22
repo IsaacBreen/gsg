@@ -1,21 +1,4 @@
-// src/combinator.rs
-use std::collections::HashMap;
-use std::any::Any;
 use std::fmt::Display;
-use std::ops::AddAssign;
-use std::rc::Rc;
-use std::cell::RefCell;
-
-#[macro_export]
-macro_rules! match_enum {
-    ($expr:expr, $enum:ident, $inner:ident => $arm:expr, $($variant:ident),*) => {
-        match $expr {
-            $(
-                $enum::$variant($inner) => $arm,
-            )*
-        }
-    };
-}
 
 // Removed Parser enum
 type RightData = ();
