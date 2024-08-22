@@ -1,17 +1,17 @@
 trait MyTrait {
     type AssociatedType; // Object-safe, non-generic associated type
 
-    fn create_associated_type(&self, value: i32) -> Self::AssociatedType;
+    fn create_associated_type(self, value: i32) -> Self::AssociatedType;
 }
 
 struct MyStruct {
     data: i32,
 }
 
-impl<'a> MyTrait for MyStruct where Self: 'a {
+impl<'a> MyTrait for &'a MyStruct {
     type AssociatedType = AssociatedStruct<'a>;
 
-    fn create_associated_type(&self, value: i32) -> Self::AssociatedType {
+    fn create_associated_type(self, value: i32) -> Self::AssociatedType {
         AssociatedStruct {
             my_struct_ref: self,
             value,

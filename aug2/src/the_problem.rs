@@ -52,8 +52,7 @@ impl<'outer, T: CombinatorTrait> CombinatorTrait for Wrapper<'outer, T> {
     type Parser = WrapperParser<'outer, T>;
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (inner, results) = self.inner.parse(right_data, bytes);
-        // (WrapperParser { combinator: self, inner }, results)
-        todo!()
+        (WrapperParser { combinator: self, inner }, results)
     }
 }
 impl<'a, 'outer, T: CombinatorTrait> ParserTrait for WrapperParser<'outer, T> {
