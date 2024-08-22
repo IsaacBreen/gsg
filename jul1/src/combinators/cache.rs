@@ -117,7 +117,7 @@ impl PartialEq for CachedParser {
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct CacheContextParser<'a> {
-    pub inner: Box<dyn ParserTrait + 'a>,
+    pub inner: Box<dyn ParserTrait>,
     pub(crate) parse_id: usize,
 }
 

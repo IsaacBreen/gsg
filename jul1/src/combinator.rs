@@ -81,7 +81,7 @@ pub trait ParserTrait: std::fmt::Debug {
 }
 
 impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
-    type Parser = T::Parser where T: 'a;
+    type Parser = T::Parser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         (**self).one_shot_parse(right_data, bytes)

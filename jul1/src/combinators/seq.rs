@@ -23,7 +23,7 @@ pub struct Seq {
 
 #[derive(Debug)]
 pub struct SeqParser<'a> {
-    pub(crate) parsers: Vec<(usize, Box<dyn ParserTrait + 'a>)>,
+    pub(crate) parsers: Vec<(usize, Box<dyn ParserTrait>)>,
     pub(crate) combinators: &'a VecX<Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>,
     pub(crate) position: usize,
 }

@@ -14,12 +14,12 @@ pub struct Choice {
 
 #[derive(Debug)]
 pub struct ChoiceParser<'a> {
-    pub(crate) parsers: Vec<Box<dyn ParserTrait + 'a>>,
+    pub(crate) parsers: Vec<Box<dyn ParserTrait>>,
     pub(crate) greedy: bool,
 }
 
 impl CombinatorTrait for Choice {
-    type Parser = ChoiceParser<'a>;
+    type Parser<'a> = ChoiceParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if self.greedy {

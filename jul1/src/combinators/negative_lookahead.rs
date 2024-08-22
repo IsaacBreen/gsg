@@ -13,7 +13,7 @@ pub struct ExcludeBytestrings<T: CombinatorTrait> {
 
 #[derive(Debug)]
 pub struct ExcludeBytestringsParser<'a> {
-    pub(crate) inner: Box<dyn ParserTrait + 'a>,
+    pub(crate) inner: Box<dyn ParserTrait>,
     pub(crate) node: Option<&'a TrieNode>,
     pub(crate) start_position: usize,
 }

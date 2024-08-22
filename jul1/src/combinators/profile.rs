@@ -96,7 +96,7 @@ pub struct Profiled<T> {
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct ProfiledParser<'a> {
-    pub inner: Box<dyn ParserTrait + 'a>,
+    pub inner: Box<dyn ParserTrait>,
     pub tag: String,
 }
 

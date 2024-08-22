@@ -3,7 +3,7 @@ use crate::BaseCombinatorTrait;
 
 #[derive(Debug)]
 pub struct PartialLookahead<'a> {
-    pub parser: Box<dyn ParserTrait + 'a>,
+    pub parser: Box<dyn ParserTrait>,
     pub positive: bool,
 }
 

@@ -19,7 +19,7 @@ pub struct Repeat1<T: CombinatorTrait> {
 pub struct Repeat1Parser<'a> {
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
     pub(crate) a: &'a dyn CombinatorTrait<Parser = Self>,
-    pub(crate) a_parsers: Vec<Box<dyn ParserTrait + 'a>>,
+    pub(crate) a_parsers: Vec<Box<dyn ParserTrait>>,
     pub(crate) position: usize,
     pub(crate) greedy: bool,
 }

@@ -11,7 +11,7 @@ pub struct Tagged<T: CombinatorTrait> {
 }
 
 pub struct TaggedParser<'a> {
-    pub inner: Box<dyn ParserTrait + 'a>,
+    pub inner: Box<dyn ParserTrait>,
     pub tag: String,
 }
 

@@ -23,7 +23,7 @@ pub enum IndentCombinatorParser<'a> {
 #[derive(Debug)]
 pub struct OwningParser<'a> {
     combinator: AliasableBox<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>> + 'a>,
-    pub(crate) parser: Option<Box<dyn ParserTrait + 'a>>,
+    pub(crate) parser: Option<Box<dyn ParserTrait>>,
 }
 
 impl<'a> OwningParser<'a> {
