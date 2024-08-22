@@ -44,8 +44,8 @@ struct Wrapper<'inner, T> {
     inner: T,
     phantom: PhantomData<&'inner T>,
 }
-struct WrapperParser<'a, T: CombinatorTrait> {
-    combinator: &'a T,
+struct WrapperParser<'inner, T: CombinatorTrait> {
+    combinator: &'inner T,
     inner: T::Parser,
 }
 impl<'inner, T: CombinatorTrait> CombinatorTrait for Wrapper<'inner, T> {
