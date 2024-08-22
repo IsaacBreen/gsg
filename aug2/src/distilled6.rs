@@ -1,7 +1,11 @@
 trait MyTrait<'a> {
-    type AssociatedType;
+    type AssociatedType: AssociatedTrait;
 
     fn create_associated_type(&'a self, value: i32) -> Self::AssociatedType;
+}
+
+trait AssociatedTrait {
+    fn associated_method(&self);
 }
 
 struct MyStruct {
@@ -24,6 +28,12 @@ struct AssociatedStruct<'a> {
     value: i32,
 }
 
+impl AssociatedTrait for AssociatedStruct<'_> {
+    fn associated_method(&self) {
+        println!("AssociatedStruct method");
+    }
+}
+
 fn main() {
     let my_struct = MyStruct { data: 10 };
     let associated_struct = my_struct.create_associated_type(20);
@@ -33,7 +43,11 @@ fn main() {
 
     let boxed_dyn: Box<dyn MyTrait<AssociatedType = AssociatedStruct>> = Box::new(my_struct);
 
-    fn opaque<'a>(x: impl MyTrait<'a, AssociatedType = AssociatedStruct<'a>>) -> impl MyTrait<'a, AssociatedType = AssociatedStruct<'a>> {
+    fn opaque<'a>(x: impl MyTrait<'a, AssociatedType = impl AssociatedTrait + 'a>) -> impl MyTrait<'a, AssociatedType = impl AssociatedTrait + 'a> {
         x
     }
+
+    let my_struct = MyStruct { data: 10 };
+    let o = opaque(my_struct);
+    let associated_struct = o.create_associated_type(20);
 }
