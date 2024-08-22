@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-// Removed Parser enum
 type RightData = ();
 type ParseResults = ();
 type UnambiguousParseResults = ();
