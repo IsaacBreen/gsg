@@ -58,6 +58,9 @@ impl<'a, T: CombinatorTrait<'a> + 'a> ParserTrait for WrapperParser<'a, T> {
         self.inner.parse(bytes)
     }
 }
+fn wrapper<'a, T: CombinatorTrait<'a> + 'a>(inner: T) -> Wrapper<T> {
+    Wrapper { inner }
+}
 
 struct DynWrapper<T> {
     inner: T,
@@ -77,9 +80,9 @@ fn dyn_wrapper<'a, T: CombinatorTrait<'a> + 'a>(inner: T) -> Box<dyn CombinatorT
 
 #[test]
 fn test() {
-    fn make<'a>() -> Box<dyn CombinatorTrait<'a, Parser = Box<dyn ParserTrait + 'a>> + 'a> {
-        let terminal = dyn_wrapper(Terminal);
-        let wrapper = dyn_wrapper(terminal);
+    fn make<'a>() -> impl CombinatorTrait<'a, Parser = impl ParserTrait + 'a> + 'a {
+        let terminal = Terminal;
+        let wrapper = wrapper(terminal);
         wrapper
     }
 
