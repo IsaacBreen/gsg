@@ -1,17 +1,17 @@
-trait MyTrait {
-    type AssociatedType<'a> where Self: 'a;
+trait MyTrait<'a> {
+    type AssociatedType;
 
-    fn create_associated_type(&self, value: i32) -> Self::AssociatedType<'_>;
+    fn create_associated_type(&'a self, value: i32) -> Self::AssociatedType;
 }
 
 struct MyStruct {
     data: i32,
 }
 
-impl MyTrait for MyStruct {
-    type AssociatedType<'a> = AssociatedStruct<'a>;
+impl<'a> MyTrait<'a> for MyStruct {
+    type AssociatedType = AssociatedStruct<'a>;
 
-    fn create_associated_type(&self, value: i32) -> Self::AssociatedType<'_> {
+    fn create_associated_type(&'a self, value: i32) -> Self::AssociatedType {
         AssociatedStruct {
             my_struct_ref: self,
             value,
@@ -31,5 +31,5 @@ fn main() {
     println!("MyStruct data: {}", associated_struct.my_struct_ref.data);
     println!("AssociatedStruct value: {}", associated_struct.value);
 
-    // let boxed_dyn: Box<dyn MyTrait> = Box::new(my_struct);
+    let boxed_dyn: Box<dyn MyTrait<AssociatedType = AssociatedStruct>> = Box::new(my_struct);
 }
