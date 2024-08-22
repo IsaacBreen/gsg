@@ -40,22 +40,23 @@ impl ParserTrait for TerminalParser {
     }
 }
 
-struct Wrapper<'inner, T> {
+struct Wrapper<'inner, T: CombinatorTrait> {
     inner: T,
     phantom: PhantomData<&'inner T>,
 }
-struct WrapperParser<'inner, T: CombinatorTrait> {
-    combinator: &'inner T,
+struct WrapperParser<'outer, T: CombinatorTrait> {
+    combinator: &'outer Wrapper<'outer, T>,
     inner: T::Parser,
 }
-impl<'inner, T: CombinatorTrait> CombinatorTrait for Wrapper<'inner, T> {
-    type Parser = WrapperParser<'inner, T>;
+impl<'outer, T: CombinatorTrait> CombinatorTrait for Wrapper<'outer, T> {
+    type Parser = WrapperParser<'outer, T>;
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (inner, results) = self.inner.parse(right_data, bytes);
-        (WrapperParser { combinator: &self.inner, inner }, results)
+        // (WrapperParser { combinator: self, inner }, results)
+        todo!()
     }
 }
-impl<'a, T: CombinatorTrait> ParserTrait for WrapperParser<'a, T> {
+impl<'a, 'outer, T: CombinatorTrait> ParserTrait for WrapperParser<'outer, T> {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.inner.parse(bytes)
     }
