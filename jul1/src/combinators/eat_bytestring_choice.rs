@@ -26,7 +26,7 @@ pub struct EatByteStringChoiceParser<'a> {
 }
 
 impl CombinatorTrait for EatByteStringChoice {
-    type Parser<'a> = EatByteStringChoiceParser<'a>;
+    type Parser = EatByteStringChoiceParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let node = self.root.eat_all(bytes);

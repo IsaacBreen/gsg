@@ -22,8 +22,8 @@ pub enum IndentCombinatorParser<'a> {
 
 #[derive(Debug)]
 pub struct OwningParser<'a> {
-    combinator: AliasableBox<dyn CombinatorTrait<Parser<'a> = Box<dyn ParserTrait>> + 'a>,
-    pub(crate) parser: Option<Box<dyn ParserTrait + 'a>>,
+    combinator: AliasableBox<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>> + 'a>,
+    pub(crate) parser: Option<Box<dyn ParserTrait>>,
 }
 
 impl<'a> OwningParser<'a> {
@@ -65,9 +65,9 @@ impl<'a> ParserTrait for OwningParser<'a> {
 }
 
 impl CombinatorTrait for IndentCombinator {
-    type Parser<'a> = IndentCombinatorParser<'a>;
+    type Parser = IndentCombinatorParser<'a>;
 
-    fn old_parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
+    fn old_parse<'a>(&'a self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {
             IndentCombinator::Dent if right_data.right_data_inner.fields1.dedents == 0 => {
                 fn make_combinator<'a>(mut indents: &[Vec<u8>], total_indents: usize)-> Box<dyn CombinatorTrait + 'a> {

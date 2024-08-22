@@ -13,13 +13,13 @@ pub struct ExcludeBytestrings<T: CombinatorTrait> {
 
 #[derive(Debug)]
 pub struct ExcludeBytestringsParser<'a> {
-    pub(crate) inner: Box<dyn ParserTrait + 'a>,
+    pub(crate) inner: Box<dyn ParserTrait>,
     pub(crate) node: Option<&'a TrieNode>,
     pub(crate) start_position: usize,
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
-    type Parser<'a> = ExcludeBytestringsParser<'a>;
+    type Parser = ExcludeBytestringsParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;

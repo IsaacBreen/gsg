@@ -17,19 +17,19 @@ macro_rules! profile {
 
 #[derive(Debug)]
 pub struct Seq {
-    pub(crate) children: VecX<Box<dyn for<'a> CombinatorTrait<Parser<'a>=Box<dyn ParserTrait>>>>,
+    pub(crate) children: VecX<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>,
     pub(crate) start_index: usize,
 }
 
 #[derive(Debug)]
 pub struct SeqParser<'a> {
-    pub(crate) parsers: Vec<(usize, Box<dyn ParserTrait + 'a>)>,
-    pub(crate) combinators: &'a VecX<Box<dyn CombinatorTrait<Parser<'a> = Box<dyn ParserTrait>>>>,
+    pub(crate) parsers: Vec<(usize, Box<dyn ParserTrait>)>,
+    pub(crate) combinators: &'a VecX<Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>,
     pub(crate) position: usize,
 }
 
 impl CombinatorTrait for Seq {
-    type Parser<'a> = SeqParser<'a>;
+    type Parser = SeqParser<'a>;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;
@@ -208,7 +208,7 @@ impl ParserTrait for SeqParser<'_> {
     }
 }
 
-pub fn _seq(v: Vec<Box<dyn for<'a> CombinatorTrait<Parser<'a>=Box<dyn ParserTrait>>>>) -> impl CombinatorTrait {
+pub fn _seq(v: Vec<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>) -> impl CombinatorTrait {
     profile_internal("seq", Seq {
         children: v.into_iter().collect(),
         start_index: 0,

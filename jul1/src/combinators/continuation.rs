@@ -83,7 +83,7 @@ impl Debug for ContinuationParser {
 }
 
 impl CombinatorTrait for Continuation {
-    type Parser<'a> = ContinuationParser;
+    type Parser = ContinuationParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         todo!("one_shot_parse")
