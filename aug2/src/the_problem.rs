@@ -5,17 +5,17 @@ type ParseResults = ();
 type UnambiguousParseResults = ();
 type U8Set = ();
 
-pub trait CombinatorTrait {
-    type Parser<'a>: ParserTrait + ?Sized where Self: Sized + 'a;
-    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) where Self::Parser<'a>: Sized;
+pub trait CombinatorTrait<'a> {
+    type Parser: ParserTrait where Self: 'a;
+    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults);
 }
 pub trait ParserTrait {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults;
 }
 
-impl<T: CombinatorTrait> CombinatorTrait for Box<T> where for<'a> T::Parser<'a>: Sized {
-    type Parser<'a> = T::Parser<'a> where T: 'a;
-    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) where Self::Parser<'a>: Sized {
+impl<'a, T: CombinatorTrait<'a> + 'a + ?Sized> CombinatorTrait<'a> for Box<T> {
+    type Parser = T::Parser;
+    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         self.as_ref().parse(right_data, bytes)
     }
 }
@@ -27,9 +27,9 @@ impl<T: ParserTrait + ?Sized> ParserTrait for Box<T> {
 
 struct Terminal;
 struct TerminalParser;
-impl CombinatorTrait for Terminal {
-    type Parser<'a> = TerminalParser;
-    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) where Self::Parser<'a>: Sized {
+impl<'a> CombinatorTrait<'a> for Terminal {
+    type Parser = TerminalParser;
+    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         (TerminalParser, ())
     }
 }
@@ -42,18 +42,18 @@ impl ParserTrait for TerminalParser {
 struct Wrapper<T> {
     inner: T,
 }
-struct WrapperParser<'a, T: CombinatorTrait + 'a> {
+struct WrapperParser<'a, T: CombinatorTrait<'a>> {
     combinator: &'a T,
-    inner: T::Parser<'a>,
+    inner: T::Parser,
 }
-impl<T: CombinatorTrait> CombinatorTrait for Wrapper<T> where for<'a> T::Parser<'a>: Sized {
-    type Parser<'a> = WrapperParser<'a, T> where T: 'a;
-    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) where Self::Parser<'a>: Sized {
+impl<'a, T: CombinatorTrait<'a> + 'a> CombinatorTrait<'a> for Wrapper<T> {
+    type Parser = WrapperParser<'a, T>;
+    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (inner, results) = self.inner.parse(right_data, bytes);
         (WrapperParser { combinator: &self.inner, inner }, results)
     }
 }
-impl<T: CombinatorTrait> ParserTrait for WrapperParser<'_, T> {
+impl<'a, T: CombinatorTrait<'a> + 'a> ParserTrait for WrapperParser<'a, T> {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.inner.parse(bytes)
     }
@@ -62,22 +62,22 @@ impl<T: CombinatorTrait> ParserTrait for WrapperParser<'_, T> {
 struct DynWrapper<T> {
     inner: T,
 }
-impl<T: CombinatorTrait> CombinatorTrait for DynWrapper<T> {
-    type Parser<'a> = Box<dyn ParserTrait + 'a> where T: 'a;
+impl<'a, T: CombinatorTrait<'a> + 'a> CombinatorTrait<'a> for DynWrapper<T> {
+    type Parser = Box<dyn ParserTrait + 'a>;
 
-    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) where Self::Parser<'a>: Sized {
+    fn parse(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (inner, results) = self.inner.parse(right_data, bytes);
         (Box::new(inner), results)
     }
 }
-fn dyn_wrapper<'a, T: CombinatorTrait>(inner: T) -> Box<dyn CombinatorTrait<Parser<'a> = Box<dyn ParserTrait>>> {
+fn dyn_wrapper<'a, T: CombinatorTrait<'a> + 'a>(inner: T) -> Box<dyn CombinatorTrait<'a, Parser = Box<dyn ParserTrait + 'a>> + 'a> {
     let wrapper = DynWrapper { inner };
     Box::new(wrapper)
 }
 
 #[test]
 fn test() {
-    fn make() -> Box<dyn for<'a> CombinatorTrait<Parser<'a> = Box<dyn ParserTrait>>> {
+    fn make<'a>() -> Box<dyn CombinatorTrait<'a, Parser = Box<dyn ParserTrait + 'a>> + 'a> {
         let terminal = dyn_wrapper(Terminal);
         let wrapper = dyn_wrapper(terminal);
         wrapper
