@@ -19,7 +19,7 @@ impl<'a, T> From<T> for Wrapper<'a, T> {
 
 pub trait CombinatorTrait {
     type Parser: ParserTrait;
-    fn init_parser<'a, 'b>(&'a self) -> Wrapper<'b, Self::Parser> where 'a: 'b;
+    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser>;
 }
 pub trait ParserTrait {
     fn parse(&mut self, c: char) -> ParseResult;
@@ -33,7 +33,7 @@ struct EatParser {
 }
 impl CombinatorTrait for Eat {
     type Parser = EatParser;
-    fn init_parser<'a, 'b>(&'a self) -> Wrapper<'b, Self::Parser> where 'a: 'b {
+    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser> {
         Wrapper::from(EatParser { c: self.c })
     }
 }
@@ -89,7 +89,7 @@ impl<L: CombinatorTrait, R: CombinatorTrait> ParserTrait for SeqParser<'_, L, R>
 }
 impl<L: CombinatorTrait, R: CombinatorTrait + 'static> CombinatorTrait for Seq<L, R> {
     type Parser = SeqParser<'static, L, R>;
-    fn init_parser<'a, 'b>(&'a self) -> Wrapper<'b, Self::Parser> where 'a: 'b {
+    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser> {
         SeqParser::Left {
             left: self.left.init_parser().inner,
             right: unsafe { std::mem::transmute(&self.right) },
@@ -105,7 +105,7 @@ pub struct DynParser<'a> {
 }
 impl<T: CombinatorTrait + 'static> CombinatorTrait for DynCombinator<T> {
     type Parser = Box<dyn ParserTrait>;
-    fn init_parser<'a, 'b>(&'a self) -> Wrapper<'b, Self::Parser> where 'a: 'b {
+    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser> {
         let inner = self.inner.init_parser().inner;
         let boxed_dyn: Box<dyn ParserTrait> = Box::new(inner);
         Wrapper::from(boxed_dyn)
