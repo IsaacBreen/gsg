@@ -108,11 +108,8 @@ fn eat(c: char) -> Eat {
 fn seq(left: impl CombinatorTrait, right: impl CombinatorTrait) -> impl CombinatorTrait {
     Seq { left, right }
 }
-fn make_dyn(inner: impl CombinatorTrait) -> impl CombinatorTrait {
-    // let boxed_dyn: Box<dyn for<'a> CombinatorTrait<Parser<'a>=Box<dyn ParserTrait>>> = Box::new(DynCombinator { inner });
-    // boxed_dyn
-    todo!();
-    inner
+fn make_dyn(inner: impl CombinatorTrait) -> Box<dyn for<'a> CombinatorTrait<Parser<'a> = Box<dyn ParserTrait + 'a>>> {
+    Box::new(DynCombinator { inner })
 }
 
 #[test]
