@@ -1,10 +1,39 @@
 use std::fmt::Display;
+use std::marker::PhantomData;
+use std::ops::Deref;
 
 type ParseResult = Result<bool, String>;
 
+struct Wrapper<'a, T>{
+    inner: T,
+    phantom: PhantomData<&'a ()>,
+    other: Other,
+}
+// impl<'a, T> Drop for Wrapper<'a, T> {
+//     fn drop(&mut self) {
+//
+//     }
+// }
+struct Other;
+impl Drop for Other {
+    fn drop(&mut self) {
+        println!("Dropping Wrapper");
+    }
+}
+
+impl<'a, T> From<T> for Wrapper<'a, T> {
+    fn from(inner: T) -> Self {
+        Wrapper {
+            inner,
+            phantom: PhantomData,
+            other: Other,
+        }
+    }
+}
+
 pub trait CombinatorTrait {
-    type Parser<'a>: ParserTrait where Self: 'a;
-    fn init_parser<'a>(&'a self) -> Self::Parser<'a>;
+    type Parser: ParserTrait;
+    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser>;
 }
 pub trait ParserTrait {
     fn parse(&mut self, c: char) -> ParseResult;
@@ -17,9 +46,9 @@ struct EatParser {
     c: char,
 }
 impl CombinatorTrait for Eat {
-    type Parser<'a> = EatParser;
-    fn init_parser<'a>(&'a self) -> Self::Parser<'a> {
-        EatParser { c: self.c }
+    type Parser = EatParser;
+    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser> {
+        Wrapper::from(EatParser { c: self.c })
     }
 }
 impl ParserTrait for EatParser {
@@ -36,13 +65,13 @@ struct Seq<L: CombinatorTrait, R: CombinatorTrait> {
     left: L,
     right: R,
 }
-enum SeqParser<'a, L: CombinatorTrait, R: CombinatorTrait> where Self: 'a {
+enum SeqParser<'a, L: CombinatorTrait, R: CombinatorTrait> {
     Left {
-        left: L::Parser<'a>,
+        left: L::Parser,
         right: &'a R,
     },
     Right {
-        right: R::Parser<'a>,
+        right: R::Parser,
     },
     Done,
 }
@@ -54,7 +83,7 @@ impl<L: CombinatorTrait, R: CombinatorTrait> ParserTrait for SeqParser<'_, L, R>
                 if let Ok(true) = result {
                     result = Ok(false);
                     *self = SeqParser::Right {
-                        right: right.init_parser(),
+                        right: right.init_parser().inner,
                     };
                 } else {
                     *self = SeqParser::Done;
@@ -72,13 +101,13 @@ impl<L: CombinatorTrait, R: CombinatorTrait> ParserTrait for SeqParser<'_, L, R>
         }
     }
 }
-impl<L: CombinatorTrait, R: CombinatorTrait> CombinatorTrait for Seq<L, R> {
-    type Parser<'a> = SeqParser<'a, L, R> where Self: 'a;
-    fn init_parser<'a>(&'a self) -> Self::Parser<'a> {
+impl<L: CombinatorTrait, R: CombinatorTrait + 'static> CombinatorTrait for Seq<L, R> {
+    type Parser = SeqParser<'static, L, R>;
+    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser> {
         SeqParser::Left {
-            left: self.left.init_parser(),
-            right: &self.right,
-        }
+            left: self.left.init_parser().inner,
+            right: unsafe { std::mem::transmute(&self.right) },
+        }.into()
     }
 }
 
@@ -88,11 +117,12 @@ pub struct DynCombinator<T> {
 pub struct DynParser<'a> {
     inner: Box<dyn ParserTrait + 'a>,
 }
-impl<T: CombinatorTrait> CombinatorTrait for DynCombinator<T> {
-    type Parser<'a> = Box<dyn ParserTrait + 'a> where Self: 'a;
-    fn init_parser<'a>(&'a self) -> Self::Parser<'a> {
-        let inner = self.inner.init_parser();
-        Box::new(inner)
+impl<T: CombinatorTrait + 'static> CombinatorTrait for DynCombinator<T> {
+    type Parser = Box<dyn ParserTrait>;
+    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser> {
+        let inner = self.inner.init_parser().inner;
+        let boxed_dyn: Box<dyn ParserTrait> = Box::new(inner);
+        Wrapper::from(boxed_dyn)
     }
 }
 impl ParserTrait for Box<dyn ParserTrait + '_> {
@@ -105,14 +135,11 @@ impl ParserTrait for Box<dyn ParserTrait + '_> {
 fn eat(c: char) -> Eat {
     Eat { c }
 }
-fn seq(left: impl CombinatorTrait, right: impl CombinatorTrait) -> impl CombinatorTrait {
+fn seq(left: impl CombinatorTrait, right: impl CombinatorTrait + 'static) -> Seq<impl CombinatorTrait, impl CombinatorTrait> {
     Seq { left, right }
 }
-fn make_dyn(inner: impl CombinatorTrait) -> impl CombinatorTrait {
-    // let boxed_dyn: Box<dyn for<'a> CombinatorTrait<Parser<'a>=Box<dyn ParserTrait>>> = Box::new(DynCombinator { inner });
-    // boxed_dyn
-    todo!();
-    inner
+fn make_dyn(inner: impl CombinatorTrait + 'static) -> Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>> {
+    Box::new(DynCombinator { inner })
 }
 
 #[test]
@@ -122,11 +149,49 @@ fn test() {
     let eat_ab = seq(eat_a, eat_b);
     let dyn_eat_ab = make_dyn(eat_ab);
 
-    let mut parser = dyn_eat_ab.init_parser();
+    let mut parser = dyn_eat_ab.init_parser().inner;
     assert_eq!(parser.parse('a'), Ok(false));
     assert_eq!(parser.parse('b'), Ok(true));
 
-    let mut parser = dyn_eat_ab.init_parser();
+    let mut parser = dyn_eat_ab.init_parser().inner;
     assert_eq!(parser.parse('a'), Ok(false));
     assert_eq!(parser.parse('c'), Err("Expected b, got c".to_string()));
+
+    // Ensure the combinator can't be dropped before the parser
+    let combinator = seq(eat('a'), eat('b'));
+    let wrapped = combinator.init_parser();
+    let mut parser = wrapped.inner;
+    drop(combinator);
+    assert_eq!(parser.parse('a'), Ok(false));
+    assert_eq!(parser.parse('b'), Ok(true));
+
+    let combinator = seq(eat('a'), eat('b'));
+    let wrapped = combinator.init_parser();
+    drop(combinator);
+
+    let mut parser;
+    {
+        let combinator = seq(eat('a'), eat('b'));
+        parser = combinator.init_parser().inner;
+    }
+    // miri should report:
+    // 143 |     let right_combinator = if let SeqParser::Left { ref left, right } = parser {
+    //     |                                                               ^^^^^ constructing invalid value: encountered a dangling reference (use-after-free)
+    let right_combinator = if let SeqParser::Left { ref left, right } = parser {
+        right
+    } else {
+        unreachable!()
+    };
+    let mut right_parser1 = right_combinator.init_parser().inner;
+    let mut right_parser2 = right_combinator.init_parser().inner;
+    let mut right_parser3 = right_combinator.init_parser().inner;
+
+    assert_eq!(parser.parse('a'), Ok(false));
+    assert_eq!(parser.parse('b'), Ok(true));
+
+    assert_eq!(right_parser1.parse('b'), Ok(true));
+
+    assert_eq!(right_parser2.parse('b'), Ok(true));
+
+    assert_eq!(right_parser3.parse('b'), Ok(true));
 }
