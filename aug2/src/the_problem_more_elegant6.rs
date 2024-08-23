@@ -4,7 +4,7 @@ use std::ops::Deref;
 
 type ParseResult = Result<bool, String>;
 
-struct Wrapper<'a, T> {
+struct Wrapper<'a, T>{
     inner: T,
     phantom: PhantomData<&'a ()>,
 }
@@ -150,6 +150,10 @@ fn test() {
     drop(combinator);
     assert_eq!(parser.parse('a'), Ok(false));
     assert_eq!(parser.parse('b'), Ok(true));
+
+    let combinator = seq(eat('a'), eat('b'));
+    let wrapped = combinator.init_parser();
+    drop(combinator);
 
     let mut parser;
     {
