@@ -9,6 +9,7 @@
   <component name="ChangeListManager">
     <list default="true" id="f8fe7ece-a76c-46ac-8cbf-133bea188956" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/wtf_lifetimes.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/wtf_lifetimes.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,6 +59,7 @@
     "Cargo.Test lib.executor": "Run",
     "Cargo.Test the_problem_more_elegant5::test.executor": "Run",
     "Cargo.Test the_problem_more_elegant6.executor": "Run",
+    "Cargo.Test wtf_lifetimes::test.executor": "Run",
     "Cargo.Test.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.rust.reset.selective.auto.import": "true",
@@ -77,7 +79,7 @@
       <recent name="$PROJECT_DIR$/src" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Test the_problem_more_elegant6">
+  <component name="RunManager" selected="Cargo.Test wtf_lifetimes::test">
     <configuration name="Test lib" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="command" value="test --package aug2 --lib &quot;&quot;" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
@@ -114,6 +116,23 @@
     </configuration>
     <configuration name="Test the_problem_more_elegant6" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="command" value="test --package aug2 --lib the_problem_more_elegant6" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test wtf_lifetimes::test" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package aug2 --lib wtf_lifetimes::test -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <envs />
       <option name="emulateTerminal" value="true" />
@@ -166,10 +185,12 @@
       <item itemvalue="Cargo.Test" />
       <item itemvalue="Cargo.Test the_problem_more_elegant5::test" />
       <item itemvalue="Cargo.Test the_problem_more_elegant6" />
+      <item itemvalue="Cargo.Test wtf_lifetimes::test" />
       <item itemvalue="Cargo.Test lib" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Cargo.Test wtf_lifetimes::test" />
         <item itemvalue="Cargo.Test the_problem_more_elegant6" />
         <item itemvalue="Cargo.Test the_problem_more_elegant5::test" />
         <item itemvalue="Cargo.Test lib" />
@@ -187,7 +208,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1724297416610</updated>
-      <workItem from="1724297417943" duration="34679000" />
+      <workItem from="1724297417943" duration="35352000" />
     </task>
     <servers />
   </component>
