@@ -10,3 +10,4 @@ mod rfc_3498;
 mod the_problem_more_elegant;
 mod the_problem_more_elegant2;
 mod the_problem_more_elegant3;
+mod the_problem_more_elegant4;
