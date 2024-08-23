@@ -29,7 +29,7 @@ impl<'a, T> From<T> for Wrapper<'_, T> {
 
 pub trait CombinatorTrait {
     type Parser: ParserTrait;
-    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser>;
+    fn init_parser<'a, 'b>(&'a self) -> Self::Parser where Self::Parser: 'b, 'a: 'b;
 }
 pub trait ParserTrait {
     fn parse(&mut self, c: char) -> ParseResult;
@@ -43,8 +43,8 @@ struct EatParser {
 }
 impl CombinatorTrait for Eat {
     type Parser = EatParser;
-    fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser> {
-        Wrapper::from(EatParser { c: self.c })
+    fn init_parser<'a, 'b>(&'a self) -> Self::Parser where Self::Parser: 'b, 'a: 'b {
+        EatParser { c: self.c }
     }
 }
 impl ParserTrait for EatParser {
@@ -80,7 +80,7 @@ impl<L: CombinatorTrait, R: CombinatorTrait> ParserTrait for SeqParser<'_, L, R>
                 if let Ok(true) = result {
                     result = Ok(false);
                     *self = SeqParser::Right {
-                        right: right.init_parser().inner,
+                        right: right.init_parser(),
                     };
                 } else {
                     *self = SeqParser::Done;
@@ -98,11 +98,13 @@ impl<L: CombinatorTrait, R: CombinatorTrait> ParserTrait for SeqParser<'_, L, R>
         }
     }
 }
-impl<'b, L: CombinatorTrait, R: CombinatorTrait + 'b> CombinatorTrait for Seq<'b, L, R> where R: 'b {
-    type Parser = SeqParser<'b, L, R>;
-    fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser> {
+impl<'c, L: CombinatorTrait, R: CombinatorTrait + 'c> CombinatorTrait for Seq<'c, L, R> where R: 'c
+{
+    type Parser = SeqParser<'c, L, R>;
+    fn init_parser<'a, 'b>(&'a self) -> Self::Parser where Self::Parser: 'b, 'a: 'b
+    {
         SeqParser::Left {
-            left: self.left.init_parser().inner,
+            left: self.left.init_parser(),
             right: unsafe { std::mem::transmute(&self.right) },
             // right: &self.right,
         }.into()
@@ -113,12 +115,14 @@ pub struct DynCombinator<'a, T> {
     inner: T,
     phantom: PhantomData<&'a ()>,
 }
-impl<'b, T: CombinatorTrait> CombinatorTrait for DynCombinator<'b, T> where T: 'b {
-    type Parser = Box<dyn ParserTrait + 'b>;
-    fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser> {
-        let inner = self.inner.init_parser().inner;
-        let boxed_dyn: Box<dyn ParserTrait + 'b> = Box::new(inner);
-        Wrapper::from(boxed_dyn)
+impl<'c, T: CombinatorTrait> CombinatorTrait for DynCombinator<'c, T> where T: 'c
+{
+    type Parser = Box<dyn ParserTrait + 'c>;
+    fn init_parser<'a, 'b>(&'a self) -> Self::Parser where Self::Parser: 'b, 'a: 'b
+    {
+        let inner = self.init_parser();
+        let boxed_dyn: Box<dyn ParserTrait + 'c> = Box::new(inner);
+        boxed_dyn
     }
 }
 impl ParserTrait for Box<dyn ParserTrait + '_> {
@@ -145,23 +149,23 @@ fn test() {
     let eat_ab = seq(eat_a, eat_b);
     let dyn_eat_ab = make_dyn(eat_ab);
 
-    let mut parser = dyn_eat_ab.init_parser().inner;
+    let mut parser = dyn_eat_ab.init_parser();
     assert_eq!(parser.parse('a'), Ok(false));
     assert_eq!(parser.parse('b'), Ok(true));
 
-    let mut parser = dyn_eat_ab.init_parser().inner;
+    let mut parser = dyn_eat_ab.init_parser();
     assert_eq!(parser.parse('a'), Ok(false));
     assert_eq!(parser.parse('c'), Err("Expected b, got c".to_string()));
 
     // Ensure the combinator can't be dropped before the parser
     let combinator = seq(eat('a'), eat('b'));
     let wrapped = combinator.init_parser();
-    let mut parser = wrapped.inner;
+    let mut parser = wrapped;
     // drop(combinator);
 
     // WTF
     let combinator = seq(eat('a'), eat('b'));
-    let mut parser = combinator.init_parser().inner;
+    let mut parser = combinator.init_parser();
     drop(combinator);
     parser.parse('a');
 }
