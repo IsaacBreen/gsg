@@ -95,13 +95,13 @@ pub struct Profiled<T> {
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct ProfiledParser<'a> {
+pub struct ProfiledParser {
     pub inner: Box<dyn ParserTrait>,
     pub tag: String,
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
-    type Parser<'a> = ProfiledParser<'a>;
+    type Parser<'a> = ProfiledParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         profile!(&self.tag, self.inner.one_shot_parse(right_data, bytes))
@@ -125,7 +125,7 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Profiled<T> {
     }
 }
 
-impl ParserTrait for ProfiledParser<'_> {
+impl ParserTrait for ProfiledParser {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }

@@ -10,7 +10,7 @@ pub struct Tagged<T: CombinatorTrait> {
     pub tag: String,
 }
 
-pub struct TaggedParser<'a> {
+pub struct TaggedParser {
     pub inner: Box<dyn ParserTrait>,
     pub tag: String,
 }
@@ -23,7 +23,7 @@ impl<T: CombinatorTrait> Debug for Tagged<T> {
     }
 }
 
-impl Debug for TaggedParser<'_> {
+impl Debug for TaggedParser {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaggedParser")
             .field("tag", &self.tag)
@@ -32,7 +32,7 @@ impl Debug for TaggedParser<'_> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
-    type Parser<'a> = TaggedParser<'a>;
+    type Parser<'a> = TaggedParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.inner.one_shot_parse(right_data, bytes)
@@ -63,7 +63,7 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Tagged<T> {
     }
 }
 
-impl ParserTrait for TaggedParser<'_> {
+impl ParserTrait for TaggedParser {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }

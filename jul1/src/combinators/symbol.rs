@@ -16,7 +16,7 @@ impl<T> Clone for Symbol<T> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
-    type Parser<'a> = T::Parser;
+    type Parser<'a> = T::Parser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.value.one_shot_parse(right_data, bytes)

@@ -8,34 +8,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f8fe7ece-a76c-46ac-8cbf-133bea188956" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/brute_force_fn.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/brute_force_fn.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/cache.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/cache.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/check_right_data.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/check_right_data.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/choice.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/choice.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/choicen.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/choicen.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/continuation.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/continuation.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/deferred.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/deferred.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/dyn_parser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/dyn_parser.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/eat_bytestring_choice.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/eat_bytestring_choice.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/eat_string.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/eat_string.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/eat_u8.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/eat_u8.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/eps.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/eps.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/fail.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/fail.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/fast.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/fast.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/forbid_follows.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/forbid_follows.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/indent.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/indent.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/lookahead.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/lookahead.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/mutate_right_data.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/mutate_right_data.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/negative_lookahead.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/negative_lookahead.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/opt.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/opt.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/profile.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/profile.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/reference.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/reference.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/repeat1.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/repeat1.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/seq.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/seq.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/seqn.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/seqn.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/symbol.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/symbol.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/tag.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/tag.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../jul1/src/convert.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/convert.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -242,7 +223,7 @@
       <updated>1724297416610</updated>
       <workItem from="1724297417943" duration="36260000" />
       <workItem from="1724397358341" duration="4703000" />
-      <workItem from="1724421756267" duration="3954000" />
+      <workItem from="1724421756267" duration="4106000" />
     </task>
     <servers />
   </component>

@@ -116,13 +116,13 @@ impl PartialEq for CachedParser {
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct CacheContextParser<'a> {
+pub struct CacheContextParser {
     pub inner: Box<dyn ParserTrait>,
     pub(crate) parse_id: usize,
 }
 
 impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
-    type Parser<'a> = CacheContextParser<'a>;
+    type Parser<'a> = CacheContextParser where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(|cache| {
@@ -174,7 +174,7 @@ impl<T: CombinatorTrait> BaseCombinatorTrait for CacheContext<T> {
     }
 }
 
-impl ParserTrait for CacheContextParser<'_> {
+impl ParserTrait for CacheContextParser {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }
