@@ -1,15 +1,11 @@
 use std::fmt::Display;
 
-struct ParseResult {
-    // todo
-}
-
 pub trait CombinatorTrait {
     type Parser<'a>: ParserTrait where Self: 'a;
     fn init_parser<'a>(&'a self) -> Self::Parser<'a>;
 }
 pub trait ParserTrait {
-    fn parse(&mut self, bytes: &[u8]) -> ParseResult;
+    fn parse(&mut self, bytes: &[u8]) -> bool;
 }
 
 struct Eat {
@@ -23,7 +19,7 @@ impl CombinatorTrait for Eat {
     }
 }
 impl ParserTrait for EatParser {
-    fn parse(&mut self, bytes: &[u8]) -> ParseResult {
+    fn parse(&mut self, bytes: &[u8]) -> bool {
         todo!()
     }
 }
@@ -51,7 +47,7 @@ enum SeqParser<'a, L: CombinatorTrait, R: CombinatorTrait> where Self: 'a {
     // combinators.
 }
 impl<L: CombinatorTrait, R: CombinatorTrait> ParserTrait for SeqParser<'_, L, R> {
-    fn parse(&mut self, bytes: &[u8]) -> ParseResult {
+    fn parse(&mut self, bytes: &[u8]) -> bool {
         todo!()
     }
 }
@@ -79,7 +75,7 @@ impl<T: CombinatorTrait> CombinatorTrait for DynCombinator<T> {
     }
 }
 impl ParserTrait for DynParser<'_> {
-    fn parse(&mut self, bytes: &[u8]) -> ParseResult {
+    fn parse(&mut self, bytes: &[u8]) -> bool {
         self.inner.parse(bytes)
     }
 }
@@ -102,5 +98,6 @@ fn test() {
     let eat_ab = seq(eat_a, eat_b);
     let dyn_eat_ab = make_dyn(eat_ab);
     let mut parser = dyn_eat_ab.init_parser();
-    let parse_result = parser.parse(&b"ab"[..]);
+    assert!(parser.parse(&b"ab"[..]));
+    assert!(!parser.parse(&b"ac"[..]));
 }
