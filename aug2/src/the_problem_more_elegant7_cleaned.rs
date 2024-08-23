@@ -7,6 +7,10 @@ struct Wrapper<'a, T> {
     inner: T,
     marker: DropMarker<'a>,
 }
+impl<'a, T> Drop for Wrapper<'a, T> {
+    fn drop(&mut self) {}
+}
+
 struct DropMarker<'a> {
     phantom: PhantomData<&'a ()>,
 }
