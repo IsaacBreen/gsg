@@ -7,6 +7,6 @@ mod distilled4;
 mod distilled5;
 mod distilled6;
 mod rfc_3498;
-mod the_problem_simpler;
+mod the_problem_more_elegant;
 
 pub type ParseResult = ();
