@@ -5,7 +5,7 @@ type ParseResult = Result<bool, String>;
 
 pub trait CombinatorTrait {
     type Parser: ParserTrait;
-    fn init_parser(&self) -> Self::Parser;
+    fn init_parser<'a>(&'a self) -> Self::Parser where Self::Parser: 'a;
 }
 pub trait ParserTrait {
     fn parse(&mut self, c: char) -> ParseResult;
@@ -19,7 +19,7 @@ struct EatParser {
 }
 impl CombinatorTrait for Eat {
     type Parser = EatParser;
-    fn init_parser(&self) -> Self::Parser {
+    fn init_parser<'a>(&'a self) -> Self::Parser where Self::Parser: 'a {
         EatParser { c: self.c }
     }
 }
@@ -75,7 +75,7 @@ impl<L: CombinatorTrait, R: CombinatorTrait> ParserTrait for SeqParser<'_, L, R>
 }
 impl<L: CombinatorTrait, R: CombinatorTrait + 'static> CombinatorTrait for Seq<L, R> {
     type Parser = SeqParser<'static, L, R>;
-    fn init_parser(&self) -> Self::Parser {
+    fn init_parser<'a>(&'a self) -> Self::Parser where Self::Parser: 'a {
         SeqParser::Left {
             left: self.left.init_parser(),
             right: unsafe { std::mem::transmute(&self.right) },
@@ -91,7 +91,7 @@ pub struct DynParser<'a> {
 }
 impl<T: CombinatorTrait + 'static> CombinatorTrait for DynCombinator<T> {
     type Parser = Box<dyn ParserTrait>;
-    fn init_parser(&self) -> Self::Parser {
+    fn init_parser<'a>(&'a self) -> Self::Parser where Self::Parser: 'a {
         let inner = self.inner.init_parser();
         Box::new(inner)
     }
@@ -106,7 +106,7 @@ impl ParserTrait for Box<dyn ParserTrait + '_> {
 fn eat(c: char) -> Eat {
     Eat { c }
 }
-fn seq(left: impl CombinatorTrait, right: impl CombinatorTrait + 'static) -> impl CombinatorTrait {
+fn seq(left: impl CombinatorTrait, right: impl CombinatorTrait + 'static) -> Seq<impl CombinatorTrait, impl CombinatorTrait> {
     Seq { left, right }
 }
 fn make_dyn(inner: impl CombinatorTrait + 'static) -> Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>> {
@@ -127,4 +127,34 @@ fn test() {
     let mut parser = dyn_eat_ab.init_parser();
     assert_eq!(parser.parse('a'), Ok(false));
     assert_eq!(parser.parse('c'), Err("Expected b, got c".to_string()));
+
+    // Ensure the combinator can't be dropped before the parser
+    let combinator = seq(eat('a'), eat('b'));
+    let mut parser = combinator.init_parser();
+    drop(combinator);
+    assert_eq!(parser.parse('a'), Ok(false));
+    assert_eq!(parser.parse('b'), Ok(true));
+
+    let mut parser;
+    {
+        let combinator = seq(eat('a'), eat('b'));
+        parser = combinator.init_parser();
+    }
+    let right_combinator = if let SeqParser::Left { ref left, right } = parser {
+        right
+    } else {
+        unreachable!()
+    };
+    let mut right_parser1 = right_combinator.init_parser();
+    let mut right_parser2 = right_combinator.init_parser();
+    let mut right_parser3 = right_combinator.init_parser();
+
+    assert_eq!(parser.parse('a'), Ok(false));
+    assert_eq!(parser.parse('b'), Ok(true));
+
+    assert_eq!(right_parser1.parse('b'), Ok(true));
+
+    assert_eq!(right_parser2.parse('b'), Ok(true));
+
+    assert_eq!(right_parser3.parse('b'), Ok(true));
 }
