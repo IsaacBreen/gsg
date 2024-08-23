@@ -23,4 +23,7 @@ fn test() {
 
     // Is there any way to opt out of this cleverness?
     // To say: "don't allow this reference to exist after it's value has been dropped, **even if the reference is never used**"
+
+    // Possibly related:
+    // - https://github.com/rust-lang/rfcs/blob/master/text/0769-sound-generic-drop.md#the-drop-check-rule
 }

@@ -3,9 +3,13 @@ use std::marker::PhantomData;
 
 type ParseResult = Result<bool, String>;
 
-struct Wrapper<'a, T>{
+struct Wrapper<'a, T> {
     inner: T,
+    // m: std::mem::ManuallyDrop<&'a ()>,
+    // phantom_data: PhantomData<&'a ()>,
+    // phantom: std::mem::ManuallyDrop<PhantomData<T>>,
     marker: DropMarker<'a>,
+    // m: std::mem::ManuallyDrop<()>,
 }
 struct DropMarker<'a> {
     phantom: PhantomData<&'a ()>,
@@ -14,18 +18,23 @@ impl Drop for DropMarker<'_> {
     fn drop(&mut self) {}
 }
 
-impl<'a, T> From<T> for Wrapper<'a, T> {
+impl<'a, T> From<T> for Wrapper<'_, T> {
     fn from(inner: T) -> Self {
         Wrapper {
             inner,
+            // m: std::mem::ManuallyDrop::new(&()),
+            // phantom_data: PhantomData,
             marker: DropMarker { phantom: PhantomData },
+            // phantom: std::mem::ManuallyDrop::new(PhantomData),
+            // phantom: PhantomData,
+            // m: std::mem::ManuallyDrop::new(()),
         }
     }
 }
 
 pub trait CombinatorTrait {
     type Parser: ParserTrait;
-    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser>;
+    fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser>;
 }
 pub trait ParserTrait {
     fn parse(&mut self, c: char) -> ParseResult;
@@ -39,7 +48,7 @@ struct EatParser {
 }
 impl CombinatorTrait for Eat {
     type Parser = EatParser;
-    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser> {
+    fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser> {
         Wrapper::from(EatParser { c: self.c })
     }
 }
@@ -95,7 +104,7 @@ impl<L: CombinatorTrait, R: CombinatorTrait> ParserTrait for SeqParser<'_, L, R>
 }
 impl<L: CombinatorTrait, R: CombinatorTrait + 'static> CombinatorTrait for Seq<L, R> {
     type Parser = SeqParser<'static, L, R>;
-    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser> {
+    fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser> {
         SeqParser::Left {
             left: self.left.init_parser().inner,
             right: unsafe { std::mem::transmute(&self.right) },
@@ -111,7 +120,7 @@ pub struct DynParser<'a> {
 }
 impl<T: CombinatorTrait + 'static> CombinatorTrait for DynCombinator<T> {
     type Parser = Box<dyn ParserTrait>;
-    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser> {
+    fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser> {
         let inner = self.inner.init_parser().inner;
         let boxed_dyn: Box<dyn ParserTrait> = Box::new(inner);
         Wrapper::from(boxed_dyn)
