@@ -153,5 +153,10 @@ fn test() {
     let combinator = seq(eat('a'), eat('b'));
     let wrapped = combinator.init_parser();
     let mut parser = wrapped.inner;
+    // drop(combinator);
+
+    // WTF
+    let combinator = seq(eat('a'), eat('b'));
+    let mut parser = combinator.init_parser().inner;
     drop(combinator);
 }
