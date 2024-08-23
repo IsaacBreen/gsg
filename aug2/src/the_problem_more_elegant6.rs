@@ -145,7 +145,8 @@ fn test() {
 
     // Ensure the combinator can't be dropped before the parser
     let combinator = seq(eat('a'), eat('b'));
-    let mut parser = combinator.init_parser().inner;
+    let wrapped = combinator.init_parser();
+    let mut parser = wrapped.inner;
     drop(combinator);
     assert_eq!(parser.parse('a'), Ok(false));
     assert_eq!(parser.parse('b'), Ok(true));
