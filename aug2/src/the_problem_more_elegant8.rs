@@ -29,7 +29,7 @@ impl<'a, T> From<T> for Wrapper<'_, T> {
 
 pub trait CombinatorTrait {
     type Parser: ParserTrait;
-    fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser>;
+    fn init_parser<'a>(&'a self) -> Wrapper<'a, Self::Parser>;
 }
 pub trait ParserTrait {
     fn parse(&mut self, c: char) -> ParseResult;
@@ -98,12 +98,13 @@ impl<L: CombinatorTrait, R: CombinatorTrait> ParserTrait for SeqParser<'_, L, R>
         }
     }
 }
-impl<'b, L: CombinatorTrait, R: CombinatorTrait + 'b> CombinatorTrait for Seq<'b, L, R> {
+impl<'b, L: CombinatorTrait, R: CombinatorTrait + 'b> CombinatorTrait for Seq<'b, L, R> where R: 'b {
     type Parser = SeqParser<'b, L, R>;
     fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser> {
         SeqParser::Left {
             left: self.left.init_parser().inner,
             right: unsafe { std::mem::transmute(&self.right) },
+            // right: &self.right,
         }.into()
     }
 }
@@ -162,4 +163,5 @@ fn test() {
     let combinator = seq(eat('a'), eat('b'));
     let mut parser = combinator.init_parser().inner;
     drop(combinator);
+    parser.parse('a');
 }
