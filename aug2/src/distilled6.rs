@@ -43,11 +43,11 @@ fn main() {
 
     let boxed_dyn: Box<dyn MyTrait<AssociatedType = AssociatedStruct>> = Box::new(my_struct);
 
-    fn opaque<'a>(x: impl MyTrait<'a, AssociatedType = impl AssociatedTrait + 'a>) -> impl MyTrait<'a, AssociatedType = impl AssociatedTrait + 'a> {
+    fn opaque<'a>(x: impl MyTrait<'a>) -> impl MyTrait<'a> {
         x
     }
 
     let my_struct = MyStruct { data: 10 };
     let o = opaque(my_struct);
-    let associated_struct = o.create_associated_type(20);
+    // let associated_struct = o.create_associated_type(20);
 }

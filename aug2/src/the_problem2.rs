@@ -87,7 +87,7 @@
 //     //     Terminal
 //     // }
 //
-//     fn make() -> impl CombinatorTrait<'static> {
+//     fn make() -> impl CombinatorTrait {
 //         dyn_wrapper(Terminal)
 //     }
 //
