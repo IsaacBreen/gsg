@@ -11,4 +11,5 @@
 // mod the_problem_more_elegant2;
 // mod the_problem_more_elegant3;
 // mod the_problem_more_elegant4;
-mod the_problem_more_elegant5;
+// mod the_problem_more_elegant5;
+mod the_problem_more_elegant6;
