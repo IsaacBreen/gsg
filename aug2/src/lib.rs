@@ -16,4 +16,5 @@
 // mod wtf_lifetimes;
 // mod wtf_lifetimes2;
 // mod the_problem_more_elegant7;
-mod the_problem_more_elegant7_cleaned;
+// mod the_problem_more_elegant7_cleaned;
+mod the_problem_more_elegant8;
