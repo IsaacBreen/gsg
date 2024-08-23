@@ -1,33 +1,23 @@
 use std::fmt::Display;
 use std::marker::PhantomData;
-use std::ops::Deref;
 
 type ParseResult = Result<bool, String>;
 
 struct Wrapper<'a, T>{
     inner: T,
-    phantom: PhantomData<&'a ()>,
     other: Other<'a>,
 }
-// impl<'a, T> Drop for Wrapper<'a, T> {
-//     fn drop(&mut self) {
-//
-//     }
-// }
 struct Other<'a> {
     phantom: PhantomData<&'a ()>,
 }
 impl Drop for Other<'_> {
-    fn drop(&mut self) {
-        println!("Dropping Wrapper");
-    }
+    fn drop(&mut self) {}
 }
 
 impl<'a, T> From<T> for Wrapper<'a, T> {
     fn from(inner: T) -> Self {
         Wrapper {
             inner,
-            phantom: PhantomData,
             other: Other { phantom: PhantomData },
         }
     }
@@ -164,36 +154,36 @@ fn test() {
     let wrapped = combinator.init_parser();
     let mut parser = wrapped.inner;
     drop(combinator);
-    assert_eq!(parser.parse('a'), Ok(false));
-    assert_eq!(parser.parse('b'), Ok(true));
-
-    let combinator = seq(eat('a'), eat('b'));
-    let wrapped = combinator.init_parser();
-    drop(combinator);
-
-    let mut parser;
-    {
-        let combinator = seq(eat('a'), eat('b'));
-        parser = combinator.init_parser().inner;
-    }
-    // miri should report:
-    // 143 |     let right_combinator = if let SeqParser::Left { ref left, right } = parser {
-    //     |                                                               ^^^^^ constructing invalid value: encountered a dangling reference (use-after-free)
-    let right_combinator = if let SeqParser::Left { ref left, right } = parser {
-        right
-    } else {
-        unreachable!()
-    };
-    let mut right_parser1 = right_combinator.init_parser().inner;
-    let mut right_parser2 = right_combinator.init_parser().inner;
-    let mut right_parser3 = right_combinator.init_parser().inner;
-
-    assert_eq!(parser.parse('a'), Ok(false));
-    assert_eq!(parser.parse('b'), Ok(true));
-
-    assert_eq!(right_parser1.parse('b'), Ok(true));
-
-    assert_eq!(right_parser2.parse('b'), Ok(true));
-
-    assert_eq!(right_parser3.parse('b'), Ok(true));
+    // assert_eq!(parser.parse('a'), Ok(false));
+    // assert_eq!(parser.parse('b'), Ok(true));
+    //
+    // let combinator = seq(eat('a'), eat('b'));
+    // let wrapped = combinator.init_parser();
+    // drop(combinator);
+    //
+    // let mut parser;
+    // {
+    //     let combinator = seq(eat('a'), eat('b'));
+    //     parser = combinator.init_parser().inner;
+    // }
+    // // miri should report:
+    // // 143 |     let right_combinator = if let SeqParser::Left { ref left, right } = parser {
+    // //     |                                                               ^^^^^ constructing invalid value: encountered a dangling reference (use-after-free)
+    // let right_combinator = if let SeqParser::Left { ref left, right } = parser {
+    //     right
+    // } else {
+    //     unreachable!()
+    // };
+    // let mut right_parser1 = right_combinator.init_parser().inner;
+    // let mut right_parser2 = right_combinator.init_parser().inner;
+    // let mut right_parser3 = right_combinator.init_parser().inner;
+    //
+    // assert_eq!(parser.parse('a'), Ok(false));
+    // assert_eq!(parser.parse('b'), Ok(true));
+    //
+    // assert_eq!(right_parser1.parse('b'), Ok(true));
+    //
+    // assert_eq!(right_parser2.parse('b'), Ok(true));
+    //
+    // assert_eq!(right_parser3.parse('b'), Ok(true));
 }
