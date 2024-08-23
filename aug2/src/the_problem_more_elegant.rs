@@ -102,14 +102,14 @@ impl ParserTrait for Box<dyn ParserTrait + '_> {
 }
 
 // Helper functions
-fn eat(c: char) -> impl CombinatorTrait {
+fn eat(c: char) -> Eat {
     Eat { c }
 }
 fn seq(left: impl CombinatorTrait, right: impl CombinatorTrait) -> impl CombinatorTrait {
     Seq { left, right }
 }
-fn make_dyn(inner: impl CombinatorTrait) -> impl CombinatorTrait {
-    DynCombinator { inner }
+fn make_dyn(inner: impl CombinatorTrait) -> Box<dyn for<'a> CombinatorTrait<Parser<'a> = Box<dyn ParserTrait + 'a>>> {
+    Box::new(DynCombinator { inner })
 }
 
 #[test]
