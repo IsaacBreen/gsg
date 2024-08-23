@@ -1,5 +1,5 @@
 // src/convert.rs
-use crate::{deferred, fast_combinator, CombinatorTrait, Deferred, FastCombinatorWrapper, ParserTrait, StrongRef, Symbol, WeakRef};
+use crate::{deferred, fast_combinator, CombinatorTrait, Deferred, DynCombinatorTrait, FastCombinatorWrapper, ParserTrait, StrongRef, Symbol, WeakRef};
 use crate::tokenizer::finite_automata::Expr;
 
 pub trait IntoCombinator {
@@ -43,11 +43,11 @@ impl IntoCombinator for Expr {
 }
 
 pub trait IntoDyn<'a> {
-    fn into_dyn(self) -> Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>> + 'a>;
+    fn into_dyn(self) -> Box<dyn DynCombinatorTrait + 'a>;
 }
 
 impl<'a, T: CombinatorTrait + 'a> IntoDyn<'a> for T {
-    fn into_dyn(self) -> Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>> + 'a> {
+    fn into_dyn(self) -> Box<dyn DynCombinatorTrait + 'a> {
         Box::new(self)
     }
 }

@@ -33,7 +33,7 @@ macro_rules! define_seq {
             pub(crate) position: usize,
         }
 
-        impl<'a, $first, $($rest),+> CombinatorTrait for $seq_name<$first, $($rest),+>
+        impl<$first, $($rest),+> CombinatorTrait for $seq_name<$first, $($rest),+>
         where
             $first: CombinatorTrait + 'static,
             $($rest: CombinatorTrait + 'static),+
@@ -50,7 +50,7 @@ macro_rules! define_seq {
                 $crate::UnambiguousParseResults::Ok(right_data)
             }
 
-            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
                 let start_position = right_data.right_data_inner.fields1.position;
 
                 let first_combinator = &self.$first;

@@ -26,7 +26,7 @@ impl Debug for FastParserWrapper<'_> {
     }
 }
 
-impl<'a> CombinatorTrait for FastCombinatorWrapper {
+impl CombinatorTrait for FastCombinatorWrapper {
     type Parser<'a> = FastParserWrapper<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -45,7 +45,7 @@ impl<'a> CombinatorTrait for FastCombinatorWrapper {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
         if regex_state.failed() {

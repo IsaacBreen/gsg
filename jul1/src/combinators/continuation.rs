@@ -89,7 +89,7 @@ impl CombinatorTrait for Continuation {
         todo!("one_shot_parse")
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let result = (self.run)(right_data.clone(), bytes);
         let run = self.run.clone();
         // match result {

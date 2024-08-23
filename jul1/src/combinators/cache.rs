@@ -121,7 +121,7 @@ pub struct CacheContextParser<'a> {
     pub(crate) parse_id: usize,
 }
 
-impl<'a, T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
+impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
     type Parser<'a> = CacheContextParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -143,7 +143,7 @@ impl<'a, T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
         })
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
@@ -235,7 +235,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
         })
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         GLOBAL_CACHE.with(move |cache| {
             let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn CombinatorTrait, right_data: right_data.clone() };
 

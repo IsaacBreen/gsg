@@ -65,7 +65,7 @@ impl CombinatorTrait for Choice {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
@@ -127,14 +127,14 @@ impl ParserTrait for ChoiceParser {
 
 }
 
-pub fn _choice(v: Vec<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>) -> impl CombinatorTrait {
+pub fn _choice(v: Vec<Box<dyn DynCombinatorTrait>>) -> impl CombinatorTrait {
     Choice {
         children: v.into_iter().collect(),
         greedy: false,
     }
 }
 
-pub fn _choice_greedy(v: Vec<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>) -> impl CombinatorTrait {
+pub fn _choice_greedy(v: Vec<Box<dyn DynCombinatorTrait>>) -> impl CombinatorTrait {
     profile_internal("choice", Choice {
         children: v.into_iter().collect(),
         greedy: true,

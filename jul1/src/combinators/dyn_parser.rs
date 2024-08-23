@@ -19,11 +19,11 @@ impl<C: CombinatorTrait> CombinatorTrait for DynCombinator<C> {
         self.combinator.one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         self.combinator.old_parse(right_data, bytes)
     }
 }
 
-pub fn dyn_combinator<C: CombinatorTrait>(combinator: C) -> Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>> {
+pub fn dyn_combinator<C: CombinatorTrait>(combinator: C) -> Box<dyn DynCombinatorTrait> {
     Box::new(DynCombinator { combinator })
 }

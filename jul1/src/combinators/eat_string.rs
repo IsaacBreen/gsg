@@ -40,7 +40,7 @@ impl CombinatorTrait for EatString {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut parser = EatStringParser {
             string: self.string.as_slice(),
             index: 0,

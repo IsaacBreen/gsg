@@ -16,7 +16,7 @@ impl CombinatorTrait for Fail {
         Err(UnambiguousParseError::Fail)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         (FailParser, ParseResults::empty_finished())
     }
 }

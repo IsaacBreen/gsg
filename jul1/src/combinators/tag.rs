@@ -31,14 +31,14 @@ impl Debug for TaggedParser<'_> {
     }
 }
 
-impl<'a, T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
     type Parser<'a> = TaggedParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.inner.one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         count_hit!(self.tag);
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {

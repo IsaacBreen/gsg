@@ -28,7 +28,7 @@ pub struct SeqParser<'a> {
     pub(crate) position: usize,
 }
 
-impl<'a> CombinatorTrait for Seq {
+impl CombinatorTrait for Seq {
     type Parser<'a> = SeqParser<'a>;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -40,7 +40,7 @@ impl<'a> CombinatorTrait for Seq {
         Ok(right_data)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let start_position = right_data.right_data_inner.fields1.position;
 
         let mut combinator_index = self.start_index;
@@ -208,7 +208,7 @@ impl ParserTrait for SeqParser<'_> {
     }
 }
 
-pub fn _seq(v: Vec<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>) -> impl CombinatorTrait {
+pub fn _seq(v: Vec<Box<dyn DynCombinatorTrait>>) -> impl CombinatorTrait {
     profile_internal("seq", Seq {
         children: v.into_iter().collect(),
         start_index: 0,

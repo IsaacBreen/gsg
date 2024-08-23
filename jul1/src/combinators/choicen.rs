@@ -18,7 +18,7 @@ macro_rules! define_choice {
             pub(crate) greedy: bool,
         }
 
-        impl<'a, $first: 'static, $($rest: 'static),+> CombinatorTrait for $choice_name<$first, $($rest),+>
+        impl<$first: 'static, $($rest: 'static),+> CombinatorTrait for $choice_name<$first, $($rest),+>
         where
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
@@ -72,7 +72,7 @@ macro_rules! define_choice {
                 }
             }
 
-            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
                 let first_combinator = &self.$first;
                 let (first_parser, first_parse_results) = profile!(stringify!($choice_name, " first child parse"), {
                     first_combinator.parse(right_data.clone(), bytes)
