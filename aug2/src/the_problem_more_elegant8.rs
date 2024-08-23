@@ -103,22 +103,20 @@ impl<'b, L: CombinatorTrait, R: CombinatorTrait + 'b> CombinatorTrait for Seq<'b
     fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser> {
         SeqParser::Left {
             left: self.left.init_parser().inner,
-            right: unsafe { &self.right },
+            right: unsafe { std::mem::transmute(&self.right) },
         }.into()
     }
 }
 
-pub struct DynCombinator<T> {
+pub struct DynCombinator<'a, T> {
     inner: T,
+    phantom: PhantomData<&'a ()>,
 }
-pub struct DynParser<'a> {
-    inner: Box<dyn ParserTrait + 'a>,
-}
-impl<T: CombinatorTrait> CombinatorTrait for DynCombinator<T> {
-    type Parser = Box<dyn ParserTrait>;
-    fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser> where <T as CombinatorTrait>::Parser: 'static {
+impl<'b, T: CombinatorTrait> CombinatorTrait for DynCombinator<'b, T> where T: 'b {
+    type Parser = Box<dyn ParserTrait + 'b>;
+    fn init_parser<'a>(&'a self) -> Wrapper<Self::Parser> {
         let inner = self.inner.init_parser().inner;
-        let boxed_dyn: Box<dyn ParserTrait> = Box::new(inner);
+        let boxed_dyn: Box<dyn ParserTrait + 'b> = Box::new(inner);
         Wrapper::from(boxed_dyn)
     }
 }
@@ -132,11 +130,11 @@ impl ParserTrait for Box<dyn ParserTrait + '_> {
 fn eat(c: char) -> Eat {
     Eat { c }
 }
-fn seq(left: impl CombinatorTrait, right: impl CombinatorTrait) -> Seq<impl CombinatorTrait, impl CombinatorTrait> {
+fn seq<'a>(left: impl CombinatorTrait, right: impl CombinatorTrait) -> Seq<'a, impl CombinatorTrait, impl CombinatorTrait> {
     Seq { left, right, phantom: PhantomData }
 }
-fn make_dyn(inner: impl CombinatorTrait) -> Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>> {
-    Box::new(DynCombinator { inner })
+fn make_dyn<'a>(inner: impl CombinatorTrait<Parser=impl ParserTrait + 'a> + 'a) -> Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait + 'a>> + 'a> {
+    Box::new(DynCombinator { inner, phantom: PhantomData })
 }
 
 #[test]
