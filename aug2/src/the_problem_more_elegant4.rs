@@ -122,8 +122,9 @@ fn seq<'a>(left: impl CombinatorTrait<'a>, right: impl CombinatorTrait<'a> + 'a)
     Seq { left, right, phantom: PhantomData }
 }
 fn make_dyn<'a>(inner: impl CombinatorTrait<'a>) -> impl CombinatorTrait<'a> {
-    let boxed_dyn: Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>> = Box::new(DynCombinator { inner });
-    boxed_dyn
+    // let boxed_dyn: Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>> = Box::new(DynCombinator { inner });
+    // boxed_dyn
+    inner
 }
 
 #[test]
