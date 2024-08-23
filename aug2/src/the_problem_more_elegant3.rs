@@ -8,13 +8,13 @@ pub trait CombinatorTrait {
 }
 pub trait CombinatorRefTrait<'a> {
     type Parser: ParserTrait + 'a;
-    fn init_parser(self) -> Self::Parser;
+    fn init_parser(self) -> Self::Parser where Self: 'a;
 }
 pub trait ParserTrait {
     fn parse(&mut self, c: char) -> ParseResult;
 }
 
-impl<'a, T> CombinatorTrait for T where &'a T: CombinatorRefTrait<'a> {
+impl<'a, 'b, T: 'a> CombinatorTrait for T where &'a T: CombinatorRefTrait<'a>, <&'a T as CombinatorRefTrait<'a>>::Parser: 'a {
     type Parser = <&'a T as CombinatorRefTrait<'a>>::Parser;
     fn init_parser(&self) -> Self::Parser {
         CombinatorRefTrait::init_parser(self)
@@ -99,7 +99,7 @@ pub struct DynCombinator<T> {
 pub struct DynParser<'a> {
     inner: Box<dyn ParserTrait + 'a>,
 }
-impl<'a, T: CombinatorRefTrait<'a>> CombinatorRefTrait<'a> for &'a DynCombinator<T> {
+impl<'a, T: CombinatorRefTrait<'a>> CombinatorRefTrait<'a> for &'a DynCombinator<T> where &'a T: CombinatorRefTrait<'a> {
     type Parser = Box<dyn ParserTrait + 'a>;
     fn init_parser(self) -> Self::Parser {
         let inner = CombinatorRefTrait::init_parser(&self.inner);
