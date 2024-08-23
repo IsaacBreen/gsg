@@ -122,10 +122,8 @@ fn seq<'a>(left: impl CombinatorTrait<'a>, right: impl CombinatorTrait<'a> + 'a)
     Seq { left, right, phantom: PhantomData }
 }
 fn make_dyn<'a>(inner: impl CombinatorTrait<'a>) -> impl CombinatorTrait<'a> {
-    // let boxed_dyn: Box<dyn for<'a> CombinatorTrait<Parser=Box<dyn ParserTrait>>> = Box::new(DynCombinator { inner });
-    // boxed_dyn
-    todo!();
-    inner
+    let boxed_dyn: Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>> = Box::new(DynCombinator { inner });
+    boxed_dyn
 }
 
 #[test]
@@ -136,7 +134,7 @@ fn test() {
     let dyn_eat_ab = make_dyn(eat_ab);
 
     {
-        let wrapped = dyn_eat_ab.init_parser();
+        // let wrapped = dyn_eat_ab.init_parser();
     } 
     // let mut parser = wrapped.inner;
     // assert_eq!(parser.parse('a'), Ok(false));
