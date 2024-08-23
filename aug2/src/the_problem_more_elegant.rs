@@ -1,38 +1,34 @@
 use std::fmt::Display;
 
-enum ParseResult {
-    Ok,    // this means 'parse is ok so far, but expects to eat more bytes'
-    Done,
-    Err,
-}
+type ParseResult = Result<bool, String>;
 
 pub trait CombinatorTrait {
     type Parser<'a>: ParserTrait where Self: 'a;
     fn init_parser<'a>(&'a self) -> Self::Parser<'a>;
 }
 pub trait ParserTrait {
-    fn parse(&mut self, byte: u8) -> ParseResult;
+    fn parse(&mut self, c: char) -> ParseResult;
 }
 
 struct Eat {
-    byte: u8,
+    c: char,
 }
 struct EatParser {
-    byte: u8,
+    c: char,
 }
 impl CombinatorTrait for Eat {
     type Parser<'a> = EatParser;
     fn init_parser<'a>(&'a self) -> Self::Parser<'a> {
-        EatParser { byte: self.byte }
+        EatParser { c: self.c }
     }
 }
 impl ParserTrait for EatParser {
-    fn parse(&mut self, byte: u8) -> ParseResult {
-        if byte == self.byte {
-            ParseResult::Done
+    fn parse(&mut self, c: char) -> ParseResult {
+        if c == self.c {
+            Ok(true)
         } else {
-            ParseResult::Err
-
+            Err(format!("Expected {}, got {}", self.c, c))
+        }
     }
 }
 
@@ -48,19 +44,30 @@ enum SeqParser<'a, L: CombinatorTrait, R: CombinatorTrait> where Self: 'a {
     Right {
         right: R::Parser<'a>,
     },
+    Done,
 }
 impl<L: CombinatorTrait, R: CombinatorTrait> ParserTrait for SeqParser<'_, L, R> {
-    fn parse(&mut self, byte: u8) -> ParseResult {
+    fn parse(&mut self, c: char) -> ParseResult {
         match self {
             SeqParser::Left { left, right } => {
-                let result = left.parse(byte);
-                *self = SeqParser::Right {
-                    right: right.init_parser(),
-                };
+                let mut result = left.parse(c);
+                if let Ok(true) = result {
+                    result = Ok(false);
+                    *self = SeqParser::Right {
+                        right: right.init_parser(),
+                    };
+                } else {
+                    *self = SeqParser::Done;
+                }
                 result
             }
             SeqParser::Right { right } => {
-                right.parse(byte)
+                let result = right.parse(c);
+                *self = SeqParser::Done;
+                result
+            }
+            SeqParser::Done => {
+                Err("Sequence already exhausted".to_string())
             }
         }
     }
@@ -89,14 +96,14 @@ impl<T: CombinatorTrait> CombinatorTrait for DynCombinator<T> {
     }
 }
 impl ParserTrait for Box<dyn ParserTrait + '_> {
-    fn parse(&mut self, byte: u8) -> ParseResult {
-        (**self).parse(byte)
+    fn parse(&mut self, c: char) -> ParseResult {
+        (**self).parse(c)
     }
 }
 
 // Helper functions
-fn eat(byte: u8) -> impl CombinatorTrait {
-    Eat { byte }
+fn eat(c: char) -> impl CombinatorTrait {
+    Eat { c }
 }
 fn seq(left: impl CombinatorTrait, right: impl CombinatorTrait) -> impl CombinatorTrait {
     Seq { left, right }
@@ -107,16 +114,16 @@ fn make_dyn(inner: impl CombinatorTrait) -> impl CombinatorTrait {
 
 #[test]
 fn test() {
-    let eat_a = Eat { byte: b'a' };
-    let eat_b = Eat { byte: b'b' };
+    let eat_a = eat('a');
+    let eat_b = eat('b');
     let eat_ab = seq(eat_a, eat_b);
     let dyn_eat_ab = make_dyn(eat_ab);
 
     let mut parser = dyn_eat_ab.init_parser();
-    assert!(parser.parse(b'a'));
-    assert!(parser.parse(b'b'));
+    assert_eq!(parser.parse('a'), Ok(false));
+    assert_eq!(parser.parse('b'), Ok(true));
 
     let mut parser = dyn_eat_ab.init_parser();
-    assert!(parser.parse(b'a'));
-    assert!(!parser.parse(b'c'));
+    assert_eq!(parser.parse('a'), Ok(false));
+    assert_eq!(parser.parse('c'), Err("Expected b, got c".to_string()));
 }
