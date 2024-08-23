@@ -5,12 +5,12 @@ type ParseResult = Result<bool, String>;
 
 struct Wrapper<'a, T>{
     inner: T,
-    other: Other<'a>,
+    marker: DropMarker<'a>,
 }
-struct Other<'a> {
+struct DropMarker<'a> {
     phantom: PhantomData<&'a ()>,
 }
-impl Drop for Other<'_> {
+impl Drop for DropMarker<'_> {
     fn drop(&mut self) {}
 }
 
@@ -18,7 +18,7 @@ impl<'a, T> From<T> for Wrapper<'a, T> {
     fn from(inner: T) -> Self {
         Wrapper {
             inner,
-            other: Other { phantom: PhantomData },
+            marker: DropMarker { phantom: PhantomData },
         }
     }
 }
