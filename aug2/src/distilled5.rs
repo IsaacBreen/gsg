@@ -36,4 +36,7 @@ fn main() {
     fn opaque<'a>(x: impl MyTrait<'a, AssociatedType = AssociatedStruct<'a>>) -> impl MyTrait<'a, AssociatedType = AssociatedStruct<'a>> {
         x
     }
+
+    let my_struct = MyStruct { data: 10 };
+    let o = opaque(my_struct);
 }

@@ -31,5 +31,6 @@ fn main() {
     println!("MyStruct data: {}", associated_struct.my_struct_ref.data);
     println!("AssociatedStruct value: {}", associated_struct.value);
 
+    // Doesn't work
     // let boxed_dyn: Box<dyn MyTrait> = Box::new(my_struct);
 }
