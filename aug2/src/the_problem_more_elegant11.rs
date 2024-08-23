@@ -74,7 +74,7 @@ impl<'a, L: CombinatorTrait<'a>, R: CombinatorTrait<'a>> ParserTrait for SeqPars
         }
     }
 }
-impl<'b, L: CombinatorTrait<'b>, R: CombinatorTrait<'b> + 'b> CombinatorTrait<'b> for Seq<'b, L, R> {
+impl<'b, L: CombinatorTrait<'b>, R: CombinatorTrait<'b>> CombinatorTrait<'b> for Seq<'b, L, R> {
     type Parser = SeqParser<'b, L, R>;
     fn init_parser(&'b self) -> Self::Parser {
         SeqParser::Left {
