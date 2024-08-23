@@ -8,9 +8,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f8fe7ece-a76c-46ac-8cbf-133bea188956" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../aug3/.idea/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/the_problem_more_elegant10.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/the_problem_more_elegant10.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/the_problem_more_elegant11.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/the_problem_more_elegant11.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -216,7 +216,7 @@
       <updated>1724297416610</updated>
       <workItem from="1724297417943" duration="36260000" />
       <workItem from="1724397358341" duration="4703000" />
-      <workItem from="1724421756267" duration="4000" />
+      <workItem from="1724421756267" duration="556000" />
     </task>
     <servers />
   </component>
