@@ -32,7 +32,7 @@ impl Debug for TaggedParser<'_> {
 }
 
 impl<'a, T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
-    type Parser = TaggedParser<'a>;
+    type Parser<'a> = TaggedParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.inner.one_shot_parse(right_data, bytes)

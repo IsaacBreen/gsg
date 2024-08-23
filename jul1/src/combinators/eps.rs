@@ -9,7 +9,7 @@ pub struct Eps;
 pub struct EpsParser;
 
 impl CombinatorTrait for Eps {
-    type Parser = EpsParser;
+    type Parser<'a> = EpsParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(right_data)

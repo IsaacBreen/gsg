@@ -3,12 +3,12 @@
 use std::any::Any;
 use std::rc::Rc;
 
-use crate::{CombinatorTrait, eps, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX, UnambiguousParseResults, UnambiguousParseError, BaseCombinatorTrait};
+use crate::{CombinatorTrait, eps, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX, UnambiguousParseResults, UnambiguousParseError, BaseCombinatorTrait, DynCombinatorTrait};
 use crate::parse_state::{RightData, ParseResultTrait};
 
 #[derive(Debug)]
 pub struct Choice {
-    pub(crate) children: VecX<Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>,
+    pub(crate) children: VecX<Box<dyn DynCombinatorTrait>>,
     pub(crate) greedy: bool,
 }
 
@@ -19,7 +19,7 @@ pub struct ChoiceParser {
 }
 
 impl CombinatorTrait for Choice {
-    type Parser = ChoiceParser;
+    type Parser<'a> = ChoiceParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if self.greedy {

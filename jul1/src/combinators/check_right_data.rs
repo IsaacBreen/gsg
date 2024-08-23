@@ -31,7 +31,7 @@ impl Debug for CheckRightData {
 }
 
 impl CombinatorTrait for CheckRightData {
-    type Parser = FailParser;
+    type Parser<'a> = FailParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if (self.run)(&right_data) {

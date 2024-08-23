@@ -1,5 +1,5 @@
 // src/combinators/repeat1.rs
-use crate::{BaseCombinatorTrait, FailParser, UnambiguousParseError, UnambiguousParseResults};
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, FailParser, UnambiguousParseError, UnambiguousParseResults};
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -18,14 +18,14 @@ pub struct Repeat1<T: CombinatorTrait> {
 #[derive(Debug)]
 pub struct Repeat1Parser<'a> {
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
-    pub(crate) a: &'a dyn CombinatorTrait<Parser = Self>,
+    pub(crate) a: &'a dyn DynCombinatorTrait,
     pub(crate) a_parsers: Vec<Box<dyn ParserTrait>>,
     pub(crate) position: usize,
     pub(crate) greedy: bool,
 }
 
 impl<'a, T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
-    type Parser = Repeat1Parser<'a>;
+    type Parser<'a> = Repeat1Parser<'a>;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;

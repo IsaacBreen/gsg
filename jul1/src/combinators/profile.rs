@@ -101,7 +101,7 @@ pub struct ProfiledParser<'a> {
 }
 
 impl<'a, T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
-    type Parser = ProfiledParser<'a>;
+    type Parser<'a> = ProfiledParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         profile!(&self.tag, self.inner.one_shot_parse(right_data, bytes))

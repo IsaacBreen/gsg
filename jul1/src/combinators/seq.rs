@@ -1,5 +1,5 @@
 // src/combinators/seq.rs
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use crate::RightData;
 use std::any::Any;
 use std::rc::Rc;
@@ -17,19 +17,19 @@ macro_rules! profile {
 
 #[derive(Debug)]
 pub struct Seq {
-    pub(crate) children: VecX<Box<dyn CombinatorTrait<Parser=Box<dyn ParserTrait>>>>,
+    pub(crate) children: VecX<Box<dyn DynCombinatorTrait>>,
     pub(crate) start_index: usize,
 }
 
 #[derive(Debug)]
 pub struct SeqParser<'a> {
     pub(crate) parsers: Vec<(usize, Box<dyn ParserTrait>)>,
-    pub(crate) combinators: &'a VecX<Box<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>>>,
+    pub(crate) combinators: &'a VecX<Box<dyn DynCombinatorTrait>>,
     pub(crate) position: usize,
 }
 
 impl<'a> CombinatorTrait for Seq {
-    type Parser = SeqParser<'a>;
+    type Parser<'a> = SeqParser<'a>;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;

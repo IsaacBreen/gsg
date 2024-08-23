@@ -19,7 +19,7 @@ pub struct ExcludeBytestringsParser<'a> {
 }
 
 impl<'a, T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
-    type Parser = ExcludeBytestringsParser<'a>;
+    type Parser<'a> = ExcludeBytestringsParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;

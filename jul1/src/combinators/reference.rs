@@ -71,7 +71,7 @@ impl<T> Hash for StrongRef<T> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
-    type Parser = T::Parser;
+    type Parser<'a> = T::Parser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.get().unwrap();
@@ -94,7 +94,7 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for WeakRef<T> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for StrongRef<T> {
-    type Parser = T::Parser;
+    type Parser<'a> = T::Parser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().unwrap();

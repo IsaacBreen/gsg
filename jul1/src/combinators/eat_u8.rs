@@ -16,7 +16,7 @@ pub struct EatU8Parser {
 }
 
 impl CombinatorTrait for EatU8 {
-    type Parser = EatU8Parser;
+    type Parser<'a> = EatU8Parser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if bytes.is_empty() {

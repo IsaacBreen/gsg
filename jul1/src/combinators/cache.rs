@@ -1,6 +1,6 @@
 // src/combinators/cache.rs
 // src/combinators/cache.rs
-use crate::{BaseCombinatorTrait, UnambiguousParseResults};
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use crate::RightData;
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
@@ -61,7 +61,7 @@ impl GlobalCache {
 
 #[derive(Debug)]
 struct CacheKey {
-    combinator: *const dyn CombinatorTrait<Parser = Box<dyn ParserTrait>>,
+    combinator: *const dyn DynCombinatorTrait,
     right_data: RightData,
 }
 
@@ -122,7 +122,7 @@ pub struct CacheContextParser<'a> {
 }
 
 impl<'a, T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
-    type Parser = CacheContextParser<'a>;
+    type Parser<'a> = CacheContextParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(|cache| {
@@ -209,7 +209,7 @@ impl ParserTrait for CacheContextParser<'_> {
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
-    type Parser = CachedParser;
+    type Parser<'a> = CachedParser;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(move |cache| {

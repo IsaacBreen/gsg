@@ -1,5 +1,5 @@
 // src/combinators/indent.rs
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, RightData, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, RightData, UnambiguousParseError, UnambiguousParseResults};
 use std::mem::transmute;
 use std::rc::Rc;
 use aliasable::boxed::AliasableBox;
@@ -22,7 +22,7 @@ pub enum IndentCombinatorParser<'a> {
 
 #[derive(Debug)]
 pub struct OwningParser<'a> {
-    combinator: AliasableBox<dyn CombinatorTrait<Parser = Box<dyn ParserTrait>> + 'a>,
+    combinator: AliasableBox<dyn DynCombinatorTrait + 'a>,
     pub(crate) parser: Option<Box<dyn ParserTrait>>,
 }
 
@@ -65,7 +65,7 @@ impl<'a> ParserTrait for OwningParser<'a> {
 }
 
 impl<'a> CombinatorTrait for IndentCombinator {
-    type Parser = IndentCombinatorParser<'a>;
+    type Parser<'a> = IndentCombinatorParser<'a>;
 
     fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {

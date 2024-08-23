@@ -9,8 +9,8 @@
   <component name="ChangeListManager">
     <list default="true" id="f8fe7ece-a76c-46ac-8cbf-133bea188956" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/alternative.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/alternative.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../jul1/src/combinator.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinator.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../jul1/src/combinators/eat_string.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../jul1/src/combinators/eat_string.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,37 +54,38 @@
     <option name="sortByType" value="true" />
     <option name="sortKey" value="BY_TYPE" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Cargo.Build `Test lib`.executor&quot;: &quot;Run&quot;,
-    &quot;Cargo.Test lib.executor&quot;: &quot;Run&quot;,
-    &quot;Cargo.Test the_problem_more_elegant5::test.executor&quot;: &quot;Run&quot;,
-    &quot;Cargo.Test the_problem_more_elegant6.executor&quot;: &quot;Run&quot;,
-    &quot;Cargo.Test the_problem_more_elegant7_cleaned::test.executor&quot;: &quot;Run&quot;,
-    &quot;Cargo.Test wtf_lifetimes2.executor&quot;: &quot;Run&quot;,
-    &quot;Cargo.Test wtf_lifetimes::test.executor&quot;: &quot;Run&quot;,
-    &quot;Cargo.Test.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.rust.reset.selective.auto.import&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/isaacbreen/Projects2/grammars2024/aug2/src&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
-    &quot;org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon&quot;: &quot;&quot;,
-    &quot;org.rust.first.attach.projects&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.keymap&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Cargo.Build `Test lib`.executor": "Run",
+    "Cargo.Test alternative.executor": "Run",
+    "Cargo.Test lib.executor": "Run",
+    "Cargo.Test the_problem_more_elegant5::test.executor": "Run",
+    "Cargo.Test the_problem_more_elegant6.executor": "Run",
+    "Cargo.Test the_problem_more_elegant7_cleaned::test.executor": "Run",
+    "Cargo.Test wtf_lifetimes2.executor": "Run",
+    "Cargo.Test wtf_lifetimes::test.executor": "Run",
+    "Cargo.Test.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.rust.reset.selective.auto.import": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "/Users/isaacbreen/Projects2/grammars2024/aug2/src",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
+    "org.rust.first.attach.projects": "true",
+    "settings.editor.selected.configurable": "preferences.keymap"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/src" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Test the_problem_more_elegant7_cleaned::test">
-    <configuration name="Test the_problem_more_elegant5::test" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package aug2 --lib the_problem_more_elegant5::test -- --exact" />
+  <component name="RunManager" selected="Cargo.Test alternative">
+    <configuration name="Test alternative" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package aug2 --lib alternative" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <envs />
       <option name="emulateTerminal" value="true" />
@@ -187,19 +188,19 @@
     </configuration>
     <list>
       <item itemvalue="Cargo.Test" />
+      <item itemvalue="Cargo.Test alternative" />
       <item itemvalue="Cargo.Test the_problem_more_elegant7_cleaned::test" />
-      <item itemvalue="Cargo.Test the_problem_more_elegant5::test" />
       <item itemvalue="Cargo.Test the_problem_more_elegant6" />
       <item itemvalue="Cargo.Test wtf_lifetimes2" />
       <item itemvalue="Cargo.Test wtf_lifetimes::test" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Cargo.Test alternative" />
         <item itemvalue="Cargo.Test the_problem_more_elegant7_cleaned::test" />
         <item itemvalue="Cargo.Test wtf_lifetimes2" />
         <item itemvalue="Cargo.Test wtf_lifetimes::test" />
         <item itemvalue="Cargo.Test the_problem_more_elegant6" />
-        <item itemvalue="Cargo.Test the_problem_more_elegant5::test" />
       </list>
     </recent_temporary>
   </component>
@@ -216,7 +217,7 @@
       <updated>1724297416610</updated>
       <workItem from="1724297417943" duration="36260000" />
       <workItem from="1724397358341" duration="4703000" />
-      <workItem from="1724421756267" duration="1682000" />
+      <workItem from="1724421756267" duration="3570000" />
     </task>
     <servers />
   </component>

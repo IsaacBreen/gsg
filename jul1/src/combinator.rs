@@ -20,11 +20,10 @@ macro_rules! match_enum {
 }
 
 // Removed Parser enum
-
 pub trait CombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
-    type Parser: ParserTrait;
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults);
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    type Parser<'a>: ParserTrait where Self: 'a;
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults);
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         self.old_parse(right_data, bytes)
         // let (mut parser, mut parse_results) = self.old_parse(right_data, &[]);
         // if !parse_results.done() {
@@ -34,6 +33,10 @@ pub trait CombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
         // (parser, parse_results)
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults;
+}
+
+pub trait DynCombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults);
 }
 
 pub trait BaseCombinatorTrait {
@@ -81,17 +84,17 @@ pub trait ParserTrait: std::fmt::Debug {
 }
 
 impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
-    type Parser = T::Parser;
+    type Parser<'a> = T::Parser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         (**self).one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         (**self).old_parse(right_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser, ParseResults) {
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         (**self).parse(right_data, bytes)
     }
 }
@@ -114,7 +117,7 @@ impl<T: CombinatorTrait + ?Sized> BaseCombinatorTrait for Box<T> {
 // Removed ParserTrait implementation for Parser enum
 
 pub trait CombinatorTraitExt: CombinatorTrait {
-    fn parser(&self, right_data: RightData) -> (Self::Parser, ParseResults) {
+    fn parser(&self, right_data: RightData) -> (Self::Parser<'_>, ParseResults) {
         self.old_parse(right_data, &[])
     }
 }
