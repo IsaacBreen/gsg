@@ -182,7 +182,7 @@ impl<T: CombinatorTrait> BaseCombinatorTrait for CacheContext<T> {
 
 impl ParserTrait for CacheContextParser<'_> {
     fn get_u8set(&self) -> U8Set {
-        self.inner.get_u8set()
+        self.inner.as_ref().get_u8set()
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
@@ -202,7 +202,7 @@ impl ParserTrait for CacheContextParser<'_> {
                 entry.maybe_parse_results = Some(parse_results);
             }
 
-            let parse_result = self.inner.parse(bytes);
+            let parse_result = self.inner.as_mut().parse(bytes);
 
             let mut global_cache = cache.borrow_mut();
             let mut new_entries = global_cache.entries.get_mut(&self.parse_id).unwrap().split_off(num_entries_initial);
@@ -267,8 +267,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
                 parser: None,
                 maybe_parse_results: None,
             }));
-            // let inner: &'static T = unsafe { transmute(&self.inner) };
-            let (parser, mut parse_results): (_, ParseResults) = profile!("Cached.parse: inner.parse", self.inner.parse(right_data, bytes));
+            let inner: &'static T = unsafe { transmute(&self.inner) };
+            let (parser, mut parse_results): (_, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
             let parser: Box<dyn ParserTrait> = Box::new(parser);
             profile!("Cached.parse: parse_results.squash", parse_results.squash());
 

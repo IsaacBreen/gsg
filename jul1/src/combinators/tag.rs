@@ -10,8 +10,8 @@ pub struct Tagged<T: CombinatorTrait> {
     pub tag: String,
 }
 
-pub struct TaggedParser {
-    pub inner: Box<dyn ParserTrait>,
+pub struct TaggedParser<P> {
+    pub inner: P,
     pub tag: String,
 }
 
@@ -23,7 +23,7 @@ impl<T: CombinatorTrait> Debug for Tagged<T> {
     }
 }
 
-impl Debug for TaggedParser {
+impl<P> Debug for TaggedParser<P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaggedParser")
             .field("tag", &self.tag)
@@ -37,8 +37,8 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Tagged<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
-    type Parser<'a> = TaggedParser;
+impl<'b, T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> where T: 'b {
+    type Parser<'a> = TaggedParser<T::Parser<'a>>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.inner.one_shot_parse(right_data, bytes)
@@ -49,7 +49,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> {
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (
-                TaggedParser { inner: Box::new(parser), tag: self.tag.clone() },
+                TaggedParser { inner: parser, tag: self.tag.clone() },
                 parse_results,
             ),
             Err(err) => {
@@ -69,7 +69,7 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Tagged<T> {
     }
 }
 
-impl ParserTrait for TaggedParser {
+impl<P: ParserTrait> ParserTrait for TaggedParser<P> {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }
