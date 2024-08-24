@@ -36,7 +36,7 @@ pub trait CombinatorTrait: BaseCombinatorTrait + DynCombinatorTrait + std::fmt::
 }
 
 pub trait DynCombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults);
+    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults);
 }
 
 pub trait BaseCombinatorTrait {
