@@ -168,8 +168,8 @@ impl Debug for NFA {
                 f.write_str(&format!("  - '{}': {:?}\n", transition_u8, next_states))?;
             }
 
-            if !state.epsilon_transitions.is_empty() {
-                f.write_str(&format!("  - Epsilon transitions: {:?}\n", state.epsilon_transitions))?;
+            for next_state in &state.epsilon_transitions {
+                f.write_str(&format!("  - Epsilon: {}\n", next_state))?;
             }
 
             if let Some(finalizer) = state.finalizer {
@@ -375,13 +375,14 @@ impl NFA {
         dfa_state_map.insert(start_state.clone(), 0);
 
         // Initialize the first DFA state
+        let closure = epsilon_closures[self.start_state].clone();
         dfa_states.push(DFAState {
             transitions: TrieMap::new(),
             finalizer: closure.iter().filter_map(|&state| self.states[state].finalizer).min_by_key(|finalizer| (finalizer.precedence, finalizer.group)),
         });
 
         while let Some(current_set) = worklist.pop() {
-            let current_dfa_state = *dfa_state_map.get(¤t_set).unwrap();
+            let current_dfa_state = *dfa_state_map.get(&current_set).unwrap();
             let mut transition_map: TrieMap<HashSet<usize>> = TrieMap::new();
 
             // For each state in the current DFA state, look at the NFA transitions
@@ -671,8 +672,20 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert!(regex.definitely_fully_matches(b"0"));
+        assert!(regex.definitely_fully_matches(b"\0"));
         assert!(!regex.could_match(b"1"));
+    }
+
+    #[test]
+    fn test_epsilon() {
+        let expr = eps();
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b""));
+        assert!(regex.definitely_matches(b"a")); // Epsilon matches the empty string at the beginning
+        assert!(!regex.definitely_fully_matches(b"a"));
     }
 }
 
