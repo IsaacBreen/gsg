@@ -25,7 +25,7 @@ pub struct Repeat1Parser<'a, T> where T: CombinatorTrait {
     pub(crate) greedy: bool,
 }
 
-impl<T: CombinatorTrait> DynCombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Repeat1<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -36,7 +36,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Repeat1<T> {
     }
 }
 
-impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
+impl<'b, T: CombinatorTrait + 'static > CombinatorTrait for Repeat1<T> {
     type Parser<'a> = Repeat1Parser<'a, T> where Self: 'a;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -186,7 +186,7 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
     }
 }
 
-impl<'a, T: BaseCombinatorTrait> BaseCombinatorTrait for Repeat1<T> {
+impl<'a, T: BaseCombinatorTrait + 'static> BaseCombinatorTrait for Repeat1<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -240,7 +240,7 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait {
     }
 }
 
-pub fn Repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
+pub fn Repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
     // profile_internal("repeat1", Repeat1 {
     //     a: a.into_combinator(),
     //     greedy: false,
@@ -252,14 +252,14 @@ pub fn Repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
     }
 }
 
-pub fn repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
+pub fn repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
     Repeat1 {
         a: a.into_combinator(),
         greedy: false,
     }
 }
 
-pub fn repeat1_greedy<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'a {
+pub fn repeat1_greedy<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
     profile_internal("repeat1_greedy", Repeat1 {
         a: a.into_combinator(),
         greedy: true,
@@ -267,12 +267,12 @@ pub fn repeat1_greedy<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait where 
     })
 }
 
-pub fn repeat0(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
-    Opt { inner: Repeat1 { a, greedy: false }, greedy: false }
+pub fn repeat0<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
+    Opt { inner: Repeat1 { a: a.into_combinator(), greedy: false }, greedy: false }
 }
 
-pub fn repeat0_greedy(a: impl CombinatorTrait + 'static )-> impl CombinatorTrait {
-    Opt { inner: Repeat1 { a, greedy: true }, greedy: true }
+pub fn repeat0_greedy<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
+    Opt { inner: Repeat1 { a: a.into_combinator(), greedy: true }, greedy: true }
 }
 
 pub fn seprep1(a: impl CombinatorTrait + Clone, b: impl CombinatorTrait)-> impl CombinatorTrait {
