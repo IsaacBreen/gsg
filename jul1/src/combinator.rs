@@ -85,12 +85,12 @@ pub trait ParserTrait: std::fmt::Debug {
 }
 
 impl<T: DynCombinatorTrait + ?Sized> DynCombinatorTrait for Box<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
-        todo!()
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        (**self).parse_dyn(right_data, bytes)
     }
 
     fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        (**self).one_shot_parse_dyn(right_data, bytes)
     }
 }
 

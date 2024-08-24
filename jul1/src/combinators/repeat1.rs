@@ -25,7 +25,7 @@ pub struct Repeat1Parser<'a, T> where T: CombinatorTrait {
 }
 
 impl<'a, T: DynCombinatorTrait> DynCombinatorTrait for Repeat1<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         todo!()
     }
 

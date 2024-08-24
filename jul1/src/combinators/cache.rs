@@ -122,12 +122,13 @@ pub struct CacheContextParser<'a> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for CacheContext<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
-        todo!()
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        let (parser, parse_results) = self.parse(right_data, bytes);
+        (Box::new(parser), parse_results)
     }
 
     fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        self.one_shot_parse(right_data, bytes)
     }
 }
 
@@ -219,12 +220,13 @@ impl ParserTrait for CacheContextParser<'_> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Cached<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
-        todo!()
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        let (parser, parse_results) = self.parse(right_data, bytes);
+        (Box::new(parser), parse_results)
     }
 
     fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        self.one_shot_parse(right_data, bytes)
     }
 }
 

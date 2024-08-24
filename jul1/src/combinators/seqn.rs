@@ -41,7 +41,7 @@ macro_rules! define_seq {
             for<'a> $first: 'a,
             $(for<'a> $rest: 'a),+
         {
-            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
                 todo!()
             }
 
