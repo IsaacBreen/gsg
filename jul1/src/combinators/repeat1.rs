@@ -146,6 +146,8 @@ impl<'b, T: CombinatorTrait + 'static > CombinatorTrait for Repeat1<T> {
         let mut next_right_data = right_data_vec.clone();
         while next_right_data.len() > 0 {
             for new_right_data in std::mem::take(&mut next_right_data) {
+                #[cfg(feature = "debug")]
+                let new_right_data2 = new_right_data.clone();
                 let offset = new_right_data.right_data_inner.fields1.position - start_position;
                 let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
                 if !parse_results.done() {
@@ -159,6 +161,12 @@ impl<'b, T: CombinatorTrait + 'static > CombinatorTrait for Repeat1<T> {
                 // if !(self.greedy && parse_results.succeeds_decisively()) && parse_results.right_data_vec.len() > 0 && right_data_vec.len() > 0 {
                 //     println!("parse_results: {:?}", parse_results);
                 // }
+                #[cfg(feature = "debug")]
+                for right_data in &parse_results.right_data_vec {
+                    if &new_right_data2 == right_data {
+                        panic!("Repeat1Parser::old_parse: loop detected. new_right_data == right_data. This can happen if you repeat a parser that can match the empty string?");
+                    }
+                }
                 next_right_data.extend(parse_results.right_data_vec);
             }
             if !right_data_vec.is_empty() && !next_right_data.is_empty() {

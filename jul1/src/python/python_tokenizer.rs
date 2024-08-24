@@ -990,16 +990,16 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
 
     choice_greedy!(
         seq!(
-            check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle }),
-            one_double
+            one_single,
+            check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() == PythonQuoteType::OneSingle }),
         ),
         seq!(
-            check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble }),
-            one_single
+            one_double,
+            check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() == PythonQuoteType::OneDouble }),
         ),
         seq!(
+            three,
             check_right_data(|right_data| { matches!(right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap(), PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble) }),
-            three
         ),
     )
 }
