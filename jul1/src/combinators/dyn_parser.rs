@@ -19,7 +19,7 @@ impl<C: CombinatorTrait> DynCombinatorTrait for DynCombinator<C> where for<'a> C
 }
 
 impl<C: CombinatorTrait> CombinatorTrait for DynCombinator<C> where for<'a> C: 'a {
-    type Parser<'a> = Box<dyn ParserTrait> where Self: 'a;
+    type Parser<'a> = Box<dyn ParserTrait + 'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.combinator.one_shot_parse(right_data, bytes)
