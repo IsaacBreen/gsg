@@ -114,6 +114,28 @@ impl<T: CombinatorTrait + ?Sized> BaseCombinatorTrait for Box<T> {
     }
 }
 
+impl ParserTrait for Box<dyn ParserTrait> {
+    fn get_u8set(&self) -> U8Set {
+        (**self).get_u8set()
+    }
+
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        (**self).parse(bytes)
+    }
+}
+
+impl CombinatorTrait for dyn DynCombinatorTrait {
+    type Parser<'a> = Box<dyn ParserTrait> where Self: 'a;
+
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        (*self).one_shot_parse(right_data, bytes)
+    }
+
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        (*self).old_parse(right_data, bytes)
+    }
+}
+
 // Removed ParserTrait implementation for Parser enum
 
 pub trait CombinatorTraitExt: CombinatorTrait {

@@ -10,7 +10,7 @@ use crate::parse_state::{RightData, ParseResultTrait};
 use crate::VecX;
 
 #[derive(Debug)]
-pub struct Repeat1<T: CombinatorTrait> {
+pub struct Repeat1<T: CombinatorTrait + DynCombinatorTrait> {
     pub(crate) a: T,
     pub(crate) greedy: bool,
 }
@@ -24,7 +24,7 @@ pub struct Repeat1Parser<'a> {
     pub(crate) greedy: bool,
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait + DynCombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     type Parser<'a> = Repeat1Parser<'a>;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -176,7 +176,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait + DynCombinatorTrait + 'static> BaseCombinatorTrait for Repeat1<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
