@@ -18,20 +18,25 @@ macro_rules! define_choice {
             pub(crate) greedy: bool,
         }
 
-        impl<$first: 'static, $($rest: 'static),+> $crate::DynCombinatorTrait for $choice_name<$first, $($rest),+>
+        impl<$first, $($rest),+> $crate::DynCombinatorTrait for $choice_name<$first, $($rest),+>
         where
             $first: CombinatorTrait,
-            $($rest: CombinatorTrait),+
+            $($rest: CombinatorTrait),+,
+            for<'a> $first: 'a,
+            $(for<'a> $rest: 'a),+
         {
             fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
                 todo!()
             }
         }
 
-        impl<$first: 'static, $($rest: 'static),+> CombinatorTrait for $choice_name<$first, $($rest),+>
+        impl<$first, $($rest),+> CombinatorTrait for $choice_name<$first, $($rest),+>
         where
             $first: CombinatorTrait,
-            $($rest: CombinatorTrait),+
+            $($rest: CombinatorTrait),+,
+            // todo: can we move the 'a bound to the impl block?
+            for<'a> $first: 'a,
+            $(for<'a> $rest: 'a),+
         {
             type Parser<'a> = Box<dyn ParserTrait + 'a> where Self: 'a;
 
@@ -129,10 +134,12 @@ macro_rules! define_choice {
             }
         }
 
-        impl<$first: 'static, $($rest: 'static),+> BaseCombinatorTrait for $choice_name<$first, $($rest),+>
+        impl<$first, $($rest),+> BaseCombinatorTrait for $choice_name<$first, $($rest),+>
         where
             $first: BaseCombinatorTrait,
-            $($rest: BaseCombinatorTrait),+
+            $($rest: BaseCombinatorTrait),+,
+            for<'a> $first: 'a,
+            $(for<'a> $rest: 'a),+
         {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
@@ -394,7 +401,7 @@ macro_rules! choice_generalised {
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr, $c15:expr, $($rest:expr),+ $(,)?) => {{
-        fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output: 'static {
+        fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output {
             Box::new(x.into_combinator())
         }
         if $greedy {
@@ -409,7 +416,7 @@ macro_rules! choice_generalised {
 macro_rules! choice {
     ($($rest:expr),+ $(,)?) => {{
         $crate::choice_generalised!(false, $($rest),+)
-        // fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output: 'static {
+        // fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output {
         //     Box::new(x.into_combinator())
         // }
         // $crate::_choice(vec![$(convert($rest)),+])
@@ -420,7 +427,7 @@ macro_rules! choice {
 macro_rules! choice_greedy {
     ($($rest:expr),+ $(,)?) => {{
         $crate::choice_generalised!(true, $($rest),+)
-        // fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output: 'static {
+        // fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output {
         //     Box::new(x.into_combinator())
         // }
         // $crate::_choice_greedy(vec![$(convert($rest)),+])
