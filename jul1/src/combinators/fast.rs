@@ -81,7 +81,7 @@ impl ParserTrait for FastParserWrapper<'_> {
         self.regex_state.get_u8set()
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
         let mut regex_state = &mut self.regex_state;
         let prev_match = regex_state.prev_match();
         regex_state.execute(bytes);

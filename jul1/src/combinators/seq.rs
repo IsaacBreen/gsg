@@ -156,7 +156,7 @@ impl ParserTrait for SeqParser<'_> {
         u8set
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
         profile!("SeqParser::parse", {
         let mut final_right_data: VecY<RightData> = VecY::new();
         let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();

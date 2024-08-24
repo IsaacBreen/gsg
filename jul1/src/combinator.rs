@@ -64,7 +64,7 @@ pub fn dumb_one_shot_parse<T: CombinatorTrait>(combinator: &T, right_data: Right
 
 pub trait ParserTrait: std::fmt::Debug {
     fn get_u8set(&self) -> U8Set;
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults;
+    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b;
     fn autoparse(&mut self, max_length: usize) -> (Vec<u8>, ParseResults) {
         let mut prefix = Vec::new();
         let mut parse_results = ParseResults::empty_finished();
@@ -125,7 +125,7 @@ impl ParserTrait for Box<dyn ParserTrait> {
         (**self).get_u8set()
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
         (**self).parse(bytes)
     }
 }

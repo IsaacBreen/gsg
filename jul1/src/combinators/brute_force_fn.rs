@@ -139,7 +139,7 @@ impl ParserTrait for BruteForceParser {
         U8Set::all()
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
         self.bytes.extend_from_slice(bytes);
         if let Some(right_data) = self.right_data.take() {
             match convert_result((self.run)(right_data.clone(), &self.bytes)) {

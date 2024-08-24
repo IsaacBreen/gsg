@@ -194,7 +194,7 @@ where
     }
 }
 
-impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait {
+impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait + 'a, Self: 'a {
     fn get_u8set(&self) -> U8Set {
         if self.a_parsers.is_empty() {
             U8Set::none()
@@ -207,7 +207,7 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait {
         }
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
         let mut right_data_as = VecY::new();
         // let mut right_data_as: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
