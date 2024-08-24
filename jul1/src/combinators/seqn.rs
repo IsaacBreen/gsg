@@ -42,11 +42,12 @@ macro_rules! define_seq {
             $(for<'a> $rest: 'a),+
         {
             fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-                todo!()
+                let (parser, parse_results) = self.parse(right_data, bytes);
+                (Box::new(parser), parse_results)
             }
 
             fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-                todo!()
+                self.one_shot_parse(right_data, bytes)
             }
         }
 
