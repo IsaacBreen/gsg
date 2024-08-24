@@ -1,3 +1,4 @@
+# src/python/dump_python_gram.py
 import io
 import logging
 import random
@@ -17,6 +18,7 @@ from grammar_analysis import ref
 
 random.seed(0)
 
+
 def fetch_grammar(url: str) -> str:
     response = requests.get(url)
     response.raise_for_status()
@@ -31,8 +33,9 @@ def parse_grammar(text: str) -> pegen.grammar.Grammar:
         return grammar
 
 
-def pegen_to_custom(grammar: pegen.grammar.Grammar, omit_invalid: bool = True,
-                    include_lookaheads: bool = True) -> dict[
+def pegen_to_custom(
+        grammar: pegen.grammar.Grammar, omit_invalid: bool = True,
+        include_lookaheads: bool = True) -> dict[
     grammar_analysis.Ref, grammar_analysis.Node]:
     def rhs_to_node(rhs: pegen.grammar.Rhs) -> grammar_analysis.Node:
         if len(rhs.alts) == 1:
@@ -103,7 +106,8 @@ def custom_to_pegen(rules: dict[grammar_analysis.Ref, grammar_analysis.Node]) ->
         if isinstance(node, grammar_analysis.Seq):
             assert len(node.children) > 0
             return pegen.grammar.Alt(
-                [pegen.grammar.NamedItem(None, node_to_item(child)) for child in node.children])
+                [pegen.grammar.NamedItem(None, node_to_item(child)) for child in node.children]
+            )
         return pegen.grammar.Alt([pegen.grammar.NamedItem(None, node_to_item(node))])
 
     def node_to_item(node: grammar_analysis.Node):
@@ -148,18 +152,17 @@ def custom_to_pegen(rules: dict[grammar_analysis.Ref, grammar_analysis.Node]) ->
 
 def grammar_to_rust(
         grammar: pegen.grammar.Grammar,
-        unresolved_follows_table: dict[grammar_analysis.Ref, list[grammar_analysis.Ref]]
+        unresolved_follows_table: dict[grammar_analysis.Ref, list[grammar_analysis.Ref]],
+        ref_counts: dict[grammar_analysis.Ref, int],
 ) -> str:
     @dataclass
     class ExtraInfo:
         added_rules: set[str] = field(default_factory=set)
         current_rule: Optional[str] = None
-        rule_complexity: dict[str, int] = field(default_factory=dict)
 
     def generate_combinator_expr(item, extra_info) -> str:
-        extra_info.rule_complexity[extra_info.current_rule] += 1
         if isinstance(item, pegen.grammar.NameLeaf):
-            return name_to_rust(item.value, extra_info)
+            return name_to_rust(item.value, extra_info, ref_counts)
         elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
             if value[0] == value[-1] in {'"', "'"}:
@@ -195,7 +198,8 @@ def grammar_to_rust(
             return generate_alt_expr(rhs.alts[0], extra_info, top_level=top_level)
         if top_level:
             return "choice!(\n    " + ",\n    ".join(
-                generate_alt_expr(alt, extra_info) for alt in rhs.alts) + "\n)"
+                generate_alt_expr(alt, extra_info) for alt in rhs.alts
+            ) + "\n)"
         else:
             return "choice!(" + ", ".join(generate_alt_expr(alt, extra_info) for alt in rhs.alts) + ")"
 
@@ -204,22 +208,19 @@ def grammar_to_rust(
             return generate_combinator_expr(alt.items[0].item, extra_info)
         if top_level and len(alt.items) > 4:
             return "seq!(\n    " + ",\n     ".join(
-                generate_combinator_expr(item.item, extra_info) for item in alt.items) + "\n)"
+                generate_combinator_expr(item.item, extra_info) for item in alt.items
+            ) + "\n)"
         else:
             return "seq!(" + ", ".join(
-                generate_combinator_expr(item.item, extra_info) for item in alt.items) + ")"
+                generate_combinator_expr(item.item, extra_info) for item in alt.items
+            ) + ")"
 
-
-    MAX_RULE_COMPLEXITY = 0
-
-    def name_to_rust(name: str, extra_info: ExtraInfo) -> str:
-        # if name in extra_info:
+    def name_to_rust(name: str, extra_info: ExtraInfo, ref_counts: dict[grammar_analysis.Ref, int]) -> str:
         if name in extra_info.added_rules:
-            if extra_info.rule_complexity[name] > MAX_RULE_COMPLEXITY:
-                return f'deferred({name}).into_dyn()'
-            else:
-                extra_info.rule_complexity[extra_info.current_rule] += extra_info.rule_complexity[name]
+            if ref_counts.get(grammar_analysis.ref(name), 0) == 1:
                 return f'deferred({name})'
+            else:
+                return f'deferred({name}).into_dyn()'
         else:
             return f'deferred({name}).into_dyn()'
 
@@ -231,9 +232,15 @@ def grammar_to_rust(
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
-    f.write('use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n')
+    f.write(
+        'use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n'
+        )
     f.write('use crate::seq;\n')
-    f.write('use crate::{' + ', '.join(f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']) + '};\n')
+    f.write(
+        'use crate::{' + ', '.join(
+            f'{name}_greedy as {name}' for name in ['opt', 'choice', 'seprep0', 'seprep1', 'repeat0', 'repeat1']
+            ) + '};\n'
+        )
     f.write('use crate::IntoDyn;\n')
     f.write('\n')
 
@@ -249,29 +256,32 @@ def grammar_to_rust(
         f = io.StringIO()
         f.write('use super::python_tokenizer as token;\n')
 
-        f.write(textwrap.dedent("""
+        f.write(
+            textwrap.dedent(
+                """
             pub fn python_literal(s: &str) -> impl CombinatorTrait {
                 let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count += 1; true };
                 let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
-            
+
                 match s {
                     "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(WS))).into_dyn(),
                     ")" | "]" | "}" => seq!(eat_string(s), mutate_right_data(decrement_scope_count), forbid_follows_clear(), opt(deferred(WS))).into_dyn(),
                     _ => seq!(eat_string(s), forbid_follows_clear(), opt(deferred(WS))).into_dyn(),
                 }
             }
-        """))
-        
-        for token in tokens:
-            extra_info.rule_complexity[token] = 1
+        """
+                )
+            )
 
+        for token in tokens:
             expr = f'token::{token}()'
             expr = f'{expr}.compile()'
 
             token_ref = grammar_analysis.ref(token)
             if token_ref in unresolved_follows_table and any(
                     token_ref in forbidden_follow_set for forbidden_follow_set in
-                    unresolved_follows_table.values()):
+                    unresolved_follows_table.values()
+            ):
                 expr = f'seq!(forbid_follows_check_not(Forbidden::{token} as usize), {expr}, forbid_follows(&[{", ".join(f"Forbidden::{ref.name} as usize" for ref in unresolved_follows_table.get(token_ref, []))}]))'
             elif token_ref in unresolved_follows_table:
                 expr = f'seq!({expr}, forbid_follows(&[{", ".join(f"Forbidden::{ref.name} as usize" for ref in unresolved_follows_table.get(token_ref, []))}]))'
@@ -293,7 +303,6 @@ def grammar_to_rust(
         f = io.StringIO()
         for name, rule in rules:
             extra_info.current_rule = name
-            extra_info.rule_complexity[name] = 1
             expr = generate_rhs_expr(rule.rhs, extra_info, top_level=True)
             expr = f'tag("{name}", {expr})'
             if rule.memo:
@@ -311,7 +320,7 @@ def grammar_to_rust(
     f.write(make_rules())
 
     f.write('pub fn python_file() -> impl CombinatorTrait {\n')
-    expr = f'seq!(opt({name_to_rust("NEWLINE", extra_info)}), {name_to_rust("file", extra_info)})'
+    expr = f'seq!(opt({name_to_rust("NEWLINE", extra_info, ref_counts)}), {name_to_rust("file", extra_info, ref_counts)})'
     expr = f'tag("main", {expr})'
     expr = f'cache_context({expr})'
     f.write(f'\n    {expr}.compile()\n')
@@ -321,8 +330,9 @@ def grammar_to_rust(
 
 def save_grammar_to_rust(grammar: pegen.grammar.Grammar, filename: str,
                          unresolved_follows_table: dict[grammar_analysis.Ref, list[
-                             grammar_analysis.Ref]]) -> None:
-    rust_code = grammar_to_rust(grammar, unresolved_follows_table)
+                             grammar_analysis.Ref]],
+                         ref_counts: dict[grammar_analysis.Ref, int]) -> None:
+    rust_code = grammar_to_rust(grammar, unresolved_follows_table, ref_counts)
     with open(filename, 'w') as f:
         f.write(rust_code)
 
@@ -350,9 +360,11 @@ if __name__ == "__main__":
 
     grammar_analysis.prettify_rules(custom_grammar)
 
+    ref_counts = grammar_analysis.count_refs_in_rules(custom_grammar)
+
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
 
     for rule_name in resolved_pegen_grammar.rules:
         resolved_pegen_grammar.rules[rule_name].memo = pegen_grammar.rules[rule_name].memo
 
-    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs', forbidden_follows_table)
+    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs', forbidden_follows_table, ref_counts)
