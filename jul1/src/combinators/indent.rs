@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 // src/combinators/indent.rs
 use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, RightData, UnambiguousParseError, UnambiguousParseResults};
 use std::mem::transmute;
@@ -15,25 +16,25 @@ pub enum IndentCombinator {
 
 #[derive(Debug)]
 pub enum IndentCombinatorParser<'a> {
-    DentParser(OwningParser<'a>),
+    DentParser(OwningParser<'a, Box<dyn DynCombinatorTrait>>),
     IndentParser(Option<RightData>),
     Done,
 }
 
 #[derive(Debug)]
-pub struct OwningParser<'a> {
-    combinator: AliasableBox<dyn DynCombinatorTrait + 'a>,
-    pub(crate) parser: Option<Box<dyn ParserTrait>>,
+pub struct OwningParser<'a, T: CombinatorTrait + 'a + ?Sized> {
+    combinator: AliasableBox<T>,
+    pub(crate) parser: Option<T::Parser<'a>>,
 }
 
-impl<'a> OwningParser<'a> {
+impl<'a, T> OwningParser<'a, T> where T: CombinatorTrait {
     pub fn init(
-        combinator: Box<dyn DynCombinatorTrait + 'a>,
+        combinator: T,
         right_data: RightData,
         bytes: &[u8],
-    ) -> (OwningParser<'a>, ParseResults) {
+    ) -> (OwningParser<'a, T>, ParseResults) {
         let mut owning_parser = OwningParser {
-            combinator: AliasableBox::from_unique(combinator),
+            combinator: AliasableBox::from_unique(Box::new(combinator)),
             parser: None,
         };
 
@@ -54,7 +55,7 @@ impl<'a> OwningParser<'a> {
     }
 }
 
-impl<'a> ParserTrait for OwningParser<'a> {
+impl<'a, T> ParserTrait for OwningParser<'a, T> where T: CombinatorTrait {
     fn get_u8set(&self) -> U8Set {
         self.parser.as_ref().unwrap().get_u8set()
     }
