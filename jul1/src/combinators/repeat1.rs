@@ -105,10 +105,8 @@ impl<T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
                 }
                 Err(UnambiguousParseError::Incomplete) => {
                     let (parser, mut parse_results_rest) = self.old_parse(right_data, &bytes[offset..]);
-                    if !self.greedy {
-                        if let Ok(prev_right_data) = prev_parse_result {
-                            parse_results_rest.right_data_vec.push(prev_right_data);
-                        }
+                    if let Ok(prev_right_data) = prev_parse_result {
+                        parse_results_rest.right_data_vec.push(prev_right_data);
                     }
                     return (parser, parse_results_rest);
                 }

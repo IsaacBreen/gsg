@@ -44,26 +44,41 @@ mod basic_tests {
 
         assert_parses_default(&repeat1(eat_char('a')), "aa");
         assert_parses_fast(&repeat1(eat_char('a')), "aa");
-        assert_parses_one_shot_with_result(&repeat1(eat_char('a')), "aa", Err(UnambiguousParseError::Incomplete));
-
-        assert_parses_default(&repeat1(eat_char('a')), "aaa");
-        assert_parses_fast(&repeat1(eat_char('a')), "aaa");
-        assert_parses_one_shot_with_result(&repeat1(eat_char('a')), "aaa", Err(UnambiguousParseError::Incomplete));
+        assert_parses_one_shot_with_result(&repeat1(eat_char('a')), "aa", Err(UnambiguousParseError::Ambiguous));
 
         assert_parses_default(&seq!(repeat1(eat_char('a')), eat_char('b')), "aaab");
         assert_parses_fast(&seq!(repeat1(eat_char('a')), eat_char('b')), "aaab");
-        assert_parses_one_shot_with_result(&seq!(repeat1(eat_char('a')), eat_char('b')), "aaab", Ok(RightData::default().with_position(4)));
+        assert_parses_one_shot_with_result(&seq!(repeat1(eat_char('a')), eat_char('b')), "aaab", Err(UnambiguousParseError::Ambiguous));
+    }
+
+    #[test]
+    fn test_repeat1_greedy() {
+        // assert_parses_default(&repeat1_greedy(eat_char('a')), "a");
+        // assert_parses_fast(&repeat1_greedy(eat_char('a')), "a");
+        // assert_parses_one_shot_with_result(&repeat1_greedy(eat_char('a')), "a", Err(UnambiguousParseError::Incomplete));
+        //
+        // assert_parses_default(&repeat1_greedy(eat_char('a')), "aa");
+        assert_parses_fast(&repeat1_greedy(eat_char('a')), "aa");
+        // assert_parses_one_shot_with_result(&repeat1_greedy(eat_char('a')), "aa", Err(UnambiguousParseError::Incomplete));
+        //
+        // assert_parses_default(&repeat1_greedy(eat_char('a')), "aaa");
+        // assert_parses_fast(&repeat1_greedy(eat_char('a')), "aaa");
+        // assert_parses_one_shot_with_result(&repeat1_greedy(eat_char('a')), "aaa", Err(UnambiguousParseError::Incomplete));
+        //
+        // assert_parses_default(&seq!(repeat1_greedy(eat_char('a')), eat_char('b')), "aaab");
+        // assert_parses_fast(&seq!(repeat1_greedy(eat_char('a')), eat_char('b')), "aaab");
+        // assert_parses_one_shot_with_result(&seq!(repeat1_greedy(eat_char('a')), eat_char('b')), "aaab", Ok(RightData::default().with_position(4)));
     }
 
     #[test]
     fn test_choice() {
-        // assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "a");
-        // assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "a");
-        // assert_parses_one_shot(&choice!(eat_char('a'), eat_char('b')), "a");
-        //
+        assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "a");
+        assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "a");
+        assert_parses_one_shot(&choice!(eat_char('a'), eat_char('b')), "a");
+
         assert_parses_default(&choice!(eat_char('a'), eat_char('b')), "b");
-        // assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "b");
-        // assert_parses_one_shot(&choice!(eat_char('a'), eat_char('b')), "b");
+        assert_parses_fast(&choice!(eat_char('a'), eat_char('b')), "b");
+        assert_parses_one_shot(&choice!(eat_char('a'), eat_char('b')), "b");
     }
 
     #[test]
