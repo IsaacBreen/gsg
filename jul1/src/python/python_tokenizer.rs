@@ -935,26 +935,33 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
         seq_fast!(eat_char_fast('\\'), eat_char_digit(), opt_fast(eat_char_digit()), opt_fast(eat_char_digit())),
     );
 
-    let regular_char = eat_char_negation_choice("{}\\\n\r\'\"");
+    let regular_char = eat_char_negation_choice_fast("{}\\\n\r\'\"");
 
-    let quote = choice!(
-        seq!(eat_char('\''), check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle })),
-        seq!(eat_char('"'), check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble })),
+    let quote = choice_fast!(
+        seq_fast!(
+            eat_char_fast('\''),
+            // check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle })
+        ),
+        seq_fast!(
+            eat_char_fast('"'),
+            // check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble })
+        ),
     );
 
-    let newline = seq!(breaking_space(), check_right_data(|right_data| {
-        matches!(right_data.right_data_inner.fields2.fstring_start_stack.last(), Some(PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble))
-    }));
+    let newline = seq_fast!(
+        breaking_space(),
+        // check_right_data(|right_data| {matches!(right_data.right_data_inner.fields2.fstring_start_stack.last(), Some(PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble))})
+    );
 
-    repeat1(choice!(
+    let most_of_it = repeat1_greedy(choice_fast!(
             regular_char,
             stringescapeseq,
-            quote,
-            seq!(eat_char('{'), eat_char('{')),
-            seq!(eat_char('}'), eat_char('}')),
-            newline,
+            seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
+            seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
+            // quote,
+            // newline,
         )
-    )
+    );
 }
 
 pub fn FSTRING_END()-> impl CombinatorTrait {
