@@ -138,6 +138,19 @@ mod basic_tests {
         // assert_parses_fast(&combinator, "aaab");
         // assert_parses_one_shot(&combinator, "aaab");
     }
+
+    #[test]
+    fn test_left_recursion_guard() {
+        fn A() -> impl CombinatorTrait {
+            left_recursion_guard(choice!(
+                seq!(deferred(A).into_dyn(), eat_byte(b'a')),
+                eat_byte(b'b'),
+            ))
+        }
+        let combinator = A().compile();
+        assert_parses_default(&combinator, "abcxxabc");
+        assert_parses_fast(&combinator, "abcxxabc");
+    }
 }
 
 #[cfg(test)]
