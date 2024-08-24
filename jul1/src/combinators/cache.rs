@@ -267,8 +267,9 @@ impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
                 parser: None,
                 maybe_parse_results: None,
             }));
-            let inner: &'static T = unsafe { transmute(&self.inner) };
-            let (parser, mut parse_results): (_, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
+            // let inner: &'static T = unsafe { transmute(&self.inner) };
+            // let (parser, mut parse_results): (_, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
+            let (parser, mut parse_results) = self.inner.parse(right_data, bytes);
             let parser: Box<dyn ParserTrait> = Box::new(parser);
             profile!("Cached.parse: parse_results.squash", parse_results.squash());
 
@@ -309,7 +310,7 @@ pub fn cache_context<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait {
 }
 
 // todo: do we really need to make this 'static?
-pub fn cached<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
+pub fn cached<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
     profile_internal("cached", Cached { inner: a.into_combinator() })
     // a.into_combinator()
 }
