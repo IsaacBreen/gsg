@@ -13,7 +13,7 @@ use crate::VecX;
 pub struct Repeat1<'a, T> {
     pub(crate) a: T,
     pub(crate) greedy: bool,
-    pub(crate) _phantom: std::marker::PhantomData<&'a T>,
+    // pub(crate) _phantom: std::marker::PhantomData<&'a T>,
 }
 
 #[derive(Debug)]
@@ -36,7 +36,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Repeat1<'_, T> {
     }
 }
 
-impl<T: CombinatorTrait > CombinatorTrait for Repeat1<'_, T> {
+impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<'b, T> {
     type Parser<'a> = Repeat1Parser<'a, T> where Self: 'a;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -186,7 +186,7 @@ impl<T: CombinatorTrait > CombinatorTrait for Repeat1<'_, T> {
     }
 }
 
-impl<'a, T: BaseCombinatorTrait + 'a> BaseCombinatorTrait for Repeat1<'a, T> {
+impl<'a, T: BaseCombinatorTrait> BaseCombinatorTrait for Repeat1<'a, T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -195,7 +195,7 @@ impl<'a, T: BaseCombinatorTrait + 'a> BaseCombinatorTrait for Repeat1<'a, T> {
     }
 }
 
-impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait + 'a, Self: 'a {
+impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait {
     fn get_u8set(&self) -> U8Set {
         if self.a_parsers.is_empty() {
             U8Set::none()
