@@ -116,8 +116,8 @@ impl PartialEq for CachedParser {
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct CacheContextParser {
-    pub inner: Box<dyn ParserTrait>,
+pub struct CacheContextParser<'a> {
+    pub inner: Box<dyn ParserTrait + 'a>,
     pub(crate) parse_id: usize,
 }
 
@@ -128,7 +128,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for CacheContext<T> {
 }
 
 impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
-    type Parser<'a> = CacheContextParser where Self: 'a;
+    type Parser<'a> = CacheContextParser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(|cache| {
@@ -165,7 +165,7 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
             let mut global_cache = cache.borrow_mut();
             global_cache.entries.get_mut(&parse_id).unwrap().reverse();
             global_cache.cleanup();
-            let cache_context_parser = CacheContextParser { inner: parser, parse_id };
+            let cache_context_parser = CacheContextParser { inner: Box::new(parser), parse_id };
             (cache_context_parser, results)
         })
     }
@@ -180,7 +180,7 @@ impl<T: CombinatorTrait> BaseCombinatorTrait for CacheContext<T> {
     }
 }
 
-impl ParserTrait for CacheContextParser {
+impl ParserTrait for CacheContextParser<'_> {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }
@@ -225,7 +225,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(move |cache| {
-            let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn CombinatorTrait, right_data: right_data.clone() };
+            let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn DynCombinatorTrait, right_data: right_data.clone() };
 
             let mut global_cache = cache.borrow_mut();
             let parse_id = global_cache.parse_id.unwrap();
@@ -249,7 +249,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         GLOBAL_CACHE.with(move |cache| {
-            let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn CombinatorTrait, right_data: right_data.clone() };
+            let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn DynCombinatorTrait, right_data: right_data.clone() };
 
             let mut global_cache = cache.borrow_mut();
             let parse_id = global_cache.parse_id.unwrap();
@@ -267,8 +267,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
                 parser: None,
                 maybe_parse_results: None,
             }));
-            let inner: &'static T = unsafe { transmute(&self.inner) };
-            let (parser, mut parse_results): (Box<dyn ParserTrait + 'static>, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
+            // let inner: &'static T = unsafe { transmute(&self.inner) };
+            let (parser, mut parse_results): (Box<dyn ParserTrait + 'static>, ParseResults) = profile!("Cached.parse: inner.parse", self.inner.parse(right_data, bytes));
             profile!("Cached.parse: parse_results.squash", parse_results.squash());
 
             let mut global_cache = cache.borrow_mut();
