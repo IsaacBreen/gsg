@@ -135,7 +135,7 @@ impl<'a> ParserTrait for Box<dyn ParserTrait + 'a> {
     }
 }
 
-impl CombinatorTrait for Box<dyn DynCombinatorTrait + '_> {
+impl<'b> CombinatorTrait for Box<dyn DynCombinatorTrait + 'b> {
     type Parser<'a> = Box<dyn ParserTrait + 'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
