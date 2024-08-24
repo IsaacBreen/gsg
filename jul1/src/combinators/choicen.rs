@@ -102,42 +102,34 @@ macro_rules! define_choice {
             fn old_parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
                 let start_position = right_data.right_data_inner.fields1.position;
 
-                let first_combinator = &self.$first;
-                let (first_parser, first_parse_results) = profile!(stringify!($choice_name, " first child parse"), {
-                    first_combinator.parse(right_data.clone(), bytes)
-                });
+                let mut combined_results = ParseResults::empty_finished();
 
-                let mut all_done = first_parse_results.done();
-                let first_parser_vec = if all_done { vec![] } else { vec![first_parser] };
-
-                let mut next_right_data_vec = first_parse_results.right_data_vec;
-
-                let mut choicen_parser = $choice_parser_name {
+                let (first_parser, first_parse_results) = self.$first.parse(right_data.clone(), bytes);
+                let mut parser = $choice_parser_name {
                     combinator: self,
-                    $first: first_parser_vec,
+                    $first: vec![],
                     $($rest: vec![],)+
                     position: start_position + bytes.len(),
                 };
+                if !first_parse_results.done {
+                    parser.$first.push(first_parser);
+                }
+                let discard_rest = self.greedy && first_parse_results.succeeds_decisively();
+                combined_results.merge_assign(first_parse_results);
 
-                // Macro to process each child combinator
                 $(
-                    let mut next_next_right_data_vec = VecY::new();
-                    for right_data in next_right_data_vec {
-                        let (parser, parse_results) = profile!(stringify!($choice_name, " child parse"), {
-                            self.$rest.parse(right_data, bytes)
-                        });
-                        if !parse_results.done() {
-                            all_done = false;
-                            choicen_parser.$rest.push(parser);
-                        }
-                        next_next_right_data_vec.extend(parse_results.right_data_vec);
+                    if discard_rest {
+                        return (parser, combined_results);
                     }
-                    next_right_data_vec = next_next_right_data_vec;
+                    let (next_parser, next_parse_results) = self.$rest.parse(right_data.clone(), bytes);
+                    if !next_parse_results.done() {
+                        parser.$rest.push(next_parser);
+                    }
+                    let discard_rest = self.greedy && next_parse_results.succeeds_decisively();
+                    combined_results.merge_assign(next_parse_results);
                 )+
 
-                let parse_results = ParseResults::new(next_right_data_vec, all_done);
-
-                (choicen_parser, parse_results)
+                (parser, combined_results)
             }
         }
 
