@@ -152,17 +152,18 @@ def custom_to_pegen(rules: dict[grammar_analysis.Ref, grammar_analysis.Node]) ->
 
 def grammar_to_rust(
         grammar: pegen.grammar.Grammar,
-        unresolved_follows_table: dict[grammar_analysis.Ref, list[grammar_analysis.Ref]],
-        ref_counts: dict[grammar_analysis.Ref, int],
+        unresolved_follows_table: dict[grammar_analysis.Ref, list[grammar_analysis.Ref]]
 ) -> str:
     @dataclass
     class ExtraInfo:
         added_rules: set[str] = field(default_factory=set)
         current_rule: Optional[str] = None
+        rule_complexity: dict[str, int] = field(default_factory=dict)
 
     def generate_combinator_expr(item, extra_info) -> str:
+        extra_info.rule_complexity[extra_info.current_rule] += 1
         if isinstance(item, pegen.grammar.NameLeaf):
-            return name_to_rust(item.value, extra_info, ref_counts)
+            return name_to_rust(item.value, extra_info)
         elif isinstance(item, pegen.grammar.StringLeaf):
             value = item.value
             if value[0] == value[-1] in {'"', "'"}:
@@ -215,12 +216,16 @@ def grammar_to_rust(
                 generate_combinator_expr(item.item, extra_info) for item in alt.items
             ) + ")"
 
-    def name_to_rust(name: str, extra_info: ExtraInfo, ref_counts: dict[grammar_analysis.Ref, int]) -> str:
+    MAX_RULE_COMPLEXITY = 0
+
+    def name_to_rust(name: str, extra_info: ExtraInfo) -> str:
+        # if name in extra_info:
         if name in extra_info.added_rules:
-            if ref_counts.get(grammar_analysis.ref(name), 0) == 1:
-                return f'deferred({name})'
-            else:
+            if extra_info.rule_complexity[name] > MAX_RULE_COMPLEXITY:
                 return f'deferred({name}).into_dyn()'
+            else:
+                extra_info.rule_complexity[extra_info.current_rule] += extra_info.rule_complexity[name]
+                return f'deferred({name})'
         else:
             return f'deferred({name}).into_dyn()'
 
@@ -274,6 +279,8 @@ def grammar_to_rust(
             )
 
         for token in tokens:
+            extra_info.rule_complexity[token] = 1
+
             expr = f'token::{token}()'
             expr = f'{expr}.compile()'
 
@@ -303,6 +310,7 @@ def grammar_to_rust(
         f = io.StringIO()
         for name, rule in rules:
             extra_info.current_rule = name
+            extra_info.rule_complexity[name] = 1
             expr = generate_rhs_expr(rule.rhs, extra_info, top_level=True)
             expr = f'tag("{name}", {expr})'
             if rule.memo:
@@ -320,7 +328,7 @@ def grammar_to_rust(
     f.write(make_rules())
 
     f.write('pub fn python_file() -> impl CombinatorTrait {\n')
-    expr = f'seq!(opt({name_to_rust("NEWLINE", extra_info, ref_counts)}), {name_to_rust("file", extra_info, ref_counts)})'
+    expr = f'seq!(opt({name_to_rust("NEWLINE", extra_info)}), {name_to_rust("file", extra_info)})'
     expr = f'tag("main", {expr})'
     expr = f'cache_context({expr})'
     f.write(f'\n    {expr}.compile()\n')
@@ -328,11 +336,11 @@ def grammar_to_rust(
     return f.getvalue()
 
 
-def save_grammar_to_rust(grammar: pegen.grammar.Grammar, filename: str,
-                         unresolved_follows_table: dict[grammar_analysis.Ref, list[
-                             grammar_analysis.Ref]],
-                         ref_counts: dict[grammar_analysis.Ref, int]) -> None:
-    rust_code = grammar_to_rust(grammar, unresolved_follows_table, ref_counts)
+def save_grammar_to_rust(
+        grammar: pegen.grammar.Grammar, filename: str,
+        unresolved_follows_table: dict[grammar_analysis.Ref, list[
+            grammar_analysis.Ref]]) -> None:
+    rust_code = grammar_to_rust(grammar, unresolved_follows_table)
     with open(filename, 'w') as f:
         f.write(rust_code)
 
@@ -360,11 +368,9 @@ if __name__ == "__main__":
 
     grammar_analysis.prettify_rules(custom_grammar)
 
-    ref_counts = grammar_analysis.count_refs_in_rules(custom_grammar)
-
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
 
     for rule_name in resolved_pegen_grammar.rules:
         resolved_pegen_grammar.rules[rule_name].memo = pegen_grammar.rules[rule_name].memo
 
-    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs', forbidden_follows_table, ref_counts)
+    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs', forbidden_follows_table)

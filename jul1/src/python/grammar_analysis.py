@@ -1,4 +1,3 @@
-# src/python/grammar_analysis.py
 from __future__ import annotations
 
 import abc
@@ -22,10 +21,6 @@ class Node(abc.ABC):
     def simplify(self) -> Node:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def count_refs(self, ref_counts: dict[Ref, int]) -> None:
-        raise NotImplementedError
-
 
 def resolve_left_recursion_for_rule[T: Node](node: T, ref: Ref, replacements: dict[Ref, Node]) -> Node:
     node.replace_left_refs(replacements)
@@ -38,13 +33,6 @@ def resolve_left_recursion(rules: dict[Ref, Node]) -> dict[Ref, Node]:
     for ref, node in tqdm(rules.items(), desc="Resolving left recursion"):
         replacements[ref] = resolve_left_recursion_for_rule(node, ref, replacements)
     return replacements
-
-
-def count_refs_in_rules(rules: dict[Ref, Node]) -> dict[Ref, int]:
-    ref_counts = defaultdict(int)
-    for rule in rules.values():
-        rule.count_refs(ref_counts)
-    return ref_counts
 
 
 @dataclass
@@ -83,10 +71,6 @@ class Seq(Node):
                 return child
             case _:
                 return Seq(children)
-
-    def count_refs(self, ref_counts: dict[Ref, int]) -> None:
-        for child in self.children:
-            child.count_refs(ref_counts)
 
     def __str__(self) -> str:
         match self:
@@ -176,10 +160,6 @@ class Choice(Node):
 
         return Choice(new_children)
 
-    def count_refs(self, ref_counts: dict[Ref, int]) -> None:
-        for child in self.children:
-            child.count_refs(ref_counts)
-
     def copy(self) -> Self:
         return Choice([child.copy() for child in self.children])
 
@@ -227,9 +207,6 @@ class Repeat1(Node):
     def simplify(self) -> Node:
         self.child = self.child.simplify()
         return self if self.child != fail() else fail()
-
-    def count_refs(self, ref_counts: dict[Ref, int]) -> None:
-        self.child.count_refs(ref_counts)
 
     def copy(self) -> Self:
         return Repeat1(self.child.copy())
@@ -281,10 +258,6 @@ class SepRep1(Node):
             return repeat1(self.child).simplify()
         return self
 
-    def count_refs(self, ref_counts: dict[Ref, int]) -> None:
-        self.child.count_refs(ref_counts)
-        self.separator.count_refs(ref_counts)
-
     def copy(self) -> Self:
         return SepRep1(self.child.copy(), self.separator.copy())
 
@@ -308,9 +281,6 @@ class Ref(Node):
     def simplify(self) -> Node:
         return self
 
-    def count_refs(self, ref_counts: dict[Ref, int]) -> None:
-        ref_counts[self] += 1
-
     def copy(self) -> Self:
         return Ref(self.name)
 
@@ -331,9 +301,6 @@ class Term[T](Node):
     def simplify(self) -> Node:
         return self
 
-    def count_refs(self, ref_counts: dict[Ref, int]) -> None:
-        pass
-
     def copy(self) -> Self:
         return Term(self.value)
 
@@ -353,9 +320,6 @@ class EpsExternal[T](Node):
 
     def simplify(self) -> Node:
         return self
-
-    def count_refs(self, ref_counts: dict[Ref, int]) -> None:
-        pass
 
     def copy(self) -> Self:
         return EpsExternal(self.data)
@@ -378,9 +342,6 @@ class Lookahead(Node):
     def simplify(self) -> Node:
         self.child = self.child.simplify()
         return self if self.child != fail() else fail()
-
-    def count_refs(self, ref_counts: dict[Ref, int]) -> None:
-        self.child.count_refs(ref_counts)
 
     def copy(self) -> Self:
         return Lookahead(self.child.copy(), self.positive)
