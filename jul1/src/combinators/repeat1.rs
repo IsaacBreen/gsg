@@ -1,5 +1,5 @@
 // src/combinators/repeat1.rs
-use crate::{BaseCombinatorTrait, DynCombinatorTrait, FailParser, UnambiguousParseError, UnambiguousParseResults};
+use crate::{seq, BaseCombinatorTrait, DynCombinatorTrait, FailParser, UnambiguousParseError, UnambiguousParseResults};
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -275,16 +275,8 @@ pub fn repeat0_greedy<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::O
     Opt { inner: Repeat1 { a: a.into_combinator(), greedy: true }, greedy: true }
 }
 
-pub fn seprep1(a: impl CombinatorTrait + Clone, b: impl CombinatorTrait)-> impl CombinatorTrait {
-    // Seq2 {
-    //     c0: Box::new(a.clone()),
-    //     c1: Opt { inner: Repeat1 { a: Seq2 {
-    //         c0: b,
-    //         c1: a
-    //     }.into(), greedy: false }, greedy: false }.into(),
-    // }
-    todo!("fix this");
-    fail()
+pub fn seprep1<T: IntoCombinator + Clone, U: IntoCombinator>(a: T, b: U)-> impl CombinatorTrait where T::Output: 'static, U::Output: 'static {
+    seq!(a.clone(), repeat0(seq!(b, a)))
 }
 
 // impl From<Repeat1<Combinator>> for Combinator {

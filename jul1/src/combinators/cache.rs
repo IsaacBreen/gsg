@@ -219,7 +219,7 @@ impl ParserTrait for CacheContextParser<'_> {
     }
 }
 
-impl<T: CombinatorTrait> DynCombinatorTrait for Cached<T> {
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Cached<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -230,7 +230,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Cached<T> {
     }
 }
 
-impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
     type Parser<'a> = CachedParser where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -296,9 +296,9 @@ impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
     }
 }
 
-impl<T: CombinatorTrait> BaseCombinatorTrait for Cached<T> {
+impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Cached<T> {
     fn as_any(&self) -> &dyn std::any::Any {
-        todo!()
+        self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(&self.inner);
@@ -321,7 +321,7 @@ pub fn cache_context<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait where T
 }
 
 // todo: do we really need to make this 'static?
-pub fn cached<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
+pub fn cached<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
     profile_internal("cached", Cached { inner: a.into_combinator() })
     // a.into_combinator()
 }
