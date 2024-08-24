@@ -301,7 +301,7 @@ def grammar_to_rust(
             expr = f'tag("{token}", {expr})'
             if token != 'WS' and grammar_analysis.ref('WS') not in unresolved_follows_table.get(token_ref, []):
                 expr = f'seq!({expr}, opt(deferred(WS)))'
-            expr = f'cached({expr})'
+            # expr = f'cached({expr})'
             f.write('pub fn ' + token + '() -> impl CombinatorTrait { ' + expr + ' }\n')
             extra_info.added_rules.add(token)
         f.write('\n')
