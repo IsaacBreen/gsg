@@ -89,10 +89,10 @@ macro_rules! define_choice {
                 });
                 let discard_rest = self.greedy && first_parse_results.succeeds_decisively();
                 if discard_rest {
-                    return (Box::new(first_parser), first_parse_results);
+                    return (first_parser, first_parse_results);
                 }
                 let mut parsers = if !first_parse_results.done() {
-                    vec![Box::new(first_parser) as Box<dyn ParserTrait>]
+                    vec![first_parser]
                 } else {
                     Vec::new()
                 };

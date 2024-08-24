@@ -25,18 +25,21 @@ macro_rules! define_seq {
         #[derive(Debug)]
         pub struct $seq_parser_name<'a, $first, $($rest),+>
         where
+            $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
             pub(crate) combinator: &'a $seq_name<$first, $($rest),+>,
-            pub(crate) $first: Vec<Box<dyn ParserTrait>>,
-            $(pub(crate) $rest: Vec<Box<dyn ParserTrait>>,)+
+            pub(crate) $first: Vec<$first::Parser<'a>>,
+            $(pub(crate) $rest: Vec<$rest::Parser<'a>>,)+
             pub(crate) position: usize,
         }
 
         impl<$first, $($rest),+> $crate::DynCombinatorTrait for $seq_name<$first, $($rest),+>
         where
             $first: CombinatorTrait,
-            $($rest: CombinatorTrait),+
+            $($rest: CombinatorTrait),+,
+            for<'a> $first: 'a,
+            $(for<'a> $rest: 'a),+
         {
             fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
                 todo!()
@@ -46,7 +49,10 @@ macro_rules! define_seq {
         impl<$first, $($rest),+> CombinatorTrait for $seq_name<$first, $($rest),+>
         where
             $first: CombinatorTrait,
-            $($rest: CombinatorTrait),+
+            $($rest: CombinatorTrait),+,
+            // todo: can we move the 'a bound to the impl block?
+            for<'a> $first: 'a,
+            $(for<'a> $rest: 'a),+
         {
             type Parser<'a> = $seq_parser_name<'a, $first, $($rest),+> where Self: 'a;
 
@@ -81,11 +87,11 @@ macro_rules! define_seq {
                         first_parse_results
                     );
                 }
-                let first_parser_vec = if all_done { vec![] } else { vec![Box::new(first_parser) as Box<dyn ParserTrait>] };
+                let first_parser_vec = if all_done { vec![] } else { vec![first_parser] };
 
                 let mut next_right_data_vec = first_parse_results.right_data_vec;
 
-                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (impl ParserTrait, ParseResults) {
+                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (T::Parser<'a>, ParseResults) {
                     let offset = right_data.right_data_inner.fields1.position - start_position;
                     profile!(stringify!($seq_name, " child parse"), {
                         next_combinator.parse(right_data, &bytes[offset..])
@@ -118,7 +124,7 @@ macro_rules! define_seq {
                         let (parser, parse_results) = helper(right_data, &self.$rest, &bytes, start_position);
                         if !parse_results.done() {
                             all_done = false;
-                            seqn_parser.$rest.push(Box::new(parser));
+                            seqn_parser.$rest.push(parser);
                         }
                         next_next_right_data_vec.extend(parse_results.right_data_vec);
                     }
@@ -188,7 +194,7 @@ macro_rules! define_seq {
                                 combinator.parse(right_data, &bytes[offset..])
                             });
                             if !parse_results.done() {
-                                self.$rest.push(Box::new(parser));
+                                self.$rest.push(parser);
                             }
                             new_right_data.extend(parse_results.right_data_vec);
                         }
@@ -206,7 +212,9 @@ macro_rules! define_seq {
         impl<$first, $($rest),+> BaseCombinatorTrait for $seq_name<$first, $($rest),+>
         where
             $first: CombinatorTrait,
-            $($rest: CombinatorTrait),+
+            $($rest: CombinatorTrait),+,
+            for<'a> $first: 'a,
+            $(for<'a> $rest: 'a),+
         {
             fn as_any(&self) -> &dyn std::any::Any {
                 self

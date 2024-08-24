@@ -13,7 +13,7 @@ pub struct ExcludeBytestrings<T: CombinatorTrait> {
 
 #[derive(Debug)]
 pub struct ExcludeBytestringsParser<'a> {
-    pub(crate) inner: Box<dyn ParserTrait>,
+    pub(crate) inner: Box<dyn ParserTrait + 'a>,
     pub(crate) node: Option<&'a TrieNode>,
     pub(crate) start_position: usize,
 }
@@ -70,11 +70,11 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for ExcludeBytestrings<T>
 
 impl ParserTrait for ExcludeBytestringsParser<'_> {
     fn get_u8set(&self) -> U8Set {
-        self.inner.get_u8set()
+        self.inner.as_ref().get_u8set()
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut parse_results = self.inner.parse(bytes);
+        let mut parse_results = self.inner.as_mut().parse(bytes);
         if let Some(node) = self.node {
             let (indices, node) = node.get_indices(bytes);
             let indices: HashSet<usize> = indices.into_iter().collect();

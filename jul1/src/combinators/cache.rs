@@ -269,8 +269,9 @@ impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
             }));
             // let inner: &'static T = unsafe { transmute(&self.inner) };
             // let (parser, mut parse_results): (_, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
-            let (parser, mut parse_results) = self.inner.parse(right_data, bytes);
-            let parser: Box<dyn ParserTrait> = Box::new(parser);
+            // let (parser, mut parse_results) = inner.parse_dyn(right_data, bytes);
+            let (parser, mut parse_results) = self.inner.parse_dyn(right_data, bytes);
+            let parser: Box<dyn ParserTrait + 'static> = unsafe { transmute(parser) };
             profile!("Cached.parse: parse_results.squash", parse_results.squash());
 
             let mut global_cache = cache.borrow_mut();

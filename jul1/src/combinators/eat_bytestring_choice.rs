@@ -52,7 +52,7 @@ impl CombinatorTrait for EatByteStringChoice {
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let parser = EatByteStringChoiceParser {
+        let mut parser = EatByteStringChoiceParser {
             root: self.root.as_ref(),
             current_node: self.root.as_ref(),
             right_data,
