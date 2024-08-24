@@ -933,35 +933,75 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
         seq_fast!(eat_char_fast('\\'), eat_char_fast('U'), repeatn_fast(8, eat_char_hex_digit())),
         seq_fast!(eat_char_fast('\\'), eat_char_fast('N'), eat_until_terminator(';')),
         seq_fast!(eat_char_fast('\\'), eat_char_digit(), opt_fast(eat_char_digit()), opt_fast(eat_char_digit())),
+        seq_fast!(eat_char_fast('\\'), eat_char_fast('\n')),
+        // ...
+        // todo: add more and simplify
     );
 
     let regular_char = eat_char_negation_choice_fast("{}\\\n\r\'\"");
 
-    let quote = choice_fast!(
-        seq_fast!(
-            eat_char_fast('\''),
-            // check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle })
-        ),
-        seq_fast!(
-            eat_char_fast('"'),
-            // check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble })
-        ),
+    let single_quote = seq_fast!(
+        eat_char_fast('\''),
+        // check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle })
+    );
+
+    let double_quote = seq_fast!(
+        eat_char_fast('"'),
+        // check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble })
     );
 
     let newline = seq_fast!(
-        breaking_space(),
+        breaking_space_fast(),
         // check_right_data(|right_data| {matches!(right_data.right_data_inner.fields2.fstring_start_stack.last(), Some(PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble))})
     );
 
-    let most_of_it = repeat1_greedy(choice_fast!(
+    let one_single = repeat1_greedy(choice_fast!(
+            regular_char.clone(),
+            stringescapeseq.clone(),
+            seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
+            seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
+            // single_quote,
+            double_quote.clone(),
+            // newline,
+        )
+    );
+
+    let one_double = repeat1_greedy(choice_fast!(
+            regular_char.clone(),
+            stringescapeseq.clone(),
+            seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
+            seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
+            single_quote.clone(),
+            // double_quote,
+            // newline,
+        )
+    );
+
+    let three = repeat1_greedy(choice_fast!(
             regular_char,
             stringescapeseq,
             seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
             seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
-            // quote,
-            // newline,
+            single_quote,
+            double_quote,
+            newline,
         )
     );
+
+    choice_greedy!(
+        seq!(
+            check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle }),
+            one_double
+        ),
+        seq!(
+            check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble }),
+            one_single
+        ),
+        seq!(
+            check_right_data(|right_data| { matches!(right_data.right_data_inner.fields2.fstring_start_stack.last(), Some(PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble)) }),
+            three
+        ),
+    )
 }
 
 pub fn FSTRING_END()-> impl CombinatorTrait {
