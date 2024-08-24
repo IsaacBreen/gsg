@@ -1,6 +1,6 @@
+// src/combinators/choicen.rs
 use std::collections::BTreeMap;
-use crate::{CombinatorTrait, FailParser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, UnambiguousParseResults, BaseCombinatorTrait};
-use crate::ChoiceParser;
+use crate::{CombinatorTrait, FailParser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, UnambiguousParseResults, BaseCombinatorTrait, Squash};
 
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
@@ -10,12 +10,24 @@ macro_rules! profile {
 
 #[macro_export]
 macro_rules! define_choice {
-    ($choice_name:ident, $first:ident, $($rest:ident),+) => {
+    ($choice_name:ident, $choice_parser_name:ident, $first:ident, $($rest:ident),+) => {
         #[derive(Debug)]
         pub struct $choice_name<$first, $($rest),+> {
             pub(crate) $first: $first,
             $(pub(crate) $rest: $rest,)+
             pub(crate) greedy: bool,
+        }
+
+        #[derive(Debug)]
+        pub struct $choice_parser_name<'a, $first, $($rest),+>
+        where
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
+        {
+            pub(crate) combinator: &'a $choice_name<$first, $($rest),+>,
+            pub(crate) $first: Vec<$first::Parser<'a>>,
+            $(pub(crate) $rest: Vec<$rest::Parser<'a>>,)+
+            pub(crate) position: usize,
         }
 
         impl<$first, $($rest),+> $crate::DynCombinatorTrait for $choice_name<$first, $($rest),+>
@@ -38,7 +50,7 @@ macro_rules! define_choice {
             for<'a> $first: 'a,
             $(for<'a> $rest: 'a),+
         {
-            type Parser<'a> = Box<dyn ParserTrait + 'a> where Self: 'a;
+            type Parser<'a> = $choice_parser_name<'a, $first, $($rest),+> where Self: 'a;
 
             fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 use $crate::{UnambiguousParseResults, UnambiguousParseError};
@@ -88,49 +100,114 @@ macro_rules! define_choice {
             }
 
             fn old_parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
+                let start_position = right_data.right_data_inner.fields1.position;
+
                 let first_combinator = &self.$first;
                 let (first_parser, first_parse_results) = profile!(stringify!($choice_name, " first child parse"), {
-                    first_combinator.parse_dyn(right_data.clone(), bytes)
+                    first_combinator.parse(right_data.clone(), bytes)
                 });
-                let discard_rest = self.greedy && first_parse_results.succeeds_decisively();
-                if discard_rest {
-                    return (first_parser, first_parse_results);
-                }
-                let mut parsers = if !first_parse_results.done {
-                    vec![first_parser]
-                } else {
-                    Vec::new()
-                };
-                let mut combined_results = first_parse_results;
 
+                let mut all_done = first_parse_results.done();
+                let first_parser_vec = if all_done { vec![] } else { vec![first_parser] };
+
+                let mut next_right_data_vec = first_parse_results.right_data_vec;
+
+                let mut choicen_parser = $choice_parser_name {
+                    combinator: self,
+                    $first: first_parser_vec,
+                    $($rest: vec![],)+
+                    position: start_position + bytes.len(),
+                };
+
+                // Macro to process each child combinator
                 $(
-                    let next_combinator = &self.$rest;
-                    let (next_parser, next_parse_results) = profile!(stringify!($choice_name, " child parse"), {
-                        next_combinator.parse(right_data.clone(), bytes)
-                    });
-                    if !next_parse_results.done() {
-                        parsers.push(Box::new(next_parser));
+                    let mut next_next_right_data_vec = VecY::new();
+                    for right_data in next_right_data_vec {
+                        let (parser, parse_results) = profile!(stringify!($choice_name, " child parse"), {
+                            self.$rest.parse(right_data, bytes)
+                        });
+                        if !parse_results.done() {
+                            all_done = false;
+                            choicen_parser.$rest.push(parser);
+                        }
+                        next_next_right_data_vec.extend(parse_results.right_data_vec);
                     }
-                    let discard_rest = self.greedy && next_parse_results.succeeds_decisively();
-                    combined_results.merge_assign(next_parse_results);
-                    if discard_rest {
-                        return (
-                            Box::new(ChoiceParser { parsers, greedy: self.greedy }),
-                            combined_results
-                        );
-                    }
+                    next_right_data_vec = next_next_right_data_vec;
                 )+
 
-                if parsers.len() == 0 {
-                    return (Box::new(ChoiceParser { parsers: vec![], greedy: self.greedy }), combined_results);
-                } else if parsers.len() == 1 {
-                    return (Box::new(ChoiceParser { parsers, greedy: self.greedy }), combined_results);
-                } else {
-                    (
-                        Box::new(ChoiceParser { parsers, greedy: self.greedy }),
-                        combined_results
-                    )
+                let parse_results = ParseResults::new(next_right_data_vec, all_done);
+
+                (choicen_parser, parse_results)
+            }
+        }
+
+        impl<'a, $first, $($rest),+> ParserTrait for $choice_parser_name<'a, $first, $($rest),+>
+        where
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
+        {
+            fn get_u8set(&self) -> U8Set {
+                let mut u8set = U8Set::none();
+                for parser in &self.$first {
+                    u8set = u8set.union(&parser.get_u8set());
                 }
+                $(
+                    for parser in &self.$rest {
+                        u8set = u8set.union(&parser.get_u8set());
+                    }
+                )+
+                u8set
+            }
+
+            fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+                profile!(stringify!($choice_parser_name, "::parse"), {
+                    let mut new_right_data: VecY<RightData> = VecY::new();
+
+                    // first child
+                    self.$first.retain_mut(|parser| {
+                        let parse_results = profile!(stringify!($choice_parser_name, "::parse child Parser::parse"), { parser.parse(bytes) });
+                        let done = parse_results.done();
+                        new_right_data.extend(parse_results.right_data_vec);
+                        !done
+                    });
+
+                    let mut all_done = self.$first.is_empty();
+
+                    // rest of the children
+                    $(
+                        let mut right_data_to_init_this_child = std::mem::take(&mut new_right_data);
+                        right_data_to_init_this_child.squash();
+
+                        // step existing parsers for this child
+                        self.$rest.retain_mut(|parser| {
+                            let parse_results = profile!(stringify!($choice_parser_name, "::parse child Parser::parse"), {
+                                parser.parse(bytes)
+                            });
+                            let done = parse_results.done();
+                            new_right_data.extend(parse_results.right_data_vec);
+                            !done
+                        });
+
+                        // new parsers for this child, one for each right_data emitted by the previous child
+                        for right_data in right_data_to_init_this_child {
+                            let offset = right_data.right_data_inner.fields1.position - self.position;
+                            let combinator = &self.combinator.$rest;
+                            let (parser, parse_results) = profile!(stringify!($choice_parser_name, "::parse child Combinator::parse"), {
+                                combinator.parse(right_data, &bytes[offset..])
+                            });
+                            if !parse_results.done() {
+                                self.$rest.push(parser);
+                            }
+                            new_right_data.extend(parse_results.right_data_vec);
+                        }
+
+                        all_done &= self.$rest.is_empty();
+                    )+
+
+                    self.position += bytes.len();
+
+                    ParseResults::new(new_right_data, all_done)
+                })
             }
         }
 
@@ -153,21 +230,21 @@ macro_rules! define_choice {
     };
 }
 
-define_choice!(Choice2, c0, c1);
-define_choice!(Choice3, c0, c1, c2);
-define_choice!(Choice4, c0, c1, c2, c3);
-define_choice!(Choice5, c0, c1, c2, c3, c4);
-define_choice!(Choice6, c0, c1, c2, c3, c4, c5);
-define_choice!(Choice7, c0, c1, c2, c3, c4, c5, c6);
-define_choice!(Choice8, c0, c1, c2, c3, c4, c5, c6, c7);
-define_choice!(Choice9, c0, c1, c2, c3, c4, c5, c6, c7, c8);
-define_choice!(Choice10, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
-define_choice!(Choice11, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
-define_choice!(Choice12, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
-define_choice!(Choice13, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);
-define_choice!(Choice14, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13);
-define_choice!(Choice15, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
-define_choice!(Choice16, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15);
+define_choice!(Choice2, Choice2Parser, c0, c1);
+define_choice!(Choice3, Choice3Parser, c0, c1, c2);
+define_choice!(Choice4, Choice4Parser, c0, c1, c2, c3);
+define_choice!(Choice5, Choice5Parser, c0, c1, c2, c3, c4);
+define_choice!(Choice6, Choice6Parser, c0, c1, c2, c3, c4, c5);
+define_choice!(Choice7, Choice7Parser, c0, c1, c2, c3, c4, c5, c6);
+define_choice!(Choice8, Choice8Parser, c0, c1, c2, c3, c4, c5, c6, c7);
+define_choice!(Choice9, Choice9Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8);
+define_choice!(Choice10, Choice10Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
+define_choice!(Choice11, Choice11Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
+define_choice!(Choice12, Choice12Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
+define_choice!(Choice13, Choice13Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);
+define_choice!(Choice14, Choice14Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13);
+define_choice!(Choice15, Choice15Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
+define_choice!(Choice16, Choice16Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15);
 
 pub fn choicen_helper<T: IntoCombinator>(x: T) -> T::Output {
         IntoCombinator::into_combinator(x)
@@ -416,10 +493,6 @@ macro_rules! choice_generalised {
 macro_rules! choice {
     ($($rest:expr),+ $(,)?) => {{
         $crate::choice_generalised!(false, $($rest),+)
-        // fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output {
-        //     Box::new(x.into_combinator())
-        // }
-        // $crate::_choice(vec![$(convert($rest)),+])
     }};
 }
 
@@ -427,9 +500,5 @@ macro_rules! choice {
 macro_rules! choice_greedy {
     ($($rest:expr),+ $(,)?) => {{
         $crate::choice_generalised!(true, $($rest),+)
-        // fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output {
-        //     Box::new(x.into_combinator())
-        // }
-        // $crate::_choice_greedy(vec![$(convert($rest)),+])
     }};
 }
