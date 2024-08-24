@@ -22,8 +22,8 @@ macro_rules! match_enum {
 // Removed Parser enum
 pub trait CombinatorTrait: BaseCombinatorTrait + DynCombinatorTrait + std::fmt::Debug {
     type Parser<'a>: ParserTrait where Self: 'a;
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults);
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults);
+    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
         self.old_parse(right_data, bytes)
         // let (mut parser, mut parse_results) = self.old_parse(right_data, &[]);
         // if !parse_results.done() {

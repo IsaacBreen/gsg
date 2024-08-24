@@ -24,13 +24,13 @@ pub struct Repeat1Parser<'a> {
     pub(crate) greedy: bool,
 }
 
-impl<T: CombinatorTrait + DynCombinatorTrait> DynCombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait + DynCombinatorTrait> DynCombinatorTrait for Repeat1<T> where for<'a> T: 'a {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
 }
 
-impl<T: CombinatorTrait + DynCombinatorTrait > CombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait + DynCombinatorTrait > CombinatorTrait for Repeat1<T> where for<'a> T: 'a {
     type Parser<'a> = Repeat1Parser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -182,7 +182,10 @@ impl<T: CombinatorTrait + DynCombinatorTrait > CombinatorTrait for Repeat1<T> {
     }
 }
 
-impl<T: CombinatorTrait + DynCombinatorTrait> BaseCombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait + DynCombinatorTrait> BaseCombinatorTrait for Repeat1<T>
+where
+    for<'a> T: 'a,
+{
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -191,12 +194,16 @@ impl<T: CombinatorTrait + DynCombinatorTrait> BaseCombinatorTrait for Repeat1<T>
     }
 }
 
-impl ParserTrait for Repeat1Parser<'_> {
+impl<'a> ParserTrait for Repeat1Parser<'a> {
     fn get_u8set(&self) -> U8Set {
         if self.a_parsers.is_empty() {
             U8Set::none()
         } else {
-            self.a_parsers.iter().map(|p| p.get_u8set()).reduce(|acc, e| acc | e).unwrap_or(U8Set::none())
+            let mut u8set = U8Set::none();
+            for p in &self.a_parsers {
+                u8set = u8set | p.as_ref().get_u8set();
+            }
+            u8set
         }
     }
 
@@ -234,14 +241,14 @@ impl ParserTrait for Repeat1Parser<'_> {
     }
 }
 
-pub fn repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
+pub fn repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait where for<'a> T: 'a {
     profile_internal("repeat1", Repeat1 {
         a: a.into_combinator(),
         greedy: false,
     })
 }
 
-pub fn repeat1_greedy<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
+pub fn repeat1_greedy<T: IntoCombinator>(a: T)-> impl CombinatorTrait where for<'a> T: 'a {
     profile_internal("repeat1_greedy", Repeat1 {
         a: a.into_combinator(),
         greedy: true,
