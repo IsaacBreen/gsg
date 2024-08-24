@@ -10,9 +10,10 @@ use crate::parse_state::{RightData, ParseResultTrait};
 use crate::VecX;
 
 #[derive(Debug)]
-pub struct Repeat1<T> {
+pub struct Repeat1<'a, T> {
     pub(crate) a: T,
     pub(crate) greedy: bool,
+    pub(crate) _phantom: std::marker::PhantomData<&'a T>,
 }
 
 #[derive(Debug)]
@@ -24,17 +25,18 @@ pub struct Repeat1Parser<'a, T> where T: CombinatorTrait {
     pub(crate) greedy: bool,
 }
 
-impl<'a, T: DynCombinatorTrait> DynCombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait> DynCombinatorTrait for Repeat1<'_, T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-        todo!()
+        let (parser, parse_results) = self.parse(right_data, bytes);
+        (Box::new(parser), parse_results)
     }
 
     fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        self.one_shot_parse(right_data, bytes)
     }
 }
 
-impl<T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait > CombinatorTrait for Repeat1<'_, T> {
     type Parser<'a> = Repeat1Parser<'a, T> where Self: 'a;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -184,10 +186,9 @@ impl<T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
     }
 }
 
-impl<T: BaseCombinatorTrait> BaseCombinatorTrait for Repeat1<T> {
+impl<'a, T: BaseCombinatorTrait + 'a> BaseCombinatorTrait for Repeat1<'a, T> {
     fn as_any(&self) -> &dyn std::any::Any {
-        // self
-        todo!()
+        self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(&self.a);
@@ -239,7 +240,7 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait + 'a, 
     }
 }
 
-pub fn repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
+pub fn repeat1<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'a {
     // profile_internal("repeat1", Repeat1 {
     //     a: a.into_combinator(),
     //     greedy: false,
@@ -247,22 +248,24 @@ pub fn repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
     Repeat1 {
         a: a.into_combinator(),
         greedy: false,
+        _phantom: std::marker::PhantomData,
     }
 }
 
-pub fn repeat1_greedy<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
+pub fn repeat1_greedy<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'a {
     profile_internal("repeat1_greedy", Repeat1 {
         a: a.into_combinator(),
         greedy: true,
+        _phantom: std::marker::PhantomData,
     })
 }
 
 pub fn repeat0(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
-    Opt { inner: Repeat1 { a, greedy: false }, greedy: false }
+    Opt { inner: Repeat1 { a, greedy: false, _phantom: std::marker::PhantomData }, greedy: false }
 }
 
 pub fn repeat0_greedy(a: impl CombinatorTrait + 'static )-> impl CombinatorTrait {
-    Opt { inner: Repeat1 { a, greedy: true }, greedy: true }
+    Opt { inner: Repeat1 { a, greedy: true, _phantom: std::marker::PhantomData }, greedy: true }
 }
 
 pub fn seprep1(a: impl CombinatorTrait + Clone, b: impl CombinatorTrait)-> impl CombinatorTrait {

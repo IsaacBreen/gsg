@@ -111,7 +111,7 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for StrongRef<T> {
     }
 
     fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        self.one_shot_parse(right_data, bytes)
     }
 }
 

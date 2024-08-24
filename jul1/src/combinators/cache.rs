@@ -121,7 +121,7 @@ pub struct CacheContextParser<'a> {
     pub(crate) parse_id: usize,
 }
 
-impl<T: CombinatorTrait> DynCombinatorTrait for CacheContext<T> {
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for CacheContext<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -132,7 +132,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for CacheContext<T> {
     }
 }
 
-impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for CacheContext<T> {
     type Parser<'a> = CacheContextParser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -176,9 +176,9 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
     }
 }
 
-impl<T: CombinatorTrait> BaseCombinatorTrait for CacheContext<T> {
+impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for CacheContext<T> {
     fn as_any(&self) -> &dyn std::any::Any {
-        todo!()
+        self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(&self.inner);
@@ -315,7 +315,7 @@ impl ParserTrait for CachedParser {
     }
 }
 
-pub fn cache_context<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait {
+pub fn cache_context<'a, T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: 'static {
     profile_internal("cache_context", CacheContext { inner: a.into_combinator() })
     // a.into_combinator()
 }
