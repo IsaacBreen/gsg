@@ -105,7 +105,7 @@ impl<T: CombinatorTrait> BaseCombinatorTrait for WeakRef<T> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for StrongRef<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
