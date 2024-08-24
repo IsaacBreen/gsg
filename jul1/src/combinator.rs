@@ -120,7 +120,7 @@ impl<T: CombinatorTrait + ?Sized> BaseCombinatorTrait for Box<T> {
     }
 }
 
-impl ParserTrait for Box<dyn ParserTrait> {
+impl<'a> ParserTrait for Box<dyn ParserTrait + 'a> {
     fn get_u8set(&self) -> U8Set {
         (**self).get_u8set()
     }

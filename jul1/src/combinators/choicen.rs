@@ -33,7 +33,7 @@ macro_rules! define_choice {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
-            type Parser<'a> = Box<dyn ParserTrait> where Self: 'a;
+            type Parser<'a> = Box<dyn ParserTrait + 'a> where Self: 'a;
 
             fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 use $crate::{UnambiguousParseResults, UnambiguousParseError};
@@ -82,16 +82,16 @@ macro_rules! define_choice {
                 }
             }
 
-            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+            fn old_parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
                 let first_combinator = &self.$first;
                 let (first_parser, first_parse_results) = profile!(stringify!($choice_name, " first child parse"), {
-                    first_combinator.parse(right_data.clone(), bytes)
+                    first_combinator.parse_dyn(right_data.clone(), bytes)
                 });
                 let discard_rest = self.greedy && first_parse_results.succeeds_decisively();
                 if discard_rest {
                     return (first_parser, first_parse_results);
                 }
-                let mut parsers = if !first_parse_results.done() {
+                let mut parsers = if !first_parse_results.done {
                     vec![first_parser]
                 } else {
                     Vec::new()
