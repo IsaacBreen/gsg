@@ -10,7 +10,7 @@ use crate::parse_state::{RightData, ParseResultTrait};
 use crate::VecX;
 
 #[derive(Debug)]
-pub struct Repeat1<T: CombinatorTrait + DynCombinatorTrait> {
+pub struct Repeat1<T> {
     pub(crate) a: T,
     pub(crate) greedy: bool,
 }
@@ -24,13 +24,13 @@ pub struct Repeat1Parser<'a, T> where T: CombinatorTrait {
     pub(crate) greedy: bool,
 }
 
-impl<T: CombinatorTrait + DynCombinatorTrait> DynCombinatorTrait for Repeat1<T> {
+impl<'a, T: DynCombinatorTrait> DynCombinatorTrait for Repeat1<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
 }
 
-impl<T: CombinatorTrait + DynCombinatorTrait > CombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
     type Parser<'a> = Repeat1Parser<'a, T> where Self: 'a;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -182,12 +182,10 @@ impl<T: CombinatorTrait + DynCombinatorTrait > CombinatorTrait for Repeat1<T> {
     }
 }
 
-impl<T: CombinatorTrait + DynCombinatorTrait> BaseCombinatorTrait for Repeat1<T>
-where
-    for<'a> T: 'a,
-{
+impl<T: BaseCombinatorTrait> BaseCombinatorTrait for Repeat1<T> {
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        // self
+        todo!()
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(&self.a);
