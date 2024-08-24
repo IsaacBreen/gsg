@@ -94,13 +94,28 @@ mod basic_tests {
 
     #[test]
     fn test_seq_opt() {
-        // assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
-        // assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
-        assert_parses_one_shot(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
-        //
-        // assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "b");
-        // assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "b");
-        // assert_parses_one_shot(&seq!(opt(eat_char('a')), eat_char('b')), "b");
+        assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
+        assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "ab");
+        // Even local ambiguity causes an ambiguous parse error.
+        // In this case, opt(eat_char('a')) is ambiguous when parsed with 'a', (it can match either 'a' or the empty string).
+        // Som even though seq!(opt(eat_char('a')), eat_char('b')) is unambiguous, it still causes an ambiguous parse error.
+        // To avoid it, use the greedy version of opt, opt_greedy.
+        assert_parses_one_shot_with_result(&seq!(opt(eat_char('a')), eat_char('b')), "ab", Err(UnambiguousParseError::Ambiguous));
+
+        assert_parses_default(&seq!(opt(eat_char('a')), eat_char('b')), "b");
+        assert_parses_fast(&seq!(opt(eat_char('a')), eat_char('b')), "b");
+        assert_parses_one_shot(&seq!(opt(eat_char('a')), eat_char('b')), "b");
+    }
+
+    #[test]
+    fn test_seq_opt_greedy() {
+        assert_parses_default(&seq!(opt_greedy(eat_char('a')), eat_char('b')), "ab");
+        assert_parses_fast(&seq!(opt_greedy(eat_char('a')), eat_char('b')), "ab");
+        assert_parses_one_shot(&seq!(opt_greedy(eat_char('a')), eat_char('b')), "ab");
+
+        assert_parses_default(&seq!(opt_greedy(eat_char('a')), eat_char('b')), "b");
+        assert_parses_fast(&seq!(opt_greedy(eat_char('a')), eat_char('b')), "b");
+        assert_parses_one_shot(&seq!(opt_greedy(eat_char('a')), eat_char('b')), "b");
     }
 
     #[test]
