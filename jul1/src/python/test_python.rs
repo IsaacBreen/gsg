@@ -224,7 +224,7 @@ fn test_actual_python_file() {
     let test_cases = [
         // ("Simple string", "x = 12\nx = 2\nx"),
         // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
-        ("remove_left_recursion.py", include_str!("../python/remove_left_recursion.py")),
+        ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
         // ("test_input.py", include_str!("../tests/test_input.py")),
         // ("test_input2.py", include_str!("../tests/test_input2.py")),
         // ("test_input3.py", include_str!("../tests/test_input3.py")),
@@ -262,7 +262,7 @@ fn test_actual_python_file_fast() {
     let test_cases = [
         // ("Simple string", "x = 12\nx = 2\nx"),
         // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
-        ("remove_left_recursion.py", include_str!("../python/remove_left_recursion.py")),
+        ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
         // ("test_input.py", include_str!("../tests/test_input.py")),
         // ("test_input2.py", include_str!("../tests/test_input2.py")),
         // ("test_input3.py", include_str!("../tests/test_input3.py")),
@@ -284,7 +284,7 @@ fn test_actual_python_file_one_shot() {
     let test_cases = [
         // ("Simple string", "x = 12\nx = 2\nx"),
         // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
-        // ("remove_left_recursion.py", include_str!("../python/remove_left_recursion.py")),
+        // ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
         // ("test_input.py", include_str!("../tests/test_input.py")),
         ("test_input3.py", include_str!("../tests/test_input3.py")),
         // ("test_input2.py", include_str!("../tests/test_input3.py")),
@@ -306,7 +306,7 @@ fn profile_python_file() {
     let profile_files = [
         // "src/tests/test_input.py",
         "src/python/dump_python_gram.py",
-        // "src/python/remove_left_recursion.py",
+        // "src/python/grammar_analysis.py",
     ];
 
     for profile_file in profile_files.iter() {

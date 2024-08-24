@@ -237,8 +237,9 @@ def grammar_to_rust(
 
     f = io.StringIO()
     f.write('use std::rc::Rc;\n')
+    f.write('use crate::{BaseCombinatorTrait};\n')
     f.write(
-        'use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n'
+        'use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData, Choice, deferred, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};\n'
         )
     f.write('use crate::seq;\n')
     f.write(
