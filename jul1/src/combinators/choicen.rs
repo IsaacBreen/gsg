@@ -161,52 +161,36 @@ macro_rules! define_choice {
 
             fn parse(&mut self, bytes: &[u8]) -> ParseResults {
                 profile!(stringify!($choice_parser_name, "::parse"), {
-                    let mut new_right_data: VecY<RightData> = VecY::new();
+                    let mut parse_result = ParseResults::empty_finished();
+                    let mut discard_rest = false;
 
-                    // first child
+                    // First child
                     self.$first.retain_mut(|parser| {
-                        let parse_results = profile!(stringify!($choice_parser_name, "::parse child Parser::parse"), { parser.parse(bytes) });
-                        let done = parse_results.done();
-                        new_right_data.extend(parse_results.right_data_vec);
+                        if discard_rest {
+                            return false;
+                        }
+                        let parse_results = parser.parse(bytes);
+                        let done = parse_results.done;
+                        discard_rest = self.combinator.greedy && parse_results.succeeds_decisively();
+                        parse_result.merge_assign(parse_results);
                         !done
                     });
 
-                    let mut all_done = self.$first.is_empty();
-
-                    // rest of the children
+                    // Rest of the children
                     $(
-                        let mut right_data_to_init_this_child = std::mem::take(&mut new_right_data);
-                        right_data_to_init_this_child.squash();
-
-                        // step existing parsers for this child
                         self.$rest.retain_mut(|parser| {
-                            let parse_results = profile!(stringify!($choice_parser_name, "::parse child Parser::parse"), {
-                                parser.parse(bytes)
-                            });
-                            let done = parse_results.done();
-                            new_right_data.extend(parse_results.right_data_vec);
+                            if discard_rest {
+                                return false;
+                            }
+                            let parse_results = parser.parse(bytes);
+                            let done = parse_results.done;
+                            discard_rest = self.combinator.greedy && parse_results.succeeds_decisively();
+                            parse_result.merge_assign(parse_results);
                             !done
                         });
-
-                        // new parsers for this child, one for each right_data emitted by the previous child
-                        for right_data in right_data_to_init_this_child {
-                            let offset = right_data.right_data_inner.fields1.position - self.position;
-                            let combinator = &self.combinator.$rest;
-                            let (parser, parse_results) = profile!(stringify!($choice_parser_name, "::parse child Combinator::parse"), {
-                                combinator.parse(right_data, &bytes[offset..])
-                            });
-                            if !parse_results.done() {
-                                self.$rest.push(parser);
-                            }
-                            new_right_data.extend(parse_results.right_data_vec);
-                        }
-
-                        all_done &= self.$rest.is_empty();
                     )+
 
-                    self.position += bytes.len();
-
-                    ParseResults::new(new_right_data, all_done)
+                    parse_result
                 })
             }
         }
