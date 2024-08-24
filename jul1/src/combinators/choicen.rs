@@ -178,6 +178,10 @@ macro_rules! define_choice {
 
                     // Rest of the children
                     $(
+                        if discard_rest {
+                            return parse_result;
+                        }
+
                         self.$rest.retain_mut(|parser| {
                             if discard_rest {
                                 return false;
