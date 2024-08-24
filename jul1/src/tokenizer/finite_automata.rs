@@ -1,3 +1,4 @@
+// src/tokenizer/finite_automata.rs
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
@@ -18,6 +19,7 @@ pub struct Finalizer {
 #[derive(Debug, Clone)]
 pub struct NFAState {
     transitions: TrieMap<Vec<usize>>,
+    epsilon_transitions: Vec<usize>,
     finalizer: Option<Finalizer>,
 }
 
@@ -73,6 +75,7 @@ pub enum Expr {
     Quantifier(Box<Expr>, QuantifierType),
     Choice(Vec<Expr>),
     Seq(Vec<Expr>),
+    Epsilon, // Explicit epsilon transition
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -103,11 +106,7 @@ impl From<Expr> for ExprGroup {
 }
 
 pub fn eat_u8(c: u8) -> Expr {
-    if c == b'\0' {
-        Expr::Seq(vec![])
-    } else {
-        Expr::U8(c as u8)
-    }
+    Expr::U8(c)
 }
 
 pub fn rep<T: Into<Expr>>(expr: T) -> Expr {
@@ -127,7 +126,7 @@ pub fn prec<T: Into<Expr>>(precedence: isize, expr: T) -> ExprGroup {
 }
 
 pub fn eps() -> Expr {
-    Expr::Seq(vec![])
+    Expr::Epsilon
 }
 
 pub fn _seq(exprs: Vec<Expr>) -> Expr {
@@ -150,25 +149,6 @@ macro_rules! seq {
     };
 }
 
-/// **Example:**
-/// ```rust,ignore
-/// groups![
-///     'a',
-///     'b',
-///     seq!['c', 'd'],
-/// ]
-/// ```
-///
-/// **Output:**
-/// ```rust,ignore
-/// ExprGroups {
-///     groups: vec![
-///         'a'.into(),
-///         'b'.into(),
-///         seq!['c', 'd'].into(),
-///     ]
-/// }
-/// ```
 macro_rules! groups {
     ($($expr:expr),* $(,)?) => {
         ExprGroups {
@@ -186,6 +166,10 @@ impl Debug for NFA {
 
             for (transition_u8, next_states) in &state.transitions {
                 f.write_str(&format!("  - '{}': {:?}\n", transition_u8, next_states))?;
+            }
+
+            if !state.epsilon_transitions.is_empty() {
+                f.write_str(&format!("  - Epsilon transitions: {:?}\n", state.epsilon_transitions))?;
             }
 
             if let Some(finalizer) = state.finalizer {
@@ -221,6 +205,7 @@ impl NFAState {
     pub fn new() -> NFAState {
         NFAState {
             transitions: TrieMap::new(),
+            epsilon_transitions: Vec::new(),
             finalizer: None,
         }
     }
@@ -274,16 +259,16 @@ impl Expr {
                         let loop_end_state = nfa.add_state();
 
                         // Epsilon transition from current state to loop start state
-                        nfa.add_transition(current_state, b'\0', loop_start_state);
+                        nfa.add_epsilon_transition(current_state, loop_start_state);
 
                         // Process the expr
                         let expr_end_state = Self::handle_expr(*expr, nfa, loop_start_state);
 
                         // Epsilon transition from expr end state back to loop start state for repetition
-                        nfa.add_transition(expr_end_state, b'\0', loop_start_state);
+                        nfa.add_epsilon_transition(expr_end_state, loop_start_state);
 
                         // Epsilon transition from loop start state to loop end state to allow skipping
-                        nfa.add_transition(loop_start_state, b'\0', loop_end_state);
+                        nfa.add_epsilon_transition(loop_start_state, loop_end_state);
 
                         // The loop end state becomes the new current state
                         loop_end_state
@@ -295,10 +280,10 @@ impl Expr {
                         let expr_end_state = Self::handle_expr(*expr, nfa, current_state);
 
                         // Epsilon transition from expr end state back to loop start state for repetition
-                        nfa.add_transition(expr_end_state, b'\0', loop_start_state);
+                        nfa.add_epsilon_transition(expr_end_state, loop_start_state);
 
                         // Epsilon transition from loop start state back to expr start state to allow repetition
-                        nfa.add_transition(loop_start_state, b'\0', current_state);
+                        nfa.add_epsilon_transition(loop_start_state, current_state);
 
                         // The expr end state becomes the new current state
                         expr_end_state
@@ -307,13 +292,13 @@ impl Expr {
                         let optional_end_state = nfa.add_state();
 
                         // Epsilon transition from current state to optional end state to allow skipping
-                        nfa.add_transition(current_state, b'\0', optional_end_state);
+                        nfa.add_epsilon_transition(current_state, optional_end_state);
 
                         // Process the expr
                         let expr_end_state = Self::handle_expr(*expr, nfa, current_state);
 
                         // Epsilon transition from expr end state to optional end state
-                        nfa.add_transition(expr_end_state, b'\0', optional_end_state);
+                        nfa.add_epsilon_transition(expr_end_state, optional_end_state);
 
                         // The optional end state becomes the new current state
                         optional_end_state
@@ -325,18 +310,18 @@ impl Expr {
                 let choice_end_state = nfa.add_state(); // New end state for choice
 
                 // Epsilon transition from the current state to the start state of the choice
-                nfa.add_transition(current_state, b'\0', choice_start_state);
+                nfa.add_epsilon_transition(current_state, choice_start_state);
 
                 for expr in exprs {
                     // For each expr, connect the start state of the choice to the start state of the expr
                     let expr_start_state = nfa.add_state();
-                    nfa.add_transition(choice_start_state, b'\0', expr_start_state);
+                    nfa.add_epsilon_transition(choice_start_state, expr_start_state);
 
                     // Process the expr and get its end state
                     let expr_end_state = Self::handle_expr(expr, nfa, expr_start_state);
 
                     // Connect the end state of the expr to the end state of the choice
-                    nfa.add_transition(expr_end_state, b'\0', choice_end_state);
+                    nfa.add_epsilon_transition(expr_end_state, choice_end_state);
                 }
 
                 // The end state of the choice becomes the new current state
@@ -348,6 +333,11 @@ impl Expr {
                 }
                 current_state
             },
+            Expr::Epsilon => {
+                let new_state = nfa.add_state();
+                nfa.add_epsilon_transition(current_state, new_state);
+                new_state
+            }
         }
     }
 }
@@ -367,6 +357,10 @@ impl NFA {
             .push(to);
     }
 
+    pub fn add_epsilon_transition(&mut self, from: usize, to: usize) {
+        self.states[from].epsilon_transitions.push(to);
+    }
+
     pub fn to_dfa(self) -> DFA {
         let mut dfa_states: Vec<DFAState> = Vec::new();
         let mut dfa_state_map: HashMap<FrozenSet<usize>, usize> = HashMap::new();
@@ -375,29 +369,24 @@ impl NFA {
         let mut epsilon_closures = self.compute_epsilon_closures();
 
         // Compute the epsilon closure of the NFA start state and use it as the DFA start state
-        // let start_closure = self.epsilon_closure(&HashSet::from([self.start_state]));
         let start_closure = epsilon_closures[self.start_state].clone();
         let start_state = FrozenSet::from(start_closure);
         worklist.push(start_state.clone());
         dfa_state_map.insert(start_state.clone(), 0);
 
         // Initialize the first DFA state
-        // let closure = self.epsilon_closure(&HashSet::from([self.start_state]));
-        let closure = epsilon_closures[self.start_state].clone();
         dfa_states.push(DFAState {
             transitions: TrieMap::new(),
             finalizer: closure.iter().filter_map(|&state| self.states[state].finalizer).min_by_key(|finalizer| (finalizer.precedence, finalizer.group)),
         });
 
         while let Some(current_set) = worklist.pop() {
-            let current_dfa_state = *dfa_state_map.get(&current_set).unwrap();
+            let current_dfa_state = *dfa_state_map.get(¤t_set).unwrap();
             let mut transition_map: TrieMap<HashSet<usize>> = TrieMap::new();
 
             // For each state in the current DFA state, look at the NFA transitions
             for &state in current_set.iter() {
                 for (transition_u8, next_states) in &self.states[state].transitions {
-                    if transition_u8 == b'\0' { continue; } // Skip epsilon transitions here
-
                     let entry = transition_map.entry(transition_u8).or_insert_with(HashSet::new);
                     for &next_state in next_states {
                         entry.insert(next_state);
@@ -407,7 +396,6 @@ impl NFA {
 
             // For each transition, compute the epsilon closure of the resulting state set
             for (transition_u8, next_states) in &transition_map {
-                // let closure = self.epsilon_closure(&next_states);
                 let mut closure = HashSet::new();
                 for &next_state in next_states {
                     closure.extend(epsilon_closures[next_state].iter().cloned());
@@ -422,7 +410,6 @@ impl NFA {
 
                     dfa_states.push(DFAState {
                         transitions: TrieMap::new(),
-                        // Finalise on the first group
                         finalizer: closure.iter().filter_map(|&state| self.states[state].finalizer).min_by_key(|finalizer| (-finalizer.precedence, finalizer.group)),
                     });
                 }
@@ -444,9 +431,7 @@ impl NFA {
 
         while let Some(state) = stack.pop() {
             if closure.insert(state) {
-                if let Some(next_states) = self.states[state].transitions.get(b'\0') {
-                    stack.extend(next_states);
-                }
+                stack.extend(self.states[state].epsilon_transitions.iter());
             }
         }
 
