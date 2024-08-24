@@ -48,6 +48,10 @@ impl CombinatorTrait for FastCombinatorWrapper {
         } else if let Some(new_match) = regex_state.prev_match() {
             let mut new_right_data = right_data.clone();
             let position = new_match.position;
+            #[cfg(debug_assertions)]
+            if position == 0 {
+                panic!("FastCombinatorWrapper::one_shot_parse: regex matched the empty string");
+            }
             new_right_data.advance(position);
             Ok(new_right_data)
         } else {
@@ -67,6 +71,10 @@ impl CombinatorTrait for FastCombinatorWrapper {
             if let Some(new_match) = regex_state.prev_match() {
                 let mut new_right_data = right_data.clone();
                 let position = new_match.position;
+                #[cfg(debug_assertions)]
+                if position == 0 {
+                    panic!("FastCombinatorWrapper::old_parse: regex matched the empty string");
+                }
                 new_right_data.advance(position);
                 right_data_vec.push(new_right_data);
             }
@@ -99,6 +107,9 @@ impl ParserTrait for FastParserWrapper<'_> {
                 if Some(new_match) != prev_match {
                     let mut new_right_data = self.right_data.clone().unwrap();
                     let position = new_match.position;
+                    if position == 0 {
+                        panic!("FastParserWrapper::parse: regex matched the empty string");
+                    }
                     new_right_data.advance(position);
                     right_data_vec.push(new_right_data);
                 }

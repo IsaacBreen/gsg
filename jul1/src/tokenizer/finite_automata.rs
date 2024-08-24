@@ -678,6 +678,17 @@ mod tests {
         assert!(!regex.could_fully_match(b"aa")); // Should not match more than one 'a'
         assert!(regex.could_match(b"b")); // Can still match the empty string in "b"
     }
+
+    #[test]
+    fn test_0() {
+        let expr = eat_u8(0);
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"0"));
+        assert!(!regex.could_match(b"1"));
+    }
 }
 
 #[cfg(test)]

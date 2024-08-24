@@ -939,6 +939,7 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
     );
 
     let regular_char = eat_char_negation_choice_fast("{}\\\n\r\'\"");
+    // let regular_char = eat_char_choice_fast("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
 
     let single_quote = seq_fast!(
         eat_char_fast('\''),
@@ -961,7 +962,7 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
             seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
             seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
             // single_quote,
-            double_quote.clone(),
+            // double_quote.clone(),
             // newline,
         )
     );
@@ -971,7 +972,7 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
             stringescapeseq.clone(),
             seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
             seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
-            single_quote.clone(),
+            // single_quote.clone(),
             // double_quote,
             // newline,
         )
@@ -982,24 +983,24 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
             stringescapeseq,
             seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
             seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
-            single_quote,
-            double_quote,
-            newline,
+            // single_quote,
+            // double_quote,
+            // newline,
         )
     );
 
     choice_greedy!(
         seq!(
-            one_single,
             check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() == PythonQuoteType::OneSingle }),
+            one_single,
         ),
         seq!(
-            one_double,
             check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() == PythonQuoteType::OneDouble }),
+            one_double,
         ),
         seq!(
-            three,
             check_right_data(|right_data| { matches!(right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap(), PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble) }),
+            three,
         ),
     )
 }
@@ -1226,7 +1227,8 @@ pub fn comment() -> Expr {
 pub fn NEWLINE()-> impl CombinatorTrait {
     let end_of_line = seq_fast!(opt_fast(comment()), breaking_space_fast());
     let blank_line = seq_fast!(repeat0_fast(non_breaking_space_fast()), end_of_line.clone());
-    seq!(end_of_line, repeat0_fast(blank_line), dent())
+    // seq!(end_of_line, repeat0_fast(blank_line), dent())
+    seq!(seq_fast!(end_of_line, repeat0_fast(blank_line)), dent())
 }
 
 // .. _indentation:

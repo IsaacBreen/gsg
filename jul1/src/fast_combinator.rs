@@ -46,11 +46,11 @@ pub fn eat_char_negation_fast(c: char) -> Expr {
 }
 
 pub fn eat_char_choice_fast(s: &str) -> Expr {
-    Expr::U8Class(U8Set::from_bytes(s.as_bytes()))
+    Expr::U8Class(U8Set::from_chars(s))
 }
 
 pub fn eat_char_negation_choice_fast(s: &str) -> Expr {
-    Expr::U8Class(U8Set::from_bytes(s.as_bytes()).complement())
+    Expr::U8Class(U8Set::from_chars(s).complement())
 }
 
 pub fn eat_string_fast(s: &str) -> Expr {
