@@ -12,6 +12,12 @@ impl<C: CombinatorTrait> BaseCombinatorTrait for DynCombinator<C> {
     }
 }
 
+impl<C: CombinatorTrait> DynCombinatorTrait for DynCombinator<C> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl<C: CombinatorTrait> CombinatorTrait for DynCombinator<C> {
     type Parser<'a> = Box<dyn ParserTrait> where Self: 'a;
 

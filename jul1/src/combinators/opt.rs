@@ -7,6 +7,12 @@ pub struct Opt<T: CombinatorTrait> {
     pub(crate) greedy: bool,
 }
 
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Opt<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
     type Parser<'a> = T::Parser<'a>;
 

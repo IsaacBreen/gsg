@@ -27,6 +27,12 @@ pub struct Lookahead<T: CombinatorTrait> {
     pub persist_with_partial_lookahead: bool,
 }
 
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Lookahead<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
     type Parser<'a> = FailParser;
 

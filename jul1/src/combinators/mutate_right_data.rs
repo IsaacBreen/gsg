@@ -29,6 +29,12 @@ impl Debug for MutateRightData {
     }
 }
 
+impl DynCombinatorTrait for MutateRightData {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl CombinatorTrait for MutateRightData {
     type Parser<'a> = FailParser;
 

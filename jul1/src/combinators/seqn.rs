@@ -33,6 +33,16 @@ macro_rules! define_seq {
             pub(crate) position: usize,
         }
 
+        impl<$first, $($rest),+> $crate::DynCombinatorTrait for $seq_name<$first, $($rest),+>
+        where
+            $first: CombinatorTrait + 'static,
+            $($rest: CombinatorTrait + 'static),+
+        {
+            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+                todo!()
+            }
+        }
+
         impl<$first, $($rest),+> CombinatorTrait for $seq_name<$first, $($rest),+>
         where
             $first: CombinatorTrait + 'static,

@@ -1,4 +1,4 @@
-use crate::{BaseCombinatorTrait, UnambiguousParseResults};
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use crate::RightData;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -79,6 +79,12 @@ impl Eq for ContinuationParser {}
 impl Debug for ContinuationParser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ContinuationParser").finish()
+    }
+}
+
+impl DynCombinatorTrait for Continuation {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
     }
 }
 

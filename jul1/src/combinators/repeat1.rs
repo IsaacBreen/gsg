@@ -24,6 +24,12 @@ pub struct Repeat1Parser<'a> {
     pub(crate) greedy: bool,
 }
 
+impl<T: CombinatorTrait + DynCombinatorTrait + 'static> DynCombinatorTrait for Repeat1<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl<T: CombinatorTrait + DynCombinatorTrait + 'static> CombinatorTrait for Repeat1<T> {
     type Parser<'a> = Repeat1Parser<'a>;
 
@@ -120,7 +126,7 @@ impl<T: CombinatorTrait + DynCombinatorTrait + 'static> CombinatorTrait for Repe
         } else if parse_results.right_data_vec.is_empty() {
             return (Repeat1Parser {
                 a: &self.a,
-                a_parsers: vec![parser],
+                a_parsers: vec![Box::new(parser)],
                 position: start_position + bytes.len(),
                 greedy: self.greedy
             }, ParseResults::new(vecy![], false));
@@ -128,7 +134,7 @@ impl<T: CombinatorTrait + DynCombinatorTrait + 'static> CombinatorTrait for Repe
         let mut parsers = if parse_results.done() {
             vec![]
         } else {
-            vec![parser]
+            vec![Box::new(parser)]
         };
         let mut all_prev_succeeded_decisively = parse_results.succeeds_decisively();
         let mut right_data_vec = parse_results.right_data_vec;
@@ -139,7 +145,7 @@ impl<T: CombinatorTrait + DynCombinatorTrait + 'static> CombinatorTrait for Repe
                 let offset = new_right_data.right_data_inner.fields1.position - start_position;
                 let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
                 if !parse_results.done() {
-                    parsers.push(parser);
+                    parsers.push(Box::new(parser));
                 }
                 all_prev_succeeded_decisively &= parse_results.succeeds_decisively();
                 if self.greedy && all_prev_succeeded_decisively {

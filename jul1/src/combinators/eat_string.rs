@@ -1,5 +1,5 @@
 // src/combinators/eat_string.rs
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 use std::any::Any;
 use std::rc::Rc;
 use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set, VecX};
@@ -22,6 +22,12 @@ pub struct EatStringParser<'a> {
     pub(crate) string: &'a [u8],
     index: usize,
     pub(crate) right_data: Option<RightData>,
+}
+
+impl DynCombinatorTrait for EatString {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
 }
 
 impl CombinatorTrait for EatString {

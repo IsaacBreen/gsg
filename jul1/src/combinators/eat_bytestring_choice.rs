@@ -1,5 +1,5 @@
 // src/combinators/eat_bytestring_choice.rs
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
@@ -23,6 +23,12 @@ pub struct EatByteStringChoiceParser<'a> {
     pub(crate) root: &'a TrieNode,
     pub(crate) current_node: &'a TrieNode,
     pub(crate) right_data: RightData,
+}
+
+impl DynCombinatorTrait for EatByteStringChoice {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
 }
 
 impl CombinatorTrait for EatByteStringChoice {

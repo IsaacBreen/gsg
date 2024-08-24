@@ -70,6 +70,12 @@ impl<T> Hash for StrongRef<T> {
     }
 }
 
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for WeakRef<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
     type Parser<'a> = T::Parser<'a>;
 
@@ -90,6 +96,12 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for WeakRef<T> {
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
         f(self.inner.upgrade().expect("WeakRef is already dropped").get().expect("Combinator hasn't been set"));
+    }
+}
+
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for StrongRef<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
     }
 }
 

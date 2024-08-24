@@ -26,6 +26,12 @@ impl Debug for FastParserWrapper<'_> {
     }
 }
 
+impl DynCombinatorTrait for FastCombinatorWrapper {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl CombinatorTrait for FastCombinatorWrapper {
     type Parser<'a> = FastParserWrapper<'a>;
 

@@ -100,6 +100,12 @@ pub struct ProfiledParser {
     pub tag: String,
 }
 
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Profiled<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
     type Parser<'a> = ProfiledParser;
 

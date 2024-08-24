@@ -1,4 +1,4 @@
-use crate::{BaseCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 use crate::RightData;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -89,6 +89,12 @@ fn convert_result(result: BruteForceResult) -> BruteForceResult2 {
 //         Err(ParseError::Incomplete) => Err(ParseError::Incomplete),
 //     }
 // }
+
+impl DynCombinatorTrait for BruteForce {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
 
 impl CombinatorTrait for BruteForce {
     type Parser<'a> = BruteForceParser;

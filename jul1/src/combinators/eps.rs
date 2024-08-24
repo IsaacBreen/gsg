@@ -1,4 +1,4 @@
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use std::any::Any;
 use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, ParseResultTrait};
@@ -7,6 +7,12 @@ pub struct Eps;
 
 #[derive(Debug)]
 pub struct EpsParser;
+
+impl DynCombinatorTrait for Eps {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
 
 impl CombinatorTrait for Eps {
     type Parser<'a> = EpsParser;

@@ -1,4 +1,4 @@
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use std::any::Any;
 use std::ops::RangeBounds;
 use std::rc::Rc;
@@ -13,6 +13,12 @@ pub struct EatU8 {
 pub struct EatU8Parser {
     pub(crate) u8set: U8Set,
     pub(crate) right_data: Option<RightData>,
+}
+
+impl DynCombinatorTrait for EatU8 {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
 }
 
 impl CombinatorTrait for EatU8 {

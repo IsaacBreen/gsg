@@ -20,7 +20,7 @@ macro_rules! match_enum {
 }
 
 // Removed Parser enum
-pub trait CombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
+pub trait CombinatorTrait: BaseCombinatorTrait + DynCombinatorTrait + std::fmt::Debug {
     type Parser<'a>: ParserTrait where Self: 'a;
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults);
     fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
@@ -36,7 +36,7 @@ pub trait CombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
 }
 
 pub trait DynCombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults);
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults);
 }
 
 pub trait BaseCombinatorTrait {
@@ -80,6 +80,12 @@ pub trait ParserTrait: std::fmt::Debug {
             }
         }
         (prefix, parse_results)
+    }
+}
+
+impl<T: CombinatorTrait + ?Sized> DynCombinatorTrait for Box<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
     }
 }
 

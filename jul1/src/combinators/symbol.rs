@@ -1,4 +1,4 @@
-use crate::{BaseCombinatorTrait, UnambiguousParseResults};
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use crate::RightData;
 use std::any::Any;
 use std::rc::Rc;
@@ -12,6 +12,12 @@ pub struct Symbol<T> {
 impl<T> Clone for Symbol<T> {
     fn clone(&self) -> Self {
         Symbol { value: self.value.clone() }
+    }
+}
+
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Symbol<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
     }
 }
 

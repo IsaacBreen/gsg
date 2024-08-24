@@ -116,6 +116,12 @@ impl<T: CombinatorTrait + 'static> Hash for Deferred<T> {
     }
 }
 
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Deferred<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
     type Parser<'a> = T::Parser<'a>;
 

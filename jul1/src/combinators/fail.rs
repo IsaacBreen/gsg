@@ -1,4 +1,4 @@
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
+use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set};
 use crate::parse_state::{RightData, ParseResultTrait};
 
@@ -8,6 +8,12 @@ pub struct FailParser;
 
 #[derive(Debug)]
 pub struct Fail;
+
+impl DynCombinatorTrait for Fail {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
 
 impl CombinatorTrait for Fail {
     type Parser<'a> = FailParser;

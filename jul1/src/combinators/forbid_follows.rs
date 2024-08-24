@@ -21,6 +21,12 @@ pub struct ForbidFollowsCheckNot {
     pub(crate) match_ids: u16,
 }
 
+impl DynCombinatorTrait for ForbidFollows {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl CombinatorTrait for ForbidFollows {
     type Parser<'a> = FailParser;
 
@@ -40,6 +46,12 @@ impl BaseCombinatorTrait for ForbidFollows {
     }
 }
 
+impl DynCombinatorTrait for ForbidFollowsClear {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl CombinatorTrait for ForbidFollowsClear {
     type Parser<'a> = FailParser;
 
@@ -55,6 +67,12 @@ impl CombinatorTrait for ForbidFollowsClear {
 impl BaseCombinatorTrait for ForbidFollowsClear {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+impl DynCombinatorTrait for ForbidFollowsCheckNot {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
     }
 }
 

@@ -18,6 +18,12 @@ pub struct ChoiceParser {
     pub(crate) greedy: bool,
 }
 
+impl DynCombinatorTrait for Choice {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl CombinatorTrait for Choice {
     type Parser<'a> = ChoiceParser;
 

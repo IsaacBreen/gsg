@@ -18,6 +18,12 @@ pub struct ExcludeBytestringsParser<'a> {
     pub(crate) start_position: usize,
 }
 
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for ExcludeBytestrings<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
     type Parser<'a> = ExcludeBytestringsParser<'a>;
 

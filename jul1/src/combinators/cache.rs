@@ -121,6 +121,12 @@ pub struct CacheContextParser {
     pub(crate) parse_id: usize,
 }
 
+impl<T: CombinatorTrait> DynCombinatorTrait for CacheContext<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
     type Parser<'a> = CacheContextParser where Self: 'a;
 
@@ -205,6 +211,12 @@ impl ParserTrait for CacheContextParser {
             global_cache.cleanup();
             parse_result
         })
+    }
+}
+
+impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Cached<T> {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
     }
 }
 

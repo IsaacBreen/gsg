@@ -28,6 +28,12 @@ pub struct SeqParser<'a> {
     pub(crate) position: usize,
 }
 
+impl DynCombinatorTrait for Seq {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl CombinatorTrait for Seq {
     type Parser<'a> = SeqParser<'a>;
 

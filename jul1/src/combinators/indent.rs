@@ -64,6 +64,12 @@ impl<'a> ParserTrait for OwningParser<'a> {
     }
 }
 
+impl DynCombinatorTrait for IndentCombinator {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+}
+
 impl CombinatorTrait for IndentCombinator {
     type Parser<'a> = IndentCombinatorParser<'a>;
 

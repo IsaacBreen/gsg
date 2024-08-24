@@ -18,6 +18,16 @@ macro_rules! define_choice {
             pub(crate) greedy: bool,
         }
 
+        impl<$first: 'static, $($rest: 'static),+> $crate::DynCombinatorTrait for $choice_name<$first, $($rest),+>
+        where
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
+        {
+            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+                todo!()
+            }
+        }
+
         impl<$first: 'static, $($rest: 'static),+> CombinatorTrait for $choice_name<$first, $($rest),+>
         where
             $first: CombinatorTrait,
