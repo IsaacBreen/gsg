@@ -207,7 +207,7 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait + 'a, 
         }
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut right_data_as = VecY::new();
         // let mut right_data_as: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 

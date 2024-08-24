@@ -74,7 +74,7 @@ impl ParserTrait for TaggedParser {
         self.inner.get_u8set()
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.inner.parse(bytes)
     }
 }

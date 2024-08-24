@@ -185,7 +185,7 @@ impl ParserTrait for CacheContextParser<'_> {
         self.inner.get_u8set()
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         GLOBAL_CACHE.with(|cache| {
             {
                 let mut global_cache = cache.borrow_mut();
@@ -298,7 +298,7 @@ impl ParserTrait for CachedParser<'_> {
         self.entry.borrow().parser.as_ref().unwrap().get_u8set()
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.steps: parse_results is None")
     }
 }

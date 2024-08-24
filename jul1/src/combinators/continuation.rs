@@ -127,7 +127,7 @@ impl ParserTrait for ContinuationParser {
         U8Set::all()
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         // self.bytes.extend_from_slice(bytes);
         // if let Some(right_data) = self.right_data.take() {
         //     match (self.run)(right_data.clone(), &self.bytes) {

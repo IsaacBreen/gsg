@@ -151,7 +151,7 @@ macro_rules! define_seq {
                 u8set
             }
 
-            fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+            fn parse(&mut self, bytes: &[u8]) -> ParseResults {
                 profile!(stringify!($seq_parser_name, "::parse"), {
                     let mut new_right_data: VecY<RightData> = VecY::new();
 

@@ -77,7 +77,7 @@ impl ParserTrait for EatByteStringChoiceParser<'_> {
         }
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }

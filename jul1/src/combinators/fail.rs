@@ -38,7 +38,7 @@ impl ParserTrait for FailParser {
         panic!("FailParser.get_u8set() called")
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("FailParser already consumed")
     }
 }

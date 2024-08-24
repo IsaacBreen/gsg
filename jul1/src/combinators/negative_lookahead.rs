@@ -73,7 +73,7 @@ impl ParserTrait for ExcludeBytestringsParser<'_> {
         self.inner.get_u8set()
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut parse_results = self.inner.parse(bytes);
         if let Some(node) = self.node {
             let (indices, node) = node.get_indices(bytes);

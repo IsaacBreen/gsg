@@ -136,7 +136,7 @@ impl ParserTrait for ProfiledParser {
         self.inner.get_u8set()
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         profile!(&self.tag, self.inner.parse(bytes))
     }
 }

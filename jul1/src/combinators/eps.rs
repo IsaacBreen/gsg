@@ -37,7 +37,7 @@ impl ParserTrait for EpsParser {
         panic!("EpsParser.get_u8set() called")
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("EpsParser already consumed")
     }
 }

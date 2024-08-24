@@ -114,7 +114,7 @@ impl ParserTrait for ChoiceParser {
         u8set
     }
 
-    fn parse<'b>(&'b mut self, bytes: &[u8]) -> ParseResults where Self: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut parse_result = ParseResults::empty_finished();
         let mut discard_rest = false;
 
