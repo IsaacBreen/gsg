@@ -16,7 +16,7 @@ pub struct Repeat1<T: CombinatorTrait + DynCombinatorTrait> {
 }
 
 #[derive(Debug)]
-pub struct Repeat1Parser<'a, T> where T: CombinatorTrait{
+pub struct Repeat1Parser<'a, T> where T: CombinatorTrait {
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
     pub(crate) a: &'a T,
     pub(crate) a_parsers: Vec<T::Parser<'a>>,
@@ -239,11 +239,15 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait + 'a, 
     }
 }
 
-pub fn repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait where for<'a> T: 'a {
-    profile_internal("repeat1", Repeat1 {
+pub fn repeat1<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
+    // profile_internal("repeat1", Repeat1 {
+    //     a: a.into_combinator(),
+    //     greedy: false,
+    // })
+    Repeat1 {
         a: a.into_combinator(),
         greedy: false,
-    })
+    }
 }
 
 pub fn repeat1_greedy<T: IntoCombinator>(a: T)-> impl CombinatorTrait where for<'a> T: 'a {
