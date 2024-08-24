@@ -214,14 +214,14 @@ impl ParserTrait for CacheContextParser<'_> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Cached<T> {
+impl<T: CombinatorTrait> DynCombinatorTrait for Cached<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
-    type Parser<'a> = CachedParser<'a>;
+impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
+    type Parser<'a> = CachedParser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(move |cache| {
@@ -284,7 +284,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Cached<T> {
+impl<T: CombinatorTrait> BaseCombinatorTrait for Cached<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         todo!()
     }
