@@ -28,6 +28,10 @@ impl<'a, T: DynCombinatorTrait> DynCombinatorTrait for Repeat1<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
+
+    fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
 }
 
 impl<T: CombinatorTrait > CombinatorTrait for Repeat1<T> {

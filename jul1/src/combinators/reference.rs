@@ -74,6 +74,10 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for WeakRef<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
+
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for WeakRef<T> {
@@ -101,6 +105,10 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for WeakRef<T> {
 
 impl<T: CombinatorTrait + 'static> DynCombinatorTrait for StrongRef<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         todo!()
     }
 }

@@ -25,6 +25,10 @@ impl DynCombinatorTrait for ForbidFollows {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
+
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
 }
 
 impl CombinatorTrait for ForbidFollows {
@@ -50,6 +54,10 @@ impl DynCombinatorTrait for ForbidFollowsClear {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
+
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
 }
 
 impl CombinatorTrait for ForbidFollowsClear {
@@ -72,6 +80,10 @@ impl BaseCombinatorTrait for ForbidFollowsClear {
 
 impl DynCombinatorTrait for ForbidFollowsCheckNot {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         todo!()
     }
 }

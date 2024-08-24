@@ -125,6 +125,10 @@ impl<T: CombinatorTrait> DynCombinatorTrait for CacheContext<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
+
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
 }
 
 impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
@@ -216,6 +220,10 @@ impl ParserTrait for CacheContextParser<'_> {
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Cached<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+        todo!()
+    }
+
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         todo!()
     }
 }

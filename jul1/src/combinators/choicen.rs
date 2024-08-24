@@ -40,6 +40,10 @@ macro_rules! define_choice {
             fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
                 todo!()
             }
+
+            fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+                todo!()
+            }
         }
 
         impl<$first, $($rest),+> CombinatorTrait for $choice_name<$first, $($rest),+>

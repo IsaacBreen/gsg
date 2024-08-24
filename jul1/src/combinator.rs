@@ -36,7 +36,8 @@ pub trait CombinatorTrait: BaseCombinatorTrait + DynCombinatorTrait + std::fmt::
 }
 
 pub trait DynCombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
-    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults);
+    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults);
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults;
 }
 
 pub trait BaseCombinatorTrait {
@@ -87,6 +88,10 @@ impl<T: CombinatorTrait + ?Sized> DynCombinatorTrait for Box<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
+
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
 }
 
 impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
@@ -134,11 +139,11 @@ impl CombinatorTrait for dyn DynCombinatorTrait {
     type Parser<'a> = Box<dyn ParserTrait> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        (*self).one_shot_parse(right_data, bytes)
+        (*self).one_shot_parse_dyn(right_data, bytes)
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        (*self).old_parse(right_data, bytes)
+        (*self).parse_dyn(right_data, bytes)
     }
 }
 

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
-use crate::{CombinatorTrait, FailParser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, Squash, BaseCombinatorTrait};
+use crate::{CombinatorTrait, FailParser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, Squash, BaseCombinatorTrait, UnambiguousParseResults};
 
 macro_rules! profile {
     ($name:expr, $expr:expr) => {
@@ -42,6 +42,10 @@ macro_rules! define_seq {
             $(for<'a> $rest: 'a),+
         {
             fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
+                todo!()
+            }
+
+            fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
                 todo!()
             }
         }

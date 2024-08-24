@@ -16,6 +16,10 @@ impl<C: CombinatorTrait> DynCombinatorTrait for DynCombinator<C> where for<'a> C
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
+
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        todo!()
+    }
 }
 
 impl<C: CombinatorTrait> CombinatorTrait for DynCombinator<C> where for<'a> C: 'a {
