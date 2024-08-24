@@ -1,6 +1,5 @@
-use crate::{BaseCombinatorTrait, RightData};
 use std::rc::Rc;
-use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, ParseResults, ParseResultTrait, Choice, deferred, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};
+use crate::{cache_context, cached, symbol, Symbol, mutate_right_data, RightData, Choice, deferred, Combinator, CombinatorTrait, eat_char_choice, eat_char_range, eat_string, eps, Eps, forbid_follows, forbid_follows_check_not, forbid_follows_clear, Repeat1, Seq, tag, lookahead, negative_lookahead};
 use crate::seq;
 use crate::{opt_greedy as opt, choice_greedy as choice, seprep0_greedy as seprep0, seprep1_greedy as seprep1, repeat0_greedy as repeat0, repeat1_greedy as repeat1};
 use crate::IntoDyn;
@@ -23,8 +22,8 @@ enum Forbidden {
 use super::python_tokenizer as token;
 
 pub fn python_literal(s: &str) -> impl CombinatorTrait {
-    let increment_scope_count = |right_data: &mut RightData| { right_data.get_inner_mut().fields1.scope_count += 1; true };
-    let decrement_scope_count = |right_data: &mut RightData| { right_data.get_inner_mut().fields1.scope_count -= 1; true };
+    let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count += 1; true };
+    let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
 
     match s {
         "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(WS))).into_dyn(),
