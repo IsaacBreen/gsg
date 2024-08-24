@@ -16,9 +16,9 @@ pub struct Repeat1<T: CombinatorTrait + DynCombinatorTrait> {
 }
 
 #[derive(Debug)]
-pub struct Repeat1Parser<'a> {
+pub struct Repeat1Parser<'a, T> where T: CombinatorTrait{
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
-    pub(crate) a: &'a dyn DynCombinatorTrait,
+    pub(crate) a: &'a T,
     pub(crate) a_parsers: Vec<Box<dyn ParserTrait + 'a>>,
     pub(crate) position: usize,
     pub(crate) greedy: bool,
@@ -31,7 +31,7 @@ impl<T: CombinatorTrait + DynCombinatorTrait> DynCombinatorTrait for Repeat1<T> 
 }
 
 impl<T: CombinatorTrait + DynCombinatorTrait > CombinatorTrait for Repeat1<T> where for<'a> T: 'a {
-    type Parser<'a> = Repeat1Parser<'a> where Self: 'a;
+    type Parser<'a> = Repeat1Parser<'a, T> where Self: 'a;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;
@@ -194,7 +194,7 @@ where
     }
 }
 
-impl<'a> ParserTrait for Repeat1Parser<'a> {
+impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait {
     fn get_u8set(&self) -> U8Set {
         if self.a_parsers.is_empty() {
             U8Set::none()
@@ -211,14 +211,12 @@ impl<'a> ParserTrait for Repeat1Parser<'a> {
         let mut right_data_as = VecY::new();
         // let mut right_data_as: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
-        for mut a_parser in std::mem::take(&mut self.a_parsers) {
+        self.a_parsers.retain_mut(|mut a_parser| {
             let parse_results = a_parser.parse(bytes);
-            if !parse_results.done() {
-                self.a_parsers.push(a_parser);
-            }
             // right_data_as.entry(parse_results.right_data_vec.len()).or_default().extend(parse_results.right_data_vec);
             right_data_as.extend(parse_results.right_data_vec);
-        }
+            !parse_results.done
+        });
 
         right_data_as.squash();
 
@@ -228,7 +226,7 @@ impl<'a> ParserTrait for Repeat1Parser<'a> {
             let offset = right_data_a.right_data_inner.fields1.position - self.position;
             let (a_parser, parse_results) = self.a.parse(right_data_a, &bytes[offset..]);
             if !parse_results.done() {
-                self.a_parsers.push(a_parser);
+                self.a_parsers.push(Box::new(a_parser));
             }
             // right_data_as.entry(i).or_default().extend(parse_results.right_data_vec);
             right_data_as.extend(parse_results.right_data_vec);
