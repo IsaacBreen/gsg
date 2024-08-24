@@ -19,7 +19,7 @@ pub struct Repeat1<T: CombinatorTrait + DynCombinatorTrait> {
 pub struct Repeat1Parser<'a, T> where T: CombinatorTrait{
     // TODO: store a_parsers in a Vec<Vec<Parser>> where the index of each inner vec is the repetition count of those parsers. That way, we can easily discard earlier parsers when we get a decisively successful parse result.
     pub(crate) a: &'a T,
-    pub(crate) a_parsers: Vec<Box<dyn ParserTrait + 'a>>,
+    pub(crate) a_parsers: Vec<T::Parser<'a>>,
     pub(crate) position: usize,
     pub(crate) greedy: bool,
 }
@@ -126,7 +126,7 @@ impl<T: CombinatorTrait + DynCombinatorTrait > CombinatorTrait for Repeat1<T> wh
         } else if parse_results.right_data_vec.is_empty() {
             return (Repeat1Parser {
                 a: &self.a,
-                a_parsers: vec![Box::new(parser)],
+                a_parsers: vec![parser],
                 position: start_position + bytes.len(),
                 greedy: self.greedy
             }, ParseResults::new(vecy![], false));
@@ -134,7 +134,7 @@ impl<T: CombinatorTrait + DynCombinatorTrait > CombinatorTrait for Repeat1<T> wh
         let mut parsers = if parse_results.done() {
             vec![]
         } else {
-            vec![Box::new(parser) as Box<dyn ParserTrait>]
+            vec![parser]
         };
         let mut all_prev_succeeded_decisively = parse_results.succeeds_decisively();
         let mut right_data_vec = parse_results.right_data_vec;
@@ -145,7 +145,7 @@ impl<T: CombinatorTrait + DynCombinatorTrait > CombinatorTrait for Repeat1<T> wh
                 let offset = new_right_data.right_data_inner.fields1.position - start_position;
                 let (parser, parse_results) = self.a.parse(new_right_data, &bytes[offset..]);
                 if !parse_results.done() {
-                    parsers.push(Box::new(parser));
+                    parsers.push(parser);
                 }
                 all_prev_succeeded_decisively &= parse_results.succeeds_decisively();
                 if self.greedy && all_prev_succeeded_decisively {
@@ -201,7 +201,7 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait + 'a, 
         } else {
             let mut u8set = U8Set::none();
             for p in &self.a_parsers {
-                u8set = u8set | p.as_ref().get_u8set();
+                u8set = u8set | p.get_u8set();
             }
             u8set
         }
@@ -226,7 +226,7 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait + 'a, 
             let offset = right_data_a.right_data_inner.fields1.position - self.position;
             let (a_parser, parse_results) = self.a.parse(right_data_a, &bytes[offset..]);
             if !parse_results.done() {
-                self.a_parsers.push(Box::new(a_parser));
+                self.a_parsers.push(a_parser);
             }
             // right_data_as.entry(i).or_default().extend(parse_results.right_data_vec);
             right_data_as.extend(parse_results.right_data_vec);
