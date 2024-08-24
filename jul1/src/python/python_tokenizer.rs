@@ -998,7 +998,7 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
             one_single
         ),
         seq!(
-            check_right_data(|right_data| { matches!(right_data.right_data_inner.fields2.fstring_start_stack.last(), Some(PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble)) }),
+            check_right_data(|right_data| { matches!(right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap(), PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble) }),
             three
         ),
     )
