@@ -13,8 +13,8 @@ pub struct Choice {
 }
 
 #[derive(Debug)]
-pub struct ChoiceParser {
-    pub(crate) parsers: Vec<Box<dyn ParserTrait>>,
+pub struct ChoiceParser<'a> {
+    pub(crate) parsers: Vec<Box<dyn ParserTrait + 'a>>,
     pub(crate) greedy: bool,
 }
 
@@ -29,7 +29,7 @@ impl DynCombinatorTrait for Choice {
 }
 
 impl CombinatorTrait for Choice {
-    type Parser<'a> = ChoiceParser;
+    type Parser<'a> = ChoiceParser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if self.greedy {
@@ -79,9 +79,9 @@ impl CombinatorTrait for Choice {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
-        for child in self.children.iter() {
-            let (parser, parse_results) = child.parse(right_data.clone(), bytes);
-            if !parse_results.done() {
+        for child in &self.children {
+            let (parser, parse_results) = child.as_ref().parse_dyn(right_data.clone(), bytes);
+            if !parse_results.done {
                 parsers.push(parser);
             }
             let discard_rest = self.greedy && parse_results.succeeds_decisively();
@@ -109,7 +109,7 @@ impl BaseCombinatorTrait for Choice {
     }
 }
 
-impl ParserTrait for ChoiceParser {
+impl ParserTrait for ChoiceParser<'_> {
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::none();
         for parser in &self.parsers {
