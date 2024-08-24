@@ -23,6 +23,7 @@ pub struct Fields2 {
     // pub frame_stack: Option<FrameStack>,
     pub indents: VecZ<Vec<u8>>,
     // pub fstring_start_stack: VecZ<PythonQuoteType>
+    pub fstring_start_stack: VecZ<()>
 }
 
 #[derive(Derivative)]

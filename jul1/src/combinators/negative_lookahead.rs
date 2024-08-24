@@ -52,7 +52,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
             !indices.contains(&(right_data.right_data_inner.fields1.position - start_position))
         });
         (ExcludeBytestringsParser {
-            inner,
+            inner: Box::new(inner),
             node: node.map(|node| node),
             start_position,
         }, parse_results)

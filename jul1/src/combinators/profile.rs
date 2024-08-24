@@ -116,7 +116,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         profile!(&self.tag, {
             let (parser, parse_results) = self.inner.parse(right_data, bytes);
-            let parser = ProfiledParser { inner: parser, tag: self.tag.clone() };
+            let parser = ProfiledParser { inner: Box::new(parser), tag: self.tag.clone() };
             (parser, parse_results)
         })
     }

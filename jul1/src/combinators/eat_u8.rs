@@ -39,7 +39,7 @@ impl CombinatorTrait for EatU8 {
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let parser = EatU8Parser {
+        let mut parser = EatU8Parser {
             u8set: self.u8set.clone(),
             right_data: Some(right_data),
         };

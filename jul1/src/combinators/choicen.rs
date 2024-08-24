@@ -33,7 +33,7 @@ macro_rules! define_choice {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
-            type Parser<'a> = ChoiceParser;
+            type Parser<'a> = Box<dyn ParserTrait> where Self: 'a;
 
             fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 use $crate::{UnambiguousParseResults, UnambiguousParseError};
@@ -89,10 +89,10 @@ macro_rules! define_choice {
                 });
                 let discard_rest = self.greedy && first_parse_results.succeeds_decisively();
                 if discard_rest {
-                    return (first_parser, first_parse_results);
+                    return (Box::new(first_parser), first_parse_results);
                 }
                 let mut parsers = if !first_parse_results.done() {
-                    vec![first_parser]
+                    vec![Box::new(first_parser) as Box<dyn ParserTrait>]
                 } else {
                     Vec::new()
                 };
@@ -104,25 +104,25 @@ macro_rules! define_choice {
                         next_combinator.parse(right_data.clone(), bytes)
                     });
                     if !next_parse_results.done() {
-                        parsers.push(next_parser);
+                        parsers.push(Box::new(next_parser));
                     }
                     let discard_rest = self.greedy && next_parse_results.succeeds_decisively();
                     combined_results.merge_assign(next_parse_results);
                     if discard_rest {
                         return (
-                            ChoiceParser { parsers, greedy: self.greedy },
+                            Box::new(ChoiceParser { parsers, greedy: self.greedy }),
                             combined_results
                         );
                     }
                 )+
 
                 if parsers.len() == 0 {
-                    return (ChoiceParser { parsers: vec![], greedy: self.greedy }, combined_results);
+                    return (Box::new(ChoiceParser { parsers: vec![], greedy: self.greedy }), combined_results);
                 } else if parsers.len() == 1 {
-                    return (ChoiceParser { parsers, greedy: self.greedy }, combined_results);
+                    return (Box::new(ChoiceParser { parsers, greedy: self.greedy }), combined_results);
                 } else {
                     (
-                        ChoiceParser { parsers, greedy: self.greedy },
+                        Box::new(ChoiceParser { parsers, greedy: self.greedy }),
                         combined_results
                     )
                 }

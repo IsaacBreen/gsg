@@ -24,7 +24,7 @@ pub struct Repeat1Parser<'a> {
     pub(crate) greedy: bool,
 }
 
-impl<T: CombinatorTrait + DynCombinatorTrait > DynCombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait + DynCombinatorTrait> DynCombinatorTrait for Repeat1<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
         todo!()
     }
@@ -182,7 +182,7 @@ impl<T: CombinatorTrait + DynCombinatorTrait > CombinatorTrait for Repeat1<T> {
     }
 }
 
-impl<T: CombinatorTrait + DynCombinatorTrait > BaseCombinatorTrait for Repeat1<T> {
+impl<T: CombinatorTrait + DynCombinatorTrait> BaseCombinatorTrait for Repeat1<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

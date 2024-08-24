@@ -26,7 +26,8 @@ impl<C: CombinatorTrait> CombinatorTrait for DynCombinator<C> {
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        self.combinator.old_parse(right_data, bytes)
+        let (parser, parse_results) = self.combinator.old_parse(right_data, bytes);
+        (Box::new(parser), parse_results)
     }
 }
 

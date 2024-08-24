@@ -35,8 +35,8 @@ macro_rules! define_seq {
 
         impl<$first, $($rest),+> $crate::DynCombinatorTrait for $seq_name<$first, $($rest),+>
         where
-            $first: CombinatorTrait + 'static,
-            $($rest: CombinatorTrait + 'static),+
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
         {
             fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait>, ParseResults) {
                 todo!()
@@ -45,10 +45,10 @@ macro_rules! define_seq {
 
         impl<$first, $($rest),+> CombinatorTrait for $seq_name<$first, $($rest),+>
         where
-            $first: CombinatorTrait + 'static,
-            $($rest: CombinatorTrait + 'static),+
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
         {
-            type Parser<'a> = $seq_parser_name<'a, $first, $($rest),+>;
+            type Parser<'a> = $seq_parser_name<'a, $first, $($rest),+> where Self: 'a;
 
             fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 let start_position = right_data.right_data_inner.fields1.position;
@@ -81,11 +81,11 @@ macro_rules! define_seq {
                         first_parse_results
                     );
                 }
-                let first_parser_vec = if all_done { vec![] } else { vec![first_parser] };
+                let first_parser_vec = if all_done { vec![] } else { vec![Box::new(first_parser) as Box<dyn ParserTrait>] };
 
                 let mut next_right_data_vec = first_parse_results.right_data_vec;
 
-                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (Box<dyn ParserTrait>, ParseResults) {
+                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (impl ParserTrait, ParseResults) {
                     let offset = right_data.right_data_inner.fields1.position - start_position;
                     profile!(stringify!($seq_name, " child parse"), {
                         next_combinator.parse(right_data, &bytes[offset..])
@@ -118,7 +118,7 @@ macro_rules! define_seq {
                         let (parser, parse_results) = helper(right_data, &self.$rest, &bytes, start_position);
                         if !parse_results.done() {
                             all_done = false;
-                            seqn_parser.$rest.push(parser);
+                            seqn_parser.$rest.push(Box::new(parser));
                         }
                         next_next_right_data_vec.extend(parse_results.right_data_vec);
                     }
@@ -188,7 +188,7 @@ macro_rules! define_seq {
                                 combinator.parse(right_data, &bytes[offset..])
                             });
                             if !parse_results.done() {
-                                self.$rest.push(parser);
+                                self.$rest.push(Box::new(parser));
                             }
                             new_right_data.extend(parse_results.right_data_vec);
                         }
@@ -203,7 +203,7 @@ macro_rules! define_seq {
             }
         }
 
-        impl<$first: 'static, $($rest: 'static),+> BaseCombinatorTrait for $seq_name<$first, $($rest),+>
+        impl<$first, $($rest),+> BaseCombinatorTrait for $seq_name<$first, $($rest),+>
         where
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
@@ -456,7 +456,7 @@ macro_rules! seq {
         }
     }};
     ($c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr, $c15:expr, $($rest:expr),+ $(,)?) => {{
-        fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output: 'static {
+        fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output {
             Box::new(x.into_combinator())
         }
 
@@ -467,7 +467,7 @@ macro_rules! seq {
 // #[macro_export]
 // macro_rules! seq {
 //     ($($x:expr),+ $(,)?) => {{
-//         fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output: 'static {
+//         fn convert<T: $crate::IntoCombinator>(x: T) -> Box<dyn $crate::CombinatorTrait> where T::Output {
 //             Box::new(x.into_combinator())
 //         }
 //
