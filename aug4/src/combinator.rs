@@ -11,6 +11,22 @@ pub trait IntoBoxDynCombinator {
     fn into_dyn<'a>(self) -> Box<dyn CombinatorTrait + 'a> where Self: 'a;
 }
 
+// Non-greedy choice
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Choice<T: CombinatorTrait> {
+    pub children: Vec<T>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Seq<T: CombinatorTrait> {
+    pub children: Vec<T>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct EatU8 {
+    pub u8: u8,
+}
+
 impl<T: CombinatorTrait> IntoBoxDynCombinator for T {
     fn into_dyn<'a>(self) -> Box<dyn CombinatorTrait + 'a> where Self: 'a { Box::new(self) }
 }
@@ -41,22 +57,6 @@ impl<'a> PartialEq for &'a dyn CombinatorTrait {
         let other_ptr = std::ptr::addr_of!(**other);
         std::ptr::addr_eq(self_ptr, other_ptr)
     }
-}
-
-// Non-greedy choice
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Choice<T: CombinatorTrait> {
-    pub children: Vec<T>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Seq<T: CombinatorTrait> {
-    pub children: Vec<T>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct EatU8 {
-    pub u8: u8,
 }
 
 impl<T: CombinatorTrait> AsAny for Choice<T> { fn as_any(&self) -> &dyn std::any::Any where Self: 'static { self } }
