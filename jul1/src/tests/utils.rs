@@ -81,6 +81,28 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
         let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
         println!("{:>9} {:6.2}% {}", format!("{:.3?}", duration), percent, tag);
     }
+    println!("Hit counts:");
+    let total_hit_count = profile_data.hit_counts.values().sum::<usize>();
+    let mut hit_counts = profile_data.hit_counts.iter().collect::<Vec<_>>();
+    hit_counts.sort_by(|(_, hit_count_a), (_, hit_count_b)| hit_count_b.partial_cmp(hit_count_a).unwrap());
+    for (tag, hit_count) in hit_counts.clone() {
+        let percent = *hit_count as f64 / total_hit_count as f64 * 100.0;
+        println!("{:>9} {:6.2}% {}", format!("{:.3?}", hit_count), percent, tag);
+    }
+    // Duration per hit
+    println!("Duration per hit:");
+    let mut duration_per_hit: HashMap<String, Duration> = HashMap::new();
+    for (tag, hits) in profile_data.hit_counts.iter() {
+        if let Some(duration) = profile_data.timings.get(tag) {
+            duration_per_hit.insert(tag.clone(), *duration / *hits as u32);
+        }
+    }
+    let mut duration_per_hit: Vec<(String, Duration)> = duration_per_hit.into_iter().collect::<Vec<_>>();
+    duration_per_hit.sort_by(|(_, duration_a), (_, duration_b)| duration_b.partial_cmp(duration_a).unwrap());
+    for (tag, duration) in duration_per_hit.clone() {
+        let percent = duration.as_secs_f64() / total_time.as_secs_f64() * 100.0;
+        println!("{:>9} {:6.2}% {}", format!("{:.3?}", duration), percent, tag);
+    }
     drop(profile_data);
 
     // Print timing results
