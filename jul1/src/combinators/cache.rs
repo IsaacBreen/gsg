@@ -316,11 +316,11 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Cached<T> {
 
 impl ParserTrait for CachedParser {
     fn get_u8set(&self) -> U8Set {
-        if let Some(u8set) = self.entry.borrow().maybe_u8set.clone() {
-            u8set
+        if self.entry.borrow().maybe_u8set.is_some() {
+            self.entry.borrow().maybe_u8set.clone().unwrap()
         } else {
             let u8set = self.entry.borrow().parser.as_ref().unwrap().get_u8set();
-            self.entry.borrow_mut().maybe_u8set = Some(u8set);
+            self.entry.borrow_mut().maybe_u8set = Some(u8set.clone());
             u8set
         }
     }
