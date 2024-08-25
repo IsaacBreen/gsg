@@ -15,11 +15,11 @@ use lru::LruCache;
 use crate::{CombinatorTrait, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, Squash, U8Set, IntoCombinator, IntoDyn, count_hit};
 
 
-macro_rules! profile {
-    ($tag:expr, $body:expr) => {{
-        $body
-    }};
-}
+// macro_rules! profile {
+//     ($tag:expr, $body:expr) => {{
+//         $body
+//     }};
+// }
 
 // macro_rules! count_hit { ($tag:expr) => {} }
 
