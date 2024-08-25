@@ -10,11 +10,11 @@ use crate::{LookaheadData, ParseResults, profile, ParseResultTrait, U8Set, VecX,
 //     }};
 // }
 
-macro_rules! profile {
-    ($tag:expr, $body:expr) => {{
-        $body
-    }};
-}
+// macro_rules! profile {
+//     ($tag:expr, $body:expr) => {{
+//         $body
+//     }};
+// }
 
 const SQUASH_THRESHOLD: usize = 1;
 
@@ -59,10 +59,12 @@ impl Squash for ParseResults {
         }
     }
     fn squash(&mut self) {
+        profile!("ParseResults::squash", {
         if self.right_data_vec.len() > SQUASH_THRESHOLD {
             // *self.right_data_vec = std::mem::take(&mut self.right_data_vec).squashed();
             *self = self.clone().squashed();
         }
+            })
     }
 }
 
