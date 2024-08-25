@@ -18,12 +18,12 @@ pub trait IntoBoxDynCombinator {
 
 // Non-greedy choice
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Choice<T: CombinatorTrait> {
+pub struct Choice<T> {
     pub children: Vec<T>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Seq<T: CombinatorTrait> {
+pub struct Seq<T> {
     pub children: Vec<T>,
 }
 
