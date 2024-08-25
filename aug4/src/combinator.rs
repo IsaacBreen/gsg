@@ -225,6 +225,10 @@ macro_rules! seq_dyn {
     };
 }
 
+pub fn seq2<L, R>(l: L, r: R) -> Seq2<L, R> {
+    Seq2 { l, r }
+}
+
 #[cfg(test)]
 mod test_parse {
     use std::assert_matches::assert_matches;
