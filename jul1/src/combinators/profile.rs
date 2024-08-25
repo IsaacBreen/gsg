@@ -57,6 +57,13 @@ impl ProfileDataInner {
     }
 }
 
+pub fn clear_profile_data() {
+    let mut profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
+    profile_data.timings.clear();
+    profile_data.hit_counts.clear();
+    profile_data.tag_stack.clear();
+    profile_data.start_time = Instant::now();
+}
 
 #[macro_export]
 macro_rules! profile {

@@ -1,4 +1,4 @@
-use crate::{RightData, UnambiguousParseResults};
+use crate::{clear_profile_data, RightData, UnambiguousParseResults};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use kdam::tqdm;
@@ -14,13 +14,14 @@ use std::iter;
 const VERBOSE: bool = false;
 
 pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
+    clear_profile_data();
     let mut input = input.to_string();
     println!("beginning assert_parses {}", desc);
 
     let mut timings: Vec<(String, std::time::Duration)> = Vec::new();
 
     let start_right_data = RightData::default();
-    let (mut parser, mut parse_results) = T::parser(&combinator, start_right_data);
+    let (mut parser, mut parse_results) = profile!("parser", T::parser(&combinator, start_right_data));
 
     let lines = input.lines().collect::<Vec<_>>();
     let num_lines = lines.len();
