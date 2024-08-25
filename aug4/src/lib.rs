@@ -14,6 +14,7 @@ mod combinators;
 mod compile;
 mod tests;
 mod incremental_parse;
+mod parser;
 
 pub use parse_state::*;
 pub use tokenizer::*;

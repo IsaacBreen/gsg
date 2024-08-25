@@ -8,11 +8,6 @@ pub trait CombinatorTrait: Debug + AsAny + Compile {
     fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>>;
 }
 
-pub trait ParserTrait: Debug {
-    fn parse(&mut self, input: &[u8]) -> UnambiguousParseResults;
-    fn get_u8set(&self) -> U8Set;
-}
-
 pub trait IntoBoxDynCombinator {
     fn into_dyn<'a>(self) -> Box<dyn CombinatorTrait + 'a> where Self: 'a;
 }
@@ -37,7 +32,7 @@ impl<T: CombinatorTrait> IntoBoxDynCombinator for T {
     fn into_dyn<'a>(self) -> Box<dyn CombinatorTrait + 'a> where Self: 'a { Box::new(self) }
 }
 
-impl CombinatorTrait for Box<dyn CombinatorTrait> {
+impl<'b> CombinatorTrait for Box<dyn CombinatorTrait + 'b> {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
         self.as_ref().parse(right_data, input)
     }
@@ -199,7 +194,7 @@ macro_rules! seq_dyn {
     };
 }
 
-impl Compile for Box<dyn CombinatorTrait> {
+impl<'a> Compile for Box<dyn CombinatorTrait + 'a> {
     fn compile_inner(&self) {
         self.as_ref().compile_inner();
     }
