@@ -262,7 +262,8 @@ mod test_rotate_right {
 
     macro_rules! assert_combinators_eq {
         ($a:expr, $b:expr) => {
-            assert_eq!(format!("{:?}", $a), format!("{:?}", $b));
+            assert_eq!($a, $b);
+            // assert_eq!(format!("{:?}", $a), format!("{:?}", $b));
         };
     }
 
