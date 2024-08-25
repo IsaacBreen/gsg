@@ -36,7 +36,8 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T,
 // todo: this trait is really messy. Any way to clean it up?
 // Trait for evaluating the deferred function
 trait DeferredFnTrait<T: CombinatorTrait + 'static>: Debug {
-    // todo: the fact that we need this struct right now is dumb. Aim to remove it. But we don't want to have to return a (bool, T) tuple - that's even worse and it's what we're trying to avoid by using the struct.
+    // todo: the fact that
+    // we need this struct right now is dumb. Aim to remove it. But we don't want to have to return a (bool, T) tuple - that's even worse and it's what we're trying to avoid by using the struct.
     fn evaluate_to_combinator(&self) -> EvaluateToCombinatorResult<T>;
     fn get_addr(&self) -> usize;
 }

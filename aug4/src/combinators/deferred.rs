@@ -10,6 +10,9 @@ use std::panic::Location;
 use std::rc::Rc;
 use crate::*;
 use once_cell::unsync::OnceCell;
+use crate::combinators::reference::StrongRef;
+use crate::compile::Compile;
+use crate::helper_traits::AsAny;
 
 thread_local! {
     static DEFERRED_CACHE: RefCell<HashMap<CacheKey, CacheEntry>> = RefCell::new(HashMap::new());
@@ -61,122 +64,95 @@ struct CacheEntry {
     caller_locations: RefCell<HashSet<String>>,
 }
 
-// impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
-//     fn evaluate_to_combinator(&self) -> EvaluateToCombinatorResult<T> {
-//         DEFERRED_CACHE.with(|cache| {
-//             if cache.borrow().contains_key(&self.key) {
-//                 let borrowed = cache.borrow();
-//                 let entry = borrowed.get(&self.key).unwrap();
-//                 if let Some(value) = entry.value.as_any().downcast_ref::<T>() {
-//                     return EvaluateToCombinatorResult {
-//                         combinator: value.clone(),
-//                         cache_hit: true,
-//                     };
-//                 } else {
-//                     // Richer error printing
-//                     eprintln!("Deferred Cache: {:#?}", borrowed);
-//                     eprintln!("Key: {:?}", self.key);
-//                     eprintln!("Conflicting Entry: {:?}", entry);
-//                     // eprintln!("Existing Type Name: {:?}", entry.value.type_name());
-//                     eprintln!("Expected Type Name: {}", std::any::type_name::<T>());
-//                     panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.key.addr, TypeId::of::<T>(), entry.value.as_any().type_id());
-//                 }
-//             } else {
-//                 let value = (self.f)();
-//                 cache.borrow_mut().insert(self.key, CacheEntry {
-//                     value: Box::new(value.clone()),
-//                     caller_locations: RefCell::new(HashSet::new()),
-//                 });
-//                 return EvaluateToCombinatorResult {
-//                     combinator: value,
-//                     cache_hit: false,
-//                 };
-//             }
-//         })
-//     }
-//     fn get_addr(&self) -> usize {
-//         self.key.addr
-//     }
-// }
-
-impl<T: CombinatorTrait + 'static> PartialEq for Deferred<T> {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(&self.deferred_fn, &other.deferred_fn)
+impl<T: CombinatorTrait + Clone, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
+    fn evaluate_to_combinator(&self) -> EvaluateToCombinatorResult<T> {
+        DEFERRED_CACHE.with(|cache| {
+            if cache.borrow().contains_key(&self.key) {
+                let borrowed = cache.borrow();
+                let entry = borrowed.get(&self.key).unwrap();
+                if let Some(value) = entry.value.as_any().downcast_ref::<T>() {
+                    let combinator = value.clone();
+                    return EvaluateToCombinatorResult {
+                        combinator,
+                        cache_hit: true,
+                    };
+                } else {
+                    // Richer error printing
+                    // eprintln!("Deferred Cache: {:#?}", borrowed);
+                    // eprintln!("Key: {:?}", self.key);
+                    // eprintln!("Conflicting Entry: {:?}", entry);
+                    // eprintln!("Existing Type Name: {:?}", entry.value.type_name());
+                    // eprintln!("Expected Type Name: {}", std::any::type_name::<T>());
+                    panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.key.addr, TypeId::of::<T>(), entry.value.as_any().type_id());
+                }
+            } else {
+                let value = (self.f)();
+                cache.borrow_mut().insert(self.key, CacheEntry {
+                    value: Box::new(value.clone()),
+                    caller_locations: RefCell::new(HashSet::new()),
+                });
+                return EvaluateToCombinatorResult {
+                    combinator: value,
+                    cache_hit: false,
+                };
+            }
+        })
+    }
+    fn get_addr(&self) -> usize {
+        self.key.addr
     }
 }
 
-impl<T: CombinatorTrait + 'static> Eq for Deferred<T> {}
+impl<T: CombinatorTrait + 'static> AsAny for Deferred<T> { fn as_any(&self) -> &dyn Any { self } }
 
-impl<T: CombinatorTrait + 'static> Hash for Deferred<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(&self.deferred_fn, state);
+impl<T: CombinatorTrait + 'static> Compile for Deferred<T> {
+    fn compile_inner(&self) {
+        // Force evaluation and compilation of the inner combinator
+        let _ = self.inner.get_or_init(|| {
+            let result = self.deferred_fn.evaluate_to_combinator();
+            if !result.cache_hit {
+                result.combinator.compile_inner();
+            }
+            result.combinator
+        });
     }
 }
 
-// impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
-//     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-//         let (parser, parse_results) = self.parse(right_data, bytes);
-//         (Box::new(parser), parse_results)
-//     }
-//
-//     fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-//         self.one_shot_parse(right_data, bytes)
-//     }
-// }
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
+    fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
+        let combinator = self.inner.get().expect("inner combinator not initialized");
+        combinator.parse(right_data, input)
+    }
 
-// impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
-//     type Parser<'a> = T::Parser<'a>;
-//
-//     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-//         let combinator = self.inner.get().expect("inner combinator not initialized");
-//         combinator.one_shot_parse(right_data, bytes)
-//     }
-//
-//     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-//         // let combinator = self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator());
-//         let combinator = self.inner.get().expect("inner combinator not initialized");
-//         combinator.parse(right_data, bytes)
-//     }
-// }
-//
-// impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Deferred<T> {
-//     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
-//         f(self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator().combinator))
-//     }
-//     fn compile_inner(&self) {
-//         // Force evaluation and compilation of the inner combinator
-//         let _ = self.inner.get_or_init(|| {
-//             let result = self.deferred_fn.evaluate_to_combinator();
-//             if !result.cache_hit {
-//                 result.combinator.compile_inner();
-//             }
-//             result.combinator
-//         });
-//     }
-// }
+    fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>> {
+        let combinator = self.inner.get().expect("inner combinator not initialized");
+        combinator.rotate_right()
+    }
+}
 
-// // Public function for creating a Deferred combinator
-// #[track_caller]
-// pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRef<T>> {
-//     let addr = f as *const () as usize;
-//     let location = Location::caller();
-//     let caller_location_str = location.to_string();
-//     let key = CacheKey {
-//         addr,
-//         type_id: TypeId::of::<T>(),
-//     };
-//     DEFERRED_CACHE.with(|cache| {
-//         let mut cache = cache.borrow_mut();
-//         if let Some(entry) = cache.get_mut(&key) {
-//             entry.caller_locations.borrow_mut().insert(caller_location_str);
-//         }
-//     });
-//     let f = move || StrongRef::new(f());
-//     Deferred {
-//         deferred_fn: Box::new(DeferredFn {
-//             f,
-//             key
-//         }),
-//         inner: OnceCell::new(),
-//     }
-// }
+
+// Public function for creating a Deferred combinator
+#[track_caller]
+pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRef<T>> {
+    let addr = f as *const () as usize;
+    let location = Location::caller();
+    let caller_location_str = location.to_string();
+    let key = CacheKey {
+        addr,
+        type_id: TypeId::of::<T>(),
+    };
+    DEFERRED_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if let Some(entry) = cache.get_mut(&key) {
+            entry.caller_locations.borrow_mut().insert(caller_location_str);
+        }
+    });
+    let f = move || StrongRef::new(f());
+    Deferred {
+        deferred_fn: Box::new(DeferredFn {
+            f,
+            key
+        }),
+        inner: OnceCell::new(),
+    }
+}
