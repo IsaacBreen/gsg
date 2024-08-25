@@ -91,10 +91,10 @@ impl BaseCombinatorTrait for FastCombinatorWrapper {
 
 impl ParserTrait for FastParserWrapper<'_> {
     fn get_u8set(&self) -> U8Set {
-        self.regex_state.get_u8set()
-    }
+        profile!("FastParserWrapper.get_u8set", self.regex_state.get_u8set())
+}
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut regex_state = &mut self.regex_state;
         let prev_match = regex_state.prev_match();
         regex_state.execute(bytes);
