@@ -174,9 +174,7 @@ pub fn assert_parses_tight<T: CombinatorTrait, S: ToString>(combinator: &T, inpu
     let start = Instant::now();
 
     profile!("assert_parses_tight big block 2", {
-    'outer: for (line_number, line) in tqdm!(lines.iter().enumerate(), animation = "fillup", position = 0) {
-        let line_start = Instant::now();
-
+    'outer: for (line_number, line) in lines.iter().enumerate() {
         // Add newline back in
         let mut line = format!("{}", line);
         if line_number != num_lines - 1 {
