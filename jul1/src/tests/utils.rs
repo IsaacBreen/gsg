@@ -42,6 +42,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
             );
             assert!(byte_is_in_some_up_data, "byte {:?} is not in any up_data: {:?}. Line: {:?}, Char: {:?}, Text: {:?}, u8set: {:?}", byte as char, parse_results, line_number, char_number, line, parser.get_u8set());
 
+            profile!("assert_parses big block 1", {
             if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
                 timings.push((line.to_string(), Instant::now() - line_start));
                 break 'outer;
@@ -66,6 +67,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
             assert!(!parse_results.right_data_vec.is_empty() || !parser.get_u8set().is_empty(), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number, char_number);
             assert!(!parse_results.done(), "Parser finished prematurely at byte: {} on line: {} at char: {}", byte as char, line_number, char_number);
+            })
         }
 
         timings.push((line.to_string(), Instant::now() - line_start));
