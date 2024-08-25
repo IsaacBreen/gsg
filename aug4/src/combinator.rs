@@ -7,6 +7,11 @@ pub trait CombinatorTrait: Debug + AsAny {
     fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>>;
 }
 
+pub trait ParserTrait: Debug {
+    fn parse(&mut self, input: &[u8]) -> UnambiguousParseResults;
+    fn get_u8set(&self) -> U8Set;
+}
+
 pub trait IntoBoxDynCombinator {
     fn into_dyn<'a>(self) -> Box<dyn CombinatorTrait + 'a> where Self: 'a;
 }
