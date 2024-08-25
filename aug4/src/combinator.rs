@@ -39,7 +39,7 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for &T {
 
 impl<'a> PartialEq for &'a dyn CombinatorTrait {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self, other)
+        std::ptr::addr_eq(*self, *other)
     }
 }
 
@@ -262,6 +262,14 @@ mod test_parse {
 #[cfg(test)]
 mod test_rotate_right {
     use super::*;
+
+    #[test]
+    fn test_ref_dyn_eq() {
+        let a = eat_u8(b'a');
+        let a_ref1 = &a as &dyn CombinatorTrait;
+        let a_ref2 = &a as &dyn CombinatorTrait;
+        assert_eq!(a_ref1, a_ref2);
+    }
 
     #[test]
     fn test_eat_u8() {
