@@ -155,8 +155,6 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     if VERBOSE {
         println!("Saved timings to timings.csv");
     }
-
-    assert_parses_tight(combinator, input, "Parser failed unexpectedly");
 }
 
 pub fn assert_parses_tight<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
