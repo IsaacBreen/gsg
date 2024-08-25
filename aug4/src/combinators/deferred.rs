@@ -78,11 +78,11 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     };
                 } else {
                     // Richer error printing
-                    // eprintln!("Deferred Cache: {:#?}", borrowed);
-                    // eprintln!("Key: {:?}", self.key);
-                    // eprintln!("Conflicting Entry: {:?}", entry);
+                    eprintln!("Deferred Cache: {:#?}", borrowed);
+                    eprintln!("Key: {:?}", self.key);
+                    eprintln!("Conflicting Entry: {:?}", entry);
                     // eprintln!("Existing Type Name: {:?}", entry.value.type_name());
-                    // eprintln!("Expected Type Name: {}", std::any::type_name::<T>());
+                    eprintln!("Expected Type Name: {}", std::any::type_name::<T>());
                     panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.key.addr, TypeId::of::<T>(), entry.value.as_any().type_id());
                 }
             } else {
@@ -118,13 +118,13 @@ impl<'a, T: CombinatorTrait> Compile for Deferred<'a, T> {
     }
 }
 
-impl<'b, T: CombinatorTrait> CombinatorTrait for Deferred<'b, T> {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<'static, T> {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().expect("inner combinator not initialized");
         combinator.parse(right_data, input)
     }
 
-    fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a (dyn CombinatorTrait + 'b)>> {
+    fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>> {
         let combinator = self.inner.get().expect("inner combinator not initialized");
         combinator.rotate_right()
     }
@@ -133,7 +133,7 @@ impl<'b, T: CombinatorTrait> CombinatorTrait for Deferred<'b, T> {
 
 // Public function for creating a Deferred combinator
 #[track_caller]
-pub fn deferred<'a, T: CombinatorTrait>(f: fn() -> T) -> Deferred<'a, StrongRef<T>> {
+pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<'static, StrongRef<T>> {
     let addr = f as *const () as usize;
     let location = Location::caller();
     let caller_location_str = location.to_string();
