@@ -113,6 +113,10 @@ impl<T> TrieMap<T> {
         self.iter().map(|(key, _)| key)
     }
 
+    pub fn keys_as_u8set(&self) -> U8Set {
+        self.u8set.clone()
+    }
+
     pub fn values(&self) -> impl Iterator<Item = &T> {
         self.iter().map(|(_, value)| value)
     }

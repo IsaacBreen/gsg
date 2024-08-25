@@ -504,11 +504,7 @@ impl RegexState<'_> {
         let dfa = &self.regex.dfa;
         let state_data = &dfa.states[self.current_state];
         // Get all possible u8s that can match next
-        let mut u8set = U8Set::new();
-        for (transition_u8, _) in &state_data.transitions {
-            u8set.insert(transition_u8);
-        }
-        u8set
+        state_data.transitions.keys_as_u8set()
     }
 
     pub fn get_prev_match(&self) -> Option<Match> {
