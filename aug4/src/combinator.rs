@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use crate::*;
 use crate::helper_traits::{AsAny};
 
-pub trait CombinatorTrait {
+pub trait CombinatorTrait: Debug {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults;
     fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>>;
 }
@@ -48,12 +48,12 @@ impl<'a, T: AsAny> AsAny for &'a T { fn as_any(&self) -> &dyn std::any::Any { se
 
 // Non-greedy choice
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Choice<T> {
+pub struct Choice<T: CombinatorTrait> {
     pub children: Vec<T>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Seq<T> {
+pub struct Seq<T: CombinatorTrait> {
     pub children: Vec<T>,
 }
 
@@ -62,8 +62,8 @@ pub struct EatU8 {
     pub u8: u8,
 }
 
-impl<T: 'static> AsAny for Choice<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
-impl<T: 'static> AsAny for Seq<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
+impl<T: CombinatorTrait + 'static> AsAny for Choice<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
+impl<T: CombinatorTrait + 'static> AsAny for Seq<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
 impl AsAny for EatU8 { fn as_any(&self) -> &dyn std::any::Any { self } }
 
 impl<T: CombinatorTrait> CombinatorTrait for Choice<T> {
@@ -266,21 +266,17 @@ mod test_rotate_right {
     #[test]
     fn test_eat_u8() {
         let combinator = eat_u8(b'a');
-        let expected = choice!(seq!(eat_u8(b'a').into_dyn()));
-        // assert_eq!(combinator.rotate_right(), expected);
+        let expected = choice!(seq!(&combinator as &dyn CombinatorTrait));
+        assert_eq!(combinator.rotate_right(), expected);
     }
 
     #[test]
     fn test_choice() {
-        let combinator = choice!(
-            eat_u8(b'a'),
-            eat_u8(b'b')
-        );
-        let expected = choice!(
-            seq!(eat_u8(b'a').into_dyn()),
-            seq!(eat_u8(b'b').into_dyn())
-        );
-        // assert_eq!(combinator.rotate_right(), expected);
+        let a = eat_u8(b'a');
+        let b = eat_u8(b'b');
+        let combinator = choice!(&a as &dyn CombinatorTrait, &b as &dyn CombinatorTrait);
+        let expected = choice!(seq!(&a as &dyn CombinatorTrait), seq!(&b as &dyn CombinatorTrait));
+        assert_eq!(combinator.rotate_right(), expected);
     }
 
     #[test]
@@ -290,9 +286,9 @@ mod test_rotate_right {
             eat_u8(b'b')
         );
         let expected = choice!(
-            seq!(eat_u8(b'a').into_dyn(), eat_u8(b'b').into_dyn())
+
         );
-        // assert_eq!(combinator.rotate_right(), expected);
+        assert_eq!(combinator.rotate_right(), expected);
     }
 
     // TODO: test more complicated cases
