@@ -85,6 +85,7 @@ impl Eq for CacheKey {}
 struct CacheEntry {
     pub(crate) parser: Option<Box<dyn ParserTrait>>,
     maybe_parse_results: Option<ParseResults>,
+    maybe_u8set: Option<U8Set>,
 }
 
 #[derive(Debug)]
@@ -202,6 +203,7 @@ impl ParserTrait for CacheContextParser<'_> {
                 global_cache.parse_id = Some(self.parse_id);
                 global_cache.entries.get_mut(&self.parse_id).unwrap().iter_mut().for_each(|entry| {
                     entry.borrow_mut().maybe_parse_results.take();
+                    entry.borrow_mut().maybe_u8set.take();
                 });
             }
             let num_entries_initial = cache.borrow_mut().entries[&self.parse_id].len();
@@ -282,6 +284,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
             let entry = Rc::new(RefCell::new(CacheEntry {
                 parser: None,
                 maybe_parse_results: None,
+                maybe_u8set: None,
             }));
             // let inner: &'static T = unsafe { transmute(&self.inner) };
             // let (parser, mut parse_results): (_, ParseResults) = profile!("Cached.parse: inner.parse", inner.parse(right_data, bytes));
@@ -296,7 +299,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Cached<T> {
             if !parse_results.done() {
                 global_cache.entries.get_mut(&parse_id).unwrap().push(entry.clone());
             }
-            *entry.borrow_mut() = CacheEntry { parser: Some(parser), maybe_parse_results: Some(parse_results.clone()) };
+            *entry.borrow_mut() = CacheEntry { parser: Some(parser), maybe_parse_results: Some(parse_results.clone()), maybe_u8set: None };
             (CachedParser { entry }, parse_results)
         })
     }
@@ -313,7 +316,13 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Cached<T> {
 
 impl ParserTrait for CachedParser {
     fn get_u8set(&self) -> U8Set {
-        self.entry.borrow().parser.as_ref().unwrap().get_u8set()
+        if let Some(u8set) = self.entry.borrow().maybe_u8set.clone() {
+            u8set
+        } else {
+            let u8set = self.entry.borrow().parser.as_ref().unwrap().get_u8set();
+            self.entry.borrow_mut().maybe_u8set = Some(u8set);
+            u8set
+        }
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
