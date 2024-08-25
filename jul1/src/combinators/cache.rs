@@ -136,6 +136,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for CacheContext<T> {
     type Parser<'a> = CacheContextParser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        profile!("CacheContext.one_shot_parse: start", {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
@@ -152,6 +153,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for CacheContext<T> {
             global_cache.one_shot_cleanup();
             parse_result
         })
+            })
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
