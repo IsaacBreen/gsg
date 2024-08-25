@@ -247,218 +247,113 @@ macro_rules! choice_generalised {
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice3 {
+        $crate::Choice2 {
             c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
+            c1: h($crate::choice_generalised!($greedy, $c1, $c2)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice4 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1)),
+            c1: h($crate::choice_generalised!($greedy, $c2, $c3)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice5 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1)),
+            c1: h($crate::choice_generalised!($greedy, $c2, $c3, $c4)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice6 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2)),
+            c1: h($crate::choice_generalised!($greedy, $c3, $c4, $c5)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice7 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
-            c6: h($c6),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2)),
+            c1: h($crate::choice_generalised!($greedy, $c3, $c4, $c5, $c6)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice8 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
-            c6: h($c6),
-            c7: h($c7),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2, $c3)),
+            c1: h($crate::choice_generalised!($greedy, $c4, $c5, $c6, $c7)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice9 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
-            c6: h($c6),
-            c7: h($c7),
-            c8: h($c8),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2, $c3)),
+            c1: h($crate::choice_generalised!($greedy, $c4, $c5, $c6, $c7, $c8)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice10 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
-            c6: h($c6),
-            c7: h($c7),
-            c8: h($c8),
-            c9: h($c9),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2, $c3, $c4)),
+            c1: h($crate::choice_generalised!($greedy, $c5, $c6, $c7, $c8, $c9)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice11 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
-            c6: h($c6),
-            c7: h($c7),
-            c8: h($c8),
-            c9: h($c9),
-            c10: h($c10),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2, $c3, $c4)),
+            c1: h($crate::choice_generalised!($greedy, $c5, $c6, $c7, $c8, $c9, $c10)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice12 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
-            c6: h($c6),
-            c7: h($c7),
-            c8: h($c8),
-            c9: h($c9),
-            c10: h($c10),
-            c11: h($c11),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2, $c3, $c4, $c5)),
+            c1: h($crate::choice_generalised!($greedy, $c6, $c7, $c8, $c9, $c10, $c11)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice13 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
-            c6: h($c6),
-            c7: h($c7),
-            c8: h($c8),
-            c9: h($c9),
-            c10: h($c10),
-            c11: h($c11),
-            c12: h($c12),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2, $c3, $c4, $c5)),
+            c1: h($crate::choice_generalised!($greedy, $c6, $c7, $c8, $c9, $c10, $c11, $c12)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice14 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
-            c6: h($c6),
-            c7: h($c7),
-            c8: h($c8),
-            c9: h($c9),
-            c10: h($c10),
-            c11: h($c11),
-            c12: h($c12),
-            c13: h($c13),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2, $c3, $c4, $c5, $c6)),
+            c1: h($crate::choice_generalised!($greedy, $c7, $c8, $c9, $c10, $c11, $c12, $c13)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice15 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
-            c6: h($c6),
-            c7: h($c7),
-            c8: h($c8),
-            c9: h($c9),
-            c10: h($c10),
-            c11: h($c11),
-            c12: h($c12),
-            c13: h($c13),
-            c14: h($c14),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2, $c3, $c4, $c5, $c6)),
+            c1: h($crate::choice_generalised!($greedy, $c7, $c8, $c9, $c10, $c11, $c12, $c13, $c14)),
             greedy: $greedy,
         }
     }};
     ($greedy:expr, $c0:expr, $c1:expr, $c2:expr, $c3:expr, $c4:expr, $c5:expr, $c6:expr, $c7:expr, $c8:expr, $c9:expr, $c10:expr, $c11:expr, $c12:expr, $c13:expr, $c14:expr, $c15:expr $(,)?) => {{
         use $crate::choicen_helper as h;
-        $crate::Choice16 {
-            c0: $crate::IntoCombinator::into_combinator($c0),
-            c1: h($c1),
-            c2: h($c2),
-            c3: h($c3),
-            c4: h($c4),
-            c5: h($c5),
-            c6: h($c6),
-            c7: h($c7),
-            c8: h($c8),
-            c9: h($c9),
-            c10: h($c10),
-            c11: h($c11),
-            c12: h($c12),
-            c13: h($c13),
-            c14: h($c14),
-            c15: h($c15),
+        $crate::Choice2 {
+            c0: h($crate::choice_generalised!($greedy, $c0, $c1, $c2, $c3, $c4, $c5, $c6, $c7)),
+            c1: h($crate::choice_generalised!($greedy, $c8, $c9, $c10, $c11, $c12, $c13, $c14, $c15)),
             greedy: $greedy,
         }
     }};
