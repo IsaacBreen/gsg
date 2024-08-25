@@ -29,7 +29,7 @@ macro_rules! define_seq {
             $($rest: CombinatorTrait),+
         {
             pub(crate) combinator: &'a $seq_name<$first, $($rest),+>,
-            pub(crate) $first: Vec<$first::Parser<'a>>,
+            pub(crate) $first: Option<$first::Parser<'a>>,
             $(pub(crate) $rest: Vec<$rest::Parser<'a>>,)+
             pub(crate) position: usize,
         }
@@ -85,14 +85,14 @@ macro_rules! define_seq {
                     return (
                         $seq_parser_name {
                             combinator: self,
-                            $first: vec![],
+                            $first: None,
                             $($rest: vec![],)+
                             position: start_position + bytes.len(),
                         },
                         first_parse_results
                     );
                 }
-                let first_parser_vec = if all_done { vec![] } else { vec![first_parser] };
+                let first_parser_vec = if all_done { None } else { Some(first_parser) };
 
                 let mut next_right_data_vec = first_parse_results.right_data_vec;
 
@@ -167,14 +167,15 @@ macro_rules! define_seq {
                     let mut new_right_data: VecY<RightData> = VecY::new();
 
                     // first child
-                    self.$first.retain_mut(|parser| {
+                    if let Some(parser) = &mut self.$first {
                         let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), { parser.parse(bytes) });
-                        let done = parse_results.done();
                         new_right_data.extend(parse_results.right_data_vec);
-                        !done
-                    });
+                        if parse_results.done {
+                            self.$first = None;
+                        }
+                    }
 
-                    let mut all_done = self.$first.is_empty();
+                    let mut all_done = self.$first.is_none();
 
                     // rest of the children
                     $(
@@ -186,9 +187,8 @@ macro_rules! define_seq {
                             let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), {
                                 parser.parse(bytes)
                             });
-                            let done = parse_results.done();
                             new_right_data.extend(parse_results.right_data_vec);
-                            !done
+                            !parse_results.done
                         });
 
                         // new parsers for this child, one for each right_data emitted by the previous child
