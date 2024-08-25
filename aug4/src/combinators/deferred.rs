@@ -15,21 +15,21 @@ use crate::compile::Compile;
 use crate::helper_traits::AsAny;
 
 thread_local! {
-    static DEFERRED_CACHE: RefCell<HashMap<CacheKey, CacheEntry>> = RefCell::new(HashMap::new());
+    static DEFERRED_CACHE: RefCell<HashMap<CacheKey, CacheEntry<'static>>> = RefCell::new(HashMap::new());
 }
 
 #[derive(Debug)]
-pub struct Deferred<T: CombinatorTrait + 'static> {
-    deferred_fn: Box<dyn DeferredFnTrait<T>>,
+pub struct Deferred<'a, T: CombinatorTrait> {
+    deferred_fn: Box<dyn DeferredFnTrait<T> + 'a>,
     inner: OnceCell<T>,
 }
 
-struct DeferredFn<T: CombinatorTrait + 'static, F: Fn() -> T> {
+struct DeferredFn<T: CombinatorTrait, F: Fn() -> T> {
     pub f: F,
     pub key: CacheKey,
 }
 
-impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T, F> {
+impl<T: CombinatorTrait + Clone, F: Fn() -> T> Debug for DeferredFn<T, F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("DeferredFn").field(&self.key).finish()
     }
@@ -37,7 +37,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T,
 
 // todo: this trait is really messy. Any way to clean it up?
 // Trait for evaluating the deferred function
-trait DeferredFnTrait<T: CombinatorTrait + 'static>: Debug {
+trait DeferredFnTrait<T: CombinatorTrait>: Debug {
     // todo: the fact that we need this struct right now is dumb. Aim to remove it. But we don't want to have to return a (bool, T) tuple - that's even worse and it's what we're trying to avoid by using the struct.
     fn evaluate_to_combinator(&self) -> EvaluateToCombinatorResult<T>;
     fn get_addr(&self) -> usize;
@@ -59,12 +59,12 @@ struct CacheKey {
 
 // CacheEntry struct to hold the CombinatorTrait and caller locations
 #[derive(Debug)]
-struct CacheEntry {
-    value: Box<dyn CombinatorTrait>,
+struct CacheEntry<'a> {
+    value: Box<dyn CombinatorTrait + 'a>,
     caller_locations: RefCell<HashSet<String>>,
 }
 
-impl<T: CombinatorTrait + Clone, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
+impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn<T, F> {
     fn evaluate_to_combinator(&self) -> EvaluateToCombinatorResult<T> {
         DEFERRED_CACHE.with(|cache| {
             if cache.borrow().contains_key(&self.key) {
@@ -103,9 +103,9 @@ impl<T: CombinatorTrait + Clone, F: Fn() -> T> DeferredFnTrait<T> for DeferredFn
     }
 }
 
-impl<T: CombinatorTrait + 'static> AsAny for Deferred<T> { fn as_any(&self) -> &dyn Any { self } }
+impl<'a, T: CombinatorTrait> AsAny for Deferred<'a, T> where Self: 'static { fn as_any(&self) -> &dyn Any { self } }
 
-impl<T: CombinatorTrait + 'static> Compile for Deferred<T> {
+impl<'a, T: CombinatorTrait> Compile for Deferred<'a, T> {
     fn compile_inner(&self) {
         // Force evaluation and compilation of the inner combinator
         let _ = self.inner.get_or_init(|| {
@@ -118,13 +118,13 @@ impl<T: CombinatorTrait + 'static> Compile for Deferred<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
+impl<'b, T: CombinatorTrait> CombinatorTrait for Deferred<'b, T> {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().expect("inner combinator not initialized");
         combinator.parse(right_data, input)
     }
 
-    fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>> {
+    fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a (dyn CombinatorTrait + 'b)>> {
         let combinator = self.inner.get().expect("inner combinator not initialized");
         combinator.rotate_right()
     }
@@ -133,7 +133,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
 
 // Public function for creating a Deferred combinator
 #[track_caller]
-pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRef<T>> {
+pub fn deferred<'a, T: CombinatorTrait>(f: fn() -> T) -> Deferred<'a, StrongRef<T>> {
     let addr = f as *const () as usize;
     let location = Location::caller();
     let caller_location_str = location.to_string();
