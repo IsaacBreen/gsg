@@ -68,8 +68,11 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
     fn evaluate_to_combinator(&self) -> EvaluateToCombinatorResult<T> {
         DEFERRED_CACHE.with(|cache| {
             if cache.borrow().contains_key(&self.key) {
+                // TODO: get rid of these unnecessary transmutes
+                let cache: &'static RefCell<HashMap<CacheKey, CacheEntry>> = unsafe { std::mem::transmute(&cache) };
                 let borrowed = cache.borrow();
                 let entry = borrowed.get(&self.key).unwrap();
+                let entry: &'static CacheEntry = unsafe { std::mem::transmute(entry) };
                 if let Some(value) = entry.value.as_any().downcast_ref::<T>() {
                     let combinator = value.clone();
                     return EvaluateToCombinatorResult {
