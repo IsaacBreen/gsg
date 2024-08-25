@@ -114,8 +114,8 @@ impl<T> TrieMap<T> {
     }
 
     pub fn keys_as_u8set(&self) -> U8Set {
-        assert_eq!(self.data.len(), CHARMAP_SIZE);
-        assert_eq!(self.children.len(), self.u8set.len());
+        debug_assert_eq!(self.data.len(), CHARMAP_SIZE);
+        debug_assert_eq!(self.children.len(), CHARMAP_SIZE);
         self.u8set.clone()
     }
 
