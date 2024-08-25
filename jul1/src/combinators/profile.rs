@@ -68,11 +68,11 @@ pub fn clear_profile_data() {
 #[macro_export]
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
-        // $crate::ProfileDataInner::push_tag($tag.to_string());
-        // let result = $body;
-        // $crate::ProfileDataInner::pop_tag();
-        // result
-        $body
+        $crate::ProfileDataInner::push_tag($tag.to_string());
+        let result = $body;
+        $crate::ProfileDataInner::pop_tag();
+        result
+        // $body
     }};
 }
 
@@ -90,7 +90,7 @@ macro_rules! profile_block {
 #[macro_export]
 macro_rules! count_hit {
     ($tag:expr) => {
-        // $crate::ProfileDataInner::count_hit($tag.to_string());
+        $crate::ProfileDataInner::count_hit($tag.to_string());
     };
 }
 
