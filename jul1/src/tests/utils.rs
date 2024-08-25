@@ -155,6 +155,45 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     if VERBOSE {
         println!("Saved timings to timings.csv");
     }
+
+    assert_parses_tight(combinator, input, "Parser failed unexpectedly");
+}
+
+pub fn assert_parses_tight<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
+    clear_profile_data();
+    let mut input = input.to_string();
+    println!("beginning assert_parses_tight {}", desc);
+
+
+    let start_right_data = RightData::default();
+    let (mut parser, mut parse_results) = profile!("parser", T::parser(&combinator, start_right_data));
+
+    let lines = input.lines().collect::<Vec<_>>();
+    let num_lines = lines.len();
+
+    let start = Instant::now();
+
+    profile!("assert_parses_tight big block 2", {
+    'outer: for (line_number, line) in tqdm!(lines.iter().enumerate(), animation = "fillup", position = 0) {
+        let line_start = Instant::now();
+
+        // Add newline back in
+        let mut line = format!("{}", line);
+        if line_number != num_lines - 1 {
+            line = format!("{}\n", line);
+        }
+        let bytes = line.bytes().collect::<Vec<_>>();
+
+        for (char_number, byte) in bytes.iter().cloned().enumerate() {
+            if line_number == lines.len() - 1 && char_number == bytes.len() - 1 {
+                break 'outer;
+            }
+            parse_results = parser.step(byte);
+        }
+    }
+    });
+    // Just print time
+    println!("assert_parses_tight took {:?}", start.elapsed());
 }
 
 pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
