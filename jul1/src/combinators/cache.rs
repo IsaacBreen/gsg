@@ -155,6 +155,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for CacheContext<T> {
     }
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        profile!("CacheContext.old_parse: start", {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
                 let mut global_cache = cache.borrow_mut();
@@ -166,12 +167,13 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for CacheContext<T> {
                 global_cache.parse_id_counter += 1;
                 parse_id
             };
-            let (parser, results) = self.inner.parse(right_data, bytes);
+            let (parser, results) = profile!("CacheContext.parse: inner.parse", self.inner.parse(right_data, bytes));
             let mut global_cache = cache.borrow_mut();
             global_cache.entries.get_mut(&parse_id).unwrap().reverse();
             global_cache.cleanup();
             let cache_context_parser = CacheContextParser { inner: Box::new(parser), parse_id };
             (cache_context_parser, results)
+        })
         })
     }
 }
@@ -191,6 +193,7 @@ impl ParserTrait for CacheContextParser<'_> {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        profile!("CacheContextParser.parse: start", {
         GLOBAL_CACHE.with(|cache| {
             {
                 let mut global_cache = cache.borrow_mut();
@@ -203,11 +206,11 @@ impl ParserTrait for CacheContextParser<'_> {
             for i in (0..num_entries_initial).rev() {
                 let entry_refcell = cache.borrow_mut().entries[&self.parse_id][i].clone();
                 let mut entry = entry_refcell.borrow_mut();
-                let parse_results = entry.parser.as_mut().unwrap().parse(bytes);
+                let parse_results = profile!("CacheContextParser.parse: entry.parser.parse", entry.parser.as_mut().unwrap().parse(bytes));
                 entry.maybe_parse_results = Some(parse_results);
             }
 
-            let parse_result = self.inner.as_mut().parse(bytes);
+            let parse_result = profile!("CacheContextParser.parse: inner.parse", self.inner.as_mut().parse(bytes));
 
             let mut global_cache = cache.borrow_mut();
             let mut new_entries = global_cache.entries.get_mut(&self.parse_id).unwrap().split_off(num_entries_initial);
@@ -215,6 +218,7 @@ impl ParserTrait for CacheContextParser<'_> {
             global_cache.entries.get_mut(&self.parse_id).unwrap().append(&mut new_entries);
             global_cache.cleanup();
             parse_result
+        })
         })
     }
 }
