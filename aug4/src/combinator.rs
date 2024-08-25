@@ -1,12 +1,13 @@
+use std::fmt::Debug;
 use crate::*;
 use crate::helper_traits::{AsAny, DynEq};
 
-pub trait CombinatorTrait: AsAny {
+pub trait CombinatorTrait: AsAny + DynEq + Debug {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults;
     fn rotate_right<'a>(&'a self) -> Choice<Seq<Box<dyn CombinatorTrait + 'a>>>;
 }
 
-impl_dyn_eq_for_trait!(CombinatorTrait);
+// impl_dyn_eq_for_trait!(CombinatorTrait);
 
 pub trait IntoBoxDynCombinator {
     fn into_dyn(self) -> Box<dyn CombinatorTrait>;
@@ -26,7 +27,7 @@ impl CombinatorTrait for Box<dyn CombinatorTrait> {
     }
 }
 
-impl<'a, T: CombinatorTrait> CombinatorTrait for &'a T {
+impl<'a, T: CombinatorTrait + PartialEq> CombinatorTrait for &'a T {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
         (*self).parse(right_data, input)
     }
@@ -55,11 +56,11 @@ pub struct EatU8 {
     pub u8: u8,
 }
 
-impl<T: 'static> AsAny for Choice<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
-impl<T: 'static> AsAny for Seq<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
+impl<T> AsAny for Choice<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
+impl<T> AsAny for Seq<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
 impl AsAny for EatU8 { fn as_any(&self) -> &dyn std::any::Any { self } }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Choice<T> {
+impl<T: CombinatorTrait> CombinatorTrait for Choice<T> {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
         for (i, child) in self.children.iter().enumerate() {
             let parse_result = child.parse(right_data.clone(), input);
@@ -101,7 +102,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Choice<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Seq<T> {
+impl<T: CombinatorTrait> CombinatorTrait for Seq<T> {
     fn parse(&self, mut right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.position();
         for child in self.children.iter() {
