@@ -25,6 +25,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     let lines = input.lines().collect::<Vec<_>>();
     let num_lines = lines.len();
 
+    profile!("assert_parses big block 2", {
     'outer: for (line_number, line) in tqdm!(lines.iter().enumerate(), animation = "fillup", position = 0) {
         let line_start = Instant::now();
 
@@ -72,7 +73,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
         timings.push((line.to_string(), Instant::now() - line_start));
     }
-
+    });
 
     // Print profile results
     let profile_data = GLOBAL_PROFILE_DATA.lock().unwrap();
