@@ -4,7 +4,7 @@ use crate::helper_traits::{AsAny};
 
 pub trait CombinatorTrait: Debug + AsAny {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults;
-    fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>>;
+    fn rotate_right<'a>(&'a self) -> Choice<Seq<Ref<'a, dyn CombinatorTrait + 'a>>>;
 }
 
 pub trait IntoBoxDynCombinator {
@@ -27,6 +27,9 @@ pub struct EatU8 {
     pub u8: u8,
 }
 
+#[derive(Debug, Clone, Hash)]
+pub struct Ref<'a, T: ?Sized>(&'a T);
+
 impl<T: CombinatorTrait> IntoBoxDynCombinator for T {
     fn into_dyn<'a>(self) -> Box<dyn CombinatorTrait + 'a> where Self: 'a { Box::new(self) }
 }
@@ -36,7 +39,7 @@ impl CombinatorTrait for Box<dyn CombinatorTrait> {
         self.as_ref().parse(right_data, input)
     }
 
-    fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>> {
+    fn rotate_right<'b>(&'b self) -> Choice<Seq<Ref<'b, dyn CombinatorTrait + 'b>>> {
         self.as_ref().rotate_right()
     }
 }
@@ -46,12 +49,12 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for &T {
         (*self).parse(right_data, input)
     }
 
-    fn rotate_right<'b>(&'b self) -> Choice<Seq<&'b dyn CombinatorTrait>> {
+    fn rotate_right<'a>(&'a self) -> Choice<Seq<Ref<'a, dyn CombinatorTrait + 'a>>> {
         (*self).rotate_right()
     }
 }
 
-impl<'a> PartialEq for &'a dyn CombinatorTrait {
+impl PartialEq for &dyn CombinatorTrait {
     fn eq(&self, other: &Self) -> bool {
         let self_ptr = std::ptr::addr_of!(**self);
         let other_ptr = std::ptr::addr_of!(**other);
@@ -59,9 +62,36 @@ impl<'a> PartialEq for &'a dyn CombinatorTrait {
     }
 }
 
+impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Ref<'_, T> {
+    fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
+        self.0.parse(right_data, input)
+    }
+
+    fn rotate_right<'a>(&'a self) -> Choice<Seq<Ref<'a, dyn CombinatorTrait + 'a>>> {
+        self.0.rotate_right()
+    }
+}
+
+impl<'a> PartialEq for Ref<'a, dyn CombinatorTrait + 'a> {
+    fn eq(&self, other: &Self) -> bool {
+        let self_ptr = std::ptr::addr_of!(*self.0);
+        let other_ptr = std::ptr::addr_of!(*other.0);
+        std::ptr::addr_eq(self_ptr, other_ptr)
+    }
+}
+
+impl<'a, T: CombinatorTrait> PartialEq for Ref<'a, T> {
+    fn eq(&self, other: &Self) -> bool {
+        let self_ptr = std::ptr::addr_of!(*self.0);
+        let other_ptr = std::ptr::addr_of!(*other.0);
+        std::ptr::addr_eq(self_ptr, other_ptr)
+    }
+}
+
 impl<T: CombinatorTrait> AsAny for Choice<T> { fn as_any(&self) -> &dyn std::any::Any where Self: 'static { self } }
 impl<T: CombinatorTrait> AsAny for Seq<T> { fn as_any(&self) -> &dyn std::any::Any where Self: 'static { self } }
 impl AsAny for EatU8 { fn as_any(&self) -> &dyn std::any::Any { self } }
+impl<'a, T: ?Sized> AsAny for Ref<'a, T> where T: CombinatorTrait { fn as_any(&self) -> &dyn std::any::Any where Self: 'static { self } }
 
 impl<T: CombinatorTrait> CombinatorTrait for Choice<T> {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
@@ -96,8 +126,8 @@ impl<T: CombinatorTrait> CombinatorTrait for Choice<T> {
         Err(UnambiguousParseError::Fail)
     }
 
-    fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>> {
-        let mut new_children: Vec<Seq<_>> = vec![];
+    fn rotate_right<'a>(&'a self) -> Choice<Seq<Ref<'a, dyn CombinatorTrait + 'a>>> {
+        let mut new_children: Vec<Seq<Ref<'a, dyn CombinatorTrait + 'a>>> = vec![];
         for child in self.children.iter() {
             new_children.extend(child.rotate_right().children);
         }
@@ -123,14 +153,12 @@ impl<T: CombinatorTrait> CombinatorTrait for Seq<T> {
         Ok(right_data)
     }
 
-    fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>> {
+    fn rotate_right<'a>(&'a self) -> Choice<Seq<Ref<'a, dyn CombinatorTrait>>> {
         if let Some(first) = self.children.first() {
             let mut rot = first.rotate_right();
             for seq in rot.children.iter_mut() {
-                // TODO: we can make this more efficient by defining a PartialSeq type that stores a reference to self
-                //  and a child index and starts parsing at that child.
                 for child in self.children.iter().skip(1) {
-                    seq.children.push(child);
+                    seq.children.push(Ref(child as &dyn CombinatorTrait));
                 }
             }
             rot
@@ -152,8 +180,8 @@ impl CombinatorTrait for EatU8 {
         }
     }
 
-    fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>> {
-        Choice { children: vec![seq!(self)] }
+    fn rotate_right<'a>(&'a self) -> Choice<Seq<Ref<'a, dyn CombinatorTrait>>> {
+        Choice { children: vec![seq!(Ref(self))] }
     }
 }
 
