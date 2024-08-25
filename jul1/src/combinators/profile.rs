@@ -61,11 +61,11 @@ impl ProfileDataInner {
 #[macro_export]
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
-        // $crate::ProfileDataInner::push_tag($tag.to_string());
-        // let result = $body;
-        // $crate::ProfileDataInner::pop_tag();
-        // result
-        $body
+        $crate::ProfileDataInner::push_tag($tag.to_string());
+        let result = $body;
+        $crate::ProfileDataInner::pop_tag();
+        result
+        // $body
     }};
 }
 
@@ -83,7 +83,7 @@ macro_rules! profile_block {
 #[macro_export]
 macro_rules! count_hit {
     ($tag:expr) => {
-        // $crate::ProfileDataInner::count_hit($tag.to_string());
+        $crate::ProfileDataInner::count_hit($tag.to_string());
     };
 }
 
@@ -147,13 +147,13 @@ impl<P: ParserTrait> ParserTrait for ProfiledParser<P> {
 }
 
 pub fn profile<T: IntoCombinator>(tag: &str, a: T)-> impl CombinatorTrait where T::Output: 'static {
-    // Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
-    a.into_combinator()
+    Profiled { inner: Box::new(a.into_combinator()), tag: tag.to_string() }
+    // a.into_combinator()
 }
 
-pub fn profile_internal(tag: &str, a: impl IntoCombinator)-> impl CombinatorTrait {
-    // Profiled { inner: Box::new(a.into()), tag: tag.to_string() }.into()
-    a.into_combinator()
+pub fn profile_internal<'a, T: IntoCombinator>(tag: &str, a: T)-> impl CombinatorTrait where T::Output: 'static {
+    profile(tag, a)
+    // a.into_combinator()
 }
 
 // impl From<Profiled> for Combinator {
