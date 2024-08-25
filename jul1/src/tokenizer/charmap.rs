@@ -228,12 +228,12 @@ impl<'a, T> OccupiedEntry<'a, T> {
         self.map.data[self.index].as_mut().unwrap().as_mut()
     }
 
-    pub fn insert(&mut self, value: T) -> T where T: Clone {
-        std::mem::replace(&mut self.map.data[self.index], Some(Box::new(value))).unwrap().as_mut().clone()
+    pub fn insert(&mut self, value: T) -> T {
+        *std::mem::replace(&mut self.map.data[self.index], Some(Box::new(value))).unwrap()
     }
 
-    pub fn remove(self) -> T where T: Clone {
-        self.map.data[self.index].take().unwrap().as_mut().clone()
+    pub fn remove(self) -> T {
+        *self.map.data[self.index].take().unwrap()
     }
 }
 
@@ -244,13 +244,13 @@ impl<'a, T> VacantEntry<'a, T> {
     }
 }
 
-impl<T> IntoIterator for TrieMap<T> where T: Clone {
+impl<T> IntoIterator for TrieMap<T> {
     type Item = (u8, T);
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.data.iter().enumerate().filter_map(|(i, option)| {
-            <Option<Box<T>> as Clone>::clone(&option).map(|boxed| (i as u8, *boxed))
+        self.data.into_iter().enumerate().filter_map(|(i, option)| {
+            option.map(|boxed| (i as u8, *boxed))
         }).collect::<Vec<_>>().into_iter()
     }
 }
