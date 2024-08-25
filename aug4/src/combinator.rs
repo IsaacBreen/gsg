@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use crate::*;
 use crate::helper_traits::{AsAny};
 
-pub trait CombinatorTrait: Debug {
+pub trait CombinatorTrait: Debug + AsAny {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults;
     fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>>;
 }
@@ -43,9 +43,6 @@ impl<'a> PartialEq for &'a dyn CombinatorTrait {
     }
 }
 
-impl AsAny for Box<dyn CombinatorTrait> { fn as_any(&self) -> &dyn std::any::Any { self } }
-impl<'a, T: AsAny + ?Sized> AsAny for &'a T { fn as_any(&self) -> &dyn std::any::Any { self.as_any() } }
-
 // Non-greedy choice
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Choice<T: CombinatorTrait> {
@@ -62,8 +59,8 @@ pub struct EatU8 {
     pub u8: u8,
 }
 
-impl<T: CombinatorTrait + 'static> AsAny for Choice<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
-impl<T: CombinatorTrait + 'static> AsAny for Seq<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
+impl<T: CombinatorTrait> AsAny for Choice<T> { fn as_any(&self) -> &dyn std::any::Any where Self: 'static { self } }
+impl<T: CombinatorTrait> AsAny for Seq<T> { fn as_any(&self) -> &dyn std::any::Any where Self: 'static { self } }
 impl AsAny for EatU8 { fn as_any(&self) -> &dyn std::any::Any { self } }
 
 impl<T: CombinatorTrait> CombinatorTrait for Choice<T> {
