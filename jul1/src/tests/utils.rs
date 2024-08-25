@@ -67,7 +67,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
             parse_results.squash();
 
-            assert!(!parse_results.right_data_vec.is_empty() || !parser.get_u8set().is_empty(), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number, char_number);
+            assert!(!parse_results.right_data_vec.is_empty() || !profile!("assert_parses parser.get_u8set().is_empty()", parser.get_u8set().is_empty()), "Parser didn't return any data at byte: {} on line: {} at char: {}", byte as char, line_number, char_number);
             assert!(!parse_results.done(), "Parser finished prematurely at byte: {} on line: {} at char: {}", byte as char, line_number, char_number);
             })
         }
