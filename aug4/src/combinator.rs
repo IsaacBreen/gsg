@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 use crate::*;
+use crate::compile::Compile;
 use crate::helper_traits::AsAny;
-use crate::other_combinators::Seq2;
 
-pub trait CombinatorTrait: Debug + AsAny {
+pub trait CombinatorTrait: Debug + AsAny + Compile {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults;
     fn rotate_right<'a>(&'a self) -> Choice<Seq<&'a dyn CombinatorTrait>>;
 }
@@ -199,8 +199,36 @@ macro_rules! seq_dyn {
     };
 }
 
-pub fn seq2<L, R>(l: L, r: R) -> Seq2<L, R> {
-    Seq2 { l, r }
+impl Compile for Box<dyn CombinatorTrait> {
+    fn compile_inner(&self) {
+        self.as_ref().compile_inner();
+    }
+}
+
+impl<T: CombinatorTrait + ?Sized> Compile for &T {
+    fn compile_inner(&self) {
+        (*self).compile_inner();
+    }
+}
+
+impl<T: CombinatorTrait> Compile for Choice<T> {
+    fn compile_inner(&self) {
+        for child in self.children.iter() {
+            child.compile_inner();
+        }
+    }
+}
+
+impl<T: CombinatorTrait> Compile for Seq<T> {
+    fn compile_inner(&self) {
+        for child in self.children.iter() {
+            child.compile_inner();
+        }
+    }
+}
+
+impl Compile for EatU8 {
+    fn compile_inner(&self) {}
 }
 
 #[cfg(test)]

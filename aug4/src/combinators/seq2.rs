@@ -1,4 +1,5 @@
 use crate::{Choice, CombinatorTrait, RightData, Seq, UnambiguousParseResults};
+use crate::compile::Compile;
 use crate::helper_traits::AsAny;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -28,3 +29,15 @@ impl<L: CombinatorTrait, R: CombinatorTrait> CombinatorTrait for Seq2<L, R> {
         rot
     }
 }
+
+impl<L: CombinatorTrait, R: CombinatorTrait> Compile for Seq2<L, R> {
+    fn compile_inner(&self) {
+        self.l.compile_inner();
+        self.r.compile_inner();
+    }
+}
+
+pub fn seq2<L, R>(l: L, r: R) -> Seq2<L, R> {
+    Seq2 { l, r }
+}
+

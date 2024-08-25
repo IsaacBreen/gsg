@@ -10,7 +10,8 @@ mod trie;
 mod unicode;
 mod combinator;
 mod helper_traits;
-mod other_combinators;
+mod combinators;
+mod compile;
 
 pub use parse_state::*;
 pub use tokenizer::*;
