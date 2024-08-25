@@ -44,7 +44,7 @@ impl<'a> PartialEq for &'a dyn CombinatorTrait {
 }
 
 impl AsAny for Box<dyn CombinatorTrait> { fn as_any(&self) -> &dyn std::any::Any { self } }
-impl<'a, T: AsAny> AsAny for &'a T { fn as_any(&self) -> &dyn std::any::Any { self.as_any() } }
+impl<'a, T: AsAny + ?Sized> AsAny for &'a T { fn as_any(&self) -> &dyn std::any::Any { self.as_any() } }
 
 // Non-greedy choice
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
