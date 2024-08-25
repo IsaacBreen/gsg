@@ -45,7 +45,8 @@ impl<T: CombinatorTrait> CombinatorTrait for Choice<T> {
                                 continue;
                             },
                         }
-                    }
+                    };
+                    return Ok(new_right_data);
                 }
                 Err(UnambiguousParseError::Fail) => {
                     continue;
@@ -64,8 +65,19 @@ impl<T: CombinatorTrait> CombinatorTrait for Choice<T> {
 }
 
 impl<T: CombinatorTrait> CombinatorTrait for Seq<T> {
-    fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
-        todo!()
+    fn parse(&self, mut right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
+        for child in self.children.iter() {
+            let parse_result = child.parse(right_data.clone(), input);
+            match parse_result {
+                Ok(new_right_data) => {
+                    right_data = new_right_data;
+                }
+                Err(_) => {
+                    return parse_result;
+                }
+            }
+        }
+        Ok(right_data)
     }
 
     fn rotate_right<'a>(&'a self) -> Choice<Seq<Box<dyn CombinatorTrait + 'a>>> {
@@ -75,7 +87,11 @@ impl<T: CombinatorTrait> CombinatorTrait for Seq<T> {
 
 impl CombinatorTrait for EatU8 {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
-        todo!()
+        match input.get(0) {
+            Some(byte) if *byte == self.u8 => Ok(right_data),
+            Some(_) => Err(UnambiguousParseError::Fail),
+            None => Err(UnambiguousParseError::Incomplete),
+        }
     }
 
     fn rotate_right<'a>(&'a self) -> Choice<Seq<Box<dyn CombinatorTrait + 'a>>> {
