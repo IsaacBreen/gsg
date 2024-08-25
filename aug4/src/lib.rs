@@ -9,6 +9,7 @@ mod u8set;
 mod trie;
 mod unicode;
 mod combinator;
+mod helper_traits;
 
 pub use parse_state::*;
 pub use tokenizer::*;

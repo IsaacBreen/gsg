@@ -1,12 +1,19 @@
 use crate::*;
+use crate::helper_traits::{AsAny, DynEq};
 
-pub trait AsAny {
-    fn as_any(&self) -> &dyn std::any::Any;
-}
-
-pub trait CombinatorTrait {
+pub trait CombinatorTrait: AsAny {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults;
     fn rotate_right<'a>(&'a self) -> Choice<Seq<Box<dyn CombinatorTrait + 'a>>>;
+}
+
+impl_dyn_eq_for_trait!(CombinatorTrait);
+
+pub trait IntoBoxDynCombinator {
+    fn into_dyn(self) -> Box<dyn CombinatorTrait>;
+}
+
+impl<T: CombinatorTrait> IntoBoxDynCombinator for T {
+    fn into_dyn(self) -> Box<dyn CombinatorTrait> { Box::new(self) }
 }
 
 impl CombinatorTrait for Box<dyn CombinatorTrait> {
@@ -19,15 +26,31 @@ impl CombinatorTrait for Box<dyn CombinatorTrait> {
     }
 }
 
+impl<'a, T: CombinatorTrait> CombinatorTrait for &'a T {
+    fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
+        (*self).parse(right_data, input)
+    }
+
+    fn rotate_right<'b>(&'b self) -> Choice<Seq<Box<dyn CombinatorTrait + 'b>>> {
+        (*self).rotate_right()
+    }
+}
+
+impl AsAny for Box<dyn CombinatorTrait> { fn as_any(&self) -> &dyn std::any::Any { self } }
+impl<'a, T: AsAny> AsAny for &'a T { fn as_any(&self) -> &dyn std::any::Any { self.as_any() } }
+
 // Non-greedy choice
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Choice<T> {
     pub children: Vec<T>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Seq<T> {
     pub children: Vec<T>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct EatU8 {
     pub u8: u8,
 }
@@ -36,7 +59,7 @@ impl<T: 'static> AsAny for Choice<T> { fn as_any(&self) -> &dyn std::any::Any { 
 impl<T: 'static> AsAny for Seq<T> { fn as_any(&self) -> &dyn std::any::Any { self } }
 impl AsAny for EatU8 { fn as_any(&self) -> &dyn std::any::Any { self } }
 
-impl<T: CombinatorTrait> CombinatorTrait for Choice<T> {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Choice<T> {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
         for (i, child) in self.children.iter().enumerate() {
             let parse_result = child.parse(right_data.clone(), input);
@@ -70,11 +93,15 @@ impl<T: CombinatorTrait> CombinatorTrait for Choice<T> {
     }
 
     fn rotate_right<'a>(&'a self) -> Choice<Seq<Box<dyn CombinatorTrait + 'a>>> {
-        todo!()
+        let mut new_children: Vec<Seq<_>> = vec![];
+        for child in self.children.iter() {
+            new_children.extend(child.rotate_right().children);
+        }
+        Choice { children: new_children }
     }
 }
 
-impl<T: CombinatorTrait> CombinatorTrait for Seq<T> {
+impl<T: CombinatorTrait + 'static> CombinatorTrait for Seq<T> {
     fn parse(&self, mut right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.position();
         for child in self.children.iter() {
@@ -93,7 +120,19 @@ impl<T: CombinatorTrait> CombinatorTrait for Seq<T> {
     }
 
     fn rotate_right<'a>(&'a self) -> Choice<Seq<Box<dyn CombinatorTrait + 'a>>> {
-        todo!()
+        if let Some(first) = self.children.first() {
+            let mut rot = first.rotate_right();
+            for seq in rot.children.iter_mut() {
+                // TODO: we can make this more efficient by defining a PartialSeq type that stores a reference to self
+                //  and a child index and starts parsing at that child.
+                for child in self.children.iter().skip(1) {
+                    seq.children.push(Box::new(child));
+                }
+            }
+            rot
+        } else {
+            Choice { children: vec![seq!()] }
+        }
     }
 }
 
@@ -110,7 +149,7 @@ impl CombinatorTrait for EatU8 {
     }
 
     fn rotate_right<'a>(&'a self) -> Choice<Seq<Box<dyn CombinatorTrait + 'a>>> {
-        todo!()
+        Choice { children: vec![seq!(self.into_dyn())] }
     }
 }
 
@@ -122,7 +161,7 @@ pub fn eat_u8(u8: u8) -> EatU8 {
 macro_rules! choice {
     ($($combinator:expr),* $(,)?) => {
         $crate::combinator::Choice {
-            children: vec![$(Box::new($combinator) as Box<dyn CombinatorTrait>),*]
+            children: vec![$($combinator),*]
         }
     };
 }
@@ -131,13 +170,27 @@ macro_rules! choice {
 macro_rules! seq {
     ($($combinator:expr),* $(,)?) => {
         $crate::combinator::Seq {
-            children: vec![$(Box::new($combinator) as Box<dyn CombinatorTrait>),*]
+            children: vec![$($combinator),*]
         }
     };
 }
 
+#[macro_export]
+macro_rules! choice_dyn {
+    ($($combinator:expr),* $(,)?) => {
+        $crate::choice!($($combinator.into_dyn()),*)
+    };
+}
+
+#[macro_export]
+macro_rules! seq_dyn {
+    ($($combinator:expr),* $(,)?) => {
+        $crate::seq!($($combinator.into_dyn()),*)
+    };
+}
+
 #[cfg(test)]
-mod tests {
+mod test_parse {
     use std::assert_matches::assert_matches;
     use super::*;
 
@@ -187,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_seq_choice_seq() {
-        let combinator = seq!(choice!(eat_u8(b'a'), seq!(eat_u8(b'a'), eat_u8(b'b'))), eat_u8(b'c'));
+        let combinator = seq_dyn!(choice_dyn!(eat_u8(b'a'), seq_dyn!(eat_u8(b'a'), eat_u8(b'b'))), eat_u8(b'c'));
         assert_parse_result_matches!(combinator, b"ac", Ok(_));
         // "abc" is ambiguous according to the inner combinator `choice!(eat_u8(b'a'), seq!(eat_u8(b'a'), eat_u8(b'b')))`.
         // So, even though *we* can tell that ambiguity gets resolved by reading the final "c", the inner choice combinator
@@ -197,4 +250,34 @@ mod tests {
         assert_parse_result_matches!(combinator, b"ab", Err(UnambiguousParseError::Ambiguous));
         assert_parse_result_matches!(combinator, b"bc", Err(UnambiguousParseError::Fail));
     }
+}
+
+#[cfg(test)]
+mod test_rotate_right {
+    use super::*;
+
+    #[test]
+    fn test_eat_u8() {
+        let combinator = eat_u8(b'a');
+        let expected = choice!(seq!(eat_u8(b'a').into_dyn()));
+        assert_eq!(combinator.rotate_right(), expected);
+    }
+
+    #[test]
+    fn test_choice() {
+        let combinator = choice!(
+            eat_u8(b'a'),
+            eat_u8(b'b')
+        );
+    }
+
+    #[test]
+    fn test_seq() {
+        let combinator = seq!(
+            eat_u8(b'a'),
+            eat_u8(b'b')
+        );
+    }
+
+    // TODO: test more complicated cases
 }
