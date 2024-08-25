@@ -37,6 +37,12 @@ impl<'a, T: CombinatorTrait> CombinatorTrait for &'a T {
     }
 }
 
+impl<'a> PartialEq for &'a dyn CombinatorTrait {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+
 impl AsAny for Box<dyn CombinatorTrait> { fn as_any(&self) -> &dyn std::any::Any { self } }
 impl<'a, T: AsAny> AsAny for &'a T { fn as_any(&self) -> &dyn std::any::Any { self.as_any() } }
 
