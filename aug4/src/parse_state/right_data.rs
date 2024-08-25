@@ -59,6 +59,14 @@ impl Default for RightData {
 }
 
 impl RightData {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn position(&self) -> usize {
+        self.right_data_inner.fields1.position
+    }
+
     pub fn advance(&mut self, n: usize) {
         self.get_inner_mut().fields1.position += n;
     }

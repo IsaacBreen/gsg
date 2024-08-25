@@ -1,3 +1,5 @@
+#![feature(assert_matches)]
+
 mod parse_state;
 mod tokenizer;
 mod unicode_categories;
