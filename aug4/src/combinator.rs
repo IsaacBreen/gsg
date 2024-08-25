@@ -27,7 +27,7 @@ impl CombinatorTrait for Box<dyn CombinatorTrait> {
     }
 }
 
-impl<T: CombinatorTrait> CombinatorTrait for &T {
+impl<T: CombinatorTrait + ?Sized> CombinatorTrait for &T {
     fn parse(&self, right_data: RightData, input: &[u8]) -> UnambiguousParseResults {
         (*self).parse(right_data, input)
     }
