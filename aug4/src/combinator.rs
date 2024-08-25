@@ -260,19 +260,25 @@ mod test_parse {
 mod test_rotate_right {
     use super::*;
 
+    macro_rules! assert_combinators_eq {
+        ($a:expr, $b:expr) => {
+            assert_eq!(format!("{:?}", $a), format!("{:?}", $b));
+        };
+    }
+
     #[test]
     fn test_ref_dyn_eq() {
         let a = eat_u8(b'a');
         let a_ref1 = &a as &dyn CombinatorTrait;
         let a_ref2 = &a as &dyn CombinatorTrait;
-        assert_eq!(format!("{:?}", a_ref1), format!("{:?}", a_ref2));
+        assert_combinators_eq!(a_ref1, a_ref2);
     }
 
     #[test]
     fn test_eat_u8() {
         let combinator = eat_u8(b'a');
         let expected = choice!(seq!(&combinator as &dyn CombinatorTrait));
-        assert_eq!(format!("{:?}", combinator.rotate_right()), format!("{:?}", expected));
+        assert_combinators_eq!(combinator.rotate_right(), expected);
     }
 
     #[test]
@@ -281,7 +287,7 @@ mod test_rotate_right {
         let b = eat_u8(b'b');
         let combinator = choice!(&a as &dyn CombinatorTrait, &b as &dyn CombinatorTrait);
         let expected = choice!(seq!(&a as &dyn CombinatorTrait), seq!(&b as &dyn CombinatorTrait));
-        assert_eq!(format!("{:?}", combinator.rotate_right()), format!("{:?}", expected));
+        assert_combinators_eq!(combinator.rotate_right(), expected);
     }
 
     #[test]
@@ -290,7 +296,7 @@ mod test_rotate_right {
         let b = eat_u8(b'b');
         let combinator = seq!(&a as &dyn CombinatorTrait, &b as &dyn CombinatorTrait);
         let expected = choice!(seq!(&a as &dyn CombinatorTrait, &b as &dyn CombinatorTrait));
-        assert_eq!(format!("{:?}", combinator.rotate_right()), format!("{:?}", expected));
+        assert_combinators_eq!(combinator.rotate_right(), expected);
     }
 
     // TODO: test more complicated cases
