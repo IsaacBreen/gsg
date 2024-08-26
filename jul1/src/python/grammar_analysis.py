@@ -35,25 +35,25 @@ def resolve_left_recursion(rules: dict[Ref, Node]) -> dict[Ref, Node]:
     return replacements
 
 
-def is_left_recursive_for_node(node: Node, ref: Ref) -> bool:
+def is_directly_left_recursive_for_node(node: Node, ref: Ref) -> bool:
     if isinstance(node, Seq):
         # Left-recursive if the first child is ref or indirectly leads to it
-        return node.children and is_left_recursive_for_node(node.children[0], ref)
+        return node.children and is_directly_left_recursive_for_node(node.children[0], ref)
     elif isinstance(node, Choice):
         # Left-recursive if any choice is left-recursive
-        return any(is_left_recursive_for_node(child, ref) for child in node.children)
+        return any(is_directly_left_recursive_for_node(child, ref) for child in node.children)
     elif isinstance(node, Repeat1):
         # Left-recursive if the child is left-recursive
-        return is_left_recursive_for_node(node.child, ref)
+        return is_directly_left_recursive_for_node(node.child, ref)
     elif isinstance(node, SepRep1):
         # Left-recursive if the child or separator is left-recursive
-        return is_left_recursive_for_node(node.child, ref) or is_left_recursive_for_node(node.separator, ref)
+        return is_directly_left_recursive_for_node(node.child, ref) or is_directly_left_recursive_for_node(node.separator, ref)
     elif isinstance(node, Ref):
         # Directly left-recursive if this node is the reference
         return node == ref
     elif isinstance(node, Lookahead):
         # Left-recursive if the lookahead child is left-recursive
-        return is_left_recursive_for_node(node.child, ref)
+        return is_directly_left_recursive_for_node(node.child, ref)
     elif isinstance(node, Term):
         # Terminals are not left-recursive
         return False
@@ -61,12 +61,16 @@ def is_left_recursive_for_node(node: Node, ref: Ref) -> bool:
         # External epsilon nodes are not left-recursive
         return False
     elif isinstance(node, Choice):
-        return any(is_left_recursive_for_node(child, ref) for child in node.children)
+        return any(is_directly_left_recursive_for_node(child, ref) for child in node.children)
     return False
 
 
-def is_left_recursive(rules: dict[Ref, Node]) -> bool:
-    return any(is_left_recursive_for_node(rules[ref], ref) for ref in rules)
+def has_direct_left_recursion(rules: dict[Ref, Node]) -> bool:
+    return any(is_directly_left_recursive_for_node(rules[ref], ref) for ref in rules)
+
+
+def has_indirect_left_recursion(rules: dict[Ref, Node]) -> bool:
+    ...
 
 
 def find_left_recursive_cycles(rules: dict[Ref, Node], start: Ref) -> list[list[Ref]]:
