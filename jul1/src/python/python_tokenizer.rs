@@ -1,9 +1,11 @@
-use crate::CombinatorTrait;
+use crate::{ActuallyUnambiguousParseError, CombinatorTrait, UnambiguousParseError};
 use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
+use crate::fast_combinator::{eat_bytestring_choice_fast, repeat0_fast};
+use crate::tokenizer::finite_automata::Expr;
 
-use crate::{EatU8, ParseResults, ParseResultTrait, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, brute_force, ParseError, parse_error, parse_ok, fast_combinator, eat, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast, eat_char_negation_fast, repeatn_fast, IntoCombinator};
+use crate::{EatU8, ParseResults, ParseResultTrait, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, fast_combinator, eat, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast, eat_char_negation_fast, repeatn_fast, IntoCombinator};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
@@ -450,128 +452,8 @@ pub fn is_reserved_keyword(s: &str) -> bool {
 }
 
 
-use std::str::Utf8Error;
-use crate::fast_combinator::{eat_bytestring_choice_fast, repeat0_fast};
-use crate::tokenizer::finite_automata::Expr;
-
-struct Utf8CharDecoder<'a> {
-    bytes: &'a [u8],
-    position: usize,
-}
-
-impl<'a> Utf8CharDecoder<'a> {
-    fn new(bytes: &'a [u8]) -> Self {
-        Utf8CharDecoder {
-            bytes,
-            position: 0,
-        }
-    }
-
-    fn current_position(&self) -> usize {
-        self.position
-    }
-}
-
-impl<'a> Iterator for Utf8CharDecoder<'a> {
-    type Item = Result<(char, usize), ParseError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.position >= self.bytes.len() {
-            return None;
-        }
-
-        let first_byte = self.bytes[self.position];
-        let byte_length = utf8_byte_length(first_byte);
-
-        if self.position + byte_length > self.bytes.len() {
-            // Incomplete sequence
-            self.position += 1; // Skip the invalid byte
-            return Some(Err(ParseError::Incomplete));
-        }
-
-        let slice = &self.bytes[self.position..self.position + byte_length];
-
-        match std::str::from_utf8(slice) {
-            Ok(s) => {
-                self.position += byte_length;
-                Some(Ok((s.chars().next().unwrap(), byte_length)))
-            }
-            Err(e) => {
-                self.position += 1; // Skip the invalid byte
-                Some(Err(ParseError::Fail))
-            }
-        }
-    }
-}
-
-fn utf8_byte_length(first_byte: u8) -> usize {
-    if first_byte & 0b10000000 == 0 {
-        1
-    } else if first_byte & 0b11100000 == 0b11000000 {
-        2
-    } else if first_byte & 0b11110000 == 0b11100000 {
-        3
-    } else if first_byte & 0b11111000 == 0b11110000 {
-        4
-    } else {
-        1 // Invalid start byte
-    }
-}
-
-pub trait NormalizeParseResult<T> {
-    fn normalize(self) -> Result<T, ParseError>;
-}
-
-impl NormalizeParseResult<(char, usize)> for Option<Result<(char, usize), Utf8Error>> {
-    fn normalize(self) -> Result<(char, usize), ParseError> {
-        match self {
-            Some(Ok(x)) => Ok(x),
-            Some(Err(e)) => Err(ParseError::Fail),
-            None => Err(ParseError::Incomplete),
-        }
-    }
-}
 
 pub fn NAME()-> impl CombinatorTrait {
-    let combinator = brute_force(|mut right_data, bytes| {
-        let mut s = Utf8CharDecoder::new(bytes);
-
-        // The first character must belong to the set of valid identifiers: Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property.
-        use unicode_general_category::{GeneralCategory as GC};
-        let Ok((c, offset)) = s.next()? else { return parse_error(); };
-        let mut total_offset = offset;
-        let category = get_general_category(c);
-        if !(matches!(category, GC::UppercaseLetter | GC::LowercaseLetter | GC::TitlecaseLetter | GC::ModifierLetter | GC::OtherLetter | GC::LetterNumber) || c == '_') {
-            return parse_error();
-        }
-
-        // The remaining characters must belong to the set of valid identifiers: all identifiers in the start set identifiers, Mn, Mc, Nd, Pc, and characters with the Other_ID_Continue property.
-        loop {
-            match s.next()? {
-                Ok((c, next_offset)) => {
-                    let category = get_general_category(c);
-                    if matches!(c, '"' | '\'') {
-                        return parse_error();
-                    }
-                    if !(matches!(category, GC::UppercaseLetter | GC::LowercaseLetter | GC::TitlecaseLetter | GC::ModifierLetter | GC::OtherLetter | GC::LetterNumber | GC::NonspacingMark | GC::SpacingMark | GC::DecimalNumber | GC::ConnectorPunctuation) || c == '_') {
-                        break;
-                    }
-                    total_offset += next_offset;
-                },
-                Err(_) => break,
-            }
-        }
-
-        // Ensure it's not one of the reserved keywords
-        let s = String::from_utf8(bytes[0..total_offset].to_vec()).unwrap();
-        if is_reserved_keyword(&s) {
-            return parse_error();
-        }
-
-        right_data.advance(total_offset);
-        parse_ok(right_data)
-    });
-
     // let combinator = seq!(exclude_strings(seq!(xid_start_fast(), repeat0(xid_continue_fast())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
     // let combinator = seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast()));
     // let combinator = seq!(exclude_strings(combinator, reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));

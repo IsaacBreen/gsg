@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::AddAssign;
 
-use crate::{BruteForceParser, CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, GLOBAL_CACHE, IndentCombinatorParser, ProfiledParser, Repeat1Parser, SeqParser, TaggedParser, U8Set, BaseCombinatorTrait};
+use crate::{CacheContextParser, ChoiceParser, EatStringParser, EatU8Parser, ExcludeBytestringsParser, GLOBAL_CACHE, IndentCombinatorParser, ProfiledParser, Repeat1Parser, SeqParser, TaggedParser, U8Set, BaseCombinatorTrait};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Stats {

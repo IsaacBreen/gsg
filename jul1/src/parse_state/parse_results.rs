@@ -15,6 +15,12 @@ pub enum UnambiguousParseError {
     Fail,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ActuallyUnambiguousParseError {
+    Incomplete,
+    Fail,
+}
+
 pub type UnambiguousParseResults = Result<RightData, UnambiguousParseError>;
 
 pub trait ParseResultTrait {
