@@ -16,6 +16,8 @@ from pegen.tokenizer import Tokenizer
 import grammar_analysis
 from grammar_analysis import ref
 
+logger = logging.getLogger(__name__)
+
 random.seed(0)
 
 
@@ -353,21 +355,24 @@ if __name__ == "__main__":
 
     custom_grammar = pegen_to_custom(pegen_grammar)
 
-    if any(rule.left_recursive for rule in pegen_grammar.rules.values()):
-        print("Resolving left recursion...")
+    direct = grammar_analysis.has_direct_left_recursion(custom_grammar)
+    indirect = grammar_analysis.has_indirect_left_recursion(custom_grammar)
+    for rule_ref, rule in custom_grammar.items():
+        if grammar_analysis.is_directly_left_recursive_for_node(rule, rule_ref):
+            print(f"Directly left-recursive rule: {rule_ref}")
+    for cycle in grammar_analysis.find_indirect_left_recursive_cycles(custom_grammar):
+        print(f"Indirect left-recursive cycle: {' -> '.join(str(ref) for ref in cycle)}")
+    if indirect:
+        assert direct
+    if direct or indirect:
+        if any(rule.left_recursive for rule in pegen_grammar.rules.values()):
+            logging.warning("Grammar has left recursion that was not reported by pegen")
+        logger.info("Resolving left recursion...")
         custom_grammar = grammar_analysis.resolve_left_recursion(custom_grammar)
-    else:
-        direct = grammar_analysis.has_direct_left_recursion(custom_grammar)
-        indirect = grammar_analysis.has_indirect_left_recursion(custom_grammar)
-        for ref, rule in custom_grammar.items():
-            if grammar_analysis.is_directly_left_recursive_for_node(rule, ref):
-                print(f"Directly left-recursive rule: {ref}")
-        for cycle in grammar_analysis.find_indirect_left_recursive_cycles(custom_grammar):
-            print(f"Indirect left-recursive cycle: {' -> '.join(str(ref) for ref in cycle)}")
-        if indirect:
-            assert direct
-        if direct or indirect:
-            raise ValueError("Grammar has left recursion")
+
+    now_direct = grammar_analysis.has_direct_left_recursion(custom_grammar)
+    now_indirect = grammar_analysis.has_indirect_left_recursion(custom_grammar)
+    assert not (now_direct and now_indirect)
 
 
     # Use lists instead of sets for values to ensure deterministic order

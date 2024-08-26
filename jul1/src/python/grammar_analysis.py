@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import abc
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Self
 
 from tqdm import tqdm
 
+logger = logging.getLogger(__name__)
+# TODO: this is a hack to show logging output in PyCharm. There has to be a better way.
+logger.info = print
 
 class Node(abc.ABC):
     @abc.abstractmethod
@@ -29,10 +33,71 @@ def resolve_left_recursion_for_rule[T: Node](node: T, ref: Ref, replacements: di
 
 
 def resolve_left_recursion(rules: dict[Ref, Node]) -> dict[Ref, Node]:
+    """Resolves left recursion in the given grammar rules."""
+    # 1. Identify and resolve direct left recursion
+    rules = resolve_direct_left_recursion(rules)
+
+    # 2. Identify and resolve indirect left recursion
+    rules = resolve_indirect_left_recursion(rules)
+
+    return rules
+
+
+def resolve_direct_left_recursion(rules: dict[Ref, Node]) -> dict[Ref, Node]:
+    """Resolves direct left recursion in the given grammar rules."""
+    new_rules = {}
+    for ref, node in tqdm(rules.items(), desc="Resolving direct left recursion"):
+        if is_directly_left_recursive_for_node(node, ref):
+            logger.info(f"Resolving direct left recursion for rule {ref}")
+            new_rules[ref] = resolve_left_recursion_for_rule(node, ref, {})
+        else:
+            new_rules[ref] = node
+    return new_rules
+
+
+def resolve_indirect_left_recursion(rules: dict[Ref, Node]) -> dict[Ref, Node]:
+    """Resolves indirect left recursion in the given grammar rules."""
+    # 1. Find cycles of indirect left recursion
+    cycles = find_indirect_left_recursive_cycles(rules)
+
+    # 2. Merge cycles into disjoint sets
+    disjoint_cycles = merge_cycles(cycles)
+
+    # 3. Resolve left recursion within each disjoint set
+    new_rules = rules.copy()
+    for cycle in disjoint_cycles:
+        logger.info(f"Resolving indirect left recursion for cycle {cycle}")
+        new_rules.update(resolve_left_recursion_for_cycle(rules, cycle))
+
+    return new_rules
+
+
+def resolve_left_recursion_for_cycle(rules: dict[Ref, Node], cycle: set[Ref]) -> dict[Ref, Node]:
+    """Resolves left recursion within a cycle of indirectly left-recursive rules."""
+    new_rules = {}
     replacements = {}
-    for ref, node in tqdm(rules.items(), desc="Resolving left recursion"):
-        replacements[ref] = resolve_left_recursion_for_rule(node, ref, replacements)
-    return replacements
+    for ref in cycle:
+        # Replace references to rules within the cycle
+        node = rules[ref].replace_left_refs(replacements)
+        # Resolve left recursion for the current rule
+        new_rules[ref] = resolve_left_recursion_for_rule(node, ref, replacements)
+        replacements[ref] = new_rules[ref]
+    return new_rules
+
+
+def merge_cycles(cycles: list[list[Ref]]) -> list[set[Ref]]:
+    """Merges cycles of indirect left recursion into disjoint sets."""
+    disjoint_cycles = []
+    for cycle in cycles:
+        merged = False
+        for i in range(len(disjoint_cycles)):
+            if any(ref in disjoint_cycles[i] for ref in cycle):
+                disjoint_cycles[i].update(cycle)
+                merged = True
+                break
+        if not merged:
+            disjoint_cycles.append(set(cycle))
+    return disjoint_cycles
 
 
 def is_directly_left_recursive_for_node(node: Node, ref: Ref) -> bool:
