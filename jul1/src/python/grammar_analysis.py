@@ -66,8 +66,11 @@ def is_left_recursive_for_node(node: Node, ref: Ref) -> bool:
 
 
 def is_left_recursive(rules: dict[Ref, Node]) -> bool:
-    # Check if any rule is left-recursive
     return any(is_left_recursive_for_node(rules[ref], ref) for ref in rules)
+
+
+def find_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref]]:
+    ...
 
 
 @dataclass
@@ -426,7 +429,7 @@ if __name__ == '__main__':
     print(f"  After: {expr.simplify()}")
     print()
 
-    # Test resolving left recursion
+    # Test resolving direct left recursion
     rules = make_rules(
         A=choice(seq(ref('A'), term('a')), term('b')),
     )
@@ -437,6 +440,32 @@ if __name__ == '__main__':
     print("  Checking for left recursion:")
     for rule_ref in rules:
         print(f"    Is rule {rule_ref} left-recursive? {is_left_recursive_for_node(rules[rule_ref], rule_ref)}")
+
+    print("  Left-recursive cycles:")
+    for cycle in find_left_recursive_cycles(rules, rules[ref('A')], ref('A'), set(), []):
+        print(f"    {cycle}")
+
+    rules = resolve_left_recursion(rules)
+    print("  After:")
+    prettify_rules(rules)
+    print()
+
+    # Test resolving indirect left recursion
+    rules = make_rules(
+        A=choice(seq(ref('B'), term('a')), term('b')),
+        B=ref('A'),
+    )
+    print("Test resolving indirect left recursion:")
+    print("  Before:")
+    prettify_rules(rules)
+
+    print("  Checking for left recursion:")
+    for rule_ref in rules:
+        print(f"    Is rule {rule_ref} left-recursive? {is_left_recursive_for_node(rules[rule_ref], rule_ref)}")
+
+    print("  Left-recursive cycles:")
+    for cycle in find_left_recursive_cycles(rules):
+        print(f"    {cycle}")
 
     rules = resolve_left_recursion(rules)
     print("  After:")
