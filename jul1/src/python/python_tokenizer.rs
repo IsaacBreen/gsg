@@ -1,18 +1,21 @@
-use crate::{ActuallyUnambiguousParseError, CombinatorTrait, UnambiguousParseError};
+use crate::{eat_bytestring_choice_fast, repeat0_fast, ActuallyUnambiguousParseError, CombinatorTrait, UnambiguousParseError};
 use std::rc::Rc;
 use std::str::Chars;
 use unicode_general_category::get_general_category;
-use crate::fast_combinator::{eat_bytestring_choice_fast, repeat0_fast};
-use crate::tokenizer::finite_automata::Expr;
 
-use crate::{EatU8, ParseResults, ParseResultTrait, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, fast_combinator, eat, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast, eat_char_negation_fast, repeatn_fast, IntoCombinator};
+use crate::{EatU8, ParseResults, ParseResultTrait, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, 
+    eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, 
+    seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, 
+    fast_combinator, eat, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, 
+    choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast, eat_char_negation_fast, 
+    repeatn_fast, IntoCombinator};
 
 use crate::{
     choice_greedy as choice, opt_greedy as opt,
     repeat0_greedy as repeat0, repeat1_greedy as repeat1,
     repeatn_greedy as repeatn,
 };
-
+use crate::tokenizer::finite_automata::Expr;
 use crate::unicode::get_unicode_general_category_bytestrings;
 use crate::unicode_categories::GeneralCategory;
 
@@ -67,33 +70,7 @@ pub fn non_breaking_space_fast() -> Expr {
 // could otherwise be interpreted as a different token (e.g., ab is one token, but
 // a b is two tokens).
 pub fn whitespace()-> impl CombinatorTrait {
-    // return repeat1(choice!(
-    //         // If right_data.num_scopes > 0 then we can match a newline as a whitespace. Otherwise, we can't.
-    //         seq!(
-    //             check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
-    //             breaking_space()
-    //         ),
-    //         // But we can match an escaped newline.
-    //         seq!(eat_string("\\"), breaking_space()),
-    //         non_breaking_space()
-    //     )).into();
-
-    // return choice_greedy!(
-    //     seq!(
-    //         check_right_data(|right_data| right_data.right_data_inner.scope_count > 0),
-    //         repeat1_fast(choice_fast!(
-    //             non_breaking_space_fast(),
-    //             breaking_space_fast(),
-    //             eat_string_fast("\\\n"),
-    //         ))
-    //     ),
-    //     repeat1_fast(choice_fast!(
-    //         non_breaking_space_fast(),
-    //         eat_string_fast("\\\n"),
-    //     ))
-    // );
-
-    return choice_greedy!(
+    choice_greedy!(
         seq!(
             repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n"]))
         ),
@@ -101,39 +78,7 @@ pub fn whitespace()-> impl CombinatorTrait {
             check_right_data(|right_data| right_data.right_data_inner.fields1.scope_count > 0),
             repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n", "\n", "\r"]))
         ),
-    );
-
-    // brute_force(|mut right_data, bytes| {
-    //     let mut s = Utf8CharDecoder::new(bytes);
-    //     let mut total_offset = 0;
-    //     loop {
-    //         match s.next()? {
-    //             Ok((c, next_offset)) => {
-    //                 if matches!(c, '\n' | '\r') {
-    //                     if right_data.right_data_inner.fields1.scope_count == 0 {
-    //                         break;
-    //                     }
-    //                     total_offset += next_offset;
-    //                 } else if c.is_whitespace() {
-    //                     total_offset += next_offset;
-    //                 } else if c == '\\' {
-    //                     match s.next()? {
-    //                         Ok(('\n' | '\r', next_offset2)) => {
-    //                             total_offset += next_offset + next_offset2;
-    //                         },
-    //                         _ => break,
-    //                     }
-    //                 } else {
-    //                     break;
-    //                 }
-    //             },
-    //             Err(_) => break,
-    //         }
-    //     }
-    //
-    //     right_data.advance(total_offset);
-    //     parse_ok(right_data)
-    // })
+    )
 }
 
 pub fn WS()-> impl CombinatorTrait {
@@ -293,6 +238,7 @@ pub fn WS()-> impl CombinatorTrait {
 //    class definition, are re-written to use a mangled form to help avoid name
 //    clashes between "private" attributes of base and derived classes. See section
 //    :ref:`atom-identifiers`.
+
 pub fn id_start_bytestrings() -> Vec<Vec<u8>> {
     // all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property
     let categories = [
@@ -330,25 +276,18 @@ pub fn id_continue_bytestrings() -> Vec<Vec<u8>> {
 
 pub fn id_start_fast() -> Expr {
     eat_bytestring_choice_fast(id_start_bytestrings())
-    // eat_bytestring_choice_fast(vec![b'_', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z'].into_iter().map(|byte| vec![byte]).collect())
-    // eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 }
 
 pub fn id_continue_fast() -> Expr {
     eat_bytestring_choice_fast(id_continue_bytestrings())
-    // eat_bytestring_choice_fast(vec![b'_', b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9'].into_iter().map(|byte| vec![byte]).collect())
-    // eat_char_choice_fast("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 }
 
+// xid_start and xid_continue are simplified as their NFKC normalization rules are unclear.
 pub fn xid_start_fast() -> Expr {
-    // all characters in id_start whose NFKC normalization is in "id_start xid_continue*"
-    // Honestly, I don't know what this means.
     id_start_fast()
 }
 
 pub fn xid_continue_fast() -> Expr {
-    // all characters in id_continue whose NFKC normalization is in "id_continue*"
-    // Honestly, I don't know what this means.
     id_continue_fast()
 }
 
@@ -451,18 +390,8 @@ pub fn is_reserved_keyword(s: &str) -> bool {
     reserved_keywords().contains(&s)
 }
 
-
-
 pub fn NAME()-> impl CombinatorTrait {
-    // let combinator = seq!(exclude_strings(seq!(xid_start_fast(), repeat0(xid_continue_fast())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
-    // let combinator = seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast()));
-    // let combinator = seq!(exclude_strings(combinator, reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
-
-    // let combinator: Combinator = combinator.into();
-
-    let combinator = seq!(exclude_strings(seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")));
-
-    combinator
+    seq!(exclude_strings(seq_fast!(xid_start_fast(), repeat0_fast(xid_continue_fast())), reserved_keywords()), negative_lookahead(eat_char_choice("\'\"")))
 }
 
 // .. _literals:
@@ -780,6 +709,7 @@ pub fn STRING()-> impl CombinatorTrait {
 // Of course, as mentioned before, it is not possible to provide a precise
 // specification of how this should be done for an arbitrary tokenizer as it will
 // depend on the specific implementation and nature of the lexer to be changed.
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PythonQuoteType {
     OneSingle,
@@ -821,55 +751,40 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
     );
 
     let regular_char = eat_char_negation_choice_fast("{}\\\n\r\'\"");
-    // let regular_char = eat_char_choice_fast("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
 
     let single_quote = seq_fast!(
         eat_char_fast('\''),
-        // check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneSingle })
     );
 
     let double_quote = seq_fast!(
         eat_char_fast('"'),
-        // check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() != PythonQuoteType::OneDouble })
     );
 
     let newline = seq_fast!(
         breaking_space_fast(),
-        // check_right_data(|right_data| {matches!(right_data.right_data_inner.fields2.fstring_start_stack.last(), Some(PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble))})
     );
 
+    // Simplified choices based on quote type
     let one_single = repeat1_greedy(choice_fast!(
-            regular_char.clone(),
-            stringescapeseq.clone(),
-            seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
-            seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
-            // single_quote,
-            // double_quote.clone(),
-            // newline,
-        )
-    );
+        regular_char.clone(),
+        stringescapeseq.clone(),
+        seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
+        seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
+    ));
 
     let one_double = repeat1_greedy(choice_fast!(
-            regular_char.clone(),
-            stringescapeseq.clone(),
-            seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
-            seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
-            // single_quote.clone(),
-            // double_quote,
-            // newline,
-        )
-    );
+        regular_char.clone(),
+        stringescapeseq.clone(),
+        seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
+        seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
+    ));
 
     let three = repeat1_greedy(choice_fast!(
-            regular_char,
-            stringescapeseq,
-            seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
-            seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
-            // single_quote,
-            // double_quote,
-            // newline,
-        )
-    );
+        regular_char,
+        stringescapeseq,
+        seq_fast!(eat_char_fast('{'), eat_char_fast('{')),
+        seq_fast!(eat_char_fast('}'), eat_char_fast('}')),
+    ));
 
     choice_greedy!(
         seq!(
@@ -889,7 +804,6 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
 
 pub fn FSTRING_END()-> impl CombinatorTrait {
     let quote = choice!(
-        // seq!(eat_string("\"\"\""), mutate_right_data(|right_data| { right_data.get_inner_mut().fields2.fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeDouble })),
         seq!(eat_char('\''), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.pop().unwrap() == PythonQuoteType::OneSingle })),
         seq!(eat_char('"'), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.pop().unwrap() == PythonQuoteType::OneDouble })),
         seq!(eat_string("'''"), mutate_right_data(|right_data| { right_data.get_inner_mut().get_fields2_mut().fstring_start_stack.pop().unwrap() == PythonQuoteType::ThreeSingle })),
@@ -1109,7 +1023,6 @@ pub fn comment() -> Expr {
 pub fn NEWLINE()-> impl CombinatorTrait {
     let end_of_line = seq_fast!(opt_fast(comment()), breaking_space_fast());
     let blank_line = seq_fast!(repeat0_fast(non_breaking_space_fast()), end_of_line.clone());
-    // seq!(end_of_line, repeat0_fast(blank_line), dent())
     seq!(seq_fast!(end_of_line, repeat0_fast(blank_line)), dent())
 }
 
