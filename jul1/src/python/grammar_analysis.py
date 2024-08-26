@@ -25,10 +25,6 @@ class Node(abc.ABC):
     def simplify(self) -> Node:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def count_refs(self) -> dict[Ref, int]:
-        raise NotImplementedError
-
 
 def resolve_left_recursion_for_rule[T: Node](node: T, ref: Ref, replacements: dict[Ref, Node]) -> Node:
     node.replace_left_refs(replacements)
@@ -247,13 +243,6 @@ class Seq(Node):
             case _:
                 return Seq(children)
 
-    def count_refs(self) -> dict[Ref, int]:
-        counts = defaultdict(int)
-        for child in self.children:
-            for ref, count in child.count_refs().items():
-                counts[ref] += count
-        return counts
-
     def __str__(self) -> str:
         match self:
             case Seq([]):
@@ -342,13 +331,6 @@ class Choice(Node):
 
         return Choice(new_children)
 
-    def count_refs(self) -> dict[Ref, int]:
-        counts = defaultdict(int)
-        for child in self.children:
-            for ref, count in child.count_refs().items():
-                counts[ref] += count
-        return counts
-
     def copy(self) -> Self:
         return Choice([child.copy() for child in self.children])
 
@@ -396,9 +378,6 @@ class Repeat1(Node):
     def simplify(self) -> Node:
         self.child = self.child.simplify()
         return self if self.child != fail() else fail()
-
-    def count_refs(self) -> dict[Ref, int]:
-        return self.child.count_refs()
 
     def copy(self) -> Self:
         return Repeat1(self.child.copy())
@@ -450,12 +429,6 @@ class SepRep1(Node):
             return repeat1(self.child).simplify()
         return self
 
-    def count_refs(self) -> dict[Ref, int]:
-        counts = self.child.count_refs()
-        for ref, count in self.separator.count_refs().items():
-            counts[ref] += count
-        return counts
-
     def copy(self) -> Self:
         return SepRep1(self.child.copy(), self.separator.copy())
 
@@ -466,7 +439,6 @@ class SepRep1(Node):
 @dataclass(frozen=True)
 class Ref(Node):
     name: str
-    _inline: bool = False
 
     def decompose_on_left_recursion(self, ref: Ref) -> tuple[Node, Node]:
         if self == ref:
@@ -480,17 +452,8 @@ class Ref(Node):
     def simplify(self) -> Node:
         return self
 
-    def count_refs(self) -> dict[Ref, int]:
-        return {self: 1}
-
     def copy(self) -> Self:
-        return Ref(self.name, self._inline)
-
-    def mark_for_inlining(self):
-        self._inline = True
-
-    def should_inline(self):
-        return self._inline
+        return Ref(self.name)
 
     def __str__(self) -> str:
         return f'ref(\u001b[31m{repr(self.name)}\u001b[0m)'
@@ -508,9 +471,6 @@ class Term[T](Node):
 
     def simplify(self) -> Node:
         return self
-
-    def count_refs(self) -> dict[Ref, int]:
-        return {}
 
     def copy(self) -> Self:
         return Term(self.value)
@@ -531,9 +491,6 @@ class EpsExternal[T](Node):
 
     def simplify(self) -> Node:
         return self
-
-    def count_refs(self) -> dict[Ref, int]:
-        return {}
 
     def copy(self) -> Self:
         return EpsExternal(self.data)
@@ -556,9 +513,6 @@ class Lookahead(Node):
     def simplify(self) -> Node:
         self.child = self.child.simplify()
         return self if self.child != fail() else fail()
-
-    def count_refs(self) -> dict[Ref, int]:
-        return self.child.count_refs()
 
     def copy(self) -> Self:
         return Lookahead(self.child.copy(), self.positive)
@@ -588,16 +542,24 @@ def prettify_rules(rules: dict[Ref, Node]):
     for ref, node in rules.items():
         print(f'{ref} -> {node}')
 
-def analyze_and_mark_for_inlining(rules: dict[Ref, Node]):
-    ref_counts = defaultdict(int)
+
+def analyze_rule_usage(rules: dict[Ref, Node]) -> dict[Ref, int]:
+    """Analyzes the usage of each rule in the grammar."""
+    usage_count = defaultdict(int)
+
+    def count_usage(node: Node):
+        if isinstance(node, Ref):
+            usage_count[node] += 1
+        elif isinstance(node, Seq) or isinstance(node, Choice):
+            for child in node.children:
+                count_usage(child)
+        elif isinstance(node, Repeat1) or isinstance(node, SepRep1) or isinstance(node, Lookahead):
+            count_usage(node.child)
+
     for rule in rules.values():
-        for ref, count in rule.count_refs().items():
-            ref_counts[ref] += count
+        count_usage(rule)
 
-    for ref, count in ref_counts.items():
-        if count == 1:
-            ref.mark_for_inlining()
-
+    return usage_count
 
 
 if __name__ == '__main__':

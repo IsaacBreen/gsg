@@ -13,7 +13,7 @@ from pegen.grammar_parser import GeneratedParser
 from pegen.tokenizer import Tokenizer
 
 import grammar_analysis
-from grammar_analysis import ref
+from grammar_analysis import ref, analyze_rule_usage
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,8 @@ def custom_to_pegen(rules: dict[grammar_analysis.Ref, grammar_analysis.Node]) ->
 
 def grammar_to_rust(
         grammar: pegen.grammar.Grammar,
-        unresolved_follows_table: dict[grammar_analysis.Ref, list[grammar_analysis.Ref]]
+        unresolved_follows_table: dict[grammar_analysis.Ref, list[grammar_analysis.Ref]],
+        rule_usage: dict[grammar_analysis.Ref, int]
 ) -> str:
     @dataclass
     class ExtraInfo:
@@ -220,15 +221,19 @@ def grammar_to_rust(
     MAX_RULE_COMPLEXITY = 0
 
     def name_to_rust(name: str, extra_info: ExtraInfo) -> str:
-        if name in extra_info.added_rules:
-            ref = grammar_analysis.ref(name)
-            if ref.should_inline():
+        if rule_usage[ref(name)] == 1:
+            # Inline if the rule is used only once
+            return f'deferred({name})'
+        elif name in extra_info.added_rules:
+            if extra_info.rule_complexity[name] > MAX_RULE_COMPLEXITY:
+                # Rule is too complex. Don't inline.
+                return f'deferred({name}).into_dyn()'
+            else:
+                # Inline
                 extra_info.rule_complexity[extra_info.current_rule] += extra_info.rule_complexity[name]
                 return f'deferred({name})'
-            else:
-                return f'deferred({name}).into_dyn()'
         else:
-            # Rule hasn't been defined yet. Inline to avoid infinte-sized type.
+            # Rule hasn't been defined yet. Inline to avoid infinite-sized type.
             return f'deferred({name}).into_dyn()'
 
     rules = grammar.rules.items()
@@ -342,8 +347,8 @@ def grammar_to_rust(
 def save_grammar_to_rust(
         grammar: pegen.grammar.Grammar, filename: str,
         unresolved_follows_table: dict[grammar_analysis.Ref, list[
-            grammar_analysis.Ref]]) -> None:
-    rust_code = grammar_to_rust(grammar, unresolved_follows_table)
+            grammar_analysis.Ref]], rule_usage: dict[grammar_analysis.Ref, int]) -> None:
+    rust_code = grammar_to_rust(grammar, unresolved_follows_table, rule_usage)
     with open(filename, 'w') as f:
         f.write(rust_code)
 
@@ -375,6 +380,8 @@ if __name__ == "__main__":
     now_indirect = grammar_analysis.has_indirect_left_recursion(custom_grammar)
     assert not (now_direct and now_indirect)
 
+    # Analyze rule usage
+    rule_usage = analyze_rule_usage(custom_grammar)
 
     # Use lists instead of sets for values to ensure deterministic order
     forbidden_follows_table = {
@@ -390,11 +397,9 @@ if __name__ == "__main__":
 
     grammar_analysis.prettify_rules(custom_grammar)
 
-    grammar_analysis.analyze_and_mark_for_inlining(custom_grammar)
-
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
 
     for rule_name in resolved_pegen_grammar.rules:
         resolved_pegen_grammar.rules[rule_name].memo = pegen_grammar.rules[rule_name].memo
 
-    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs', forbidden_follows_table)
+    save_grammar_to_rust(resolved_pegen_grammar, 'python_grammar.rs', forbidden_follows_table, rule_usage)
