@@ -15,6 +15,7 @@ from pegen.tokenizer import Tokenizer
 
 import grammar_analysis
 from grammar_analysis import ref
+from python.grammar_analysis import is_left_recursive_for_node
 
 random.seed(0)
 
@@ -353,7 +354,11 @@ if __name__ == "__main__":
 
     custom_grammar = pegen_to_custom(pegen_grammar)
 
-    custom_grammar = grammar_analysis.resolve_left_recursion(custom_grammar)
+    if any(rule.left_recursive for rule in pegen_grammar.rules.values()):
+        print("Resolving left recursion...")
+        custom_grammar = grammar_analysis.resolve_left_recursion(custom_grammar)
+    else:
+        assert not grammar_analysis.is_left_recursive(custom_grammar)
 
     # Use lists instead of sets for values to ensure deterministic order
     forbidden_follows_table = {
