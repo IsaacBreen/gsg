@@ -123,3 +123,20 @@ pub fn fast_combinator(expr: Expr) -> FastCombinatorWrapper {
     let regex = expr.build();
     FastCombinatorWrapper { regex }
 }
+
+pub fn eat_bytestring_choice(bytestrings: Vec<Vec<u8>>) -> FastCombinatorWrapper {
+    // Convert into a regex.
+    let mut children = vec![];
+    for bytes in bytestrings {
+        children.push(eat_bytestring_fast(bytes));
+    }
+    fast_combinator(choice_fast(children))
+}
+
+pub fn eat_string_choice(strings: &[&str]) -> FastCombinatorWrapper {
+    let mut children = vec![];
+    for s in strings {
+        children.push(eat_string_fast(s));
+    }
+    fast_combinator(choice_fast(children))
+}
