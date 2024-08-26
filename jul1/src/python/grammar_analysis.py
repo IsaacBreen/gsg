@@ -69,8 +69,68 @@ def is_left_recursive(rules: dict[Ref, Node]) -> bool:
     return any(is_left_recursive_for_node(rules[ref], ref) for ref in rules)
 
 
-def find_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref]]:
-    ...
+def find_left_recursive_cycles(rules: dict[Ref, Node], start: Ref) -> list[list[Ref]]:
+    def is_nullable(node: Node) -> bool:
+        # This is a conservative estimate of whether a node is nullable.
+        # It assumes no refs or terminals are nullable.
+        if isinstance(node, Seq):
+            # Nullable if all children are nullable
+            return all(is_nullable(child) for child in node.children)
+        elif isinstance(node, Choice):
+            # Nullable if any choice is nullable
+            return any(is_nullable(child) for child in node.children)
+        elif isinstance(node, Repeat1):
+            # Repeat1 is not nullable
+            return False
+        elif isinstance(node, SepRep1):
+            # SepRep1 is not nullable
+            return False
+        elif isinstance(node, Ref):
+            # We don't know if a reference is nullable without the rules
+            return False  # Conservative estimate
+        elif isinstance(node, Lookahead):
+            # Lookaheads are always nullable
+            return True
+        elif isinstance(node, Term):
+            # Terminals are not nullable
+            return False
+        elif isinstance(node, EpsExternal):
+            # External epsilon nodes are nullable
+            return True
+        else:
+            raise ValueError(f"Unknown node type: {type(node)}")
+
+    def dfs(node: Node, path: list[Ref]) -> list[list[Ref]]:
+        if isinstance(node, Ref):
+            if node in path:
+                cycle_start = path.index(node)
+                return [path[cycle_start:] + [node]]
+            elif node in rules:
+                return dfs(rules[node], path + [node])
+            else:
+                return []
+        elif isinstance(node, Seq) and node.children:
+            cycles = []
+            for child in node.children:
+                cycles.extend(dfs(child, path))
+                if not is_nullable(child):
+                    return cycles
+            return cycles
+        elif isinstance(node, Choice):
+            cycles = []
+            for child in node.children:
+                cycles.extend(dfs(child, path))
+            return cycles
+        elif isinstance(node, Repeat1):
+            return dfs(node.child, path)
+        elif isinstance(node, SepRep1):
+            cycles = dfs(node.child, path)
+            return cycles
+        elif isinstance(node, Lookahead):
+            return dfs(node.child, path)
+        return []
+
+    return dfs(rules[start], [start])
 
 
 @dataclass
@@ -442,7 +502,7 @@ if __name__ == '__main__':
         print(f"    Is rule {rule_ref} left-recursive? {is_left_recursive_for_node(rules[rule_ref], rule_ref)}")
 
     print("  Left-recursive cycles:")
-    for cycle in find_left_recursive_cycles(rules):
+    for cycle in find_left_recursive_cycles(rules, start=Ref('A')):
         print(f"    {cycle}")
 
     rules = resolve_left_recursion(rules)
@@ -464,7 +524,7 @@ if __name__ == '__main__':
         print(f"    Is rule {rule_ref} left-recursive? {is_left_recursive_for_node(rules[rule_ref], rule_ref)}")
 
     print("  Left-recursive cycles:")
-    for cycle in find_left_recursive_cycles(rules):
+    for cycle in find_left_recursive_cycles(rules, start=Ref('A')):
         print(f"    {cycle}")
 
     rules = resolve_left_recursion(rules)

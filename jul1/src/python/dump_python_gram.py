@@ -358,7 +358,11 @@ if __name__ == "__main__":
         print("Resolving left recursion...")
         custom_grammar = grammar_analysis.resolve_left_recursion(custom_grammar)
     else:
-        assert not grammar_analysis.is_left_recursive(custom_grammar)
+        if grammar_analysis.is_left_recursive(custom_grammar):
+            start = grammar_analysis.Ref('file')
+            for cycle in grammar_analysis.find_left_recursive_cycles(custom_grammar, start=start):
+                print(f"Left-recursive cycle: {" -> ".join(str(ref) for ref in cycle)}")
+            assert False
 
     # Use lists instead of sets for values to ensure deterministic order
     forbidden_follows_table = {
