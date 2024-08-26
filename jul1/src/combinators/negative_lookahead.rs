@@ -38,7 +38,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
                 let end_position = right_data.right_data_inner.fields1.position;
                 let mut regex_state = self.regex.init();
                 regex_state.execute(&bytes[..(end_position - start_position)]);
-                if regex_state.definitely_fully_matches() {
+                if regex_state.fully_matches_here() {
                     return Err(UnambiguousParseError::Fail);
                 } else {
                     Ok(right_data)
@@ -54,34 +54,31 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
         let start_position = right_data.right_data_inner.fields1.position;
 
         // Optimized logic
-        let mut position_to_match = HashMap::new();
-        let mut positions = Vec::new();
+        let mut end_offsets_to_match = HashMap::new();
+        let mut end_offsets = Vec::new();
         for right_data in &parse_results.right_data_vec {
-            let position = right_data.right_data_inner.fields1.position - start_position;
-            position_to_match.insert(position, false);
-            positions.push(position);
+            let end_offset = right_data.right_data_inner.fields1.position - start_position;
+            end_offsets_to_match.insert(end_offset, false);
+            end_offsets.push(end_offset);
         }
-        positions.sort();
+        end_offsets.sort();
 
-        let mut current_position = 0;
-        for position in positions {
-            let slice = &bytes[current_position..position];
+        let mut offset = 0;
+        for end_offset in end_offsets {
+            let slice = &bytes[offset..end_offset];
             regex_state.execute(slice);
             if regex_state.definitely_fully_matches() {
-                position_to_match.insert(position, true);
+                end_offsets_to_match.insert(end_offset, true);
             }
-            current_position = position;
+            offset = end_offset;
         }
 
         // Run the regex to the end of the input
-        regex_state.execute(&bytes[current_position..]);
-        if regex_state.definitely_fully_matches() {
-            position_to_match.insert(bytes.len(), true);
-        }
+        regex_state.execute(&bytes[offset..]);
 
         parse_results.right_data_vec.retain(|right_data| {
             let position = right_data.right_data_inner.fields1.position - start_position;
-            !position_to_match.get(&position).cloned().unwrap_or(false)
+            !end_offsets_to_match[&position]
         });
 
         (ExcludeBytestringsParser {
@@ -111,34 +108,31 @@ impl ParserTrait for ExcludeBytestringsParser<'_> {
         let mut parse_results = self.inner.as_mut().parse(bytes);
 
         // Optimized logic
-        let mut position_to_match = HashMap::new();
-        let mut positions = Vec::new();
+        let mut end_offsets_to_match = HashMap::new();
+        let mut end_offsets = Vec::new();
         for right_data in &parse_results.right_data_vec {
-            let position = right_data.right_data_inner.fields1.position - self.position;
-            position_to_match.insert(position, false);
-            positions.push(position);
+            let end_offset = right_data.right_data_inner.fields1.position - self.position;
+            end_offsets_to_match.insert(end_offset, false);
+            end_offsets.push(end_offset);
         }
-        positions.sort();
+        end_offsets.sort();
 
-        let mut current_position = 0;
-        for position in positions {
-            let slice = &bytes[current_position..position];
+        let mut current_offset = 0;
+        for end_offset in end_offsets {
+            let slice = &bytes[current_offset..end_offset];
             self.regex_state.execute(slice);
-            if self.regex_state.definitely_fully_matches() {
-                position_to_match.insert(position, true);
+            if self.regex_state.fully_matches_here() {
+                end_offsets_to_match.insert(end_offset, true);
             }
-            current_position = position;
+            current_offset = end_offset;
         }
 
         // Run the regex to the end of the input
-        self.regex_state.execute(&bytes[current_position..]);
-        if self.regex_state.definitely_fully_matches() {
-            position_to_match.insert(bytes.len(), true);
-        }
+        self.regex_state.execute(&bytes[current_offset..]);
 
         parse_results.right_data_vec.retain(|right_data| {
             let position = right_data.right_data_inner.fields1.position - self.position;
-            !position_to_match.get(&position).cloned().unwrap_or(false)
+            !end_offsets_to_match[&position]
         });
 
         self.position += bytes.len();

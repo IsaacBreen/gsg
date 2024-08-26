@@ -554,6 +554,10 @@ impl RegexState<'_> {
         self.fully_matches().unwrap_or(true)
     }
 
+    pub fn fully_matches_here(&self) -> bool {
+        self.definitely_fully_matches()
+    }
+
     pub fn done(&self) -> bool {
         // Returns true if the regex has matched and cannot possibly match anymore
         self.done
