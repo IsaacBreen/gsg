@@ -112,21 +112,21 @@ def has_direct_left_recursion(rules: dict[Ref, Node]) -> bool:
 
 def has_indirect_left_recursion(rules: dict[Ref, Node]) -> bool:
     for ref in rules:
-        for cycle in find_left_recursive_cycles(rules, ref, [ref]):
+        for cycle in find_left_recursive_cycles(rules, ref):
             if len(set(cycle)) > 1:
                 return True
     return False
 
 
 def is_directly_left_recursive_for_node(node: Node, ref: Ref) -> bool:
-    cycles = find_left_recursive_cycles({}, ref, [ref])
+    cycles = find_left_recursive_cycles({}, node, [ref])
     return len(cycles) > 0
 
 
 def find_all_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref]]:
     cycles = []
     for ref in rules:
-        for cycle in find_left_recursive_cycles(rules, ref, [ref]):
+        for cycle in find_left_recursive_cycles(rules, ref):
             if cycle not in cycles:  # Only add unique cycles with length > 1
                 cycles.append(cycle)
     return cycles
@@ -139,7 +139,10 @@ def find_indirect_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref
     return []
 
 
-def find_left_recursive_cycles(rules: dict[Ref, Node], start_node: Node, path: list[Ref]) -> list[list[Ref]]:
+def find_left_recursive_cycles(rules: dict[Ref, Node], start_node: Node, path: Optional[list[Ref]] = None) -> list[list[Ref]]:
+    if path is None:
+        path = []
+
     def is_nullable(node: Node) -> bool:
         # This is a conservative estimate of whether a node is nullable.
         # It assumes no refs or terminals are nullable.
@@ -570,7 +573,7 @@ if __name__ == '__main__':
     print("  Checking for left recursion:")
     print("  Left-recursive cycles:")
     start = Ref('A')
-    for cycle in find_left_recursive_cycles(rules, start, [start]):
+    for cycle in find_left_recursive_cycles(rules, start):
         print(f"    {cycle}")
 
     rules = resolve_left_recursion(rules)
@@ -589,8 +592,8 @@ if __name__ == '__main__':
 
     print("  Checking for left recursion:")
     print("  Left-recursive cycles:")
-    start1 = Ref('A')
-    for cycle in find_left_recursive_cycles(rules, start1, [start1]):
+    start = Ref('A')
+    for cycle in find_left_recursive_cycles(rules, start):
         print(f"    {cycle}")
 
     rules = resolve_left_recursion(rules)
