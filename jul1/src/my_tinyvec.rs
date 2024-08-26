@@ -274,14 +274,11 @@ impl<T> Extend<T> for FastVec<T> {
                     }
                 }
             }
-            FastVec::One(item) => {
+            FastVec::One(_) => {
                 // If `self` is `One`, start with the existing item
                 if let Some(new_item) = iterator.next() {
                     let mut vec = Vec::with_capacity(2);
-                    unsafe {
-                        vec.push(std::ptr::read(item));
-                        std::mem::forget(std::mem::replace(self, FastVec::None));
-                    }
+                    vec.push(unsafe { self.take_unchecked() });
                     vec.push(new_item);
                     vec.extend(iterator);
                     *self = FastVec::Many(vec);
