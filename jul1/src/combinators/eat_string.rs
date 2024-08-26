@@ -11,12 +11,6 @@ pub struct EatString {
     pub(crate) string: Vec<u8>,
 }
 
-// impl From<EatString> for Combinator {
-//     fn from(value: EatString) -> Self {
-//         Combinator::EatString(value)
-//     }
-// }
-
 #[derive(Debug)]
 pub struct EatStringParser<'a> {
     pub(crate) string: &'a [u8],

@@ -286,9 +286,3 @@ pub fn repeat0_greedy<T: IntoCombinator>(a: T)-> impl CombinatorTrait {
 pub fn seprep1<T: IntoCombinator + Clone, U: IntoCombinator>(a: T, b: U)-> impl CombinatorTrait {
     seq!(a.clone(), repeat0(seq!(b, a)))
 }
-
-// impl From<Repeat1<Combinator>> for Combinator {
-//     fn from(value: Repeat1<Combinator>) -> Self {
-//         value
-//     }
-// }

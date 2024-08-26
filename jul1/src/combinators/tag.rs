@@ -90,9 +90,3 @@ pub fn tag<T: IntoCombinator + 'static>(tag: &'static str, a: T)-> impl Combinat
     // Tagged { inner: a.into_combinator(), tag: tag.to_string() }
     // a.into_combinator()
 }
-
- // impl From<Tagged> for Combinator {
- //     fn from(value: Tagged) -> Self {
- //         Combinator::Tagged(value)
- //     }
- // }

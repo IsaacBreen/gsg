@@ -340,15 +340,3 @@ pub fn cached<T: IntoCombinator>(a: T)-> impl CombinatorTrait where T::Output: '
     profile_internal("cached", Cached { inner: a.into_combinator() })
     // a.into_combinator()
 }
-
-// impl From<CacheContext> for Combinator {
-//     fn from(value: CacheContext) -> Self {
-//         Combinator::CacheContext(value)
-//     }
-// }
-//
-// impl From<Cached> for Combinator {
-//     fn from(value: Cached) -> Self {
-//         Combinator::Cached(value)
-//     }
-//

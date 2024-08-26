@@ -275,9 +275,3 @@ pub fn assert_no_dedents() -> IndentCombinator {
 pub fn with_indent(a: impl CombinatorTrait)-> impl CombinatorTrait {
     seq!(indent(), a, dedent())
 }
-//
-// impl From<IndentCombinator> for Combinator {
-//     fn from(value: IndentCombinator) -> Self {
-//         Combinator::IndentCombinator(value)
-//     }
-// }

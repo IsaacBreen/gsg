@@ -93,9 +93,3 @@ pub fn lookahead(combinator: impl CombinatorTrait) -> impl CombinatorTrait {
 pub fn negative_lookahead(combinator: impl CombinatorTrait) -> impl CombinatorTrait {
     Lookahead { combinator: Box::new(Box::new(combinator)), positive: false, persist_with_partial_lookahead: false }
 }
-
-// impl From<Lookahead> for Combinator {
-//     fn from(lookahead: Lookahead) -> Self {
-//         Combinator::Lookahead(lookahead)
-//     }
-// }

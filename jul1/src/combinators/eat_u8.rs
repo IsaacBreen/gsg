@@ -142,9 +142,3 @@ where
         u8set: U8Set::from_match_fn(f),
     }
 }
-
-// impl From<EatU8> for Combinator {
-//     fn from(value: EatU8) -> Self {
-//         Combinator::EatU8(value)
-//     }
-// }

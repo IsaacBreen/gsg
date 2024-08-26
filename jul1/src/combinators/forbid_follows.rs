@@ -129,21 +129,3 @@ pub fn forbid_follows_check_not(match_id: usize) -> ForbidFollowsCheckNot {
     let bitmask = 1 << match_id;
     ForbidFollowsCheckNot { match_ids: bitmask }
 }
-
-// impl From<ForbidFollows> for Combinator {
-//     fn from(value: ForbidFollows) -> Self {
-//         Combinator::ForbidFollows(value)
-//     }
-// }
-//
-// impl From<ForbidFollowsClear> for Combinator {
-//     fn from(value: ForbidFollowsClear) -> Self {
-//         Combinator::ForbidFollowsClear(value)
-//     }
-// }
-//
-// impl From<ForbidFollowsCheckNot> for Combinator {
-//     fn from(value: ForbidFollowsCheckNot) -> Self {
-//         Combinator::ForbidFollowsCheckNot(value)
-//     }
-// }

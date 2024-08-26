@@ -224,16 +224,3 @@ pub fn _seq(v: Vec<Box<dyn DynCombinatorTrait>>) -> impl CombinatorTrait {
         start_index: 0,
     })
 }
-
-// #[macro_export]
-// macro_rules! seq {
-//     ($($expr:expr),+ $(,)?) => {
-//         $crate::_seq(vec![$($expr.into()),+])
-//     };
-// }
-//
-// impl From<Seq> for Combinator {
-//     fn from(value: Seq) -> Self {
-//         Combinator::Seq(value)
-//     }
-// }

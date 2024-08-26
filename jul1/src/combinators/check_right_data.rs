@@ -70,9 +70,3 @@ impl BaseCombinatorTrait for CheckRightData {
 pub fn check_right_data(run: impl Fn(&RightData) -> bool + 'static) -> CheckRightData {
     CheckRightData { run: Box::new(run) }
 }
-
-// impl From<CheckRightData> for Combinator {
-//     fn from(value: CheckRightData) -> Self {
-//         Combinator::CheckRightData(value)
-//     }
-// 

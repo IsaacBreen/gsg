@@ -51,9 +51,3 @@ impl<T: CombinatorTrait> BaseCombinatorTrait for Symbol<T> {
 pub fn symbol<T: IntoCombinator>(value: T) -> Symbol<T::Output> {
     Symbol { value: Rc::new(value.into_combinator()) }
 }
-
-// impl From<&Symbol> for Symbol {
-//     fn from(value: &Symbol) -> Self {
-//         Combinator::Symbol(value.clone())
-//     }
-// }

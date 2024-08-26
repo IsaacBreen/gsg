@@ -68,9 +68,3 @@ impl BaseCombinatorTrait for MutateRightData {
 pub fn mutate_right_data(run: impl Fn(&mut RightData) -> bool + 'static) -> MutateRightData {
     MutateRightData { run: Box::new(run) }
 }
-//
-// impl From<MutateRightData> for Combinator {
-//     fn from(value: MutateRightData) -> Self {
-//         Combinator::MutateRightData(value)
-//     }
-// }
