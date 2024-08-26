@@ -16,19 +16,19 @@ macro_rules! profile {
 }
 
 #[derive(Debug)]
-pub struct Seq {
-    pub(crate) children: VecX<Box<dyn DynCombinatorTrait>>,
+pub struct Seq<'a> {
+    pub(crate) children: VecX<Box<dyn DynCombinatorTrait + 'a>>,
     pub(crate) start_index: usize,
 }
 
 #[derive(Debug)]
 pub struct SeqParser<'a> {
     pub(crate) parsers: Vec<(usize, Box<dyn ParserTrait + 'a>)>,
-    pub(crate) combinators: &'a VecX<Box<dyn DynCombinatorTrait>>,
+    pub(crate) combinators: &'a VecX<Box<dyn DynCombinatorTrait + 'a>>,
     pub(crate) position: usize,
 }
 
-impl DynCombinatorTrait for Seq {
+impl DynCombinatorTrait for Seq<'_> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -38,8 +38,8 @@ impl DynCombinatorTrait for Seq {
         self.one_shot_parse(right_data, bytes)
     }
 }
-impl CombinatorTrait for Seq {
-    type Parser<'a> = SeqParser<'a>;
+impl CombinatorTrait for Seq<'_> {
+    type Parser<'a> = SeqParser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;
@@ -140,7 +140,7 @@ impl CombinatorTrait for Seq {
     }
 }
 
-impl BaseCombinatorTrait for Seq {
+impl BaseCombinatorTrait for Seq<'_> {
     fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
