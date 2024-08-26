@@ -116,6 +116,8 @@ impl<T> FastVec<T> {
                     if let Some(last_item) = vec.pop() {
                         *self = FastVec::One(last_item);
                     }
+                } else if vec.is_empty() {
+                    *self = FastVec::None;
                 }
             }
         }
@@ -193,6 +195,8 @@ impl<T> FastVec<T> {
                     if let Some(last_item) = vec.pop() {
                         *self = FastVec::One(last_item);
                     }
+                } else if vec.is_empty() {
+                    *self = FastVec::None;
                 }
                 drained.into_iter()
             }
@@ -272,9 +276,13 @@ impl<T> Extend<T> for FastVec<T> {
                     if let Some(item2) = iterator.next() {
                         // We have more than one item; transition to `Many`
                         let mut vec = Vec::with_capacity(2 + iterator.size_hint().0);
-                        vec.push(item2);
+                        vec.push(item); // Push the first item
+                        vec.push(item2); // Push the second item
                         vec.extend(iterator);
                         *self = FastVec::Many(vec);
+                    } else {
+                        // Only one item, stay in `One` state
+                        *self = FastVec::One(item);
                     }
                 }
             }
@@ -481,7 +489,7 @@ mod tests {
         assert_eq!(vec1[1], 2);
         assert_eq!(vec1[2], 3);
         assert_eq!(vec1[3], 4);
-        assert!(vec2.is_empty());
+        assert!(vec2.is_empty()); // This assertion should now pass
     }
 
     #[test]
