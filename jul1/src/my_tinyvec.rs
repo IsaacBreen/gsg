@@ -381,39 +381,375 @@ impl<T> Deref for FastVec<T> {
     }
 }
 
-fn main() {
-    let mut fast_vec = FastVec::new();
-    assert!(fast_vec.is_empty());
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    fast_vec.push(1);
-    assert_eq!(fast_vec.len(), 1);
-    assert_eq!(fast_vec.get(0), Some(&1));
-
-    fast_vec.push(2);
-    assert_eq!(fast_vec.len(), 2);
-    assert_eq!(fast_vec.get(0), Some(&1));
-    assert_eq!(fast_vec.get(1), Some(&2));
-
-    fast_vec.clear();
-    assert!(fast_vec.is_empty());
-
-    fast_vec.push(3);
-    fast_vec.push(4);
-    fast_vec.push(5);
-
-    for item in &fast_vec {
-        println!("{}", item);
+    #[test]
+    fn test_new() {
+        let vec: FastVec<i32> = FastVec::new();
+        assert!(vec.is_empty());
     }
 
-    let mut other_vec = FastVec::new();
-    other_vec.push(6);
-    other_vec.push(7);
+    #[test]
+    fn test_push() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[0], 1);
+        assert_eq!(vec[1], 2);
+        assert_eq!(vec[2], 3);
+    }
 
-    fast_vec.append(&mut other_vec);
-    assert_eq!(fast_vec.len(), 5);
-    assert!(other_vec.is_empty());
+    #[test]
+    fn test_len() {
+        let mut vec = FastVec::new();
+        assert_eq!(vec.len(), 0);
+        vec.push(1);
+        assert_eq!(vec.len(), 1);
+        vec.push(2);
+        assert_eq!(vec.len(), 2);
+    }
 
-    let drained: Vec<_> = fast_vec.drain(..).collect();
-    assert_eq!(drained, vec![3, 4, 5, 6, 7]);
-    assert!(fast_vec.is_empty());
+    #[test]
+    fn test_is_empty() {
+        let mut vec = FastVec::new();
+        assert!(vec.is_empty());
+        vec.push(1);
+        assert!(!vec.is_empty());
+    }
+
+    #[test]
+    fn test_get() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        assert_eq!(vec.get(0), Some(&1));
+        assert_eq!(vec.get(1), Some(&2));
+        assert_eq!(vec.get(2), None);
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.clear();
+        assert!(vec.is_empty());
+    }
+
+    #[test]
+    fn test_pop() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        assert_eq!(vec.pop(), Some(3));
+        assert_eq!(vec.pop(), Some(2));
+        assert_eq!(vec.pop(), Some(1));
+        assert_eq!(vec.pop(), None);
+    }
+
+    #[test]
+    fn test_retain() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        vec.retain(|&x| x % 2 == 0);
+        assert_eq!(vec.len(), 1);
+        assert_eq!(vec[0], 2);
+    }
+
+    #[test]
+    fn test_append() {
+        let mut vec1 = FastVec::new();
+        vec1.push(1);
+        vec1.push(2);
+        let mut vec2 = FastVec::new();
+        vec2.push(3);
+        vec2.push(4);
+        vec1.append(&mut vec2);
+        assert_eq!(vec1.len(), 4);
+        assert_eq!(vec1[0], 1);
+        assert_eq!(vec1[1], 2);
+        assert_eq!(vec1[2], 3);
+        assert_eq!(vec1[3], 4);
+        assert!(vec2.is_empty());
+    }
+
+    #[test]
+    fn test_iter() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        let mut iter = vec.iter();
+        assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&3));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_drain() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        let drained: Vec<_> = vec.drain(1..).collect();
+        assert_eq!(drained, vec![2, 3]);
+        assert_eq!(vec.len(), 1);
+        assert_eq!(vec[0], 1);
+    }
+
+    #[test]
+    fn test_last() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        assert_eq!(vec.last(), Some(&3));
+    }
+
+    #[test]
+    fn test_last_mut() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        if let Some(last) = vec.last_mut() {
+            *last = 4;
+        }
+        assert_eq!(vec.last(), Some(&4));
+    }
+
+    #[test]
+    fn test_truncate() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        vec.truncate(1);
+        assert_eq!(vec.len(), 1);
+        assert_eq!(vec[0], 1);
+    }
+
+    #[test]
+    fn test_as_slice() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        let slice = vec.as_slice();
+        assert_eq!(slice, &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_from_iter() {
+        let vec: FastVec<i32> = (1..4).collect();
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[0], 1);
+        assert_eq!(vec[1], 2);
+        assert_eq!(vec[2], 3);
+    }
+
+    #[test]
+    fn test_extend() {
+        let mut vec = FastVec::new();
+        vec.extend(1..4);
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[0], 1);
+        assert_eq!(vec[1], 2);
+        assert_eq!(vec[2], 3);
+    }
+
+    #[test]
+    fn test_into_iter() {
+        let vec: FastVec<i32> = (1..4).collect();
+        let mut iter = vec.into_iter();
+        assert_eq!(iter.next(), Some(1));
+        assert_eq!(iter.next(), Some(2));
+        assert_eq!(iter.next(), Some(3));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_into_iter_ref() {
+        let vec: FastVec<i32> = (1..4).collect();
+        let mut iter = (&vec).into_iter();
+        assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&3));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_into_iter_mut() {
+        let mut vec: FastVec<i32> = (1..4).collect();
+        let mut iter = (&mut vec).into_iter();
+        assert_eq!(iter.next(), Some(&mut 1));
+        assert_eq!(iter.next(), Some(&mut 2));
+        assert_eq!(iter.next(), Some(&mut 3));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_index() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        assert_eq!(vec[0], 1);
+        assert_eq!(vec[1], 2);
+        assert_eq!(vec[2], 3);
+    }
+
+    #[test]
+    fn test_index_mut() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        vec[0] = 4;
+        vec[1] = 5;
+        vec[2] = 6;
+        assert_eq!(vec[0], 4);
+        assert_eq!(vec[1], 5);
+        assert_eq!(vec[2], 6);
+    }
+
+    #[test]
+    fn test_deref() {
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        let slice: &[i32] = &vec;
+        assert_eq!(slice, &[1, 2, 3]);
+    }
+
+    // Extensive testing with different scenarios
+    #[test]
+    fn test_extensive() {
+        let mut vec = FastVec::new();
+
+        // Test empty vector
+        assert!(vec.is_empty());
+        assert_eq!(vec.len(), 0);
+        assert_eq!(vec.pop(), None);
+
+        // Test single element
+        vec.push(1);
+        assert!(!vec.is_empty());
+        assert_eq!(vec.len(), 1);
+        assert_eq!(vec[0], 1);
+        assert_eq!(vec.pop(), Some(1));
+        assert!(vec.is_empty());
+
+        // Test multiple elements
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[0], 1);
+        assert_eq!(vec[1], 2);
+        assert_eq!(vec[2], 3);
+
+        // Test pop
+        assert_eq!(vec.pop(), Some(3));
+        assert_eq!(vec.len(), 2);
+        assert_eq!(vec.pop(), Some(2));
+        assert_eq!(vec.len(), 1);
+        assert_eq!(vec.pop(), Some(1));
+        assert_eq!(vec.len(), 0);
+        assert!(vec.is_empty());
+
+        // Test append
+        vec.push(1);
+        vec.push(2);
+        let mut other = FastVec::new();
+        other.push(3);
+        other.push(4);
+        vec.append(&mut other);
+        assert_eq!(vec.len(), 4);
+        assert_eq!(vec[0], 1);
+        assert_eq!(vec[1], 2);
+        assert_eq!(vec[2], 3);
+        assert_eq!(vec[3], 4);
+
+        // Test drain
+        let drained: Vec<_> = vec.drain(1..3).collect();
+        assert_eq!(drained, vec![2, 3]);
+        assert_eq!(vec.len(), 2);
+        assert_eq!(vec[0], 1);
+        assert_eq!(vec[1], 4);
+
+        // Test retain
+        vec.push(2);
+        vec.push(3);
+        vec.retain(|&x| x % 2 == 0);
+        assert_eq!(vec.len(), 2);
+        assert_eq!(vec[0], 4);
+        assert_eq!(vec[1], 2);
+
+        // Test clear
+        vec.clear();
+        assert!(vec.is_empty());
+
+        // Test extend
+        vec.extend(1..4);
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[0], 1);
+        assert_eq!(vec[1], 2);
+        assert_eq!(vec[2], 3);
+    }
+
+    #[test]
+    fn test_against_vec() {
+        let mut fast_vec = FastVec::new();
+        let mut vec = Vec::new();
+
+        // Test push
+        for i in 0..10 {
+            fast_vec.push(i);
+            vec.push(i);
+        }
+        assert_eq!(fast_vec.len(), vec.len());
+        assert_eq!(fast_vec.as_slice(), vec.as_slice());
+
+        // Test pop
+        for _ in 0..5 {
+            assert_eq!(fast_vec.pop(), vec.pop());
+        }
+        assert_eq!(fast_vec.len(), vec.len());
+        assert_eq!(fast_vec.as_slice(), vec.as_slice());
+
+        // Test append
+        let mut other_fast_vec = FastVec::new();
+        let mut other_vec = Vec::new();
+        for i in 10..15 {
+            other_fast_vec.push(i);
+            other_vec.push(i);
+        }
+        fast_vec.append(&mut other_fast_vec);
+        vec.append(&mut other_vec);
+        assert_eq!(fast_vec.len(), vec.len());
+        assert_eq!(fast_vec.as_slice(), vec.as_slice());
+
+        // Test drain
+        let fast_vec_drained: Vec<_> = fast_vec.drain(2..4).collect();
+        let vec_drained: Vec<_> = vec.drain(2..4).collect();
+        assert_eq!(fast_vec_drained, vec_drained);
+        assert_eq!(fast_vec.len(), vec.len());
+        assert_eq!(fast_vec.as_slice(), vec.as_slice());
+
+        // Test retain
+        fast_vec.retain(|&x| x % 2 == 0);
+        vec.retain(|&x| x % 2 == 0);
+        assert_eq!(fast_vec.len(), vec.len());
+        assert_eq!(fast_vec.as_slice(), vec.as_slice());
+    }
 }
