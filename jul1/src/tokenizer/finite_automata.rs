@@ -610,6 +610,49 @@ impl Regex {
     }
 }
 
+impl RegexState<'_> {
+    /// Finds all matches in the input `bytes` and returns them as a vector of `Match`.
+    ///
+    /// This method steps through the input bytes, character by character,
+    /// and checks if the regex matches at each position. If a match is found,
+    /// a `Match` object is created and added to the results vector.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - The input bytes to search for matches.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `Match` objects, each representing a match found in the input.
+    pub fn find_matches(&mut self, bytes: &[u8]) -> Vec<Match> {
+        let mut matches = Vec::new(); // Use Vec::new() for clarity
+        let mut local_position = 0;
+        let dfa = &self.regex.dfa;
+
+        while local_position < bytes.len() {
+            let state_data = &dfa.states[self.current_state];
+            let next_u8 = bytes[local_position];
+
+            if let Some(&next_state) = state_data.transitions.get(next_u8) {
+                self.current_state = next_state;
+                self.position += 1;
+                local_position += 1;
+
+                if let Some(finalizer) = dfa.states[self.current_state].finalizer {
+                    matches.push(Match {
+                        position: self.position,
+                        group_id: finalizer.group,
+                    });
+                }
+            } else {
+                break;
+            }
+        }
+
+        matches
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
