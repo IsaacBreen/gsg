@@ -1,4 +1,3 @@
-# src/python/dump_python_gram.py
 import io
 import logging
 import random
@@ -221,14 +220,15 @@ def grammar_to_rust(
     MAX_RULE_COMPLEXITY = 0
 
     def name_to_rust(name: str, extra_info: ExtraInfo) -> str:
-        # if name in extra_info:
         if name in extra_info.added_rules:
-            if extra_info.rule_complexity[name] > MAX_RULE_COMPLEXITY:
-                return f'deferred({name}).into_dyn()'
-            else:
+            ref = grammar_analysis.ref(name)
+            if ref.should_inline():
                 extra_info.rule_complexity[extra_info.current_rule] += extra_info.rule_complexity[name]
                 return f'deferred({name})'
+            else:
+                return f'deferred({name}).into_dyn()'
         else:
+            # Rule hasn't been defined yet. Inline to avoid infinte-sized type.
             return f'deferred({name}).into_dyn()'
 
     rules = grammar.rules.items()
@@ -389,6 +389,8 @@ if __name__ == "__main__":
     }
 
     grammar_analysis.prettify_rules(custom_grammar)
+
+    grammar_analysis.analyze_and_mark_for_inlining(custom_grammar)
 
     resolved_pegen_grammar = custom_to_pegen(custom_grammar)
 
