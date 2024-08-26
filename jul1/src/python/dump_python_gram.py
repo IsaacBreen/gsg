@@ -221,6 +221,7 @@ def grammar_to_rust(
     MAX_RULE_COMPLEXITY = 0
 
     def name_to_rust(name: str, extra_info: ExtraInfo) -> str:
+        return f'deferred({name}).into_dyn()'
         if rule_usage[ref(name)] == 1:
             # Inline if the rule is used only once
             return f'{name}()'
@@ -229,7 +230,7 @@ def grammar_to_rust(
                 # Rule is too complex. Don't inline.
                 return f'deferred({name}).into_dyn()'
             else:
-                # Inline
+                # Inline but defer
                 extra_info.rule_complexity[extra_info.current_rule] += extra_info.rule_complexity[name]
                 return f'deferred({name})'
         else:
