@@ -1,5 +1,5 @@
 // src/combinators/negative_lookahead.rs
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use crate::*;
 use crate::tokenizer::finite_automata::{Expr, ExprGroups, Regex, RegexState, Match};
 use crate::{BaseCombinatorTrait, VecX};
@@ -14,7 +14,7 @@ pub struct ExcludeBytestrings<T: CombinatorTrait> {
 pub struct ExcludeBytestringsParser<'a> {
     pub(crate) inner: Box<dyn ParserTrait + 'a>,
     pub(crate) regex_state: RegexState<'a>,
-    pub(crate) start_position: usize,
+    pub(crate) position: usize,
 }
 
 impl<T: CombinatorTrait + 'static> DynCombinatorTrait for ExcludeBytestrings<T> {
@@ -32,9 +32,6 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
     type Parser<'a> = ExcludeBytestringsParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        if bytes.len() == 19680 {
-            println!("hi");
-        }
         let start_position = right_data.right_data_inner.fields1.position;
         match self.inner.one_shot_parse(right_data, bytes) {
             Ok(right_data) => {
@@ -54,19 +51,43 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let (inner, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         let mut regex_state = self.regex.init();
-        let matches = regex_state.find_matches(bytes); // Use find_matches
-        let indices: HashSet<usize> = matches.iter().map(|m| m.position).collect();
-
-        // Retain only results that don't coincide with the indices
         let start_position = right_data.right_data_inner.fields1.position;
+
+        // Optimized logic
+        let mut position_to_match = HashMap::new();
+        let mut positions = Vec::new();
+        for right_data in &parse_results.right_data_vec {
+            let position = right_data.right_data_inner.fields1.position - start_position;
+            position_to_match.insert(position, false);
+            positions.push(position);
+        }
+        positions.sort();
+
+        let mut current_position = 0;
+        for position in positions {
+            let slice = &bytes[current_position..position];
+            regex_state.execute(slice);
+            if regex_state.definitely_fully_matches() {
+                position_to_match.insert(position, true);
+            }
+            current_position = position;
+        }
+
+        // Run the regex to the end of the input
+        regex_state.execute(&bytes[current_position..]);
+        if regex_state.definitely_fully_matches() {
+            position_to_match.insert(bytes.len(), true);
+        }
+
         parse_results.right_data_vec.retain(|right_data| {
-            !indices.contains(&(right_data.right_data_inner.fields1.position - start_position))
+            let position = right_data.right_data_inner.fields1.position - start_position;
+            !position_to_match.get(&position).cloned().unwrap_or(false)
         });
 
         (ExcludeBytestringsParser {
             inner: Box::new(inner),
             regex_state,
-            start_position,
+            position: start_position + bytes.len(),
         }, parse_results)
     }
 }
@@ -87,26 +108,46 @@ impl ParserTrait for ExcludeBytestringsParser<'_> {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        // TODO: we should be able to make this faster by getting all positions in parse_results, partitioning the input by them,
-        //  and executing the regex on each partition to see if that partition takes us to a terminal state.
         let mut parse_results = self.inner.as_mut().parse(bytes);
 
-        // Use the renamed find_matches function
-        let matches = self.regex_state.find_matches(bytes);
-        let indices: HashSet<usize> = matches.iter().map(|m| m.position).collect();
+        // Optimized logic
+        let mut position_to_match = HashMap::new();
+        let mut positions = Vec::new();
+        for right_data in &parse_results.right_data_vec {
+            let position = right_data.right_data_inner.fields1.position - self.position;
+            position_to_match.insert(position, false);
+            positions.push(position);
+        }
+        positions.sort();
+
+        let mut current_position = 0;
+        for position in positions {
+            let slice = &bytes[current_position..position];
+            self.regex_state.execute(slice);
+            if self.regex_state.definitely_fully_matches() {
+                position_to_match.insert(position, true);
+            }
+            current_position = position;
+        }
+
+        // Run the regex to the end of the input
+        self.regex_state.execute(&bytes[current_position..]);
+        if self.regex_state.definitely_fully_matches() {
+            position_to_match.insert(bytes.len(), true);
+        }
 
         parse_results.right_data_vec.retain(|right_data| {
-            !indices.contains(&(right_data.right_data_inner.fields1.position - self.start_position))
+            let position = right_data.right_data_inner.fields1.position - self.position;
+            !position_to_match.get(&position).cloned().unwrap_or(false)
         });
 
-        self.start_position += bytes.len();
+        self.position += bytes.len();
         parse_results
     }
 }
 
 pub fn exclude_strings(inner: impl IntoCombinator + 'static, bytestrings_to_exclude: Vec<&str>)-> impl CombinatorTrait {
     let bytestrings_to_exclude: Vec<Vec<u8>> = bytestrings_to_exclude.iter().map(|s| s.as_bytes().to_vec()).collect();
-    // Convert the bytestrings to exclude into a regex
     let expr = Expr::Choice(bytestrings_to_exclude.into_iter().map(|bytes| Expr::Seq(bytes.into_iter().map(|b| Expr::U8(b)).collect())).collect());
     let regex = expr.build();
 
