@@ -103,7 +103,7 @@ macro_rules! define_seq {
                     position: start_position + bytes.len(),
                 };
 
-                // Macro to process each child combinator
+                // process each child combinator
                 $(
                     if next_right_data_vec.is_empty() {
                         return (seqn_parser, ParseResults::empty(all_done));
