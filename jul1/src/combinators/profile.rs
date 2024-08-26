@@ -96,7 +96,7 @@ macro_rules! count_hit {
 
 #[derive(Debug)]
 pub struct Profiled<T> {
-    pub inner: Box<T>,
+    pub inner: T,
     pub tag: String,
 }
 
@@ -154,17 +154,9 @@ impl<P: ParserTrait> ParserTrait for ProfiledParser<P> {
 }
 
 pub fn profile<T: IntoCombinator>(tag: &str, a: T)-> impl CombinatorTrait where T::Output: 'static {
-    Profiled { inner: Box::new(a.into_combinator()), tag: tag.to_string() }
-    // a.into_combinator()
+    Profiled { inner: a.into_combinator(), tag: tag.to_string() }
 }
 
 pub fn profile_internal<'a, T: IntoCombinator>(tag: &str, a: T)-> impl CombinatorTrait where T::Output: 'static {
     profile(tag, a)
-    // a.into_combinator()
 }
-
-// impl From<Profiled> for Combinator {
-//     fn from(value: Profiled) -> Self {
-//         Combinator::Profiled(value)
-//     }
-// }

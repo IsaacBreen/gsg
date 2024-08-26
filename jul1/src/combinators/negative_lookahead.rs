@@ -6,13 +6,13 @@ use crate::{BaseCombinatorTrait, VecX};
 
 #[derive(Debug)]
 pub struct ExcludeBytestrings<T: CombinatorTrait> {
-    pub(crate) inner: Box<T>,
+    pub(crate) inner: T,
     pub(crate) regex: Regex,
 }
 
 #[derive(Debug)]
-pub struct ExcludeBytestringsParser<'a> {
-    pub(crate) inner: Box<dyn ParserTrait + 'a>,
+pub struct ExcludeBytestringsParser<'a, T: CombinatorTrait + 'a> {
+    pub(crate) inner: T::Parser<'a>,
     pub(crate) regex_state: RegexState<'a>,
     pub(crate) position: usize,
 }
@@ -29,7 +29,7 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for ExcludeBytestrings<T> 
 }
 
 impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
-    type Parser<'a> = ExcludeBytestringsParser<'a>;
+    type Parser<'a> = ExcludeBytestringsParser<'a, T> where T: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;
@@ -82,7 +82,7 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
         });
 
         (ExcludeBytestringsParser {
-            inner: Box::new(inner),
+            inner,
             regex_state,
             position: start_position + bytes.len(),
         }, parse_results)
@@ -99,13 +99,13 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for ExcludeBytestrings<T>
     }
 }
 
-impl ParserTrait for ExcludeBytestringsParser<'_> {
+impl<T: CombinatorTrait> ParserTrait for ExcludeBytestringsParser<'_, T> {
     fn get_u8set(&self) -> U8Set {
-        self.inner.as_ref().get_u8set()
+        self.inner.get_u8set()
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        let mut parse_results = self.inner.as_mut().parse(bytes);
+        let mut parse_results = self.inner.parse(bytes);
 
         // Optimized logic
         let mut end_offsets_to_match = HashMap::new();
@@ -140,13 +140,13 @@ impl ParserTrait for ExcludeBytestringsParser<'_> {
     }
 }
 
-pub fn exclude_strings(inner: impl IntoCombinator + 'static, bytestrings_to_exclude: Vec<&str>)-> impl CombinatorTrait {
+pub fn exclude_strings<T: IntoCombinator + 'static>(inner: T, bytestrings_to_exclude: Vec<&str>)-> impl CombinatorTrait {
     let bytestrings_to_exclude: Vec<Vec<u8>> = bytestrings_to_exclude.iter().map(|s| s.as_bytes().to_vec()).collect();
     let expr = Expr::Choice(bytestrings_to_exclude.into_iter().map(|bytes| Expr::Seq(bytes.into_iter().map(|b| Expr::U8(b)).collect())).collect());
     let regex = expr.build();
 
     ExcludeBytestrings {
-        inner: Box::new(Box::new(inner.into_combinator())),
+        inner: inner.into_combinator(),
         regex,
     }
 }
