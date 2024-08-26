@@ -355,15 +355,16 @@ if __name__ == "__main__":
 
     custom_grammar = pegen_to_custom(pegen_grammar)
 
-    direct = grammar_analysis.has_direct_left_recursion(custom_grammar)
-    indirect = grammar_analysis.has_indirect_left_recursion(custom_grammar)
-    for rule_ref, rule in custom_grammar.items():
-        if grammar_analysis.is_directly_left_recursive_for_node(rule, rule_ref):
+    direct = False
+    indirect = False
+    for cycle in grammar_analysis.find_all_left_recursive_cycles(custom_grammar):
+        if len(set(cycle)) > 1:
+            rule_ref = next(iter(cycle))
             print(f"Directly left-recursive rule: {rule_ref}")
-    for cycle in grammar_analysis.find_indirect_left_recursive_cycles(custom_grammar):
-        print(f"Indirect left-recursive cycle: {' -> '.join(str(ref) for ref in cycle)}")
-    if indirect:
-        assert direct
+            direct = True
+        else:
+            print(f"Indirect left-recursive cycle: {' -> '.join(str(ref) for ref in cycle)}")
+            indirect = True
     if direct or indirect:
         if any(rule.left_recursive for rule in pegen_grammar.rules.values()):
             logging.warning("Grammar has left recursion that was not reported by pegen")
