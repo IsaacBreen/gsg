@@ -70,10 +70,23 @@ def has_direct_left_recursion(rules: dict[Ref, Node]) -> bool:
 
 
 def has_indirect_left_recursion(rules: dict[Ref, Node]) -> bool:
-    ...
+    """
+    Checks if the given grammar has indirect left recursion.
+
+    Args:
+        rules: A dictionary mapping non-terminals to their corresponding production rules.
+
+    Returns:
+        True if the grammar has indirect left recursion, False otherwise.
+    """
+    for ref in rules:
+        for cycle in find_left_recursive_cycles_from_rule(rules, ref):
+            if len(set(cycle)) > 1:
+                return True
+    return False
 
 
-def find_left_recursive_cycles(rules: dict[Ref, Node], start: Ref) -> list[list[Ref]]:
+def find_left_recursive_cycles_from_rule(rules: dict[Ref, Node], start: Ref) -> list[list[Ref]]:
     def is_nullable(node: Node) -> bool:
         # This is a conservative estimate of whether a node is nullable.
         # It assumes no refs or terminals are nullable.
@@ -135,6 +148,24 @@ def find_left_recursive_cycles(rules: dict[Ref, Node], start: Ref) -> list[list[
         return []
 
     return dfs(rules[start], [start])
+
+
+def find_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref]]:
+    """
+    Finds all unique left-recursive cycles in the given grammar.
+
+    Args:
+        rules: A dictionary mapping non-terminals to their corresponding production rules.
+
+    Returns:
+        A list of unique left-recursive cycles, where each cycle is represented as a list of Refs.
+    """
+    cycles = []
+    for ref in rules:
+        for cycle in find_left_recursive_cycles_from_rule(rules, ref):
+            if cycle not in cycles:  # Only add unique cycles with length > 1
+                cycles.append(cycle)
+    return cycles
 
 
 @dataclass
@@ -503,10 +534,10 @@ if __name__ == '__main__':
 
     print("  Checking for left recursion:")
     for rule_ref in rules:
-        print(f"    Is rule {rule_ref} left-recursive? {is_left_recursive_for_node(rules[rule_ref], rule_ref)}")
+        print(f"    Is rule {rule_ref} left-recursive? {is_directly_left_recursive_for_node(rules[rule_ref], rule_ref)}")
 
     print("  Left-recursive cycles:")
-    for cycle in find_left_recursive_cycles(rules, start=Ref('A')):
+    for cycle in find_left_recursive_cycles_from_rule(rules, start=Ref('A')):
         print(f"    {cycle}")
 
     rules = resolve_left_recursion(rules)
@@ -525,10 +556,10 @@ if __name__ == '__main__':
 
     print("  Checking for left recursion:")
     for rule_ref in rules:
-        print(f"    Is rule {rule_ref} left-recursive? {is_left_recursive_for_node(rules[rule_ref], rule_ref)}")
+        print(f"    Is rule {rule_ref} left-recursive? {is_directly_left_recursive_for_node(rules[rule_ref], rule_ref)}")
 
     print("  Left-recursive cycles:")
-    for cycle in find_left_recursive_cycles(rules, start=Ref('A')):
+    for cycle in find_left_recursive_cycles_from_rule(rules, start=Ref('A')):
         print(f"    {cycle}")
 
     rules = resolve_left_recursion(rules)

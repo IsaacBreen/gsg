@@ -15,7 +15,6 @@ from pegen.tokenizer import Tokenizer
 
 import grammar_analysis
 from grammar_analysis import ref
-from python.grammar_analysis import is_left_recursive_for_node
 
 random.seed(0)
 
@@ -358,11 +357,20 @@ if __name__ == "__main__":
         print("Resolving left recursion...")
         custom_grammar = grammar_analysis.resolve_left_recursion(custom_grammar)
     else:
-        if grammar_analysis.has_direct_left_recursion(custom_grammar):
-            start = grammar_analysis.Ref('file')
-            for cycle in grammar_analysis.find_left_recursive_cycles(custom_grammar, start=start):
+        direct = grammar_analysis.has_direct_left_recursion(custom_grammar)
+        indirect = grammar_analysis.has_indirect_left_recursion(custom_grammar)
+        if indirect:
+            assert direct
+        if direct and not indirect:
+            for ref, rule in custom_grammar.items():
+                if grammar_analysis.is_directly_left_recursive_for_node(rule, ref):
+                    print(f"Directly left-recursive rule: {ref}")
+            raise ValueError("Grammar has direct left recursion")
+        if direct and indirect:
+            for cycle in grammar_analysis.find_left_recursive_cycles(custom_grammar):
                 print(f"Left-recursive cycle: {" -> ".join(str(ref) for ref in cycle)}")
-            assert False
+            raise ValueError("Grammar has indirect left recursion")
+
 
     # Use lists instead of sets for values to ensure deterministic order
     forbidden_follows_table = {
