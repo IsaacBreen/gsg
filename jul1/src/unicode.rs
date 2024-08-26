@@ -1,5 +1,5 @@
-use crate::*;
 use crate::unicode_categories::{char_ranges_in_general_category, GeneralCategory};
+use crate::*;
 
 pub fn get_unicode_general_category_bytestrings(general_category: GeneralCategory) -> Vec<Vec<u8>> {
     let mut result = Vec::new();

@@ -1,12 +1,12 @@
 // src/tests/basic_tests.rs
 #![feature(assert_matches)]
-use crate::*;
 use crate::combinators::*;
 use crate::fast_combinator::eat_char_fast;
 use crate::parse_state::RightData;
-use crate::tests::utils::{assert_fails_fast, assert_parses_default, assert_parses_fast, assert_parses_one_shot, assert_parses_one_shot_with_result};
+use crate::tests::utils::{assert_parses_default, assert_parses_fast, assert_parses_one_shot, assert_parses_one_shot_with_result};
 use crate::unicode::get_unicode_general_category_combinator;
 use crate::unicode_categories::GeneralCategory;
+use crate::*;
 
 #[test]
 fn test_eat_char() {

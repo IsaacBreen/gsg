@@ -1,6 +1,4 @@
-// src/combinators/choicen.rs
-use std::collections::BTreeMap;
-use crate::{CombinatorTrait, FailParser, ParseResults, ParserTrait, profile, ParseResultTrait, RightDataSquasher, U8Set, VecY, vecx, Fail, IntoCombinator, RightData, UnambiguousParseResults, BaseCombinatorTrait, Squash};
+use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, Squash, U8Set, UnambiguousParseResults};
 
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{

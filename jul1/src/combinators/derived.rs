@@ -1,7 +1,5 @@
+use crate::{opt, opt_greedy, repeat0, repeat0_greedy, seq, symbol, Choice};
 use crate::{CombinatorTrait, IntoDyn};
-use std::rc::Rc;
-use crate::{_choice, choice, Choice, choice_greedy, eps, opt, opt_greedy, repeat0, repeat0_greedy, seq, symbol, vecx};
-use crate::VecX;
 
 pub fn seprep1(a: impl CombinatorTrait, b: impl CombinatorTrait)-> impl CombinatorTrait {
     let a = symbol(a);

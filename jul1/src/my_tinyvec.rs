@@ -1,6 +1,6 @@
 use std::hash::Hash;
 use std::iter::FromIterator;
-use std::ops::{Index, IndexMut, RangeBounds, Bound, Deref};
+use std::ops::{Bound, Deref, Index, IndexMut, RangeBounds};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum FastVec<T> {

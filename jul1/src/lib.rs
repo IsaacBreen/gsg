@@ -4,15 +4,16 @@
 extern crate core;
 
 use std::rc::Rc;
-use std::sync::Mutex; // Import Mutex for global state
-use std::collections::HashMap;
-use std::time::{Instant, Duration};
+use std::sync::Mutex;
 pub use combinator::*;
 pub use combinators::*;
 // Re-export common types and functions
 pub use frame_stack::Frame;
 // Re-export common types and functions
 pub use frame_stack::FrameStack;
+// Import Mutex for global state
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 pub use crate::combinators::*;
 pub use crate::parse_state::*;
@@ -20,10 +21,10 @@ pub use crate::python::*;
 pub use crate::tests::*;
 // Re-export common types and functions
 pub use crate::u8set::U8Set;
-pub use internal_vec::{VecX, VecY};
-pub use fast_combinator::*;
-pub use fast_combinator::seq_fast;
 pub use convert::*;
+pub use fast_combinator::seq_fast;
+pub use fast_combinator::*;
+pub use internal_vec::{VecX, VecY};
 
 mod combinator;
 mod combinators;

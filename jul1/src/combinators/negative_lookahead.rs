@@ -1,8 +1,8 @@
-// src/combinators/negative_lookahead.rs
-use std::collections::{HashMap, HashSet};
+use crate::tokenizer::finite_automata::{Expr, Regex, RegexState};
 use crate::*;
-use crate::tokenizer::finite_automata::{Expr, ExprGroups, Regex, RegexState, Match};
-use crate::{BaseCombinatorTrait, VecX};
+use crate::BaseCombinatorTrait;
+// src/combinators/negative_lookahead.rs
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct ExcludeBytestrings<T: CombinatorTrait> {

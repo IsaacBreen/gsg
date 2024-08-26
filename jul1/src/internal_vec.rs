@@ -14,7 +14,6 @@ pub type VecZ<T> = Vec<T>;
 
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut, RangeBounds};
-use arrayvec::ArrayVec;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FakeVec<T> {

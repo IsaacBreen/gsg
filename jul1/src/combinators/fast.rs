@@ -1,9 +1,9 @@
+use crate::tokenizer::finite_automata::{Expr, Regex, RegexState};
+use crate::BaseCombinatorTrait;
+use crate::*;
 // src/combinators/fast.rs
 use std::fmt::{Debug, Formatter};
-use std::hash::{Hash, Hasher};
-use crate::*;
-use crate::BaseCombinatorTrait;
-use crate::tokenizer::finite_automata::{Expr, ExprGroups, Regex, RegexState};
+use std::hash::Hash;
 
 pub struct FastCombinatorWrapper {
     pub(crate) regex: Regex,

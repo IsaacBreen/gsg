@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use std::time::{Instant, Duration};
-use std::sync::Mutex;
-use derivative::Derivative;
-use crate::*;
 use crate::BaseCombinatorTrait;
+use crate::*;
+use derivative::Derivative;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 lazy_static::lazy_static! {
     pub static ref GLOBAL_PROFILE_DATA: Mutex<ProfileDataInner> = Mutex::new(ProfileDataInner::default());

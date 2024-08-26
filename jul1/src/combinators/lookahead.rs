@@ -1,5 +1,5 @@
-use crate::*;
 use crate::BaseCombinatorTrait;
+use crate::*;
 
 #[derive(Debug)]
 pub struct PartialLookahead {

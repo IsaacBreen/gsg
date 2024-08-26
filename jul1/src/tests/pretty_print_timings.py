@@ -1,11 +1,8 @@
-import textwrap
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
-from collections import Counter
-import string
-from prettytable import PrettyTable
 import tiktoken
+from prettytable import PrettyTable
 
 # Load the CSV file
 file_path = 'timings.csv'  # Adjust the path as needed

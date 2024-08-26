@@ -1,8 +1,7 @@
+use crate::RightData;
 // src/combinators/cache.rs
 // src/combinators/cache.rs
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
-use crate::RightData;
-use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -10,9 +9,9 @@ use std::intrinsics::transmute;
 use std::num::NonZeroUsize;
 use std::rc::Rc;
 
+use crate::{count_hit, profile, profile_internal, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, Squash, U8Set};
 use derivative::Derivative;
 use lru::LruCache;
-use crate::{CombinatorTrait, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, Squash, U8Set, IntoCombinator, IntoDyn, count_hit};
 
 
 // macro_rules! profile {

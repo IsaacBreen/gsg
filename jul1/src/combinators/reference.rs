@@ -1,10 +1,10 @@
+use crate::BaseCombinatorTrait;
+use crate::*;
+use once_cell::unsync::OnceCell;
 use std::fmt::{Debug, Formatter};
 // src/combinators/reference.rs
 use std::hash::{Hash, Hasher};
 use std::rc::{Rc, Weak};
-use once_cell::unsync::OnceCell;
-use crate::*;
-use crate::BaseCombinatorTrait;
 
 pub struct WeakRef<T> {
     pub inner: Weak<OnceCell<T>>,

@@ -1,9 +1,7 @@
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
-use std::any::Any;
+use crate::parse_state::RightData;
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
+use crate::{CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set};
 use std::ops::RangeBounds;
-use std::rc::Rc;
-use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set, ParseResultTrait};
-use crate::parse_state::{RightData};
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EatU8 {
     pub(crate) u8set: U8Set,

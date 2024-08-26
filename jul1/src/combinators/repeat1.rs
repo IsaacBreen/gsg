@@ -1,13 +1,8 @@
 // src/combinators/repeat1.rs
-use crate::{seq, BaseCombinatorTrait, DynCombinatorTrait, FailParser, UnambiguousParseError, UnambiguousParseResults};
-use std::any::Any;
-use std::collections::BTreeMap;
-use std::rc::Rc;
+use crate::{seq, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 
-use crate::{CombinatorTrait, opt_greedy, ParseResults, ParserTrait, profile_internal, RightDataSquasher, Squash, U8Set, VecY, vecy, Opt, Seq2, IntoCombinator, fail};
-use crate::opt;
-use crate::parse_state::{RightData, ParseResultTrait};
-use crate::VecX;
+use crate::parse_state::{ParseResultTrait, RightData};
+use crate::{profile_internal, vecy, CombinatorTrait, IntoCombinator, Opt, ParseResults, ParserTrait, Squash, U8Set, VecY};
 
 #[derive(Debug)]
 pub struct Repeat1<T> {

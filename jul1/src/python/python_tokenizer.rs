@@ -1,23 +1,16 @@
-use crate::{eat_bytestring_choice_fast, repeat0_fast, ActuallyUnambiguousParseError, CombinatorTrait, UnambiguousParseError};
-use std::rc::Rc;
-use std::str::Chars;
-use unicode_general_category::get_general_category;
+use crate::{eat_bytestring_choice_fast, repeat0_fast, CombinatorTrait};
 
-use crate::{EatU8, ParseResults, ParseResultTrait, check_right_data, mutate_right_data, eps, fail, seq, eat_byte_range, 
-    eat_char_choice_fast, eat_bytestring_choice, eat_char, eat_char_choice, eat_char_negation, eat_char_negation_choice, 
-    seq_fast, eat_string, exclude_strings, Repeat1, forbid_follows_clear, negative_lookahead, dedent, dent, indent, 
-    fast_combinator, eat, eat_char_fast, eat_char_negation_choice_fast, choice_fast, eat_string_fast, 
-    choice_greedy, repeat1_greedy, eat_string_choice_fast, repeat1_fast, opt_fast, eat_char_negation_fast, 
-    repeatn_fast, IntoCombinator};
+use crate::{check_right_data, choice_fast, choice_greedy, dedent, dent, eat_bytestring_choice,
+            eat_char, eat_char_choice, eat_char_choice_fast, eat_char_fast, eat_char_negation_choice,
+            eat_char_negation_choice_fast, eat_char_negation_fast, eat_string, eat_string_choice_fast, eps, exclude_strings, fail,
+            fast_combinator, indent, mutate_right_data, negative_lookahead,
+            opt_fast, repeat1_fast, repeat1_greedy, repeatn_fast, seq, seq_fast,
+            IntoCombinator, ParseResultTrait};
 
-use crate::{
-    choice_greedy as choice, opt_greedy as opt,
-    repeat0_greedy as repeat0, repeat1_greedy as repeat1,
-    repeatn_greedy as repeatn,
-};
 use crate::tokenizer::finite_automata::Expr;
 use crate::unicode::get_unicode_general_category_bytestrings;
 use crate::unicode_categories::GeneralCategory;
+use crate::choice_greedy as choice;
 
 pub fn breaking_space()-> impl CombinatorTrait {
     eat_char_choice("\n\r")
@@ -526,7 +519,7 @@ pub fn eat_until_terminator(terminator: char) -> Expr {
 }
 
 pub fn STRING()-> impl CombinatorTrait {
-    use crate::fast_combinator::{opt_fast as opt, eat_char_fast as eat_char, eat_char_negation_fast as eat_char_negation, eat_char_choice_fast as eat_char_choice, repeatn_fast as repeatn, eat_char_negation_choice_fast as eat_char_negation_choice, eat_string_fast as eat_string, repeat1_fast as repeat1, repeat0_fast as repeat0};
+    use crate::fast_combinator::{eat_char_choice_fast as eat_char_choice, eat_char_fast as eat_char, eat_char_negation_choice_fast as eat_char_negation_choice, eat_char_negation_fast as eat_char_negation, eat_string_fast as eat_string, opt_fast as opt, repeat0_fast as repeat0, repeatn_fast as repeatn};
 
     let stringprefix = opt(choice_fast!(
         eat_char_choice("ruRUfF"),
@@ -929,7 +922,7 @@ pub fn FSTRING_END()-> impl CombinatorTrait {
 //
 //    3.14j   10.j    10j     .001j   1e100j   3.14e-10j   3.14_15_93j
 pub fn NUMBER() -> impl CombinatorTrait {
-    use crate::fast_combinator::{opt_fast as opt, eat_char_fast as eat_char, eat_char_negation_fast as eat_char_negation, eat_char_choice_fast as eat_char_choice, repeatn_fast as repeatn, eat_char_negation_choice_fast as eat_char_negation_choice, eat_string_fast as eat_string, repeat1_fast as repeat1, repeat0_fast as repeat0, eat_byte_range_fast as eat_byte_range};
+    use crate::fast_combinator::{eat_byte_range_fast as eat_byte_range, eat_char_choice_fast as eat_char_choice, eat_char_fast as eat_char, opt_fast as opt, repeat0_fast as repeat0, repeat1_fast as repeat1};
 
     let digit = eat_byte_range(b'0', b'9');
     let nonzerodigit = eat_byte_range(b'1', b'9');

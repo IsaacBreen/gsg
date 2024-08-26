@@ -1,8 +1,9 @@
-import requests
 import zipfile
+from collections import defaultdict
 from io import BytesIO
 from xml.etree import ElementTree as ET
-from collections import defaultdict
+
+import requests
 
 
 def download_and_parse_unicode_data():

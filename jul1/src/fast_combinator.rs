@@ -1,5 +1,5 @@
-use crate::{combinator, EatU8, eps, U8Set};
-use crate::tokenizer::finite_automata::{ExprGroups, Expr, prec, DFAState, opt, ExprGroup, DFA, RegexState, Regex, QuantifierType};
+use crate::tokenizer::finite_automata::{Expr, QuantifierType};
+use crate::U8Set;
 
 pub fn seq_fast(parsers: Vec<Expr>) -> Expr {
     Expr::Seq(parsers)

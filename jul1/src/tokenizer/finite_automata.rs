@@ -1,9 +1,8 @@
+use crate::tokenizer::charmap::TrieMap;
 // src/tokenizer/finite_automata.rs
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
-use crate::tokenizer::charmap::TrieMap;
 
 use crate::tokenizer::frozenset::FrozenSet;
 use crate::U8Set;
@@ -844,7 +843,6 @@ mod complex_tests {
 
 #[cfg(test)]
 mod even_more_complex_tests {
-    use crate::eat;
     use super::*;
 
     #[test]

@@ -1,3 +1,6 @@
+use crate::BaseCombinatorTrait;
+use crate::*;
+use once_cell::unsync::OnceCell;
 // src/combinators/deferred.rs
 // src/combinators/deferred.rs
 use std::any::{Any, TypeId};
@@ -7,10 +10,6 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::panic::Location;
-use std::rc::Rc;
-use crate::*;
-use once_cell::unsync::OnceCell;
-use crate::BaseCombinatorTrait;
 
 thread_local! {
     static DEFERRED_CACHE: RefCell<HashMap<CacheKey, CacheEntry>> = RefCell::new(HashMap::new());

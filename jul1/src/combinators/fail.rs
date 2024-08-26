@@ -1,6 +1,6 @@
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
+use crate::parse_state::{ParseResultTrait, RightData};
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set};
-use crate::parse_state::{RightData, ParseResultTrait};
 
 #[repr(transparent)]
 #[derive(Debug)]

@@ -1,8 +1,7 @@
+use crate::BaseCombinatorTrait;
+use crate::*;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
-use crate::*;
-use crate::BaseCombinatorTrait;
 
 pub struct MutateRightData {
     pub(crate) run: Box<dyn Fn(&mut RightData) -> bool>,

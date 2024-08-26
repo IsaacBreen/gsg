@@ -1,6 +1,6 @@
-// src/convert.rs
-use crate::{deferred, fast_combinator, CombinatorTrait, Deferred, DynCombinatorTrait, FastCombinatorWrapper, ParserTrait, StrongRef, Symbol, WeakRef};
 use crate::tokenizer::finite_automata::Expr;
+// src/convert.rs
+use crate::{fast_combinator, CombinatorTrait, DynCombinatorTrait, FastCombinatorWrapper, StrongRef, Symbol};
 
 pub trait IntoCombinator {
     type Output: CombinatorTrait;

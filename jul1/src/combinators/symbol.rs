@@ -1,9 +1,8 @@
-use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use crate::RightData;
-use std::any::Any;
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use std::rc::Rc;
 
-use crate::{CombinatorTrait, ParseResults, ParserTrait, ParseResultTrait, U8Set, IntoCombinator};
+use crate::{CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait};
 #[derive(Debug)]
 pub struct Symbol<T> {
     pub value: Rc<T>,

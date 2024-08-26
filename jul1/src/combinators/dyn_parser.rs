@@ -1,5 +1,5 @@
-use std::any::Any;
 use crate::*;
+use std::any::Any;
 
 #[derive(Debug)]
 pub struct DynCombinator<C: CombinatorTrait> {

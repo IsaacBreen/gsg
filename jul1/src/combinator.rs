@@ -1,12 +1,5 @@
-// src/combinator.rs
-use std::collections::HashMap;
-use std::any::Any;
+use crate::{ParseResultTrait, ParseResults, RightData, U8Set, UnambiguousParseResults};
 use std::fmt::Display;
-use std::ops::AddAssign;
-use std::rc::Rc;
-use crate::{CacheContext, CacheContextParser, Cached, CachedParser, CheckRightData, Choice, ChoiceParser, Deferred, EatString, EatStringParser, EatU8, EatU8Parser, Eps, EpsParser, Fail, FailParser, ForbidFollows, ForbidFollowsCheckNot, ForbidFollowsClear, IndentCombinator, IndentCombinatorParser, Lookahead, MutateRightData, ExcludeBytestrings, ExcludeBytestringsParser, ParseResults, Repeat1, Repeat1Parser, ParseResultTrait, Seq, SeqParser, Symbol, Tagged, TaggedParser, U8Set, ProfiledParser, Profiled, Opt, WeakRef, StrongRef, FastCombinatorWrapper, profile, FastParserWrapper, Seq2, Choice2, OwningParser, RightData, UnambiguousParseError, UnambiguousParseResults};
-use crate::stats::Stats;
-use std::cell::RefCell;
 
 #[macro_export]
 macro_rules! match_enum {

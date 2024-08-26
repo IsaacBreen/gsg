@@ -1,10 +1,8 @@
-// src/combinators/eat_string.rs
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
-use std::any::Any;
-use std::rc::Rc;
-use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set, VecX};
 use crate::internal_vec::VecY;
-use crate::parse_state::{RightData, ParseResultTrait};
+use crate::parse_state::{ParseResultTrait, RightData};
+// src/combinators/eat_string.rs
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
+use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set};
 
 #[derive(Debug)]
 pub struct EatString {

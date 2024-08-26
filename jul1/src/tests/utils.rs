@@ -1,14 +1,14 @@
 use crate::{clear_profile_data, RightData, UnambiguousParseResults};
-use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use kdam::tqdm;
 
-use crate::{CombinatorTrait, CombinatorTraitExt, GLOBAL_PROFILE_DATA, ParseResults, ParserTrait, ParserTraitExt, profile, ParseResultTrait, Squash};
+use crate::{profile, CombinatorTrait, CombinatorTraitExt, ParseResultTrait, ParseResults, ParserTrait, ParserTraitExt, Squash, GLOBAL_PROFILE_DATA};
 
-use std::time::{Duration, Instant};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
+use std::time::{Duration, Instant};
 
 const VERBOSE: bool = false;
 

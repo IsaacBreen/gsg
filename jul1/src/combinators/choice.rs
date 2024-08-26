@@ -1,10 +1,5 @@
-// src/combinators/choice.rs
-// src/combinators/choice.rs
-use std::any::Any;
-use std::rc::Rc;
-
-use crate::{CombinatorTrait, eps, ParseResults, ParserTrait, profile_internal, Squash, U8Set, VecX, UnambiguousParseResults, UnambiguousParseError, BaseCombinatorTrait, DynCombinatorTrait};
-use crate::parse_state::{RightData, ParseResultTrait};
+use crate::parse_state::{ParseResultTrait, RightData};
+use crate::{profile_internal, BaseCombinatorTrait, CombinatorTrait, DynCombinatorTrait, ParseResults, ParserTrait, U8Set, UnambiguousParseError, UnambiguousParseResults, VecX};
 
 #[derive(Debug)]
 pub struct Choice<'a> {

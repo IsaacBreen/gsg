@@ -1,13 +1,10 @@
-// src/combinators/seq.rs
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use crate::RightData;
-use std::any::Any;
-use std::rc::Rc;
-use std::collections::{BTreeMap, HashSet};
-use std::hash::{Hash, Hasher};
-use lru::DefaultHasher;
-use crate::{CombinatorTrait, eps, FailParser, ParseResults, ParserTrait, profile, profile_internal, ParseResultTrait, RightDataSquasher, Squash, U8Set, VecY};
 use crate::VecX;
+use crate::{profile_internal, CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, RightDataSquasher, U8Set, VecY};
+// src/combinators/seq.rs
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
+use std::collections::BTreeMap;
+use std::hash::{Hash, Hasher};
 
 macro_rules! profile {
     ($name:expr, $expr:expr) => {

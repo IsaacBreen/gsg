@@ -1,6 +1,5 @@
-use crate::*;
-use std::rc::Rc;
 use crate::BaseCombinatorTrait;
+use crate::*;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]

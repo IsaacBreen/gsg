@@ -1,5 +1,5 @@
 use crate::*;
-use crate::{BaseCombinatorTrait, VecX};
+use crate::BaseCombinatorTrait;
 
 #[derive(Debug)]
 pub struct Opt<T: CombinatorTrait> {

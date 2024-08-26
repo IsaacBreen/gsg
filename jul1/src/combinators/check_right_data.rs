@@ -1,9 +1,8 @@
 // src/combinators/check_right_data.rs
-use crate::{dumb_one_shot_parse, BaseCombinatorTrait, DynCombinatorTrait, ParserTrait, UnambiguousParseError, UnambiguousParseResults};
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, ParserTrait, UnambiguousParseError, UnambiguousParseResults};
+use crate::{CombinatorTrait, FailParser, ParseResultTrait, ParseResults, RightData};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
-use crate::{CombinatorTrait, FailParser, ParseResults, RightData, ParseResultTrait};
 
 pub struct CheckRightData {
     pub(crate) run: Box<dyn Fn(&RightData) -> bool>,
