@@ -14,7 +14,7 @@ pub struct ExcludeBytestrings<T: CombinatorTrait> {
 pub struct ExcludeBytestringsParser<'a> {
     pub(crate) inner: Box<dyn ParserTrait + 'a>,
     pub(crate) regex_state: RegexState<'a>,
-    pub(crate) start_position: usize,
+    pub(crate) position: usize,
 }
 
 impl<T: CombinatorTrait + 'static> DynCombinatorTrait for ExcludeBytestrings<T> {
@@ -49,43 +49,43 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
 
     fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let (inner, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
-        let start_position = right_data.right_data_inner.fields1.position;
+        let mut current_position = right_data.right_data_inner.fields1.position;
 
         // 1. Collect end positions from the inner parse results
         let mut end_positions: HashMap<usize, bool> = HashMap::new();
         for right_data in &parse_results.right_data_vec {
-            end_positions.insert(right_data.right_data_inner.fields1.position - start_position, false);
+            end_positions.insert(right_data.right_data_inner.fields1.position, false);
         }
 
         // 2. Run the regex incrementally and populate the map
         let mut regex_state = self.regex.init();
-        let mut current_position = 0;
+        let mut current_offset = 0;
         let mut sorted_positions: Vec<usize> = end_positions.keys().cloned().collect();
         sorted_positions.sort();
         for position in sorted_positions {
-            let slice = &bytes[current_position..position];
+            let new_offset = position - current_position;
+            let slice = &bytes[current_offset..new_offset];
             regex_state.execute(slice);
             if regex_state.definitely_fully_matches() {
                 end_positions.insert(position, true);
             }
-            current_position = position;
+            current_offset = new_offset;
         }
         // Run the regex to the end of the input
-        regex_state.execute(&bytes[current_position..]);
-        if regex_state.definitely_fully_matches() {
-            end_positions.insert(bytes.len(), true);
-        }
+        regex_state.execute(&bytes[current_offset..]);
 
         // 3. Retain results based on the populated map
         parse_results.right_data_vec.retain(|right_data| {
-            let end_position = right_data.right_data_inner.fields1.position - start_position;
+            let end_position = right_data.right_data_inner.fields1.position;
             !end_positions.get(&end_position).cloned().unwrap_or(false)
         });
+        
+        current_position += bytes.len();
 
         (ExcludeBytestringsParser {
             inner: Box::new(inner),
             regex_state: self.regex.init(),
-            start_position,
+            position: current_position,
         }, parse_results)
     }
 }
@@ -110,34 +110,33 @@ impl ParserTrait for ExcludeBytestringsParser<'_> {
         // 1. Collect end positions from the inner parse results
         let mut end_positions: HashMap<usize, bool> = HashMap::new();
         for right_data in &parse_results.right_data_vec {
-            end_positions.insert(right_data.right_data_inner.fields1.position - self.start_position, false);
+            end_positions.insert(right_data.right_data_inner.fields1.position, false);
         }
 
         // 2. Run the regex incrementally and populate the map
-        let mut current_position = 0;
+        let mut current_offset = 0;
         let mut sorted_positions: Vec<usize> = end_positions.keys().cloned().collect();
         sorted_positions.sort();
         for position in sorted_positions {
-            let slice = &bytes[current_position..position];
+            let new_offset = position - self.position;
+            let slice = &bytes[current_offset..new_offset];
             self.regex_state.execute(slice);
             if self.regex_state.definitely_fully_matches() {
                 end_positions.insert(position, true);
             }
-            current_position = position;
+            current_offset = new_offset;
         }
         // Run the regex to the end of the input
-        self.regex_state.execute(&bytes[current_position..]);
-        if self.regex_state.definitely_fully_matches() {
-            end_positions.insert(bytes.len(), true);
-        }
+        self.regex_state.execute(&bytes[current_offset..]);
 
         // 3. Retain results based on the populated map
         parse_results.right_data_vec.retain(|right_data| {
-            let end_position = right_data.right_data_inner.fields1.position - self.start_position;
+            let end_position = right_data.right_data_inner.fields1.position;
             !end_positions.get(&end_position).cloned().unwrap_or(false)
         });
 
-        self.start_position += bytes.len();
+        self.position += bytes.len();
+
         parse_results
     }
 }
