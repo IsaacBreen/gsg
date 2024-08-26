@@ -310,6 +310,34 @@ impl<T> IntoIterator for FastVec<T> {
     }
 }
 
+// Implement IntoIterator for &FastVec<T>
+impl<'a, T> IntoIterator for &'a FastVec<T> {
+    type Item = &'a T;
+    type IntoIter = Box<dyn Iterator<Item = &'a T> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            FastVec::None => Box::new([].iter()),
+            FastVec::One(item) => Box::new(std::slice::from_ref(item).iter()),
+            FastVec::Many(vec) => Box::new(vec.iter()),
+        }
+    }
+}
+
+// Implement IntoIterator for &mut FastVec<T>
+impl<'a, T> IntoIterator for &'a mut FastVec<T> {
+    type Item = &'a mut T;
+    type IntoIter = Box<dyn Iterator<Item = &'a mut T> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            FastVec::None => Box::new([].iter_mut()),
+            FastVec::One(item) => Box::new(std::slice::from_mut(item).iter_mut()),
+            FastVec::Many(vec) => Box::new(vec.iter_mut()),
+        }
+    }
+}
+
 impl<T> Index<usize> for FastVec<T> {
     type Output = T;
 
@@ -376,7 +404,7 @@ fn main() {
     fast_vec.push(4);
     fast_vec.push(5);
 
-    for item in fast_vec.iter() {
+    for item in &fast_vec {
         println!("{}", item);
     }
 
