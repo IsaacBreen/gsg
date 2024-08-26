@@ -40,7 +40,6 @@ mod stats;
 mod unicode_categories;
 mod internal_vec;
 mod fast_combinator;
-mod trie;
 mod tokenizer;
 mod my_tinyvec;
 mod convert;

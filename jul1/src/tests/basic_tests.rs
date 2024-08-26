@@ -316,7 +316,7 @@ mod more_tests {
     fn test_exclude_strings() {
         let combinator = seq!(
             exclude_strings(
-                choice_greedy!(
+                choice!(
                     eat('a'),
                     eat("aa"),
                 ),
@@ -328,7 +328,7 @@ mod more_tests {
         assert_parses_fast(&combinator, "aab");
 
         let combinator = seq!(
-            choice_greedy!(
+            choice!(
                 eat('a'),
                 eat("aa"),
             ),

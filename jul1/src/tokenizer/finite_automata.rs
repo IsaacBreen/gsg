@@ -453,21 +453,23 @@ impl RegexState<'_> {
             let next_u8 = text[local_position];
             if let Some(&next_state) = state_data.transitions.get(next_u8) {
                 self.current_state = next_state;
-                self.position += 1;
                 local_position += 1;
                 // If the next state has a finalizer, and its precedence is greater than or equal to that of the current finalizer, replace the current finalizer
                 if let Some(finalizer) = dfa.states[self.current_state].finalizer {
                     if self.prev_finalizer.is_none() || finalizer.precedence >= self.prev_finalizer.unwrap().precedence {
                         self.prev_finalizer = Some(finalizer);
-                        self.prev_finalizer_position = self.position;
+                        self.prev_finalizer_position = self.position + local_position;
                     }
                 }
             } else {
                 // If no transition exists for the current u8, we're finished
+                self.position += text.len();
                 self.end();
                 return;
             }
         }
+        // Update the position
+        self.position += text.len();
         // If there's nowhere to go at this point, we're finished
         if dfa.states[self.current_state].transitions.is_empty() {
             self.end();
@@ -487,7 +489,6 @@ impl RegexState<'_> {
     }
 
     pub fn end(&mut self) {
-        assert!(!self.done);
         self.done = true;
     }
 
@@ -507,6 +508,17 @@ impl RegexState<'_> {
         state_data.transitions.keys_as_u8set()
     }
 
+    pub fn get_terminal_u8set(&self) -> U8Set {
+        // Get u8s that could take the regex to a terminal state (a state with a finalizer)
+        let mut u8set = U8Set::none();
+        for (value, i_next_state) in &self.regex.dfa.states[self.current_state].transitions {
+            if self.regex.dfa.states[*i_next_state].finalizer.is_some() {
+                u8set.insert(value);
+            }
+        }
+        u8set
+    }
+
     pub fn get_prev_match(&self) -> Option<Match> {
         // Returns the previous match if it exists
         self.prev_finalizer.map(|finalizer| Match { position: self.prev_finalizer_position, group_id: finalizer.group })
@@ -522,8 +534,24 @@ impl RegexState<'_> {
         }
     }
 
+    pub fn definitely_matches(&self) -> bool {
+        self.matches().unwrap_or(false)
+    }
+
     pub fn could_match(&self) -> bool {
         self.matches().unwrap_or(true)
+    }
+
+    pub fn fully_matches(&self) -> Option<bool> {
+        self.get_prev_match().map(|m| m.position == self.position)
+    }
+
+    pub fn definitely_fully_matches(&self) -> bool {
+        self.fully_matches().unwrap_or(false)
+    }
+
+    pub fn could_fully_match(&self) -> bool {
+        self.fully_matches().unwrap_or(true)
     }
 
     pub fn done(&self) -> bool {
@@ -558,7 +586,6 @@ impl Regex {
     pub fn matches(&self, text: &[u8]) -> Option<bool> {
         let mut regex_state = self.init();
         regex_state.execute(text);
-        let m = regex_state.prev_match();
         regex_state.matches()
     }
 

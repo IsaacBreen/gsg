@@ -6,6 +6,7 @@ const CHARMAP_SIZE: usize = 256;
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct TrieMap<T> {
     data: Vec<Option<Box<T>>>,
+    // TODO: what's the point of `children`? Is it for nondeterminism? If so, let's remove it.
     children: Vec<Vec<usize>>,
     u8set: U8Set,
 }
