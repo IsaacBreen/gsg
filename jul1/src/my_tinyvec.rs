@@ -134,29 +134,26 @@ impl<T> FastVec<T> {
                 // Move self's item to a new vector, then append other's item
                 let mut vec = Vec::with_capacity(2);
                 vec.push(unsafe { self.take_unchecked() });
-                *self = FastVec::None; // Clear self
                 vec.push(unsafe { other.take_unchecked() });
-                *other = FastVec::None; // Clear other
                 *self = FastVec::Many(vec);
             }
             (FastVec::One(_), FastVec::Many(other_vec)) => {
                 // Move self's item to the front of other's vector, then take ownership
                 let mut vec = std::mem::take(other_vec);
                 vec.insert(0, unsafe { self.take_unchecked() });
-                *self = FastVec::None; // Clear self
                 *self = FastVec::Many(vec);
             }
             (FastVec::Many(self_vec), FastVec::One(_)) => {
                 // Append other's item to self's vector
                 self_vec.push(unsafe { other.take_unchecked() });
-                *other = FastVec::None; // Clear other
             }
             (FastVec::Many(self_vec), FastVec::Many(other_vec)) => {
                 // Append other's vector to self's vector
                 self_vec.append(other_vec);
-                *other = FastVec::None; // Clear other
             }
         }
+        // Ensure other is set to None after appending
+        *other = FastVec::None;
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
@@ -277,6 +274,7 @@ impl<T> Extend<T> for FastVec<T> {
                     if let Some(item2) = iterator.next() {
                         // We have more than one item; transition to `Many`
                         let mut vec = Vec::with_capacity(2 + iterator.size_hint().0);
+                        vec.push(unsafe { self.take_unchecked() });
                         vec.push(item2);
                         vec.extend(iterator);
                         *self = FastVec::Many(vec);
@@ -285,11 +283,13 @@ impl<T> Extend<T> for FastVec<T> {
             }
             FastVec::One(_) => {
                 // If `self` is `One`, start with the existing item
-                let mut vec = Vec::with_capacity(2 + iterator.size_hint().0);
-                vec.push(unsafe { self.take_unchecked() });
-                *self = FastVec::None; // Clear self
-                vec.extend(iterator); // Extend directly, no conditional needed
-                *self = FastVec::Many(vec);
+                if let Some(new_item) = iterator.next() {
+                    let mut vec = Vec::with_capacity(2 + iterator.size_hint().0);
+                    vec.push(unsafe { self.take_unchecked() });
+                    vec.push(new_item);
+                    vec.extend(iterator);
+                    *self = FastVec::Many(vec);
+                }
             }
             FastVec::Many(vec) => {
                 // If `self` is `Many`, reserve and extend directly
