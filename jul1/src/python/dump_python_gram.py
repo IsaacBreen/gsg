@@ -209,14 +209,14 @@ def grammar_to_rust(
     def generate_alt_expr(alt: pegen.grammar.Alt, extra_info, top_level: bool = False) -> str:
         if len(alt.items) == 1:
             return generate_combinator_expr(alt.items[0].item, extra_info)
-        if top_level and len(alt.items) > 4:
-            return "seq!(\n    " + ",\n     ".join(
+        s = "seq!(" + ", ".join(
+            generate_combinator_expr(item.item, extra_info) for item in alt.items
+        ) + ")"
+        if top_level and len(s) > 100:
+            s = "seq!(\n    " + ",\n    ".join(
                 generate_combinator_expr(item.item, extra_info) for item in alt.items
             ) + "\n)"
-        else:
-            return "seq!(" + ", ".join(
-                generate_combinator_expr(item.item, extra_info) for item in alt.items
-            ) + ")"
+        return s
 
     MAX_RULE_COMPLEXITY = 0
 
