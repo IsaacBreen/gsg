@@ -330,7 +330,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -800,7 +799,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -1270,7 +1268,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -1740,7 +1737,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -2210,7 +2206,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -2680,7 +2675,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -3150,7 +3144,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -3620,7 +3613,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -4090,7 +4082,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -4560,7 +4551,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -5030,7 +5020,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -5500,7 +5489,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -5970,7 +5958,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -6440,7 +6427,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -6910,7 +6896,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -7380,7 +7365,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -7850,7 +7834,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -8320,7 +8303,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -8790,7 +8772,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -9260,7 +9241,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -9730,7 +9710,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
@@ -10200,7 +10179,6 @@ if __name__ == "__main__":
         ref('NUMBER'): {ref('NUMBER')},
         ref('WS'): {ref('WS'), ref('NEWLINE'), ref('INDENT'), ref('DEDENT')},
     }
-    # TODO: Uncomment this when we've completed forbid_follows
     # custom_grammar |= remove_left_recursion.forbid_follows(custom_grammar, forbidden_follows_table)
     fail_ref_names = [ref.name for ref, node in custom_grammar.items() if node == remove_left_recursion.fail()]
     assert len(fail_ref_names) == 0, f"Grammar contains fail nodes: {fail_ref_names}"
