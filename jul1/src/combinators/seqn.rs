@@ -106,15 +106,7 @@ macro_rules! define_seq {
                 // Macro to process each child combinator
                 $(
                     if next_right_data_vec.is_empty() {
-                        // let mut parser = $seq_parser_name {
-                        //     combinator: self,
-                        //     $first: first_parser_vec,
-                        //     $($rest: vec![],)+
-                        //     position: start_position + bytes.len(),
-                        // };
-                        // todo: hack
                         return (seqn_parser, ParseResults::empty(all_done));
-                        // return (Parser::FailParser(FailParser), ParseResults::empty(all_done));
                     }
 
                     let mut next_next_right_data_vec = VecY::new();
@@ -131,9 +123,7 @@ macro_rules! define_seq {
 
                 let parse_results = ParseResults::new(next_right_data_vec, all_done);
 
-                // todo: hack
                 (seqn_parser, parse_results)
-                // (Parser::FailParser(FailParser), parse_results)
             }
         }
 
