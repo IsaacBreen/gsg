@@ -87,6 +87,8 @@ impl ParserTrait for ExcludeBytestringsParser<'_> {
     }
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        // TODO: we should be able to make this faster by getting all positions in parse_results, partitioning the input by them,
+        //  and executing the regex on each partition to see if that partition takes us to a terminal state.
         let mut parse_results = self.inner.as_mut().parse(bytes);
 
         // Use the renamed find_matches function
