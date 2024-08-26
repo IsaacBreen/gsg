@@ -76,6 +76,9 @@ def resolve_left_recursion_for_cycle(rules: dict[Ref, Node], cycle: set[Ref]) ->
     """Resolves left recursion within a cycle of indirectly left-recursive rules."""
     new_rules = {}
     replacements = {}
+    # Sort cycle by order of appearance in the grammar
+    i_rule = {rule: i for i, rule in enumerate(cycle)}
+    cycle = sorted(cycle, key=lambda rule: i_rule[rule])
     for ref in cycle:
         # Replace references to rules within the cycle
         node = rules[ref].replace_left_refs(replacements)
