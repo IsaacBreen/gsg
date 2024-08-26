@@ -442,7 +442,7 @@ if __name__ == '__main__':
         print(f"    Is rule {rule_ref} left-recursive? {is_left_recursive_for_node(rules[rule_ref], rule_ref)}")
 
     print("  Left-recursive cycles:")
-    for cycle in find_left_recursive_cycles(rules, rules[ref('A')], ref('A'), set(), []):
+    for cycle in find_left_recursive_cycles(rules):
         print(f"    {cycle}")
 
     rules = resolve_left_recursion(rules)
