@@ -123,6 +123,22 @@ def is_directly_left_recursive_for_node(node: Node, ref: Ref) -> bool:
     return len(cycles) > 0
 
 
+def find_all_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref]]:
+    cycles = []
+    for ref in rules:
+        for cycle in find_left_recursive_cycles(rules, ref, [ref]):
+            if cycle not in cycles:  # Only add unique cycles with length > 1
+                cycles.append(cycle)
+    return cycles
+
+
+def find_indirect_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref]]:
+    for cycle in find_all_left_recursive_cycles(rules):
+        if len(set(cycle)) > 1:
+            return [cycle]
+    return []
+
+
 def find_left_recursive_cycles(rules: dict[Ref, Node], start_node: Node, path: list[Ref]) -> list[list[Ref]]:
     def is_nullable(node: Node) -> bool:
         # This is a conservative estimate of whether a node is nullable.
@@ -185,22 +201,6 @@ def find_left_recursive_cycles(rules: dict[Ref, Node], start_node: Node, path: l
         return []
 
     return dfs(start_node, path)
-
-
-def find_all_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref]]:
-    cycles = []
-    for ref in rules:
-        for cycle in find_left_recursive_cycles(rules, ref, [ref]):
-            if cycle not in cycles:  # Only add unique cycles with length > 1
-                cycles.append(cycle)
-    return cycles
-
-
-def find_indirect_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref]]:
-    for cycle in find_all_left_recursive_cycles(rules):
-        if len(set(cycle)) > 1:
-            return [cycle]
-    return []
 
 
 @dataclass
