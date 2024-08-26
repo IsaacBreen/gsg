@@ -42,9 +42,9 @@ impl<T: CombinatorTrait> CombinatorTrait for Opt<T> {
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         if !(self.greedy && parse_results.succeeds_decisively()) {
             // TODO: remove the condition below. It's a hack.
-            if parse_results.right_data_vec.is_empty() {  // TODO: remove this line
+            // if parse_results.right_data_vec.is_empty() {  // TODO: remove this line
                 parse_results.right_data_vec.push(right_data);
-            }
+            // }
         }
         (parser, parse_results)
     }
