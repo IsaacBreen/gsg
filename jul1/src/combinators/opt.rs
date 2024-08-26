@@ -7,7 +7,7 @@ pub struct Opt<T: CombinatorTrait> {
     pub(crate) greedy: bool,
 }
 
-impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Opt<T> {
+impl<T: CombinatorTrait> DynCombinatorTrait for Opt<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -18,8 +18,8 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Opt<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
-    type Parser<'a> = T::Parser<'a>;
+impl<T: CombinatorTrait> CombinatorTrait for Opt<T> {
+    type Parser<'a> = T::Parser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.inner.one_shot_parse(right_data.clone(), bytes);
@@ -50,8 +50,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Opt<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Opt<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
+impl<T: CombinatorTrait> BaseCombinatorTrait for Opt<T> {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
@@ -63,7 +63,7 @@ pub fn opt<T: IntoCombinator>(a: T) -> Opt<T::Output> {
     Opt { inner: a.into_combinator(), greedy: false }
 }
 
-pub fn opt_greedy(a: impl IntoCombinator + 'static)-> impl CombinatorTrait {
+pub fn opt_greedy(a: impl IntoCombinator)-> impl CombinatorTrait {
     profile_internal("opt_greedy", Opt { inner: a.into_combinator(), greedy: true })
 }
 

@@ -107,7 +107,7 @@ pub struct ProfiledParser<P: ParserTrait> {
     pub tag: String,
 }
 
-impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Profiled<T> {
+impl<T: CombinatorTrait> DynCombinatorTrait for Profiled<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -118,7 +118,7 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Profiled<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
+impl<T: CombinatorTrait> CombinatorTrait for Profiled<T> {
     type Parser<'a> = ProfiledParser<T::Parser<'a>> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -134,8 +134,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Profiled<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Profiled<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
+impl<T: CombinatorTrait> BaseCombinatorTrait for Profiled<T> {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
@@ -153,10 +153,10 @@ impl<P: ParserTrait> ParserTrait for ProfiledParser<P> {
     }
 }
 
-pub fn profile<T: IntoCombinator>(tag: &str, a: T)-> impl CombinatorTrait where T::Output: 'static {
+pub fn profile<T: IntoCombinator>(tag: &str, a: T)-> impl CombinatorTrait {
     Profiled { inner: a.into_combinator(), tag: tag.to_string() }
 }
 
-pub fn profile_internal<'a, T: IntoCombinator>(tag: &str, a: T)-> impl CombinatorTrait where T::Output: 'static {
+pub fn profile_internal<'a, T: IntoCombinator>(tag: &str, a: T)-> impl CombinatorTrait {
     profile(tag, a)
 }

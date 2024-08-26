@@ -15,7 +15,7 @@ impl<T> Clone for Symbol<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Symbol<T> {
+impl<T: CombinatorTrait> DynCombinatorTrait for Symbol<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -26,8 +26,8 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Symbol<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
-    type Parser<'a> = T::Parser<'a>;
+impl<T: CombinatorTrait> CombinatorTrait for Symbol<T> {
+    type Parser<'a> = T::Parser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.value.one_shot_parse(right_data, bytes)
@@ -39,8 +39,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Symbol<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Symbol<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
+impl<T: CombinatorTrait> BaseCombinatorTrait for Symbol<T> {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {

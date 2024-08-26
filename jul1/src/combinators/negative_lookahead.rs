@@ -17,7 +17,7 @@ pub struct ExcludeBytestringsParser<'a, T: CombinatorTrait + 'a> {
     pub(crate) position: usize,
 }
 
-impl<T: CombinatorTrait + 'static> DynCombinatorTrait for ExcludeBytestrings<T> {
+impl<T: CombinatorTrait> DynCombinatorTrait for ExcludeBytestrings<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -28,7 +28,7 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for ExcludeBytestrings<T> 
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
+impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
     type Parser<'a> = ExcludeBytestringsParser<'a, T> where T: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -89,8 +89,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for ExcludeBytestrings<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
+impl<T: CombinatorTrait> BaseCombinatorTrait for ExcludeBytestrings<T> {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
 

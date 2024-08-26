@@ -6,13 +6,13 @@ pub struct DynCombinator<C: CombinatorTrait> {
     combinator: C,
 }
 
-impl<C: CombinatorTrait> BaseCombinatorTrait for DynCombinator<C> where for<'a> C: 'a {
-    fn as_any(&self) -> &dyn Any {
+impl<C: CombinatorTrait> BaseCombinatorTrait for DynCombinator<C> {
+    fn as_any(&self) -> &dyn Any where Self: 'static {
         self
     }
 }
 
-impl<C: CombinatorTrait> DynCombinatorTrait for DynCombinator<C> where for<'a> C: 'a {
+impl<C: CombinatorTrait> DynCombinatorTrait for DynCombinator<C> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -23,7 +23,7 @@ impl<C: CombinatorTrait> DynCombinatorTrait for DynCombinator<C> where for<'a> C
     }
 }
 
-impl<C: CombinatorTrait> CombinatorTrait for DynCombinator<C> where for<'a> C: 'a {
+impl<C: CombinatorTrait> CombinatorTrait for DynCombinator<C> {
     type Parser<'a> = Box<dyn ParserTrait + 'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -36,6 +36,6 @@ impl<C: CombinatorTrait> CombinatorTrait for DynCombinator<C> where for<'a> C: '
     }
 }
 
-pub fn dyn_combinator<C: CombinatorTrait>(combinator: C) -> Box<dyn DynCombinatorTrait> where for<'a> C: 'a {
+pub fn dyn_combinator<'a, C: CombinatorTrait + 'a>(combinator: C) -> Box<dyn DynCombinatorTrait + 'a> {
     Box::new(DynCombinator { combinator })
 }

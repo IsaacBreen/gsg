@@ -46,7 +46,7 @@ impl CombinatorTrait for ForbidFollows {
 }
 
 impl BaseCombinatorTrait for ForbidFollows {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
 }
@@ -75,7 +75,7 @@ impl CombinatorTrait for ForbidFollowsClear {
 }
 
 impl BaseCombinatorTrait for ForbidFollowsClear {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
 }
@@ -108,7 +108,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
 }
 
 impl BaseCombinatorTrait for ForbidFollowsCheckNot {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
 }

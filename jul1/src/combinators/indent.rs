@@ -16,7 +16,7 @@ pub enum IndentCombinator {
 
 #[derive(Debug)]
 pub enum IndentCombinatorParser<'a> {
-    DentParser(OwningParser<'a, Box<dyn DynCombinatorTrait>>),
+    DentParser(OwningParser<'a, Box<dyn DynCombinatorTrait + 'a>>),
     IndentParser(Option<RightData>),
     Done,
 }
@@ -199,7 +199,7 @@ impl CombinatorTrait for IndentCombinator {
 }
 
 impl BaseCombinatorTrait for IndentCombinator {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
 }
@@ -272,7 +272,7 @@ pub fn assert_no_dedents() -> IndentCombinator {
     IndentCombinator::AssertNoDedents
 }
 
-pub fn with_indent(a: impl CombinatorTrait + 'static)-> impl CombinatorTrait {
+pub fn with_indent(a: impl CombinatorTrait)-> impl CombinatorTrait {
     seq!(indent(), a, dedent())
 }
 //

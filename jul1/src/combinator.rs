@@ -41,7 +41,7 @@ pub trait DynCombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
 }
 
 pub trait BaseCombinatorTrait {
-    fn as_any(&self) -> &dyn std::any::Any;
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static;
     fn type_name(&self) -> &str {
         std::any::type_name::<Self>()
     }
@@ -111,7 +111,7 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
 }
 
 impl<T: BaseCombinatorTrait + ?Sized> BaseCombinatorTrait for Box<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         (**self).as_any()
     }
     fn type_name(&self) -> &str {

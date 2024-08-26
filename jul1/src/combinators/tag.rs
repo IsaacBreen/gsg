@@ -31,7 +31,7 @@ impl<P> Debug for TaggedParser<P> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Tagged<T> {
+impl<T: CombinatorTrait> DynCombinatorTrait for Tagged<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -42,8 +42,8 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Tagged<T> {
     }
 }
 
-impl<'b, T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> where T: 'b {
-    type Parser<'a> = TaggedParser<T::Parser<'a>>;
+impl<'b, T: CombinatorTrait> CombinatorTrait for Tagged<T> where T: 'b {
+    type Parser<'a> = TaggedParser<T::Parser<'a>> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.inner.one_shot_parse(right_data, bytes)
@@ -65,8 +65,8 @@ impl<'b, T: CombinatorTrait + 'static> CombinatorTrait for Tagged<T> where T: 'b
     }
 }
 
-impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Tagged<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
+impl<T: CombinatorTrait> BaseCombinatorTrait for Tagged<T> {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
@@ -84,7 +84,7 @@ impl<P: ParserTrait> ParserTrait for TaggedParser<P> {
     }
 }
 
-pub fn tag<T: IntoCombinator + 'static>(tag: &'static str, a: T)-> impl CombinatorTrait + 'static where T::Output: 'static {
+pub fn tag<T: IntoCombinator + 'static>(tag: &'static str, a: T)-> impl CombinatorTrait where T::Output: 'static {
     // TODO: ffs
     Tagged { inner: profile(tag, a), tag: tag.to_string() }
     // Tagged { inner: a.into_combinator(), tag: tag.to_string() }

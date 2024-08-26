@@ -17,17 +17,17 @@ thread_local! {
 }
 
 #[derive(Debug)]
-pub struct Deferred<T: CombinatorTrait + 'static> {
-    deferred_fn: Box<dyn DeferredFnTrait<T>>,
+pub struct Deferred<'a, T: CombinatorTrait> {
+    deferred_fn: Box<dyn DeferredFnTrait<T> + 'a>,
     inner: OnceCell<T>,
 }
 
-struct DeferredFn<T: CombinatorTrait + 'static, F: Fn() -> T> {
+struct DeferredFn<T: CombinatorTrait, F: Fn() -> T> {
     pub f: F,
     pub key: CacheKey,
 }
 
-impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T, F> {
+impl<T: CombinatorTrait + Clone, F: Fn() -> T> Debug for DeferredFn<T, F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("DeferredFn").field(&self.key).finish()
     }
@@ -35,7 +35,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> Debug for DeferredFn<T,
 
 // todo: this trait is really messy. Any way to clean it up?
 // Trait for evaluating the deferred function
-trait DeferredFnTrait<T: CombinatorTrait + 'static>: Debug {
+trait DeferredFnTrait<T: CombinatorTrait>: Debug {
     // todo: the fact that
     // we need this struct right now is dumb. Aim to remove it. But we don't want to have to return a (bool, T) tuple - that's even worse and it's what we're trying to avoid by using the struct.
     fn evaluate_to_combinator(&self) -> EvaluateToCombinatorResult<T>;
@@ -103,22 +103,22 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
     }
 }
 
-impl<T: CombinatorTrait + 'static> PartialEq for Deferred<T> {
+impl<T: CombinatorTrait> PartialEq for Deferred<'_, T> {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(&self.deferred_fn, &other.deferred_fn)
     }
 }
 
-impl<T: CombinatorTrait + 'static> Eq for Deferred<T> {}
+impl<T: CombinatorTrait> Eq for Deferred<'_, T> {}
 
-impl<T: CombinatorTrait + 'static> Hash for Deferred<T> {
+impl<T: CombinatorTrait> Hash for Deferred<'_, T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::ptr::hash(&self.deferred_fn, state);
     }
 }
 
-impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Deferred<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+impl<T: CombinatorTrait> DynCombinatorTrait for Deferred<'_, T> {
+    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
@@ -128,8 +128,8 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Deferred<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
-    type Parser<'a> = T::Parser<'a>;
+impl<T: CombinatorTrait> CombinatorTrait for Deferred<'_, T> {
+    type Parser<'a> = T::Parser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().expect("inner combinator not initialized");
@@ -143,8 +143,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Deferred<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Deferred<T> {
-    fn as_any(&self) -> &dyn Any {
+impl<T: CombinatorTrait> BaseCombinatorTrait for Deferred<'_, T> {
+    fn as_any(&self) -> &dyn Any where Self: 'static {
         self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
@@ -164,7 +164,7 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Deferred<T> {
 
 // Public function for creating a Deferred combinator
 #[track_caller]
-pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<StrongRef<T>> {
+pub fn deferred<T: CombinatorTrait + 'static>(f: fn() -> T) -> Deferred<'static, StrongRef<T>> {
     let addr = f as *const () as usize;
     let location = Location::caller();
     let caller_location_str = location.to_string();

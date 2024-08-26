@@ -60,7 +60,7 @@ impl CombinatorTrait for MutateRightData {
 }
 
 impl BaseCombinatorTrait for MutateRightData {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
 }

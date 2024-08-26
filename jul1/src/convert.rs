@@ -21,14 +21,14 @@ impl<T: CombinatorTrait> IntoCombinator for T {
 //     }
 // }
 
-impl<T: CombinatorTrait + 'static> IntoCombinator for &Symbol<T> {
+impl<T: CombinatorTrait> IntoCombinator for &Symbol<T> {
     type Output = Symbol<T>;
     fn into_combinator(self) -> Self::Output {
         self.clone()
     }
 }
 
-impl<T: CombinatorTrait + 'static> IntoCombinator for &StrongRef<T> {
+impl<T: CombinatorTrait> IntoCombinator for &StrongRef<T> {
     type Output = StrongRef<T>;
     fn into_combinator(self) -> Self::Output {
         self.clone()

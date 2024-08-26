@@ -263,7 +263,7 @@ mod more_tests {
 
     #[test]
     fn test_from_fn() {
-        // fn B() -> Deferred<impl CombinatorTrait + 'static> {
+        // fn B() -> Deferred<impl CombinatorTrait> {
         //     deferred(A)
         // }
 

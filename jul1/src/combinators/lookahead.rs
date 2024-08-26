@@ -27,7 +27,7 @@ pub struct Lookahead<T: CombinatorTrait> {
     pub persist_with_partial_lookahead: bool,
 }
 
-impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Lookahead<T> {
+impl<T: CombinatorTrait> DynCombinatorTrait for Lookahead<T> {
     fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
@@ -38,8 +38,8 @@ impl<T: CombinatorTrait + 'static> DynCombinatorTrait for Lookahead<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
-    type Parser<'a> = FailParser;
+impl<T: CombinatorTrait> CombinatorTrait for Lookahead<T> {
+    type Parser<'a> = FailParser where Self: 'a;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.combinator.one_shot_parse(right_data.clone(), bytes);
@@ -77,8 +77,8 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for Lookahead<T> {
     }
 }
 
-impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Lookahead<T> {
-    fn as_any(&self) -> &dyn std::any::Any {
+impl<T: CombinatorTrait> BaseCombinatorTrait for Lookahead<T> {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
@@ -86,11 +86,11 @@ impl<T: CombinatorTrait + 'static> BaseCombinatorTrait for Lookahead<T> {
     }
 }
 
-pub fn lookahead(combinator: impl CombinatorTrait + 'static) -> impl CombinatorTrait {
+pub fn lookahead(combinator: impl CombinatorTrait) -> impl CombinatorTrait {
     Lookahead { combinator: Box::new(Box::new(combinator)), positive: true, persist_with_partial_lookahead: false }
 }
 
-pub fn negative_lookahead(combinator: impl CombinatorTrait + 'static) -> impl CombinatorTrait {
+pub fn negative_lookahead(combinator: impl CombinatorTrait) -> impl CombinatorTrait {
     Lookahead { combinator: Box::new(Box::new(combinator)), positive: false, persist_with_partial_lookahead: false }
 }
 

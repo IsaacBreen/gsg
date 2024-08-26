@@ -141,7 +141,7 @@ impl CombinatorTrait for Seq {
 }
 
 impl BaseCombinatorTrait for Seq {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {

@@ -32,7 +32,7 @@ impl CombinatorTrait for Eps {
 }
 
 impl BaseCombinatorTrait for Eps {
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
 }

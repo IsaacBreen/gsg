@@ -7,8 +7,8 @@ use crate::{CombinatorTrait, eps, ParseResults, ParserTrait, profile_internal, S
 use crate::parse_state::{RightData, ParseResultTrait};
 
 #[derive(Debug)]
-pub struct Choice {
-    pub(crate) children: VecX<Box<dyn DynCombinatorTrait>>,
+pub struct Choice<'a> {
+    pub(crate) children: VecX<Box<dyn DynCombinatorTrait + 'a>>,
     pub(crate) greedy: bool,
 }
 
@@ -18,8 +18,8 @@ pub struct ChoiceParser<'a> {
     pub(crate) greedy: bool,
 }
 
-impl DynCombinatorTrait for Choice {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+impl DynCombinatorTrait for Choice<'_> {
+    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
@@ -29,7 +29,7 @@ impl DynCombinatorTrait for Choice {
     }
 }
 
-impl CombinatorTrait for Choice {
+impl CombinatorTrait for Choice<'_> {
     type Parser<'a> = ChoiceParser<'a> where Self: 'a;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
@@ -99,8 +99,8 @@ impl CombinatorTrait for Choice {
     }
 }
 
-impl BaseCombinatorTrait for Choice {
-    fn as_any(&self) -> &dyn std::any::Any {
+impl BaseCombinatorTrait for Choice<'_> {
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
     fn apply_to_children(&self, f: &mut dyn FnMut(&dyn BaseCombinatorTrait)) {
@@ -138,14 +138,14 @@ impl ParserTrait for ChoiceParser<'_> {
 
 }
 
-pub fn _choice(v: Vec<Box<dyn DynCombinatorTrait>>) -> impl CombinatorTrait {
+pub fn _choice<'a>(v: Vec<Box<dyn DynCombinatorTrait + 'a>>) -> impl CombinatorTrait + 'a {
     Choice {
         children: v.into_iter().collect(),
         greedy: false,
     }
 }
 
-pub fn _choice_greedy(v: Vec<Box<dyn DynCombinatorTrait>>) -> impl CombinatorTrait {
+pub fn _choice_greedy<'a>(v: Vec<Box<dyn DynCombinatorTrait + 'a>>) -> impl CombinatorTrait + 'a {
     profile_internal("choice", Choice {
         children: v.into_iter().collect(),
         greedy: true,

@@ -38,8 +38,6 @@ macro_rules! define_seq {
         where
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+,
-            for<'a> $first: 'a,
-            $(for<'a> $rest: 'a),+
         {
             fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
                 let (parser, parse_results) = self.parse(right_data, bytes);
@@ -55,9 +53,6 @@ macro_rules! define_seq {
         where
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+,
-            // todo: can we move the 'a bound to the impl block?
-            for<'a> $first: 'a,
-            $(for<'a> $rest: 'a),+
         {
             type Parser<'a> = $seq_parser_name<'a, $first, $($rest),+> where Self: 'a;
 
@@ -218,10 +213,8 @@ macro_rules! define_seq {
         where
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+,
-            for<'a> $first: 'a,
-            $(for<'a> $rest: 'a),+
         {
-            fn as_any(&self) -> &dyn std::any::Any {
+            fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
                 self
             }
 
