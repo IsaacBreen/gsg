@@ -18,7 +18,7 @@ impl<T> FastVec<T> {
     unsafe fn take_unchecked(&mut self) -> T {
         match self {
             FastVec::One(item) => {
-                // TODO: optimisation opportunity here and in places where this is called
+                // Replace self with None first, then read the item
                 let item = std::ptr::read(item);
                 std::ptr::write(self as *mut _, Self::None);
                 item
@@ -224,14 +224,13 @@ impl<T> FastVec<T> {
                 }
             }
             FastVec::Many(vec) => {
-                if len == 0 {
+                vec.truncate(len);
+                if vec.len() == 1 {
+                    if let Some(last_item) = vec.pop() {
+                        *self = FastVec::One(last_item);
+                    }
+                } else if vec.is_empty() {
                     *self = FastVec::None;
-                } else if len == 1 {
-                    let last_item = vec.pop().unwrap();
-                    let first_item_mut = vec.first_mut().unwrap();
-                    *self = FastVec::One(std::mem::replace(first_item_mut, last_item));
-                } else {
-                    vec.truncate(len);
                 }
             }
         }
@@ -260,6 +259,11 @@ impl<T> Extend<T> for FastVec<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         let mut iterator = iter.into_iter();
 
+        // Optimize for the common case where the iterator is empty
+        if iterator.size_hint().0 == 0 {
+            return;
+        }
+
         match self {
             FastVec::None => {
                 // If `self` is `None`, we'll start from scratch
@@ -267,7 +271,7 @@ impl<T> Extend<T> for FastVec<T> {
                     *self = FastVec::One(item);
                     if let Some(item2) = iterator.next() {
                         // We have more than one item; transition to `Many`
-                        let mut vec = Vec::with_capacity(2);
+                        let mut vec = Vec::with_capacity(2 + iterator.size_hint().0);
                         vec.push(item2);
                         vec.extend(iterator);
                         *self = FastVec::Many(vec);
@@ -277,7 +281,7 @@ impl<T> Extend<T> for FastVec<T> {
             FastVec::One(_) => {
                 // If `self` is `One`, start with the existing item
                 if let Some(new_item) = iterator.next() {
-                    let mut vec = Vec::with_capacity(2);
+                    let mut vec = Vec::with_capacity(2 + iterator.size_hint().0);
                     vec.push(unsafe { self.take_unchecked() });
                     vec.push(new_item);
                     vec.extend(iterator);
@@ -535,6 +539,13 @@ mod tests {
         vec.truncate(1);
         assert_eq!(vec.len(), 1);
         assert_eq!(vec[0], 1);
+
+        let mut vec = FastVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        vec.truncate(0);
+        assert_eq!(vec.len(), 0);
     }
 
     #[test]
