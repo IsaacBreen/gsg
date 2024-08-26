@@ -446,6 +446,10 @@ impl NFA {
 
 impl RegexState<'_> {
     pub fn execute(&mut self, text: &[u8]) {
+        if self.done {
+            self.position += text.len();
+            return;
+        }
         let dfa = &self.regex.dfa;
         let mut local_position = 0;
         while local_position < text.len() {
