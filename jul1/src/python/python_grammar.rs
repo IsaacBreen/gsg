@@ -776,11 +776,19 @@ pub fn group_pattern() -> impl CombinatorTrait {
 }
 
 pub fn name_or_attr() -> impl CombinatorTrait {
-    tag("name_or_attr", seq!(deferred(NAME).into_dyn(), repeat0(seq!(python_literal("."), deferred(NAME).into_dyn()))))
+    tag("name_or_attr", choice!(
+        deferred(attr).into_dyn(),
+        deferred(NAME).into_dyn()
+    ))
 }
 
 pub fn attr() -> impl CombinatorTrait {
-    tag("attr", seq!(deferred(name_or_attr).into_dyn(), python_literal("."), deferred(NAME).into_dyn()))
+    tag("attr", seq!(
+        deferred(NAME).into_dyn(),
+        python_literal("."),
+        deferred(NAME).into_dyn(),
+        repeat0(seq!(python_literal("."), deferred(NAME).into_dyn()))
+    ))
 }
 
 pub fn value_pattern() -> impl CombinatorTrait {
