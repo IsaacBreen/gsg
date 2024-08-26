@@ -151,21 +151,19 @@ def find_left_recursive_cycles_from_rule(rules: dict[Ref, Node], start: Ref) -> 
 
 
 def find_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref]]:
-    """
-    Finds all unique left-recursive cycles in the given grammar.
-
-    Args:
-        rules: A dictionary mapping non-terminals to their corresponding production rules.
-
-    Returns:
-        A list of unique left-recursive cycles, where each cycle is represented as a list of Refs.
-    """
     cycles = []
     for ref in rules:
         for cycle in find_left_recursive_cycles_from_rule(rules, ref):
             if cycle not in cycles:  # Only add unique cycles with length > 1
                 cycles.append(cycle)
     return cycles
+
+
+def find_indirect_left_recursive_cycles(rules: dict[Ref, Node]) -> list[list[Ref]]:
+    for cycle in find_left_recursive_cycles(rules):
+        if len(set(cycle)) > 1:
+            return [cycle]
+    return []
 
 
 @dataclass
