@@ -212,7 +212,7 @@ def grammar_to_rust(
         s = "seq!(" + ", ".join(
             generate_combinator_expr(item.item, extra_info) for item in alt.items
         ) + ")"
-        if top_level and len(s) > 100:
+        if top_level and len(s) > 80:
             s = "seq!(\n    " + ",\n    ".join(
                 generate_combinator_expr(item.item, extra_info) for item in alt.items
             ) + "\n)"
