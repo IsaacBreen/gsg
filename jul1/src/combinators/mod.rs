@@ -18,7 +18,6 @@ pub use profile::*;
 pub use opt::*;
 pub use seqn::*;
 pub use choicen::*;
-pub use left_recursion_guard::*;
 
 mod choice;
 mod eat_string;
@@ -43,12 +42,10 @@ mod profile;
 mod opt;
 mod reference;
 mod brute_force_fn;
-mod continuation;
 mod fast;
 mod seqn;
 mod choicen;
 mod dyn_parser;
-mod left_recursion_guard;
 
 pub use choice::*;
 pub use eat_string::*;
@@ -69,5 +66,4 @@ pub use eat_bytestring_choice::*;
 pub use deferred::*;
 pub use reference::*;
 pub use brute_force_fn::*;
-pub use continuation::*;
 pub use fast::*;

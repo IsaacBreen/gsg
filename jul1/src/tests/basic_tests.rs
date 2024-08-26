@@ -138,32 +138,6 @@ mod basic_tests {
         // assert_parses_fast(&combinator, "aaab");
         // assert_parses_one_shot(&combinator, "aaab");
     }
-
-    #[test]
-    fn test_left_recursion_guard() {
-        fn A() -> impl CombinatorTrait {
-            left_recursion_guard(choice_greedy!(
-                seq!(deferred(A).into_dyn(), eat_byte(b'a')),
-                eat_byte(b'b'),
-            ))
-        }
-        let combinator = A().compile();
-        assert_parses_default(&combinator, "b");
-        assert_parses_fast(&combinator, "b");
-        assert_parses_one_shot(&combinator, "b");
-
-        assert_parses_default(&combinator, "ab");
-        assert_parses_fast(&combinator, "ab");
-        assert_parses_one_shot(&combinator, "ab");
-
-        assert_parses_default(&combinator, "aab");
-        assert_parses_fast(&combinator, "aab");
-        assert_parses_one_shot(&combinator, "aab");
-
-        assert_parses_default(&combinator, "aaab");
-        assert_parses_fast(&combinator, "aaab");
-        assert_parses_one_shot(&combinator, "aaab");
-    }
 }
 
 #[cfg(test)]
