@@ -284,11 +284,12 @@ fn test_actual_python_file_one_shot() {
 
     let test_cases = [
         // ("Simple string", "x = 12\nx = 2\nx"),
+        // ("Simple import", "from x import y\n\nimport z\nimport a.b.c\n"),
         // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
-        // ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
+        ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
         // ("test_input.py", include_str!("../tests/test_input.py")),
-        ("test_input3.py", include_str!("../tests/test_input3.py")),
-        // ("test_input2.py", include_str!("../tests/test_input3.py")),
+        // ("test_input2.py", include_str!("../tests/test_input2.py")),
+        // ("test_input3.py", include_str!("../tests/test_input3.py")),
         // ("test_input_simplified.py", include_str!("../tests/test_input_simplified.py")),
     ];
 

@@ -32,13 +32,16 @@ impl<T: CombinatorTrait + 'static> CombinatorTrait for ExcludeBytestrings<T> {
     type Parser<'a> = ExcludeBytestringsParser<'a>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        if bytes.len() == 19680 {
+            println!("hi");
+        }
         let start_position = right_data.right_data_inner.fields1.position;
         match self.inner.one_shot_parse(right_data, bytes) {
             Ok(right_data) => {
                 let end_position = right_data.right_data_inner.fields1.position;
                 let mut regex_state = self.regex.init();
                 regex_state.execute(&bytes[..(end_position - start_position)]);
-                if regex_state.final_match().is_some() {
+                if regex_state.definitely_fully_matches() {
                     return Err(UnambiguousParseError::Fail);
                 } else {
                     Ok(right_data)
