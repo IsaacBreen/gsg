@@ -223,7 +223,7 @@ def grammar_to_rust(
     def name_to_rust(name: str, extra_info: ExtraInfo) -> str:
         if rule_usage[ref(name)] == 1:
             # Inline if the rule is used only once
-            return f'deferred({name})'
+            return f'{name}()'
         elif name in extra_info.added_rules:
             if extra_info.rule_complexity[name] > MAX_RULE_COMPLEXITY:
                 # Rule is too complex. Don't inline.
