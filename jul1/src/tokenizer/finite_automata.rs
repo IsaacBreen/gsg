@@ -635,12 +635,11 @@ impl RegexState<'_> {
 
             if let Some(&next_state) = state_data.transitions.get(next_u8) {
                 self.current_state = next_state;
-                self.position += 1;
                 local_position += 1;
 
                 if let Some(finalizer) = dfa.states[self.current_state].finalizer {
                     matches.push(Match {
-                        position: self.position,
+                        position: self.position + local_position,
                         group_id: finalizer.group,
                     });
                 }
@@ -648,6 +647,8 @@ impl RegexState<'_> {
                 break;
             }
         }
+
+        self.position += bytes.len();
 
         matches
     }
