@@ -8,7 +8,7 @@ macro_rules! profile {
 
 #[macro_export]
 macro_rules! define_choice {
-    ($choice_name:ident, $choice_parser_name:ident, $first:ident, $($rest:ident),+) => {
+    ($choice_name:ident, $choice_parser_name:ident, $choice_enum_name:ident, $first:ident, $($rest:ident),+) => {
         #[derive(Debug)]
         pub struct $choice_name<$first, $($rest),+> {
             pub(crate) $first: $first,
@@ -26,6 +26,15 @@ macro_rules! define_choice {
             pub(crate) $first: Vec<$first::Parser<'a>>,
             $(pub(crate) $rest: Vec<$rest::Parser<'a>>,)+
             pub(crate) position: usize,
+        }
+
+        pub struct $choice_enum_name<$first, $($rest),+>
+        where
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
+        {
+            pub(crate) $first: $first::Output,
+            $(pub(crate) $rest: $rest::Output,)+
         }
 
         impl<$first, $($rest),+> $crate::DynCombinatorTrait for $choice_name<$first, $($rest),+>
@@ -49,7 +58,7 @@ macro_rules! define_choice {
             $($rest: CombinatorTrait),+,
         {
             type Parser<'a> = $choice_parser_name<'a, $first, $($rest),+> where Self: 'a;
-            type Output = ();
+            type Output = $choice_enum_name<$first, $($rest),+>;
 
             fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 use $crate::{UnambiguousParseResults, UnambiguousParseError};
@@ -207,21 +216,21 @@ macro_rules! define_choice {
     };
 }
 
-define_choice!(Choice2, Choice2Parser, c0, c1);
-define_choice!(Choice3, Choice3Parser, c0, c1, c2);
-define_choice!(Choice4, Choice4Parser, c0, c1, c2, c3);
-define_choice!(Choice5, Choice5Parser, c0, c1, c2, c3, c4);
-define_choice!(Choice6, Choice6Parser, c0, c1, c2, c3, c4, c5);
-define_choice!(Choice7, Choice7Parser, c0, c1, c2, c3, c4, c5, c6);
-define_choice!(Choice8, Choice8Parser, c0, c1, c2, c3, c4, c5, c6, c7);
-define_choice!(Choice9, Choice9Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8);
-define_choice!(Choice10, Choice10Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
-define_choice!(Choice11, Choice11Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
-define_choice!(Choice12, Choice12Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
-define_choice!(Choice13, Choice13Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);
-define_choice!(Choice14, Choice14Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13);
-define_choice!(Choice15, Choice15Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
-define_choice!(Choice16, Choice16Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15);
+define_choice!(Choice2, Choice2Parser, Choice2Enum, c0, c1);
+define_choice!(Choice3, Choice3Parser, Choice3Enum, c0, c1, c2);
+define_choice!(Choice4, Choice4Parser, Choice4Enum, c0, c1, c2, c3);
+define_choice!(Choice5, Choice5Parser, Choice5Enum, c0, c1, c2, c3, c4);
+define_choice!(Choice6, Choice6Parser, Choice6Enum, c0, c1, c2, c3, c4, c5);
+define_choice!(Choice7, Choice7Parser, Choice7Enum, c0, c1, c2, c3, c4, c5, c6);
+define_choice!(Choice8, Choice8Parser, Choice8Enum, c0, c1, c2, c3, c4, c5, c6, c7);
+define_choice!(Choice9, Choice9Parser, Choice9Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8);
+define_choice!(Choice10, Choice10Parser, Choice10Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
+define_choice!(Choice11, Choice11Parser, Choice11Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
+define_choice!(Choice12, Choice12Parser, Choice12Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
+define_choice!(Choice13, Choice13Parser, Choice13Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);
+define_choice!(Choice14, Choice14Parser, Choice14Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13);
+define_choice!(Choice15, Choice15Parser, Choice15Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
+define_choice!(Choice16, Choice16Parser, Choice16Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15);
 
 pub fn choicen_helper<T: IntoCombinator>(x: T) -> T::Output {
         IntoCombinator::into_combinator(x)

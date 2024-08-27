@@ -26,7 +26,7 @@ impl DynCombinatorTrait for Choice<'_> {
 
 impl CombinatorTrait for Choice<'_> {
     type Parser<'a> = ChoiceParser<'a> where Self: 'a;
-    type Output = ();
+    type Output = Box<dyn std::any::Any>;
 
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
