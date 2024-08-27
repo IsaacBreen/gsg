@@ -65,10 +65,10 @@ pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> Expr {
     let mut children = vec![];
     println!("eat_bytestring_choice_fast: start");
     for bytes in bytestrings {
-        // if bytes.len() > 1 {
-        //     // TODO: This is a hack to speed things up.
-        //     continue;
-        // }
+        if bytes.len() > 1 {
+            // TODO: This is a hack to speed things up.
+            continue;
+        }
         if bytes.len() > 4 {
             println!("very long bytestring: {:?}", bytes);
         }

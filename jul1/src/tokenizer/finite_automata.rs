@@ -426,7 +426,7 @@ impl NFA {
             }
         }
         println!("Done converting NFA to DFA");
-        
+
         DFA {
             states: dfa_states,
             start_state: 0,
