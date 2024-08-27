@@ -163,7 +163,7 @@ macro_rules! define_seq {
                     // rest of the children
                     $(
                         let mut right_data_to_init_this_child = std::mem::take(&mut new_right_data);
-                        right_data_to_init_this_child.squash();
+                        // right_data_to_init_this_child.squash();
 
                         // step existing parsers for this child
                         self.$rest.retain_mut(|parser| {
