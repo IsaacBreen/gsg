@@ -44,6 +44,7 @@ def parse_grammar(text: str) -> pegen.grammar.Grammar:
         grammar = parser.start()
         return grammar
 
+
 def pegen_to_custom(grammar: pegen.grammar.Grammar, ignore_invalid: bool = True, ignore_lookaheads: bool = True) -> dict[remove_left_recursion.Ref, remove_left_recursion.Node]:
     def rhs_to_node(rhs: pegen.grammar.Rhs) -> remove_left_recursion.Node:
         if len(rhs.alts) == 1:
