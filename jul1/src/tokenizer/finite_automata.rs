@@ -774,7 +774,7 @@ mod tests {
         dbg!(&regex);
 
         assert!(regex.definitely_fully_matches(b"ab"));
-        assert!(!regex.could_match(b"a"));
+        assert!(regex.could_match(b"a"));
         assert!(!regex.could_match(b"b"));
         assert!(!regex.could_match(b"ba"));
     }

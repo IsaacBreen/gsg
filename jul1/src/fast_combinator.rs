@@ -70,7 +70,7 @@ pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> Expr {
 }
 
 pub fn eat_bytestring_fast(bytes: Vec<u8>) -> Expr {
-    seq_fast(bytes.into_iter().map(|byte| eat_u8_fast(byte)).collect())
+    Expr::U8Seq(bytes)
 }
 
 pub fn eat_string_choice_fast(strings: &[&str]) -> Expr {
