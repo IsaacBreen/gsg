@@ -18,12 +18,6 @@ pub trait CombinatorTrait: BaseCombinatorTrait + DynCombinatorTrait + std::fmt::
     fn old_parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults);
     fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
         self.old_parse(right_data, bytes)
-        // let (mut parser, mut parse_results) = self.old_parse(right_data, &[]);
-        // if !parse_results.done() {
-        //     let new_parse_results = parser.parse(bytes);
-        //     parse_results.combine_seq(new_parse_results);
-        // }
-        // (parser, parse_results)
     }
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults;
 }
