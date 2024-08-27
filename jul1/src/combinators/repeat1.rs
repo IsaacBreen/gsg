@@ -222,7 +222,7 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait {
             !parse_results.done
         });
 
-        // right_data_as.squash();
+        right_data_as.squash();
 
         let mut i = 0;
         while i < right_data_as.len() {

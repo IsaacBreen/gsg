@@ -163,6 +163,8 @@ macro_rules! define_seq {
                     // rest of the children
                     $(
                         let mut right_data_to_init_this_child = std::mem::take(&mut new_right_data);
+                        // TODO: Squashing after each sequent is good for performance (~5% gain on Python parser), but makes it difficult to reason about building the parse tree.
+                        //  So, I'm leaving it out for now. But it'd be good to revisit this and see if we could bring it back.
                         // right_data_to_init_this_child.squash();
 
                         // step existing parsers for this child

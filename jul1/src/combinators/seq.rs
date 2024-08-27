@@ -160,7 +160,8 @@ impl ParserTrait for SeqParser<'_> {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         profile!("SeqParser::parse", {
         let mut final_right_data: VecY<RightData> = VecY::new();
-        let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
+        // let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
+        let mut parser_initialization_queue: BTreeMap<usize, Vec<RightData>> = BTreeMap::new();
 
         // Eliminate duplicate parsers
         // if self.parsers.len() > 10 {
@@ -188,7 +189,8 @@ impl ParserTrait for SeqParser<'_> {
 
         profile!("SeqParser::parse part 2", {
         while let Some((combinator_index, right_data_squasher)) = parser_initialization_queue.pop_first() {
-            for right_data in right_data_squasher.finish() {
+            // for right_data in right_data_squasher.finish() {
+            for right_data in right_data_squasher {
                 let offset = right_data.right_data_inner.fields1.position - self.position;
                 let combinator = &self.combinators[combinator_index];
                 let (parser, parse_results) = profile!("SeqParser::parse child Combinator::parse", {
