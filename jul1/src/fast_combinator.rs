@@ -63,6 +63,7 @@ pub fn eat_byte_range_fast(start: u8, end: u8) -> Expr {
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> Expr {
     let mut children = vec![];
+    println!("eat_bytestring_choice_fast: start");
     for bytes in bytestrings {
         // if bytes.len() > 1 {
         //     // TODO: This is a hack to speed things up.
@@ -73,6 +74,7 @@ pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> Expr {
         }
         children.push(eat_bytestring_fast(bytes));
     }
+    println!("eat_bytestring_choice_fast: done");
     choice_fast(children)
 }
 
