@@ -218,6 +218,7 @@ impl ExprGroups {
     }
 
     fn build_nfa(self) -> NFA {
+        println!("Building NFA...");
         let mut nfa = NFA {
             states: vec![NFAState::new()],
             start_state: 0,
@@ -227,7 +228,8 @@ impl ExprGroups {
             let end_state = Expr::handle_expr(expr, &mut nfa, 0);
             nfa.states[end_state].finalizer = Some(Finalizer { group, precedence });
         }
-
+        println!("Done building NFA");
+        
         nfa
     }
 }
