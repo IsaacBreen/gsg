@@ -29,6 +29,7 @@ impl DynCombinatorTrait for EatString {
 
 impl CombinatorTrait for EatString {
     type Parser<'a> = EatStringParser<'a>;
+    type Output = ();
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if bytes.len() < self.string.len() {

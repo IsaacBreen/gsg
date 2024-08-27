@@ -83,6 +83,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for WeakRef<T> {
 
 impl<T: CombinatorTrait> CombinatorTrait for WeakRef<T> {
     type Parser<'a> = T::Parser<'a> where Self: 'a;
+    type Output = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.get().unwrap();
@@ -117,6 +118,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for StrongRef<T> {
 
 impl<T: CombinatorTrait> CombinatorTrait for StrongRef<T> {
     type Parser<'a> = T::Parser<'a> where Self: 'a;
+    type Output = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().unwrap();

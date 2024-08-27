@@ -41,6 +41,7 @@ impl DynCombinatorTrait for MutateRightData {
 
 impl CombinatorTrait for MutateRightData {
     type Parser<'a> = FailParser;
+    type Output = ();
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if (self.run)(&mut right_data) {

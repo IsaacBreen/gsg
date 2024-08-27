@@ -42,6 +42,7 @@ impl DynCombinatorTrait for CheckRightData {
 
 impl CombinatorTrait for CheckRightData {
     type Parser<'a> = FailParser;
+    type Output = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if (self.run)(&right_data) {

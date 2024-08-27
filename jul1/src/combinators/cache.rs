@@ -134,6 +134,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for CacheContext<T> {
 
 impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
     type Parser<'a> = CacheContextParser<'a> where Self: 'a;
+    type Output = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         profile!("CacheContext.one_shot_parse: start", {
@@ -239,6 +240,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Cached<T> {
 
 impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
     type Parser<'a> = CachedParser where Self: 'a;
+    type Output = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(move |cache| {

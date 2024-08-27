@@ -26,6 +26,8 @@ impl DynCombinatorTrait for Choice<'_> {
 
 impl CombinatorTrait for Choice<'_> {
     type Parser<'a> = ChoiceParser<'a> where Self: 'a;
+    type Output = ();
+
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if self.greedy {

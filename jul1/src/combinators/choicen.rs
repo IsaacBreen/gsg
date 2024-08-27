@@ -49,6 +49,7 @@ macro_rules! define_choice {
             $($rest: CombinatorTrait),+,
         {
             type Parser<'a> = $choice_parser_name<'a, $first, $($rest),+> where Self: 'a;
+            type Output = ();
 
             fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 use $crate::{UnambiguousParseResults, UnambiguousParseError};

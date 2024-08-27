@@ -30,6 +30,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for ExcludeBytestrings<T> {
 
 impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
     type Parser<'a> = ExcludeBytestringsParser<'a, T> where T: 'a;
+    type Output = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;

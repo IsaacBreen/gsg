@@ -27,6 +27,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Symbol<T> {
 
 impl<T: CombinatorTrait> CombinatorTrait for Symbol<T> {
     type Parser<'a> = T::Parser<'a> where Self: 'a;
+    type Output = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.value.one_shot_parse(right_data, bytes)

@@ -20,6 +20,7 @@ impl DynCombinatorTrait for Eps {
 
 impl CombinatorTrait for Eps {
     type Parser<'a> = EpsParser;
+    type Output = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(right_data)
