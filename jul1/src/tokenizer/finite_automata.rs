@@ -69,7 +69,7 @@ pub struct RegexState<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
-    U8(u8),
+    U8Seq(Vec<u8>),
     U8Class(U8Set),
     Quantifier(Box<Expr>, QuantifierType),
     Choice(Vec<Expr>),
@@ -105,7 +105,7 @@ impl From<Expr> for ExprGroup {
 }
 
 pub fn eat_u8(c: u8) -> Expr {
-    Expr::U8(c)
+    Expr::U8Seq(vec![c])
 }
 
 pub fn rep<T: Into<Expr>>(expr: T) -> Expr {
@@ -239,10 +239,14 @@ impl Expr {
 
     fn handle_expr(expr: Expr, nfa: &mut NFA, mut current_state: usize) -> usize {
         match expr {
-            Expr::U8((c)) => {
-                let new_state = nfa.add_state();
-                nfa.add_transition(current_state, c, new_state);
-                new_state
+            Expr::U8Seq(u8s) => {
+                let mut next_state = current_state;
+                for c in u8s {
+                    let new_state = nfa.add_state();
+                    nfa.add_transition(next_state, c, new_state);
+                    next_state = new_state;
+                }
+                next_state
             },
             Expr::U8Class(u8s) => {
                 let new_state = nfa.add_state();
@@ -761,6 +765,19 @@ mod tests {
         assert!(regex.definitely_matches(b"a")); // Epsilon matches the empty string at the beginning
         assert!(!regex.definitely_fully_matches(b"a"));
     }
+
+    #[test]
+    fn test_u8seq() {
+        let expr = Expr::U8Seq(vec![b'a', b'b']);
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(!regex.could_match(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(!regex.could_match(b"ba"));
+    }
 }
 
 #[cfg(test)]
@@ -1003,7 +1020,7 @@ mod even_more_complex_tests {
             "yield",
         ];
 
-        let expr = Expr::Choice(words.iter().map(|word| Expr::Seq(word.bytes().map(|c| Expr::U8(c)).collect())).collect());
+        let expr = Expr::Choice(words.iter().map(|word| Expr::Seq(word.bytes().map(|c| Expr::U8Seq(vec![c])).collect())).collect());
         let regex = expr.build();
         dbg!(&regex);
 

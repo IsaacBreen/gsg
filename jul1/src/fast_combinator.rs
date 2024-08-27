@@ -18,7 +18,7 @@ pub fn repeat1_fast(parser: Expr) -> Expr {
 }
 
 pub fn eat_u8_fast(byte: u8) -> Expr {
-    Expr::U8Class(U8Set::from_byte(byte))
+    Expr::U8Seq(vec![byte])
 }
 
 pub fn eat_u8_negation_fast(byte: u8) -> Expr {
@@ -38,7 +38,7 @@ pub fn eat_u8_range_fast(start: u8, end: u8) -> Expr {
 }
 
 pub fn eat_char_fast(c: char) -> Expr {
-    Expr::U8(c as u8)
+    Expr::U8Seq(vec![c as u8])
 }
 
 pub fn eat_char_negation_fast(c: char) -> Expr {
@@ -54,7 +54,7 @@ pub fn eat_char_negation_choice_fast(s: &str) -> Expr {
 }
 
 pub fn eat_string_fast(s: &str) -> Expr {
-    Expr::Seq(s.chars().map(|c| Expr::U8(c as u8)).collect())
+    Expr::U8Seq(s.bytes().map(|c| c as u8).collect())
 }
 
 pub fn eat_byte_range_fast(start: u8, end: u8) -> Expr {

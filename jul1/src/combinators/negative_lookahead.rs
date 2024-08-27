@@ -143,7 +143,7 @@ impl<T: CombinatorTrait> ParserTrait for ExcludeBytestringsParser<'_, T> {
 
 pub fn exclude_strings<T: IntoCombinator + 'static>(inner: T, bytestrings_to_exclude: Vec<&str>)-> impl CombinatorTrait {
     let bytestrings_to_exclude: Vec<Vec<u8>> = bytestrings_to_exclude.iter().map(|s| s.as_bytes().to_vec()).collect();
-    let expr = Expr::Choice(bytestrings_to_exclude.into_iter().map(|bytes| Expr::Seq(bytes.into_iter().map(|b| Expr::U8(b)).collect())).collect());
+    let expr = Expr::Choice(bytestrings_to_exclude.into_iter().map(|bytes| Expr::U8Seq(bytes)).collect());
     let regex = expr.build();
 
     ExcludeBytestrings {
