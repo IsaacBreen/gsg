@@ -1,9 +1,9 @@
-use crate::{dedent, dent, eat_bytestring_choice_fast, indent, repeat0_fast, CombinatorTrait};
+use crate::{dedent, dent, eat_bytestring_choice_fast, fast_combinator, indent, repeat0_fast, CombinatorTrait};
 
 use crate::{check_right_data, choice_fast, choice_greedy, eat_bytestring_choice,
             eat_char, eat_char_choice, eat_char_choice_fast, eat_char_fast, eat_char_negation_choice,
             eat_char_negation_choice_fast, eat_char_negation_fast, eat_string, eat_string_choice_fast, eps, exclude_strings, fail,
-            fast_combinator, mutate_right_data, negative_lookahead,
+            tokenizer_combinators, mutate_right_data, negative_lookahead,
             opt_fast, repeat1_fast, repeat1_greedy, repeatn_fast, seq, seq_fast,
             IntoCombinator, ParseResultTrait};
 
@@ -519,7 +519,7 @@ pub fn eat_until_terminator(terminator: char) -> Expr {
 }
 
 pub fn STRING()-> impl CombinatorTrait {
-    use crate::fast_combinator::{eat_char_choice_fast as eat_char_choice, eat_char_fast as eat_char, eat_char_negation_choice_fast as eat_char_negation_choice, eat_char_negation_fast as eat_char_negation, eat_string_fast as eat_string, opt_fast as opt, repeat0_fast as repeat0, repeatn_fast as repeatn};
+    use crate::tokenizer_combinators::{eat_char_choice_fast as eat_char_choice, eat_char_fast as eat_char, eat_char_negation_choice_fast as eat_char_negation_choice, eat_char_negation_fast as eat_char_negation, eat_string_fast as eat_string, opt_fast as opt, repeat0_fast as repeat0, repeatn_fast as repeatn};
 
     let stringprefix = opt(choice_fast!(
         eat_char_choice("ruRUfF"),
@@ -922,7 +922,7 @@ pub fn FSTRING_END()-> impl CombinatorTrait {
 //
 //    3.14j   10.j    10j     .001j   1e100j   3.14e-10j   3.14_15_93j
 pub fn NUMBER() -> impl CombinatorTrait {
-    use crate::fast_combinator::{eat_byte_range_fast as eat_byte_range, eat_char_choice_fast as eat_char_choice, eat_char_fast as eat_char, opt_fast as opt, repeat0_fast as repeat0, repeat1_fast as repeat1};
+    use crate::tokenizer_combinators::{eat_byte_range_fast as eat_byte_range, eat_char_choice_fast as eat_char_choice, eat_char_fast as eat_char, opt_fast as opt, repeat0_fast as repeat0, repeat1_fast as repeat1};
 
     let digit = eat_byte_range(b'0', b'9');
     let nonzerodigit = eat_byte_range(b'1', b'9');

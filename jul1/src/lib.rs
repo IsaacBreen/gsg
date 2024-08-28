@@ -22,9 +22,9 @@ pub use crate::tests::*;
 // Re-export common types and functions
 pub use crate::u8set::U8Set;
 pub use convert::*;
-pub use fast_combinator::seq_fast;
-pub use fast_combinator::*;
 pub use internal_vec::{VecX, VecY};
+pub use tokenizer::tokenizer_combinators;
+pub use tokenizer::tokenizer_combinators::*;
 
 mod combinator;
 mod combinators;
@@ -40,7 +40,6 @@ mod unicode;
 mod stats;
 mod unicode_categories;
 mod internal_vec;
-mod fast_combinator;
 mod tokenizer;
 mod my_tinyvec;
 mod convert;
