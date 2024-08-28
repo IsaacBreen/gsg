@@ -350,6 +350,7 @@ impl Expr {
             Expr::NegativeLookahead(expr) => {
                 let lookahead_start_state = nfa.add_state();
                 let lookahead_end_state = nfa.add_state();
+                let fail_state = nfa.add_state(); // Add a new fail state
 
                 // Epsilon transition from current state to lookahead start state
                 nfa.add_epsilon_transition(current_state, lookahead_start_state);
@@ -357,10 +358,10 @@ impl Expr {
                 // Process the lookahead expression
                 let expr_end_state = Self::handle_expr(*expr, nfa, lookahead_start_state);
 
-                // Epsilon transition from expr end state back to lookahead start state (for zero-width assertion)
-                nfa.add_epsilon_transition(expr_end_state, lookahead_start_state);
+                // Epsilon transition from expr end state to fail state (lookahead successful, so fail)
+                nfa.add_epsilon_transition(expr_end_state, fail_state);
 
-                // Epsilon transition from lookahead start state to lookahead end state (for failing the lookahead)
+                // Epsilon transition from lookahead start state to lookahead end state (lookahead failed, so continue)
                 nfa.add_epsilon_transition(lookahead_start_state, lookahead_end_state);
 
                 lookahead_end_state
@@ -1131,5 +1132,3 @@ mod even_more_complex_tests {
         assert!(!regex.could_match(b"acd"));            // "a" is followed by "c"
     }
 }
-let expr = seq![eat_u8(b'a'), not_followed_by(eat_u8(b'b'))];
-let regex = expr.build();
