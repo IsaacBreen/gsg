@@ -1,3 +1,5 @@
+
+// src/_02_traits/combinator.rs
 use crate::{ParseResultTrait, ParseResults, RightData, U8Set, UnambiguousParseResults};
 use std::fmt::Display;
 
@@ -16,6 +18,7 @@ macro_rules! match_enum {
 pub trait CombinatorTrait: BaseCombinatorTrait + DynCombinatorTrait + std::fmt::Debug {
     type Parser<'a>: ParserTrait where Self: 'a;
     type Output;
+    type PartialOutput;
 
     fn old_parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults);
     fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
@@ -86,6 +89,7 @@ impl<T: DynCombinatorTrait + ?Sized> DynCombinatorTrait for Box<T> {
 impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
     type Parser<'a> = T::Parser<'a> where Self: 'a;
     type Output = T::Output;
+    type PartialOutput = T::PartialOutput;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         (**self).one_shot_parse(right_data, bytes)
@@ -129,6 +133,7 @@ impl<'a> ParserTrait for Box<dyn ParserTrait + 'a> {
 impl<'b> CombinatorTrait for Box<dyn DynCombinatorTrait + 'b> {
     type Parser<'a> = Box<dyn ParserTrait + 'a> where Self: 'a;
     type Output = Box<dyn std::any::Any>;
+    type PartialOutput = Box<dyn std::any::Any>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         (**self).one_shot_parse_dyn(right_data, bytes)

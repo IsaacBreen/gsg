@@ -1,3 +1,5 @@
+
+// src/_03_combinators/core/fast.rs
 use crate::tokenizer::finite_automata::{Expr, Regex, RegexState};
 use crate::tokenizer::{choice_fast, eat_bytestring_fast, eat_string_fast};
 use crate::BaseCombinatorTrait;
@@ -41,6 +43,7 @@ impl DynCombinatorTrait for FastCombinatorWrapper {
 impl CombinatorTrait for FastCombinatorWrapper {
     type Parser<'a> = FastParserWrapper<'a>;
     type Output = ();
+    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut regex_state = self.regex.init();

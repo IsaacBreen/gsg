@@ -1,3 +1,5 @@
+
+// src/_03_combinators/lookaheads/negative_lookahead.rs
 use crate::tokenizer::finite_automata::{Expr, Regex, RegexState};
 use crate::BaseCombinatorTrait;
 use crate::*;
@@ -31,6 +33,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for ExcludeBytestrings<T> {
 impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
     type Parser<'a> = ExcludeBytestringsParser<'a, T> where T: 'a;
     type Output = T::Output;
+    type PartialOutput = T::PartialOutput;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = right_data.right_data_inner.fields1.position;

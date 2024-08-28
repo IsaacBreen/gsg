@@ -1,3 +1,5 @@
+
+// src/_03_combinators/nullable/forbid_follows.rs
 use crate::BaseCombinatorTrait;
 use crate::*;
 
@@ -34,6 +36,7 @@ impl DynCombinatorTrait for ForbidFollows {
 impl CombinatorTrait for ForbidFollows {
     type Parser<'a> = FailParser;
     type Output = ();
+    type PartialOutput = ();
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         right_data.get_inner_mut().fields1.forbidden_consecutive_matches.prev_match_ids = self.match_ids;
@@ -65,6 +68,7 @@ impl DynCombinatorTrait for ForbidFollowsClear {
 impl CombinatorTrait for ForbidFollowsClear {
     type Parser<'a> = FailParser;
     type Output = ();
+    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(right_data)
@@ -95,6 +99,7 @@ impl DynCombinatorTrait for ForbidFollowsCheckNot {
 impl CombinatorTrait for ForbidFollowsCheckNot {
     type Parser<'a> = FailParser;
     type Output = ();
+    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(right_data)

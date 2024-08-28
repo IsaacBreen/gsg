@@ -1,3 +1,5 @@
+
+// src/_03_combinators/wrappers/reference.rs
 use crate::BaseCombinatorTrait;
 use crate::*;
 use once_cell::unsync::OnceCell;
@@ -84,6 +86,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for WeakRef<T> {
 impl<T: CombinatorTrait> CombinatorTrait for WeakRef<T> {
     type Parser<'a> = T::Parser<'a> where Self: 'a;
     type Output = T::Output;
+    type PartialOutput = T::PartialOutput;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.get().unwrap();
@@ -119,6 +122,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for StrongRef<T> {
 impl<T: CombinatorTrait> CombinatorTrait for StrongRef<T> {
     type Parser<'a> = T::Parser<'a> where Self: 'a;
     type Output = T::Output;
+    type PartialOutput = T::PartialOutput;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().unwrap();

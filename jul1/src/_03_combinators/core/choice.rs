@@ -1,3 +1,5 @@
+
+// src/_03_combinators/core/choice.rs
 use crate::_01_parse_state::{ParseResultTrait, RightData};
 use crate::{profile_internal, BaseCombinatorTrait, CombinatorTrait, DynCombinatorTrait, ParseResults, ParserTrait, U8Set, UnambiguousParseError, UnambiguousParseResults, VecX};
 
@@ -27,6 +29,7 @@ impl DynCombinatorTrait for Choice<'_> {
 impl CombinatorTrait for Choice<'_> {
     type Parser<'a> = ChoiceParser<'a> where Self: 'a;
     type Output = Box<dyn std::any::Any>;
+    type PartialOutput = Box<dyn std::any::Any>;
 
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {

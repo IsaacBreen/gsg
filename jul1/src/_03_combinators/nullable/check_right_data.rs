@@ -1,3 +1,5 @@
+
+// src/_03_combinators/nullable/check_right_data.rs
 // src/combinators/check_right_data.rs
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, ParserTrait, UnambiguousParseError, UnambiguousParseResults};
 use crate::{CombinatorTrait, FailParser, ParseResultTrait, ParseResults, RightData};
@@ -43,6 +45,7 @@ impl DynCombinatorTrait for CheckRightData {
 impl CombinatorTrait for CheckRightData {
     type Parser<'a> = FailParser;
     type Output = ();
+    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if (self.run)(&right_data) {
@@ -110,6 +113,7 @@ impl DynCombinatorTrait for MutateRightData {
 impl CombinatorTrait for MutateRightData {
     type Parser<'a> = FailParser;
     type Output = ();
+    type PartialOutput = ();
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if (self.run)(&mut right_data) {

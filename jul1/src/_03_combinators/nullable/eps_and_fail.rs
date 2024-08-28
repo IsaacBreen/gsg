@@ -1,3 +1,5 @@
+
+// src/_03_combinators/nullable/eps_and_fail.rs
 use crate::_01_parse_state::{ParseResultTrait, RightData};
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set};
@@ -21,6 +23,7 @@ impl DynCombinatorTrait for Eps {
 impl CombinatorTrait for Eps {
     type Parser<'a> = EpsParser;
     type Output = ();
+    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(right_data)
@@ -52,6 +55,7 @@ pub fn eps() -> Eps {
 }
 
 
+    
 #[repr(transparent)]
 #[derive(Debug)]
 pub struct FailParser;
@@ -73,6 +77,7 @@ impl DynCombinatorTrait for Fail {
 impl CombinatorTrait for Fail {
     type Parser<'a> = FailParser;
     type Output = ();
+    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Err(UnambiguousParseError::Fail)

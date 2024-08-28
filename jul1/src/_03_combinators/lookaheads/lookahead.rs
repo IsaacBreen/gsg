@@ -1,3 +1,5 @@
+
+// src/_03_combinators/lookaheads/lookahead.rs
 use crate::BaseCombinatorTrait;
 use crate::*;
 
@@ -41,6 +43,7 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Lookahead<T> {
 impl<T: CombinatorTrait> CombinatorTrait for Lookahead<T> {
     type Parser<'a> = FailParser where Self: 'a;
     type Output = T::Output;
+    type PartialOutput = T::PartialOutput;
 
     fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.combinator.one_shot_parse(right_data.clone(), bytes);
