@@ -1,5 +1,6 @@
 pub use python_grammar::*;
 pub use python_tokenizer::*;
+pub use indent_combinator::*;
 
 use crate::*;
 

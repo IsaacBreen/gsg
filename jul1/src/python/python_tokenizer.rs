@@ -1,9 +1,9 @@
-use crate::{eat_bytestring_choice_fast, repeat0_fast, CombinatorTrait};
+use crate::{dedent, dent, eat_bytestring_choice_fast, indent, repeat0_fast, CombinatorTrait};
 
-use crate::{check_right_data, choice_fast, choice_greedy, dedent, dent, eat_bytestring_choice,
+use crate::{check_right_data, choice_fast, choice_greedy, eat_bytestring_choice,
             eat_char, eat_char_choice, eat_char_choice_fast, eat_char_fast, eat_char_negation_choice,
             eat_char_negation_choice_fast, eat_char_negation_fast, eat_string, eat_string_choice_fast, eps, exclude_strings, fail,
-            fast_combinator, indent, mutate_right_data, negative_lookahead,
+            fast_combinator, mutate_right_data, negative_lookahead,
             opt_fast, repeat1_fast, repeat1_greedy, repeatn_fast, seq, seq_fast,
             IntoCombinator, ParseResultTrait};
 
