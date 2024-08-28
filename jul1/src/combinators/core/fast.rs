@@ -1,10 +1,10 @@
 use crate::tokenizer::finite_automata::{Expr, Regex, RegexState};
+use crate::tokenizer::{choice_fast, eat_bytestring_fast, eat_string_fast};
 use crate::BaseCombinatorTrait;
 use crate::*;
 // src/combinators/fast.rs
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
-use crate::tokenizer::{eat_bytestring_fast, eat_string_fast, choice_fast};
 
 pub struct FastCombinatorWrapper {
     pub(crate) regex: Regex,

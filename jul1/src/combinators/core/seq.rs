@@ -1,10 +1,10 @@
 use crate::RightData;
 use crate::VecX;
-use crate::{profile_internal, CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, RightDataSquasher, U8Set, VecY};
+use crate::{profile_internal, CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set, VecY};
 // src/combinators/seq.rs
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use std::collections::BTreeMap;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 macro_rules! profile {
     ($name:expr, $expr:expr) => {

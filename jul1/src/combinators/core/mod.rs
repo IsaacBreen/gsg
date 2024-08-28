@@ -7,8 +7,8 @@ mod repeat1;
 mod seq;
 mod seqn;
 
-pub use choicen::*;
 pub use choice::*;
+pub use choicen::*;
 pub use eat::*;
 pub use fast::*;
 pub use opt::*;

@@ -1,10 +1,10 @@
 // src/tests/basic_tests.rs
 #![feature(assert_matches)]
 use crate::combinators::*;
-use crate::tokenizer::eat_char_fast;
+use crate::get_unicode_general_category_combinator;
 use crate::parse_state::RightData;
 use crate::tests::utils::{assert_parses_default, assert_parses_fast, assert_parses_one_shot, assert_parses_one_shot_with_result};
-use crate::get_unicode_general_category_combinator;
+use crate::tokenizer::eat_char_fast;
 use crate::unicode_categories::GeneralCategory;
 use crate::*;
 

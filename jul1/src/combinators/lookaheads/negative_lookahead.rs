@@ -1,6 +1,6 @@
 use crate::tokenizer::finite_automata::{Expr, Regex, RegexState};
-use crate::*;
 use crate::BaseCombinatorTrait;
+use crate::*;
 // src/combinators/negative_lookahead.rs
 use std::collections::HashMap;
 

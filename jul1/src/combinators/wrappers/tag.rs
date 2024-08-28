@@ -1,8 +1,8 @@
 use std::fmt::{Debug, Formatter};
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
-use crate::*;
 use crate::BaseCombinatorTrait;
+use crate::*;
 
 pub struct Tagged<T: CombinatorTrait> {
     pub inner: T,

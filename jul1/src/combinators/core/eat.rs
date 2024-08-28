@@ -1,8 +1,8 @@
 use crate::internal_vec::VecY;
 use crate::parse_state::RightData;
+use crate::UnambiguousParseError;
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use crate::{CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set};
-use crate::UnambiguousParseError;
 use std::ops::RangeBounds;
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
