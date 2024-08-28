@@ -19,7 +19,6 @@ pub struct NFAState {
     transitions: TrieMap<Vec<usize>>,
     epsilon_transitions: Vec<usize>,
     finalizer: Option<Finalizer>,
-    is_failing_state: bool, // Flag to indicate a failing state for negative lookahead
 }
 
 #[derive(Clone)]
@@ -32,7 +31,6 @@ pub struct NFA {
 pub struct DFAState {
     transitions: TrieMap<usize>,
     finalizer: Option<Finalizer>,
-    forbidden_prefixes: Option<TrieMap<()>>, // Store forbidden prefixes for negative lookaheads
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -76,7 +74,6 @@ pub enum Expr {
     Choice(Vec<Expr>),
     Seq(Vec<Expr>),
     Epsilon, // Explicit epsilon transition
-    NegativeLookahead(Box<Expr>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -123,10 +120,7 @@ pub fn opt<T: Into<Expr>>(expr: T) -> Expr {
 }
 
 pub fn prec<T: Into<Expr>>(precedence: isize, expr: T) -> ExprGroup {
-    ExprGroup {
-        expr: expr.into(),
-        precedence,
-    }
+    ExprGroup { expr: expr.into(), precedence }
 }
 
 pub fn eps() -> Expr {
@@ -211,7 +205,6 @@ impl NFAState {
             transitions: TrieMap::new(),
             epsilon_transitions: Vec::new(),
             finalizer: None,
-            is_failing_state: false,
         }
     }
 }
@@ -230,7 +223,7 @@ impl ExprGroups {
             start_state: 0,
         };
 
-        for (group, ExprGroup { expr, precedence }) in self.groups.into_iter().enumerate() {
+        for (group, ExprGroup {expr, precedence}) in self.groups.into_iter().enumerate() {
             let end_state = Expr::handle_expr(expr, &mut nfa, 0);
             nfa.states[end_state].finalizer = Some(Finalizer { group, precedence });
         }
@@ -242,13 +235,7 @@ impl ExprGroups {
 
 impl Expr {
     pub fn build(self) -> Regex {
-        ExprGroups {
-            groups: vec![ExprGroup {
-                expr: self,
-                precedence: 0,
-            }],
-        }
-        .build()
+        ExprGroups { groups: vec![ExprGroup { expr: self, precedence: 0 }] }.build()
     }
 
     fn handle_expr(expr: Expr, nfa: &mut NFA, mut current_state: usize) -> usize {
@@ -261,7 +248,7 @@ impl Expr {
                     next_state = new_state;
                 }
                 next_state
-            }
+            },
             Expr::U8Class(u8s) => {
                 let new_state = nfa.add_state();
                 for ch in u8s.iter() {
@@ -269,55 +256,57 @@ impl Expr {
                 }
                 new_state
             }
-            Expr::Quantifier(expr, quantifier_type) => match quantifier_type {
-                QuantifierType::ZeroOrMore => {
-                    let loop_start_state = nfa.add_state();
-                    let loop_end_state = nfa.add_state();
+            Expr::Quantifier(expr, quantifier_type) => {
+                match quantifier_type {
+                    QuantifierType::ZeroOrMore => {
+                        let loop_start_state = nfa.add_state();
+                        let loop_end_state = nfa.add_state();
 
-                    // Epsilon transition from current state to loop start state
-                    nfa.add_epsilon_transition(current_state, loop_start_state);
+                        // Epsilon transition from current state to loop start state
+                        nfa.add_epsilon_transition(current_state, loop_start_state);
 
-                    // Process the expr
-                    let expr_end_state = Self::handle_expr(*expr, nfa, loop_start_state);
+                        // Process the expr
+                        let expr_end_state = Self::handle_expr(*expr, nfa, loop_start_state);
 
-                    // Epsilon transition from expr end state back to loop start state for repetition
-                    nfa.add_epsilon_transition(expr_end_state, loop_start_state);
+                        // Epsilon transition from expr end state back to loop start state for repetition
+                        nfa.add_epsilon_transition(expr_end_state, loop_start_state);
 
-                    // Epsilon transition from loop start state to loop end state to allow skipping
-                    nfa.add_epsilon_transition(loop_start_state, loop_end_state);
+                        // Epsilon transition from loop start state to loop end state to allow skipping
+                        nfa.add_epsilon_transition(loop_start_state, loop_end_state);
 
-                    // The loop end state becomes the new current state
-                    loop_end_state
-                }
-                QuantifierType::OneOrMore => {
-                    let loop_start_state = nfa.add_state();
+                        // The loop end state becomes the new current state
+                        loop_end_state
+                    },
+                    QuantifierType::OneOrMore => {
+                        let loop_start_state = nfa.add_state();
 
-                    // Process the expr first to ensure at least one occurrence
-                    let expr_end_state = Self::handle_expr(*expr, nfa, current_state);
+                        // Process the expr first to ensure at least one occurrence
+                        let expr_end_state = Self::handle_expr(*expr, nfa, current_state);
 
-                    // Epsilon transition from expr end state back to loop start state for repetition
-                    nfa.add_epsilon_transition(expr_end_state, loop_start_state);
+                        // Epsilon transition from expr end state back to loop start state for repetition
+                        nfa.add_epsilon_transition(expr_end_state, loop_start_state);
 
-                    // Epsilon transition from loop start state back to expr start state to allow repetition
-                    nfa.add_epsilon_transition(loop_start_state, current_state);
+                        // Epsilon transition from loop start state back to expr start state to allow repetition
+                        nfa.add_epsilon_transition(loop_start_state, current_state);
 
-                    // The expr end state becomes the new current state
-                    expr_end_state
-                }
-                QuantifierType::ZeroOrOne => {
-                    let optional_end_state = nfa.add_state();
+                        // The expr end state becomes the new current state
+                        expr_end_state
+                    },
+                    QuantifierType::ZeroOrOne => {
+                        let optional_end_state = nfa.add_state();
 
-                    // Epsilon transition from current state to optional end state to allow skipping
-                    nfa.add_epsilon_transition(current_state, optional_end_state);
+                        // Epsilon transition from current state to optional end state to allow skipping
+                        nfa.add_epsilon_transition(current_state, optional_end_state);
 
-                    // Process the expr
-                    let expr_end_state = Self::handle_expr(*expr, nfa, current_state);
+                        // Process the expr
+                        let expr_end_state = Self::handle_expr(*expr, nfa, current_state);
 
-                    // Epsilon transition from expr end state to optional end state
-                    nfa.add_epsilon_transition(expr_end_state, optional_end_state);
+                        // Epsilon transition from expr end state to optional end state
+                        nfa.add_epsilon_transition(expr_end_state, optional_end_state);
 
-                    // The optional end state becomes the new current state
-                    optional_end_state
+                        // The optional end state becomes the new current state
+                        optional_end_state
+                    },
                 }
             },
             Expr::Choice(exprs) => {
@@ -341,35 +330,17 @@ impl Expr {
 
                 // The end state of the choice becomes the new current state
                 choice_end_state
-            }
+            },
             Expr::Seq(exprs) => {
                 for expr in exprs {
                     current_state = Self::handle_expr(expr, nfa, current_state);
                 }
                 current_state
-            }
+            },
             Expr::Epsilon => {
                 let new_state = nfa.add_state();
                 nfa.add_epsilon_transition(current_state, new_state);
                 new_state
-            }
-            Expr::NegativeLookahead(expr) => {
-                let lookahead_start_state = nfa.add_state();
-                let lookahead_end_state = nfa.add_state();
-
-                // Epsilon transition from current state to lookahead start state
-                nfa.add_epsilon_transition(current_state, lookahead_start_state);
-
-                // Process the negated expr
-                let negated_expr_end_state = Self::handle_expr(*expr, nfa, lookahead_start_state);
-
-                // Mark the negated_expr_end_state as a failing state for the lookahead
-                nfa.states[negated_expr_end_state].is_failing_state = true;
-
-                // Epsilon transition from lookahead start state to lookahead end state (if the negated pattern doesn't match)
-                nfa.add_epsilon_transition(lookahead_start_state, lookahead_end_state);
-
-                lookahead_end_state
             }
         }
     }
@@ -412,23 +383,17 @@ impl NFA {
         let closure = epsilon_closures[self.start_state].clone();
         dfa_states.push(DFAState {
             transitions: TrieMap::new(),
-            finalizer: closure
-                .iter()
-                .filter_map(|&state| self.states[state].finalizer)
-                .min_by_key(|finalizer| (finalizer.precedence, finalizer.group)),
-            forbidden_prefixes: None,
+            finalizer: closure.iter().filter_map(|&state| self.states[state].finalizer).min_by_key(|finalizer| (finalizer.precedence, finalizer.group)),
         });
 
         while let Some(current_set) = worklist.pop() {
-            let current_dfa_state = *dfa_state_map.get(¤t_set).unwrap();
+            let current_dfa_state = *dfa_state_map.get(&current_set).unwrap();
             let mut transition_map: TrieMap<HashSet<usize>> = TrieMap::new();
 
             // For each state in the current DFA state, look at the NFA transitions
             for &state in current_set.iter() {
                 for (transition_u8, next_states) in &self.states[state].transitions {
-                    let entry = transition_map
-                        .entry(transition_u8)
-                        .or_insert_with(HashSet::new);
+                    let entry = transition_map.entry(transition_u8).or_insert_with(HashSet::new);
                     for &next_state in next_states {
                         entry.insert(next_state);
                     }
@@ -451,23 +416,13 @@ impl NFA {
 
                     dfa_states.push(DFAState {
                         transitions: TrieMap::new(),
-                        finalizer: closure
-                            .iter()
-                            .filter_map(|&state| self.states[state].finalizer)
-                            .min_by_key(|finalizer| (-finalizer.precedence, finalizer.group)),
-                        forbidden_prefixes: None,
+                        finalizer: closure.iter().filter_map(|&state| self.states[state].finalizer).min_by_key(|finalizer| (-finalizer.precedence, finalizer.group)),
                     });
                 }
 
                 let next_dfa_state = *dfa_state_map.get(&frozen_closure).unwrap();
-                dfa_states[current_dfa_state]
-                    .transitions
-                    .insert(transition_u8, next_dfa_state);
+                dfa_states[current_dfa_state].transitions.insert(transition_u8, next_dfa_state);
             }
-
-            // Calculate forbidden prefixes for this DFA state
-            dfa_states[current_dfa_state].forbidden_prefixes =
-                self.calculate_forbidden_prefixes(&dfa_state_map, current_dfa_state, ¤t_set);
         }
         println!("Done converting NFA to DFA");
 
@@ -491,49 +446,7 @@ impl NFA {
     }
 
     fn compute_epsilon_closures(&self) -> Vec<HashSet<usize>> {
-        (0..self.states.len())
-            .map(|state| self.epsilon_closure(state))
-            .collect()
-    }
-
-    fn calculate_forbidden_prefixes(
-        &self,
-        dfa_state_map: &HashMap<FrozenSet<usize>, usize>,
-        dfa_state: &DFAState,
-        nfa_states: &FrozenSet<usize>,
-    ) -> Option<TrieMap<()>> {
-        // Placeholder for calculating forbidden prefixes based on negative lookaheads
-
-        // This is a simplified example, assuming a maximum prefix length of 2
-        let mut forbidden_prefixes: TrieMap<()> = TrieMap::new();
-
-        for &nfa_state_index in nfa_states {
-            let nfa_state = &self.states[nfa_state_index];
-
-            // Check for negative lookahead transitions
-            for &next_nfa_state_index in &nfa_state.epsilon_transitions {
-                let next_nfa_state = &self.states[next_nfa_state_index];
-                if next_nfa_state.is_failing_state {
-                    // Found a negative lookahead, extract prefixes
-                    for (u8_1, next_states_1) in &next_nfa_state.transitions {
-                        forbidden_prefixes.insert(*u8_1, ()); // Add single-character prefix
-
-                        for &next_nfa_state_index_2 in next_states_1 {
-                            let next_nfa_state_2 = &self.states[next_nfa_state_index_2];
-                            for (u8_2, _) in &next_nfa_state_2.transitions {
-                                forbidden_prefixes.insert(vec![*u8_1, *u8_2], ()); // Add two-character prefix
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if forbidden_prefixes.is_empty() {
-            None
-        } else {
-            Some(forbidden_prefixes)
-        }
+        (0..self.states.len()).map(|state| self.epsilon_closure(state)).collect()
     }
 }
 
@@ -547,26 +460,13 @@ impl RegexState<'_> {
         let mut local_position = 0;
         while local_position < text.len() {
             let state_data = &dfa.states[self.current_state];
-
-            // Check for forbidden prefixes
-            if let Some(forbidden_prefixes) = &state_data.forbidden_prefixes {
-                if let Some(_) = forbidden_prefixes.get(&text[local_position..]) {
-                    // Forbidden prefix found, fail the match
-                    self.position += text.len();
-                    self.end();
-                    return;
-                }
-            }
-
             let next_u8 = text[local_position];
             if let Some(&next_state) = state_data.transitions.get(next_u8) {
                 self.current_state = next_state;
                 local_position += 1;
                 // If the next state has a finalizer, and its precedence is greater than or equal to that of the current finalizer, replace the current finalizer
                 if let Some(finalizer) = dfa.states[self.current_state].finalizer {
-                    if self.prev_finalizer.is_none()
-                        || finalizer.precedence >= self.prev_finalizer.unwrap().precedence
-                    {
+                    if self.prev_finalizer.is_none() || finalizer.precedence >= self.prev_finalizer.unwrap().precedence {
                         self.prev_finalizer = Some(finalizer);
                         self.prev_finalizer_position = self.position + local_position;
                     }
@@ -587,11 +487,7 @@ impl RegexState<'_> {
     }
 
     pub fn prev_match(&self) -> Option<Match> {
-        self.prev_finalizer
-            .map(|finalizer| Match {
-                position: self.prev_finalizer_position,
-                group_id: finalizer.group,
-            })
+        self.prev_finalizer.map(|finalizer| Match { position: self.prev_finalizer_position, group_id: finalizer.group })
     }
 
     pub fn final_match(&self) -> Option<Match> {
@@ -609,14 +505,9 @@ impl RegexState<'_> {
     pub fn final_state_report(&self) -> FinalStateReport {
         FinalStateReport {
             position: self.position,
-            inner: self.prev_finalizer.map(|finalizer| Match {
-                position: self.prev_finalizer_position,
-                group_id: finalizer.group,
-            }),
+            inner: self.prev_finalizer.map(|finalizer| Match { position: self.prev_finalizer_position, group_id: finalizer.group }),
         }
     }
-
-    // ... (Other methods in RegexState)
 }
 
 impl RegexState<'_> {
@@ -640,10 +531,7 @@ impl RegexState<'_> {
 
     pub fn get_prev_match(&self) -> Option<Match> {
         // Returns the previous match if it exists
-        self.prev_finalizer.map(|finalizer| Match {
-            position: self.prev_finalizer_position,
-            group_id: finalizer.group,
-        })
+        self.prev_finalizer.map(|finalizer| Match { position: self.prev_finalizer_position, group_id: finalizer.group })
     }
 
     pub fn matches(&self) -> Option<bool> {
@@ -757,17 +645,6 @@ impl RegexState<'_> {
 
         while local_position < bytes.len() {
             let state_data = &dfa.states[self.current_state];
-
-            // Check for forbidden prefixes
-            if let Some(forbidden_prefixes) = &state_data.forbidden_prefixes {
-                if let Some(_) = forbidden_prefixes.get(&bytes[local_position..]) {
-                    // Forbidden prefix found, fail the match and move to the next position
-                    local_position += 1;
-                    self.current_state = dfa.start_state; // Reset to the initial state
-                    continue;
-                }
-            }
-
             let next_u8 = bytes[local_position];
 
             if let Some(&next_state) = state_data.transitions.get(next_u8) {
@@ -904,19 +781,6 @@ mod tests {
         assert!(!regex.could_match(b"b"));
         assert!(!regex.could_match(b"ba"));
     }
-
-    #[test]
-    fn test_negative_lookahead() {
-        let expr = seq![eat_u8(b'a'), not_followed_by(eat_u8(b'b'))];
-        dbg!(&expr);
-        let regex = expr.build();
-        dbg!(&regex);
-
-        assert!(regex.definitely_fully_matches(b"a"));  // "a" is not followed by "b"
-        assert!(regex.definitely_fully_matches(b"ac")); // "a" is not followed by "b"
-        assert!(!regex.could_match(b"ab"));             // "a" is followed by "b"
-        assert!(!regex.could_match(b"abc"));            // "a" is followed by "b"
-    }
 }
 
 #[cfg(test)]
@@ -994,36 +858,6 @@ mod complex_tests {
         assert!(regex.could_match(b"c"));
         assert!(!regex.definitely_matches(b"c"));
         assert!(!regex.could_match(b"d"));
-    }
-
-    #[test]
-    fn test_negative_lookahead_in_seq() {
-        // This test checks if negative lookahead works correctly within a sequence
-        let expr = seq![
-            eat_u8(b'a'),
-            not_followed_by(eat_u8(b'b')),
-            eat_u8(b'c'),
-        ];
-        let regex = expr.build();
-
-        assert!(regex.definitely_fully_matches(b"ac"));  // "a" is not followed by "b", then "c"
-        assert!(!regex.could_match(b"abc"));             // "a" is followed by "b"
-        assert!(!regex.could_match(b"ab"));              // "a" is followed by "b"
-    }
-
-    #[test]
-    fn test_negative_lookahead_in_choice() {
-        // This test checks if negative lookahead works correctly within a choice
-        let expr = choice![
-            seq![eat_u8(b'a'), not_followed_by(eat_u8(b'b'))],
-            eat_u8(b'c'),
-        ];
-        let regex = expr.build();
-
-        assert!(regex.definitely_fully_matches(b"a"));  // "a" is not followed by "b"
-        assert!(regex.definitely_fully_matches(b"ac")); // "a" is not followed by "b", then "c"
-        assert!(regex.definitely_fully_matches(b"c"));  // "c" matches the second choice
-        assert!(!regex.could_match(b"ab"));             // "a" is followed by "b"
     }
 }
 
@@ -1199,35 +1033,5 @@ mod even_more_complex_tests {
         assert!(regex.definitely_fully_matches(b"and"));
         assert!(regex.definitely_fully_matches(b"as"));
         assert!(regex.definitely_fully_matches(b"assert"));
-    }
-
-    #[test]
-    fn test_negative_lookahead_with_quantifier() {
-        // This test checks if negative lookahead works correctly with quantifiers
-        let expr = seq![
-            eat_u8(b'a'),
-            not_followed_by(rep(eat_u8(b'b'))),
-            eat_u8(b'c'),
-        ];
-        let regex = expr.build();
-
-        assert!(regex.definitely_fully_matches(b"ac"));  // "a" is not followed by any "b"s, then "c"
-        assert!(!regex.could_match(b"abc"));             // "a" is followed by "b"
-        assert!(!regex.could_match(b"abbc"));            // "a" is followed by "bb"
-    }
-
-    #[test]
-    fn test_negative_lookahead_with_nested_choice() {
-        // This test checks if negative lookahead works correctly with nested choices
-        let expr = seq![
-            eat_u8(b'a'),
-            not_followed_by(choice![eat_u8(b'b'), eat_u8(b'c')]),
-            eat_u8(b'd'),
-        ];
-        let regex = expr.build();
-
-        assert!(regex.definitely_fully_matches(b"ad"));  // "a" is not followed by "b" or "c", then "d"
-        assert!(!regex.could_match(b"abd"));             // "a" is followed by "b"
-        assert!(!regex.could_match(b"acd"));            // "a" is followed by "c"
     }
 }
