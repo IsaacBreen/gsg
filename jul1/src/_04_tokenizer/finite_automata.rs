@@ -161,7 +161,49 @@ macro_rules! groups {
     };
 }
 
-// ... (Debug implementations for NFA, DFA)
+impl Debug for NFA {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Regex State NFA:\n")?;
+
+        for (state_index, state) in self.states.iter().enumerate() {
+            f.write_str(&format!("State {}:\n", state_index))?;
+
+            for (transition_u8, next_states) in &state.transitions {
+                f.write_str(&format!("  - '{}': {:?}\n", transition_u8, next_states))?;
+            }
+
+            for next_state in &state.epsilon_transitions {
+                f.write_str(&format!("  - Epsilon: {}\n", next_state))?;
+            }
+
+            if let Some(finalizer) = state.finalizer {
+                f.write_str(&format!("  - Finalizer: {:?}\n", finalizer))?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Debug for DFA {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Regex State DFA:\n")?;
+
+        for (state_index, state) in self.states.iter().enumerate() {
+            f.write_str(&format!("State {}:\n", state_index))?;
+
+            for (transition_u8, next_state) in &state.transitions {
+                f.write_str(&format!("  - '{}': {}\n", transition_u8, next_state))?;
+            }
+
+            if let Some(finalizer) = state.finalizer {
+                f.write_str(&format!("  - Finalizer: {:?}\n", finalizer))?;
+            }
+        }
+
+        Ok(())
+    }
+}
 
 impl NFAState {
     pub fn new() -> NFAState {
@@ -754,19 +796,438 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_negative_lookahead() {
-        let expr = seq![eat_u8(b'a'), Expr::NegativeLookahead(Box::new(eat_u8(b'b'))), eat_u8(b'c')];
+    fn test_literal() {
+        let expr: Expr = eat_u8(b'a');
         dbg!(&expr);
         let regex = expr.build();
-        dbg!(®ex);
+        dbg!(&regex);
 
-        assert!(regex.definitely_fully_matches(b"ac"));
-        assert!(!regex.could_match(b"abc"));
-        assert!(!regex.could_match(b"ab"));
-        assert!(!regex.could_match(b"bc"));
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(!regex.could_match(b"b"));
+
+        assert!(!regex.definitely_matches(b"")); // Incomplete match not allowed
+        assert!(regex.could_match(b"")); // Incomplete match allowed
+        assert!(regex.definitely_matches(b"ab")); // Prefix match allowed
+        assert!(regex.definitely_matches(b"aa")); // Prefix match allowed
     }
 
-    // ... (Other tests)
+    #[test]
+    fn test_quantifier() {
+        let expr = rep(eat_u8(b'a'));
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b""));
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"aaaa"));
+        assert!(regex.definitely_matches(b"b"));
+
+        let mut state = regex.init();
+        state.execute(b"aa");
+        assert_eq!(state.get_prev_match(), Some(Match { position: 2, group_id: 0 }));
+        assert!(!state.done()); // Could match more 'a's
+    }
+
+    #[test]
+    fn test_choice() {
+        let expr = choice![eat_u8(b'a'), eat_u8(b'b')];
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"b"));
+        assert!(!regex.could_match(b"c"));
+    }
+
+    #[test]
+    fn test_seq() {
+        let expr = seq![eat_u8(b'a'), eat_u8(b'b')];
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.could_match(b"a"));
+        assert!(!regex.definitely_matches(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(regex.definitely_matches(b"ab"));
+        assert!(regex.definitely_matches(b"abab"));
+        assert!(!regex.could_match(b"c"));
+    }
+
+    #[test]
+    fn test_opt() {
+        let expr = opt(eat_u8(b'a'));
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"")); // Optional 'a' can be absent
+        assert!(regex.definitely_fully_matches(b"a")); // Optional 'a' can be present
+        assert!(!regex.could_fully_match(b"aa")); // Should not match more than one 'a'
+        assert!(regex.could_match(b"b")); // Can still match the empty string in "b"
+    }
+
+    #[test]
+    fn test_0() {
+        let expr = eat_u8(0);
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"\0"));
+        assert!(!regex.could_match(b"1"));
+    }
+
+    #[test]
+    fn test_epsilon() {
+        let expr = eps();
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b""));
+        assert!(regex.definitely_matches(b"a")); // Epsilon matches the empty string at the beginning
+        assert!(!regex.definitely_fully_matches(b"a"));
+    }
+
+    #[test]
+    fn test_u8seq() {
+        let expr = Expr::U8Seq(vec![b'a', b'b']);
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(regex.could_match(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(!regex.could_match(b"ba"));
+    }
+
+    #[test]
+    fn test_negative_lookahead() {
+        let expr = seq![eat_u8(b'a'), not_followed_by(eat_u8(b'b'))];
+        dbg!(&expr);
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"a"));  // "a" is not followed by "b"
+        assert!(regex.definitely_fully_matches(b"ac")); // "a" is not followed by "b"
+        assert!(!regex.could_match(b"ab"));             // "a" is followed by "b"
+        assert!(!regex.could_match(b"abc"));            // "a" is followed by "b"
+    }
 }
 
-// ... (Other modules and code)
+#[cfg(test)]
+mod complex_tests {
+    use super::*;
+
+    #[test]
+    fn test_nested_quantifiers() {
+        let expr = rep1(rep(eat_u8(b'a')));
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"aa"));
+        assert!(regex.definitely_fully_matches(b"aaa"));
+        assert!(regex.definitely_fully_matches(b""));
+    }
+
+    #[test]
+    fn test_complex_choice() {
+        let expr = choice![
+            seq![eat_u8(b'a'), rep1(eat_u8(b'b'))],
+            eat_u8(b'c'),
+        ];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(regex.definitely_fully_matches(b"abb"));
+        assert!(regex.definitely_fully_matches(b"c"));
+        assert!(regex.could_match(b"a"));
+        assert!(!regex.definitely_matches(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(regex.definitely_matches(b"cc"));
+        assert!(!regex.definitely_fully_matches(b"cc"));
+    }
+
+    #[test]
+    fn test_complex_seq_with_quantifiers() {
+        let expr = seq![
+            rep(eat_u8(b'a')),
+            eat_u8(b'b'),
+            rep1(eat_u8(b'c')),
+        ];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"bc"));
+        assert!(regex.definitely_fully_matches(b"bcc"));
+        assert!(regex.definitely_fully_matches(b"abcc"));
+        assert!(regex.definitely_fully_matches(b"aaabccc"));
+        assert!(regex.could_match(b"a"));
+        assert!(regex.could_match(b"b"));
+        assert!(!regex.could_match(b"c"));
+    }
+
+    #[test]
+    fn test_complex_pattern() {
+        let expr = seq![
+            rep(choice![eat_u8(b'a'), eat_u8(b'b')]),
+            eat_u8(b'c'),
+            rep1(choice![eat_u8(b'd'), eat_u8(b'e')]),
+        ];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"cd"));
+        assert!(regex.definitely_fully_matches(b"ce"));
+        assert!(regex.definitely_fully_matches(b"cde"));
+        assert!(regex.definitely_fully_matches(b"aced"));
+        assert!(regex.definitely_fully_matches(b"bacde"));
+        assert!(regex.could_fully_match(b"a"));
+        assert!(!regex.definitely_matches(b"a"));
+        assert!(!regex.definitely_matches(b"b"));
+        assert!(regex.could_match(b"c"));
+        assert!(!regex.definitely_matches(b"c"));
+        assert!(!regex.could_match(b"d"));
+    }
+
+    #[test]
+    fn test_negative_lookahead_in_seq() {
+        // This test checks if negative lookahead works correctly within a sequence
+        let expr = seq![
+            eat_u8(b'a'),
+            not_followed_by(eat_u8(b'b')),
+            eat_u8(b'c'),
+        ];
+        let regex = expr.build();
+
+        assert!(regex.definitely_fully_matches(b"ac"));  // "a" is not followed by "b", then "c"
+        assert!(!regex.could_match(b"abc"));             // "a" is followed by "b"
+        assert!(!regex.could_match(b"ab"));              // "a" is followed by "b"
+    }
+
+    #[test]
+    fn test_negative_lookahead_in_choice() {
+        // This test checks if negative lookahead works correctly within a choice
+        let expr = choice![
+            seq![eat_u8(b'a'), not_followed_by(eat_u8(b'b'))],
+            eat_u8(b'c'),
+        ];
+        let regex = expr.build();
+
+        assert!(regex.definitely_fully_matches(b"a"));  // "a" is not followed by "b"
+        assert!(regex.definitely_fully_matches(b"ac")); // "a" is not followed by "b", then "c"
+        assert!(regex.definitely_fully_matches(b"c"));  // "c" matches the second choice
+        assert!(!regex.could_match(b"ab"));             // "a" is followed by "b"
+    }
+}
+
+#[cfg(test)]
+mod even_more_complex_tests {
+    use super::*;
+
+    #[test]
+    fn test_overlapping_u8_classes() {
+        let expr = seq![
+            choice![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')],
+            choice![eat_u8(b'b'), eat_u8(b'c'), eat_u8(b'd')],
+        ];
+        let regex = expr.build();
+
+        assert!(regex.definitely_fully_matches(b"bc"));
+        assert!(regex.definitely_fully_matches(b"cb"));
+        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(regex.definitely_fully_matches(b"cd"));
+    }
+
+    #[test]
+    fn test_nested_seqs_with_quantifiers() {
+        let expr = seq![
+            rep(seq![eat_u8(b'a'), rep1(eat_u8(b'b'))]),
+            eat_u8(b'c'),
+        ];
+        let regex = expr.build();
+
+        assert!(regex.definitely_fully_matches(b"c"));
+        assert!(regex.definitely_fully_matches(b"abc"));
+        assert!(regex.definitely_fully_matches(b"abbc"));
+        assert!(regex.definitely_fully_matches(b"ababbabc"));
+        assert!(!regex.could_match(b"ac"));
+    }
+
+    #[test]
+    fn test_choice_with_empty_option() {
+        let expr = choice![eat_u8(b'a'), seq![]];
+        let regex = expr.build();
+
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"")); // Should match the empty option
+    }
+
+    #[test]
+    fn test_complex_pattern_with_overlapping_quantifiers() {
+        let expr = seq![
+            rep(eat_u8(b'a')),
+            rep1(eat_u8(b'a')),
+        ];
+        let regex = expr.build();
+
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"aa"));
+        assert!(regex.could_match(b""));
+        assert!(regex.could_fully_match(b""));
+        assert!(!regex.could_match(b"b"));
+    }
+
+    #[test]
+    fn test_matching_at_different_positions() {
+        let expr: Expr = eat_u8(b'a');
+        let regex = expr.build();
+
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(!regex.could_match(b"ba"));
+        assert!(regex.definitely_matches(b"ab"));
+        assert!(!regex.definitely_fully_matches(b"ab"));
+        assert!(!regex.could_match(b"bab"));
+        assert!(!regex.could_match(b"b"));
+    }
+
+    #[test]
+    fn test_explicit_precedence() {
+        let expr = groups![
+            eat_u8(b'a'),
+            prec(2, eat_u8(b'a')),
+            prec(3, eat_u8(b'a')),
+        ];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert_eq!(regex.find(b"a"), Some(Match { position: 1, group_id: 2 }));
+    }
+
+    #[test]
+    fn test_precedence_with_quantifiers() {
+        // This test checks if the engine correctly applies precedence when quantifiers are involved
+        let expr = groups![
+            prec(1, rep(eat_u8(b'a'))), // 'a' repeated, lower precedence
+            prec(2, eat_u8(b'a')),      // single 'a', higher precedence
+        ];
+        let regex = expr.build();
+
+        // Expect the single 'a' to match due to higher precedence
+        assert_eq!(regex.find(b"aaa"), Some(Match { position: 1, group_id: 1 }));
+    }
+
+    #[test]
+    fn test_precedence_with_choice() {
+        // This test checks if the engine correctly applies precedence when choices are involved
+        let expr = groups![
+            prec(1, choice![eat_u8(b'a'), eat_u8(b'b')]), // choice between 'a' and 'b', lower precedence
+            prec(2, eat_u8(b'a')),                        // single 'a', higher precedence
+        ];
+        let regex = expr.build();
+
+        // Expect the single 'a' to match due to higher precedence, even though 'a' is also part of a choice
+        assert_eq!(regex.find(b"a"), Some(Match { position: 1, group_id: 1 }));
+    }
+
+    #[test]
+    fn test_precedence_with_overlap() {
+        // This test checks if the engine correctly applies precedence when patterns overlap
+        let expr = groups![
+            prec(1, seq![eat_u8(b'a'), eat_u8(b'b')]), // sequence 'ab', lower precedence
+            prec(2, eat_u8(b'a')),                     // single 'a', higher precedence
+        ];
+        let regex = expr.build();
+
+        // Expect the single 'a' to match due to higher precedence, even though 'ab' is also a valid match
+        assert_eq!(regex.find(b"ab"), Some(Match { position: 1, group_id: 1 }));
+    }
+
+    #[test]
+    fn test_lots_of_words() {
+        let words = [
+            "False",
+            "None",
+            "True",
+            "and",
+            "as",
+            "assert",
+            "async",
+            "await",
+            "break",
+            "class",
+            "continue",
+            "def",
+            "del",
+            "elif",
+            "else",
+            "except",
+            "finally",
+            "for",
+            "from",
+            "global",
+            "if",
+            "import",
+            "in",
+            "is",
+            "lambda",
+            "nonlocal",
+            "not",
+            "or",
+            "pass",
+            "raise",
+            "return",
+            "try",
+            "while",
+            "with",
+            "yield",
+        ];
+
+        let expr = Expr::Choice(words.iter().map(|word| Expr::Seq(word.bytes().map(|c| Expr::U8Seq(vec![c])).collect())).collect());
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"False"));
+        assert!(regex.definitely_fully_matches(b"None"));
+        assert!(regex.definitely_fully_matches(b"True"));
+        assert!(regex.definitely_fully_matches(b"and"));
+        assert!(regex.definitely_fully_matches(b"as"));
+        assert!(regex.definitely_fully_matches(b"assert"));
+    }
+
+    #[test]
+    fn test_negative_lookahead_with_quantifier() {
+        // This test checks if negative lookahead works correctly with quantifiers
+        let expr = seq![
+            eat_u8(b'a'),
+            not_followed_by(rep(eat_u8(b'b'))),
+            eat_u8(b'c'),
+        ];
+        let regex = expr.build();
+
+        assert!(regex.definitely_fully_matches(b"ac"));  // "a" is not followed by any "b"s, then "c"
+        assert!(!regex.could_match(b"abc"));             // "a" is followed by "b"
+        assert!(!regex.could_match(b"abbc"));            // "a" is followed by "bb"
+    }
+
+    #[test]
+    fn test_negative_lookahead_with_nested_choice() {
+        // This test checks if negative lookahead works correctly with nested choices
+        let expr = seq![
+            eat_u8(b'a'),
+            not_followed_by(choice![eat_u8(b'b'), eat_u8(b'c')]),
+            eat_u8(b'd'),
+        ];
+        let regex = expr.build();
+
+        assert!(regex.definitely_fully_matches(b"ad"));  // "a" is not followed by "b" or "c", then "d"
+        assert!(!regex.could_match(b"abd"));             // "a" is followed by "b"
+        assert!(!regex.could_match(b"acd"));            // "a" is followed by "c"
+    }
+}
