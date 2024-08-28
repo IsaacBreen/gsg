@@ -19,6 +19,8 @@ pub struct NFAState {
     transitions: TrieMap<Vec<usize>>,
     epsilon_transitions: Vec<usize>,
     finalizer: Option<Finalizer>,
+    // Add a field to indicate if this state is part of a negative lookahead
+    negative_lookahead: bool,
 }
 
 #[derive(Clone)]
@@ -74,6 +76,7 @@ pub enum Expr {
     Choice(Vec<Expr>),
     Seq(Vec<Expr>),
     Epsilon, // Explicit epsilon transition
+    NegativeLookahead(Box<Expr>), // Negative lookahead
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -135,6 +138,11 @@ pub fn _choice(exprs: Vec<Expr>) -> Expr {
     Expr::Choice(exprs)
 }
 
+// Function to create a negative lookahead expression
+pub fn not<T: Into<Expr>>(expr: T) -> Expr {
+    Expr::NegativeLookahead(Box::new(expr.into()))
+}
+
 macro_rules! choice {
     ($($expr:expr),* $(,)?) => {
         Expr::Choice(vec![$($expr.into()),*])
@@ -173,6 +181,10 @@ impl Debug for NFA {
             if let Some(finalizer) = state.finalizer {
                 f.write_str(&format!("  - Finalizer: {:?}\n", finalizer))?;
             }
+
+            if state.negative_lookahead {
+                f.write_str(&format!("  - Negative Lookahead\n"))?;
+            }
         }
 
         Ok(())
@@ -205,6 +217,7 @@ impl NFAState {
             transitions: TrieMap::new(),
             epsilon_transitions: Vec::new(),
             finalizer: None,
+            negative_lookahead: false,
         }
     }
 }
@@ -341,6 +354,24 @@ impl Expr {
                 let new_state = nfa.add_state();
                 nfa.add_epsilon_transition(current_state, new_state);
                 new_state
+            },
+            Expr::NegativeLookahead(expr) => {
+                let lookahead_start_state = nfa.add_state();
+                let lookahead_end_state = nfa.add_state();
+
+                // Epsilon transition into the lookahead
+                nfa.add_epsilon_transition(current_state, lookahead_start_state);
+
+                // Process the lookahead expression
+                let expr_end_state = Self::handle_expr(*expr, nfa, lookahead_start_state);
+
+                // Mark the end state of the lookahead expression as a negative lookahead state
+                nfa.states[expr_end_state].negative_lookahead = true;
+
+                // Epsilon transition out of the lookahead
+                nfa.add_epsilon_transition(expr_end_state, lookahead_end_state);
+
+                lookahead_end_state
             }
         }
     }
@@ -438,7 +469,10 @@ impl NFA {
 
         while let Some(state) = stack.pop() {
             if closure.insert(state) {
-                stack.extend(self.states[state].epsilon_transitions.iter());
+                // Don't follow epsilon transitions out of negative lookahead states
+                if !self.states[state].negative_lookahead {
+                    stack.extend(self.states[state].epsilon_transitions.iter());
+                }
             }
         }
 
@@ -781,6 +815,46 @@ mod tests {
         assert!(!regex.could_match(b"b"));
         assert!(!regex.could_match(b"ba"));
     }
+
+    #[test]
+    fn test_negative_lookahead() {
+        // Match "a" only if it's not followed by "b"
+        let expr = seq![eat_u8(b'a'), not(eat_u8(b'b'))];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"a"));       // Matches "a"
+        assert!(regex.definitely_fully_matches(b"ac"));       // Matches "a" (not followed by "b")
+        assert!(!regex.could_match(b"ab"));      // Doesn't match "ab" (followed by "b")
+        assert!(!regex.could_match(b"b"));       // Doesn't match "b"
+    }
+
+    #[test]
+    fn test_negative_lookahead_with_quantifier() {
+        // Match "a" repeated one or more times, only if not followed by "b"
+        let expr = seq![rep1(eat_u8(b'a')), not(eat_u8(b'b'))];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"a"));       // Matches "a"
+        assert!(regex.definitely_fully_matches(b"aa"));      // Matches "aa"
+        assert!(regex.definitely_fully_matches(b"aac"));      // Matches "aa" (not followed by "b")
+        assert!(!regex.could_match(b"aab"));     // Doesn't match "aab" (followed by "b")
+    }
+
+    #[test]
+    fn test_negative_lookahead_with_choice() {
+        // Match "a" or "b" only if not followed by "c"
+        let expr = seq![choice![eat_u8(b'a'), eat_u8(b'b')], not(eat_u8(b'c'))];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"a"));       // Matches "a"
+        assert!(regex.definitely_fully_matches(b"b"));       // Matches "b"
+        assert!(regex.definitely_fully_matches(b"ad"));       // Matches "a" (not followed by "c")
+        assert!(!regex.could_match(b"ac"));      // Doesn't match "ac" (followed by "c")
+        assert!(!regex.could_match(b"bc"));      // Doesn't match "bc" (followed by "c")
+    }
 }
 
 #[cfg(test)]
@@ -800,7 +874,7 @@ mod complex_tests {
     }
 
     #[test]
-    fn test_complex_choice() {
+    fn test_rust_complex_choice() {
         let expr = choice![
             seq![eat_u8(b'a'), rep1(eat_u8(b'b'))],
             eat_u8(b'c'),
@@ -858,6 +932,43 @@ mod complex_tests {
         assert!(regex.could_match(b"c"));
         assert!(!regex.definitely_matches(b"c"));
         assert!(!regex.could_match(b"d"));
+    }
+
+    #[test]
+    fn test_negative_lookahead_in_sequence() {
+        // Match "ab" only if "b" is not followed by "c"
+        let expr = seq![eat_u8(b'a'), eat_u8(b'b'), not(eat_u8(b'c'))];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"ab"));      // Matches "ab"
+        assert!(regex.definitely_fully_matches(b"abd"));      // Matches "ab" (not followed by "c")
+        assert!(!regex.could_match(b"abc"));     // Doesn't match "abc" (followed by "c")
+    }
+
+    #[test]
+    fn test_negative_lookahead_in_choice() {
+        // Match "a" if not followed by "b", or match "c"
+        let expr = choice![seq![eat_u8(b'a'), not(eat_u8(b'b'))], eat_u8(b'c')];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"a"));       // Matches "a"
+        assert!(regex.definitely_fully_matches(b"ac"));       // Matches "a" (not followed by "b")
+        assert!(regex.definitely_fully_matches(b"c"));       // Matches "c"
+        assert!(!regex.could_match(b"ab"));      // Doesn't match "ab" (followed by "b")
+    }
+
+    #[test]
+    fn test_nested_negative_lookaheads() {
+        // Match "a" if not followed by "b" which is not followed by "c"
+        let expr = seq![eat_u8(b'a'), not(seq![eat_u8(b'b'), not(eat_u8(b'c'))])];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"a"));       // Matches "a"
+        assert!(regex.definitely_fully_matches(b"abc"));      // Matches "a" (because "b" is followed by "c")
+        assert!(!regex.could_match(b"abd"));      // Doesn't match "abd" (because "b" is not followed by "c")
     }
 }
 
@@ -1033,5 +1144,43 @@ mod even_more_complex_tests {
         assert!(regex.definitely_fully_matches(b"and"));
         assert!(regex.definitely_fully_matches(b"as"));
         assert!(regex.definitely_fully_matches(b"assert"));
+    }
+
+    #[test]
+    fn test_negative_lookahead_with_complex_expression() {
+        // Match "abc" only if it's not followed by "def" or "ghi"
+        let expr = seq![
+            eat_u8(b'a'),
+            eat_u8(b'b'),
+            eat_u8(b'c'),
+            not(choice![
+                seq![eat_u8(b'd'), eat_u8(b'e'), eat_u8(b'f')],
+                seq![eat_u8(b'g'), eat_u8(b'h'), eat_u8(b'i')]
+            ])
+        ];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"abc"));       // Matches "abc"
+        assert!(regex.definitely_fully_matches(b"abcj"));       // Matches "abc" (not followed by "def" or "ghi")
+        assert!(!regex.could_match(b"abcdef"));     // Doesn't match "abcdef"
+        assert!(!regex.could_match(b"abcghi"));     // Doesn't match "abcghi"
+    }
+
+    #[test]
+    fn test_negative_lookahead_with_quantifier_and_choice() {
+        // Match one or more "a"s only if not followed by "b" or "c"
+        let expr = seq![
+            rep1(eat_u8(b'a')),
+            not(choice![eat_u8(b'b'), eat_u8(b'c')])
+        ];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert!(regex.definitely_fully_matches(b"a"));       // Matches "a"
+        assert!(regex.definitely_fully_matches(b"aa"));      // Matches "aa"
+        assert!(regex.definitely_fully_matches(b"aad"));      // Matches "aa" (not followed by "b" or "c")
+        assert!(!regex.could_match(b"aab"));     // Doesn't match "aab"
+        assert!(!regex.could_match(b"aac"));     // Doesn't match "aac"
     }
 }
