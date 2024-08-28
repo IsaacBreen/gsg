@@ -874,7 +874,8 @@ mod complex_tests {
     }
 
     #[test]
-    fn test_rust_complex_choice() {
+    fn test_rust
+complex_choice() {
         let expr = choice![
             seq![eat_u8(b'a'), rep1(eat_u8(b'b'))],
             eat_u8(b'c'),
