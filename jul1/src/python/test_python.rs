@@ -225,9 +225,9 @@ fn test_actual_python_file() {
         // ("Simple string", "x = 12\nx = 2\nx"),
         // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
         ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
-        // ("test_input.py", include_str!("../tests/test_input.py")),
-        // ("test_input2.py", include_str!("../tests/test_input2.py")),
-        // ("test_input3.py", include_str!("../tests/test_input3.py")),
+        // ("test_input.py", include_str!("../tests/test_inputs/test_input.py")),
+        // ("test_input2.py", include_str!("../tests/test_inputs/test_input2.py")),
+        // ("test_input3.py", include_str!("../tests/test_inputs/test_input3.py")),
     ];
 
     for (name, content) in test_cases.iter() {
@@ -264,10 +264,10 @@ fn test_actual_python_file_fast() {
         // ("Simple string", "x = 12\nx = 2\nx"),
         // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
         ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
-        // ("test_input.py", include_str!("../tests/test_input.py")),
-        // ("test_input2.py", include_str!("../tests/test_input2.py")),
-        // ("test_input3.py", include_str!("../tests/test_input3.py")),
-        // ("test_input_simplified.py", include_str!("../tests/test_input_simplified.py")),
+        // ("test_input.py", include_str!("../tests/test_inputs/test_input.py")),
+        // ("test_input2.py", include_str!("../tests/test_inputs/test_input2.py")),
+        // ("test_input3.py", include_str!("../tests/test_inputs/test_input3.py")),
+        // ("test_input_simplified.py", include_str!("../tests/test_inputs/test_input_simplified.py")),
     ];
 
     for (name, content) in test_cases.iter() {
@@ -287,10 +287,10 @@ fn test_actual_python_file_one_shot() {
         // ("Simple import", "from x import y\n\nimport z\nimport a.b.c\n"),
         // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
         ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
-        // ("test_input.py", include_str!("../tests/test_input.py")),
-        // ("test_input2.py", include_str!("../tests/test_input2.py")),
-        // ("test_input3.py", include_str!("../tests/test_input3.py")),
-        // ("test_input_simplified.py", include_str!("../tests/test_input_simplified.py")),
+        // ("test_input.py", include_str!("../tests/test_inputs/test_input.py")),
+        // ("test_input2.py", include_str!("../tests/test_inputs/test_input2.py")),
+        // ("test_input3.py", include_str!("../tests/test_inputs/test_input3.py")),
+        // ("test_input_simplified.py", include_str!("../tests/test_inputs/test_input_simplified.py")),
     ];
 
     for (name, content) in test_cases.iter() {
