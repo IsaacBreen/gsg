@@ -1,4 +1,4 @@
-use crate::_04_tokenizer::finite_automata::{Expr, QuantifierType};
+use crate::tokenizer::finite_automata::{Expr, QuantifierType};
 use crate::U8Set;
 
 pub fn seq_fast(parsers: Vec<Expr>) -> Expr {

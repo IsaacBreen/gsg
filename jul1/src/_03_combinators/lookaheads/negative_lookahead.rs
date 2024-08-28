@@ -1,4 +1,4 @@
-use crate::_04_tokenizer::finite_automata::{Expr, Regex, RegexState};
+use crate::tokenizer::finite_automata::{Expr, Regex, RegexState};
 use crate::BaseCombinatorTrait;
 use crate::*;
 // src/combinators/negative_lookahead.rs
