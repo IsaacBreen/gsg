@@ -8,7 +8,7 @@ use crate::{check_right_data, choice_fast, choice_greedy, eat_bytestring_choice,
             IntoCombinator, ParseResultTrait};
 
 use crate::tokenizer::finite_automata::Expr;
-use crate::unicode::get_unicode_general_category_bytestrings;
+use crate::get_unicode_general_category_bytestrings;
 use crate::unicode_categories::GeneralCategory;
 use crate::choice_greedy as choice;
 

@@ -79,7 +79,7 @@ impl<T: CombinatorTrait + Clone + 'static, F: Fn() -> T> DeferredFnTrait<T> for 
                     eprintln!("Deferred Cache: {:#?}", borrowed);
                     eprintln!("Key: {:?}", self.key);
                     eprintln!("Conflicting Entry: {:?}", entry);
-                    eprintln!("Existing Type Name: {:?}", entry.value.type_name());
+                    eprintln!("Existing Type Name: {:?}", BaseCombinatorTrait::type_name(&entry.value));
                     eprintln!("Expected Type Name: {}", std::any::type_name::<T>());
                     panic!("Expected value at address {} to be of typeid {:?}, but it had typeid {:?}", self.key.addr, TypeId::of::<T>(), entry.value.as_any().type_id());
                 }

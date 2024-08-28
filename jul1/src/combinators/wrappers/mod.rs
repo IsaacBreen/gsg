@@ -1,13 +1,13 @@
- pub mod deferred;
- pub mod dyn_parser;
- pub mod profile;
- pub mod reference;
- pub mod symbol;
- pub mod tag;
+mod deferred;
+mod dyn_parser;
+mod profile;
+mod reference;
+mod symbol;
+mod tag;
 
- pub use deferred::*;
- pub use dyn_parser::*;
- pub use profile::*;
- pub use reference::*;
- pub use symbol::*;
- pub use tag::*;
+pub use deferred::*;
+pub use dyn_parser::*;
+pub use profile::*;
+pub use reference::*;
+pub use symbol::*;
+pub use tag::*;
