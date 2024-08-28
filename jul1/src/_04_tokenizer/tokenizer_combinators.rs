@@ -1,4 +1,4 @@
-use crate::tokenizer::finite_automata::{Expr, QuantifierType};
+use crate::_04_tokenizer::finite_automata::{Expr, QuantifierType};
 use crate::U8Set;
 
 pub fn seq_fast(parsers: Vec<Expr>) -> Expr {
@@ -116,13 +116,13 @@ pub fn repeatn_fast(n: usize, parser: Expr) -> Expr {
 #[macro_export]
 macro_rules! seq_fast {
     ($($x:expr),* $(,)?) => {
-        $crate::tokenizer::seq_fast(vec![$($x),*])
+        $crate::_04_tokenizer::seq_fast(vec![$($x),*])
     };
 }
 
 #[macro_export]
 macro_rules! choice_fast {
     ($($x:expr),* $(,)?) => {
-        $crate::tokenizer::choice_fast(vec![$($x),*])
+        $crate::_04_tokenizer::choice_fast(vec![$($x),*])
     };
 }

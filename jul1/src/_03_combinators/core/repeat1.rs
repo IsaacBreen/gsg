@@ -1,7 +1,7 @@
 // src/combinators/repeat1.rs
 use crate::{seq, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 
-use crate::parse_state::{ParseResultTrait, RightData};
+use crate::_01_parse_state::{ParseResultTrait, RightData};
 use crate::{profile_internal, vecy, CombinatorTrait, IntoCombinator, Opt, ParseResults, ParserTrait, Squash, U8Set, VecY};
 
 #[derive(Debug)]

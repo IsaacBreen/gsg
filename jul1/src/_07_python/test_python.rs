@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use crate::python::python_grammar::{python_file, python_literal, FSTRING_END, FSTRING_START, NAME, STRING, WS};
+use crate::_07_python::python_grammar::{python_file, python_literal, FSTRING_END, FSTRING_START, NAME, STRING, WS};
 use crate::utils::{assert_fails, assert_fails_default, assert_fails_fast, assert_parses, assert_parses_default, assert_parses_fast, assert_parses_one_shot_with_result, assert_parses_tight, profile_parse};
 use crate::{cache_context, choice, choice_greedy, eat, opt, seq, strong_ref, symbol, IntoDyn, UnambiguousParseError};
 
@@ -32,7 +32,7 @@ fn test_trivial_match() {
 
 #[test]
 fn test_name() {
-    let combinator = cache_context(seq!(crate::python::python_grammar::NAME(), crate::python::python_grammar::NEWLINE()));
+    let combinator = cache_context(seq!(crate::_07_python::python_grammar::NAME(), crate::_07_python::python_grammar::NEWLINE()));
     assert_parses_fast(&combinator, "x\n");
     assert_parses_fast(&combinator, "xy\n");
     assert_parses_fast(&combinator, "match\n");
@@ -178,7 +178,7 @@ fn test_gpt4_suggestions_0() {
 // #[ignore]
 #[test]
 fn test_test_input() {
-    let path = Path::new("src/tests/test_input.py");
+    let path = Path::new("../_04_tests/test_input.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses(&combinator, &file, "Actual Python file");
@@ -186,7 +186,7 @@ fn test_test_input() {
 
 #[test]
 fn test_test_input_fast() {
-    let path = Path::new("src/tests/test_input.py");
+    let path = Path::new("../_04_tests/test_input.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses_fast(&combinator, &file);
@@ -194,7 +194,7 @@ fn test_test_input_fast() {
 
 #[test]
 fn test_test_input_one_shot() {
-    let path = Path::new("src/tests/test_input.py");
+    let path = Path::new("../_04_tests/test_input.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses_one_shot_with_result(&combinator, &file, Err(UnambiguousParseError::Incomplete));
@@ -202,7 +202,7 @@ fn test_test_input_one_shot() {
 
 #[test]
 fn test_test_input2() {
-    let path = Path::new("src/tests/test_input2.py");
+    let path = Path::new("../_04_tests/test_input2.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses_default(&combinator, &file);
@@ -211,7 +211,7 @@ fn test_test_input2() {
 
 #[test]
 fn test_test_input_fast2() {
-    let path = Path::new("src/tests/test_input2.py");
+    let path = Path::new("../_04_tests/test_input2.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses_fast(&combinator, &file);
@@ -223,11 +223,11 @@ fn test_actual_python_file() {
 
     let test_cases = [
         // ("Simple string", "x = 12\nx = 2\nx"),
-        // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
-        ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
-        // ("test_input.py", include_str!("../tests/test_inputs/test_input.py")),
-        // ("test_input2.py", include_str!("../tests/test_inputs/test_input2.py")),
-        // ("test_input3.py", include_str!("../tests/test_inputs/test_input3.py")),
+        // ("dump_python_gram.py", include_str!("dump_python_gram.py")),
+        ("grammar_analysis.py", include_str!("grammar_analysis.py")),
+        // ("test_input.py", include_str!("test_inputs/test_input.py")),
+        // ("test_input2.py", include_str!("test_inputs/test_input2.py")),
+        // ("test_input3.py", include_str!("test_inputs/test_input3.py")),
     ];
 
     for (name, content) in test_cases.iter() {
@@ -262,12 +262,12 @@ fn test_actual_python_file_fast() {
 
     let test_cases = [
         // ("Simple string", "x = 12\nx = 2\nx"),
-        // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
-        ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
-        // ("test_input.py", include_str!("../tests/test_inputs/test_input.py")),
-        // ("test_input2.py", include_str!("../tests/test_inputs/test_input2.py")),
-        // ("test_input3.py", include_str!("../tests/test_inputs/test_input3.py")),
-        // ("test_input_simplified.py", include_str!("../tests/test_inputs/test_input_simplified.py")),
+        // ("dump_python_gram.py", include_str!("dump_python_gram.py")),
+        ("grammar_analysis.py", include_str!("grammar_analysis.py")),
+        // ("test_input.py", include_str!("test_inputs/test_input.py")),
+        // ("test_input2.py", include_str!("test_inputs/test_input2.py")),
+        // ("test_input3.py", include_str!("test_inputs/test_input3.py")),
+        // ("test_input_simplified.py", include_str!("test_inputs/test_input_simplified.py")),
     ];
 
     for (name, content) in test_cases.iter() {
@@ -285,12 +285,12 @@ fn test_actual_python_file_one_shot() {
     let test_cases = [
         // ("Simple string", "x = 12\nx = 2\nx"),
         // ("Simple import", "from x import y\n\nimport z\nimport a.b.c\n"),
-        // ("dump_python_gram.py", include_str!("../python/dump_python_gram.py")),
-        ("grammar_analysis.py", include_str!("../python/grammar_analysis.py")),
-        // ("test_input.py", include_str!("../tests/test_inputs/test_input.py")),
-        // ("test_input2.py", include_str!("../tests/test_inputs/test_input2.py")),
-        // ("test_input3.py", include_str!("../tests/test_inputs/test_input3.py")),
-        // ("test_input_simplified.py", include_str!("../tests/test_inputs/test_input_simplified.py")),
+        // ("dump_python_gram.py", include_str!("dump_python_gram.py")),
+        ("grammar_analysis.py", include_str!("grammar_analysis.py")),
+        // ("test_input.py", include_str!("test_inputs/test_input.py")),
+        // ("test_input2.py", include_str!("test_inputs/test_input2.py")),
+        // ("test_input3.py", include_str!("test_inputs/test_input3.py")),
+        // ("test_input_simplified.py", include_str!("test_inputs/test_input_simplified.py")),
     ];
 
     for (name, content) in test_cases.iter() {
@@ -348,7 +348,7 @@ fn test_indents() {
 #[test]
 fn test_explosion_please() {
     let combinator = python_file();
-    let path = Path::new("src/tests/test_input.py");
+    let path = Path::new("../_04_tests/test_input.py");
     let s = std::fs::read_to_string(path).unwrap();
     assert_parses(&combinator, &s, "Test input");
 }

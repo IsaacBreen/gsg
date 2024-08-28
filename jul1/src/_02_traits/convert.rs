@@ -1,4 +1,4 @@
-use crate::tokenizer::finite_automata::Expr;
+use crate::_04_tokenizer::finite_automata::Expr;
 // src/convert.rs
 use crate::{fast_combinator, CombinatorTrait, DynCombinatorTrait, FastCombinatorWrapper, StrongRef, Symbol};
 

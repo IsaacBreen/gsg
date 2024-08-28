@@ -1,21 +1,21 @@
 #![allow(warnings)]
 #![feature(assert_matches)]
 extern crate core;
-pub use crate::combinators::*;
-pub use crate::parse_state::*;
-pub use crate::python::*;
-pub use crate::tests::*;
-pub use combinators::*;
+pub use crate::_03_combinators::*;
+pub use crate::_01_parse_state::*;
+pub use crate::_07_python::*;
+pub use crate::_06_tests::*;
+pub use _03_combinators::*;
 
-pub use general_data_structures::*;
-pub use traits::*;
+pub use _00_general::*;
+pub use _02_traits::*;
 
-mod combinators;
-mod parse_state;
+mod _03_combinators;
+mod _01_parse_state;
 
-mod tests;
-mod python;
-mod unicode_categories;
-pub mod tokenizer;
-mod general_data_structures;
-mod traits;
+mod _06_tests;
+mod _07_python;
+mod _05_unicode_categories;
+pub mod _04_tokenizer;
+mod _00_general;
+mod _02_traits;

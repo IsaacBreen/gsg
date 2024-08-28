@@ -1,5 +1,5 @@
 use crate::internal_vec::VecY;
-use crate::parse_state::RightData;
+use crate::_01_parse_state::RightData;
 use crate::UnambiguousParseError;
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use crate::{CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set};

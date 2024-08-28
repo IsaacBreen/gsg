@@ -7,12 +7,12 @@ use crate::{check_right_data, choice_fast, choice_greedy, eat_bytestring_choice,
             repeat1_greedy, seq, seq_fast,
             IntoCombinator, ParseResultTrait};
 
-use crate::tokenizer::{eat_bytestring_choice_fast, eat_char_choice_fast, eat_char_fast, eat_char_negation_choice_fast, eat_char_negation_fast, eat_string_choice_fast, opt_fast, repeat0_fast, repeat1_fast, repeatn_fast};
+use crate::_04_tokenizer::{eat_bytestring_choice_fast, eat_char_choice_fast, eat_char_fast, eat_char_negation_choice_fast, eat_char_negation_fast, eat_string_choice_fast, opt_fast, repeat0_fast, repeat1_fast, repeatn_fast};
 
 use crate::choice_greedy as choice;
 use crate::get_unicode_general_category_bytestrings;
-use crate::tokenizer::finite_automata::Expr;
-use crate::unicode_categories::GeneralCategory;
+use crate::_04_tokenizer::finite_automata::Expr;
+use crate::_05_unicode_categories::GeneralCategory;
 
 pub fn breaking_space()-> impl CombinatorTrait {
     eat_char_choice("\n\r")
@@ -521,7 +521,7 @@ pub fn eat_until_terminator(terminator: char) -> Expr {
 }
 
 pub fn STRING()-> impl CombinatorTrait {
-    use crate::tokenizer::{eat_char_choice_fast as eat_char_choice, eat_char_fast as eat_char, eat_char_negation_choice_fast as eat_char_negation_choice, eat_char_negation_fast as eat_char_negation, eat_string_fast as eat_string, opt_fast as opt, repeat0_fast as repeat0, repeatn_fast as repeatn};
+    use crate::_04_tokenizer::{eat_char_choice_fast as eat_char_choice, eat_char_fast as eat_char, eat_char_negation_choice_fast as eat_char_negation_choice, eat_char_negation_fast as eat_char_negation, eat_string_fast as eat_string, opt_fast as opt, repeat0_fast as repeat0, repeatn_fast as repeatn};
 
     let stringprefix = opt(choice_fast!(
         eat_char_choice("ruRUfF"),
@@ -924,7 +924,7 @@ pub fn FSTRING_END()-> impl CombinatorTrait {
 //
 //    3.14j   10.j    10j     .001j   1e100j   3.14e-10j   3.14_15_93j
 pub fn NUMBER() -> impl CombinatorTrait {
-    use crate::tokenizer::{eat_byte_range_fast as eat_byte_range, eat_char_choice_fast as eat_char_choice, eat_char_fast as eat_char, opt_fast as opt, repeat0_fast as repeat0, repeat1_fast as repeat1};
+    use crate::_04_tokenizer::{eat_byte_range_fast as eat_byte_range, eat_char_choice_fast as eat_char_choice, eat_char_fast as eat_char, opt_fast as opt, repeat0_fast as repeat0, repeat1_fast as repeat1};
 
     let digit = eat_byte_range(b'0', b'9');
     let nonzerodigit = eat_byte_range(b'1', b'9');

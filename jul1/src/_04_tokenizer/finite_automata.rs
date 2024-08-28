@@ -1,10 +1,10 @@
-use crate::tokenizer::charmap::TrieMap;
+use crate::_04_tokenizer::charmap::TrieMap;
 // src/tokenizer/finite_automata.rs
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 
-use crate::tokenizer::frozenset::FrozenSet;
+use crate::_04_tokenizer::frozenset::FrozenSet;
 use crate::U8Set;
 
 type GroupID = usize;
