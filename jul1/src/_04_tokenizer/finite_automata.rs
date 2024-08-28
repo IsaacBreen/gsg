@@ -364,9 +364,13 @@ impl Expr {
                 // Epsilon transition from lookahead start state to lookahead end state (lookahead failed, so continue)
                 nfa.add_epsilon_transition(lookahead_start_state, lookahead_end_state);
 
+                // Connect the fail state to itself for any input, making it a "dead end"
+                for i in 0..=255 {
+                    nfa.add_transition(fail_state, i, fail_state);
+                }
+
                 lookahead_end_state
-            }
-        }
+            }        }
     }
 }
 
