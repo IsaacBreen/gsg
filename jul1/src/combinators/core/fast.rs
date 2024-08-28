@@ -4,6 +4,7 @@ use crate::*;
 // src/combinators/fast.rs
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
+use crate::tokenizer::{eat_bytestring_fast, eat_string_fast, choice_fast};
 
 pub struct FastCombinatorWrapper {
     pub(crate) regex: Regex,

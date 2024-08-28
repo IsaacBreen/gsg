@@ -116,13 +116,13 @@ pub fn repeatn_fast(n: usize, parser: Expr) -> Expr {
 #[macro_export]
 macro_rules! seq_fast {
     ($($x:expr),* $(,)?) => {
-        $crate::seq_fast(vec![$($x),*])
+        $crate::tokenizer::seq_fast(vec![$($x),*])
     };
 }
 
 #[macro_export]
 macro_rules! choice_fast {
     ($($x:expr),* $(,)?) => {
-        $crate::choice_fast(vec![$($x),*])
+        $crate::tokenizer::choice_fast(vec![$($x),*])
     };
 }
