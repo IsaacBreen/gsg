@@ -45,7 +45,7 @@ impl ParserTrait for EpsParser {
         panic!("EpsParser.get_u8set() called")
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("EpsParser already consumed")
     }
 }
@@ -99,7 +99,7 @@ impl ParserTrait for FailParser {
         panic!("FailParser.get_u8set() called")
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("FailParser already consumed")
     }
 }

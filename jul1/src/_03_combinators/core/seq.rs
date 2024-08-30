@@ -60,8 +60,7 @@ impl CombinatorTrait for Seq<'_> {
     }
 
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let right_data = down_data.right_data;
-        let start_position = right_data.right_data_inner.fields1.position;
+        let start_position = down_data.right_data.right_data_inner.fields1.position;
 
         let mut combinator_index = self.start_index;
 
@@ -170,7 +169,7 @@ impl ParserTrait for SeqParser<'_> {
         u8set
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         profile!("SeqParser::parse", {
         let mut final_up_data: VecY<UpData> = VecY::new();
         // let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
@@ -184,7 +183,7 @@ impl ParserTrait for SeqParser<'_> {
         profile!("SeqParser::parse part 1", {
         self.parsers.retain_mut(|(combinator_index, parser)| {
             let parse_results = profile!("SeqParser::parse child Parser::parse", {
-                parser.parse(down_data.clone(), bytes)
+                parser.parse(bytes)
             });
             let done = parse_results.done();
             if *combinator_index + 1 < self.combinators.len() {

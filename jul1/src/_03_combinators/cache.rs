@@ -198,7 +198,7 @@ impl ParserTrait for CacheContextParser<'_> {
         self.inner.as_ref().get_u8set()
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         profile!("CacheContextParser.parse: start", {
         GLOBAL_CACHE.with(|cache| {
             {
@@ -213,11 +213,11 @@ impl ParserTrait for CacheContextParser<'_> {
             for i in (0..num_entries_initial).rev() {
                 let entry_refcell = cache.borrow_mut().entries[&self.parse_id][i].clone();
                 let mut entry = entry_refcell.borrow_mut();
-                let parse_results = profile!("CacheContextParser.parse: entry.parser.parse", entry.parser.as_mut().unwrap().parse(down_data.clone(), bytes));
+                let parse_results = profile!("CacheContextParser.parse: entry.parser.parse", entry.parser.as_mut().unwrap().parse(bytes));
                 entry.maybe_parse_results = Some(parse_results);
             }
 
-            let parse_result = profile!("CacheContextParser.parse: inner.parse", self.inner.as_mut().parse(down_data, bytes));
+            let parse_result = profile!("CacheContextParser.parse: inner.parse", self.inner.as_mut().parse(bytes));
 
             let mut global_cache = cache.borrow_mut();
             let mut new_entries = global_cache.entries.get_mut(&self.parse_id).unwrap().split_off(num_entries_initial);
@@ -330,7 +330,7 @@ impl ParserTrait for CachedParser {
         }
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.steps: parse_results is None")
     }
 }

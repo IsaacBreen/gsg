@@ -74,7 +74,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
             let mut up_data_vec: VecY<UpData> = vecy![];
             let done = regex_state.done();
             if let Some(new_match) = regex_state.prev_match() {
-                let mut right_data = down_data.right_data;
+                let mut right_data = down_data.right_data.clone();
                 let position = new_match.position;
                 #[cfg(debug_assertions)]
                 if position == 0 {
@@ -99,7 +99,7 @@ impl ParserTrait for FastParserWrapper<'_> {
         profile!("FastParserWrapper.get_u8set", self.regex_state.get_u8set())
 }
 
-fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut regex_state = &mut self.regex_state;
         let prev_match = regex_state.prev_match();
         regex_state.execute(bytes);

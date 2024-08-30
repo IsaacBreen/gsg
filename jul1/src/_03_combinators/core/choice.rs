@@ -117,7 +117,7 @@ impl ParserTrait for ChoiceParser<'_> {
         u8set
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut parse_result = ParseResults::empty_finished();
         let mut discard_rest = false;
 
@@ -125,7 +125,7 @@ impl ParserTrait for ChoiceParser<'_> {
             if discard_rest {
                 return false;
             }
-            let parse_results = parser.parse(down_data.clone(), bytes);
+            let parse_results = parser.parse(bytes);
             discard_rest = self.greedy && parse_results.succeeds_decisively();
             let done = parse_results.done();
             parse_result.merge_assign(parse_results);

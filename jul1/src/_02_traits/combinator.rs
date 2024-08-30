@@ -57,7 +57,7 @@ pub fn dumb_one_shot_parse<T: CombinatorTrait>(combinator: &T, down_data: DownDa
 
 pub trait ParserTrait: std::fmt::Debug {
     fn get_u8set(&self) -> U8Set;
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults;
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults;
     fn autoparse(&mut self, down_data: DownData, max_length: usize) -> (Vec<u8>, ParseResults) {
         let mut prefix = Vec::new();
         let mut parse_results = ParseResults::empty_finished();
@@ -65,7 +65,7 @@ pub trait ParserTrait: std::fmt::Debug {
             let u8set = self.get_u8set();
             if u8set.len() == 1 {
                 let c = u8set.iter().next().unwrap();
-                let new_parse_results = self.parse(down_data.clone(), &[c]);
+                let new_parse_results = self.parse(&[c]);
                 parse_results.combine_seq(new_parse_results);
                 prefix.push(c);
             } else {
@@ -125,8 +125,8 @@ impl<'a> ParserTrait for Box<dyn ParserTrait + 'a> {
         (**self).get_u8set()
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
-        (**self).parse(down_data, bytes)
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        (**self).parse(bytes)
     }
 }
 
@@ -153,8 +153,8 @@ pub trait CombinatorTraitExt: CombinatorTrait {
 }
 
 pub trait ParserTraitExt: ParserTrait {
-    fn step(&mut self, down_data: DownData, c: u8) -> ParseResults {
-        self.parse(down_data, &[c])
+    fn step(&mut self, c: u8) -> ParseResults {
+        self.parse(&[c])
     }
 }
 

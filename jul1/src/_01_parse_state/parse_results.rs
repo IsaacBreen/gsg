@@ -12,6 +12,11 @@ pub struct OneShotUpData {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DownData {
+    pub right_data: RightData,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParseResults {
     pub up_data_vec: VecY<UpData>,
     pub done: bool,

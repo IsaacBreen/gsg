@@ -106,8 +106,7 @@ macro_rules! define_seq {
             }
 
             fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-                let right_data = down_data.right_data;
-                let start_position = right_data.right_data_inner.fields1.position;
+                let start_position = down_data.right_data.right_data_inner.fields1.position;
 
                 let first_combinator = &self.$first;
                 let (first_parser, first_parse_results) = profile!(stringify!($seq_name, " first child parse"), {
@@ -187,13 +186,13 @@ macro_rules! define_seq {
                 u8set
             }
 
-            fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+            fn parse(&mut self, bytes: &[u8]) -> ParseResults {
                 profile!(stringify!($seq_parser_name, "::parse"), {
                     let mut new_up_data: VecY<UpData> = VecY::new();
 
                     // first child
                     if let Some(parser) = &mut self.$first {
-                        let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), { parser.parse(down_data.clone(), bytes) });
+                        let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), { parser.parse(bytes) });
                         new_up_data.extend(parse_results.up_data_vec);
                         if parse_results.done {
                             self.$first = None;
@@ -212,7 +211,7 @@ macro_rules! define_seq {
                         // step existing parsers for this child
                         self.$rest.retain_mut(|parser| {
                             let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), {
-                                parser.parse(down_data.clone(), bytes)
+                                parser.parse(bytes)
                             });
                             new_up_data.extend(parse_results.up_data_vec);
                             !parse_results.done

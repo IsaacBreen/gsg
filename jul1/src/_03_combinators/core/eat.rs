@@ -42,7 +42,7 @@ impl CombinatorTrait for EatU8 {
         let mut right_data = down_data.right_data;
         if self.u8set.contains(bytes[0]) {
             right_data.get_inner_mut().fields1.position += 1;
-            ParseResultTrait::new_single(OneShotUpData { right_data }, true)
+            Ok(OneShotUpData { right_data })
         } else {
             ParseResultTrait::empty_finished()
         }
@@ -53,7 +53,7 @@ impl CombinatorTrait for EatU8 {
             u8set: self.u8set.clone(),
             down_data: Some(down_data),
         };
-        let parse_results = parser.parse(down_data, bytes);
+        let parse_results = parser.parse(bytes);
         (parser, parse_results)
     }
 }
@@ -70,7 +70,7 @@ impl ParserTrait for EatU8Parser {
         return self.u8set.clone();
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
@@ -197,7 +197,7 @@ impl CombinatorTrait for EatString {
             index: 0,
             down_data: Some(down_data),
         };
-        let parse_results = parser.parse(down_data, bytes);
+        let parse_results = parser.parse(bytes);
         (parser, parse_results)
     }
 }
@@ -213,7 +213,7 @@ impl ParserTrait for EatStringParser<'_> {
         U8Set::from_byte(self.string[self.index])
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }

@@ -60,7 +60,7 @@ impl<T: CombinatorTrait> CombinatorTrait for Lookahead<T> {
             }
         }
     }
-    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, mut down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let (parser, mut parse_results) = self.combinator.parse(down_data.clone(), bytes);
         let has_up_data = !parse_results.up_data_vec.is_empty();
         let succeeds = if self.positive {

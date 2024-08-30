@@ -108,8 +108,8 @@ impl<T: CombinatorTrait> ParserTrait for ExcludeBytestringsParser<'_, T> {
         self.inner.get_u8set()
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
-        let mut parse_results = self.inner.parse(down_data, bytes);
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        let mut parse_results = self.inner.parse(bytes);
 
         // Optimized logic
         let mut end_offsets_to_match = HashMap::new();

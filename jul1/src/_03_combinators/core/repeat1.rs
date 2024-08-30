@@ -70,7 +70,7 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
             let offset = right_data.right_data_inner.fields1.position - start_position;
-            let parse_result = self.a.one_shot_parse(DownData { right_data }, &bytes[offset..]);
+            let parse_result = self.a.one_shot_parse(DownData { right_data: right_data.clone() }, &bytes[offset..]);
             match parse_result {
                 Ok(OneShotUpData { right_data: new_right_data }) => {
                     if !self.greedy && prev_parse_result.is_ok() {
@@ -118,8 +118,7 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
     }
 
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let right_data = down_data.right_data;
-        let start_position = right_data.right_data_inner.fields1.position;
+        let start_position = down_data.right_data.right_data_inner.fields1.position;
         let (parser, parse_results) = self.a.parse(down_data, bytes);
         if parse_results.done() && parse_results.up_data_vec.is_empty() {
             // Shortcut
@@ -218,12 +217,12 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait {
         }
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut up_data_as = VecY::new();
         // let mut up_data_as: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
 
         self.a_parsers.retain_mut(|mut a_parser| {
-            let parse_results = a_parser.parse(down_data.clone(), bytes);
+            let parse_results = a_parser.parse(bytes);
             // up_data_as.entry(parse_results.up_data_vec.len()).or_default().extend(parse_results.up_data_vec);
             up_data_as.extend(parse_results.up_data_vec);
             !parse_results.done

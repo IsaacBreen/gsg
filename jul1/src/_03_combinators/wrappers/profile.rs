@@ -150,8 +150,8 @@ impl<P: ParserTrait> ParserTrait for ProfiledParser<P> {
         self.inner.get_u8set()
     }
 
-    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
-        profile!(&self.tag, self.inner.parse(down_data, bytes))
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+        profile!(&self.tag, self.inner.parse(bytes))
     }
 }
 
