@@ -30,13 +30,13 @@ pub struct Lookahead<T: CombinatorTrait> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Lookahead<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-        let (parser, parse_results) = self.parse(right_data, bytes);
+    fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        let (parser, parse_results) = self.parse(down_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.one_shot_parse(right_data, bytes)
+    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.one_shot_parse(down_data, bytes)
     }
 }
 
@@ -45,36 +45,36 @@ impl<T: CombinatorTrait> CombinatorTrait for Lookahead<T> {
     type Output = T::Output;
     type PartialOutput = T::PartialOutput;
 
-    fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        let parse_result = self.combinator.one_shot_parse(right_data.clone(), bytes);
+    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        let parse_result = self.combinator.one_shot_parse(down_data.clone(), bytes);
         if self.positive {
             match parse_result {
-                Ok(_) => Ok(right_data),
+                Ok(_) => Ok(OneShotUpData { right_data: down_data.right_data }),
                 Err(_) => parse_result,
             }
         } else {
             match parse_result {
                 Ok(_) => Err(UnambiguousParseError::Fail),
-                Err(UnambiguousParseError::Fail) => Ok(right_data),
+                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData { right_data: down_data.right_data }),
                 Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete) => parse_result,
             }
         }
     }
-    fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let (parser, mut parse_results) = self.combinator.parse(right_data.clone(), bytes);
-        let has_right_data = !parse_results.right_data_vec.is_empty();
+    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        let (parser, mut parse_results) = self.combinator.parse(down_data.clone(), bytes);
+        let has_up_data = !parse_results.up_data_vec.is_empty();
         let succeeds = if self.positive {
-            // A positive lookahead succeeds if it yields right data now or it *could* yield right data later (i.e. it's not done yet)
-            has_right_data || !parse_results.done()
+            // A positive lookahead succeeds if it yields up_data now or it *could* yield up_data later (i.e. it's not done yet)
+            has_up_data || !parse_results.done()
         } else {
-            // A negative lookahead succeeds if it yields no right data now
-            !has_right_data
+            // A negative lookahead succeeds if it yields no up_data now
+            !has_up_data
         };
         if succeeds {
             if !parse_results.done() {
-                    right_data.get_inner_mut().fields1.lookahead_data.has_omitted_partial_lookaheads = true;
+                    down_data.right_data.get_inner_mut().fields1.lookahead_data.has_omitted_partial_lookaheads = true;
             }
-            (FailParser, ParseResults::new_single(right_data, true))
+            (FailParser, ParseResults::new_single(UpData { right_data: down_data.right_data }, true))
         } else {
             (FailParser, ParseResults::empty_finished())
         }

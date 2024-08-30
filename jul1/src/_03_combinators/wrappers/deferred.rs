@@ -119,13 +119,13 @@ impl<T: CombinatorTrait> Hash for Deferred<'_, T> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Deferred<'_, T> {
-    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
-        let (parser, parse_results) = self.parse(right_data, bytes);
+    fn parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
+        let (parser, parse_results) = self.parse(down_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.one_shot_parse(right_data, bytes)
+    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.one_shot_parse(down_data, bytes)
     }
 }
 
@@ -134,15 +134,15 @@ impl<T: CombinatorTrait> CombinatorTrait for Deferred<'_, T> {
     type Output = T::Output;
     type PartialOutput = T::PartialOutput;
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().expect("inner combinator not initialized");
-        combinator.one_shot_parse(right_data, bytes)
+        combinator.one_shot_parse(down_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         // let combinator = self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator());
         let combinator = self.inner.get().expect("inner combinator not initialized");
-        combinator.parse(right_data, bytes)
+        combinator.parse(down_data, bytes)
     }
 }
 

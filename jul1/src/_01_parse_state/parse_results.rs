@@ -2,8 +2,18 @@ use crate::internal_vec::VecY;
 use crate::{vecy, RightData};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct UpData {
+    pub right_data: RightData,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct OneShotUpData {
+    pub right_data: RightData,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParseResults {
-    pub right_data_vec: VecY<RightData>,
+    pub up_data_vec: VecY<UpData>,
     pub done: bool,
 }
 
@@ -20,7 +30,7 @@ pub enum ActuallyUnambiguousParseError {
     Fail,
 }
 
-pub type UnambiguousParseResults = Result<RightData, UnambiguousParseError>;
+pub type UnambiguousParseResults = Result<OneShotUpData, UnambiguousParseError>;
 
 pub trait ParseResultTrait {
     fn done(&self) -> bool;
@@ -28,8 +38,8 @@ pub trait ParseResultTrait {
     fn merge_assign(&mut self, p0: Self) where Self: Sized;
     fn merge(self, p0: Self) -> Self where Self: Sized;
     fn combine_seq(&mut self, p0: Self) where Self: Sized;
-    fn new(right_data_vec: VecY<RightData>, done: bool) -> Self where Self: Sized;
-    fn new_single(right_data_vec: RightData, done: bool) -> Self where Self: Sized;
+    fn new(up_data_vec: VecY<UpData>, done: bool) -> Self where Self: Sized;
+    fn new_single(up_data_vec: UpData, done: bool) -> Self where Self: Sized;
     fn empty(done: bool) -> Self where Self: Sized;
     fn empty_unfinished() -> Self where Self: Sized;
     fn empty_finished() -> Self where Self: Sized;
@@ -40,9 +50,9 @@ impl From<ParseResults> for UnambiguousParseResults {
         if !value.done() {
             return Err(UnambiguousParseError::Incomplete);
         }
-        match value.right_data_vec.as_slice() {
+        match value.up_data_vec.as_slice() {
             [] => Err(UnambiguousParseError::Fail),
-            [right_data] => Ok(right_data.clone()),
+            [up_data] => Ok(OneShotUpData { right_data: up_data.right_data.clone() }),
             [_, _, ..] => Err(UnambiguousParseError::Ambiguous),
         }
     }
@@ -53,25 +63,25 @@ impl ParseResultTrait for ParseResults {
         self.done
     }
     fn succeeds_decisively(&self) -> bool {
-        self.done() && !self.right_data_vec.is_empty() && !self.right_data_vec.iter().any(|rd| rd.failable())
+        self.done() && !self.up_data_vec.is_empty() && !self.up_data_vec.iter().any(|rd| rd.right_data.failable())
         // TODO: remove the below line and uncomment the above line
-        // self.done() && !self.right_data_vec.is_empty()
+        // self.done() && !self.up_data_vec.is_empty()
     }
-    fn new(right_data_vec: VecY<RightData>, done: bool) -> Self {
+    fn new(up_data_vec: VecY<UpData>, done: bool) -> Self {
         ParseResults {
-            right_data_vec,
+            up_data_vec,
             done,
         }
     }
-    fn new_single(right_data: RightData, done: bool) -> Self {
+    fn new_single(up_data: UpData, done: bool) -> Self {
         ParseResults {
-            right_data_vec: vecy![right_data],
+            up_data_vec: vecy![up_data],
             done,
         }
     }
     fn empty(done: bool) -> Self {
         ParseResults {
-            right_data_vec: VecY::new(),
+            up_data_vec: VecY::new(),
             done,
         }
     }
@@ -82,7 +92,7 @@ impl ParseResultTrait for ParseResults {
         ParseResults::empty(true)
     }
     fn merge_assign(&mut self, mut p0: ParseResults) {
-        self.right_data_vec.append(&mut p0.right_data_vec);
+        self.up_data_vec.append(&mut p0.up_data_vec);
         self.done &= p0.done();
     }
     fn merge(mut self, p0: ParseResults) -> Self {
@@ -90,7 +100,7 @@ impl ParseResultTrait for ParseResults {
         self
     }
     fn combine_seq(&mut self, mut p0: ParseResults) {
-        self.right_data_vec.append(&mut p0.right_data_vec);
+        self.up_data_vec.append(&mut p0.up_data_vec);
         self.done |= p0.done();
     }
 }
@@ -107,15 +117,15 @@ impl ParseResultTrait for UnambiguousParseResults {
     fn succeeds_decisively(&self) -> bool {
         self.is_ok()
     }
-    fn new(right_data_vec: VecY<RightData>, done: bool) -> Self {
-        match (right_data_vec.len(), done) {
-            (1, true) => Ok(right_data_vec[0].clone()),
+    fn new(up_data_vec: VecY<UpData>, done: bool) -> Self {
+        match (up_data_vec.len(), done) {
+            (1, true) => Ok(OneShotUpData { right_data: up_data_vec[0].right_data.clone() }),
             (1, false) => Err(UnambiguousParseError::Incomplete),
             _ => Err(UnambiguousParseError::Ambiguous),
         }
     }
-    fn new_single(right_data: RightData, done: bool) -> Self {
-        Self::new(vecy![right_data], done)
+    fn new_single(up_data: UpData, done: bool) -> Self {
+        Self::new(vecy![up_data], done)
     }
     fn empty(done: bool) -> Self {
         if done {
@@ -136,15 +146,15 @@ impl ParseResultTrait for UnambiguousParseResults {
     }
     fn merge(self, p0: Self) -> Self {
         match (self, p0) {
-            (Ok(right_data1), Ok(right_data2)) => {
-                if right_data1 == right_data2 {
-                    Ok(right_data1)
+            (Ok(up_data1), Ok(up_data2)) => {
+                if up_data1 == up_data2 {
+                    Ok(up_data1)
                 } else {
                     Err(UnambiguousParseError::Ambiguous)
                 }
             },
-            (Ok(right_data), Err(UnambiguousParseError::Incomplete)) => Ok(right_data),
-            (Err(UnambiguousParseError::Incomplete), Ok(right_data)) => Ok(right_data),
+            (Ok(up_data), Err(UnambiguousParseError::Incomplete)) => Ok(up_data),
+            (Err(UnambiguousParseError::Incomplete), Ok(up_data)) => Ok(up_data),
             (Err(UnambiguousParseError::Incomplete), Err(UnambiguousParseError::Incomplete)) => Err(UnambiguousParseError::Incomplete),
             (Err(e), _) => Err(e),
             (_, Err(e)) => Err(e),

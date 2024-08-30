@@ -33,13 +33,13 @@ impl<P> Debug for TaggedParser<P> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Tagged<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-        let (parser, parse_results) = self.parse(right_data, bytes);
+    fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        let (parser, parse_results) = self.parse(down_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.one_shot_parse(right_data, bytes)
+    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.one_shot_parse(down_data, bytes)
     }
 }
 
@@ -48,13 +48,13 @@ impl<'b, T: CombinatorTrait> CombinatorTrait for Tagged<T> where T: 'b {
     type Output = T::Output;
     type PartialOutput = T::PartialOutput;
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.inner.one_shot_parse(right_data, bytes)
+    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.inner.one_shot_parse(down_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         count_hit!(self.tag);
-        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
+        let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(down_data, bytes)));
         match result {
             Ok((parser, parse_results)) => (
                 TaggedParser { inner: parser, tag: self.tag.clone() },
@@ -82,8 +82,8 @@ impl<P: ParserTrait> ParserTrait for TaggedParser<P> {
         self.inner.get_u8set()
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        self.inner.parse(bytes)
+    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+        self.inner.parse(down_data, bytes)
     }
 }
 

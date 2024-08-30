@@ -1,5 +1,5 @@
 use crate::RightData;
-use crate::{profile, LookaheadData, ParseResultTrait, ParseResults, VecY};
+use crate::{profile, LookaheadData, ParseResultTrait, ParseResults, UpData, VecY};
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
@@ -23,8 +23,8 @@ pub trait Squash {
     fn squash(&mut self);
 }
 
-impl Squash for VecY<RightData> {
-    type Output = VecY<RightData>;
+impl Squash for VecY<UpData> {
+    type Output = VecY<UpData>;
     fn squashed(self) -> Self::Output {
         if self.len() > SQUASH_THRESHOLD {
             profile!("RightDataSquasher::squashed", {
@@ -39,7 +39,7 @@ impl Squash for VecY<RightData> {
     }
     fn squash(&mut self) {
         if self.len() > SQUASH_THRESHOLD {
-            *self = self.drain(..).collect::<VecY<RightData>>().squashed()
+            *self = self.drain(..).collect::<VecY<UpData>>().squashed()
         }
     }
 }
@@ -47,10 +47,10 @@ impl Squash for VecY<RightData> {
 impl Squash for ParseResults {
     type Output = ParseResults;
     fn squashed(self) -> Self::Output {
-        if self.right_data_vec.len() > SQUASH_THRESHOLD {
+        if self.up_data_vec.len() > SQUASH_THRESHOLD {
             profile!("ParseResults::squashed", {
                     let done = self.done();
-                    ParseResults::new(self.right_data_vec.squashed(), done)
+                    ParseResults::new(self.up_data_vec.squashed(), done)
                 }
             )
         } else {
@@ -59,7 +59,7 @@ impl Squash for ParseResults {
     }
     fn squash(&mut self) {
         profile!("ParseResults::squash", {
-        if self.right_data_vec.len() > SQUASH_THRESHOLD {
+        if self.up_data_vec.len() > SQUASH_THRESHOLD {
             // *self.right_data_vec = std::mem::take(&mut self.right_data_vec).squashed();
             *self = self.clone().squashed();
         }
@@ -100,12 +100,12 @@ impl RightDataSquasher {
             })
     }
 
-    pub fn finish(self) -> VecY<RightData> {
+    pub fn finish(self) -> VecY<UpData> {
         profile!("RightDataSquasher::finish", {
             let mut result = VecY::new();
             for (mut right_data, lookahead_data) in self.decomposed {
                 right_data.get_inner_mut().fields1.lookahead_data = lookahead_data;
-                result.push(right_data);
+                result.push(UpData { right_data });
             }
             result
         })

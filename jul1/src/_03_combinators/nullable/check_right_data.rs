@@ -1,7 +1,7 @@
 
 // src/_03_combinators/nullable/check_right_data.rs
 // src/combinators/check_right_data.rs
-use crate::{BaseCombinatorTrait, DynCombinatorTrait, ParserTrait, UnambiguousParseError, UnambiguousParseResults};
+use crate::{BaseCombinatorTrait, DynCombinatorTrait, ParserTrait, UnambiguousParseError, UnambiguousParseResults, DownData, UpData, OneShotUpData};
 use crate::{CombinatorTrait, FailParser, ParseResultTrait, ParseResults, RightData};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -32,13 +32,13 @@ impl Debug for CheckRightData {
 }
 
 impl DynCombinatorTrait for CheckRightData {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-        let (parser, parse_results) = self.parse(right_data, bytes);
+    fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        let (parser, parse_results) = self.parse(down_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.one_shot_parse(right_data, bytes)
+    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.one_shot_parse(down_data, bytes)
     }
 }
 
@@ -47,17 +47,17 @@ impl CombinatorTrait for CheckRightData {
     type Output = ();
     type PartialOutput = ();
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        if (self.run)(&right_data) {
-            Ok(right_data)
+    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        if (self.run)(&down_data.right_data) {
+            Ok(OneShotUpData { right_data: down_data.right_data })
         } else {
             Err(UnambiguousParseError::Fail)
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        if (self.run)(&right_data) {
-            (FailParser, ParseResults::new_single(right_data, true))
+    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        if (self.run)(&down_data.right_data) {
+            (FailParser, ParseResults::new_single(UpData { right_data: down_data.right_data }, true))
         } else {
             (FailParser, ParseResults::empty_finished())
         }
@@ -100,13 +100,13 @@ impl Debug for MutateRightData {
 }
 
 impl DynCombinatorTrait for MutateRightData {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-        let (parser, parse_results) = self.parse(right_data, bytes);
+    fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        let (parser, parse_results) = self.parse(down_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.one_shot_parse(right_data, bytes)
+    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.one_shot_parse(down_data, bytes)
     }
 }
 
@@ -115,16 +115,18 @@ impl CombinatorTrait for MutateRightData {
     type Output = ();
     type PartialOutput = ();
 
-    fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        let mut right_data = down_data.right_data;
         if (self.run)(&mut right_data) {
-            Ok(right_data)
+            Ok(OneShotUpData { right_data })
         } else {
             Err(UnambiguousParseError::Fail)
         }
     }
-    fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        let mut right_data = down_data.right_data;
         if (self.run)(&mut right_data) {
-            (FailParser, ParseResults::new_single(right_data, true))
+            (FailParser, ParseResults::new_single(UpData { right_data }, true))
         } else {
             (FailParser, ParseResults::empty_finished())
         }

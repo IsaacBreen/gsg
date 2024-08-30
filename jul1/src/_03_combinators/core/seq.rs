@@ -1,7 +1,7 @@
 
 use crate::RightData;
 use crate::VecX;
-use crate::{profile_internal, CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set, VecY};
+use crate::{profile_internal, CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set, VecY, DownData, UpData, OneShotUpData};
 // src/combinators/seq.rs
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use std::collections::BTreeMap;
@@ -27,13 +27,13 @@ pub struct SeqParser<'a> {
 }
 
 impl DynCombinatorTrait for Seq<'_> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-        let (parser, parse_results) = self.parse(right_data, bytes);
+    fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        let (parser, parse_results) = self.parse(down_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.one_shot_parse(right_data, bytes)
+    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.one_shot_parse(down_data, bytes)
     }
 }
 impl CombinatorTrait for Seq<'_> {
@@ -41,16 +41,26 @@ impl CombinatorTrait for Seq<'_> {
     type Output = Vec<Box<dyn std::any::Any>>;
     type PartialOutput = Vec<Option<Box<dyn std::any::Any>>>;
 
-    fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        let mut right_data = down_data.right_data;
         let start_position = right_data.right_data_inner.fields1.position;
         for combinator in self.children.iter() {
             let offset = right_data.right_data_inner.fields1.position - start_position;
-            right_data = combinator.one_shot_parse(right_data, &bytes[offset..])?;
+            let result = combinator.one_shot_parse(DownData { right_data }, &bytes[offset..]);
+            match result {
+                Ok(OneShotUpData { right_data: new_right_data }) => {
+                    right_data = new_right_data;
+                },
+                Err(err) => {
+                    return Err(err);
+                }
+            }
         }
-        Ok(right_data)
+        Ok(OneShotUpData { right_data })
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        let right_data = down_data.right_data;
         let start_position = right_data.right_data_inner.fields1.position;
 
         let mut combinator_index = self.start_index;
@@ -61,10 +71,10 @@ impl CombinatorTrait for Seq<'_> {
 
         let combinator = &self.children[combinator_index];
         let (parser, parse_results) = profile!("seq first child parse", {
-            combinator.parse(right_data, &bytes)
+            combinator.parse(down_data, &bytes)
         });
         let done = parse_results.done();
-        if done && parse_results.right_data_vec.is_empty() {
+        if done && parse_results.up_data_vec.is_empty() {
             // Shortcut
             return (SeqParser {
                 parsers: vec![],
@@ -77,45 +87,45 @@ impl CombinatorTrait for Seq<'_> {
         } else {
             vec![(combinator_index, parser)]
         };
-        let mut final_right_data: VecY<RightData>;
-        let mut next_right_data_vec: VecY<RightData>;
+        let mut final_up_data: VecY<UpData>;
+        let mut next_up_data_vec: VecY<UpData>;
         if combinator_index + 1 < self.children.len() {
-            next_right_data_vec = parse_results.right_data_vec;
-            final_right_data = VecY::new();
+            next_up_data_vec = parse_results.up_data_vec;
+            final_up_data = VecY::new();
         } else {
-            next_right_data_vec = VecY::new();
-            final_right_data = parse_results.right_data_vec;
+            next_up_data_vec = VecY::new();
+            final_up_data = parse_results.up_data_vec;
         }
 
         combinator_index += 1;
 
-        let mut helper = |right_data: RightData, combinator_index: usize| {
-            let offset = right_data.right_data_inner.fields1.position - start_position;
+        let mut helper = |down_data: DownData, combinator_index: usize| {
+            let offset = down_data.right_data.right_data_inner.fields1.position - start_position;
             let combinator = &self.children[combinator_index];
             let (parser, parse_results) = profile!("seq other child parse", {
-                combinator.parse(right_data, &bytes[offset..])
+                combinator.parse(down_data, &bytes[offset..])
             });
             if !parse_results.done() {
                 parsers.push((combinator_index, parser));
             }
             if combinator_index + 1 < self.children.len() {
-                parse_results.right_data_vec
+                parse_results.up_data_vec
             } else {
-                final_right_data.extend(parse_results.right_data_vec);
+                final_up_data.extend(parse_results.up_data_vec);
                 VecY::new()
             }
         };
 
-        while combinator_index < self.children.len() && !next_right_data_vec.is_empty() {
-            if next_right_data_vec.len() == 1 {
-                let right_data = next_right_data_vec.pop().unwrap();
-                next_right_data_vec = helper(right_data, combinator_index);
+        while combinator_index < self.children.len() && !next_up_data_vec.is_empty() {
+            if next_up_data_vec.len() == 1 {
+                let up_data = next_up_data_vec.pop().unwrap();
+                next_up_data_vec = helper(DownData { right_data: up_data.right_data }, combinator_index);
             } else {
-                let mut next_next_right_data_vec = VecY::new();
-                for right_data in next_right_data_vec {
-                    next_next_right_data_vec.extend(helper(right_data, combinator_index));
+                let mut next_next_up_data_vec = VecY::new();
+                for up_data in next_up_data_vec {
+                    next_next_up_data_vec.extend(helper(DownData { right_data: up_data.right_data }, combinator_index));
                 }
-                next_right_data_vec = next_next_right_data_vec;
+                next_up_data_vec = next_next_up_data_vec;
             }
             combinator_index += 1;
         }
@@ -125,7 +135,7 @@ impl CombinatorTrait for Seq<'_> {
                 parsers: vec![],
                 combinators: &self.children,
                 position: start_position + bytes.len(),
-            }, ParseResults::new(final_right_data, true));
+            }, ParseResults::new(final_up_data, true));
         }
 
         let parser = SeqParser {
@@ -134,7 +144,7 @@ impl CombinatorTrait for Seq<'_> {
             position: start_position + bytes.len(),
         };
 
-        let parse_results = ParseResults::new(final_right_data, false);
+        let parse_results = ParseResults::new(final_up_data, false);
 
         (parser, parse_results)
     }
@@ -160,11 +170,11 @@ impl ParserTrait for SeqParser<'_> {
         u8set
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
         profile!("SeqParser::parse", {
-        let mut final_right_data: VecY<RightData> = VecY::new();
+        let mut final_up_data: VecY<UpData> = VecY::new();
         // let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
-        let mut parser_initialization_queue: BTreeMap<usize, Vec<RightData>> = BTreeMap::new();
+        let mut parser_initialization_queue: BTreeMap<usize, Vec<UpData>> = BTreeMap::new();
 
         // Eliminate duplicate parsers
         // if self.parsers.len() > 10 {
@@ -174,16 +184,16 @@ impl ParserTrait for SeqParser<'_> {
         profile!("SeqParser::parse part 1", {
         self.parsers.retain_mut(|(combinator_index, parser)| {
             let parse_results = profile!("SeqParser::parse child Parser::parse", {
-                parser.parse(bytes)
+                parser.parse(down_data.clone(), bytes)
             });
             let done = parse_results.done();
             if *combinator_index + 1 < self.combinators.len() {
                 profile!("SeqParser::parse extend parser_initialization_queue", {
-                    parser_initialization_queue.entry(*combinator_index + 1).or_default().extend(parse_results.right_data_vec);
+                    parser_initialization_queue.entry(*combinator_index + 1).or_default().extend(parse_results.up_data_vec);
                 });
             } else {
-                profile!("SeqParser::parse extend final_right_data", {
-                    final_right_data.extend(parse_results.right_data_vec);
+                profile!("SeqParser::parse extend final_up_data", {
+                    final_up_data.extend(parse_results.up_data_vec);
                 });
             }
             !done
@@ -191,23 +201,23 @@ impl ParserTrait for SeqParser<'_> {
         });
 
         profile!("SeqParser::parse part 2", {
-        while let Some((combinator_index, right_data_squasher)) = parser_initialization_queue.pop_first() {
+        while let Some((combinator_index, up_data_vec)) = parser_initialization_queue.pop_first() {
             // for right_data in right_data_squasher.finish() {
-            for right_data in right_data_squasher {
-                let offset = right_data.right_data_inner.fields1.position - self.position;
+            for up_data in up_data_vec {
+                let offset = up_data.right_data.right_data_inner.fields1.position - self.position;
                 let combinator = &self.combinators[combinator_index];
                 let (parser, parse_results) = profile!("SeqParser::parse child Combinator::parse", {
-                    combinator.parse(right_data, &bytes[offset..])
+                    combinator.parse(DownData { right_data: up_data.right_data }, &bytes[offset..])
                 });
                 if !parse_results.done() {
                     self.parsers.push((combinator_index, parser));
                 }
                 if combinator_index + 1 < self.combinators.len() {
                     profile!("SeqParser::parse extend parser_initialization_queue", {
-                        parser_initialization_queue.entry(combinator_index + 1).or_default().extend(parse_results.right_data_vec);
+                        parser_initialization_queue.entry(combinator_index + 1).or_default().extend(parse_results.up_data_vec);
                     });
                 } else {
-                    final_right_data.extend(parse_results.right_data_vec);
+                    final_up_data.extend(parse_results.up_data_vec);
                 }
             }
         }
@@ -215,7 +225,7 @@ impl ParserTrait for SeqParser<'_> {
 
         self.position += bytes.len();
 
-        ParseResults::new(final_right_data, self.parsers.is_empty())
+        ParseResults::new(final_up_data, self.parsers.is_empty())
             })
     }
 }

@@ -2,7 +2,7 @@
 #![feature(assert_matches)]
 use crate::_03_combinators::*;
 use crate::get_unicode_general_category_combinator;
-use crate::_01_parse_state::RightData;
+use crate::_01_parse_state::{RightData, DownData};
 use crate::_06_tests::utils::{assert_parses_default, assert_parses_fast, assert_parses_one_shot, assert_parses_one_shot_with_result};
 use crate::tokenizer::eat_char_fast;
 use crate::unicode_categories::GeneralCategory;
@@ -67,7 +67,7 @@ fn test_repeat1_greedy() {
     let combinator = seq!(repeat1_greedy(eat_char('a')), eat_char('b'));
     assert_parses_default(&combinator, "aaab");
     assert_parses_fast(&combinator, "aaab");
-    assert_parses_one_shot_with_result(&combinator, "aaab", Ok(RightData::default().with_position(4)));
+    assert_parses_one_shot_with_result(&combinator, "aaab", Ok(OneShotUpData { right_data: RightData::default().with_position(4) }));
 }
 
 #[test]
@@ -235,7 +235,7 @@ fn test_autoparse() {
         eat_string("abcxx"),
         eat_string("abcyy"),
     );
-    let (mut parser, _) = combinator.parser(RightData::default());
-    let (prefix, parse_results) = parser.autoparse(10);
+    let (mut parser, _) = combinator.parser(DownData { right_data: RightData::default() });
+    let (prefix, parse_results) = parser.autoparse(DownData { right_data: RightData::default() }, 10);
     assert_eq!(prefix, b"abc");
 }

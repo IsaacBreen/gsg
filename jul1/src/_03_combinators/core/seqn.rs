@@ -1,6 +1,6 @@
 
 // src/_03_combinators/core/seqn.rs
-use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, Squash, U8Set, UnambiguousParseResults, VecY};
+use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, Squash, U8Set, UnambiguousParseResults, VecY, DownData, UpData, OneShotUpData};
 
 macro_rules! profile {
     ($name:expr, $expr:expr) => {
@@ -59,13 +59,13 @@ macro_rules! define_seq {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+,
         {
-            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-                let (parser, parse_results) = self.parse(right_data, bytes);
+            fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+                let (parser, parse_results) = self.parse(down_data, bytes);
                 (Box::new(parser), parse_results)
             }
 
-            fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-                self.one_shot_parse(right_data, bytes)
+            fn one_shot_parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+                self.one_shot_parse(down_data, bytes)
             }
         }
 
@@ -78,26 +78,44 @@ macro_rules! define_seq {
             type Output = $seq_enum_name<$first, $($rest),+>;
             type PartialOutput = $seq_partial_enum_name<$first, $($rest),+>;
 
-            fn one_shot_parse(&self, mut right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
+            fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
+                let mut right_data = down_data.right_data;
                 let start_position = right_data.right_data_inner.fields1.position;
-                right_data = self.$first.one_shot_parse(right_data, bytes)?;
+                let result = self.$first.one_shot_parse(DownData { right_data }, bytes);
+                match result {
+                    Ok(OneShotUpData { right_data: new_right_data }) => {
+                        right_data = new_right_data;
+                    },
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
                 $(
                     let offset = right_data.right_data_inner.fields1.position - start_position;
-                    right_data = self.$rest.one_shot_parse(right_data, &bytes[offset..])?;
+                    let result = self.$rest.one_shot_parse(DownData { right_data }, &bytes[offset..]);
+                    match result {
+                        Ok(OneShotUpData { right_data: new_right_data }) => {
+                            right_data = new_right_data;
+                        },
+                        Err(err) => {
+                            return Err(err);
+                        }
+                    }
                 )+
-                $crate::UnambiguousParseResults::Ok(right_data)
+                $crate::UnambiguousParseResults::Ok(OneShotUpData { right_data })
             }
 
-            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+            fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+                let right_data = down_data.right_data;
                 let start_position = right_data.right_data_inner.fields1.position;
 
                 let first_combinator = &self.$first;
                 let (first_parser, first_parse_results) = profile!(stringify!($seq_name, " first child parse"), {
-                    first_combinator.parse(right_data, &bytes)
+                    first_combinator.parse(down_data, &bytes)
                 });
 
                 let mut all_done = first_parse_results.done();
-                if all_done && first_parse_results.right_data_vec.is_empty() {
+                if all_done && first_parse_results.up_data_vec.is_empty() {
                     // Shortcut
                     return (
                         $seq_parser_name {
@@ -111,12 +129,12 @@ macro_rules! define_seq {
                 }
                 let first_parser_vec = if all_done { None } else { Some(first_parser) };
 
-                let mut next_right_data_vec = first_parse_results.right_data_vec;
+                let mut next_up_data_vec = first_parse_results.up_data_vec;
 
-                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (T::Parser<'a>, ParseResults) {
-                    let offset = right_data.right_data_inner.fields1.position - start_position;
+                fn helper<'a, T: CombinatorTrait>(down_data: DownData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (T::Parser<'a>, ParseResults) {
+                    let offset = down_data.right_data.right_data_inner.fields1.position - start_position;
                     profile!(stringify!($seq_name, " child parse"), {
-                        next_combinator.parse(right_data, &bytes[offset..])
+                        next_combinator.parse(down_data, &bytes[offset..])
                     })
                 }
 
@@ -129,23 +147,23 @@ macro_rules! define_seq {
 
                 // process each child combinator
                 $(
-                    if next_right_data_vec.is_empty() {
+                    if next_up_data_vec.is_empty() {
                         return (seqn_parser, ParseResults::empty(all_done));
                     }
 
-                    let mut next_next_right_data_vec = VecY::new();
-                    for right_data in next_right_data_vec {
-                        let (parser, parse_results) = helper(right_data, &self.$rest, &bytes, start_position);
+                    let mut next_next_up_data_vec = VecY::new();
+                    for up_data in next_up_data_vec {
+                        let (parser, parse_results) = helper(DownData { right_data: up_data.right_data }, &self.$rest, &bytes, start_position);
                         if !parse_results.done() {
                             all_done = false;
                             seqn_parser.$rest.push(parser);
                         }
-                        next_next_right_data_vec.extend(parse_results.right_data_vec);
+                        next_next_up_data_vec.extend(parse_results.up_data_vec);
                     }
-                    next_right_data_vec = next_next_right_data_vec;
+                    next_up_data_vec = next_next_up_data_vec;
                 )+
 
-                let parse_results = ParseResults::new(next_right_data_vec, all_done);
+                let parse_results = ParseResults::new(next_up_data_vec, all_done);
 
                 (seqn_parser, parse_results)
             }
@@ -158,7 +176,7 @@ macro_rules! define_seq {
         {
             fn get_u8set(&self) -> U8Set {
                 let mut u8set = U8Set::none();
-                for parser in &self.$first {
+                if let Some(parser) = &self.$first {
                     u8set = u8set.union(&parser.get_u8set());
                 }
                 $(
@@ -169,14 +187,14 @@ macro_rules! define_seq {
                 u8set
             }
 
-            fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+            fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
                 profile!(stringify!($seq_parser_name, "::parse"), {
-                    let mut new_right_data: VecY<RightData> = VecY::new();
+                    let mut new_up_data: VecY<UpData> = VecY::new();
 
                     // first child
                     if let Some(parser) = &mut self.$first {
-                        let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), { parser.parse(bytes) });
-                        new_right_data.extend(parse_results.right_data_vec);
+                        let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), { parser.parse(down_data.clone(), bytes) });
+                        new_up_data.extend(parse_results.up_data_vec);
                         if parse_results.done {
                             self.$first = None;
                         }
@@ -186,31 +204,31 @@ macro_rules! define_seq {
 
                     // rest of the children
                     $(
-                        let mut right_data_to_init_this_child = std::mem::take(&mut new_right_data);
+                        let mut up_data_to_init_this_child = std::mem::take(&mut new_up_data);
                         // TODO: Squashing after each sequent is good for performance (~5% gain on Python parser), but makes it difficult to reason about building the parse tree.
                         //  So, I'm leaving it out for now. But it'd be good to revisit this and see if we could bring it back.
-                        // right_data_to_init_this_child.squash();
+                        // up_data_to_init_this_child.squash();
 
                         // step existing parsers for this child
                         self.$rest.retain_mut(|parser| {
                             let parse_results = profile!(stringify!($seq_parser_name, "::parse child Parser::parse"), {
-                                parser.parse(bytes)
+                                parser.parse(down_data.clone(), bytes)
                             });
-                            new_right_data.extend(parse_results.right_data_vec);
+                            new_up_data.extend(parse_results.up_data_vec);
                             !parse_results.done
                         });
 
                         // new parsers for this child, one for each right_data emitted by the previous child
-                        for right_data in right_data_to_init_this_child {
-                            let offset = right_data.right_data_inner.fields1.position - self.position;
+                        for up_data in up_data_to_init_this_child {
+                            let offset = up_data.right_data.right_data_inner.fields1.position - self.position;
                             let combinator = &self.combinator.$rest;
                             let (parser, parse_results) = profile!(stringify!($seq_parser_name, "::parse child Combinator::parse"), {
-                                combinator.parse(right_data, &bytes[offset..])
+                                combinator.parse(DownData { right_data: up_data.right_data }, &bytes[offset..])
                             });
                             if !parse_results.done() {
                                 self.$rest.push(parser);
                             }
-                            new_right_data.extend(parse_results.right_data_vec);
+                            new_up_data.extend(parse_results.up_data_vec);
                         }
 
                         all_done &= self.$rest.is_empty();
@@ -218,7 +236,7 @@ macro_rules! define_seq {
 
                     self.position += bytes.len();
 
-                    ParseResults::new(new_right_data, all_done)
+                    ParseResults::new(new_up_data, all_done)
                 })
             }
         }
@@ -252,4 +270,3 @@ define_seq!(Seq10, Seq10Parser, Seq10Enum, Seq10PartialEnum, c0, c1, c2, c3, c4,
 define_seq!(Seq11, Seq11Parser, Seq11Enum, Seq11PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
 define_seq!(Seq12, Seq12Parser, Seq12Enum, Seq12PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
 define_seq!(Seq13, Seq13Parser, Seq13Enum, Seq13PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);
-

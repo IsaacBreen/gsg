@@ -1,6 +1,6 @@
 
 // src/_02_traits/combinator.rs
-use crate::{ParseResultTrait, ParseResults, RightData, U8Set, UnambiguousParseResults};
+use crate::{ParseResultTrait, ParseResults, RightData, U8Set, UnambiguousParseResults, UpData, OneShotUpData, DownData};
 use std::fmt::Display;
 
 #[macro_export]
@@ -20,16 +20,16 @@ pub trait CombinatorTrait: BaseCombinatorTrait + DynCombinatorTrait + std::fmt::
     type Output;
     type PartialOutput;
 
-    fn old_parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults);
-    fn parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
-        self.old_parse(right_data, bytes)
+    fn old_parse<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults);
+    fn parse<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
+        self.old_parse(down_data, bytes)
     }
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults;
+    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults;
 }
 
 pub trait DynCombinatorTrait: BaseCombinatorTrait + std::fmt::Debug {
-    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults);
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults;
+    fn parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults);
+    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults;
 }
 
 pub trait BaseCombinatorTrait {
@@ -50,22 +50,22 @@ pub trait BaseCombinatorTrait {
     }
 }
 
-pub fn dumb_one_shot_parse<T: CombinatorTrait>(combinator: &T, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-    let (parser, parse_results) = combinator.old_parse(right_data, bytes);
+pub fn dumb_one_shot_parse<T: CombinatorTrait>(combinator: &T, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+    let (parser, parse_results) = combinator.old_parse(down_data, bytes);
     UnambiguousParseResults::from(parse_results)
 }
 
 pub trait ParserTrait: std::fmt::Debug {
     fn get_u8set(&self) -> U8Set;
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults;
-    fn autoparse(&mut self, max_length: usize) -> (Vec<u8>, ParseResults) {
+    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults;
+    fn autoparse(&mut self, down_data: DownData, max_length: usize) -> (Vec<u8>, ParseResults) {
         let mut prefix = Vec::new();
         let mut parse_results = ParseResults::empty_finished();
         while prefix.len() < max_length {
             let u8set = self.get_u8set();
             if u8set.len() == 1 {
                 let c = u8set.iter().next().unwrap();
-                let new_parse_results = self.parse(&[c]);
+                let new_parse_results = self.parse(down_data.clone(), &[c]);
                 parse_results.combine_seq(new_parse_results);
                 prefix.push(c);
             } else {
@@ -77,12 +77,12 @@ pub trait ParserTrait: std::fmt::Debug {
 }
 
 impl<T: DynCombinatorTrait + ?Sized> DynCombinatorTrait for Box<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-        (**self).parse_dyn(right_data, bytes)
+    fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        (**self).parse_dyn(down_data, bytes)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        (**self).one_shot_parse_dyn(right_data, bytes)
+    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        (**self).one_shot_parse_dyn(down_data, bytes)
     }
 }
 
@@ -91,16 +91,16 @@ impl<T: CombinatorTrait + ?Sized> CombinatorTrait for Box<T> {
     type Output = T::Output;
     type PartialOutput = T::PartialOutput;
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        (**self).one_shot_parse(right_data, bytes)
+    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        (**self).one_shot_parse(down_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        (**self).old_parse(right_data, bytes)
+    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        (**self).old_parse(down_data, bytes)
     }
 
-    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        (**self).parse(right_data, bytes)
+    fn parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        (**self).parse(down_data, bytes)
     }
 
 }
@@ -125,8 +125,8 @@ impl<'a> ParserTrait for Box<dyn ParserTrait + 'a> {
         (**self).get_u8set()
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
-        (**self).parse(bytes)
+    fn parse(&mut self, down_data: DownData, bytes: &[u8]) -> ParseResults {
+        (**self).parse(down_data, bytes)
     }
 }
 
@@ -135,26 +135,26 @@ impl<'b> CombinatorTrait for Box<dyn DynCombinatorTrait + 'b> {
     type Output = Box<dyn std::any::Any>;
     type PartialOutput = Box<dyn std::any::Any>;
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        (**self).one_shot_parse_dyn(right_data, bytes)
+    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+        (**self).one_shot_parse_dyn(down_data, bytes)
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        (**self).parse_dyn(right_data, bytes)
+    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        (**self).parse_dyn(down_data, bytes)
     }
 }
 
 // Removed ParserTrait implementation for Parser enum
 
 pub trait CombinatorTraitExt: CombinatorTrait {
-    fn parser(&self, right_data: RightData) -> (Self::Parser<'_>, ParseResults) {
-        self.old_parse(right_data, &[])
+    fn parser(&self, down_data: DownData) -> (Self::Parser<'_>, ParseResults) {
+        self.old_parse(down_data, &[])
     }
 }
 
 pub trait ParserTraitExt: ParserTrait {
-    fn step(&mut self, c: u8) -> ParseResults {
-        self.parse(&[c])
+    fn step(&mut self, down_data: DownData, c: u8) -> ParseResults {
+        self.parse(down_data, &[c])
     }
 }
 
