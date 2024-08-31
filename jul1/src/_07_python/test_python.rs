@@ -178,7 +178,7 @@ fn test_gpt4_suggestions_0() {
 // #[ignore]
 #[test]
 fn test_test_input() {
-    let path = Path::new("../_04_tests/test_input.py");
+    let path = Path::new("src/_07_python/test_inputs/test_input.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses(&combinator, &file, "Actual Python file");
@@ -186,7 +186,7 @@ fn test_test_input() {
 
 #[test]
 fn test_test_input_fast() {
-    let path = Path::new("../_04_tests/test_input.py");
+    let path = Path::new("src/_07_python/test_inputs/test_input.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses_fast(&combinator, &file);
@@ -194,7 +194,7 @@ fn test_test_input_fast() {
 
 #[test]
 fn test_test_input_one_shot() {
-    let path = Path::new("../_04_tests/test_input.py");
+    let path = Path::new("src/_07_python/test_inputs/test_input.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses_one_shot_with_result(&combinator, &file, Err(UnambiguousParseError::Incomplete));
@@ -202,7 +202,7 @@ fn test_test_input_one_shot() {
 
 #[test]
 fn test_test_input2() {
-    let path = Path::new("../_04_tests/test_input2.py");
+    let path = Path::new("src/_07_python/test_inputs/test_input2.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses_default(&combinator, &file);
@@ -211,7 +211,7 @@ fn test_test_input2() {
 
 #[test]
 fn test_test_input_fast2() {
-    let path = Path::new("../_04_tests/test_input2.py");
+    let path = Path::new("src/_07_python/test_inputs/test_input2.py");
     let file = std::fs::read_to_string(path).unwrap();
     let combinator = python_file();
     assert_parses_fast(&combinator, &file);
@@ -225,9 +225,9 @@ fn test_actual_python_file() {
         // ("Simple string", "x = 12\nx = 2\nx"),
         // ("dump_python_gram.py", include_str!("dump_python_gram.py")),
         ("grammar_analysis.py", include_str!("grammar_analysis.py")),
-        // ("test_input.py", include_str!("test_inputs/test_input.py")),
-        // ("test_input2.py", include_str!("test_inputs/test_input2.py")),
-        // ("test_input3.py", include_str!("test_inputs/test_input3.py")),
+        // ("test_input.py", include_str!("src/_07_python/test_inputs/test_input.py")),
+        // ("test_input2.py", include_str!("src/_07_python/test_inputs/test_input2.py")),
+        // ("test_input3.py", include_str!("src/_07_python/test_inputs/test_input3.py")),
     ];
 
     for (name, content) in test_cases.iter() {
@@ -264,10 +264,10 @@ fn test_actual_python_file_fast() {
         // ("Simple string", "x = 12\nx = 2\nx"),
         // ("dump_python_gram.py", include_str!("dump_python_gram.py")),
         ("grammar_analysis.py", include_str!("grammar_analysis.py")),
-        // ("test_input.py", include_str!("test_inputs/test_input.py")),
-        // ("test_input2.py", include_str!("test_inputs/test_input2.py")),
-        // ("test_input3.py", include_str!("test_inputs/test_input3.py")),
-        // ("test_input_simplified.py", include_str!("test_inputs/test_input_simplified.py")),
+        // ("test_input.py", include_str!("src/_07_python/test_inputs/test_input.py")),
+        // ("test_input2.py", include_str!("src/_07_python/test_inputs/test_input2.py")),
+        // ("test_input3.py", include_str!("src/_07_python/test_inputs/test_input3.py")),
+        // ("test_input_simplified.py", include_str!("src/_07_python/test_inputs/test_input_simplified.py")),
     ];
 
     for (name, content) in test_cases.iter() {
@@ -287,10 +287,10 @@ fn test_actual_python_file_one_shot() {
         // ("Simple import", "from x import y\n\nimport z\nimport a.b.c\n"),
         // ("dump_python_gram.py", include_str!("dump_python_gram.py")),
         ("grammar_analysis.py", include_str!("grammar_analysis.py")),
-        // ("test_input.py", include_str!("test_inputs/test_input.py")),
-        // ("test_input2.py", include_str!("test_inputs/test_input2.py")),
-        // ("test_input3.py", include_str!("test_inputs/test_input3.py")),
-        // ("test_input_simplified.py", include_str!("test_inputs/test_input_simplified.py")),
+        // ("test_input.py", include_str!("src/_07_python/test_inputs/test_input.py")),
+        // ("test_input2.py", include_str!("src/_07_python/test_inputs/test_input2.py")),
+        // ("test_input3.py", include_str!("src/_07_python/test_inputs/test_input3.py")),
+        // ("test_input_simplified.py", include_str!("src/_07_python/test_inputs/test_input_simplified.py")),
     ];
 
     for (name, content) in test_cases.iter() {
@@ -348,7 +348,7 @@ fn test_indents() {
 #[test]
 fn test_explosion_please() {
     let combinator = python_file();
-    let path = Path::new("../_04_tests/test_input.py");
+    let path = Path::new("src/_07_python/test_inputs/test_input.py");
     let s = std::fs::read_to_string(path).unwrap();
     assert_parses(&combinator, &s, "Test input");
 }
