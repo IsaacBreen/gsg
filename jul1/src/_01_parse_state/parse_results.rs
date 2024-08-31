@@ -1,5 +1,5 @@
 use crate::internal_vec::VecY;
-use crate::{vecy, RightData, RightDataGetters};
+use crate::{vecy, Fields1, Fields2, RightData, RightDataGetters};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UpData {
@@ -169,4 +169,25 @@ impl ParseResultTrait for UnambiguousParseResults {
         // This is a bit of a hack, but it should work
         *self = self.clone().merge(p0);
     }
+}
+
+impl RightDataGetters for UpData {
+    fn get_fields1(&self) -> &Fields1 { self.right_data.get_fields1() }
+    fn get_fields1_mut(&mut self) -> &mut Fields1 { self.right_data.get_fields1_mut() }
+    fn get_fields2(&self) -> &Fields2 { self.right_data.get_fields2() }
+    fn get_fields2_mut(&mut self) -> &mut Fields2 { self.right_data.get_fields2_mut() }
+}
+
+impl RightDataGetters for OneShotUpData {
+    fn get_fields1(&self) -> &Fields1 { self.right_data.get_fields1() }
+    fn get_fields1_mut(&mut self) -> &mut Fields1 { self.right_data.get_fields1_mut() }
+    fn get_fields2(&self) -> &Fields2 { self.right_data.get_fields2() }
+    fn get_fields2_mut(&mut self) -> &mut Fields2 { self.right_data.get_fields2_mut() }
+}
+
+impl RightDataGetters for DownData {
+    fn get_fields1(&self) -> &Fields1 { self.right_data.get_fields1() }
+    fn get_fields1_mut(&mut self) -> &mut Fields1 { self.right_data.get_fields1_mut() }
+    fn get_fields2(&self) -> &Fields2 { self.right_data.get_fields2() }
+    fn get_fields2_mut(&mut self) -> &mut Fields2 { self.right_data.get_fields2_mut() }
 }
