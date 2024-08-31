@@ -38,14 +38,14 @@ impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
         let start_position = down_data.right_data.get_fields1().position;
         match self.inner.one_shot_parse(down_data, bytes) {
-            Ok(OneShotUpData { right_data }) => {
-                let end_position = right_data.get_fields1().position;
+            Ok(one_shot_up_data) => {
+                let end_position = one_shot_up_data.get_fields1().position;
                 let mut regex_state = self.regex.init();
                 regex_state.execute(&bytes[..(end_position - start_position)]);
                 if regex_state.fully_matches_here() {
                     return Err(UnambiguousParseError::Fail);
                 } else {
-                    Ok(OneShotUpData::new(right_data))
+                    Ok(one_shot_up_data)
                 }
             },
             Err(err) => Err(err),

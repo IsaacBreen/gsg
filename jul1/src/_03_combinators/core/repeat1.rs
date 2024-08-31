@@ -46,12 +46,12 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
             let offset = right_data.get_fields1().position - start_position;
             let parse_result = self.a.one_shot_parse(DownData { right_data }, &bytes[offset..]);
             match parse_result {
-                Ok(OneShotUpData { right_data: new_right_data }) => {
+                Ok(one_shot_up_data) => {
                     if !self.greedy && prev_parse_result.is_ok() {
                         return Err(UnambiguousParseError::Ambiguous);
                     }
-                    prev_parse_result = Ok(OneShotUpData { right_data: new_right_data.clone() });
-                    right_data = new_right_data;
+                    right_data = one_shot_up_data.clone().just_right_data();
+                    prev_parse_result = Ok(one_shot_up_data);
                 }
                 Err(UnambiguousParseError::Fail) => {
                     return prev_parse_result;
@@ -72,24 +72,24 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
             let offset = right_data.get_fields1().position - start_position;
             let parse_result = self.a.one_shot_parse(DownData { right_data: right_data.clone() }, &bytes[offset..]);
             match parse_result {
-                Ok(OneShotUpData { right_data: new_right_data }) => {
+                Ok(one_shot_up_data) => {
                     if !self.greedy && prev_parse_result.is_ok() {
                         let (parser, mut parse_results_rest) = self.old_parse(DownData { right_data: right_data.clone() }, &bytes[offset..]);
                         let prev_right_data = parse_results_rest.up_data_vec.pop().unwrap().just_right_data();
-                        parse_results_rest.up_data_vec.push(UpData::new(right_data));
+                        parse_results_rest.up_data_vec.push(UpData::new(prev_right_data));
                         return (parser, parse_results_rest);
                     }
-                    prev_parse_result = Ok(OneShotUpData { right_data: new_right_data.clone() });
-                    right_data = new_right_data;
+                    right_data = one_shot_up_data.clone().just_right_data();
+                    prev_parse_result = Ok(one_shot_up_data);
                 }
                 Err(UnambiguousParseError::Fail) => {
-                    if let Ok(OneShotUpData { right_data: prev_right_data }) = prev_parse_result {
+                    if let Ok(one_shot_up_data) = prev_parse_result {
                         return (Repeat1Parser {
                             a: &self.a,
                             a_parsers: vec![],
                             position: start_position + bytes.len(),
                             greedy: self.greedy
-                        }, ParseResults::new_single(UpData::new(prev_right_data), true));
+                        }, ParseResults::new_single(UpData::new(one_shot_up_data.just_right_data()), true));
                     } else {
                         return (Repeat1Parser {
                             a: &self.a,
@@ -101,15 +101,15 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
                 }
                 Err(UnambiguousParseError::Ambiguous) => {
                     let (parser, mut parse_results_rest) = self.old_parse(DownData { right_data }, &bytes[offset..]);
-                    if let Ok(OneShotUpData { right_data: prev_right_data }) = prev_parse_result {
-                        parse_results_rest.up_data_vec.push(UpData::new(prev_right_data));
+                    if let Ok(one_shot_up_data) = prev_parse_result {
+                        parse_results_rest.up_data_vec.push(UpData::new(one_shot_up_data.just_right_data()));
                     }
                     return (parser, parse_results_rest);
                 }
                 Err(UnambiguousParseError::Incomplete) => {
                     let (parser, mut parse_results_rest) = self.old_parse(DownData { right_data }, &bytes[offset..]);
-                    if let Ok(OneShotUpData { right_data: prev_right_data }) = prev_parse_result {
-                        parse_results_rest.up_data_vec.push(UpData::new(prev_right_data));
+                    if let Ok(one_shot_up_data) = prev_parse_result {
+                        parse_results_rest.up_data_vec.push(UpData::new(one_shot_up_data.just_right_data()));
                     }
                     return (parser, parse_results_rest);
                 }

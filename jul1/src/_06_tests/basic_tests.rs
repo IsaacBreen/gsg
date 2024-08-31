@@ -67,7 +67,7 @@ fn test_repeat1_greedy() {
     let combinator = seq!(repeat1_greedy(eat_char('a')), eat_char('b'));
     assert_parses_default(&combinator, "aaab");
     assert_parses_fast(&combinator, "aaab");
-    assert_parses_one_shot_with_result(&combinator, "aaab", Ok(OneShotUpData { right_data: RightData::default().with_position(4) }));
+    assert_parses_one_shot_with_result(&combinator, "aaab", Ok(OneShotUpData::new(RightData::default().with_position(4))));
 }
 
 #[test]

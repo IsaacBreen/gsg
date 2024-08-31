@@ -83,8 +83,8 @@ macro_rules! define_seq {
                 let start_position = right_data.get_fields1().position;
                 let result = self.$first.one_shot_parse(DownData { right_data }, bytes);
                 match result {
-                    Ok(OneShotUpData { right_data: new_right_data }) => {
-                        right_data = new_right_data;
+                    Ok(one_shot_up_data) => {
+                        right_data = one_shot_up_data.just_right_data();
                     },
                     Err(err) => {
                         return Err(err);
@@ -94,8 +94,8 @@ macro_rules! define_seq {
                     let offset = right_data.get_fields1().position - start_position;
                     let result = self.$rest.one_shot_parse(DownData { right_data }, &bytes[offset..]);
                     match result {
-                        Ok(OneShotUpData { right_data: new_right_data }) => {
-                            right_data = new_right_data;
+                        Ok(one_shot_up_data) => {
+                            right_data = one_shot_up_data.just_right_data();
                         },
                         Err(err) => {
                             return Err(err);

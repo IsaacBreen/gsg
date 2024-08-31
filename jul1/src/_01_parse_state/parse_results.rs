@@ -8,7 +8,7 @@ pub struct UpData {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OneShotUpData {
-    pub right_data: RightData,
+    right_data: RightData,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

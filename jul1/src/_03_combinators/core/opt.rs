@@ -29,7 +29,7 @@ impl<T: CombinatorTrait> CombinatorTrait for Opt<T> {
         let parse_result = self.inner.one_shot_parse(down_data.clone(), bytes);
         if self.greedy {
             match parse_result {
-                Ok(OneShotUpData { right_data }) => Ok(OneShotUpData::new(right_data)),
+                Ok(one_shot_up_data) => Ok(OneShotUpData::new(one_shot_up_data.just_right_data())),
                 Err(UnambiguousParseError::Fail) => Ok(OneShotUpData::new(down_data.right_data)),
                 Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => parse_result,
             }
