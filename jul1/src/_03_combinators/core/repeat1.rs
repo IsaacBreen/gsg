@@ -40,10 +40,10 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut right_data = down_data.right_data;
-        let start_position = right_data.right_data_inner.fields1.position;
+        let start_position = right_data.right_data_inner.get_fields1().position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
-            let offset = right_data.right_data_inner.fields1.position - start_position;
+            let offset = right_data.right_data_inner.get_fields1().position - start_position;
             let parse_result = self.a.one_shot_parse(DownData { right_data }, &bytes[offset..]);
             match parse_result {
                 Ok(OneShotUpData { right_data: new_right_data }) => {
@@ -66,10 +66,10 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
     fn parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         // return self.old_parse(down_data, bytes);
         let mut right_data = down_data.right_data;
-        let start_position = right_data.right_data_inner.fields1.position;
+        let start_position = right_data.right_data_inner.get_fields1().position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
-            let offset = right_data.right_data_inner.fields1.position - start_position;
+            let offset = right_data.right_data_inner.get_fields1().position - start_position;
             let parse_result = self.a.one_shot_parse(DownData { right_data: right_data.clone() }, &bytes[offset..]);
             match parse_result {
                 Ok(OneShotUpData { right_data: new_right_data }) => {
@@ -118,7 +118,7 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
     }
 
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let start_position = down_data.right_data.right_data_inner.fields1.position;
+        let start_position = down_data.right_data.right_data_inner.get_fields1().position;
         let (parser, parse_results) = self.a.parse(down_data, bytes);
         if parse_results.done() && parse_results.up_data_vec.is_empty() {
             // Shortcut
@@ -149,7 +149,7 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
             for UpData { right_data: new_right_data } in std::mem::take(&mut next_up_data) {
                 #[cfg(feature = "debug")]
                 let new_right_data2 = new_right_data.clone();
-                let offset = new_right_data.right_data_inner.fields1.position - start_position;
+                let offset = new_right_data.right_data_inner.get_fields1().position - start_position;
                 let (parser, parse_results) = self.a.parse(DownData { right_data: new_right_data }, &bytes[offset..]);
                 if !parse_results.done() {
                     parsers.push(parser);
@@ -172,8 +172,8 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
             }
             if !up_data_vec.is_empty() && !next_up_data.is_empty() {
                 let end_pos = start_position + bytes.len();
-                let pos1 = up_data_vec[0].right_data.right_data_inner.fields1.position;
-                let pos2 = next_up_data[0].right_data.right_data_inner.fields1.position;
+                let pos1 = up_data_vec[0].right_data.right_data_inner.get_fields1().position;
+                let pos2 = next_up_data[0].right_data.right_data_inner.get_fields1().position;
                 if end_pos < pos1 + 1000 || end_pos < pos2 + 1000 {
                     up_data_vec.clear();
                 }
@@ -233,7 +233,7 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait {
         let mut i = 0;
         while i < up_data_as.len() {
             let UpData { right_data: right_data_a } = up_data_as[i].clone();
-            let offset = right_data_a.right_data_inner.fields1.position - self.position;
+            let offset = right_data_a.right_data_inner.get_fields1().position - self.position;
             let (a_parser, parse_results) = self.a.parse(DownData { right_data: right_data_a }, &bytes[offset..]);
             if !parse_results.done() {
                 self.a_parsers.push(a_parser);

@@ -72,7 +72,7 @@ impl<T: CombinatorTrait> CombinatorTrait for Lookahead<T> {
         };
         if succeeds {
             if !parse_results.done() {
-                    down_data.right_data.get_inner_mut().fields1.lookahead_data.has_omitted_partial_lookaheads = true;
+                    down_data.right_data.get_inner_mut().get_fields1_mut().lookahead_data.has_omitted_partial_lookaheads = true;
             }
             (FailParser, ParseResults::new_single(UpData { right_data: down_data.right_data }, true))
         } else {

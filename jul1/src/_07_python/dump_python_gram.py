@@ -273,8 +273,8 @@ def grammar_to_rust(
             textwrap.dedent(
                 """
             pub fn python_literal(s: &str) -> impl CombinatorTrait {
-                let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count += 1; true };
-                let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).fields1.scope_count -= 1; true };
+                let increment_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).get_fields1().scope_count += 1; true };
+                let decrement_scope_count = |right_data: &mut RightData| { Rc::make_mut(&mut right_data.right_data_inner).get_fields1().scope_count -= 1; true };
 
                 match s {
                     "(" | "[" | "{" => seq!(eat_string(s), mutate_right_data(increment_scope_count), forbid_follows_clear(), opt(deferred(WS))).into_dyn(),

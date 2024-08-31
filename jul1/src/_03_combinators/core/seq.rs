@@ -43,9 +43,9 @@ impl CombinatorTrait for Seq<'_> {
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut right_data = down_data.right_data;
-        let start_position = right_data.right_data_inner.fields1.position;
+        let start_position = right_data.right_data_inner.get_fields1().position;
         for combinator in self.children.iter() {
-            let offset = right_data.right_data_inner.fields1.position - start_position;
+            let offset = right_data.right_data_inner.get_fields1().position - start_position;
             let result = combinator.one_shot_parse(DownData { right_data }, &bytes[offset..]);
             match result {
                 Ok(OneShotUpData { right_data: new_right_data }) => {
@@ -60,7 +60,7 @@ impl CombinatorTrait for Seq<'_> {
     }
 
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let start_position = down_data.right_data.right_data_inner.fields1.position;
+        let start_position = down_data.right_data.right_data_inner.get_fields1().position;
 
         let mut combinator_index = self.start_index;
 
@@ -99,7 +99,7 @@ impl CombinatorTrait for Seq<'_> {
         combinator_index += 1;
 
         let mut helper = |down_data: DownData, combinator_index: usize| {
-            let offset = down_data.right_data.right_data_inner.fields1.position - start_position;
+            let offset = down_data.right_data.right_data_inner.get_fields1().position - start_position;
             let combinator = &self.children[combinator_index];
             let (parser, parse_results) = profile!("seq other child parse", {
                 combinator.parse(down_data, &bytes[offset..])
@@ -203,7 +203,7 @@ impl ParserTrait for SeqParser<'_> {
         while let Some((combinator_index, up_data_vec)) = parser_initialization_queue.pop_first() {
             // for right_data in right_data_squasher.finish() {
             for up_data in up_data_vec {
-                let offset = up_data.right_data.right_data_inner.fields1.position - self.position;
+                let offset = up_data.right_data.right_data_inner.get_fields1().position - self.position;
                 let combinator = &self.combinators[combinator_index];
                 let (parser, parse_results) = profile!("SeqParser::parse child Combinator::parse", {
                     combinator.parse(DownData { right_data: up_data.right_data }, &bytes[offset..])

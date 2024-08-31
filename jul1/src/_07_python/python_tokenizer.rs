@@ -70,7 +70,7 @@ pub fn whitespace()-> impl CombinatorTrait {
             repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n"]))
         ),
         seq!(
-            check_right_data(|right_data| right_data.right_data_inner.fields1.scope_count > 0),
+            check_right_data(|right_data| right_data.right_data_inner.get_fields1().scope_count > 0),
             repeat1_fast(eat_string_choice_fast(&[" ", "\t", "\\\n", "\n", "\r"]))
         ),
     )
@@ -783,15 +783,15 @@ pub fn FSTRING_MIDDLE()-> impl CombinatorTrait {
 
     choice_greedy!(
         seq!(
-            check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() == PythonQuoteType::OneSingle }),
+            check_right_data(|right_data| { *right_data.right_data_inner.get_fields2().fstring_start_stack.last().unwrap() == PythonQuoteType::OneSingle }),
             one_single,
         ),
         seq!(
-            check_right_data(|right_data| { *right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap() == PythonQuoteType::OneDouble }),
+            check_right_data(|right_data| { *right_data.right_data_inner.get_fields2().fstring_start_stack.last().unwrap() == PythonQuoteType::OneDouble }),
             one_double,
         ),
         seq!(
-            check_right_data(|right_data| { matches!(right_data.right_data_inner.fields2.fstring_start_stack.last().unwrap(), PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble) }),
+            check_right_data(|right_data| { matches!(right_data.right_data_inner.get_fields2().fstring_start_stack.last().unwrap(), PythonQuoteType::ThreeSingle | PythonQuoteType::ThreeDouble) }),
             three,
         ),
     )

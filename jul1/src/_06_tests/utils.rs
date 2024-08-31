@@ -133,9 +133,9 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
 
     let max_position = parse_results.up_data_vec
         .iter()
-        .max_by_key(|up_data| up_data.right_data.right_data_inner.fields1.position)
+        .max_by_key(|up_data| up_data.right_data.right_data_inner.get_fields1().position)
         .expect("Expected at least one right data.")
-        .right_data.right_data_inner.fields1.position;
+        .right_data.right_data_inner.get_fields1().position;
 
     let (line_number, char_number) = calculate_line_and_char_number(&bytes, max_position);
 
@@ -146,9 +146,9 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     println!("max_position: {max_position}, line_number: {line_number}, char_number: {char_number}");
     assert!(parse_results.up_data_vec
         .iter()
-        .max_by_key(|up_data| up_data.right_data.right_data_inner.fields1.position)
+        .max_by_key(|up_data| up_data.right_data.right_data_inner.get_fields1().position)
         .expect("Expected at least one right data.")
-        .right_data.right_data_inner.fields1.position == bytes.len(),
+        .right_data.right_data_inner.get_fields1().position == bytes.len(),
         "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
 }
 
@@ -159,9 +159,9 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
 
     let max_position = parse_results.up_data_vec
         .iter()
-        .max_by_key(|up_data| up_data.right_data.right_data_inner.fields1.position)
+        .max_by_key(|up_data| up_data.right_data.right_data_inner.get_fields1().position)
         .expect("Expected at least one right data.")
-        .right_data.right_data_inner.fields1.position;
+        .right_data.right_data_inner.get_fields1().position;
 
     let (line_number, char_number) = calculate_line_and_char_number(&bytes, max_position);
 
@@ -169,9 +169,9 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
 
     assert!(parse_results.up_data_vec
         .iter()
-        .max_by_key(|up_data| up_data.right_data.right_data_inner.fields1.position)
+        .max_by_key(|up_data| up_data.right_data.right_data_inner.get_fields1().position)
         .expect("Expected at least one right data.")
-        .right_data.right_data_inner.fields1.position >= bytes.len().saturating_sub(tolerance),
+        .right_data.right_data_inner.get_fields1().position >= bytes.len().saturating_sub(tolerance),
         "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
 }
 
@@ -185,14 +185,14 @@ pub fn assert_parses_one_shot<T: CombinatorTrait, S: ToString>(combinator: &T, i
     let duration = start.elapsed();
     println!("assert_parses_fast parse took {:?}", duration);
 
-    let max_position = one_shot_up_data.right_data.right_data_inner.fields1.position;
+    let max_position = one_shot_up_data.right_data.right_data_inner.get_fields1().position;
     let (line_number, char_number) = calculate_line_and_char_number(&bytes, max_position);
 
     print_profile_results();
 
     println!("max_position: {max_position}, line_number: {line_number}, char_number: {char_number}");
 
-    assert!(one_shot_up_data.right_data.right_data_inner.fields1.position == bytes.len(),
+    assert!(one_shot_up_data.right_data.right_data_inner.get_fields1().position == bytes.len(),
         "Expected parser to finish with right data at the end position {}. right_data: {:?}", bytes.len(), one_shot_up_data);
 }
 
@@ -257,7 +257,7 @@ pub fn assert_fails_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input:
     let (mut parser, _) = combinator.parser(DownData { right_data: RightData::default() });
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let parse_results = parser.parse(&bytes);
-    assert!(parse_results.done() && parse_results.up_data_vec.iter().max_by_key(|up_data| up_data.right_data.right_data_inner.fields1.position).map_or(true, |up_data| up_data.right_data.right_data_inner.fields1.position == bytes.len()), "Expected parser to fail at the end. parse_results: {:?}", parse_results);
+    assert!(parse_results.done() && parse_results.up_data_vec.iter().max_by_key(|up_data| up_data.right_data.right_data_inner.get_fields1().position).map_or(true, |up_data| up_data.right_data.right_data_inner.get_fields1().position == bytes.len()), "Expected parser to fail at the end. parse_results: {:?}", parse_results);
 }
 
 // Helper functions to reduce code duplication

@@ -36,10 +36,10 @@ impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
     type PartialOutput = T::PartialOutput;
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        let start_position = down_data.right_data.right_data_inner.fields1.position;
+        let start_position = down_data.right_data.right_data_inner.get_fields1().position;
         match self.inner.one_shot_parse(down_data, bytes) {
             Ok(OneShotUpData { right_data }) => {
-                let end_position = right_data.right_data_inner.fields1.position;
+                let end_position = right_data.right_data_inner.get_fields1().position;
                 let mut regex_state = self.regex.init();
                 regex_state.execute(&bytes[..(end_position - start_position)]);
                 if regex_state.fully_matches_here() {
@@ -55,13 +55,13 @@ impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let (inner, mut parse_results) = self.inner.parse(down_data.clone(), bytes);
         let mut regex_state = self.regex.init();
-        let start_position = down_data.right_data.right_data_inner.fields1.position;
+        let start_position = down_data.right_data.right_data_inner.get_fields1().position;
 
         // Optimized logic
         let mut end_offsets_to_match = HashMap::new();
         let mut end_offsets = Vec::new();
         for UpData { right_data } in &parse_results.up_data_vec {
-            let end_offset = right_data.right_data_inner.fields1.position - start_position;
+            let end_offset = right_data.right_data_inner.get_fields1().position - start_position;
             end_offsets_to_match.insert(end_offset, false);
             end_offsets.push(end_offset);
         }
@@ -81,7 +81,7 @@ impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
         regex_state.execute(&bytes[offset..]);
 
         parse_results.up_data_vec.retain(|UpData { right_data }| {
-            let position = right_data.right_data_inner.fields1.position - start_position;
+            let position = right_data.right_data_inner.get_fields1().position - start_position;
             !end_offsets_to_match[&position]
         });
 
@@ -115,7 +115,7 @@ impl<T: CombinatorTrait> ParserTrait for ExcludeBytestringsParser<'_, T> {
         let mut end_offsets_to_match = HashMap::new();
         let mut end_offsets = Vec::new();
         for UpData { right_data } in &parse_results.up_data_vec {
-            let end_offset = right_data.right_data_inner.fields1.position - self.position;
+            let end_offset = right_data.right_data_inner.get_fields1().position - self.position;
             end_offsets_to_match.insert(end_offset, false);
             end_offsets.push(end_offset);
         }
@@ -135,7 +135,7 @@ impl<T: CombinatorTrait> ParserTrait for ExcludeBytestringsParser<'_, T> {
         self.regex_state.execute(&bytes[current_offset..]);
 
         parse_results.up_data_vec.retain(|UpData { right_data }| {
-            let position = right_data.right_data_inner.fields1.position - self.position;
+            let position = right_data.right_data_inner.get_fields1().position - self.position;
             !end_offsets_to_match[&position]
         });
 
