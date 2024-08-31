@@ -26,11 +26,11 @@ impl CombinatorTrait for Eps {
     type PartialOutput = ();
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        Ok(OneShotUpData::new(down_data.right_data))
+        Ok(OneShotUpData::new(down_data.just_right_data()))
     }
 
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        (EpsParser, ParseResults::new_single(UpData::new(down_data.right_data), true))
+        (EpsParser, ParseResults::new_single(UpData::new(down_data.just_right_data()), true))
     }
 }
 

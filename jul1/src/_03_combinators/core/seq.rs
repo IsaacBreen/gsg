@@ -42,11 +42,11 @@ impl CombinatorTrait for Seq<'_> {
     type PartialOutput = Vec<Option<Box<dyn std::any::Any>>>;
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        let mut right_data = down_data.right_data;
+        let mut right_data = down_data.just_right_data();
         let start_position = right_data.get_fields1().position;
         for combinator in self.children.iter() {
             let offset = right_data.get_fields1().position - start_position;
-            let result = combinator.one_shot_parse(DownData { right_data }, &bytes[offset..]);
+            let result = combinator.one_shot_parse(DownData::new(right_data), &bytes[offset..]);
             match result {
                 Ok(one_shot_up_data) => {
                     right_data = one_shot_up_data.just_right_data();
@@ -60,7 +60,7 @@ impl CombinatorTrait for Seq<'_> {
     }
 
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let start_position = down_data.right_data.get_fields1().position;
+        let start_position = down_data.get_fields1().position;
 
         let mut combinator_index = self.start_index;
 
@@ -99,7 +99,7 @@ impl CombinatorTrait for Seq<'_> {
         combinator_index += 1;
 
         let mut helper = |down_data: DownData, combinator_index: usize| {
-            let offset = down_data.right_data.get_fields1().position - start_position;
+            let offset = down_data.get_fields1().position - start_position;
             let combinator = &self.children[combinator_index];
             let (parser, parse_results) = profile!("seq other child parse", {
                 combinator.parse(down_data, &bytes[offset..])
@@ -118,11 +118,11 @@ impl CombinatorTrait for Seq<'_> {
         while combinator_index < self.children.len() && !next_up_data_vec.is_empty() {
             if next_up_data_vec.len() == 1 {
                 let up_data = next_up_data_vec.pop().unwrap();
-                next_up_data_vec = helper(DownData { right_data: up_data.just_right_data() }, combinator_index);
+                next_up_data_vec = helper(DownData::new(up_data.just_right_data()), combinator_index);
             } else {
                 let mut next_next_up_data_vec = VecY::new();
                 for up_data in next_up_data_vec {
-                    next_next_up_data_vec.extend(helper(DownData { right_data: up_data.just_right_data() }, combinator_index));
+                    next_next_up_data_vec.extend(helper(DownData::new(up_data.just_right_data()), combinator_index));
                 }
                 next_up_data_vec = next_next_up_data_vec;
             }
@@ -206,7 +206,7 @@ impl ParserTrait for SeqParser<'_> {
                 let offset = up_data.get_fields1().position - self.position;
                 let combinator = &self.combinators[combinator_index];
                 let (parser, parse_results) = profile!("SeqParser::parse child Combinator::parse", {
-                    combinator.parse(DownData { right_data: up_data.just_right_data() }, &bytes[offset..])
+                    combinator.parse(DownData::new(up_data.just_right_data()), &bytes[offset..])
                 });
                 if !parse_results.done() {
                     self.parsers.push((combinator_index, parser));

@@ -36,7 +36,7 @@ impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
     type PartialOutput = T::PartialOutput;
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        let start_position = down_data.right_data.get_fields1().position;
+        let start_position = down_data.get_fields1().position;
         match self.inner.one_shot_parse(down_data, bytes) {
             Ok(one_shot_up_data) => {
                 let end_position = one_shot_up_data.get_fields1().position;
@@ -55,7 +55,7 @@ impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let (inner, mut parse_results) = self.inner.parse(down_data.clone(), bytes);
         let mut regex_state = self.regex.init();
-        let start_position = down_data.right_data.get_fields1().position;
+        let start_position = down_data.get_fields1().position;
 
         // Optimized logic
         let mut end_offsets_to_match = HashMap::new();

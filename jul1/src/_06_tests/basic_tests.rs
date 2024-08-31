@@ -235,7 +235,7 @@ fn test_autoparse() {
         eat_string("abcxx"),
         eat_string("abcyy"),
     );
-    let (mut parser, _) = combinator.parser(DownData { right_data: RightData::default() });
-    let (prefix, parse_results) = parser.autoparse(DownData { right_data: RightData::default() }, 10);
+    let (mut parser, _) = combinator.parser(DownData::new(RightData::default()));
+    let (prefix, parse_results) = parser.autoparse(DownData::new(RightData::default()), 10);
     assert_eq!(prefix, b"abc");
 }

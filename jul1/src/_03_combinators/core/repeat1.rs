@@ -39,12 +39,12 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
     type PartialOutput = Vec<T::PartialOutput>;
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        let mut right_data = down_data.right_data;
+        let mut right_data = down_data.just_right_data();
         let start_position = right_data.get_fields1().position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
             let offset = right_data.get_fields1().position - start_position;
-            let parse_result = self.a.one_shot_parse(DownData { right_data }, &bytes[offset..]);
+            let parse_result = self.a.one_shot_parse(DownData::new(right_data), &bytes[offset..]);
             match parse_result {
                 Ok(one_shot_up_data) => {
                     if !self.greedy && prev_parse_result.is_ok() {
@@ -65,16 +65,16 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
 
     fn parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         // return self.old_parse(down_data, bytes);
-        let mut right_data = down_data.right_data;
+        let mut right_data = down_data.just_right_data();
         let start_position = right_data.get_fields1().position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
             let offset = right_data.get_fields1().position - start_position;
-            let parse_result = self.a.one_shot_parse(DownData { right_data: right_data.clone() }, &bytes[offset..]);
+            let parse_result = self.a.one_shot_parse(DownData::new(right_data.clone()), &bytes[offset..]);
             match parse_result {
                 Ok(one_shot_up_data) => {
                     if !self.greedy && prev_parse_result.is_ok() {
-                        let (parser, mut parse_results_rest) = self.old_parse(DownData { right_data: right_data.clone() }, &bytes[offset..]);
+                        let (parser, mut parse_results_rest) = self.old_parse(DownData::new(right_data.clone()), &bytes[offset..]);
                         let prev_right_data = parse_results_rest.up_data_vec.pop().unwrap().just_right_data();
                         parse_results_rest.up_data_vec.push(UpData::new(prev_right_data));
                         return (parser, parse_results_rest);
@@ -100,14 +100,14 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
                     }
                 }
                 Err(UnambiguousParseError::Ambiguous) => {
-                    let (parser, mut parse_results_rest) = self.old_parse(DownData { right_data }, &bytes[offset..]);
+                    let (parser, mut parse_results_rest) = self.old_parse(DownData::new(right_data), &bytes[offset..]);
                     if let Ok(one_shot_up_data) = prev_parse_result {
                         parse_results_rest.up_data_vec.push(UpData::new(one_shot_up_data.just_right_data()));
                     }
                     return (parser, parse_results_rest);
                 }
                 Err(UnambiguousParseError::Incomplete) => {
-                    let (parser, mut parse_results_rest) = self.old_parse(DownData { right_data }, &bytes[offset..]);
+                    let (parser, mut parse_results_rest) = self.old_parse(DownData::new(right_data), &bytes[offset..]);
                     if let Ok(one_shot_up_data) = prev_parse_result {
                         parse_results_rest.up_data_vec.push(UpData::new(one_shot_up_data.just_right_data()));
                     }
@@ -118,7 +118,7 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
     }
 
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let start_position = down_data.right_data.get_fields1().position;
+        let start_position = down_data.get_fields1().position;
         let (parser, parse_results) = self.a.parse(down_data, bytes);
         if parse_results.done() && parse_results.up_data_vec.is_empty() {
             // Shortcut

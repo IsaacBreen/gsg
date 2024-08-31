@@ -51,7 +51,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
         if !regex_state.done() {
             Err(UnambiguousParseError::Incomplete)
         } else if let Some(new_match) = regex_state.prev_match() {
-            let mut right_data = down_data.right_data;
+            let mut right_data = down_data.just_right_data();
             let position = new_match.position;
             #[cfg(debug_assertions)]
             if position == 0 {
@@ -74,7 +74,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
             let mut up_data_vec: VecY<UpData> = vecy![];
             let done = regex_state.done();
             if let Some(new_match) = regex_state.prev_match() {
-                let mut right_data = down_data.right_data.clone();
+                let mut right_data = down_data.clone().just_right_data();
                 let position = new_match.position;
                 #[cfg(debug_assertions)]
                 if position == 0 {
@@ -110,7 +110,7 @@ fn parse(&mut self, bytes: &[u8]) -> ParseResults {
             let done = regex_state.done();
             if let Some(new_match) = regex_state.prev_match() {
                 if Some(new_match) != prev_match {
-                    let mut right_data = self.down_data.clone().unwrap().right_data;
+                    let mut right_data = self.down_data.clone().unwrap().just_right_data();
                     let position = new_match.position;
                     if position == 0 {
                         panic!("FastParserWrapper::parse: regex matched the empty string");

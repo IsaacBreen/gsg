@@ -49,13 +49,13 @@ impl<T: CombinatorTrait> CombinatorTrait for Lookahead<T> {
         let parse_result = self.combinator.one_shot_parse(down_data.clone(), bytes);
         if self.positive {
             match parse_result {
-                Ok(_) => Ok(OneShotUpData::new(down_data.right_data)),
+                Ok(_) => Ok(OneShotUpData::new(down_data.just_right_data())),
                 Err(_) => parse_result,
             }
         } else {
             match parse_result {
                 Ok(_) => Err(UnambiguousParseError::Fail),
-                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData::new(down_data.right_data)),
+                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData::new(down_data.just_right_data())),
                 Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete) => parse_result,
             }
         }
@@ -72,9 +72,9 @@ impl<T: CombinatorTrait> CombinatorTrait for Lookahead<T> {
         };
         if succeeds {
             if !parse_results.done() {
-                    down_data.right_data.get_inner_mut().get_fields1_mut().lookahead_data.has_omitted_partial_lookaheads = true;
+                    down_data.get_fields1_mut().lookahead_data.has_omitted_partial_lookaheads = true;
             }
-            (FailParser, ParseResults::new_single(UpData::new(down_data.right_data), true))
+            (FailParser, ParseResults::new_single(UpData::new(down_data.just_right_data()), true))
         } else {
             (FailParser, ParseResults::empty_finished())
         }

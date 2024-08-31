@@ -48,16 +48,16 @@ impl CombinatorTrait for CheckRightData {
     type PartialOutput = ();
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        if (self.run)(&down_data.right_data) {
-            Ok(OneShotUpData::new(down_data.right_data))
+        if (self.run)(&down_data.clone().just_right_data()) {
+            Ok(OneShotUpData::new(down_data.just_right_data()))
         } else {
             Err(UnambiguousParseError::Fail)
         }
     }
 
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        if (self.run)(&down_data.right_data) {
-            (FailParser, ParseResults::new_single(UpData::new(down_data.right_data), true))
+        if (self.run)(&down_data.clone().just_right_data()) {
+            (FailParser, ParseResults::new_single(UpData::new(down_data.just_right_data()), true))
         } else {
             (FailParser, ParseResults::empty_finished())
         }
@@ -116,7 +116,7 @@ impl CombinatorTrait for MutateRightData {
     type PartialOutput = ();
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        let mut right_data = down_data.right_data;
+        let mut right_data = down_data.just_right_data();
         if (self.run)(&mut right_data) {
             Ok(OneShotUpData::new(right_data))
         } else {
@@ -124,7 +124,7 @@ impl CombinatorTrait for MutateRightData {
         }
     }
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let mut right_data = down_data.right_data;
+        let mut right_data = down_data.just_right_data();
         if (self.run)(&mut right_data) {
             (FailParser, ParseResults::new_single(UpData::new(right_data), true))
         } else {

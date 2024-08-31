@@ -19,7 +19,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
 
     let mut timings = Vec::new();
 
-    let (mut parser, mut parse_results) = profile!("parser", combinator.parser(DownData { right_data: RightData::default() }));
+    let (mut parser, mut parse_results) = profile!("parser", combinator.parser(DownData::new(RightData::default())));
 
     let lines = input.lines().collect::<Vec<_>>();
     let num_lines = lines.len();
@@ -76,7 +76,7 @@ pub fn assert_parses_tight<T: CombinatorTrait, S: ToString>(combinator: &T, inpu
     let input = input.to_string();
     println!("beginning assert_parses_tight {}", desc);
 
-    let (mut parser, mut parse_results) = combinator.parser(DownData { right_data: RightData::default() });
+    let (mut parser, mut parse_results) = combinator.parser(DownData::new(RightData::default()));
 
     let lines = input.lines().collect::<Vec<_>>();
     let num_lines = lines.len();
@@ -111,7 +111,7 @@ pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, in
 pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     println!("beginning profile_parse");
 
-    let (mut parser, mut parse_results) = combinator.parser(DownData { right_data: RightData::default() });
+    let (mut parser, mut parse_results) = combinator.parser(DownData::new(RightData::default()));
 
     for byte in tqdm!(input.to_string().bytes(), animation = "fillup", position = 0) {
         parse_results = parser.step(byte);
@@ -125,7 +125,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start = Instant::now();
     let (parser, mut parse_results) = profile!("assert_parses_fast parse", {
-        combinator.parse(DownData { right_data: RightData::default() }, &bytes)
+        combinator.parse(DownData::new(RightData::default()), &bytes)
     });
     let duration = start.elapsed();
     println!("assert_parses_fast parse took {:?}", duration);
@@ -154,7 +154,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
 
 pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, tolerance: usize) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
-    let (parser, mut parse_results) = combinator.parse(DownData { right_data: RightData::default() }, &bytes);
+    let (parser, mut parse_results) = combinator.parse(DownData::new(RightData::default()), &bytes);
     parse_results.squash();
 
     let max_position = parse_results.up_data_vec
@@ -179,7 +179,7 @@ pub fn assert_parses_one_shot<T: CombinatorTrait, S: ToString>(combinator: &T, i
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start = Instant::now();
     let parse_results = profile!("assert_parses_fast parse", {
-        combinator.one_shot_parse(DownData { right_data: RightData::default() }, &bytes)
+        combinator.one_shot_parse(DownData::new(RightData::default()), &bytes)
     });
     let one_shot_up_data = parse_results.expect("Error parsing input.");
     let duration = start.elapsed();
@@ -200,7 +200,7 @@ pub fn assert_parses_one_shot_with_result<T: CombinatorTrait, S: ToString>(combi
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start = Instant::now();
     let parse_results = profile!("assert_parses_fast parse", {
-        combinator.one_shot_parse(DownData { right_data: RightData::default() }, &bytes)
+        combinator.one_shot_parse(DownData::new(RightData::default()), &bytes)
     });
     let duration = start.elapsed();
     println!("assert_parses_fast parse took {:?}", duration);
@@ -213,7 +213,7 @@ pub fn assert_parses_one_shot_with_result<T: CombinatorTrait, S: ToString>(combi
 pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     let input = input.to_string();
     println!("beginning assert_fails {}", desc);
-    let (mut parser, ParseResults { .. }) = combinator.parser(DownData { right_data: RightData::default() });
+    let (mut parser, ParseResults { .. }) = combinator.parser(DownData::new(RightData::default()));
 
     let lines = input.lines().collect::<Vec<_>>();
     let num_lines = lines.len();
@@ -254,7 +254,7 @@ pub fn assert_fails_default<T: CombinatorTrait, S: ToString>(combinator: &T, inp
 }
 
 pub fn assert_fails_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
-    let (mut parser, _) = combinator.parser(DownData { right_data: RightData::default() });
+    let (mut parser, _) = combinator.parser(DownData::new(RightData::default()));
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let parse_results = parser.parse(&bytes);
     assert!(parse_results.done() && parse_results.up_data_vec.iter().max_by_key(|up_data| up_data.get_fields1().position).map_or(true, |up_data| up_data.get_fields1().position == bytes.len()), "Expected parser to fail at the end. parse_results: {:?}", parse_results);
