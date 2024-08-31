@@ -120,7 +120,7 @@ macro_rules! define_choice {
             }
 
             fn old_parse<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
-                let start_position = down_data.right_data.right_data_inner.get_fields1().position;
+                let start_position = down_data.right_data.get_fields1().position;
 
                 let mut combined_results = ParseResults::empty_finished();
 

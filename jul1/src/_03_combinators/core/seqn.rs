@@ -80,7 +80,7 @@ macro_rules! define_seq {
 
             fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 let mut right_data = down_data.right_data;
-                let start_position = right_data.right_data_inner.get_fields1().position;
+                let start_position = right_data.get_fields1().position;
                 let result = self.$first.one_shot_parse(DownData { right_data }, bytes);
                 match result {
                     Ok(OneShotUpData { right_data: new_right_data }) => {
@@ -91,7 +91,7 @@ macro_rules! define_seq {
                     }
                 }
                 $(
-                    let offset = right_data.right_data_inner.get_fields1().position - start_position;
+                    let offset = right_data.get_fields1().position - start_position;
                     let result = self.$rest.one_shot_parse(DownData { right_data }, &bytes[offset..]);
                     match result {
                         Ok(OneShotUpData { right_data: new_right_data }) => {
@@ -106,7 +106,7 @@ macro_rules! define_seq {
             }
 
             fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-                let start_position = down_data.right_data.right_data_inner.get_fields1().position;
+                let start_position = down_data.right_data.get_fields1().position;
 
                 let first_combinator = &self.$first;
                 let (first_parser, first_parse_results) = profile!(stringify!($seq_name, " first child parse"), {
@@ -131,7 +131,7 @@ macro_rules! define_seq {
                 let mut next_up_data_vec = first_parse_results.up_data_vec;
 
                 fn helper<'a, T: CombinatorTrait>(down_data: DownData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (T::Parser<'a>, ParseResults) {
-                    let offset = down_data.right_data.right_data_inner.get_fields1().position - start_position;
+                    let offset = down_data.right_data.get_fields1().position - start_position;
                     profile!(stringify!($seq_name, " child parse"), {
                         next_combinator.parse(down_data, &bytes[offset..])
                     })
@@ -219,7 +219,7 @@ macro_rules! define_seq {
 
                         // new parsers for this child, one for each right_data emitted by the previous child
                         for up_data in up_data_to_init_this_child {
-                            let offset = up_data.right_data.right_data_inner.get_fields1().position - self.position;
+                            let offset = up_data.right_data.get_fields1().position - self.position;
                             let combinator = &self.combinator.$rest;
                             let (parser, parse_results) = profile!(stringify!($seq_parser_name, "::parse child Combinator::parse"), {
                                 combinator.parse(DownData { right_data: up_data.right_data }, &bytes[offset..])

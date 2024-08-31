@@ -109,7 +109,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
     }
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut right_data = down_data.right_data;
-        if right_data.right_data_inner.get_fields1().forbidden_consecutive_matches.prev_match_ids & self.match_ids != 0 {
+        if right_data.get_fields1().forbidden_consecutive_matches.prev_match_ids & self.match_ids != 0 {
             (FailParser, ParseResults::empty_finished())
         } else {
             right_data.get_inner_mut().get_fields1_mut().forbidden_consecutive_matches.prev_match_ids = 0;
