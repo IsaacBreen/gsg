@@ -58,7 +58,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
                 panic!("FastCombinatorWrapper::one_shot_parse: regex matched the empty string");
             }
             right_data.advance(position);
-            Ok(OneShotUpData { right_data })
+            Ok(OneShotUpData::new(right_data))
         } else {
             assert!(regex_state.failed());
             Err(UnambiguousParseError::Fail)
@@ -81,7 +81,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
                     panic!("FastCombinatorWrapper::old_parse: regex matched the empty string");
                 }
                 right_data.advance(position);
-                up_data_vec.push(UpData { right_data });
+                up_data_vec.push(UpData::new(right_data));
             }
             (FastParserWrapper { regex_state, down_data: Some(down_data) }, ParseResults::new(up_data_vec, done))
         }
@@ -116,7 +116,7 @@ fn parse(&mut self, bytes: &[u8]) -> ParseResults {
                         panic!("FastParserWrapper::parse: regex matched the empty string");
                     }
                     right_data.advance(position);
-                    up_data_vec.push(UpData { right_data });
+                    up_data_vec.push(UpData::new(right_data));
                 }
             }
             ParseResults::new(up_data_vec, done)

@@ -80,6 +80,7 @@ pub trait RightDataGetters {
     fn get_fields1_mut(&mut self) -> &mut Fields1;
     fn get_fields2(&self) -> &Fields2;
     fn get_fields2_mut(&mut self) -> &mut Fields2;
+    fn just_right_data(self) -> RightData;
 }
 
 impl RightDataGetters for RightDataInner {
@@ -100,6 +101,10 @@ impl RightDataGetters for RightDataInner {
         // &mut *self.fields2
         // &mut self.fields2
     }
+
+    fn just_right_data(self) -> RightData {
+        RightData { right_data_inner: Rc::new(self) }
+    }
 }
 
 impl RightDataGetters for RightData {
@@ -117,5 +122,9 @@ impl RightDataGetters for RightData {
 
     fn get_fields2_mut(&mut self) -> &mut Fields2 {
         Rc::make_mut(&mut self.right_data_inner).get_fields2_mut()
+    }
+
+    fn just_right_data(self) -> RightData {
+        RightData { right_data_inner: self.right_data_inner }
     }
 }

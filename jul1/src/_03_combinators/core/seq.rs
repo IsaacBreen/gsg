@@ -56,7 +56,7 @@ impl CombinatorTrait for Seq<'_> {
                 }
             }
         }
-        Ok(OneShotUpData { right_data })
+        Ok(OneShotUpData::new(right_data))
     }
 
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
@@ -118,11 +118,11 @@ impl CombinatorTrait for Seq<'_> {
         while combinator_index < self.children.len() && !next_up_data_vec.is_empty() {
             if next_up_data_vec.len() == 1 {
                 let up_data = next_up_data_vec.pop().unwrap();
-                next_up_data_vec = helper(DownData { right_data: up_data.right_data }, combinator_index);
+                next_up_data_vec = helper(DownData { right_data: up_data.just_right_data() }, combinator_index);
             } else {
                 let mut next_next_up_data_vec = VecY::new();
                 for up_data in next_up_data_vec {
-                    next_next_up_data_vec.extend(helper(DownData { right_data: up_data.right_data }, combinator_index));
+                    next_next_up_data_vec.extend(helper(DownData { right_data: up_data.just_right_data() }, combinator_index));
                 }
                 next_up_data_vec = next_next_up_data_vec;
             }
@@ -203,10 +203,10 @@ impl ParserTrait for SeqParser<'_> {
         while let Some((combinator_index, up_data_vec)) = parser_initialization_queue.pop_first() {
             // for right_data in right_data_squasher.finish() {
             for up_data in up_data_vec {
-                let offset = up_data.right_data.get_fields1().position - self.position;
+                let offset = up_data.get_fields1().position - self.position;
                 let combinator = &self.combinators[combinator_index];
                 let (parser, parse_results) = profile!("SeqParser::parse child Combinator::parse", {
-                    combinator.parse(DownData { right_data: up_data.right_data }, &bytes[offset..])
+                    combinator.parse(DownData { right_data: up_data.just_right_data() }, &bytes[offset..])
                 });
                 if !parse_results.done() {
                     self.parsers.push((combinator_index, parser));

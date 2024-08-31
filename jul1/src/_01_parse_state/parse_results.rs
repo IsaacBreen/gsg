@@ -3,7 +3,7 @@ use crate::{vecy, Fields1, Fields2, RightData, RightDataGetters};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UpData {
-    pub right_data: RightData,
+    right_data: RightData,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -171,11 +171,30 @@ impl ParseResultTrait for UnambiguousParseResults {
     }
 }
 
+impl UpData {
+    pub fn new(right_data: RightData) -> Self {
+        Self { right_data }
+    }
+}
+
+impl OneShotUpData {
+    pub fn new(right_data: RightData) -> Self {
+        Self { right_data }
+    }
+}
+
+impl DownData {
+    pub fn new(right_data: RightData) -> Self {
+        Self { right_data }
+    }
+}
+
 impl RightDataGetters for UpData {
     fn get_fields1(&self) -> &Fields1 { self.right_data.get_fields1() }
     fn get_fields1_mut(&mut self) -> &mut Fields1 { self.right_data.get_fields1_mut() }
     fn get_fields2(&self) -> &Fields2 { self.right_data.get_fields2() }
     fn get_fields2_mut(&mut self) -> &mut Fields2 { self.right_data.get_fields2_mut() }
+    fn just_right_data(self) -> RightData { self.right_data }
 }
 
 impl RightDataGetters for OneShotUpData {
@@ -183,6 +202,7 @@ impl RightDataGetters for OneShotUpData {
     fn get_fields1_mut(&mut self) -> &mut Fields1 { self.right_data.get_fields1_mut() }
     fn get_fields2(&self) -> &Fields2 { self.right_data.get_fields2() }
     fn get_fields2_mut(&mut self) -> &mut Fields2 { self.right_data.get_fields2_mut() }
+    fn just_right_data(self) -> RightData { self.right_data }
 }
 
 impl RightDataGetters for DownData {
@@ -190,4 +210,5 @@ impl RightDataGetters for DownData {
     fn get_fields1_mut(&mut self) -> &mut Fields1 { self.right_data.get_fields1_mut() }
     fn get_fields2(&self) -> &Fields2 { self.right_data.get_fields2() }
     fn get_fields2_mut(&mut self) -> &mut Fields2 { self.right_data.get_fields2_mut() }
+    fn just_right_data(self) -> RightData { self.right_data.just_right_data() }
 }

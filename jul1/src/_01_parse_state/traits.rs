@@ -105,7 +105,7 @@ impl RightDataSquasher {
             let mut result = VecY::new();
             for (mut right_data, lookahead_data) in self.decomposed {
                 right_data.get_inner_mut().get_fields1_mut().lookahead_data = lookahead_data;
-                result.push(UpData { right_data });
+                result.push(UpData::new(right_data));
             }
             result
         })

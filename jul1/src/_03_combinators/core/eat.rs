@@ -42,7 +42,7 @@ impl CombinatorTrait for EatU8 {
         let mut right_data = down_data.right_data;
         if self.u8set.contains(bytes[0]) {
             right_data.get_inner_mut().get_fields1_mut().position += 1;
-            Ok(OneShotUpData { right_data })
+            Ok(OneShotUpData::new(right_data))
         } else {
             ParseResultTrait::empty_finished()
         }
@@ -78,7 +78,7 @@ impl ParserTrait for EatU8Parser {
         let mut right_data = self.down_data.take().unwrap().right_data;
         if self.u8set.contains(bytes[0]) {
             right_data.get_inner_mut().get_fields1_mut().position += 1;
-            ParseResults::new_single(UpData { right_data }, true)
+            ParseResults::new_single(UpData::new(right_data), true)
         } else {
             ParseResults::empty_finished()
         }
@@ -185,7 +185,7 @@ impl CombinatorTrait for EatString {
         if self.string == bytes[..self.string.len()] {
             let mut right_data = down_data.right_data;
             right_data.get_inner_mut().get_fields1_mut().position += self.string.len();
-            Ok(OneShotUpData { right_data })
+            Ok(OneShotUpData::new(right_data))
         } else {
             Err(UnambiguousParseError::Fail)
         }
@@ -227,7 +227,7 @@ impl ParserTrait for EatStringParser<'_> {
                 if self.index == self.string.len() {
                     let mut right_data = self.down_data.take().expect("right_data already taken").right_data;
                     right_data.get_inner_mut().get_fields1_mut().position += self.string.len();
-                    up_data_vec.push(UpData { right_data });
+                    up_data_vec.push(UpData::new(right_data));
                     done = true;
                     break;
                 }

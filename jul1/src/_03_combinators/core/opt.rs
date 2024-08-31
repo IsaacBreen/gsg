@@ -29,14 +29,14 @@ impl<T: CombinatorTrait> CombinatorTrait for Opt<T> {
         let parse_result = self.inner.one_shot_parse(down_data.clone(), bytes);
         if self.greedy {
             match parse_result {
-                Ok(OneShotUpData { right_data }) => Ok(OneShotUpData { right_data }),
-                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData { right_data: down_data.right_data }),
+                Ok(OneShotUpData { right_data }) => Ok(OneShotUpData::new(right_data)),
+                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData::new(down_data.right_data)),
                 Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => parse_result,
             }
         } else {
             match parse_result {
                 Ok(_) => Err(UnambiguousParseError::Ambiguous),
-                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData { right_data: down_data.right_data }),
+                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData::new(down_data.right_data)),
                 Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => parse_result,
             }
         }
@@ -47,7 +47,7 @@ impl<T: CombinatorTrait> CombinatorTrait for Opt<T> {
         if !(self.greedy && parse_results.succeeds_decisively()) {
             // TODO: remove the condition below. It's a hack.
             // if parse_results.up_data_vec.is_empty() {  // TODO: remove this line
-                parse_results.up_data_vec.push(UpData { right_data: down_data.right_data });
+                parse_results.up_data_vec.push(UpData::new(down_data.right_data));
             // }
         }
         (parser, parse_results)

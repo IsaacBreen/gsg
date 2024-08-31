@@ -41,12 +41,12 @@ impl CombinatorTrait for ForbidFollows {
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut right_data = down_data.right_data;
         right_data.get_inner_mut().get_fields1_mut().forbidden_consecutive_matches.prev_match_ids = self.match_ids;
-        Ok(OneShotUpData { right_data })
+        Ok(OneShotUpData::new(right_data))
     }
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut right_data = down_data.right_data;
         right_data.get_inner_mut().get_fields1_mut().forbidden_consecutive_matches.prev_match_ids = self.match_ids;
-        (FailParser, ParseResults::new_single(UpData { right_data }, true))
+        (FailParser, ParseResults::new_single(UpData::new(right_data), true))
     }
 }
 
@@ -73,12 +73,12 @@ impl CombinatorTrait for ForbidFollowsClear {
     type PartialOutput = ();
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        Ok(OneShotUpData { right_data: down_data.right_data })
+        Ok(OneShotUpData::new(down_data.right_data))
     }
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut right_data = down_data.right_data;
         right_data.get_inner_mut().get_fields1_mut().forbidden_consecutive_matches.prev_match_ids = 0;
-        (FailParser, ParseResults::new_single(UpData { right_data }, true))
+        (FailParser, ParseResults::new_single(UpData::new(right_data), true))
     }
 }
 
@@ -105,7 +105,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
     type PartialOutput = ();
 
     fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        Ok(OneShotUpData { right_data: down_data.right_data })
+        Ok(OneShotUpData::new(down_data.right_data))
     }
     fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut right_data = down_data.right_data;
@@ -113,7 +113,7 @@ impl CombinatorTrait for ForbidFollowsCheckNot {
             (FailParser, ParseResults::empty_finished())
         } else {
             right_data.get_inner_mut().get_fields1_mut().forbidden_consecutive_matches.prev_match_ids = 0;
-            (FailParser, ParseResults::new_single(UpData { right_data }, true))
+            (FailParser, ParseResults::new_single(UpData::new(right_data), true))
         }
     }
 }

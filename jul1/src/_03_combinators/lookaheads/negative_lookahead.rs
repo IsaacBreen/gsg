@@ -45,7 +45,7 @@ impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
                 if regex_state.fully_matches_here() {
                     return Err(UnambiguousParseError::Fail);
                 } else {
-                    Ok(OneShotUpData { right_data })
+                    Ok(OneShotUpData::new(right_data))
                 }
             },
             Err(err) => Err(err),
@@ -60,8 +60,8 @@ impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
         // Optimized logic
         let mut end_offsets_to_match = HashMap::new();
         let mut end_offsets = Vec::new();
-        for UpData { right_data } in &parse_results.up_data_vec {
-            let end_offset = right_data.get_fields1().position - start_position;
+        for up_data in &parse_results.up_data_vec {
+            let end_offset = up_data.get_fields1().position - start_position;
             end_offsets_to_match.insert(end_offset, false);
             end_offsets.push(end_offset);
         }
@@ -80,8 +80,8 @@ impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
         // Run the regex to the end of the input
         regex_state.execute(&bytes[offset..]);
 
-        parse_results.up_data_vec.retain(|UpData { right_data }| {
-            let position = right_data.get_fields1().position - start_position;
+        parse_results.up_data_vec.retain(|up_data| {
+            let position = up_data.get_fields1().position - start_position;
             !end_offsets_to_match[&position]
         });
 
@@ -114,8 +114,8 @@ impl<T: CombinatorTrait> ParserTrait for ExcludeBytestringsParser<'_, T> {
         // Optimized logic
         let mut end_offsets_to_match = HashMap::new();
         let mut end_offsets = Vec::new();
-        for UpData { right_data } in &parse_results.up_data_vec {
-            let end_offset = right_data.get_fields1().position - self.position;
+        for up_data in &parse_results.up_data_vec {
+            let end_offset = up_data.get_fields1().position - self.position;
             end_offsets_to_match.insert(end_offset, false);
             end_offsets.push(end_offset);
         }
@@ -134,8 +134,8 @@ impl<T: CombinatorTrait> ParserTrait for ExcludeBytestringsParser<'_, T> {
         // Run the regex to the end of the input
         self.regex_state.execute(&bytes[current_offset..]);
 
-        parse_results.up_data_vec.retain(|UpData { right_data }| {
-            let position = right_data.get_fields1().position - self.position;
+        parse_results.up_data_vec.retain(|up_data| {
+            let position = up_data.get_fields1().position - self.position;
             !end_offsets_to_match[&position]
         });
 

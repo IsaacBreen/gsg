@@ -36,7 +36,7 @@ impl CombinatorTrait for Choice<'_> {
                 let parse_result = parser.one_shot_parse(down_data.clone(), bytes);
                 match parse_result {
                     Ok(OneShotUpData { right_data }) => {
-                        return Ok(OneShotUpData { right_data });
+                        return Ok(OneShotUpData::new(right_data));
                     }
                     Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => {
                         return parse_result;
@@ -62,7 +62,7 @@ impl CombinatorTrait for Choice<'_> {
                                 Err(UnambiguousParseError::Fail) => {}
                             }
                         }
-                        return Ok(OneShotUpData { right_data });
+                        return Ok(OneShotUpData::new(right_data));
                     }
                     Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => {
                         return parse_result;

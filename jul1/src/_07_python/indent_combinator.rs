@@ -124,16 +124,16 @@ impl CombinatorTrait for IndentCombinator {
                     let right_data_inner = down_data.right_data.get_inner_mut();
                     right_data_inner.get_fields1_mut().position += i;
                     right_data_inner.get_fields2_mut().indents.push(bytes[0..i].to_vec());
-                    (IndentCombinatorParser::IndentParser(Some(down_data.right_data.clone())), ParseResultTrait::new_single(UpData { right_data: down_data.right_data.clone() }, i < bytes.len()))
+                    (IndentCombinatorParser::IndentParser(Some(down_data.right_data.clone())), ParseResultTrait::new_single(UpData::new(down_data.right_data.clone()), i < bytes.len()))
                 }
             }
             IndentCombinator::Dedent if down_data.right_data.get_fields1().dedents > 0 => {
                 down_data.right_data.get_inner_mut().get_fields1_mut().dedents -= 1;
                 // println!("Decremented dedents to {}", down_data.right_data.right_data_inner.dedents);
-                (IndentCombinatorParser::Done, ParseResultTrait::new_single(UpData { right_data: down_data.right_data.clone() }, true))
+                (IndentCombinatorParser::Done, ParseResultTrait::new_single(UpData::new(down_data.right_data.clone()), true))
             }
             IndentCombinator::AssertNoDedents if down_data.right_data.get_fields1().dedents == 0 => {
-                (IndentCombinatorParser::Done, ParseResultTrait::new_single(UpData { right_data: down_data.right_data.clone() }, true))
+                (IndentCombinatorParser::Done, ParseResultTrait::new_single(UpData::new(down_data.right_data.clone()), true))
             }
             _ => (IndentCombinatorParser::Done, ParseResultTrait::empty_finished()),
         };
@@ -183,16 +183,16 @@ impl CombinatorTrait for IndentCombinator {
                     let right_data_inner = down_data.right_data.get_inner_mut();
                     right_data_inner.get_fields1_mut().position += i;
                     right_data_inner.get_fields2_mut().indents.push(bytes[0..i].to_vec());
-                    ParseResultTrait::new_single(UpData { right_data: down_data.right_data.clone() }, i < bytes.len())
+                    ParseResultTrait::new_single(UpData::new(down_data.right_data.clone()), i < bytes.len())
                 }
             }
             IndentCombinator::Dedent if down_data.right_data.get_fields1().dedents > 0 => {
                 down_data.right_data.get_inner_mut().get_fields1_mut().dedents -= 1;
                 // println!("Decremented dedents to {}", down_data.right_data.right_data_inner.dedents);
-                ParseResultTrait::new_single(UpData { right_data: down_data.right_data }, true)
+                ParseResultTrait::new_single(UpData::new(down_data.right_data), true)
             }
             IndentCombinator::AssertNoDedents if down_data.right_data.get_fields1().dedents == 0 => {
-                ParseResultTrait::new_single(UpData { right_data: down_data.right_data }, true)
+                ParseResultTrait::new_single(UpData::new(down_data.right_data), true)
             }
             _ => ParseResultTrait::empty_finished(),
         }
@@ -239,7 +239,7 @@ impl ParserTrait for IndentCombinatorParser<'_> {
                         let right_data_inner = right_data.get_inner_mut();
                         right_data_inner.get_fields1_mut().position += 1;
                         right_data_inner.get_fields2_mut().indents.last_mut().unwrap().push(byte);
-                        right_data_vec.push(UpData { right_data: right_data.clone() });
+                        right_data_vec.push(UpData::new(right_data.clone()));
                     } else {
                         maybe_right_data.take();
                         done = true;
