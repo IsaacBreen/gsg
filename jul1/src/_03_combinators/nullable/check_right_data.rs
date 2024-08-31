@@ -2,7 +2,7 @@
 // src/_03_combinators/nullable/check_right_data.rs
 // src/combinators/check_right_data.rs
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, ParserTrait, UnambiguousParseError, UnambiguousParseResults, DownData, UpData, OneShotUpData};
-use crate::{CombinatorTrait, FailParser, ParseResultTrait, ParseResults, RightData};
+use crate::{CombinatorTrait, FailParser, ParseResultTrait, ParseResults, RightData, RightDataGetters};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 

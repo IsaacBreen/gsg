@@ -1,4 +1,4 @@
-use crate::_01_parse_state::{ParseResultTrait, RightData, UpData};
+use crate::_01_parse_state::{ParseResultTrait, RightData, RightDataGetters, UpData};
 use crate::{profile_internal, BaseCombinatorTrait, CombinatorTrait, DynCombinatorTrait, ParseResults, ParserTrait, U8Set, UnambiguousParseError, UnambiguousParseResults, VecX, DownData, OneShotUpData};
 
 #[derive(Debug)]

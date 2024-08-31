@@ -1,5 +1,5 @@
 use crate::internal_vec::VecY;
-use crate::{vecy, RightData};
+use crate::{vecy, RightData, RightDataGetters};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UpData {

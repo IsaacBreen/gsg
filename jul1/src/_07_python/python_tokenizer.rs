@@ -1,4 +1,4 @@
-use crate::{dedent, dent, fast_combinator, indent, CombinatorTrait};
+use crate::{dedent, dent, fast_combinator, indent, CombinatorTrait, RightDataGetters};
 
 use crate::{check_right_data, choice_fast, choice_greedy, eat_bytestring_choice,
             eat_char, eat_char_choice, eat_char_negation_choice,

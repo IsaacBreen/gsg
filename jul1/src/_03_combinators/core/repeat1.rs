@@ -3,7 +3,7 @@
 // src/combinators/repeat1.rs
 use crate::{seq, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults, DownData, UpData, OneShotUpData};
 
-use crate::_01_parse_state::{ParseResultTrait, RightData};
+use crate::_01_parse_state::{ParseResultTrait, RightData, RightDataGetters};
 use crate::{profile_internal, vecy, CombinatorTrait, IntoCombinator, Opt, ParseResults, ParserTrait, Squash, U8Set, VecY};
 
 #[derive(Debug)]
@@ -219,7 +219,7 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait {
 
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut up_data_as = VecY::new();
-        // let mut up_data_as: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
+        // let mut up_data_as: BTreeMap<usize, RightData, RightDataGettersSquasher> = BTreeMap::new();
 
         self.a_parsers.retain_mut(|mut a_parser| {
             let parse_results = a_parser.parse(bytes);

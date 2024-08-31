@@ -1,6 +1,6 @@
 
 // src/_03_combinators/wrappers/symbol.rs
-use crate::{DownData, RightData};
+use crate::{DownData, RightData, RightDataGetters};
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use std::rc::Rc;
 

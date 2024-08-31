@@ -1,4 +1,4 @@
-use crate::RightData;
+use crate::{RightData, RightDataGetters};
 use crate::{profile, LookaheadData, ParseResultTrait, ParseResults, UpData, VecY};
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};

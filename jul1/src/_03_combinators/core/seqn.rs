@@ -1,6 +1,6 @@
 
 // src/_03_combinators/core/seqn.rs
-use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, Squash, U8Set, UnambiguousParseResults, VecY, DownData, UpData, OneShotUpData};
+use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, RightDataGetters, Squash, U8Set, UnambiguousParseResults, VecY, DownData, UpData, OneShotUpData};
 
 macro_rules! profile {
     ($name:expr, $expr:expr) => {

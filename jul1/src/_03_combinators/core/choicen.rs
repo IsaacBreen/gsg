@@ -1,6 +1,6 @@
 
 // src/_03_combinators/core/choicen.rs
-use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, Squash, U8Set, UnambiguousParseResults, UpData, DownData, OneShotUpData};
+use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, RightDataGetters, Squash, U8Set, UnambiguousParseResults, UpData, DownData, OneShotUpData};
 
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{

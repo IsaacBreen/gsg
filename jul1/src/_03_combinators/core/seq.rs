@@ -1,5 +1,5 @@
 
-use crate::RightData;
+use crate::{RightData, RightDataGetters};
 use crate::VecX;
 use crate::{profile_internal, CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set, VecY, DownData, UpData, OneShotUpData};
 // src/combinators/seq.rs
@@ -172,7 +172,7 @@ impl ParserTrait for SeqParser<'_> {
     fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         profile!("SeqParser::parse", {
         let mut final_up_data: VecY<UpData> = VecY::new();
-        // let mut parser_initialization_queue: BTreeMap<usize, RightDataSquasher> = BTreeMap::new();
+        // let mut parser_initialization_queue: BTreeMap<usize, RightData, RightDataGettersSquasher> = BTreeMap::new();
         let mut parser_initialization_queue: BTreeMap<usize, Vec<UpData>> = BTreeMap::new();
 
         // Eliminate duplicate parsers

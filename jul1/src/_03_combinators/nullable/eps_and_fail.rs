@@ -1,6 +1,6 @@
 
 // src/_03_combinators/nullable/eps_and_fail.rs
-use crate::_01_parse_state::{ParseResultTrait, RightData, UpData, OneShotUpData};
+use crate::_01_parse_state::{ParseResultTrait, RightData, RightDataGetters, UpData, OneShotUpData};
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults, DownData};
 use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set};
 #[derive(Debug)]

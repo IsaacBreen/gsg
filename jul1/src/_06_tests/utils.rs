@@ -1,4 +1,4 @@
-use crate::{clear_profile_data, RightData, UnambiguousParseResults, DownData, UpData};
+use crate::{clear_profile_data, RightData, RightDataGetters, UnambiguousParseResults, DownData, UpData};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use kdam::tqdm;

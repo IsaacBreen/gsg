@@ -1,6 +1,6 @@
 use crate::seq;
 use crate::IntoDyn;
-use crate::{cache_context, cached, deferred, eat_string, forbid_follows, forbid_follows_check_not, forbid_follows_clear, lookahead, mutate_right_data, negative_lookahead, tag, CombinatorTrait, RightData};
+use crate::{cache_context, cached, deferred, eat_string, forbid_follows, forbid_follows_check_not, forbid_follows_clear, lookahead, mutate_right_data, negative_lookahead, tag, CombinatorTrait, RightData, RightDataGetters};
 use crate::{choice_greedy as choice, opt_greedy as opt, repeat0_greedy as repeat0, repeat1_greedy as repeat1, seprep1_greedy as seprep1};
 use crate::BaseCombinatorTrait;
 use std::rc::Rc;

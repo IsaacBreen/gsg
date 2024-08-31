@@ -2,7 +2,7 @@
 // src/_03_combinators/core/eat.rs
 use crate::internal_vec::VecY;
 use crate::_01_parse_state::{RightData, UpData};
-use crate::UnambiguousParseError;
+use crate::{RightDataGetters, UnambiguousParseError};
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults, DownData, OneShotUpData};
 use crate::{CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set};
 use std::ops::RangeBounds;

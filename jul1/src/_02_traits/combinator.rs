@@ -1,6 +1,6 @@
 
 // src/_02_traits/combinator.rs
-use crate::{ParseResultTrait, ParseResults, RightData, U8Set, UnambiguousParseResults, UpData, OneShotUpData, DownData};
+use crate::{ParseResultTrait, ParseResults, RightData, RightDataGetters, U8Set, UnambiguousParseResults, UpData, OneShotUpData, DownData};
 use std::fmt::Display;
 
 #[macro_export]

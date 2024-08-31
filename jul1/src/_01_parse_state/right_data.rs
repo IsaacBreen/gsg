@@ -75,20 +75,27 @@ impl RightData {
     }
 }
 
-impl RightDataInner {
-    pub fn get_fields1(&self) -> &Fields1 {
+pub trait RightDataGetters {
+    fn get_fields1(&self) -> &Fields1;
+    fn get_fields1_mut(&mut self) -> &mut Fields1;
+    fn get_fields2(&self) -> &Fields2;
+    fn get_fields2_mut(&mut self) -> &mut Fields2;
+}
+
+impl RightDataGetters for RightDataInner {
+    fn get_fields1(&self) -> &Fields1 {
         &self.fields1
     }
 
-    pub fn get_fields1_mut(&mut self) -> &mut Fields1 {
+    fn get_fields1_mut(&mut self) -> &mut Fields1 {
         &mut self.fields1
     }
 
-    pub fn get_fields2(&self) -> &Fields2 {
+    fn get_fields2(&self) -> &Fields2 {
         &self.fields2
     }
 
-    pub fn get_fields2_mut(&mut self) -> &mut Fields2 {
+    fn get_fields2_mut(&mut self) -> &mut Fields2 {
         Rc::make_mut(&mut self.fields2)
         // &mut *self.fields2
         // &mut self.fields2
