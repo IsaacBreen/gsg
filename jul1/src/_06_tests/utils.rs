@@ -1,4 +1,4 @@
-use crate::{clear_profile_data, RightData, RightDataGetters, UnambiguousParseResults, RightData, UpData};
+use crate::{clear_profile_data, RightData, RightDataGetters, UnambiguousParseResults, UpData};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use kdam::tqdm;
@@ -341,7 +341,6 @@ fn print_timing_results(timings: Vec<(String, Duration)>) {
                      format!("{:.3}s", duration_secs),
                      bold,
                      desc,
-                     reset,
             );
         }
     }

@@ -1,6 +1,6 @@
 
 // src/_03_combinators/core/choicen.rs
-use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, RightDataGetters, Squash, U8Set, UnambiguousParseResults, UpData, DownData, OneShotUpData};
+use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, RightDataGetters, Squash, U8Set, UnambiguousParseResults, UpData, OneShotUpData};
 
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
@@ -53,13 +53,13 @@ macro_rules! define_choice {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+,
         {
-            fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-                let (parser, parse_results) = self.parse(down_data, bytes);
+            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+                let (parser, parse_results) = self.parse(right_data, bytes);
                 (Box::new(parser), parse_results)
             }
 
-            fn one_shot_parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-                self.one_shot_parse(down_data, bytes)
+            fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+                self.one_shot_parse(right_data, bytes)
             }
         }
 
@@ -72,18 +72,18 @@ macro_rules! define_choice {
             type Output = $choice_enum_name<$first, $($rest),+>;
             type PartialOutput = $choice_partial_enum_name<$first, $($rest),+>;
 
-            fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
+            fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 use $crate::{UnambiguousParseResults, UnambiguousParseError};
                 if self.greedy {
                     let first_combinator = &self.$first;
-                    let parse_result = first_combinator.one_shot_parse(down_data.clone(), bytes);
+                    let parse_result = first_combinator.one_shot_parse(right_data.clone(), bytes);
                     if matches!(parse_result, Ok(_) | Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete)) {
                         return parse_result;
                     }
 
                     $(
                         let next_combinator = &self.$rest;
-                        let parse_result = next_combinator.one_shot_parse(down_data.clone(), bytes);
+                        let parse_result = next_combinator.one_shot_parse(right_data.clone(), bytes);
                         if matches!(parse_result, Ok(_) | Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete)) {
                             return parse_result;
                         }
@@ -92,14 +92,14 @@ macro_rules! define_choice {
                     Err(UnambiguousParseError::Fail)
                 } else {
                     let first_combinator = &self.$first;
-                    let mut final_parse_result = first_combinator.one_shot_parse(down_data.clone(), bytes);
+                    let mut final_parse_result = first_combinator.one_shot_parse(right_data.clone(), bytes);
                     if matches!(final_parse_result, Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete)) {
                         return final_parse_result;
                     }
 
                     $(
                         let next_combinator = &self.$rest;
-                        let parse_result = next_combinator.one_shot_parse(down_data.clone(), bytes);
+                        let parse_result = next_combinator.one_shot_parse(right_data.clone(), bytes);
                         match (&parse_result, &final_parse_result) {
                             (Err(UnambiguousParseError::Ambiguous | UnambiguousParseError::Incomplete), _) => {
                                 return parse_result;
@@ -119,12 +119,12 @@ macro_rules! define_choice {
                 }
             }
 
-            fn old_parse<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
-                let start_position = down_data.get_fields1().position;
+            fn old_parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
+                let start_position = right_data.get_fields1().position;
 
                 let mut combined_results = ParseResults::empty_finished();
 
-                let (first_parser, first_parse_results) = self.$first.parse(down_data.clone(), bytes);
+                let (first_parser, first_parse_results) = self.$first.parse(right_data.clone(), bytes);
                 let mut parser = $choice_parser_name {
                     combinator: self,
                     $first: vec![],
@@ -141,7 +141,7 @@ macro_rules! define_choice {
                     if discard_rest {
                         return (parser, combined_results);
                     }
-                    let (next_parser, next_parse_results) = self.$rest.parse(down_data.clone(), bytes);
+                    let (next_parser, next_parse_results) = self.$rest.parse(right_data.clone(), bytes);
                     if !next_parse_results.done() {
                         parser.$rest.push(next_parser);
                     }

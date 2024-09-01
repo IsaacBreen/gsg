@@ -15,13 +15,13 @@ impl<C: CombinatorTrait> BaseCombinatorTrait for DynCombinator<C> {
 }
 
 impl<C: CombinatorTrait> DynCombinatorTrait for DynCombinator<C> {
-    fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-        let (parser, parse_results) = self.parse(down_data, bytes);
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.one_shot_parse(down_data, bytes)
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.one_shot_parse(right_data, bytes)
     }
 }
 
@@ -30,12 +30,12 @@ impl<C: CombinatorTrait> CombinatorTrait for DynCombinator<C> {
     type Output = C::Output;
     type PartialOutput = C::PartialOutput;
 
-    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.combinator.one_shot_parse(down_data, bytes)
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.combinator.one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let (parser, parse_results) = self.combinator.old_parse(down_data, bytes);
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        let (parser, parse_results) = self.combinator.old_parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 }

@@ -1,5 +1,5 @@
 use crate::_01_parse_state::{ParseResultTrait, RightData, RightDataGetters, UpData};
-use crate::{profile_internal, BaseCombinatorTrait, CombinatorTrait, DynCombinatorTrait, ParseResults, ParserTrait, U8Set, UnambiguousParseError, UnambiguousParseResults, VecX, DownData, OneShotUpData};
+use crate::{profile_internal, BaseCombinatorTrait, CombinatorTrait, DynCombinatorTrait, ParseResults, ParserTrait, U8Set, UnambiguousParseError, UnambiguousParseResults, VecX, OneShotUpData};
 
 #[derive(Debug)]
 pub struct Choice<'a> {
@@ -14,13 +14,13 @@ pub struct ChoiceParser<'a> {
 }
 
 impl DynCombinatorTrait for Choice<'_> {
-    fn parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
-        let (parser, parse_results) = self.parse(down_data, bytes);
+    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
+        let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.one_shot_parse(down_data, bytes)
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.one_shot_parse(right_data, bytes)
     }
 }
 
@@ -30,10 +30,10 @@ impl CombinatorTrait for Choice<'_> {
     type PartialOutput = Box<dyn std::any::Any>;
 
 
-    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if self.greedy {
             for parser in self.children.iter() {
-                let parse_result = parser.one_shot_parse(down_data.clone(), bytes);
+                let parse_result = parser.one_shot_parse(right_data.clone(), bytes);
                 match parse_result {
                     Ok(one_shot_up_data) => {
                         return Ok(OneShotUpData::new(one_shot_up_data.just_right_data()));
@@ -47,11 +47,11 @@ impl CombinatorTrait for Choice<'_> {
             Err(UnambiguousParseError::Fail)
         } else {
             for (i, parser) in self.children.iter().enumerate() {
-                let parse_result = parser.one_shot_parse(down_data.clone(), bytes);
+                let parse_result = parser.one_shot_parse(right_data.clone(), bytes);
                 match parse_result {
                     Ok(one_shot_up_data) => {
                         for parser2 in self.children[i+1..].iter() {
-                            let parse_result2 = parser2.one_shot_parse(down_data.clone(), bytes);
+                            let parse_result2 = parser2.one_shot_parse(right_data.clone(), bytes);
                             match parse_result2 {
                                 Ok(_) => {
                                     return Err(UnambiguousParseError::Ambiguous);
@@ -74,12 +74,12 @@ impl CombinatorTrait for Choice<'_> {
         }
     }
 
-    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
         for child in &self.children {
-            let (parser, parse_results) = child.as_ref().parse_dyn(down_data.clone(), bytes);
+            let (parser, parse_results) = child.as_ref().parse_dyn(right_data.clone(), bytes);
             if !parse_results.done {
                 parsers.push(parser);
             }

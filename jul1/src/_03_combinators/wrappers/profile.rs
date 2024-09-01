@@ -108,13 +108,13 @@ pub struct ProfiledParser<P: ParserTrait> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Profiled<T> {
-    fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-        let (parser, parse_results) = self.parse(down_data, bytes);
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.one_shot_parse(down_data, bytes)
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.one_shot_parse(right_data, bytes)
     }
 }
 
@@ -123,13 +123,13 @@ impl<T: CombinatorTrait> CombinatorTrait for Profiled<T> {
     type Output = T::Output;
     type PartialOutput = T::PartialOutput;
 
-    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        profile!(&self.tag, self.inner.one_shot_parse(down_data, bytes))
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        profile!(&self.tag, self.inner.one_shot_parse(right_data, bytes))
     }
 
-    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         profile!(&self.tag, {
-            let (parser, parse_results) = self.inner.parse(down_data, bytes);
+            let (parser, parse_results) = self.inner.parse(right_data, bytes);
             let parser = ProfiledParser { inner: parser, tag: self.tag.clone() };
             (parser, parse_results)
         })

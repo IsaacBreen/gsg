@@ -1,9 +1,9 @@
 
 // src/_03_combinators/core/repeat1.rs
 // src/combinators/repeat1.rs
-use crate::{seq, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults, DownData, UpData, OneShotUpData};
+use crate::{seq, BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults, RightData, UpData, OneShotUpData};
 
-use crate::_01_parse_state::{ParseResultTrait, RightData, RightDataGetters};
+use crate::_01_parse_state::{ParseResultTrait, RightDataGetters};
 use crate::{profile_internal, vecy, CombinatorTrait, IntoCombinator, Opt, ParseResults, ParserTrait, Squash, U8Set, VecY};
 
 #[derive(Debug)]
@@ -23,13 +23,13 @@ pub struct Repeat1Parser<'a, T> where T: CombinatorTrait {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Repeat1<T> {
-    fn parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
-        let (parser, parse_results) = self.parse(down_data, bytes);
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+        let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        self.one_shot_parse(down_data, bytes)
+    fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        self.one_shot_parse(right_data, bytes)
     }
 }
 
@@ -38,13 +38,13 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
     type Output = Vec<T::Output>;
     type PartialOutput = Vec<T::PartialOutput>;
 
-    fn one_shot_parse(&self, down_data: DownData, bytes: &[u8]) -> UnambiguousParseResults {
-        let mut right_data = down_data.just_right_data();
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        let mut right_data = right_data;
         let start_position = right_data.get_fields1().position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
             let offset = right_data.get_fields1().position - start_position;
-            let parse_result = self.a.one_shot_parse(DownData::new(right_data), &bytes[offset..]);
+            let parse_result = self.a.one_shot_parse(right_data.clone(), &bytes[offset..]);
             match parse_result {
                 Ok(one_shot_up_data) => {
                     if !self.greedy && prev_parse_result.is_ok() {
@@ -63,18 +63,18 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
         }
     }
 
-    fn parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        // return self.old_parse(down_data, bytes);
-        let mut right_data = down_data.just_right_data();
+    fn parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        // return self.old_parse(right_data, bytes);
+        let mut right_data = right_data;
         let start_position = right_data.get_fields1().position;
         let mut prev_parse_result = Err(UnambiguousParseError::Fail);
         loop {
             let offset = right_data.get_fields1().position - start_position;
-            let parse_result = self.a.one_shot_parse(DownData::new(right_data.clone()), &bytes[offset..]);
+            let parse_result = self.a.one_shot_parse(right_data.clone(), &bytes[offset..]);
             match parse_result {
                 Ok(one_shot_up_data) => {
                     if !self.greedy && prev_parse_result.is_ok() {
-                        let (parser, mut parse_results_rest) = self.old_parse(DownData::new(right_data.clone()), &bytes[offset..]);
+                        let (parser, mut parse_results_rest) = self.old_parse(right_data.clone(), &bytes[offset..]);
                         let prev_right_data = parse_results_rest.up_data_vec.pop().unwrap().just_right_data();
                         parse_results_rest.up_data_vec.push(UpData::new(prev_right_data));
                         return (parser, parse_results_rest);
@@ -100,14 +100,14 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
                     }
                 }
                 Err(UnambiguousParseError::Ambiguous) => {
-                    let (parser, mut parse_results_rest) = self.old_parse(DownData::new(right_data), &bytes[offset..]);
+                    let (parser, mut parse_results_rest) = self.old_parse(right_data, &bytes[offset..]);
                     if let Ok(one_shot_up_data) = prev_parse_result {
                         parse_results_rest.up_data_vec.push(UpData::new(one_shot_up_data.just_right_data()));
                     }
                     return (parser, parse_results_rest);
                 }
                 Err(UnambiguousParseError::Incomplete) => {
-                    let (parser, mut parse_results_rest) = self.old_parse(DownData::new(right_data), &bytes[offset..]);
+                    let (parser, mut parse_results_rest) = self.old_parse(right_data, &bytes[offset..]);
                     if let Ok(one_shot_up_data) = prev_parse_result {
                         parse_results_rest.up_data_vec.push(UpData::new(one_shot_up_data.just_right_data()));
                     }
@@ -117,9 +117,9 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
         }
     }
 
-    fn old_parse(&self, down_data: DownData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
-        let start_position = down_data.get_fields1().position;
-        let (parser, parse_results) = self.a.parse(down_data, bytes);
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        let start_position = right_data.get_fields1().position;
+        let (parser, parse_results) = self.a.parse(right_data, bytes);
         if parse_results.done() && parse_results.up_data_vec.is_empty() {
             // Shortcut
             return (Repeat1Parser {
@@ -150,7 +150,7 @@ impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
                 #[cfg(feature = "debug")]
                 let new_right_data2 = new_right_data.clone();
                 let offset = up_data.get_fields1().position - start_position;
-                let (parser, parse_results) = self.a.parse(DownData::new(up_data.just_right_data()), &bytes[offset..]);
+                let (parser, parse_results) = self.a.parse(up_data.just_right_data(), &bytes[offset..]);
                 if !parse_results.done() {
                     parsers.push(parser);
                 }
@@ -234,7 +234,7 @@ impl<'a, T> ParserTrait for Repeat1Parser<'a, T> where T: CombinatorTrait {
         while i < up_data_as.len() {
             let up_data_a = up_data_as[i].clone();
             let offset = up_data_a.get_fields1().position - self.position;
-            let (a_parser, parse_results) = self.a.parse(DownData::new(up_data_a.just_right_data()), &bytes[offset..]);
+            let (a_parser, parse_results) = self.a.parse(up_data_a.just_right_data(), &bytes[offset..]);
             if !parse_results.done() {
                 self.a_parsers.push(a_parser);
             }

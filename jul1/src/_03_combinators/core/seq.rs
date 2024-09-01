@@ -1,7 +1,7 @@
 
 use crate::{RightData, RightDataGetters};
 use crate::VecX;
-use crate::{profile_internal, CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set, VecY, RightData, UpData, OneShotUpData};
+use crate::{profile_internal, CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set, VecY, UpData, OneShotUpData};
 // src/combinators/seq.rs
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults};
 use std::collections::BTreeMap;

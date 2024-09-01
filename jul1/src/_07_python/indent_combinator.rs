@@ -1,4 +1,4 @@
-use crate::{choice_greedy, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, seq, CombinatorTrait, DownData, IntoDyn, ParseResultTrait, ParseResults, ParserTrait, U8Set, UpData, VecY};
+use crate::{choice_greedy, eat_bytes, eat_char_choice, eps, mutate_right_data, negative_lookahead, seq, CombinatorTrait, IntoDyn, ParseResultTrait, ParseResults, ParserTrait, U8Set, UpData, VecY};
 // src/combinators/indent.rs
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, RightData, RightDataGetters, UnambiguousParseResults};
 use aliasable::boxed::AliasableBox;
