@@ -1,6 +1,6 @@
 
 // src/_03_combinators/derived.rs
-use crate::{opt, opt_greedy, repeat0, repeat0_greedy, seq, symbol, Choice, DownData, UpData, OneShotUpData};
+use crate::{opt, opt_greedy, repeat0, repeat0_greedy, seq, symbol, Choice, RightData, UpData, OneShotUpData};
 use crate::{CombinatorTrait, IntoDyn};
 
 pub fn seprep1(a: impl CombinatorTrait, b: impl CombinatorTrait)-> impl CombinatorTrait {
