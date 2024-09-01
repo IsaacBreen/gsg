@@ -22,8 +22,6 @@ impl DynCombinatorTrait for Eps {
 
 impl CombinatorTrait for Eps {
     type Parser<'a> = EpsParser;
-    type Output = ();
-    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Ok(OneShotUpData::new(right_data))
@@ -76,8 +74,6 @@ impl DynCombinatorTrait for Fail {
 
 impl CombinatorTrait for Fail {
     type Parser<'a> = FailParser;
-    type Output = ();
-    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Err(UnambiguousParseError::Fail)

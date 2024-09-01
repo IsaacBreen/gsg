@@ -45,8 +45,6 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Tagged<T> {
 
 impl<'b, T: CombinatorTrait> CombinatorTrait for Tagged<T> where T: 'b {
     type Parser<'a> = TaggedParser<T::Parser<'a>> where Self: 'a;
-    type Output = T::Output;
-    type PartialOutput = T::PartialOutput;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.inner.one_shot_parse(right_data, bytes)

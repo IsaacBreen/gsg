@@ -27,8 +27,6 @@ impl<C: CombinatorTrait> DynCombinatorTrait for DynCombinator<C> {
 
 impl<C: CombinatorTrait> CombinatorTrait for DynCombinator<C> {
     type Parser<'a> = Box<dyn ParserTrait + 'a> where Self: 'a;
-    type Output = C::Output;
-    type PartialOutput = C::PartialOutput;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.combinator.one_shot_parse(right_data, bytes)

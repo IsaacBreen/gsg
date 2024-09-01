@@ -22,8 +22,6 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Opt<T> {
 
 impl<T: CombinatorTrait> CombinatorTrait for Opt<T> {
     type Parser<'a> = T::Parser<'a> where Self: 'a;
-    type Output = Option<T::Output>;
-    type PartialOutput = Option<T::PartialOutput>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.inner.one_shot_parse(right_data.clone(), bytes);

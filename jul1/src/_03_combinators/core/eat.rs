@@ -31,8 +31,6 @@ impl DynCombinatorTrait for EatU8 {
 
 impl CombinatorTrait for EatU8 {
     type Parser<'a> = EatU8Parser;
-    type Output = ();
-    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if bytes.is_empty() {
@@ -174,8 +172,6 @@ impl DynCombinatorTrait for EatString {
 
 impl CombinatorTrait for EatString {
     type Parser<'a> = EatStringParser<'a>;
-    type Output = ();
-    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if bytes.len() < self.string.len() {
