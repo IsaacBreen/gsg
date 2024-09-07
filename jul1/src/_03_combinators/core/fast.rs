@@ -42,6 +42,8 @@ impl DynCombinatorTrait for FastCombinatorWrapper {
 
 impl CombinatorTrait for FastCombinatorWrapper {
     type Parser<'a> = FastParserWrapper<'a>;
+    type Output = ();
+    type PartialOutput = ();
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut regex_state = self.regex.init();

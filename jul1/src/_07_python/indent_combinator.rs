@@ -77,6 +77,8 @@ impl DynCombinatorTrait for IndentCombinator {
 
 impl CombinatorTrait for IndentCombinator {
     type Parser<'a> = IndentCombinatorParser<'a>;
+    type Output = ();
+    type PartialOutput = ();
 
     fn old_parse(&self, mut right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let (parser, parse_results): (IndentCombinatorParser, ParseResults) = match &self {

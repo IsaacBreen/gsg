@@ -131,6 +131,8 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Deferred<'_, T> {
 
 impl<T: CombinatorTrait> CombinatorTrait for Deferred<'_, T> {
     type Parser<'a> = T::Parser<'a> where Self: 'a;
+    type Output = T::Output;
+    type PartialOutput = T::PartialOutput;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().expect("inner combinator not initialized");

@@ -12,7 +12,7 @@ macro_rules! count_hit { ($tag:expr) => {} }
 
 #[macro_export]
 macro_rules! define_seq {
-    ($seq_name:ident, $seq_parser_name:ident, $first:ident, $($rest:ident),+ $(,)?) => {
+    ($seq_name:ident, $seq_parser_name:ident, $seq_enum_name:ident, $seq_partial_enum_name:ident, $first:ident, $($rest:ident),+ $(,)?) => {
         #[derive(Debug)]
         pub struct $seq_name<$first, $($rest),+>
         where
@@ -32,6 +32,26 @@ macro_rules! define_seq {
             pub(crate) $first: Option<$first::Parser<'a>>,
             $(pub(crate) $rest: Vec<$rest::Parser<'a>>,)+
             pub(crate) position: usize,
+        }
+
+        #[derive(Debug)]
+        pub struct $seq_enum_name<$first, $($rest),+>
+        where
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
+        {
+            pub(crate) $first: $first::Output,
+            $(pub(crate) $rest: $rest::Output),+
+        }
+
+        #[derive(Debug)]
+        pub struct $seq_partial_enum_name<$first, $($rest),+>
+        where
+            $first: CombinatorTrait,
+            $($rest: CombinatorTrait),+
+        {
+            pub(crate) $first: Option<$first::PartialOutput>,
+            $(pub(crate) $rest: Option<$rest::PartialOutput>),+
         }
 
         impl<$first, $($rest),+> $crate::DynCombinatorTrait for $seq_name<$first, $($rest),+>
@@ -55,6 +75,8 @@ macro_rules! define_seq {
             $($rest: CombinatorTrait),+,
         {
             type Parser<'a> = $seq_parser_name<'a, $first, $($rest),+> where Self: 'a;
+            type Output = $seq_enum_name<$first, $($rest),+>;
+            type PartialOutput = $seq_partial_enum_name<$first, $($rest),+>;
 
             fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
                 let mut right_data = right_data;
@@ -235,15 +257,15 @@ macro_rules! define_seq {
     };
 }
 
-define_seq!(Seq2, Seq2Parser, c0, c1);
-define_seq!(Seq3, Seq3Parser, c0, c1, c2);
-define_seq!(Seq4, Seq4Parser, c0, c1, c2, c3);
-define_seq!(Seq5, Seq5Parser, c0, c1, c2, c3, c4);
-define_seq!(Seq6, Seq6Parser, c0, c1, c2, c3, c4, c5);
-define_seq!(Seq7, Seq7Parser, c0, c1, c2, c3, c4, c5, c6);
-define_seq!(Seq8, Seq8Parser, c0, c1, c2, c3, c4, c5, c6, c7);
-define_seq!(Seq9, Seq9Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8);
-define_seq!(Seq10, Seq10Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
-define_seq!(Seq11, Seq11Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
-define_seq!(Seq12, Seq12Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
-define_seq!(Seq13, Seq13Parser, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);
+define_seq!(Seq2, Seq2Parser, Seq2Enum, Seq2PartialEnum, c0, c1);
+define_seq!(Seq3, Seq3Parser, Seq3Enum, Seq3PartialEnum, c0, c1, c2);
+define_seq!(Seq4, Seq4Parser, Seq4Enum, Seq4PartialEnum, c0, c1, c2, c3);
+define_seq!(Seq5, Seq5Parser, Seq5Enum, Seq5PartialEnum, c0, c1, c2, c3, c4);
+define_seq!(Seq6, Seq6Parser, Seq6Enum, Seq6PartialEnum, c0, c1, c2, c3, c4, c5);
+define_seq!(Seq7, Seq7Parser, Seq7Enum, Seq7PartialEnum, c0, c1, c2, c3, c4, c5, c6);
+define_seq!(Seq8, Seq8Parser, Seq8Enum, Seq8PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7);
+define_seq!(Seq9, Seq9Parser, Seq9Enum, Seq9PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8);
+define_seq!(Seq10, Seq10Parser, Seq10Enum, Seq10PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
+define_seq!(Seq11, Seq11Parser, Seq11Enum, Seq11PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
+define_seq!(Seq12, Seq12Parser, Seq12Enum, Seq12PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
+define_seq!(Seq13, Seq13Parser, Seq13Enum, Seq13PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);

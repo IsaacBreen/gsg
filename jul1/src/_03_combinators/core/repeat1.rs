@@ -35,6 +35,8 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Repeat1<T> {
 
 impl<'b, T: CombinatorTrait > CombinatorTrait for Repeat1<T> {
     type Parser<'a> = Repeat1Parser<'a, T> where Self: 'a;
+    type Output = Vec<T::Output>;
+    type PartialOutput = Vec<T::PartialOutput>;
 
     fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut right_data = right_data;
