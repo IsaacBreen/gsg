@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 const VERBOSE: bool = false;
 
-pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) where T::Output: std::fmt::Debug {
+pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     clear_profile_data();
     let input = input.to_string();
     println!("beginning assert_parses {}", desc);
@@ -71,7 +71,7 @@ pub fn assert_parses<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, 
     print_timing_results(timings);
 }
 
-pub fn assert_parses_tight<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) where T::Output: std::fmt::Debug {
+pub fn assert_parses_tight<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     clear_profile_data();
     let input = input.to_string();
     println!("beginning assert_parses_tight {}", desc);
@@ -104,11 +104,11 @@ pub fn assert_parses_tight<T: CombinatorTrait, S: ToString>(combinator: &T, inpu
     println!("assert_parses_tight took {:?}", start.elapsed());
 }
 
-pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) where T::Output: std::fmt::Debug {
+pub fn assert_parses_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     assert_parses(combinator, input, "Parser failed unexpectedly");
 }
 
-pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) where T::Output: std::fmt::Debug {
+pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     println!("beginning profile_parse");
 
     let (mut parser, mut parse_results) = combinator.parser(RightData::default());
@@ -121,7 +121,7 @@ pub fn profile_parse<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) 
 }
 
 
-pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) where T::Output: std::fmt::Debug {
+pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start = Instant::now();
     let (parser, mut parse_results) = profile!("assert_parses_fast parse", {
@@ -152,7 +152,7 @@ pub fn assert_parses_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input
         "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
 }
 
-pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, tolerance: usize) where T::Output: std::fmt::Debug {
+pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, tolerance: usize) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let (parser, mut parse_results) = combinator.parse(RightData::default(), &bytes);
     parse_results.squash();
@@ -175,7 +175,7 @@ pub fn assert_parses_fast_with_tolerance<T: CombinatorTrait, S: ToString>(combin
         "Expected parser to finish with right data at the end position {}. parse_results: {:?}", bytes.len(), parse_results);
 }
 
-pub fn assert_parses_one_shot<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) where T::Output: std::fmt::Debug {
+pub fn assert_parses_one_shot<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start = Instant::now();
     let parse_results = profile!("assert_parses_fast parse", {
@@ -196,7 +196,7 @@ pub fn assert_parses_one_shot<T: CombinatorTrait, S: ToString>(combinator: &T, i
         "Expected parser to finish with right data at the end position {}. right_data: {:?}", bytes.len(), one_shot_up_data);
 }
 
-pub fn assert_parses_one_shot_with_result<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, expected_result: UnambiguousParseResults<T::Output>) where T::Output: std::fmt::Debug {
+pub fn assert_parses_one_shot_with_result<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, expected_result: UnambiguousParseResults) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start = Instant::now();
     let parse_results = profile!("assert_parses_fast parse", {
@@ -210,7 +210,7 @@ pub fn assert_parses_one_shot_with_result<T: CombinatorTrait, S: ToString>(combi
     assert_eq!(parse_results, expected_result, "Expected parse result {:?}, but got {:?}", expected_result, parse_results);
 }
 
-pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) where T::Output: std::fmt::Debug {
+pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, desc: &str) {
     let input = input.to_string();
     println!("beginning assert_fails {}", desc);
     let (mut parser, ParseResults { .. }) = combinator.parser(RightData::default());
@@ -249,11 +249,11 @@ pub fn assert_fails<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, d
     panic!("{}", desc);
 }
 
-pub fn assert_fails_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) where T::Output: std::fmt::Debug {
+pub fn assert_fails_default<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     assert_fails(combinator, input, "Parser succeeded unexpectedly");
 }
 
-pub fn assert_fails_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) where T::Output: std::fmt::Debug {
+pub fn assert_fails_fast<T: CombinatorTrait, S: ToString>(combinator: &T, input: S) {
     let (mut parser, _) = combinator.parser(RightData::default());
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let parse_results = parser.parse(&bytes);

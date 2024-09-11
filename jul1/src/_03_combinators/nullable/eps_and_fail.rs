@@ -1,39 +1,40 @@
+
+// src/_03_combinators/nullable/eps_and_fail.rs
 use crate::_01_parse_state::{ParseResultTrait, RightData, RightDataGetters, UpData, OneShotUpData};
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseError, UnambiguousParseResults};
 use crate::{CombinatorTrait, ParseResults, ParserTrait, U8Set};
 #[derive(Debug)]
-pub struct Eps<Output> {
-    pub(crate) _phantom: std::marker::PhantomData<Output>,
-}
+pub struct Eps;
 
 #[derive(Debug)]
 pub struct EpsParser;
 
-impl<Output: 'static> DynCombinatorTrait for Eps<Output> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults<Output>) {
+impl DynCombinatorTrait for Eps {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> UnambiguousParseResults<Output> where Output: 'a {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
 
-impl<Output: 'static> CombinatorTrait for Eps<Output> {
+impl CombinatorTrait for Eps {
     type Parser<'a> = EpsParser;
-    type Output = Output;
+    type Output = ();
+    type PartialOutput = ();
 
-    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Output> where Output: 'b {
-        Ok(OneShotUpData::new(right_data, Output::default()))
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+        Ok(OneShotUpData::new(right_data))
     }
 
-    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Output>) where Output: 'b {
-        (EpsParser, ParseResults::new_single(UpData::new(right_data, Output::default()), true))
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+        (EpsParser, ParseResults::new_single(UpData::new(right_data), true))
     }
 }
 
-impl<Output> BaseCombinatorTrait for Eps<Output> {
+impl BaseCombinatorTrait for Eps {
     fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
@@ -44,13 +45,13 @@ impl ParserTrait for EpsParser {
         panic!("EpsParser.get_u8set() called")
     }
 
-    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<()> where (): 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("EpsParser already consumed")
     }
 }
 
-pub fn eps<Output>() -> Eps<Output> {
-    Eps { _phantom: std::marker::PhantomData }
+pub fn eps() -> Eps {
+    Eps
 }
 
 
@@ -60,35 +61,34 @@ pub fn eps<Output>() -> Eps<Output> {
 pub struct FailParser;
 
 #[derive(Debug)]
-pub struct Fail<Output> {
-    pub(crate) _phantom: std::marker::PhantomData<Output>,
-}
+pub struct Fail;
 
-impl<Output: 'static> DynCombinatorTrait for Fail<Output> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults<Output>) {
+impl DynCombinatorTrait for Fail {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> UnambiguousParseResults<Output> where Output: 'a {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
 
-impl<Output: 'static> CombinatorTrait for Fail<Output> {
-    type Parser<'a> = FailParser where Self: 'a;
-    type Output = Output;
+impl CombinatorTrait for Fail {
+    type Parser<'a> = FailParser;
+    type Output = ();
+    type PartialOutput = ();
 
-    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Output> where Output: 'b {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         Err(UnambiguousParseError::Fail)
     }
 
-    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Output>) where Output: 'b {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         (FailParser, ParseResults::empty_finished())
     }
 }
 
-impl<Output> BaseCombinatorTrait for Fail<Output> {
+impl BaseCombinatorTrait for Fail {
     fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
@@ -99,11 +99,11 @@ impl ParserTrait for FailParser {
         panic!("FailParser.get_u8set() called")
     }
 
-    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<()> where (): 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         panic!("FailParser already consumed")
     }
 }
 
-pub fn fail<Output>() -> Fail<Output> {
-    Fail { _phantom: std::marker::PhantomData }
+pub fn fail() -> Fail {
+    Fail
 }

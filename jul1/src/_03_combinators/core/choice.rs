@@ -14,12 +14,12 @@ pub struct ChoiceParser<'a> {
 }
 
 impl DynCombinatorTrait for Choice<'_> {
-    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults<Self::Output>) where Self::Output: 'b {
+    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'b>(&'b self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -27,9 +27,10 @@ impl DynCombinatorTrait for Choice<'_> {
 impl CombinatorTrait for Choice<'_> {
     type Parser<'a> = ChoiceParser<'a> where Self: 'a;
     type Output = Box<dyn std::any::Any>;
+    type PartialOutput = Box<dyn std::any::Any>;
 
 
-    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if self.greedy {
             for parser in self.children.iter() {
                 let parse_result = parser.one_shot_parse(right_data.clone(), bytes);
@@ -73,7 +74,7 @@ impl CombinatorTrait for Choice<'_> {
         }
     }
 
-    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
@@ -108,7 +109,6 @@ impl BaseCombinatorTrait for Choice<'_> {
 }
 
 impl ParserTrait for ChoiceParser<'_> {
-    type Output = Box<dyn std::any::Any>;
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::none();
         for parser in &self.parsers {
@@ -117,7 +117,7 @@ impl ParserTrait for ChoiceParser<'_> {
         u8set
     }
 
-    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<Self::Output> where Self::Output: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         let mut parse_result = ParseResults::empty_finished();
         let mut discard_rest = false;
 

@@ -1,3 +1,5 @@
+
+// src/_03_combinators/wrappers/deferred.rs
 use crate::BaseCombinatorTrait;
 use crate::*;
 use once_cell::unsync::OnceCell;
@@ -117,12 +119,12 @@ impl<T: CombinatorTrait> Hash for Deferred<'_, T> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Deferred<'_, T> {
-    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults<T::Output>) where T::Output: 'a {
+    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> UnambiguousParseResults<T::Output> where T::Output: 'a {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -130,13 +132,14 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Deferred<'_, T> {
 impl<T: CombinatorTrait> CombinatorTrait for Deferred<'_, T> {
     type Parser<'a> = T::Parser<'a> where Self: 'a;
     type Output = T::Output;
+    type PartialOutput = T::PartialOutput;
 
-    fn one_shot_parse<'a>(&self, right_data: RightData, bytes: &'a [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'a {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let combinator = self.inner.get().expect("inner combinator not initialized");
         combinator.one_shot_parse(right_data, bytes)
     }
 
-    fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         // let combinator = self.inner.get_or_init(|| self.deferred_fn.evaluate_to_combinator());
         let combinator = self.inner.get().expect("inner combinator not initialized");
         combinator.parse(right_data, bytes)

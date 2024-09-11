@@ -1,3 +1,5 @@
+
+// src/_03_combinators/wrappers/tag.rs
 use std::fmt::{Debug, Formatter};
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
@@ -31,12 +33,12 @@ impl<P> Debug for TaggedParser<P> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Tagged<T> {
-    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait<'b> + 'a>, ParseResults<T::Output>) where T::Output: 'b {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<T::Output> where T::Output: 'b {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -44,27 +46,13 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Tagged<T> {
 impl<'b, T: CombinatorTrait> CombinatorTrait for Tagged<T> where T: 'b {
     type Parser<'a> = TaggedParser<T::Parser<'a>> where Self: 'a;
     type Output = T::Output;
+    type PartialOutput = T::PartialOutput;
 
-    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.inner.one_shot_parse(right_data, bytes)
     }
 
-    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
-        count_hit!(self.tag);
-        let result = catch_unwind(AssertUnwindSafe(|| self.inner.old_parse(right_data, bytes)));
-        match result {
-            Ok((parser, parse_results)) => (
-                TaggedParser { inner: parser, tag: self.tag.clone() },
-                parse_results,
-            ),
-            Err(err) => {
-                eprintln!("Panic caught in parser with tag: {}", self.tag);
-                resume_unwind(err);
-            }
-        }
-    }
-
-    fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         count_hit!(self.tag);
         let result = catch_unwind(AssertUnwindSafe(|| self.inner.parse(right_data, bytes)));
         match result {
@@ -94,7 +82,7 @@ impl<P: ParserTrait> ParserTrait for TaggedParser<P> {
         self.inner.get_u8set()
     }
 
-    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<P::Output> where P::Output: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.inner.parse(bytes)
     }
 }

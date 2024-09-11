@@ -1,3 +1,5 @@
+
+// src/_03_combinators/core/opt.rs
 use crate::BaseCombinatorTrait;
 use crate::*;
 
@@ -8,12 +10,12 @@ pub struct Opt<T: CombinatorTrait> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Opt<T> {
-    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait<'a> + 'a>, ParseResults<'b, Self::Output>) where Self::Output: 'b {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<'b, Self::Output> where Self::Output: 'b {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -21,30 +23,31 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Opt<T> {
 impl<T: CombinatorTrait> CombinatorTrait for Opt<T> {
     type Parser<'a> = T::Parser<'a> where Self: 'a;
     type Output = Option<T::Output>;
+    type PartialOutput = Option<T::PartialOutput>;
 
-    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<'b, Self::Output> where Self::Output: 'b {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let parse_result = self.inner.one_shot_parse(right_data.clone(), bytes);
         if self.greedy {
             match parse_result {
-                Ok(one_shot_up_data) => Ok(OneShotUpData::new(one_shot_up_data.just_right_data(), Some(one_shot_up_data.output))),
-                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData::new(right_data, None)),
+                Ok(one_shot_up_data) => Ok(OneShotUpData::new(one_shot_up_data.just_right_data())),
+                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData::new(right_data)),
                 Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => parse_result,
             }
         } else {
             match parse_result {
                 Ok(_) => Err(UnambiguousParseError::Ambiguous),
-                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData::new(right_data, None)),
+                Err(UnambiguousParseError::Fail) => Ok(OneShotUpData::new(right_data)),
                 Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => parse_result,
             }
         }
     }
 
-    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<'b, Self::Output>) where Self::Output: 'b {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let (parser, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         if !(self.greedy && parse_results.succeeds_decisively()) {
             // TODO: remove the condition below. It's a hack.
             // if parse_results.up_data_vec.is_empty() {  // TODO: remove this line
-                parse_results.up_data_vec.push(UpData::new(right_data, None));
+                parse_results.up_data_vec.push(UpData::new(right_data));
             // }
         }
         (parser, parse_results)

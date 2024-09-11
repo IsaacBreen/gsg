@@ -1,3 +1,4 @@
+
 use crate::{RightData, RightDataGetters};
 use crate::VecX;
 use crate::{profile_internal, CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set, VecY, UpData, OneShotUpData};
@@ -26,40 +27,39 @@ pub struct SeqParser<'a> {
 }
 
 impl DynCombinatorTrait for Seq<'_> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults<Self::Output>) {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'a {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
-impl<T: OutputTrait> CombinatorTrait for Seq<'_> {
+impl CombinatorTrait for Seq<'_> {
     type Parser<'a> = SeqParser<'a> where Self: 'a;
-    type Output = Vec<T>;
+    type Output = Vec<Box<dyn std::any::Any>>;
+    type PartialOutput = Vec<Option<Box<dyn std::any::Any>>>;
 
-    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut right_data = right_data;
         let start_position = right_data.get_fields1().position;
-        let mut output = Vec::new();
         for combinator in self.children.iter() {
             let offset = right_data.get_fields1().position - start_position;
             let result = combinator.one_shot_parse(right_data, &bytes[offset..]);
             match result {
                 Ok(one_shot_up_data) => {
                     right_data = one_shot_up_data.just_right_data();
-                    output.push(one_shot_up_data.output);
                 },
                 Err(err) => {
                     return Err(err);
                 }
             }
         }
-        Ok(OneShotUpData::new(right_data, output))
+        Ok(OneShotUpData::new(right_data))
     }
 
-    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let start_position = right_data.get_fields1().position;
 
         let mut combinator_index = self.start_index;
@@ -86,8 +86,8 @@ impl<T: OutputTrait> CombinatorTrait for Seq<'_> {
         } else {
             vec![(combinator_index, parser)]
         };
-        let mut final_up_data: VecY<UpData<Self::Output>>; // TODO: this is a bit of a hack. We're using the type of the first child here. We should probably make this generic.
-        let mut next_up_data_vec: VecY<UpData<Self::Output>>; // TODO: this is a bit of a hack. We're using the type of the first child here. We should probably make this generic.
+        let mut final_up_data: VecY<UpData>;
+        let mut next_up_data_vec: VecY<UpData>;
         if combinator_index + 1 < self.children.len() {
             next_up_data_vec = parse_results.up_data_vec;
             final_up_data = VecY::new();
@@ -161,8 +161,6 @@ impl BaseCombinatorTrait for Seq<'_> {
 }
 
 impl ParserTrait for SeqParser<'_> {
-    type Output = Vec<Box<dyn std::any::Any>>; // TODO: this is a bit of a hack. We're using the type of the first child here. We should probably make this generic.
-
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::none();
         for (_, parser) in &self.parsers {
@@ -171,11 +169,11 @@ impl ParserTrait for SeqParser<'_> {
         u8set
     }
 
-    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<Self::Output> where Self::Output: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         profile!("SeqParser::parse", {
-        let mut final_up_data: VecY<UpData<Self::Output>> = VecY::new();
+        let mut final_up_data: VecY<UpData> = VecY::new();
         // let mut parser_initialization_queue: BTreeMap<usize, RightData, RightDataGettersSquasher> = BTreeMap::new();
-        let mut parser_initialization_queue: BTreeMap<usize, Vec<UpData<Self::Output>>> = BTreeMap::new();
+        let mut parser_initialization_queue: BTreeMap<usize, Vec<UpData>> = BTreeMap::new();
 
         // Eliminate duplicate parsers
         // if self.parsers.len() > 10 {

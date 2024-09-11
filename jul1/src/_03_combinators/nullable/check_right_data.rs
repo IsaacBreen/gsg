@@ -1,141 +1,144 @@
+
+// src/_03_combinators/nullable/check_right_data.rs
+// src/combinators/check_right_data.rs
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, ParserTrait, UnambiguousParseError, UnambiguousParseResults, RightData, UpData, OneShotUpData};
 use crate::{CombinatorTrait, FailParser, ParseResultTrait, ParseResults, RightDataGetters};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 
-pub struct CheckRightData<Output> {
+pub struct CheckRightData {
     pub(crate) run: Box<dyn Fn(&RightData) -> bool>,
-    pub(crate) _phantom: std::marker::PhantomData<Output>,
 }
 
-impl<Output> Hash for CheckRightData<Output> {
+impl Hash for CheckRightData {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let ptr = std::ptr::addr_of!(self.run) as *const ();
         ptr.hash(state);
     }
 }
 
-impl<Output> PartialEq for CheckRightData<Output> {
+impl PartialEq for CheckRightData {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(&self.run, &other.run)
     }
 }
 
-impl<Output> Eq for CheckRightData<Output> {}
+impl Eq for CheckRightData {}
 
-impl<Output> Debug for CheckRightData<Output> {
+impl Debug for CheckRightData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CheckRightData").finish()
     }
 }
 
-impl<Output: 'static> DynCombinatorTrait for CheckRightData<Output> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults<Output>) {
+impl DynCombinatorTrait for CheckRightData {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> UnambiguousParseResults<Output> where Output: 'a {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
 
-impl<Output: 'static> CombinatorTrait for CheckRightData<Output> {
-    type Parser<'a> = FailParser where Self: 'a;
-    type Output = Output;
+impl CombinatorTrait for CheckRightData {
+    type Parser<'a> = FailParser;
+    type Output = ();
+    type PartialOutput = ();
 
-    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Output> where Output: 'b {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         if (self.run)(&right_data.clone()) {
-            Ok(OneShotUpData::new(right_data, Output::default()))
+            Ok(OneShotUpData::new(right_data))
         } else {
             Err(UnambiguousParseError::Fail)
         }
     }
 
-    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Output>) where Output: 'b {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         if (self.run)(&right_data.clone()) {
-            (FailParser, ParseResults::new_single(UpData::new(right_data, Output::default()), true))
+            (FailParser, ParseResults::new_single(UpData::new(right_data), true))
         } else {
             (FailParser, ParseResults::empty_finished())
         }
     }
 }
 
-impl<Output> BaseCombinatorTrait for CheckRightData<Output> {
+impl BaseCombinatorTrait for CheckRightData {
     fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
 }
 
-pub fn check_right_data<Output>(run: impl Fn(&RightData) -> bool + 'static) -> CheckRightData<Output> {
-    CheckRightData { run: Box::new(run), _phantom: std::marker::PhantomData }
+pub fn check_right_data(run: impl Fn(&RightData) -> bool + 'static) -> CheckRightData {
+    CheckRightData { run: Box::new(run) }
 }
 
-pub struct MutateRightData<Output> {
+pub struct MutateRightData {
     pub(crate) run: Box<dyn Fn(&mut RightData) -> bool>,
-    pub(crate) _phantom: std::marker::PhantomData<Output>,
 }
 
-impl<Output> Hash for MutateRightData<Output> {
+impl Hash for MutateRightData {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let ptr = std::ptr::addr_of!(self.run) as *const ();
         std::ptr::hash(ptr, state);
     }
 }
 
-impl<Output> PartialEq for MutateRightData<Output> {
+impl PartialEq for MutateRightData {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(&self.run, &other.run)
     }
 }
 
-impl<Output> Eq for MutateRightData<Output> {}
+impl Eq for MutateRightData {}
 
-impl<Output> Debug for MutateRightData<Output> {
+impl Debug for MutateRightData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MutateRightData").finish()
     }
 }
 
-impl<Output: 'static> DynCombinatorTrait for MutateRightData<Output> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults<Output>) {
+impl DynCombinatorTrait for MutateRightData {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> UnambiguousParseResults<Output> where Output: 'a {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
 
-impl<Output: 'static> CombinatorTrait for MutateRightData<Output> {
-    type Parser<'a> = FailParser where Self: 'a;
-    type Output = Output;
+impl CombinatorTrait for MutateRightData {
+    type Parser<'a> = FailParser;
+    type Output = ();
+    type PartialOutput = ();
 
-    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Output> where Output: 'b {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         let mut right_data = right_data;
         if (self.run)(&mut right_data) {
-            Ok(OneShotUpData::new(right_data, Output::default()))
+            Ok(OneShotUpData::new(right_data))
         } else {
             Err(UnambiguousParseError::Fail)
         }
     }
-    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Output>) where Output: 'b {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         let mut right_data = right_data;
         if (self.run)(&mut right_data) {
-            (FailParser, ParseResults::new_single(UpData::new(right_data, Output::default()), true))
+            (FailParser, ParseResults::new_single(UpData::new(right_data), true))
         } else {
             (FailParser, ParseResults::empty_finished())
         }
     }
 }
 
-impl<Output> BaseCombinatorTrait for MutateRightData<Output> {
+impl BaseCombinatorTrait for MutateRightData {
     fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
 }
 
-pub fn mutate_right_data<Output>(run: impl Fn(&mut RightData) -> bool + 'static) -> MutateRightData<Output> {
-    MutateRightData { run: Box::new(run), _phantom: std::marker::PhantomData }
+pub fn mutate_right_data(run: impl Fn(&mut RightData) -> bool + 'static) -> MutateRightData {
+    MutateRightData { run: Box::new(run) }
 }
