@@ -2,41 +2,38 @@ use crate::_01_parse_state::{ParseResultTrait, RightData, RightDataGetters, UpDa
 use crate::{profile_internal, BaseCombinatorTrait, CombinatorTrait, DynCombinatorTrait, ParseResults, ParserTrait, U8Set, UnambiguousParseError, UnambiguousParseResults, VecX, OneShotUpData};
 
 #[derive(Debug)]
-pub struct Choice<'a> {
-    pub(crate) children: VecX<Box<dyn DynCombinatorTrait + 'a>>,
+pub struct Choice<'a, Output: 'a> {
+    pub(crate) children: VecX<Box<dyn DynCombinatorTrait<Output = Output> + 'a>>,
     pub(crate) greedy: bool,
 }
 
 #[derive(Debug)]
-pub struct ChoiceParser<'a> {
-    pub(crate) parsers: Vec<Box<dyn ParserTrait + 'a>>,
+pub struct ChoiceParser<'a, Output: 'a> {
+    pub(crate) parsers: Vec<Box<dyn ParserTrait<Output = Output> + 'a>>,
     pub(crate) greedy: bool,
 }
 
-impl DynCombinatorTrait for Choice<'_> {
-    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
+impl<Output: 'static> DynCombinatorTrait<Output = Output> for Choice<'_, Output> {
+    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> (Box<dyn ParserTrait<Output = Output> + 'a>, ParseResults<Output>) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> UnambiguousParseResults<Output> {
         self.one_shot_parse(right_data, bytes)
     }
 }
 
-impl CombinatorTrait for Choice<'_> {
-    type Parser<'a> = ChoiceParser<'a> where Self: 'a;
-    type Output = Box<dyn std::any::Any>;
-    type PartialOutput = Box<dyn std::any::Any>;
+impl<Output: 'static> CombinatorTrait<Output = Output> for Choice<'_, Output> {
+    type Parser<'a> = ChoiceParser<'a, Output> where Self: 'a;
 
-
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Output> where Output: 'b {
         if self.greedy {
             for parser in self.children.iter() {
                 let parse_result = parser.one_shot_parse(right_data.clone(), bytes);
                 match parse_result {
                     Ok(one_shot_up_data) => {
-                        return Ok(OneShotUpData::new(one_shot_up_data.just_right_data()));
+                        return Ok(OneShotUpData::new(one_shot_up_data.just_right_data(), one_shot_up_data.output));
                     }
                     Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => {
                         return parse_result;
@@ -62,7 +59,7 @@ impl CombinatorTrait for Choice<'_> {
                                 Err(UnambiguousParseError::Fail) => {}
                             }
                         }
-                        return Ok(OneShotUpData::new(one_shot_up_data.just_right_data()));
+                        return Ok(OneShotUpData::new(one_shot_up_data.just_right_data(), one_shot_up_data.output));
                     }
                     Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => {
                         return parse_result;
@@ -74,7 +71,7 @@ impl CombinatorTrait for Choice<'_> {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Output>) where Output: 'b {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
@@ -95,9 +92,13 @@ impl CombinatorTrait for Choice<'_> {
             combined_results
         )
     }
+
+    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Output>) where Output: 'b {
+        self.parse(right_data, bytes)
+    }
 }
 
-impl BaseCombinatorTrait for Choice<'_> {
+impl<Output: 'static> BaseCombinatorTrait for Choice<'_, Output> {
     fn as_any(&self) -> &dyn std::any::Any where Self: 'static {
         self
     }
@@ -108,7 +109,7 @@ impl BaseCombinatorTrait for Choice<'_> {
     }
 }
 
-impl ParserTrait for ChoiceParser<'_> {
+impl<Output: 'static> ParserTrait<Output = Output> for ChoiceParser<'_, Output> {
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::none();
         for parser in &self.parsers {
@@ -117,7 +118,7 @@ impl ParserTrait for ChoiceParser<'_> {
         u8set
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<Output> where Output: 'b {
         let mut parse_result = ParseResults::empty_finished();
         let mut discard_rest = false;
 
@@ -136,14 +137,14 @@ impl ParserTrait for ChoiceParser<'_> {
 
 }
 
-pub fn _choice<'a>(v: Vec<Box<dyn DynCombinatorTrait + 'a>>) -> impl CombinatorTrait + 'a {
+pub fn _choice<'a, Output: 'static>(v: Vec<Box<dyn DynCombinatorTrait<Output = Output> + 'a>>) -> impl CombinatorTrait<Output = Output> + 'a {
     Choice {
         children: v.into_iter().collect(),
         greedy: false,
     }
 }
 
-pub fn _choice_greedy<'a>(v: Vec<Box<dyn DynCombinatorTrait + 'a>>) -> impl CombinatorTrait + 'a {
+pub fn _choice_greedy<'a, Output: 'static>(v: Vec<Box<dyn DynCombinatorTrait<Output = Output> + 'a>>) -> impl CombinatorTrait<Output = Output> + 'a {
     profile_internal("choice", Choice {
         children: v.into_iter().collect(),
         greedy: true,
