@@ -1,3 +1,4 @@
+use crate::{RightData, RightDataGetters};
 use crate::{profile, LookaheadData, ParseResultTrait, ParseResults, UpData, VecY};
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
@@ -22,8 +23,8 @@ pub trait Squash {
     fn squash(&mut self);
 }
 
-impl Squash for VecY<UpData<'_>> {
-    type Output = VecY<UpData<'_>>; // TODO: this is a bit of a hack. We're assuming that the lifetime of the UpData is the same as the lifetime of the VecY.
+impl Squash for VecY<UpData> {
+    type Output = VecY<UpData>;
     fn squashed(self) -> Self::Output {
         if self.len() > SQUASH_THRESHOLD {
             profile!("RightDataSquasher::squashed", {
@@ -38,13 +39,13 @@ impl Squash for VecY<UpData<'_>> {
     }
     fn squash(&mut self) {
         if self.len() > SQUASH_THRESHOLD {
-            *self = self.drain(..).collect::<VecY<UpData<'_>>>().squashed()
+            *self = self.drain(..).collect::<VecY<UpData>>().squashed()
         }
     }
 }
 
-impl Squash for ParseResults<'_> {
-    type Output = ParseResults<'_>;
+impl Squash for ParseResults {
+    type Output = ParseResults;
     fn squashed(self) -> Self::Output {
         if self.up_data_vec.len() > SQUASH_THRESHOLD {
             profile!("ParseResults::squashed", {
@@ -99,7 +100,7 @@ impl RightDataSquasher {
             })
     }
 
-    pub fn finish(self) -> VecY<UpData<'_>> {
+    pub fn finish(self) -> VecY<UpData> {
         profile!("RightDataSquasher::finish", {
             let mut result = VecY::new();
             for (mut right_data, lookahead_data) in self.decomposed {

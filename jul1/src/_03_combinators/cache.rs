@@ -1,3 +1,5 @@
+
+// src/_03_combinators/cache.rs
 use crate::RightData;
 // src/combinators/cache.rs
 // src/combinators/cache.rs
@@ -122,12 +124,12 @@ pub struct CacheContextParser<'a> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for CacheContext<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults<T::Output>) {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> UnambiguousParseResults<T::Output> where T::Output: 'a {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -135,8 +137,9 @@ impl<T: CombinatorTrait> DynCombinatorTrait for CacheContext<T> {
 impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
     type Parser<'a> = CacheContextParser<'a> where Self: 'a;
     type Output = T::Output;
+    type PartialOutput = T::PartialOutput;
 
-    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         profile!("CacheContext.one_shot_parse: start", {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
@@ -157,7 +160,7 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
             })
     }
 
-    fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         profile!("CacheContext.old_parse: start", {
         GLOBAL_CACHE.with(|cache| {
             let parse_id = {
@@ -179,10 +182,6 @@ impl<T: CombinatorTrait> CombinatorTrait for CacheContext<T> {
         })
         })
     }
-
-    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
-        self.parse(right_data, bytes)
-    }
 }
 
 impl<T: CombinatorTrait> BaseCombinatorTrait for CacheContext<T> {
@@ -195,13 +194,11 @@ impl<T: CombinatorTrait> BaseCombinatorTrait for CacheContext<T> {
 }
 
 impl ParserTrait for CacheContextParser<'_> {
-    type Output = ();
-
     fn get_u8set(&self) -> U8Set {
         self.inner.as_ref().get_u8set()
     }
 
-    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<Self::Output> where Self::Output: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         profile!("CacheContextParser.parse: start", {
         GLOBAL_CACHE.with(|cache| {
             {
@@ -234,12 +231,12 @@ impl ParserTrait for CacheContextParser<'_> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for Cached<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults<T::Output>) {
+    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &'a [u8]) -> UnambiguousParseResults<T::Output> where T::Output: 'a {
+    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -247,8 +244,9 @@ impl<T: CombinatorTrait> DynCombinatorTrait for Cached<T> {
 impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
     type Parser<'a> = CachedParser where Self: 'a;
     type Output = T::Output;
+    type PartialOutput = T::PartialOutput;
 
-    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
+    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
         GLOBAL_CACHE.with(move |cache| {
             let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn DynCombinatorTrait, right_data: right_data.clone() };
 
@@ -264,7 +262,7 @@ impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
 
             count_hit!("Cached.parse: cache miss");
             let inner = &self.inner;
-            let parse_result: UnambiguousParseResults<Self::Output> = profile!("Cached.parse: inner.one_shot_parse", inner.one_shot_parse(right_data, bytes));
+            let parse_result: UnambiguousParseResults = profile!("Cached.parse: inner.one_shot_parse", inner.one_shot_parse(right_data, bytes));
             let mut global_cache = cache.borrow_mut();
             let parse_id = global_cache.parse_id.unwrap();
             global_cache.one_shot_results.get_mut(&parse_id).unwrap().put(key, parse_result.clone());
@@ -272,7 +270,7 @@ impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
         })
     }
 
-    fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
+    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
         GLOBAL_CACHE.with(move |cache| {
             let key = CacheKey { combinator: std::ptr::addr_of!(self.inner) as *const dyn DynCombinatorTrait, right_data: right_data.clone() };
 
@@ -310,10 +308,6 @@ impl<T: CombinatorTrait> CombinatorTrait for Cached<T> {
             (CachedParser { entry }, parse_results)
         })
     }
-
-    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
-        self.parse(right_data, bytes)
-    }
 }
 
 impl<T: CombinatorTrait> BaseCombinatorTrait for Cached<T> {
@@ -326,8 +320,6 @@ impl<T: CombinatorTrait> BaseCombinatorTrait for Cached<T> {
 }
 
 impl ParserTrait for CachedParser {
-    type Output = ();
-
     fn get_u8set(&self) -> U8Set {
         if self.entry.borrow().maybe_u8set.is_some() {
             self.entry.borrow().maybe_u8set.clone().unwrap()
@@ -338,7 +330,7 @@ impl ParserTrait for CachedParser {
         }
     }
 
-    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<Self::Output> where Self::Output: 'b {
+    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
         self.entry.borrow().maybe_parse_results.clone().expect("CachedParser.steps: parse_results is None")
     }
 }
