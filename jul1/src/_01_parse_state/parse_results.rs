@@ -2,18 +2,20 @@ use crate::internal_vec::VecY;
 use crate::{vecy, Fields1, Fields2, RightData, RightDataGetters};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct UpData {
+pub struct UpData<Output> {
     right_data: RightData,
+    output: Output,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct OneShotUpData {
+pub struct OneShotUpData<Output> {
     right_data: RightData,
+    output: Output,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ParseResults {
-    pub up_data_vec: VecY<UpData>,
+pub struct ParseResults<Output> {
+    pub up_data_vec: VecY<UpData<Output>>,
     pub done: bool,
 }
 
@@ -30,35 +32,35 @@ pub enum ActuallyUnambiguousParseError {
     Fail,
 }
 
-pub type UnambiguousParseResults = Result<OneShotUpData, UnambiguousParseError>;
+pub type UnambiguousParseResults<Output> = Result<OneShotUpData<Output>, UnambiguousParseError>;
 
-pub trait ParseResultTrait {
+pub trait ParseResultTrait<Output> {
     fn done(&self) -> bool;
     fn succeeds_decisively(&self) -> bool;
     fn merge_assign(&mut self, p0: Self) where Self: Sized;
     fn merge(self, p0: Self) -> Self where Self: Sized;
     fn combine_seq(&mut self, p0: Self) where Self: Sized;
-    fn new(up_data_vec: VecY<UpData>, done: bool) -> Self where Self: Sized;
-    fn new_single(up_data_vec: UpData, done: bool) -> Self where Self: Sized;
+    fn new(up_data_vec: VecY<UpData<Output>>, done: bool) -> Self where Self: Sized;
+    fn new_single(up_data_vec: UpData<Output>, done: bool) -> Self where Self: Sized;
     fn empty(done: bool) -> Self where Self: Sized;
     fn empty_unfinished() -> Self where Self: Sized;
     fn empty_finished() -> Self where Self: Sized;
 }
 
-impl From<ParseResults> for UnambiguousParseResults {
-    fn from(value: ParseResults) -> Self {
+impl<Output> From<ParseResults<Output>> for UnambiguousParseResults<Output> {
+    fn from(value: ParseResults<Output>) -> Self {
         if !value.done() {
             return Err(UnambiguousParseError::Incomplete);
         }
         match value.up_data_vec.as_slice() {
             [] => Err(UnambiguousParseError::Fail),
-            [up_data] => Ok(OneShotUpData { right_data: up_data.right_data.clone() }),
+            [up_data] => Ok(OneShotUpData { right_data: up_data.right_data.clone(), output: up_data.output.clone() }),
             [_, _, ..] => Err(UnambiguousParseError::Ambiguous),
         }
     }
 }
 
-impl ParseResultTrait for ParseResults {
+impl<Output> ParseResultTrait<Output> for ParseResults<Output> {
     fn done(&self) -> bool {
         self.done
     }
@@ -67,13 +69,13 @@ impl ParseResultTrait for ParseResults {
         // TODO: remove the below line and uncomment the above line
         // self.done() && !self.up_data_vec.is_empty()
     }
-    fn new(up_data_vec: VecY<UpData>, done: bool) -> Self {
+    fn new(up_data_vec: VecY<UpData<Output>>, done: bool) -> Self {
         ParseResults {
             up_data_vec,
             done,
         }
     }
-    fn new_single(up_data: UpData, done: bool) -> Self {
+    fn new_single(up_data: UpData<Output>, done: bool) -> Self {
         ParseResults {
             up_data_vec: vecy![up_data],
             done,
@@ -91,21 +93,21 @@ impl ParseResultTrait for ParseResults {
     fn empty_finished() -> Self {
         ParseResults::empty(true)
     }
-    fn merge_assign(&mut self, mut p0: ParseResults) {
+    fn merge_assign(&mut self, mut p0: ParseResults<Output>) {
         self.up_data_vec.append(&mut p0.up_data_vec);
         self.done &= p0.done();
     }
-    fn merge(mut self, p0: ParseResults) -> Self {
+    fn merge(mut self, p0: ParseResults<Output>) -> Self {
         self.merge_assign(p0);
         self
     }
-    fn combine_seq(&mut self, mut p0: ParseResults) {
+    fn combine_seq(&mut self, mut p0: ParseResults<Output>) {
         self.up_data_vec.append(&mut p0.up_data_vec);
         self.done |= p0.done();
     }
 }
 
-impl ParseResultTrait for UnambiguousParseResults {
+impl<Output> ParseResultTrait<Output> for UnambiguousParseResults<Output> {
     fn done(&self) -> bool {
         match self {
             Ok(_) => true,
@@ -117,14 +119,14 @@ impl ParseResultTrait for UnambiguousParseResults {
     fn succeeds_decisively(&self) -> bool {
         self.is_ok()
     }
-    fn new(up_data_vec: VecY<UpData>, done: bool) -> Self {
+    fn new(up_data_vec: VecY<UpData<Output>>, done: bool) -> Self {
         match (up_data_vec.len(), done) {
-            (1, true) => Ok(OneShotUpData { right_data: up_data_vec[0].right_data.clone() }),
+            (1, true) => Ok(OneShotUpData { right_data: up_data_vec[0].right_data.clone(), output: up_data_vec[0].output.clone() }),
             (1, false) => Err(UnambiguousParseError::Incomplete),
             _ => Err(UnambiguousParseError::Ambiguous),
         }
     }
-    fn new_single(up_data: UpData, done: bool) -> Self {
+    fn new_single(up_data: UpData<Output>, done: bool) -> Self {
         Self::new(vecy![up_data], done)
     }
     fn empty(done: bool) -> Self {
@@ -166,19 +168,19 @@ impl ParseResultTrait for UnambiguousParseResults {
     }
 }
 
-impl UpData {
-    pub fn new(right_data: RightData) -> Self {
-        Self { right_data }
+impl<Output> UpData<Output> {
+    pub fn new(right_data: RightData, output: Output) -> Self {
+        Self { right_data, output }
     }
 }
 
-impl OneShotUpData {
-    pub fn new(right_data: RightData) -> Self {
-        Self { right_data }
+impl<Output> OneShotUpData<Output> {
+    pub fn new(right_data: RightData, output: Output) -> Self {
+        Self { right_data, output }
     }
 }
 
-impl RightDataGetters for UpData {
+impl<Output: RightDataGetters> RightDataGetters for UpData<Output> {
     fn get_fields1(&self) -> &Fields1 { self.right_data.get_fields1() }
     fn get_fields1_mut(&mut self) -> &mut Fields1 { self.right_data.get_fields1_mut() }
     fn get_fields2(&self) -> &Fields2 { self.right_data.get_fields2() }
@@ -186,7 +188,7 @@ impl RightDataGetters for UpData {
     fn just_right_data(self) -> RightData { self.right_data }
 }
 
-impl RightDataGetters for OneShotUpData {
+impl<Output: RightDataGetters> RightDataGetters for OneShotUpData<Output> {
     fn get_fields1(&self) -> &Fields1 { self.right_data.get_fields1() }
     fn get_fields1_mut(&mut self) -> &mut Fields1 { self.right_data.get_fields1_mut() }
     fn get_fields2(&self) -> &Fields2 { self.right_data.get_fields2() }

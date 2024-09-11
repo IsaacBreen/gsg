@@ -30,12 +30,12 @@ impl Debug for FastParserWrapper<'_> {
 }
 
 impl DynCombinatorTrait for FastCombinatorWrapper {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait<Self::Output> + 'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -43,9 +43,8 @@ impl DynCombinatorTrait for FastCombinatorWrapper {
 impl CombinatorTrait for FastCombinatorWrapper {
     type Parser<'a> = FastParserWrapper<'a>;
     type Output = ();
-    type PartialOutput = ();
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
         if !regex_state.done() {
@@ -58,20 +57,20 @@ impl CombinatorTrait for FastCombinatorWrapper {
                 panic!("FastCombinatorWrapper::one_shot_parse: regex matched the empty string");
             }
             right_data.advance(position);
-            Ok(OneShotUpData::new(right_data))
+            Ok(OneShotUpData::new(right_data, ())) // Add output
         } else {
             assert!(regex_state.failed());
             Err(UnambiguousParseError::Fail)
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse<'a, 'b>(&self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let mut regex_state = self.regex.init();
         regex_state.execute(bytes);
         if regex_state.failed() {
             (FastParserWrapper { regex_state, right_data: None }, ParseResults::empty_finished())
         } else {
-            let mut up_data_vec: VecY<UpData> = vecy![];
+            let mut up_data_vec: VecY<UpData<()>> = vecy![];
             let done = regex_state.done();
             if let Some(new_match) = regex_state.prev_match() {
                 let mut right_data = right_data.clone();
@@ -81,7 +80,7 @@ impl CombinatorTrait for FastCombinatorWrapper {
                     panic!("FastCombinatorWrapper::old_parse: regex matched the empty string");
                 }
                 right_data.advance(position);
-                up_data_vec.push(UpData::new(right_data));
+                up_data_vec.push(UpData::new(right_data, ())); // Add output
             }
             (FastParserWrapper { regex_state, right_data: Some(right_data) }, ParseResults::new(up_data_vec, done))
         }
@@ -94,19 +93,19 @@ impl BaseCombinatorTrait for FastCombinatorWrapper {
     }
 }
 
-impl ParserTrait for FastParserWrapper<'_> {
+impl<Output: OutputTrait> ParserTrait<Output> for FastParserWrapper<'_> {
     fn get_u8set(&self) -> U8Set {
         profile!("FastParserWrapper.get_u8set", self.regex_state.get_u8set())
-}
+    }
 
-fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<Output> where Output: 'b {
         let mut regex_state = &mut self.regex_state;
         let prev_match = regex_state.prev_match();
         regex_state.execute(bytes);
         if regex_state.failed() {
             ParseResults::empty_finished()
         } else {
-            let mut up_data_vec: VecY<UpData> = vecy![];
+            let mut up_data_vec: VecY<UpData<()>> = vecy![];
             let done = regex_state.done();
             if let Some(new_match) = regex_state.prev_match() {
                 if Some(new_match) != prev_match {
@@ -116,7 +115,7 @@ fn parse(&mut self, bytes: &[u8]) -> ParseResults {
                         panic!("FastParserWrapper::parse: regex matched the empty string");
                     }
                     right_data.advance(position);
-                    up_data_vec.push(UpData::new(right_data));
+                    up_data_vec.push(UpData::new(right_data, ())); // Add output
                 }
             }
             ParseResults::new(up_data_vec, done)

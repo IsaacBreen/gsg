@@ -44,8 +44,8 @@ macro_rules! define_choice {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
-            pub(crate) $first: Option<$first::PartialOutput>,
-            $(pub(crate) $rest: Option<$rest::PartialOutput>,)+
+            pub(crate) $first: Option<$first::Output>,
+            $(pub(crate) $rest: Option<$rest::Output>,)+
         }
 
         impl<$first, $($rest),+> $crate::DynCombinatorTrait for $choice_name<$first, $($rest),+>
@@ -53,12 +53,12 @@ macro_rules! define_choice {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+,
         {
-            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait<Self::Output> + '_>, ParseResults<Self::Output>) {
                 let (parser, parse_results) = self.parse(right_data, bytes);
                 (Box::new(parser), parse_results)
             }
 
-            fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+            fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults<Self::Output> {
                 self.one_shot_parse(right_data, bytes)
             }
         }
@@ -70,9 +70,8 @@ macro_rules! define_choice {
         {
             type Parser<'a> = $choice_parser_name<'a, $first, $($rest),+> where Self: 'a;
             type Output = $choice_enum_name<$first, $($rest),+>;
-            type PartialOutput = $choice_partial_enum_name<$first, $($rest),+>;
 
-            fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
+            fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> $crate::UnambiguousParseResults<Self::Output> where Self::Output: 'b {
                 use $crate::{UnambiguousParseResults, UnambiguousParseError};
                 if self.greedy {
                     let first_combinator = &self.$first;
@@ -119,7 +118,7 @@ macro_rules! define_choice {
                 }
             }
 
-            fn old_parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
+            fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
                 let start_position = right_data.get_fields1().position;
 
                 let mut combined_results = ParseResults::empty_finished();
@@ -153,7 +152,7 @@ macro_rules! define_choice {
             }
         }
 
-        impl<'a, $first, $($rest),+> ParserTrait for $choice_parser_name<'a, $first, $($rest),+>
+        impl<'a, $first, $($rest),+> ParserTrait<$choice_enum_name<$first, $($rest),+>> for $choice_parser_name<'a, $first, $($rest),+>
         where
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
@@ -171,7 +170,7 @@ macro_rules! define_choice {
                 u8set
             }
 
-            fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+            fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<$choice_enum_name<$first, $($rest),+>> where $choice_enum_name<$first, $($rest),+>: 'b {
                 profile!(stringify!($choice_parser_name, "::parse"), {
                     let mut parse_result = ParseResults::empty_finished();
                     let mut discard_rest = false;

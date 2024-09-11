@@ -14,29 +14,28 @@ pub struct ChoiceParser<'a> {
 }
 
 impl DynCombinatorTrait for Choice<'_> {
-    fn parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + 'a>, ParseResults) {
+    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait<Self::Output> + 'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
         self.one_shot_parse(right_data, bytes)
     }
 }
 
-impl CombinatorTrait for Choice<'_> {
+impl<Output: OutputTrait> CombinatorTrait for Choice<'_> {
     type Parser<'a> = ChoiceParser<'a> where Self: 'a;
-    type Output = Box<dyn std::any::Any>;
-    type PartialOutput = Box<dyn std::any::Any>;
+    type Output = Output;
 
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
         if self.greedy {
             for parser in self.children.iter() {
                 let parse_result = parser.one_shot_parse(right_data.clone(), bytes);
                 match parse_result {
                     Ok(one_shot_up_data) => {
-                        return Ok(OneShotUpData::new(one_shot_up_data.just_right_data()));
+                        return Ok(OneShotUpData::new(one_shot_up_data.just_right_data(), one_shot_up_data.output));
                     }
                     Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => {
                         return parse_result;
@@ -62,7 +61,7 @@ impl CombinatorTrait for Choice<'_> {
                                 Err(UnambiguousParseError::Fail) => {}
                             }
                         }
-                        return Ok(OneShotUpData::new(one_shot_up_data.just_right_data()));
+                        return Ok(OneShotUpData::new(one_shot_up_data.just_right_data(), one_shot_up_data.output));
                     }
                     Err(UnambiguousParseError::Incomplete | UnambiguousParseError::Ambiguous) => {
                         return parse_result;
@@ -74,7 +73,7 @@ impl CombinatorTrait for Choice<'_> {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse<'a, 'b>(&self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let mut parsers = Vec::new();
         let mut combined_results = ParseResults::empty_finished();
 
@@ -108,7 +107,7 @@ impl BaseCombinatorTrait for Choice<'_> {
     }
 }
 
-impl ParserTrait for ChoiceParser<'_> {
+impl<Output: OutputTrait> ParserTrait<Output> for ChoiceParser<'_> {
     fn get_u8set(&self) -> U8Set {
         let mut u8set = U8Set::none();
         for parser in &self.parsers {
@@ -117,7 +116,7 @@ impl ParserTrait for ChoiceParser<'_> {
         u8set
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<Output> where Output: 'b {
         let mut parse_result = ParseResults::empty_finished();
         let mut discard_rest = false;
 
