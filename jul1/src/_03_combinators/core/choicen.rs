@@ -1,6 +1,4 @@
-
-// src/_03_combinators/core/choicen.rs
-use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, RightDataGetters, Squash, U8Set, UnambiguousParseResults, UpData, OneShotUpData};
+use crate::{BaseCombinatorTrait, CombinatorTrait, IntoCombinator, ParseResultTrait, ParseResults, ParserTrait, RightData, RightDataGetters, Squash, U8Set, UnambiguousParseResults, VecY, UpData, OneShotUpData, OutputTrait};
 
 macro_rules! profile {
     ($tag:expr, $body:expr) => {{
@@ -10,7 +8,7 @@ macro_rules! profile {
 
 #[macro_export]
 macro_rules! define_choice {
-    ($choice_name:ident, $choice_parser_name:ident, $choice_enum_name:ident, $choice_partial_enum_name:ident, $first:ident, $($rest:ident),+) => {
+    ($choice_name:ident, $choice_parser_name:ident, $choice_enum_name:ident, $first:ident, $($rest:ident),+) => {
         #[derive(Debug)]
         pub struct $choice_name<$first, $($rest),+> {
             pub(crate) $first: $first,
@@ -39,26 +37,17 @@ macro_rules! define_choice {
             $(pub(crate) $rest: $rest::Output,)+
         }
 
-        pub struct $choice_partial_enum_name<$first, $($rest),+>
-        where
-            $first: CombinatorTrait,
-            $($rest: CombinatorTrait),+
-        {
-            pub(crate) $first: Option<$first::PartialOutput>,
-            $(pub(crate) $rest: Option<$rest::PartialOutput>,)+
-        }
-
         impl<$first, $($rest),+> $crate::DynCombinatorTrait for $choice_name<$first, $($rest),+>
         where
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+,
         {
-            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults<Self::Output>) {
                 let (parser, parse_results) = self.parse(right_data, bytes);
                 (Box::new(parser), parse_results)
             }
 
-            fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+            fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults<Self::Output> {
                 self.one_shot_parse(right_data, bytes)
             }
         }
@@ -70,9 +59,8 @@ macro_rules! define_choice {
         {
             type Parser<'a> = $choice_parser_name<'a, $first, $($rest),+> where Self: 'a;
             type Output = $choice_enum_name<$first, $($rest),+>;
-            type PartialOutput = $choice_partial_enum_name<$first, $($rest),+>;
 
-            fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
+            fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> $crate::UnambiguousParseResults<Self::Output> where Self::Output: 'b {
                 use $crate::{UnambiguousParseResults, UnambiguousParseError};
                 if self.greedy {
                     let first_combinator = &self.$first;
@@ -119,7 +107,7 @@ macro_rules! define_choice {
                 }
             }
 
-            fn old_parse<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'a>, ParseResults) {
+            fn parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
                 let start_position = right_data.get_fields1().position;
 
                 let mut combined_results = ParseResults::empty_finished();
@@ -158,6 +146,8 @@ macro_rules! define_choice {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
+            type Output = $choice_enum_name<$first, $($rest),+>;
+
             fn get_u8set(&self) -> U8Set {
                 let mut u8set = U8Set::none();
                 for parser in &self.$first {
@@ -171,7 +161,7 @@ macro_rules! define_choice {
                 u8set
             }
 
-            fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+            fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<Self::Output> where Self::Output: 'b {
                 profile!(stringify!($choice_parser_name, "::parse"), {
                     let mut parse_result = ParseResults::empty_finished();
                     let mut discard_rest = false;
@@ -228,18 +218,18 @@ macro_rules! define_choice {
     };
 }
 
-define_choice!(Choice2, Choice2Parser, Choice2Enum, Choice2PartialEnum, c0, c1);
-define_choice!(Choice3, Choice3Parser, Choice3Enum, Choice3PartialEnum, c0, c1, c2);
-define_choice!(Choice4, Choice4Parser, Choice4Enum, Choice4PartialEnum, c0, c1, c2, c3);
-define_choice!(Choice5, Choice5Parser, Choice5Enum, Choice5PartialEnum, c0, c1, c2, c3, c4);
-define_choice!(Choice6, Choice6Parser, Choice6Enum, Choice6PartialEnum, c0, c1, c2, c3, c4, c5);
-define_choice!(Choice7, Choice7Parser, Choice7Enum, Choice7PartialEnum, c0, c1, c2, c3, c4, c5, c6);
-define_choice!(Choice8, Choice8Parser, Choice8Enum, Choice8PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7);
-define_choice!(Choice9, Choice9Parser, Choice9Enum, Choice9PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8);
-define_choice!(Choice10, Choice10Parser, Choice10Enum, Choice10PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
-define_choice!(Choice11, Choice11Parser, Choice11Enum, Choice11PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
-define_choice!(Choice12, Choice12Parser, Choice12Enum, Choice12PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
-define_choice!(Choice13, Choice13Parser, Choice13Enum, Choice13PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);
-define_choice!(Choice14, Choice14Parser, Choice14Enum, Choice14PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13);
-define_choice!(Choice15, Choice15Parser, Choice15Enum, Choice15PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
-define_choice!(Choice16, Choice16Parser, Choice16Enum, Choice16PartialEnum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15);
+define_choice!(Choice2, Choice2Parser, Choice2Enum, c0, c1);
+define_choice!(Choice3, Choice3Parser, Choice3Enum, c0, c1, c2);
+define_choice!(Choice4, Choice4Parser, Choice4Enum, c0, c1, c2, c3);
+define_choice!(Choice5, Choice5Parser, Choice5Enum, c0, c1, c2, c3, c4);
+define_choice!(Choice6, Choice6Parser, Choice6Enum, c0, c1, c2, c3, c4, c5);
+define_choice!(Choice7, Choice7Parser, Choice7Enum, c0, c1, c2, c3, c4, c5, c6);
+define_choice!(Choice8, Choice8Parser, Choice8Enum, c0, c1, c2, c3, c4, c5, c6, c7);
+define_choice!(Choice9, Choice9Parser, Choice9Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8);
+define_choice!(Choice10, Choice10Parser, Choice10Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9);
+define_choice!(Choice11, Choice11Parser, Choice11Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
+define_choice!(Choice12, Choice12Parser, Choice12Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
+define_choice!(Choice13, Choice13Parser, Choice13Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12);
+define_choice!(Choice14, Choice14Parser, Choice14Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13);
+define_choice!(Choice15, Choice15Parser, Choice15Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
+define_choice!(Choice16, Choice16Parser, Choice16Enum, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15);

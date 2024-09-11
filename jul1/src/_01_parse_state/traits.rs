@@ -17,14 +17,14 @@ use std::hash::{Hash, Hasher};
 
 const SQUASH_THRESHOLD: usize = 1;
 
-pub trait Squash {
+pub trait Squash<Output> {
     type Output;
     fn squashed(self) -> Self::Output;
     fn squash(&mut self);
 }
 
-impl Squash for VecY<UpData> {
-    type Output = VecY<UpData>;
+impl<Output> Squash<VecY<UpData<Output>>> for VecY<UpData<Output>> {
+    type Output = VecY<UpData<Output>>;
     fn squashed(self) -> Self::Output {
         if self.len() > SQUASH_THRESHOLD {
             profile!("RightDataSquasher::squashed", {
@@ -39,13 +39,13 @@ impl Squash for VecY<UpData> {
     }
     fn squash(&mut self) {
         if self.len() > SQUASH_THRESHOLD {
-            *self = self.drain(..).collect::<VecY<UpData>>().squashed()
+            *self = self.drain(..).collect::<VecY<UpData<Output>>>().squashed()
         }
     }
 }
 
-impl Squash for ParseResults {
-    type Output = ParseResults;
+impl<Output> Squash<ParseResults<Output>> for ParseResults<Output> {
+    type Output = ParseResults<Output>;
     fn squashed(self) -> Self::Output {
         if self.up_data_vec.len() > SQUASH_THRESHOLD {
             profile!("ParseResults::squashed", {
@@ -68,17 +68,17 @@ impl Squash for ParseResults {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct RightDataSquasher {
+pub struct RightDataSquasher<Output> {
     decomposed: HashMap<RightData, LookaheadData>,
 }
 
-impl Hash for RightDataSquasher {
+impl<Output> Hash for RightDataSquasher<Output> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.decomposed.len().hash(state);
     }
 }
 
-impl RightDataSquasher {
+impl<Output> RightDataSquasher<Output> {
     pub fn new() -> Self {
         Self {
             decomposed: HashMap::new(),
@@ -100,19 +100,19 @@ impl RightDataSquasher {
             })
     }
 
-    pub fn finish(self) -> VecY<UpData> {
+    pub fn finish(self) -> VecY<UpData<Output>> {
         profile!("RightDataSquasher::finish", {
             let mut result = VecY::new();
             for (mut right_data, lookahead_data) in self.decomposed {
                 right_data.get_inner_mut().get_fields1_mut().lookahead_data = lookahead_data;
-                result.push(UpData::new(right_data));
+                result.push(UpData::new(right_data, Output::default()));
             }
             result
         })
     }
 }
 
-impl From<Vec<RightData>> for RightDataSquasher {
+impl<Output> From<Vec<RightData>> for RightDataSquasher<Output> {
     fn from(right_data_vec: Vec<RightData>) -> Self {
         profile!("RightDataSquasher::from", {
             let mut squasher = RightDataSquasher::new();
@@ -122,19 +122,19 @@ impl From<Vec<RightData>> for RightDataSquasher {
     }
 }
 
-impl RightDataSquasher {
-    pub fn into_iter(self) -> RightDataSquasherIterator {
+impl<Output> RightDataSquasher<Output> {
+    pub fn into_iter(self) -> RightDataSquasherIterator<Output> {
         RightDataSquasherIterator {
             inner: self.decomposed.into_iter()
         }
     }
 }
 
-pub struct RightDataSquasherIterator {
+pub struct RightDataSquasherIterator<Output> {
     inner: std::collections::hash_map::IntoIter<RightData, LookaheadData>,
 }
 
-impl Iterator for RightDataSquasherIterator {
+impl<Output> Iterator for RightDataSquasherIterator<Output> {
     type Item = (RightData, LookaheadData);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -142,20 +142,20 @@ impl Iterator for RightDataSquasherIterator {
     }
 }
 
-impl IntoIterator for RightDataSquasher {
+impl<Output> IntoIterator for RightDataSquasher<Output> {
     type Item = (RightData, LookaheadData);
-    type IntoIter = RightDataSquasherIterator;
+    type IntoIter = RightDataSquasherIterator<Output>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.into_iter()
     }
 }
 
-pub struct RightDataSquasherIteratorMut<'a> {
+pub struct RightDataSquasherIteratorMut<'a, Output> {
     inner: std::collections::hash_map::IterMut<'a, RightData, LookaheadData>,
 }
 
-impl<'a> Iterator for RightDataSquasherIteratorMut<'a> {
+impl<'a, Output> Iterator for RightDataSquasherIteratorMut<'a, Output> {
     type Item = (&'a RightData, &'a mut LookaheadData);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -163,14 +163,14 @@ impl<'a> Iterator for RightDataSquasherIteratorMut<'a> {
     }
 }
 
-impl RightDataSquasher {
-    pub fn iter(&self) -> RightDataSquasherIterator {
+impl<Output> RightDataSquasher<Output> {
+    pub fn iter(&self) -> RightDataSquasherIterator<Output> {
         RightDataSquasherIterator {
             inner: self.decomposed.clone().into_iter()
         }
     }
 
-    pub fn iter_mut(&mut self) -> RightDataSquasherIteratorMut {
+    pub fn iter_mut(&mut self) -> RightDataSquasherIteratorMut<Output> {
         RightDataSquasherIteratorMut {
             inner: self.decomposed.iter_mut()
         }
@@ -188,7 +188,7 @@ impl RightDataSquasher {
         self.decomposed.clear();
     }
 
-    pub fn append(&mut self, right_data_squasher: &mut RightDataSquasher) {
+    pub fn append(&mut self, right_data_squasher: &mut RightDataSquasher<Output>) {
         profile!("RightDataSquasher::append", {
         for right_data in right_data_squasher.decomposed.drain() {
             self.push(right_data.0);
@@ -199,4 +199,19 @@ impl RightDataSquasher {
     pub fn retain(&mut self, f: impl Fn(&RightData) -> bool) {
         self.decomposed.retain(|right_data, _| f(right_data));
     }
+}
+
+pub trait OutputTrait: Default + Clone + PartialEq + Eq + Hash + Debug {}
+
+pub trait ParseResultTrait<Output: OutputTrait> {
+    fn done(&self) -> bool;
+    fn succeeds_decisively(&self) -> bool;
+    fn merge_assign(&mut self, p0: Self) where Self: Sized;
+    fn merge(self, p0: Self) -> Self where Self: Sized;
+    fn combine_seq(&mut self, p0: Self) where Self: Sized;
+    fn new(up_data_vec: VecY<UpData<Output>>, done: bool) -> Self where Self: Sized;
+    fn new_single(up_data_vec: UpData<Output>, done: bool) -> Self where Self: Sized;
+    fn empty(done: bool) -> Self where Self: Sized;
+    fn empty_unfinished() -> Self where Self: Sized;
+    fn empty_finished() -> Self where Self: Sized;
 }

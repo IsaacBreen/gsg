@@ -1,10 +1,8 @@
-
-// src/_03_combinators/core/eat.rs
 use crate::internal_vec::VecY;
 use crate::_01_parse_state::{RightData, UpData};
 use crate::{RightDataGetters, UnambiguousParseError};
 use crate::{BaseCombinatorTrait, DynCombinatorTrait, UnambiguousParseResults, OneShotUpData};
-use crate::{CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set};
+use crate::{CombinatorTrait, ParseResultTrait, ParseResults, ParserTrait, U8Set, OutputTrait};
 use std::ops::RangeBounds;
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash)]
@@ -19,12 +17,12 @@ pub struct EatU8Parser {
 }
 
 impl DynCombinatorTrait for EatU8 {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait<'a> + 'a>, ParseResults<'b, Self::Output>) where Self::Output: 'b {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse_dyn<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<'b, Self::Output> where Self::Output: 'b {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -32,9 +30,8 @@ impl DynCombinatorTrait for EatU8 {
 impl CombinatorTrait for EatU8 {
     type Parser<'a> = EatU8Parser;
     type Output = ();
-    type PartialOutput = ();
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<'b, Self::Output> where Self::Output: 'b {
         if bytes.is_empty() {
             return ParseResultTrait::empty_unfinished();
         }
@@ -42,13 +39,13 @@ impl CombinatorTrait for EatU8 {
         let mut right_data = right_data;
         if self.u8set.contains(bytes[0]) {
             right_data.advance(1);
-            Ok(OneShotUpData::new(right_data))
+            Ok(OneShotUpData::new(right_data, ())) // Output is always empty
         } else {
             ParseResultTrait::empty_finished()
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<'b, Self::Output>) where Self::Output: 'b {
         let mut parser = EatU8Parser {
             u8set: self.u8set.clone(),
             right_data: Some(right_data),
@@ -70,7 +67,7 @@ impl ParserTrait for EatU8Parser {
         return self.u8set.clone();
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<'b, Self::Output> where Self::Output: 'b {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
@@ -78,7 +75,7 @@ impl ParserTrait for EatU8Parser {
         let mut right_data = self.right_data.take().unwrap();
         if self.u8set.contains(bytes[0]) {
             right_data.advance(1);
-            ParseResults::new_single(UpData::new(right_data), true)
+            ParseResults::new_single(UpData::new(right_data, ()), true) // Output is always empty
         } else {
             ParseResults::empty_finished()
         }
@@ -162,12 +159,12 @@ pub struct EatStringParser<'a> {
 }
 
 impl DynCombinatorTrait for EatString {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait<'a> + 'a>, ParseResults<'b, Self::Output>) where Self::Output: 'b {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse_dyn<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<'b, Self::Output> where Self::Output: 'b {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -175,9 +172,8 @@ impl DynCombinatorTrait for EatString {
 impl CombinatorTrait for EatString {
     type Parser<'a> = EatStringParser<'a>;
     type Output = ();
-    type PartialOutput = ();
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<'b, Self::Output> where Self::Output: 'b {
         if bytes.len() < self.string.len() {
             return Err(UnambiguousParseError::Incomplete);
         }
@@ -185,13 +181,13 @@ impl CombinatorTrait for EatString {
         if self.string == bytes[..self.string.len()] {
             let mut right_data = right_data;
             right_data.advance(self.string.len());
-            Ok(OneShotUpData::new(right_data))
+            Ok(OneShotUpData::new(right_data, ())) // Output is always empty
         } else {
             Err(UnambiguousParseError::Fail)
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<'b, Self::Output>) where Self::Output: 'b {
         let mut parser = EatStringParser {
             string: self.string.as_slice(),
             index: 0,
@@ -213,7 +209,7 @@ impl ParserTrait for EatStringParser<'_> {
         U8Set::from_byte(self.string[self.index])
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<'b, Self::Output> where Self::Output: 'b {
         if bytes.is_empty() {
             return ParseResults::empty_unfinished();
         }
@@ -227,7 +223,7 @@ impl ParserTrait for EatStringParser<'_> {
                 if self.index == self.string.len() {
                     let mut right_data = self.right_data.take().expect("right_data already taken");
                     right_data.advance(self.string.len());
-                    up_data_vec.push(UpData::new(right_data));
+                    up_data_vec.push(UpData::new(right_data, ())); // Output is always empty
                     done = true;
                     break;
                 }
