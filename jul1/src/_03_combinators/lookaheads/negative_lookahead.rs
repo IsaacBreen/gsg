@@ -20,12 +20,12 @@ pub struct ExcludeBytestringsParser<'a, T: CombinatorTrait + 'a> {
 }
 
 impl<T: CombinatorTrait> DynCombinatorTrait for ExcludeBytestrings<T> {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait<Self::Output> + 'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -33,9 +33,8 @@ impl<T: CombinatorTrait> DynCombinatorTrait for ExcludeBytestrings<T> {
 impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
     type Parser<'a> = ExcludeBytestringsParser<'a, T> where T: 'a;
     type Output = T::Output;
-    type PartialOutput = T::PartialOutput;
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
         let start_position = right_data.get_fields1().position;
         match self.inner.one_shot_parse(right_data, bytes) {
             Ok(one_shot_up_data) => {
@@ -52,7 +51,7 @@ impl<T: CombinatorTrait> CombinatorTrait for ExcludeBytestrings<T> {
         }
     }
 
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse<'a, 'b>(&self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let (inner, mut parse_results) = self.inner.parse(right_data.clone(), bytes);
         let mut regex_state = self.regex.init();
         let start_position = right_data.get_fields1().position;
@@ -103,12 +102,12 @@ impl<T: CombinatorTrait> BaseCombinatorTrait for ExcludeBytestrings<T> {
     }
 }
 
-impl<T: CombinatorTrait> ParserTrait for ExcludeBytestringsParser<'_, T> {
+impl<T: CombinatorTrait> ParserTrait<T::Output> for ExcludeBytestringsParser<'_, T> {
     fn get_u8set(&self) -> U8Set {
         self.inner.get_u8set()
     }
 
-    fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+    fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<T::Output> where T::Output: 'b {
         let mut parse_results = self.inner.parse(bytes);
 
         // Optimized logic

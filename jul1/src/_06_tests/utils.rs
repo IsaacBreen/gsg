@@ -196,7 +196,7 @@ pub fn assert_parses_one_shot<T: CombinatorTrait, S: ToString>(combinator: &T, i
         "Expected parser to finish with right data at the end position {}. right_data: {:?}", bytes.len(), one_shot_up_data);
 }
 
-pub fn assert_parses_one_shot_with_result<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, expected_result: UnambiguousParseResults) {
+pub fn assert_parses_one_shot_with_result<T: CombinatorTrait, S: ToString>(combinator: &T, input: S, expected_result: UnambiguousParseResults<T::Output>) {
     let bytes = input.to_string().bytes().collect::<Vec<_>>();
     let start = Instant::now();
     let parse_results = profile!("assert_parses_fast parse", {

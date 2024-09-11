@@ -23,12 +23,12 @@ pub struct ForbidFollowsCheckNot {
 }
 
 impl DynCombinatorTrait for ForbidFollows {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait<Self::Output> + 'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -36,17 +36,16 @@ impl DynCombinatorTrait for ForbidFollows {
 impl CombinatorTrait for ForbidFollows {
     type Parser<'a> = FailParser;
     type Output = ();
-    type PartialOutput = ();
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
         let mut right_data = right_data;
         right_data.get_inner_mut().get_fields1_mut().forbidden_consecutive_matches.prev_match_ids = self.match_ids;
-        Ok(OneShotUpData::new(right_data))
+        Ok(OneShotUpData::new(right_data, ())) // Add output
     }
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse<'a, 'b>(&self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let mut right_data = right_data;
         right_data.get_inner_mut().get_fields1_mut().forbidden_consecutive_matches.prev_match_ids = self.match_ids;
-        (FailParser, ParseResults::new_single(UpData::new(right_data), true))
+        (FailParser, ParseResults::new_single(UpData::new(right_data, ()), true)) // Add output
     }
 }
 
@@ -57,12 +56,12 @@ impl BaseCombinatorTrait for ForbidFollows {
 }
 
 impl DynCombinatorTrait for ForbidFollowsClear {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait<Self::Output> + 'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -70,15 +69,14 @@ impl DynCombinatorTrait for ForbidFollowsClear {
 impl CombinatorTrait for ForbidFollowsClear {
     type Parser<'a> = FailParser;
     type Output = ();
-    type PartialOutput = ();
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        Ok(OneShotUpData::new(right_data))
+    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
+        Ok(OneShotUpData::new(right_data, ())) // Add output
     }
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse<'a, 'b>(&self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let mut right_data = right_data;
         right_data.get_inner_mut().get_fields1_mut().forbidden_consecutive_matches.prev_match_ids = 0;
-        (FailParser, ParseResults::new_single(UpData::new(right_data), true))
+        (FailParser, ParseResults::new_single(UpData::new(right_data, ()), true)) // Add output
     }
 }
 
@@ -89,12 +87,12 @@ impl BaseCombinatorTrait for ForbidFollowsClear {
 }
 
 impl DynCombinatorTrait for ForbidFollowsCheckNot {
-    fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+    fn parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Box<dyn ParserTrait<Self::Output> + 'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let (parser, parse_results) = self.parse(right_data, bytes);
         (Box::new(parser), parse_results)
     }
 
-    fn one_shot_parse_dyn<'a>(&'a self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+    fn one_shot_parse_dyn<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
         self.one_shot_parse(right_data, bytes)
     }
 }
@@ -102,18 +100,17 @@ impl DynCombinatorTrait for ForbidFollowsCheckNot {
 impl CombinatorTrait for ForbidFollowsCheckNot {
     type Parser<'a> = FailParser;
     type Output = ();
-    type PartialOutput = ();
 
-    fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
-        Ok(OneShotUpData::new(right_data))
+    fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> UnambiguousParseResults<Self::Output> where Self::Output: 'b {
+        Ok(OneShotUpData::new(right_data, ())) // Add output
     }
-    fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+    fn old_parse<'a, 'b>(&self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
         let mut right_data = right_data;
         if right_data.get_fields1().forbidden_consecutive_matches.prev_match_ids & self.match_ids != 0 {
             (FailParser, ParseResults::empty_finished())
         } else {
             right_data.get_inner_mut().get_fields1_mut().forbidden_consecutive_matches.prev_match_ids = 0;
-            (FailParser, ParseResults::new_single(UpData::new(right_data), true))
+            (FailParser, ParseResults::new_single(UpData::new(right_data, ()), true)) // Add output
         }
     }
 }

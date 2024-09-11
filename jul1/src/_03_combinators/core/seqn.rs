@@ -50,8 +50,8 @@ macro_rules! define_seq {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
         {
-            pub(crate) $first: Option<$first::PartialOutput>,
-            $(pub(crate) $rest: Option<$rest::PartialOutput>),+
+            pub(crate) $first: Option<$first::Output>,
+            $(pub(crate) $rest: Option<$rest::Output>),+
         }
 
         impl<$first, $($rest),+> $crate::DynCombinatorTrait for $seq_name<$first, $($rest),+>
@@ -59,12 +59,12 @@ macro_rules! define_seq {
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+,
         {
-            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait + '_>, ParseResults) {
+            fn parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> (Box<dyn ParserTrait<Self::Output> + '_>, ParseResults<Self::Output>) {
                 let (parser, parse_results) = self.parse(right_data, bytes);
                 (Box::new(parser), parse_results)
             }
 
-            fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults {
+            fn one_shot_parse_dyn(&self, right_data: RightData, bytes: &[u8]) -> UnambiguousParseResults<Self::Output> {
                 self.one_shot_parse(right_data, bytes)
             }
         }
@@ -76,9 +76,8 @@ macro_rules! define_seq {
         {
             type Parser<'a> = $seq_parser_name<'a, $first, $($rest),+> where Self: 'a;
             type Output = $seq_enum_name<$first, $($rest),+>;
-            type PartialOutput = $seq_partial_enum_name<$first, $($rest),+>;
 
-            fn one_shot_parse(&self, right_data: RightData, bytes: &[u8]) -> $crate::UnambiguousParseResults {
+            fn one_shot_parse<'b>(&self, right_data: RightData, bytes: &'b [u8]) -> $crate::UnambiguousParseResults<Self::Output> where Self::Output: 'b {
                 let mut right_data = right_data;
                 let start_position = right_data.get_fields1().position;
                 let result = self.$first.one_shot_parse(right_data, bytes);
@@ -102,10 +101,13 @@ macro_rules! define_seq {
                         }
                     }
                 )+
-                $crate::UnambiguousParseResults::Ok(OneShotUpData::new(right_data))
+                $crate::UnambiguousParseResults::Ok(OneShotUpData::new(right_data, $seq_enum_name {
+                    $first: one_shot_up_data.output,
+                    $($rest: one_shot_up_data.output),+
+                }))
             }
 
-            fn old_parse(&self, right_data: RightData, bytes: &[u8]) -> (Self::Parser<'_>, ParseResults) {
+            fn old_parse<'a, 'b>(&'a self, right_data: RightData, bytes: &'b [u8]) -> (Self::Parser<'a>, ParseResults<Self::Output>) where Self::Output: 'b {
                 let start_position = right_data.get_fields1().position;
 
                 let first_combinator = &self.$first;
@@ -130,7 +132,7 @@ macro_rules! define_seq {
 
                 let mut next_up_data_vec = first_parse_results.up_data_vec;
 
-                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (T::Parser<'a>, ParseResults) {
+                fn helper<'a, T: CombinatorTrait>(right_data: RightData, next_combinator: &'a T, bytes: &[u8], start_position: usize) -> (T::Parser<'a>, ParseResults<T::Output>) {
                     let offset = right_data.get_fields1().position - start_position;
                     profile!(stringify!($seq_name, " child parse"), {
                         next_combinator.parse(right_data, &bytes[offset..])
@@ -168,7 +170,7 @@ macro_rules! define_seq {
             }
         }
 
-        impl<'a, $first, $($rest),+> ParserTrait for $seq_parser_name<'a, $first, $($rest),+>
+        impl<'a, $first, $($rest),+> ParserTrait<$seq_enum_name<$first, $($rest),+>> for $seq_parser_name<'a, $first, $($rest),+>
         where
             $first: CombinatorTrait,
             $($rest: CombinatorTrait),+
@@ -186,9 +188,9 @@ macro_rules! define_seq {
                 u8set
             }
 
-            fn parse(&mut self, bytes: &[u8]) -> ParseResults {
+            fn parse<'b>(&mut self, bytes: &'b [u8]) -> ParseResults<$seq_enum_name<$first, $($rest),+>> where $seq_enum_name<$first, $($rest),+>: 'b {
                 profile!(stringify!($seq_parser_name, "::parse"), {
-                    let mut new_up_data: VecY<UpData> = VecY::new();
+                    let mut new_up_data: VecY<UpData<$seq_enum_name<$first, $($rest),+>>> = VecY::new();
 
                     // first child
                     if let Some(parser) = &mut self.$first {
