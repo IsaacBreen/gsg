@@ -1,5 +1,6 @@
 use crate::finite_automata::{Regex, RegexState};
 use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 /// A trait for tokenizers that can handle ambiguous token matches.
 pub trait Tokenizer {
@@ -42,8 +43,17 @@ pub trait Tokenizer {
 }
 
 /// A struct that holds a set of regex-based tokenizers for each grammar token.
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct RegexTokenizer<'a> {
     states: Vec<RegexState<'a>>,
+}
+
+impl Clone for RegexTokenizer<'_> {
+    fn clone(&self) -> Self {
+        RegexTokenizer {
+            states: self.states.clone(),
+        }
+    }
 }
 
 impl<'a> RegexTokenizer<'a> {
@@ -83,7 +93,7 @@ impl<'a> Tokenizer for RegexTokenizer<'a> {
 }
 
 /// Precomputes the possible token sequences for each LLM token.
-pub fn precompute<T: Tokenizer + Clone>(
+pub fn precompute<T: Tokenizer + Clone + Eq + Hash>(
     tokenizer: T,
     llm_tokens: Vec<Vec<u8>>,
 ) -> HashMap<T, Vec<(Vec<usize>, T)>> {
@@ -102,7 +112,7 @@ pub fn precompute<T: Tokenizer + Clone>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::finite_automata::{eat_u8, rep, seq, choice};
+    use crate::finite_automata::{eat_u8, rep};
 
     #[test]
     fn test_precompute() {

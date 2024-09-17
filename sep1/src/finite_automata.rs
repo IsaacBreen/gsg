@@ -39,7 +39,7 @@ pub struct DFA {
     start_state: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Regex {
     dfa: DFA,
 }
@@ -56,7 +56,7 @@ pub struct FinalStateReport {
     pub inner: Option<Match>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RegexState<'a> {
     pub regex: &'a Regex,
     pub(crate) position: usize,
