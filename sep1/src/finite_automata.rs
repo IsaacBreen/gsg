@@ -135,18 +135,21 @@ pub fn _choice(exprs: Vec<Expr>) -> Expr {
     Expr::Choice(exprs)
 }
 
+#[macro_export]
 macro_rules! choice {
     ($($expr:expr),* $(,)?) => {
         Expr::Choice(vec![$($expr.into()),*])
     };
 }
 
+#[macro_export]
 macro_rules! seq {
     ($($expr:expr),* $(,)?) => {
         Expr::Seq(vec![$($expr.into()),*])
     };
 }
 
+#[macro_export]
 macro_rules! groups {
     ($($expr:expr),* $(,)?) => {
         ExprGroups {

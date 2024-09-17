@@ -35,20 +35,18 @@ pub trait Tokenizer {
 }
 
 /// A struct that holds a set of regex-based tokenizers for each grammar token.
-pub struct RegexTokenizer {
-    regexes: Vec<Regex>,
-    states: Vec<RegexState<'static>>,
+pub struct RegexTokenizer<'a> {
+    states: Vec<RegexState<'a>>,
 }
 
-impl RegexTokenizer {
+impl<'a> RegexTokenizer<'a> {
     /// Creates a new `RegexTokenizer` from a set of regexes, one for each grammar token.
-    pub fn new(regexes: Vec<Regex>) -> Self {
-        let states = regexes.iter().map(|r| r.init()).collect();
-        RegexTokenizer { regexes, states }
+    pub fn new(regexes: &'a [Regex]) -> Self {
+        RegexTokenizer { states: regexes.iter().map(|regex| regex.init()).collect() }
     }
 }
 
-impl Tokenizer for RegexTokenizer {
+impl Tokenizer for RegexTokenizer<'_> {
     fn execute(&mut self, text: &[u8]) -> HashMap<usize, Vec<usize>> {
         let mut result = HashMap::new();
 
@@ -74,14 +72,14 @@ impl Tokenizer for RegexTokenizer {
 }
 
 /// A struct that precomputes valid token sets for each possible next string segment.
-pub struct Precompute {
-    tokenizer: RegexTokenizer,
+pub struct Precompute<'a> {
+    tokenizer: RegexTokenizer<'a>,
     token_map: HashMap<usize, HashSet<usize>>, // Maps LLM tokens to grammar tokens
 }
 
-impl Precompute {
+impl<'a> Precompute<'a> {
     /// Creates a new `Precompute` instance with the given tokenizer and token map.
-    pub fn new(tokenizer: RegexTokenizer, token_map: HashMap<usize, HashSet<usize>>) -> Self {
+    pub fn new(tokenizer: RegexTokenizer<'a>, token_map: HashMap<usize, HashSet<usize>>) -> Self {
         Precompute { tokenizer, token_map }
     }
 
@@ -108,7 +106,8 @@ impl Precompute {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::finite_automata::{eat_u8, seq};
+    use crate::finite_automata::eat_u8;
+    use crate::seq;
 
     #[test]
     fn test_precompute() {
@@ -120,7 +119,7 @@ mod tests {
         ];
 
         // Create a tokenizer with these regexes.
-        let mut tokenizer = RegexTokenizer::new(regexes);
+        let mut tokenizer = RegexTokenizer::new(&regexes);
 
         // Define a token map that maps grammar tokens to LLM tokens.
         let mut token_map = HashMap::new();
