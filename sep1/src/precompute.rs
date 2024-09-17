@@ -3,6 +3,12 @@ use std::collections::{HashMap, HashSet};
 
 /// A trait for tokenizers that can handle ambiguous token matches.
 pub trait Tokenizer {
+    /// Creates a new instance of the tokenizer in its initial state.
+    fn initial_state(&self) -> Self;
+
+    /// Gets all possible states for the tokenizer.
+    fn states(&self) -> Vec<Self>;
+
     /// Executes the tokenizer on the given text and returns a map from positions to possible token sequences.
     fn execute(&mut self, text: &[u8]) -> HashMap<usize, Vec<usize>>;
 
@@ -15,22 +21,10 @@ pub trait Tokenizer {
     }
 
     /// Executes the tokenizer on the entire string and returns all possible token sequences and final states.
-    fn execute_all(&mut self, text: &[u8]) -> Vec<(Vec<usize>, Self)>
-    where
-        Self: Sized + Clone,
-    {
-        let mut results = Vec::new();
-        let mut current_state = self.clone();
-        let mut token_sequence = Vec::new();
-
-        for (pos, tokens) in current_state.execute(text) {
-            for token in tokens {
-                token_sequence.push(token);
-                results.push((token_sequence.clone(), current_state.clone()));
-            }
-        }
-
-        results
+    fn execute_all(&mut self, text: &[u8]) -> Vec<(Vec<usize>, Self)> {
+        // Implement using recursion. For each end position, start a new instance of the tokenizer and execute it on the remaining text.
+        // Return all possible token sequences and the final state they lead to.
+        todo!()
     }
 }
 
@@ -41,100 +35,35 @@ pub struct RegexTokenizer<'a> {
 
 impl<'a> RegexTokenizer<'a> {
     /// Creates a new `RegexTokenizer` from a set of regexes, one for each grammar token.
-    pub fn new(regexes: &'a [Regex]) -> Self {
+    pub fn from_regexes(regexes: &'a [Regex]) -> Self {
         RegexTokenizer { states: regexes.iter().map(|regex| regex.init()).collect() }
     }
 }
 
 impl Tokenizer for RegexTokenizer<'_> {
+    fn initial_state(&self) -> Self {
+        todo!()
+    }
+
+    fn states(&self) -> Vec<Self> {
+        todo!()
+    }
+
     fn execute(&mut self, text: &[u8]) -> HashMap<usize, Vec<usize>> {
-        let mut result = HashMap::new();
-
-        for (i, state) in self.states.iter_mut().enumerate() {
-            state.execute(text);
-            if let Some(m) = state.prev_match() {
-                result.entry(m.position).or_insert_with(Vec::new).push(i);
-            }
-        }
-
-        result
+        todo!()
     }
 
     fn possible_next_tokens(&self) -> Vec<usize> {
-        let mut tokens = Vec::new();
-        for (i, state) in self.states.iter().enumerate() {
-            if !state.done() {
-                tokens.push(i);
-            }
-        }
-        tokens
+        todo!()
     }
 }
 
-/// A struct that precomputes valid token sets for each possible next string segment.
-pub struct Precompute<'a> {
-    tokenizer: RegexTokenizer<'a>,
-    token_map: HashMap<usize, HashSet<usize>>, // Maps LLM tokens to grammar tokens
-}
-
-impl<'a> Precompute<'a> {
-    /// Creates a new `Precompute` instance with the given tokenizer and token map.
-    pub fn new(tokenizer: RegexTokenizer<'a>, token_map: HashMap<usize, HashSet<usize>>) -> Self {
-        Precompute { tokenizer, token_map }
-    }
-
-    /// Precomputes the valid token sets for each possible next string segment.
-    pub fn precompute(&mut self, text: &[u8]) -> HashMap<usize, HashSet<usize>> {
-        let mut valid_tokens = HashMap::new();
-
-        for (pos, token_ids) in self.tokenizer.execute(text) {
-            for token_id in token_ids {
-                if let Some(llm_tokens) = self.token_map.get(&token_id) {
-                    valid_tokens
-                        .entry(pos)
-                        .or_insert_with(HashSet::new)
-                        .extend(llm_tokens.iter().cloned());
-                }
-            }
-        }
-
-        valid_tokens
-    }
+fn precompute<T: Tokenizer>(tokenizer: T, llm_tokens: Vec<Vec<u8>>) -> HashMap<T, Vec<(Vec<usize>, T)>> {
+    todo!()
 }
 
 /// Tests for the precompute module.
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::finite_automata::eat_u8;
-    use crate::seq;
-
-    #[test]
-    fn test_precompute() {
-        // Define some simple regexes for testing.
-        let regexes = vec![
-            eat_u8(b'a').build(), // Token 0: 'a'
-            eat_u8(b'b').build(), // Token 1: 'b'
-            seq![eat_u8(b'a'), eat_u8(b'b')].build(), // Token 2: 'ab'
-        ];
-
-        // Create a tokenizer with these regexes.
-        let mut tokenizer = RegexTokenizer::new(&regexes);
-
-        // Define a token map that maps grammar tokens to LLM tokens.
-        let mut token_map = HashMap::new();
-        token_map.insert(0, HashSet::from([100, 101])); // 'a' -> LLM tokens 100, 101
-        token_map.insert(1, HashSet::from([102])); // 'b' -> LLM token 102
-        token_map.insert(2, HashSet::from([103])); // 'ab' -> LLM token 103
-
-        // Create a precompute instance.
-        let mut precompute = Precompute::new(tokenizer, token_map);
-
-        // Precompute valid tokens for the string "ab".
-        let valid_tokens = precompute.precompute(b"ab");
-
-        // Check that the valid tokens are correct.
-        assert_eq!(valid_tokens.get(&1), Some(&HashSet::from([100, 101])));
-        assert_eq!(valid_tokens.get(&2), Some(&HashSet::from([102, 103])));
-    }
+    // todo
 }

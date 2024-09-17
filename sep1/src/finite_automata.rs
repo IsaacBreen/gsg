@@ -220,7 +220,6 @@ impl ExprGroups {
     }
 
     fn build_nfa(self) -> NFA {
-        println!("Building NFA...");
         let mut nfa = NFA {
             states: vec![NFAState::new()],
             start_state: 0,
@@ -230,7 +229,6 @@ impl ExprGroups {
             let end_state = Expr::handle_expr(expr, &mut nfa, 0);
             nfa.states[end_state].finalizer = Some(Finalizer { group, precedence });
         }
-        println!("Done building NFA");
 
         nfa
     }
@@ -369,7 +367,6 @@ impl NFA {
     }
 
     pub fn to_dfa(self) -> DFA {
-        println!("Converting NFA to DFA...");
         let mut dfa_states: Vec<DFAState> = Vec::new();
         let mut dfa_state_map: HashMap<FrozenSet<usize>, usize> = HashMap::new();
         let mut worklist: Vec<FrozenSet<usize>> = Vec::new();
@@ -427,7 +424,6 @@ impl NFA {
                 dfa_states[current_dfa_state].transitions.insert(transition_u8, next_dfa_state);
             }
         }
-        println!("Done converting NFA to DFA");
 
         DFA {
             states: dfa_states,
