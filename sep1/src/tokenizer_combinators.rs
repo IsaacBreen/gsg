@@ -1,4 +1,5 @@
-use crate::finite_automata::{Expr, QuantifierType, U8Set};
+use crate::finite_automata::{Expr, QuantifierType};
+use crate::u8set::U8Set;
 
 pub fn seq_fast(parsers: Vec<Expr>) -> Expr {
     Expr::Seq(parsers)
