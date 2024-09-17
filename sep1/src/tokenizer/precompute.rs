@@ -1,18 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
-/// Trait for a tokenizer that can be implemented by users for custom tokens.
+/// Trait for a tokenizer that can process a string and return possible token sequences.
 pub trait Tokenizer {
-    /// Creates a new instance of the tokenizer.
-    fn new() -> Self where Self: Sized;
+    /// Creates a new tokenizer.
+    fn new() -> Self;
 
-    /// Executes the tokenizer on the given text and returns a map of positions to possible token IDs.
-    /// The positions are relative to the start of the string passed on this call.
+    /// Executes the tokenizer on the given text and returns a map from position to possible token IDs.
+    /// The key is the position in the text, and the value is a vector of possible token IDs at that position.
     fn execute(&mut self, text: &[u8]) -> HashMap<usize, Vec<usize>>;
 
-    /// Returns a vector of possible next token IDs that could be matched.
+    /// Returns the possible next tokens that could be matched by the tokenizer.
     fn possible_next_tokens(&self) -> Vec<usize>;
 
-    /// Returns true if the tokenizer is done (i.e., no more tokens can be matched).
+    /// Returns true if the tokenizer has no more possible next tokens.
     fn done(&self) -> bool {
         self.possible_next_tokens().is_empty()
     }
@@ -28,11 +28,11 @@ pub trait Tokenizer {
         let mut current_state = self.clone();
         let mut token_sequence = Vec::new();
 
-        for (pos, token_ids) in current_state.execute(text) {
-            for token_id in token_ids {
-                token_sequence.push(token_id);
+        for (pos, tokens) in current_state.execute(text) {
+            for token in tokens {
+                token_sequence.push(token);
                 current_state = self.clone();
-                results.push((token_sequence.clone(), current_state.clone()));
+                results.push((token_sequence.clone(), current_state));
             }
         }
 
@@ -40,187 +40,187 @@ pub trait Tokenizer {
     }
 }
 
-/// Precomputes the possible next token sequences for a given string and a set of tokenizers.
-/// This function takes a tokenizer, a possible next string, and a list of other tokenizers.
-/// It returns a vector of vectors of token sequences that could be matched by the tokenizers.
-pub fn precompute_next_tokens(
-    tokenizer: &mut dyn Tokenizer,
-    next_string: &[u8],
-    other_tokenizers: &[&dyn Tokenizer],
-) -> Vec<Vec<usize>> {
-    let mut possible_sequences = Vec::new();
+/// A struct representing the state of the LR parser.
+#[derive(Debug, Clone)]
+pub struct LRParserState {
+    pub state_stack: Vec<usize>, // Stack of states in the LR parser
+}
 
-    // Execute the current tokenizer on the next string.
-    let current_results = tokenizer.execute(next_string);
+/// A struct representing the precomputed information for each state in the LR parser.
+#[derive(Debug, Clone)]
+pub struct PrecomputedState {
+    pub valid_llm_tokens: HashSet<usize>, // Set of valid LLM tokens for this state
+}
 
-    // Collect all possible token sequences from the current tokenizer.
-    for (pos, token_ids) in current_results {
-        for token_id in token_ids {
-            possible_sequences.push(vec![token_id]);
+/// A struct representing the precomputation system.
+pub struct Precompute {
+    pub parser_states: HashMap<usize, PrecomputedState>, // Map from LR parser state to precomputed state
+}
+
+impl Precompute {
+    /// Creates a new precompute system.
+    pub fn new() -> Self {
+        Precompute {
+            parser_states: HashMap::new(),
         }
     }
 
-    // Now check the other tokenizers to see if they can match the next string.
-    for other_tokenizer in other_tokenizers {
-        let mut other_tokenizer_clone = other_tokenizer.clone_box();
-        let other_results = other_tokenizer_clone.execute(next_string);
+    /// Precomputes the valid LLM tokens for each state in the LR parser.
+    pub fn precompute(&mut self, parser: &LRParserState, tokenizers: Vec<Box<dyn Tokenizer>>) {
+        for (state_id, state) in parser.state_stack.iter().enumerate() {
+            let mut valid_llm_tokens = HashSet::new();
 
-        for (pos, token_ids) in other_results {
-            for token_id in token_ids {
-                possible_sequences.push(vec![token_id]);
+            // For each tokenizer, execute it and collect the possible next tokens.
+            for tokenizer in &tokenizers {
+                let possible_tokens = tokenizer.possible_next_tokens();
+                for token in possible_tokens {
+                    valid_llm_tokens.insert(token);
+                }
             }
+
+            // Store the precomputed state.
+            self.parser_states.insert(
+                *state,
+                PrecomputedState {
+                    valid_llm_tokens,
+                },
+            );
         }
     }
 
-    possible_sequences
-}
-
-/// Trait for cloning a boxed tokenizer.
-pub trait CloneBox {
-    fn clone_box(&self) -> Box<dyn Tokenizer>;
-}
-
-impl<T> CloneBox for T
-where
-    T: 'static + Tokenizer + Clone,
-{
-    fn clone_box(&self) -> Box<dyn Tokenizer> {
-        Box::new(self.clone())
+    /// Returns the valid LLM tokens for the given parser state.
+    pub fn get_valid_llm_tokens(&self, state: usize) -> Option<&HashSet<usize>> {
+        self.parser_states.get(&state).map(|s| &s.valid_llm_tokens)
     }
 }
 
-impl Clone for Box<dyn Tokenizer> {
-    fn clone(&self) -> Box<dyn Tokenizer> {
-        self.clone_box()
-    }
+/// A struct representing the LLM token mask.
+pub struct LLMTokenMask {
+    pub mask: HashMap<usize, bool>, // Map from LLM token ID to a flag indicating whether the token is valid
 }
 
-/// Example implementation of a simple tokenizer for identifiers.
-#[derive(Clone)]
-pub struct IdentifierTokenizer {
-    state: usize,
-}
-
-impl Tokenizer for IdentifierTokenizer {
-    fn new() -> Self {
-        IdentifierTokenizer { state: 0 }
-    }
-
-    fn execute(&mut self, text: &[u8]) -> HashMap<usize, Vec<usize>> {
-        let mut results = HashMap::new();
-
-        for (i, &byte) in text.iter().enumerate() {
-            if byte.is_ascii_alphabetic() || byte == b'_' {
-                results.entry(i).or_insert_with(Vec::new).push(1); // Token ID 1 for IDENTIFIER
-            } else {
-                break;
-            }
+impl LLMTokenMask {
+    /// Creates a new LLM token mask with all tokens initially set to false.
+    pub fn new(num_tokens: usize) -> Self {
+        let mut mask = HashMap::new();
+        for i in 0..num_tokens {
+            mask.insert(i, false);
         }
-
-        results
+        LLMTokenMask { mask }
     }
 
-    fn possible_next_tokens(&self) -> Vec<usize> {
-        vec![1] // IDENTIFIER token
-    }
-}
-
-/// Example implementation of a simple tokenizer for numbers.
-#[derive(Clone)]
-pub struct NumberTokenizer {
-    state: usize,
-}
-
-impl Tokenizer for NumberTokenizer {
-    fn new() -> Self {
-        NumberTokenizer { state: 0 }
-    }
-
-    fn execute(&mut self, text: &[u8]) -> HashMap<usize, Vec<usize>> {
-        let mut results = HashMap::new();
-
-        for (i, &byte) in text.iter().enumerate() {
-            if byte.is_ascii_digit() {
-                results.entry(i).or_insert_with(Vec::new).push(2); // Token ID 2 for NUMBER
-            } else {
-                break;
-            }
+    /// Sets the flag for the given LLM token to true.
+    pub fn set_valid(&mut self, token_id: usize) {
+        if let Some(flag) = self.mask.get_mut(&token_id) {
+            *flag = true;
         }
-
-        results
     }
 
-    fn possible_next_tokens(&self) -> Vec<usize> {
-        vec![2] // NUMBER token
-    }
-}
-
-/// Example implementation of a simple tokenizer for commas.
-#[derive(Clone)]
-pub struct CommaTokenizer {
-    state: usize,
-}
-
-impl Tokenizer for CommaTokenizer {
-    fn new() -> Self {
-        CommaTokenizer { state: 0 }
-    }
-
-    fn execute(&mut self, text: &[u8]) -> HashMap<usize, Vec<usize>> {
-        let mut results = HashMap::new();
-
-        if text.starts_with(b",") {
-            results.entry(0).or_insert_with(Vec::new).push(3); // Token ID 3 for COMMA
+    /// Returns the mask as a vector of booleans.
+    pub fn to_vec(&self) -> Vec<bool> {
+        let mut result = vec![false; self.mask.len()];
+        for (token_id, &flag) in &self.mask {
+            result[*token_id] = flag;
         }
+        result
+    }
+}
 
-        results
+/// A function that computes the LLM token mask for a given parser state and tokenizers.
+pub fn compute_llm_token_mask(
+    parser_state: &LRParserState,
+    tokenizers: Vec<Box<dyn Tokenizer>>,
+    num_llm_tokens: usize,
+) -> LLMTokenMask {
+    let mut mask = LLMTokenMask::new(num_llm_tokens);
+
+    // For each tokenizer, execute it and collect the possible next tokens.
+    for tokenizer in tokenizers {
+        let possible_tokens = tokenizer.possible_next_tokens();
+        for token in possible_tokens {
+            mask.set_valid(token);
+        }
     }
 
-    fn possible_next_tokens(&self) -> Vec<usize> {
-        vec![3] // COMMA token
-    }
+    mask
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_identifier_tokenizer() {
-        let mut tokenizer = IdentifierTokenizer::new();
-        let result = tokenizer.execute(b"hello");
-        assert_eq!(result.get(&0), Some(&vec![1])); // IDENTIFIER token
+    struct MockTokenizer {
+        possible_tokens: Vec<usize>,
+    }
+
+    impl Tokenizer for MockTokenizer {
+        fn new() -> Self {
+            MockTokenizer {
+                possible_tokens: vec![],
+            }
+        }
+
+        fn execute(&mut self, _text: &[u8]) -> HashMap<usize, Vec<usize>> {
+            let mut result = HashMap::new();
+            result.insert(0, self.possible_tokens.clone());
+            result
+        }
+
+        fn possible_next_tokens(&self) -> Vec<usize> {
+            self.possible_tokens.clone()
+        }
     }
 
     #[test]
-    fn test_number_tokenizer() {
-        let mut tokenizer = NumberTokenizer::new();
-        let result = tokenizer.execute(b"123");
-        assert_eq!(result.get(&0), Some(&vec![2])); // NUMBER token
+    fn test_precompute() {
+        let mut precompute = Precompute::new();
+        let parser_state = LRParserState {
+            state_stack: vec![0, 1, 2],
+        };
+
+        let tokenizer1 = Box::new(MockTokenizer {
+            possible_tokens: vec![1, 2, 3],
+        });
+        let tokenizer2 = Box::new(MockTokenizer {
+            possible_tokens: vec![4, 5, 6],
+        });
+
+        precompute.precompute(&parser_state, vec![tokenizer1, tokenizer2]);
+
+        let valid_tokens = precompute.get_valid_llm_tokens(1).unwrap();
+        assert!(valid_tokens.contains(&1));
+        assert!(valid_tokens.contains(&2));
+        assert!(valid_tokens.contains(&3));
+        assert!(valid_tokens.contains(&4));
+        assert!(valid_tokens.contains(&5));
+        assert!(valid_tokens.contains(&6));
     }
 
     #[test]
-    fn test_comma_tokenizer() {
-        let mut tokenizer = CommaTokenizer::new();
-        let result = tokenizer.execute(b",");
-        assert_eq!(result.get(&0), Some(&vec![3])); // COMMA token
-    }
+    fn test_llm_token_mask() {
+        let parser_state = LRParserState {
+            state_stack: vec![0, 1, 2],
+        };
 
-    #[test]
-    fn test_precompute_next_tokens() {
-        let mut identifier_tokenizer = IdentifierTokenizer::new();
-        let mut number_tokenizer = NumberTokenizer::new();
-        let mut comma_tokenizer = CommaTokenizer::new();
+        let tokenizer1 = Box::new(MockTokenizer {
+            possible_tokens: vec![1, 2, 3],
+        });
+        let tokenizer2 = Box::new(MockTokenizer {
+            possible_tokens: vec![4, 5, 6],
+        });
 
-        let other_tokenizers: Vec<&dyn Tokenizer> = vec![&number_tokenizer, &comma_tokenizer];
+        let mask = compute_llm_token_mask(&parser_state, vec![tokenizer1, tokenizer2], 10);
 
-        let result = precompute_next_tokens(&mut identifier_tokenizer, b"hello", &other_tokenizers);
-        assert_eq!(result, vec![vec![1]]); // IDENTIFIER token
-
-        let result = precompute_next_tokens(&mut number_tokenizer, b"123", &other_tokenizers);
-        assert_eq!(result, vec![vec![2]]); // NUMBER token
-
-        let result = precompute_next_tokens(&mut comma_tokenizer, b",", &other_tokenizers);
-        assert_eq!(result, vec![vec![3]]); // COMMA token
+        let mask_vec = mask.to_vec();
+        assert_eq!(mask_vec[1], true);
+        assert_eq!(mask_vec[2], true);
+        assert_eq!(mask_vec[3], true);
+        assert_eq!(mask_vec[4], true);
+        assert_eq!(mask_vec[5], true);
+        assert_eq!(mask_vec[6], true);
+        assert_eq!(mask_vec[0], false);
+        assert_eq!(mask_vec[7], false);
+        assert_eq!(mask_vec[8], false);
+        assert_eq!(mask_vec[9], false);
     }
 }

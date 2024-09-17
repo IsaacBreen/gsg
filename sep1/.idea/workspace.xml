@@ -7,10 +7,7 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e21f0efd-fbe4-4ac7-9898-df25bf81a2c4" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tokenizer/precompute.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/tokenizer/precompute.rs" afterDir="false" />
-    </list>
+    <list default="true" id="e21f0efd-fbe4-4ac7-9898-df25bf81a2c4" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -115,7 +112,7 @@
       <option name="presentableId" value="Default" />
       <updated>1726388950923</updated>
       <workItem from="1726388952618" duration="5770000" />
-      <workItem from="1726549842004" duration="606000" />
+      <workItem from="1726549842004" duration="1110000" />
     </task>
     <servers />
   </component>
