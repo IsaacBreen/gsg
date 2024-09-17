@@ -1,6 +1,5 @@
+use crate::bitset256::BitSet256;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
-
-use crate::tokenizer::bitset256::BitSet256;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct U8Set {

@@ -1,10 +1,10 @@
-use crate::tokenizer::charmap::TrieMap;
+use crate::charmap::TrieMap;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 
-use crate::tokenizer::frozenset::FrozenSet;
-use crate::tokenizer::u8set::U8Set;
+use crate::frozenset::FrozenSet;
+use crate::u8set::U8Set;
 
 type GroupID = usize;
 
