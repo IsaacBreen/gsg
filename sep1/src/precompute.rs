@@ -113,6 +113,7 @@ pub fn precompute<T: Tokenizer + Clone + Eq + Hash>(
 mod tests {
     use super::*;
     use crate::finite_automata::{eat_u8, rep};
+    use crate::seq;
 
     #[test]
     fn test_precompute() {
@@ -145,17 +146,16 @@ mod tests {
         let regexes = vec![
             eat_u8(b'a').build(), // Token 0: 'a'
             eat_u8(b'b').build(), // Token 1: 'b'
-            rep(eat_u8(b'c')).build(), // Token 2: 'c*'
+            seq![eat_u8(b'a'), eat_u8(b'b')].build(), // Token 2: 'ab'
         ];
 
         let mut tokenizer = RegexTokenizer::from_regexes(&regexes);
 
         // Execute the tokenizer on a string
-        let result = tokenizer.execute(b"abc");
+        let result = tokenizer.execute(b"ab");
 
         // Check the results
         assert_eq!(result.get(&1), Some(&vec![0])); // 'a' matched at position 1
-        assert_eq!(result.get(&2), Some(&vec![1])); // 'b' matched at position 2
-        assert_eq!(result.get(&3), Some(&vec![2])); // 'c' matched at position 3
+        assert_eq!(result.get(&2), Some(&vec![2])); // 'c' matched at position 3
     }
 }

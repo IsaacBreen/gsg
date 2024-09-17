@@ -138,14 +138,14 @@ pub fn _choice(exprs: Vec<Expr>) -> Expr {
 #[macro_export]
 macro_rules! choice {
     ($($expr:expr),* $(,)?) => {
-        Expr::Choice(vec![$($expr.into()),*])
+        $crate::finite_automata::Expr::Choice(vec![$($expr.into()),*])
     };
 }
 
 #[macro_export]
 macro_rules! seq {
     ($($expr:expr),* $(,)?) => {
-        Expr::Seq(vec![$($expr.into()),*])
+        $crate::finite_automata::Expr::Seq(vec![$($expr.into()),*])
     };
 }
 
