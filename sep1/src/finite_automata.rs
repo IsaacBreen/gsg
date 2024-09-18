@@ -579,15 +579,27 @@ impl RegexState<'_> {
 }
 
 impl Regex {
-    pub fn init(&self) -> RegexState {
+    pub fn init_to_state(&self, state: usize) -> RegexState {
         RegexState {
             regex: self,
             position: 0,
-            current_state: 0,
-            prev_finalizer: self.dfa.states[self.dfa.start_state].finalizer,
+            current_state: state,
+            prev_finalizer: self.dfa.states[state].finalizer,
             prev_finalizer_position: 0,
-            done: false,
+            done: self.dfa.states[state].transitions.is_empty(),
         }
+    }
+
+    pub fn init(&self) -> RegexState {
+        self.init_to_state(self.dfa.start_state)
+    }
+
+    pub fn init_all_states(&self) -> Vec<RegexState<'_>> {
+        let mut result = vec![];
+        for state in 0..self.dfa.states.len() {
+            result.push(self.init_to_state(state));
+        }
+        result
     }
 
     pub fn find(&self, text: &[u8]) -> Option<Match> {
