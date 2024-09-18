@@ -63,7 +63,7 @@ impl<'a> Tokenizer for RegexTokenizer<'a> {
 }
 
 /// Precomputes the possible token sequences for each LLM token.
-pub fn precompute<T: Tokenizer + Clone + Eq + Hash>(tokenizer: &T, llm_tokens: Vec<Vec<u8>>) -> HashMap<T, Vec<(Vec<usize>, T)>> {
+pub fn precompute<T: Tokenizer + Clone + Eq + Hash>(tokenizer: &T, llm_tokens: &[&[u8]]) -> HashMap<T, Vec<(Vec<usize>, T)>> {
     todo!()
 }
 
@@ -120,7 +120,7 @@ mod tests {
 
         let tokenizer = RegexTokenizer::from_regexes(&regexes);
 
-        let llm_tokens = vec![b"a".to_vec(), b"b".to_vec(), b"c".to_vec(), b"ab".to_vec(), b"bc".to_vec(), b"abc".to_vec()];
+        let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
 
         let result = precompute(&tokenizer, llm_tokens);
 

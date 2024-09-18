@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod frozenset;
 pub mod charmap;
 pub mod bitset256;
