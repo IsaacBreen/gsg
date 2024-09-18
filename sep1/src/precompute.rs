@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 /// A trait for tokenizers that can handle ambiguous token matches.
-pub trait Tokenizer {
+pub trait Tokenizer: Sized {
     /// Creates a new instance of the tokenizer in its initial state.
     fn initial_state(&self) -> Self;
 
@@ -63,10 +63,7 @@ impl<'a> Tokenizer for RegexTokenizer<'a> {
 }
 
 /// Precomputes the possible token sequences for each LLM token.
-pub fn precompute<T: Tokenizer + Clone + Eq + Hash>(
-    tokenizer: T,
-    llm_tokens: Vec<Vec<u8>>,
-) -> HashMap<T, Vec<(Vec<usize>, T)>> {
+pub fn precompute<T: Tokenizer + Clone + Eq + Hash>(tokenizer: &T, llm_tokens: Vec<Vec<u8>>) -> HashMap<T, Vec<(Vec<usize>, T)>> {
     todo!()
 }
 
@@ -84,6 +81,7 @@ mod tests {
             eat_u8(b'a').build(), // Token 0: 'a'
             eat_u8(b'b').build(), // Token 1: 'b'
             seq![eat_u8(b'a'), eat_u8(b'b')].build(), // Token 2: 'ab'
+            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')].build(), // Token 3: 'abc'
         ];
 
         let mut tokenizer = RegexTokenizer::from_regexes(&regexes);
@@ -93,30 +91,39 @@ mod tests {
 
         // Check the results
         assert_eq!(result.get(&1), Some(&vec![0])); // 'a' matched at position 1
-        assert_eq!(result.get(&2), Some(&vec![2])); // 'c' matched at position 3
+        assert_eq!(result.get(&2), Some(&vec![1, 2])); // 'ab' matched at position 2
+
+        // Reset the tokenizer
+        tokenizer = tokenizer.initial_state();
 
         // Get all possible token sequences
         let results = tokenizer.execute_all(b"ab");
 
         // The two possible token sequences are [0, 1] or [2]. In both cases, the final state should be the initial state.
-        assert!(results.contains(&(vec![0, 1], tokenizer.clone())));
-        assert!(results.contains(&(vec![2], tokenizer.clone())));
-    }
+        assert!(results.contains(&(vec![0, 1], tokenizer.initial_state())));
+        assert!(results.contains(&(vec![2], tokenizer.initial_state())));
 
-    #[test]
-    fn test_regex_tokenizer_2() {
-        // Try with a regex that doesn't necessarily end in the initial state
-        let regexes = vec![
-            eat_u8(b'a').build(), // Token 0: 'a'
-            eat_u8(b'b').build(), // Token 1: 'b'
-            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')].build(), // Token 2: 'abc'
-        ];
-
-        todo!()
+        // The third case is where we match the first two characters of token 3, but not the third yet.
+        let mut tokenizer = tokenizer.initial_state();
+        tokenizer.execute(b"ab");
+        assert!(results.contains(&(vec![], tokenizer)));
     }
 
     #[test]
     fn test_precompute() {
+        let regexes = vec![
+            eat_u8(b'a').build(), // Token 0: 'a'
+            eat_u8(b'b').build(), // Token 1: 'b'
+            seq![eat_u8(b'a'), eat_u8(b'b')].build(), // Token 2: 'ab'
+            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')].build(), // Token 3: 'abc'
+        ];
+
+        let tokenizer = RegexTokenizer::from_regexes(&regexes);
+
+        let llm_tokens = vec![b"a".to_vec(), b"b".to_vec(), b"c".to_vec(), b"ab".to_vec(), b"bc".to_vec(), b"abc".to_vec()];
+
+        let result = precompute(&tokenizer, llm_tokens);
+
         todo!()
     }
 }
