@@ -99,7 +99,7 @@ mod tests {
         let results = tokenizer.execute_all(b"ab");
 
         // The two possible token sequences are [0, 1] or [2]. In both cases, the final state should be the initial state.
-        assert!(results.contains(&(vec![0, 1], tokenizer.())));
+        assert!(results.contains(&(vec![0, 1], tokenizer.clone())));
         assert!(results.contains(&(vec![2], tokenizer.clone())));
     }
 
