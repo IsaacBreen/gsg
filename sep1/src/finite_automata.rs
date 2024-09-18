@@ -44,7 +44,7 @@ pub struct Match {
     pub group_id: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
 pub struct FinalStateReport {
     pub inner: BTreeMap<GroupID, usize>,
 }
@@ -376,7 +376,7 @@ impl NFA {
         });
 
         while let Some(current_set) = worklist.pop() {
-            let current_dfa_state = *dfa_state_map.get(¤t_set).unwrap();
+            let current_dfa_state = *dfa_state_map.get(&current_set).unwrap();
             let mut transition_map: TrieMap<HashSet<usize>> = TrieMap::new();
 
             // For each state in the current DFA state, look at the NFA transitions
