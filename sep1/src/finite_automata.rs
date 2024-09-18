@@ -44,15 +44,17 @@ pub struct Match {
     pub group_id: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct FinalStateReport {
-    pub inner: BTreeMap<GroupID, usize>,
+    pub num_leftover: usize,
+    pub inner: Option<Match>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RegexState<'a> {
     pub regex: &'a Regex,
-    current_state: usize,
+    pub(crate) current_state: usize,
+    done: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,7 +77,6 @@ pub enum QuantifierType {
 #[derive(Debug, Clone)]
 pub struct ExprGroup {
     pub expr: Expr,
-    pub group: GroupID,
 }
 
 #[derive(Debug, Clone)]
@@ -85,10 +86,7 @@ pub struct ExprGroups {
 
 impl From<Expr> for ExprGroup {
     fn from(expr: Expr) -> Self {
-        ExprGroup {
-            expr,
-            group: 0,
-        }
+        ExprGroup { expr }
     }
 }
 
@@ -108,8 +106,8 @@ pub fn opt<T: Into<Expr>>(expr: T) -> Expr {
     Expr::Quantifier(Box::new(expr.into()), QuantifierType::ZeroOrOne)
 }
 
-pub fn group<T: Into<Expr>>(group: GroupID, expr: T) -> ExprGroup {
-    ExprGroup { expr: expr.into(), group }
+pub fn prec<T: Into<Expr>>(_precedence: isize, expr: T) -> ExprGroup {
+    ExprGroup { expr: expr.into() }
 }
 
 pub fn eps() -> Expr {
@@ -214,7 +212,7 @@ impl ExprGroups {
             start_state: 0,
         };
 
-        for ExprGroup {expr, group} in self.groups.into_iter() {
+        for (group, ExprGroup { expr }) in self.groups.into_iter().enumerate() {
             let end_state = Expr::handle_expr(expr, &mut nfa, 0);
             nfa.states[end_state].finalizers.insert(group);
         }
@@ -225,7 +223,7 @@ impl ExprGroups {
 
 impl Expr {
     pub fn build(self) -> Regex {
-        ExprGroups { groups: vec![ExprGroup { expr: self, group: 0 }] }.build()
+        ExprGroups { groups: vec![ExprGroup { expr: self }] }.build()
     }
 
     fn handle_expr(expr: Expr, nfa: &mut NFA, mut current_state: usize) -> usize {
@@ -238,7 +236,7 @@ impl Expr {
                     next_state = new_state;
                 }
                 next_state
-            },
+            }
             Expr::U8Class(u8s) => {
                 let new_state = nfa.add_state();
                 for ch in u8s.iter() {
@@ -266,7 +264,7 @@ impl Expr {
 
                         // The loop end state becomes the new current state
                         loop_end_state
-                    },
+                    }
                     QuantifierType::OneOrMore => {
                         let loop_start_state = nfa.add_state();
 
@@ -281,7 +279,7 @@ impl Expr {
 
                         // The expr end state becomes the new current state
                         expr_end_state
-                    },
+                    }
                     QuantifierType::ZeroOrOne => {
                         let optional_end_state = nfa.add_state();
 
@@ -296,9 +294,9 @@ impl Expr {
 
                         // The optional end state becomes the new current state
                         optional_end_state
-                    },
+                    }
                 }
-            },
+            }
             Expr::Choice(exprs) => {
                 let choice_start_state = nfa.add_state(); // New start state for choice
                 let choice_end_state = nfa.add_state(); // New end state for choice
@@ -320,13 +318,13 @@ impl Expr {
 
                 // The end state of the choice becomes the new current state
                 choice_end_state
-            },
+            }
             Expr::Seq(exprs) => {
                 for expr in exprs {
                     current_state = Self::handle_expr(expr, nfa, current_state);
                 }
                 current_state
-            },
+            }
             Expr::Epsilon => {
                 let new_state = nfa.add_state();
                 nfa.add_epsilon_transition(current_state, new_state);
@@ -372,7 +370,7 @@ impl NFA {
         let closure = epsilon_closures[self.start_state].clone();
         dfa_states.push(DFAState {
             transitions: TrieMap::new(),
-            finalizers: closure.iter().flat_map(|&state| self.states[state].finalizers.iter().cloned()).collect(),
+            finalizers: closure.iter().flat_map(|&state| self.states[state].finalizers.iter()).cloned().collect(),
         });
 
         while let Some(current_set) = worklist.pop() {
@@ -405,7 +403,7 @@ impl NFA {
 
                     dfa_states.push(DFAState {
                         transitions: TrieMap::new(),
-                        finalizers: closure.iter().flat_map(|&state| self.states[state].finalizers.iter().cloned()).collect(),
+                        finalizers: closure.iter().flat_map(|&state| self.states[state].finalizers.iter()).cloned().collect(),
                     });
                 }
 
@@ -439,28 +437,119 @@ impl NFA {
 }
 
 impl RegexState<'_> {
-    pub fn execute(&mut self, text: &[u8]) -> FinalStateReport {
+    pub fn execute(&mut self, text: &[u8]) -> BTreeMap<GroupID, usize> {
+        let mut matches = BTreeMap::new();
+        if self.done {
+            return matches;
+        }
         let dfa = &self.regex.dfa;
         let mut local_position = 0;
-        let mut final_state_report = FinalStateReport::default();
-
         while local_position < text.len() {
             let state_data = &dfa.states[self.current_state];
             let next_u8 = text[local_position];
             if let Some(&next_state) = state_data.transitions.get(next_u8) {
                 self.current_state = next_state;
                 local_position += 1;
-                // Check for finalizers in the current state
-                for group_id in &dfa.states[self.current_state].finalizers {
-                    final_state_report.inner.insert(*group_id, text.len() - local_position);
+                // If the next state has finalizers, add them to the results
+                for &group_id in &dfa.states[self.current_state].finalizers {
+                    matches.insert(group_id, text.len() - local_position);
                 }
             } else {
                 // If no transition exists for the current u8, we're finished
-                break;
+                self.end();
+                return matches;
             }
         }
+        // If there's nowhere to go at this point, we're finished
+        if dfa.states[self.current_state].transitions.is_empty() {
+            self.end();
+        }
+        matches
+    }
 
-        final_state_report
+    pub fn prev_match(&self) -> Option<Match> {
+        None // No longer relevant in a memoryless regex state
+    }
+
+    pub fn final_match(&self) -> Option<Match> {
+        None // No longer relevant in a memoryless regex state
+    }
+
+    pub fn end(&mut self) {
+        self.done = true;
+    }
+
+    pub fn final_state_report(&self) -> FinalStateReport {
+        FinalStateReport {
+            num_leftover: 0, // No longer relevant in a memoryless regex state
+            inner: None,       // No longer relevant in a memoryless regex state
+        }
+    }
+}
+
+impl RegexState<'_> {
+    pub fn get_u8set(&self) -> U8Set {
+        let dfa = &self.regex.dfa;
+        let state_data = &dfa.states[self.current_state];
+        // Get all possible u8s that can match next
+        state_data.transitions.keys_as_u8set()
+    }
+
+    pub fn get_terminal_u8set(&self) -> U8Set {
+        // Get u8s that could take the regex to a terminal state (a state with a finalizer)
+        let mut u8set = U8Set::none();
+        for (value, i_next_state) in &self.regex.dfa.states[self.current_state].transitions {
+            if !self.regex.dfa.states[*i_next_state].finalizers.is_empty() {
+                u8set.insert(value);
+            }
+        }
+        u8set
+    }
+
+    pub fn get_prev_match(&self) -> Option<Match> {
+        None // No longer relevant in a memoryless regex state
+    }
+
+    pub fn matches(&self) -> Option<bool> {
+        if self.done {
+            Some(false) // In a memoryless state, if we're done, we haven't matched
+        } else {
+            None
+        }
+    }
+
+    pub fn definitely_matches(&self) -> bool {
+        false // In a memoryless state, we can't be sure we've matched
+    }
+
+    pub fn could_match(&self) -> bool {
+        !self.done // In a memoryless state, we can match if we're not done
+    }
+
+    pub fn fully_matches(&self) -> Option<bool> {
+        None // No longer relevant in a memoryless regex state
+    }
+
+    pub fn definitely_fully_matches(&self) -> bool {
+        false // No longer relevant in a memoryless regex state
+    }
+
+    pub fn could_fully_match(&self) -> bool {
+        true // No longer relevant in a memoryless regex state
+    }
+
+    pub fn fully_matches_here(&self) -> bool {
+        false // No longer relevant in a memoryless regex state
+    }
+
+    pub fn done(&self) -> bool {
+        // Returns true if the regex has matched and cannot possibly match anymore
+        self.done
+    }
+
+    pub fn failed(&self) -> bool {
+        // Returns true if the regex has failed to match and cannot possibly match
+        !self.could_match()
     }
 }
 
@@ -469,6 +558,7 @@ impl Regex {
         RegexState {
             regex: self,
             current_state: state,
+            done: self.dfa.states[state].transitions.is_empty(),
         }
     }
 
@@ -484,14 +574,79 @@ impl Regex {
         result
     }
 
-    pub fn find(&self, text: &[u8]) -> FinalStateReport {
+    pub fn find(&self, text: &[u8]) -> Option<Match> {
         let mut regex_state = self.init();
-        regex_state.execute(text)
+        let matches = regex_state.execute(text);
+        // If there are any matches, return the one with the smallest num_leftover
+        matches.iter().next().map(|(&group_id, &num_leftover)| Match { num_leftover, group_id })
     }
 
-    pub fn matches(&self, text: &[u8]) -> FinalStateReport {
+    pub fn matches(&self, text: &[u8]) -> Option<bool> {
         let mut regex_state = self.init();
-        regex_state.execute(text)
+        let matches = regex_state.execute(text);
+        Some(!matches.is_empty())
+    }
+
+    pub fn definitely_matches(&self, text: &[u8]) -> bool {
+        self.matches(text).unwrap_or(false)
+    }
+
+    pub fn could_match(&self, text: &[u8]) -> bool {
+        self.matches(text).unwrap_or(true)
+    }
+
+    pub fn fully_matches(&self, text: &[u8]) -> Option<bool> {
+        self.find(text).map(|m| m.num_leftover == 0)
+    }
+
+    pub fn definitely_fully_matches(&self, text: &[u8]) -> bool {
+        self.fully_matches(text).unwrap_or(false)
+    }
+
+    pub fn could_fully_match(&self, text: &[u8]) -> bool {
+        self.fully_matches(text).unwrap_or(true)
+    }
+}
+
+impl RegexState<'_> {
+    /// Finds all matches in the input `bytes` and returns them as a vector of `Match`.
+    ///
+    /// This method steps through the input bytes, character by character,
+    /// and checks if the regex matches at each position. If a match is found,
+    /// a `Match` object is created and added to the results vector.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - The input bytes to search for matches.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `Match` objects, each representing a match found in the input.
+    pub fn find_matches(&mut self, bytes: &[u8]) -> Vec<Match> {
+        let mut matches = Vec::new(); // Use Vec::new() for clarity
+        let mut local_position = 0;
+        let dfa = &self.regex.dfa;
+
+        while local_position < bytes.len() {
+            let state_data = &dfa.states[self.current_state];
+            let next_u8 = bytes[local_position];
+
+            if let Some(&next_state) = state_data.transitions.get(next_u8) {
+                self.current_state = next_state;
+                local_position += 1;
+
+                for &group_id in &dfa.states[self.current_state].finalizers {
+                    matches.push(Match {
+                        num_leftover: bytes.len() - local_position,
+                        group_id,
+                    });
+                }
+            } else {
+                break;
+            }
+        }
+
+        matches
     }
 }
 
@@ -506,12 +661,13 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"b").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(!regex.could_match(b"b"));
 
-        assert_eq!(regex.find(b"").inner, BTreeMap::new()); // Incomplete match not allowed
-        assert_eq!(regex.find(b"ab").inner, BTreeMap::from([(0, 1)])); // Prefix match allowed
-        assert_eq!(regex.find(b"aa").inner, BTreeMap::from([(0, 1)])); // Prefix match allowed
+        assert!(!regex.definitely_matches(b"")); // Incomplete match not allowed
+        assert!(regex.could_match(b"")); // Incomplete match allowed
+        assert!(regex.definitely_matches(b"ab")); // Prefix match allowed
+        assert!(regex.definitely_matches(b"aa")); // Prefix match allowed
     }
 
     #[test]
@@ -521,10 +677,15 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"aaaa").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"b").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b""));
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"aaaa"));
+        assert!(regex.definitely_matches(b"b"));
+
+        let mut state = regex.init();
+        let matches = state.execute(b"aa");
+        assert_eq!(matches, BTreeMap::from([(0, 0)]));
+        assert!(!state.done()); // Could match more 'a's
     }
 
     #[test]
@@ -534,9 +695,9 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"b").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"c").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"b"));
+        assert!(!regex.could_match(b"c"));
     }
 
     #[test]
@@ -546,11 +707,12 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"a").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"b").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"ab").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"abab").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"c").inner, BTreeMap::new());
+        assert!(regex.could_match(b"a"));
+        assert!(!regex.definitely_matches(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(regex.definitely_matches(b"ab"));
+        assert!(regex.definitely_matches(b"abab"));
+        assert!(!regex.could_match(b"c"));
     }
 
     #[test]
@@ -560,10 +722,10 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"aa").inner, BTreeMap::from([(0, 1)]));
-        assert_eq!(regex.find(b"b").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b"")); // Optional 'a' can be absent
+        assert!(regex.definitely_fully_matches(b"a")); // Optional 'a' can be present
+        assert!(!regex.could_fully_match(b"aa")); // Should not match more than one 'a'
+        assert!(regex.could_match(b"b")); // Can still match the empty string in "b"
     }
 
     #[test]
@@ -573,8 +735,8 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"\0").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"1").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b"\0"));
+        assert!(!regex.could_match(b"1"));
     }
 
     #[test]
@@ -584,8 +746,9 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(0, 1)]));
+        assert!(regex.definitely_fully_matches(b""));
+        assert!(regex.definitely_matches(b"a")); // Epsilon matches the empty string at the beginning
+        assert!(!regex.definitely_fully_matches(b"a"));
     }
 
     #[test]
@@ -595,33 +758,10 @@ mod tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"ab").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"a").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"b").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"ba").inner, BTreeMap::new());
-    }
-
-    #[test]
-    fn test_multiple_finalizers() {
-        let expr = groups![
-            group(1, eat_u8(b'a')),
-            group(2, eat_u8(b'a')),
-        ];
-        let regex = expr.build();
-
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(1, 0), (2, 0)]));
-    }
-
-    #[test]
-    fn test_multiple_finalizers_with_quantifier() {
-        let expr = groups![
-            group(1, rep(eat_u8(b'a'))),
-            group(2, eat_u8(b'a')),
-        ];
-        let regex = expr.build();
-
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(1, 0), (2, 0)]));
-        assert_eq!(regex.find(b"aa").inner, BTreeMap::from([(1, 0), (2, 1)]));
+        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(regex.could_match(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(!regex.could_match(b"ba"));
     }
 }
 
@@ -635,10 +775,10 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"aa").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"aaa").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"aa"));
+        assert!(regex.definitely_fully_matches(b"aaa"));
+        assert!(regex.definitely_fully_matches(b""));
     }
 
     #[test]
@@ -650,12 +790,14 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"ab").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"abb").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"c").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"a").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"b").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"cc").inner, BTreeMap::from([(0, 1)]));
+        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(regex.definitely_fully_matches(b"abb"));
+        assert!(regex.definitely_fully_matches(b"c"));
+        assert!(regex.could_match(b"a"));
+        assert!(!regex.definitely_matches(b"a"));
+        assert!(!regex.could_match(b"b"));
+        assert!(regex.definitely_matches(b"cc"));
+        assert!(!regex.definitely_fully_matches(b"cc"));
     }
 
     #[test]
@@ -668,13 +810,13 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"bc").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"bcc").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"abcc").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"aaabccc").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"a").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"b").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"c").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b"bc"));
+        assert!(regex.definitely_fully_matches(b"bcc"));
+        assert!(regex.definitely_fully_matches(b"abcc"));
+        assert!(regex.definitely_fully_matches(b"aaabccc"));
+        assert!(regex.could_match(b"a"));
+        assert!(regex.could_match(b"b"));
+        assert!(!regex.could_match(b"c"));
     }
 
     #[test]
@@ -687,15 +829,17 @@ mod complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"cd").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"ce").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"cde").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"aced").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"bacde").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"a").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"b").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"c").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"d").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b"cd"));
+        assert!(regex.definitely_fully_matches(b"ce"));
+        assert!(regex.definitely_fully_matches(b"cde"));
+        assert!(regex.definitely_fully_matches(b"aced"));
+        assert!(regex.definitely_fully_matches(b"bacde"));
+        assert!(regex.could_fully_match(b"a"));
+        assert!(!regex.definitely_matches(b"a"));
+        assert!(!regex.definitely_matches(b"b"));
+        assert!(regex.could_match(b"c"));
+        assert!(!regex.definitely_matches(b"c"));
+        assert!(!regex.could_match(b"d"));
     }
 }
 
@@ -711,10 +855,10 @@ mod even_more_complex_tests {
         ];
         let regex = expr.build();
 
-        assert_eq!(regex.find(b"bc").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"cb").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"ab").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"cd").inner, BTreeMap::from([(0, 0)]));
+        assert!(regex.definitely_fully_matches(b"bc"));
+        assert!(regex.definitely_fully_matches(b"cb"));
+        assert!(regex.definitely_fully_matches(b"ab"));
+        assert!(regex.definitely_fully_matches(b"cd"));
     }
 
     #[test]
@@ -725,11 +869,11 @@ mod even_more_complex_tests {
         ];
         let regex = expr.build();
 
-        assert_eq!(regex.find(b"c").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"abc").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"abbc").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"ababbabc").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"ac").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b"c"));
+        assert!(regex.definitely_fully_matches(b"abc"));
+        assert!(regex.definitely_fully_matches(b"abbc"));
+        assert!(regex.definitely_fully_matches(b"ababbabc"));
+        assert!(!regex.could_match(b"ac"));
     }
 
     #[test]
@@ -737,8 +881,8 @@ mod even_more_complex_tests {
         let expr = choice![eat_u8(b'a'), seq![]];
         let regex = expr.build();
 
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"").inner, BTreeMap::from([(0, 0)])); // Should match the empty option
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"")); // Should match the empty option
     }
 
     #[test]
@@ -749,10 +893,11 @@ mod even_more_complex_tests {
         ];
         let regex = expr.build();
 
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"aa").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"").inner, BTreeMap::new());
-        assert_eq!(regex.find(b"b").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(regex.definitely_fully_matches(b"aa"));
+        assert!(regex.could_match(b""));
+        assert!(regex.could_fully_match(b""));
+        assert!(!regex.could_match(b"b"));
     }
 
     #[test]
@@ -760,11 +905,64 @@ mod even_more_complex_tests {
         let expr: Expr = eat_u8(b'a');
         let regex = expr.build();
 
-        assert_eq!(regex.find(b"a").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"ba").inner, BTreeMap::from([(0, 1)]));
-        assert_eq!(regex.find(b"ab").inner, BTreeMap::from([(0, 1)]));
-        assert_eq!(regex.find(b"bab").inner, BTreeMap::from([(0, 2)]));
-        assert_eq!(regex.find(b"b").inner, BTreeMap::new());
+        assert!(regex.definitely_fully_matches(b"a"));
+        assert!(!regex.could_match(b"ba"));
+        assert!(regex.definitely_matches(b"ab"));
+        assert!(!regex.definitely_fully_matches(b"ab"));
+        assert!(!regex.could_match(b"bab"));
+        assert!(!regex.could_match(b"b"));
+    }
+
+    #[test]
+    fn test_explicit_precedence() {
+        let expr = groups![
+            eat_u8(b'a'),
+            prec(2, eat_u8(b'a')),
+            prec(3, eat_u8(b'a')),
+        ];
+        let regex = expr.build();
+        dbg!(&regex);
+
+        assert_eq!(regex.find(b"a"), Some(Match { num_leftover: 0, group_id: 2 }));
+    }
+
+    #[test]
+    fn test_precedence_with_quantifiers() {
+        // This test checks if the engine correctly applies precedence when quantifiers are involved
+        let expr = groups![
+            prec(1, rep(eat_u8(b'a'))), // 'a' repeated, lower precedence
+            prec(2, eat_u8(b'a')),      // single 'a', higher precedence
+        ];
+        let regex = expr.build();
+
+        // Expect the single 'a' to match due to higher precedence
+        assert_eq!(regex.find(b"aaa"), Some(Match { num_leftover: 2, group_id: 1 }));
+    }
+
+    #[test]
+    fn test_precedence_with_choice() {
+        // This test checks if the engine correctly applies precedence when choices are involved
+        let expr = groups![
+            prec(1, choice![eat_u8(b'a'), eat_u8(b'b')]), // choice between 'a' and 'b', lower precedence
+            prec(2, eat_u8(b'a')),                        // single 'a', higher precedence
+        ];
+        let regex = expr.build();
+
+        // Expect the single 'a' to match due to higher precedence, even though 'a' is also part of a choice
+        assert_eq!(regex.find(b"a"), Some(Match { num_leftover: 0, group_id: 1 }));
+    }
+
+    #[test]
+    fn test_precedence_with_overlap() {
+        // This test checks if the engine correctly applies precedence when patterns overlap
+        let expr = groups![
+            prec(1, seq![eat_u8(b'a'), eat_u8(b'b')]), // sequence 'ab', lower precedence
+            prec(2, eat_u8(b'a')),                     // single 'a', higher precedence
+        ];
+        let regex = expr.build();
+
+        // Expect the single 'a' to match due to higher precedence, even though 'ab' is also a valid match
+        assert_eq!(regex.find(b"ab"), Some(Match { num_leftover: 1, group_id: 1 }));
     }
 
     #[test]
@@ -811,11 +1009,31 @@ mod even_more_complex_tests {
         let regex = expr.build();
         dbg!(&regex);
 
-        assert_eq!(regex.find(b"False").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"None").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"True").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"and").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"as").inner, BTreeMap::from([(0, 0)]));
-        assert_eq!(regex.find(b"assert").inner, BTreeMap::from([(0, 0)]));
+        assert!(regex.definitely_fully_matches(b"False"));
+        assert!(regex.definitely_fully_matches(b"None"));
+        assert!(regex.definitely_fully_matches(b"True"));
+        assert!(regex.definitely_fully_matches(b"and"));
+        assert!(regex.definitely_fully_matches(b"as"));
+        assert!(regex.definitely_fully_matches(b"assert"));
+    }
+
+    #[test]
+    fn test_multiple_finalizers() {
+        let expr = groups![
+            eat_u8(b'a'),
+            eat_u8(b'a'),
+        ];
+
+        let regex = expr.build();
+
+        let mut state = regex.init();
+
+        let matches = state.execute(b"a");
+
+        assert_eq!(matches, BTreeMap::from([(0, 0)]));
+
+        let matches = state.execute(b"a");
+
+        assert_eq!(matches, BTreeMap::from([(1, 0)]));
     }
 }
