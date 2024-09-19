@@ -9,6 +9,7 @@
   <component name="ChangeListManager">
     <list default="true" id="e21f0efd-fbe4-4ac7-9898-df25bf81a2c4" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/finite_automata.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/finite_automata.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/precompute.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/precompute.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -93,9 +94,43 @@
   <component name="RsExternalLinterProjectSettings">
     <option name="runOnTheFly" value="true" />
   </component>
-  <component name="RunManager" selected="Cargo.Test finite_automata">
+  <component name="RunManager" selected="Cargo.Test precompute">
     <configuration name="Test finite_automata" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="command" value="test --package sep1 --lib finite_automata" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test precompute" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package sep1 --lib precompute" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test precompute::tests::test_precompute" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package sep1 --lib precompute::tests::test_precompute -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <envs />
       <option name="emulateTerminal" value="true" />
@@ -130,6 +165,8 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Cargo.Test precompute" />
+        <item itemvalue="Cargo.Test precompute::tests::test_precompute" />
         <item itemvalue="Cargo.Test finite_automata" />
       </list>
     </recent_temporary>
@@ -147,7 +184,7 @@
       <updated>1726388950923</updated>
       <workItem from="1726388952618" duration="5770000" />
       <workItem from="1726549842004" duration="13710000" />
-      <workItem from="1726725370533" duration="7607000" />
+      <workItem from="1726725370533" duration="8088000" />
     </task>
     <servers />
   </component>

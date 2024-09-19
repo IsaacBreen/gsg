@@ -24,18 +24,18 @@ pub struct NFA {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DFAState {
     transitions: TrieMap<usize>,
-    finalizers: BTreeSet<GroupID>,
+    pub(crate) finalizers: BTreeSet<GroupID>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct DFA {
-    states: Vec<DFAState>,
-    start_state: usize,
+    pub(crate) states: Vec<DFAState>,
+    pub(crate) start_state: usize,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Regex {
-    dfa: DFA,
+    pub(crate) dfa: DFA,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
