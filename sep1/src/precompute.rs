@@ -41,7 +41,7 @@ pub trait Tokenizer: Sized {
         let mut queue: Vec<QueueItem> = vec![];
         let mut final_results: BTreeMap<Vec<TokenID>, StateID> = BTreeMap::new();
 
-        queue.push(QueueItem { tokens: vec![], position: 0, state });
+        queue.push(QueueItem { tokens: vec![], position: 0, state: 0 });
 
         while let Some(QueueItem { tokens, position: start_position, state }) = queue.pop() {
             let mut results = self.execute_from_state(&text[start_position..], state);
@@ -84,25 +84,8 @@ impl Tokenizer for Regex {
     }
 }
 
-pub fn precompute<'a>(
-    tokenizer: &impl Tokenizer,
-    llm_tokens: &[&'a [u8]],
-) -> BTreeMap<StateID, BTreeMap<&'a [u8], BTreeMap<Vec<TokenID>, StateID>>> {
-    let mut result = BTreeMap::new();
-
-    for state in 0..tokenizer.max_state() {
-        let mut state_map = BTreeMap::new();
-        for &llm_token in llm_tokens {
-            let token_sequences = tokenizer.execute_all_from_state(llm_token, state);
-            if !token_sequences.is_empty() {
-                state_map.insert(llm_token, token_sequences);
-            }
-        }
-        if !state_map.is_empty() {
-            result.insert(state, state_map);
-        }
-    }
-    result
+pub fn precompute<'a>(tokenizer: &impl Tokenizer, llm_tokens: &[&'a [u8]]) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&'a [u8]>)>> {
+    todo!()
 }
 
 /// Tests for the precompute module.
@@ -145,85 +128,19 @@ mod tests {
 
     #[test]
     fn test_precompute() {
-        // Define a tokenizer with overlapping tokens
         let tokenizer = groups![
-            eat_u8(b'a'),                           // Token 0: 'a'
-            eat_u8(b'b'),                           // Token 1: 'b'
-            seq![eat_u8(b'a'), eat_u8(b'b')],       // Token 2: 'ab'
+            eat_u8(b'a'), // Token 0: 'a'
+            eat_u8(b'b'), // Token 1: 'b'
+            seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
             seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
         ].build();
 
-        let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"abc", b"bc"];
+        let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
 
         let result = precompute(&tokenizer, llm_tokens);
 
-        // Manually compute the expected output
-        use std::collections::BTreeMap;
+        let expected: BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)>> = todo!();
 
-        let mut expected = BTreeMap::new();
-
-        // For each state, build the expected mappings
-        // State 0
-        let mut state_0_map: BTreeMap<&[u8], BTreeMap<Vec<TokenID>, StateID>> = BTreeMap::new();
-
-        // LLM Token: b"a"
-        state_0_map.insert(b"a", BTreeMap::from([
-            (vec![0], 0),    // Matched 'a', Token 0
-            (vec![], 1),     // Partial match, State 1
-        ]));
-
-        // LLM Token: b"b"
-        state_0_map.insert(b"b", BTreeMap::from([
-            (vec![1], 0),    // Matched 'b', Token 1
-        ]));
-
-        // LLM Token: b"ab"
-        state_0_map.insert(b"ab", BTreeMap::from([
-            (vec![2], 0),    // Matched 'ab', Token 2
-            (vec![0, 1], 0), // Matched 'a' and 'b', Tokens 0 and 1
-            (vec![], 3),     // Partial match, State 3
-        ]));
-
-        // LLM Token: b"abc"
-        state_0_map.insert(b"abc", BTreeMap::from([
-            (vec![3], 0),    // Matched 'abc', Token 3
-            (vec![0, 1], 0), // Matched 'a' and 'b', Tokens 0 and 1
-        ]));
-
-        // LLM Token: b"bc"
-        state_0_map.insert(b"bc", BTreeMap::from([
-            (vec![1], 0),    // Matched 'b', Token 1
-        ]));
-
-        expected.insert(0, state_0_map);
-
-        // State 1
-        let mut state_1_map: BTreeMap<&[u8], BTreeMap<Vec<TokenID>, StateID>> = BTreeMap::new();
-
-        // LLM Token: b"b"
-        state_1_map.insert(b"b", BTreeMap::from([
-            (vec![2], 0),    // Matched 'ab', Token 2
-            (vec![], 3),     // Partial match, State 3
-        ]));
-
-        // LLM Token: b"bc"
-        state_1_map.insert(b"bc", BTreeMap::from([
-            (vec![3], 0),    // Matched 'abc', Token 3
-        ]));
-
-        expected.insert(1, state_1_map);
-
-        // State 3
-        let mut state_3_map: BTreeMap<&[u8], BTreeMap<Vec<TokenID>, StateID>> = BTreeMap::new();
-
-        // LLM Token: b"c"
-        state_3_map.insert(b"c", BTreeMap::from([
-            (vec![3], 0),    // Matched 'abc', Token 3
-        ]));
-
-        expected.insert(3, state_3_map);
-
-        // Now assert that the actual result matches the expected
         assert_eq!(result, expected);
     }
 }
