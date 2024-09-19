@@ -2,68 +2,43 @@ use crate::finite_automata::{Regex, RegexState};
 use std::collections::HashMap;
 use std::hash::Hash;
 
-/// A trait for tokenizers that can handle ambiguous token matches.
+type TokenID = usize;
+type StateID = usize;
+type Position = usize;
+
+pub struct ExecuteResult {
+    pub matches: HashMap<TokenID, Position>,
+    pub new_state: Option<StateID>,
+}
+
 pub trait Tokenizer: Sized {
-    /// Creates a new instance of the tokenizer in its initial state.
-    fn initial_state(&self) -> Self;
-
-    /// Gets all possible states for the tokenizer.
-    fn states(&self) -> Vec<Self>;
-
-    /// Executes the tokenizer on the given text and returns a map from positions to possible token sequences.
-    fn execute(&mut self, text: &[u8]) -> HashMap<usize, Vec<usize>>;
-
-    /// Returns the possible next tokens that could be matched.
-    fn possible_next_tokens(&self) -> Vec<usize>;
-
-    /// Returns true if the tokenizer has no more possible next tokens.
-    fn done(&self) -> bool {
-        self.possible_next_tokens().is_empty()
-    }
-
+    fn execute_from_state(&self, text: &[u8], state: StateID) -> ExecuteResult;
+    fn tokens_accessible_from_state(&self, state: StateID) -> Vec<TokenID>;
+    fn max_state(&self) -> StateID;
     /// Executes the tokenizer on the entire string and returns all possible token sequences and final states.
-    fn execute_all(&mut self, text: &[u8]) -> Vec<(Vec<usize>, Self)> {
+    /// TODO: improve this explanation
+    fn execute_all_from_state(&self, text: &[u8], state: StateID) -> HashMap<Vec<TokenID>, StateID> {
         // Implement using recursion. For each end position, start a new instance of the tokenizer and execute it on the remaining text.
         // Return all possible token sequences and the final state they lead to.
         todo!()
     }
 }
 
-/// A struct that holds a set of regex-based tokenizers for each grammar token.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RegexTokenizer<'a> {
-    states: Vec<RegexState<'a>>,
-}
-
-impl<'a> RegexTokenizer<'a> {
-    /// Creates a new `RegexTokenizer` from a set of regexes, one for each grammar token.
-    pub fn from_regexes(regexes: &'a [Regex]) -> Self {
-        RegexTokenizer {
-            states: regexes.iter().map(|regex| regex.init()).collect(),
-        }
-    }
-}
-
-impl<'a> Tokenizer for RegexTokenizer<'a> {
-    fn initial_state(&self) -> Self {
+impl Tokenizer for Regex {
+    fn execute_from_state(&self, text: &[u8], state: StateID) -> ExecuteResult {
         todo!()
     }
 
-    fn states(&self) -> Vec<Self> {
+    fn tokens_accessible_from_state(&self, state: StateID) -> Vec<TokenID> {
         todo!()
     }
 
-    fn execute(&mut self, text: &[u8]) -> HashMap<usize, Vec<usize>> {
-        todo!()
-    }
-
-    fn possible_next_tokens(&self) -> Vec<usize> {
+    fn max_state(&self) -> StateID {
         todo!()
     }
 }
 
-/// Precomputes the possible token sequences for each LLM token.
-pub fn precompute<T: Tokenizer + Clone + Eq + Hash>(tokenizer: &T, llm_tokens: &[&[u8]]) -> HashMap<T, Vec<(Vec<usize>, T)>> {
+pub fn precompute<'a>(tokenizer: &impl Tokenizer, llm_tokens: &[&'a [u8]]) -> HashMap<StateID, HashMap<Vec<TokenID>, (StateID, Vec<&'a [u8]>)>> {
     todo!()
 }
 
@@ -72,53 +47,44 @@ pub fn precompute<T: Tokenizer + Clone + Eq + Hash>(tokenizer: &T, llm_tokens: &
 mod tests {
     use super::*;
     use crate::finite_automata::eat_u8;
-    use crate::seq;
+    use crate::{groups, seq};
 
     #[test]
     fn test_regex_tokenizer() {
         // Define some simple regexes for testing
-        let regexes = vec![
-            eat_u8(b'a').build(), // Token 0: 'a'
-            eat_u8(b'b').build(), // Token 1: 'b'
-            seq![eat_u8(b'a'), eat_u8(b'b')].build(), // Token 2: 'ab'
-            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')].build(), // Token 3: 'abc'
-        ];
-
-        let mut tokenizer = RegexTokenizer::from_regexes(&regexes);
+        let tokenizer = groups![
+            eat_u8(b'a'), // Token 0: 'a'
+            eat_u8(b'b'), // Token 1: 'b'
+            seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
+            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
+        ].build();
 
         // Execute the tokenizer on a string
-        let result = tokenizer.execute(b"ab");
+        let ExecuteResult { matches, new_state } = tokenizer.execute_from_state(b"ab", 0);
 
         // Check the results
-        assert_eq!(result.get(&1), Some(&vec![0])); // 'a' matched at position 1
-        assert_eq!(result.get(&2), Some(&vec![1, 2])); // 'ab' matched at position 2
-
-        // Reset the tokenizer
-        tokenizer = tokenizer.initial_state();
+        assert_eq!(matches.get(&1), Some(&0)); // 'a' matched at position 1
+        assert_eq!(matches.get(&2), Some(&2)); // 'ab' matched at position 2
 
         // Get all possible token sequences
-        let results = tokenizer.execute_all(b"ab");
+        let results = tokenizer.execute_all_from_state(b"ab", 0);
 
         // The two possible token sequences are [0, 1] or [2]. In both cases, the final state should be the initial state.
-        assert!(results.contains(&(vec![0, 1], tokenizer.initial_state())));
-        assert!(results.contains(&(vec![2], tokenizer.initial_state())));
+        assert_eq!(results.get(&vec![0, 1]), Some(&0));
+        assert_eq!(results.get(&vec![2]), Some(&0));
 
         // The third case is where we match the first two characters of token 3, but not the third yet.
-        let mut tokenizer = tokenizer.initial_state();
-        tokenizer.execute(b"ab");
-        assert!(results.contains(&(vec![], tokenizer)));
+        assert_eq!(results.get(&vec![]), new_state.as_ref());
     }
 
     #[test]
     fn test_precompute() {
-        let regexes = vec![
-            eat_u8(b'a').build(), // Token 0: 'a'
-            eat_u8(b'b').build(), // Token 1: 'b'
-            seq![eat_u8(b'a'), eat_u8(b'b')].build(), // Token 2: 'ab'
-            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')].build(), // Token 3: 'abc'
-        ];
-
-        let tokenizer = RegexTokenizer::from_regexes(&regexes);
+        let tokenizer = groups![
+            eat_u8(b'a'), // Token 0: 'a'
+            eat_u8(b'b'), // Token 1: 'b'
+            seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
+            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
+        ].build();
 
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
 

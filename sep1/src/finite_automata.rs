@@ -2,7 +2,7 @@ use crate::charmap::TrieMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
-
+use std::ops::Range;
 use crate::frozenset::FrozenSet;
 use crate::u8set::U8Set;
 
@@ -135,7 +135,7 @@ macro_rules! seq {
 #[macro_export]
 macro_rules! groups {
     ($($expr:expr),* $(,)?) => {
-        ExprGroups {
+        $crate::finite_automata::ExprGroups {
             groups: vec![$($expr.into()),*]
         }
     };
@@ -565,14 +565,6 @@ impl Regex {
 
     pub fn init(&self) -> RegexState {
         self.init_to_state(self.dfa.start_state)
-    }
-
-    pub fn init_all_states(&self) -> Vec<RegexState<'_>> {
-        let mut result = vec![];
-        for state in 0..self.dfa.states.len() {
-            result.push(self.init_to_state(state));
-        }
-        result
     }
 
     pub fn find(&self, text: &[u8]) -> Option<(GroupID, usize)> {

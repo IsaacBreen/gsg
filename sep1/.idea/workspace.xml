@@ -10,6 +10,7 @@
     <list default="true" id="e21f0efd-fbe4-4ac7-9898-df25bf81a2c4" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/finite_automata.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/finite_automata.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/precompute.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/precompute.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -72,6 +73,7 @@
     "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
     "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
     "org.rust.first.attach.projects": "true",
+    "settings.editor.selected.configurable": "language.rust.cargo.check",
     "vue.rearranger.settings.migration": "true"
   },
   "keyToStringList": {
@@ -88,6 +90,9 @@
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/src" />
     </key>
+  </component>
+  <component name="RsExternalLinterProjectSettings">
+    <option name="runOnTheFly" value="true" />
   </component>
   <component name="RunManager" selected="Cargo.Test finite_automata">
     <configuration name="Test finite_automata" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
@@ -143,7 +148,7 @@
       <updated>1726388950923</updated>
       <workItem from="1726388952618" duration="5770000" />
       <workItem from="1726549842004" duration="13710000" />
-      <workItem from="1726725370533" duration="2555000" />
+      <workItem from="1726725370533" duration="7095000" />
     </task>
     <servers />
   </component>
