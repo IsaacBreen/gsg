@@ -571,15 +571,12 @@ impl RegexState<'_> {
 impl Regex {
     pub fn init_to_state(&self, state: usize) -> RegexState {
         let done = self.dfa.states[state].transitions.is_empty();
+        let matches = self.dfa.states[state].finalizers.iter().map(|&group_id| (group_id, Match { position: 0, group_id })).collect();
         RegexState {
             regex: self,
             position: 0,
             current_state: state,
-            matches: if done {
-                self.dfa.states[state].finalizers.iter().map(|&group_id| (group_id, Match { position: 0, group_id })).collect()
-            } else {
-                BTreeMap::new()
-            },
+            matches,
             done,
         }
     }
@@ -994,7 +991,7 @@ mod even_more_complex_tests {
     fn test_multiple_finalizers() {
         let expr = groups![
             eat_u8(b'a'),
-            eat_u8(b'a'),
+            seq![eat_u8(b'a'), eat_u8(b'a')],
         ];
 
         let regex = expr.build();
@@ -1023,6 +1020,6 @@ mod even_more_complex_tests {
 
         state.execute(b"aa");
         // group 0 should have the later match
-        assert_eq!(state.matches, BTreeMap::from([(0, Match { position: 2, group_id: 0 }), (1, Match { position: 2, group_id: 1 })]));
+        assert_eq!(state.matches, BTreeMap::from([(0, Match { position: 2, group_id: 0 }), (1, Match { position: 1, group_id: 1 })]));
     }
 }
