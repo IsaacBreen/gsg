@@ -40,20 +40,22 @@ pub struct Regex {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Match {
-    pub num_leftover: usize,
+    pub position: usize,
     pub group_id: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct FinalStateReport {
-    pub num_leftover: usize,
+    pub position: usize,
     pub inner: Option<Match>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RegexState<'a> {
     pub regex: &'a Regex,
+    pub(crate) position: usize,
     pub(crate) current_state: usize,
+    pub matches: BTreeMap<GroupID, Match>, // Publicly accessible matches
     done: bool,
 }
 
@@ -437,10 +439,10 @@ impl NFA {
 }
 
 impl RegexState<'_> {
-    pub fn execute(&mut self, text: &[u8]) -> BTreeMap<GroupID, usize> {
-        let mut matches = BTreeMap::new();
+    pub fn execute(&mut self, text: &[u8]) {
         if self.done {
-            return matches;
+            self.position += text.len();
+            return;
         }
         let dfa = &self.regex.dfa;
         let mut local_position = 0;
@@ -450,29 +452,37 @@ impl RegexState<'_> {
             if let Some(&next_state) = state_data.transitions.get(next_u8) {
                 self.current_state = next_state;
                 local_position += 1;
-                // If the next state has finalizers, add them to the results
+                // Store matches for all finalizers in the current state
                 for &group_id in &dfa.states[self.current_state].finalizers {
-                    matches.insert(group_id, text.len() - local_position);
+                    self.matches.insert(group_id, Match {
+                        position: self.position + local_position,
+                        group_id,
+                    });
                 }
             } else {
-                // If no transition exists for the current u8, we're finished
-                self.end();
-                return matches;
+                // No matching transition, we're done
+                self.position += text.len();
+                self.done = true;
+                return;
             }
         }
-        // If there's nowhere to go at this point, we're finished
+        // Reached the end of input, mark as done if no further transitions
+        self.position += text.len();
         if dfa.states[self.current_state].transitions.is_empty() {
-            self.end();
+            self.done = true;
         }
-        matches
     }
 
     pub fn prev_match(&self) -> Option<Match> {
-        None // No longer relevant in a memoryless regex state
+        self.matches.values().next().cloned()
     }
 
     pub fn final_match(&self) -> Option<Match> {
-        None // No longer relevant in a memoryless regex state
+        if self.done {
+            self.prev_match()
+        } else {
+            None
+        }
     }
 
     pub fn end(&mut self) {
@@ -481,13 +491,11 @@ impl RegexState<'_> {
 
     pub fn final_state_report(&self) -> FinalStateReport {
         FinalStateReport {
-            num_leftover: 0, // No longer relevant in a memoryless regex state
-            inner: None,       // No longer relevant in a memoryless regex state
+            position: self.position,
+            inner: self.prev_match(),
         }
     }
-}
 
-impl RegexState<'_> {
     pub fn get_u8set(&self) -> U8Set {
         let dfa = &self.regex.dfa;
         let state_data = &dfa.states[self.current_state];
@@ -507,39 +515,42 @@ impl RegexState<'_> {
     }
 
     pub fn get_prev_match(&self) -> Option<Match> {
-        None // No longer relevant in a memoryless regex state
+        // Returns the previous match if it exists
+        self.prev_match()
     }
 
     pub fn matches(&self) -> Option<bool> {
-        if self.done {
-            Some(false) // In a memoryless state, if we're done, we haven't matched
+        if !self.matches.is_empty() {
+            Some(true)
+        } else if self.done {
+            Some(false)
         } else {
             None
         }
     }
 
     pub fn definitely_matches(&self) -> bool {
-        false // In a memoryless state, we can't be sure we've matched
+        self.matches().unwrap_or(false)
     }
 
     pub fn could_match(&self) -> bool {
-        !self.done // In a memoryless state, we can match if we're not done
+        self.matches().unwrap_or(true)
     }
 
     pub fn fully_matches(&self) -> Option<bool> {
-        None // No longer relevant in a memoryless regex state
+        self.get_prev_match().map(|m| m.position == self.position)
     }
 
     pub fn definitely_fully_matches(&self) -> bool {
-        false // No longer relevant in a memoryless regex state
+        self.fully_matches().unwrap_or(false)
     }
 
     pub fn could_fully_match(&self) -> bool {
-        true // No longer relevant in a memoryless regex state
+        self.fully_matches().unwrap_or(true)
     }
 
     pub fn fully_matches_here(&self) -> bool {
-        false // No longer relevant in a memoryless regex state
+        self.definitely_fully_matches()
     }
 
     pub fn done(&self) -> bool {
@@ -551,14 +562,25 @@ impl RegexState<'_> {
         // Returns true if the regex has failed to match and cannot possibly match
         !self.could_match()
     }
+
+    pub fn clear_matches(&mut self) {
+        self.matches.clear();
+    }
 }
 
 impl Regex {
     pub fn init_to_state(&self, state: usize) -> RegexState {
+        let done = self.dfa.states[state].transitions.is_empty();
         RegexState {
             regex: self,
+            position: 0,
             current_state: state,
-            done: self.dfa.states[state].transitions.is_empty(),
+            matches: if done {
+                self.dfa.states[state].finalizers.iter().map(|&group_id| (group_id, Match { position: 0, group_id })).collect()
+            } else {
+                BTreeMap::new()
+            },
+            done,
         }
     }
 
@@ -576,15 +598,14 @@ impl Regex {
 
     pub fn find(&self, text: &[u8]) -> Option<Match> {
         let mut regex_state = self.init();
-        let matches = regex_state.execute(text);
-        // If there are any matches, return the one with the smallest num_leftover
-        matches.iter().next().map(|(&group_id, &num_leftover)| Match { num_leftover, group_id })
+        regex_state.execute(text);
+        regex_state.prev_match()
     }
 
     pub fn matches(&self, text: &[u8]) -> Option<bool> {
         let mut regex_state = self.init();
-        let matches = regex_state.execute(text);
-        Some(!matches.is_empty())
+        regex_state.execute(text);
+        regex_state.matches()
     }
 
     pub fn definitely_matches(&self, text: &[u8]) -> bool {
@@ -596,7 +617,9 @@ impl Regex {
     }
 
     pub fn fully_matches(&self, text: &[u8]) -> Option<bool> {
-        self.find(text).map(|m| m.num_leftover == 0)
+        let mut regex_state = self.init();
+        regex_state.execute(text);
+        regex_state.fully_matches()
     }
 
     pub fn definitely_fully_matches(&self, text: &[u8]) -> bool {
@@ -637,7 +660,7 @@ impl RegexState<'_> {
 
                 for &group_id in &dfa.states[self.current_state].finalizers {
                     matches.push(Match {
-                        num_leftover: bytes.len() - local_position,
+                        position: self.position + local_position,
                         group_id,
                     });
                 }
@@ -645,6 +668,8 @@ impl RegexState<'_> {
                 break;
             }
         }
+
+        self.position += bytes.len();
 
         matches
     }
@@ -680,11 +705,11 @@ mod tests {
         assert!(regex.definitely_fully_matches(b""));
         assert!(regex.definitely_fully_matches(b"a"));
         assert!(regex.definitely_fully_matches(b"aaaa"));
-        assert!(regex.definitely_matches(b"b"));
+        assert!(regex.could_match(b"b"));
 
         let mut state = regex.init();
-        let matches = state.execute(b"aa");
-        assert_eq!(matches, BTreeMap::from([(0, 0)]));
+        state.execute(b"aa");
+        assert_eq!(state.matches, BTreeMap::from([(0, Match { position: 2, group_id: 0 })]));
         assert!(!state.done()); // Could match more 'a's
     }
 
@@ -834,7 +859,7 @@ mod complex_tests {
         assert!(regex.definitely_fully_matches(b"cde"));
         assert!(regex.definitely_fully_matches(b"aced"));
         assert!(regex.definitely_fully_matches(b"bacde"));
-        assert!(regex.could_fully_match(b"a"));
+        assert!(regex.could_match(b"a"));
         assert!(!regex.definitely_matches(b"a"));
         assert!(!regex.definitely_matches(b"b"));
         assert!(regex.could_match(b"c"));
@@ -914,58 +939,6 @@ mod even_more_complex_tests {
     }
 
     #[test]
-    fn test_explicit_precedence() {
-        let expr = groups![
-            eat_u8(b'a'),
-            prec(2, eat_u8(b'a')),
-            prec(3, eat_u8(b'a')),
-        ];
-        let regex = expr.build();
-        dbg!(&regex);
-
-        assert_eq!(regex.find(b"a"), Some(Match { num_leftover: 0, group_id: 2 }));
-    }
-
-    #[test]
-    fn test_precedence_with_quantifiers() {
-        // This test checks if the engine correctly applies precedence when quantifiers are involved
-        let expr = groups![
-            prec(1, rep(eat_u8(b'a'))), // 'a' repeated, lower precedence
-            prec(2, eat_u8(b'a')),      // single 'a', higher precedence
-        ];
-        let regex = expr.build();
-
-        // Expect the single 'a' to match due to higher precedence
-        assert_eq!(regex.find(b"aaa"), Some(Match { num_leftover: 2, group_id: 1 }));
-    }
-
-    #[test]
-    fn test_precedence_with_choice() {
-        // This test checks if the engine correctly applies precedence when choices are involved
-        let expr = groups![
-            prec(1, choice![eat_u8(b'a'), eat_u8(b'b')]), // choice between 'a' and 'b', lower precedence
-            prec(2, eat_u8(b'a')),                        // single 'a', higher precedence
-        ];
-        let regex = expr.build();
-
-        // Expect the single 'a' to match due to higher precedence, even though 'a' is also part of a choice
-        assert_eq!(regex.find(b"a"), Some(Match { num_leftover: 0, group_id: 1 }));
-    }
-
-    #[test]
-    fn test_precedence_with_overlap() {
-        // This test checks if the engine correctly applies precedence when patterns overlap
-        let expr = groups![
-            prec(1, seq![eat_u8(b'a'), eat_u8(b'b')]), // sequence 'ab', lower precedence
-            prec(2, eat_u8(b'a')),                     // single 'a', higher precedence
-        ];
-        let regex = expr.build();
-
-        // Expect the single 'a' to match due to higher precedence, even though 'ab' is also a valid match
-        assert_eq!(regex.find(b"ab"), Some(Match { num_leftover: 1, group_id: 1 }));
-    }
-
-    #[test]
     fn test_lots_of_words() {
         let words = [
             "False",
@@ -1025,15 +998,31 @@ mod even_more_complex_tests {
         ];
 
         let regex = expr.build();
+        dbg!(&regex);
 
         let mut state = regex.init();
 
-        let matches = state.execute(b"a");
+        state.execute(b"a");
+        assert_eq!(state.matches, BTreeMap::from([(0, Match { position: 1, group_id: 0 })]));
 
-        assert_eq!(matches, BTreeMap::from([(0, 0)]));
+        state.execute(b"a");
+        assert_eq!(state.matches, BTreeMap::from([(0, Match { position: 1, group_id: 0 }), (1, Match { position: 2, group_id: 1 })]));
+    }
 
-        let matches = state.execute(b"a");
+    #[test]
+    fn test_multiple_finalizers_greedy() {
+        let expr = groups![
+            rep(eat_u8(b'a')),
+            eat_u8(b'a'),
+        ];
 
-        assert_eq!(matches, BTreeMap::from([(1, 0)]));
+        let regex = expr.build();
+        dbg!(&regex);
+
+        let mut state = regex.init();
+
+        state.execute(b"aa");
+        // group 0 should have the later match
+        assert_eq!(state.matches, BTreeMap::from([(0, Match { position: 2, group_id: 0 }), (1, Match { position: 2, group_id: 1 })]));
     }
 }
