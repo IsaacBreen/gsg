@@ -47,10 +47,10 @@ pub struct FinalStateReport {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RegexState<'a> {
     pub regex: &'a Regex,
-    pub(crate) position: usize,
-    pub(crate) current_state: usize,
+    pub position: usize,
+    pub current_state: usize,
     pub matches: BTreeMap<GroupID, usize>, // Publicly accessible matches (GroupID to position)
-    done: bool,
+    pub done: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

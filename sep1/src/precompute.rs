@@ -1,5 +1,5 @@
 use crate::finite_automata::{Regex, RegexState};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::hash::Hash;
 
 type TokenID = usize;
@@ -7,7 +7,7 @@ type StateID = usize;
 type Position = usize;
 
 pub struct ExecuteResult {
-    pub matches: HashMap<TokenID, Position>,
+    pub matches: BTreeMap<TokenID, Position>,
     pub new_state: Option<StateID>,
 }
 
@@ -17,8 +17,8 @@ pub trait Tokenizer: Sized {
     fn max_state(&self) -> StateID;
     /// Executes the tokenizer on the entire string and returns all possible token sequences and final states.
     /// TODO: improve this explanation
-    fn execute_all_from_state(&self, text: &[u8], state: StateID) -> HashMap<Vec<TokenID>, StateID> {
-        // Implement using recursion. For each end position, start a new instance of the tokenizer and execute it on the remaining text.
+    fn execute_all_from_state(&self, text: &[u8], state: StateID) -> BTreeMap<Vec<TokenID>, StateID> {
+        // Implement using recursion? For each end position, start a new instance of the tokenizer and execute it on the remaining text.
         // Return all possible token sequences and the final state they lead to.
         todo!()
     }
@@ -26,19 +26,25 @@ pub trait Tokenizer: Sized {
 
 impl Tokenizer for Regex {
     fn execute_from_state(&self, text: &[u8], state: StateID) -> ExecuteResult {
-        todo!()
+        let mut regex_state = self.init_to_state(state);
+        regex_state.execute(text);
+        ExecuteResult {
+            matches: regex_state.matches,
+            new_state: if regex_state.done { None } else { Some(regex_state.current_state) },
+        }
     }
 
     fn tokens_accessible_from_state(&self, state: StateID) -> Vec<TokenID> {
-        todo!()
+        let regex_state = self.init_to_state(state);
+        regex_state.possible_group_ids().into_iter().collect()
     }
 
     fn max_state(&self) -> StateID {
-        todo!()
+        self.dfa.states.len()
     }
 }
 
-pub fn precompute<'a>(tokenizer: &impl Tokenizer, llm_tokens: &[&'a [u8]]) -> HashMap<StateID, HashMap<Vec<TokenID>, (StateID, Vec<&'a [u8]>)>> {
+pub fn precompute<'a>(tokenizer: &impl Tokenizer, llm_tokens: &[&'a [u8]]) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&'a [u8]>)>> {
     todo!()
 }
 
@@ -90,6 +96,8 @@ mod tests {
 
         let result = precompute(&tokenizer, llm_tokens);
 
-        todo!()
+        let expected: BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)>> = todo!();
+
+        assert_eq!(result, expected);
     }
 }
