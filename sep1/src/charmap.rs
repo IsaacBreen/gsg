@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use crate::u8set::U8Set;
 use std::ops::{Index, IndexMut};
 
@@ -288,5 +289,21 @@ impl<T> Extend<(u8, T)> for TrieMap<T> {
         for (key, value) in iter {
             self.insert(key, value);
         }
+    }
+}
+
+impl<V, const N: usize> From<[(u8, V); N]> for TrieMap<V> {
+    fn from(array: [(u8, V); N]) -> Self {
+        let mut map = Self::new();
+        map.extend(array);
+        map
+    }
+}
+
+impl<V> FromIterator<(u8, V)> for TrieMap<V> {
+    fn from_iter<I: IntoIterator<Item = (u8, V)>>(iter: I) -> Self {
+        let mut map = Self::new();
+        map.extend(iter);
+        map
     }
 }

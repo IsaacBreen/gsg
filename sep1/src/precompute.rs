@@ -41,7 +41,7 @@ pub trait Tokenizer: Sized {
         let mut queue: Vec<QueueItem> = vec![];
         let mut final_results: BTreeMap<Vec<TokenID>, StateID> = BTreeMap::new();
 
-        queue.push(QueueItem { tokens: vec![], position: 0, state: 0 });
+        queue.push(QueueItem { tokens: vec![], position: 0, state });
 
         while let Some(QueueItem { tokens, position: start_position, state }) = queue.pop() {
             let mut results = self.execute_from_state(&text[start_position..], state);
@@ -91,9 +91,11 @@ pub fn precompute<'a>(tokenizer: &impl Tokenizer, llm_tokens: &[&'a [u8]]) -> BT
 /// Tests for the precompute module.
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use super::*;
-    use crate::finite_automata::eat_u8;
+    use crate::finite_automata::{eat_u8, DFAState, DFA};
     use crate::{groups, seq};
+    use crate::charmap::TrieMap;
 
     #[test]
     fn test_regex_tokenizer() {
@@ -128,12 +130,40 @@ mod tests {
 
     #[test]
     fn test_precompute() {
-        let tokenizer = groups![
-            eat_u8(b'a'), // Token 0: 'a'
-            eat_u8(b'b'), // Token 1: 'b'
-            seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
-            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
-        ].build();
+        // let tokenizer = groups![
+        //     eat_u8(b'a'), // Token 0: 'a'
+        //     eat_u8(b'b'), // Token 1: 'b'
+        //     seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
+        //     seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
+        // ].build();
+
+        let tokenizer = Regex {
+            dfa: DFA {
+                states: vec![
+                    DFAState {
+                        transitions: TrieMap::from([(97, 1), (98, 2)]),
+                        finalizers: BTreeSet::new(),
+                    },
+                    DFAState {
+                        transitions: TrieMap::from([(98, 3)]),
+                        finalizers: BTreeSet::from([0]),
+                    },
+                    DFAState {
+                        transitions: TrieMap::new(),
+                        finalizers: BTreeSet::from([1]),
+                    },
+                    DFAState {
+                        transitions: TrieMap::from([(99, 4)]),
+                        finalizers: BTreeSet::from([2]),
+                    },
+                    DFAState {
+                        transitions: TrieMap::new(),
+                        finalizers: BTreeSet::from([3]),
+                    },
+                ],
+                start_state: 0,
+            }
+        };
 
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
 

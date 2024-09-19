@@ -23,8 +23,8 @@ pub struct NFA {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DFAState {
-    transitions: TrieMap<usize>,
-    pub(crate) finalizers: BTreeSet<GroupID>,
+    pub transitions: TrieMap<usize>,
+    pub finalizers: BTreeSet<GroupID>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
