@@ -1,6 +1,6 @@
-use crate::finite_automata::{Regex, RegexState};
+// src/precompute.rs
+use crate::finite_automata::{Regex};
 use std::collections::{BTreeMap, BTreeSet};
-use std::hash::Hash;
 
 type TokenID = usize;
 type StateID = usize;
@@ -38,23 +38,24 @@ pub trait Tokenizer: Sized {
             state: StateID,
         }
 
-        let mut queue: Vec<QueueItem> = vec![];
+        let mut queue: Vec<QueueItem> = vec![QueueItem { tokens: vec![], position: 0, state }];
         let mut final_results: BTreeMap<Vec<TokenID>, StateID> = BTreeMap::new();
 
-        queue.push(QueueItem { tokens: vec![], position: 0, state });
+        while let Some(QueueItem { tokens, position, state }) = queue.pop() {
+            let results = self.execute_from_state(&text[position..], state);
 
-        while let Some(QueueItem { tokens, position: start_position, state }) = queue.pop() {
-            let mut results = self.execute_from_state(&text[start_position..], state);
-            for (token, offset) in results.matches {
-                let position = start_position + offset;
+            for (&token, &offset) in &results.matches {
+                let new_position = position + offset;
                 let mut new_tokens = tokens.clone();
                 new_tokens.push(token);
-                if position == text.len() {
+
+                if new_position == text.len() {
                     final_results.insert(new_tokens, 0);
                 } else {
-                    queue.push(QueueItem { tokens: new_tokens, position, state: 0 });
+                    queue.push(QueueItem { tokens: new_tokens, position: new_position, state: 0 });
                 }
             }
+
             if let Some(new_state) = results.new_state {
                 final_results.insert(tokens, new_state);
             }
@@ -88,10 +89,33 @@ pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
     llm_tokens: &[&'a [u8]],
 ) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&'a [u8]>)>> {
-    todo!()
+    let mut result = BTreeMap::new();
+
+    for state_id in 0..tokenizer.max_state() {
+        let mut state_map: BTreeMap<Vec<TokenID>, (StateID, Vec<&'a [u8]>)> = BTreeMap::new();
+
+        for &llm_token in llm_tokens {
+            let sequences = tokenizer.execute_all_from_state(llm_token, state_id);
+            for (token_sequence, end_state) in sequences {
+                state_map
+                    .entry(token_sequence)
+                    .and_modify(|(s, tokens)| {
+                        if *s == end_state {
+                            tokens.push(llm_token);
+                        }
+                    })
+                    .or_insert_with(|| (end_state, vec![llm_token]));
+            }
+        }
+
+        if !state_map.is_empty() {
+            result.insert(state_id, state_map);
+        }
+    }
+
+    result
 }
 
-/// Tests for the precompute module.
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
@@ -144,53 +168,57 @@ mod tests {
             dfa: DFA {
                 states: vec![
                     DFAState {
-                        transitions: TrieMap::from([(97, 1), (98, 2)]), // 'a' -> 1, 'b' -> 2
+                        transitions: TrieMap::from_iter(vec![(b'a', 1), (b'b', 2)]),
                         finalizers: BTreeSet::new(),
                     },
                     DFAState {
-                        transitions: TrieMap::from([(98, 3)]), // 'b' -> 3
-                        finalizers: BTreeSet::from([0]), // Token 0: 'a'
+                        transitions: TrieMap::from_iter(vec![(b'b', 3)]),
+                        finalizers: BTreeSet::from([0]),
                     },
                     DFAState {
                         transitions: TrieMap::new(),
-                        finalizers: BTreeSet::from([1]), // Token 1: 'b'
+                        finalizers: BTreeSet::from([1]),
                     },
                     DFAState {
-                        transitions: TrieMap::from([(99, 4)]), // 'c' -> 4
-                        finalizers: BTreeSet::from([2]), // Token 2: 'ab'
+                        transitions: TrieMap::from_iter(vec![(b'c', 4)]),
+                        finalizers: BTreeSet::from([2]),
                     },
                     DFAState {
                         transitions: TrieMap::new(),
-                        finalizers: BTreeSet::from([3]), // Token 3: 'abc'
+                        finalizers: BTreeSet::from([3]),
                     },
                 ],
                 start_state: 0,
-            }
+            },
         };
 
+        // Define the LLM tokens
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
 
+        // Run precompute
         let result = precompute(&tokenizer, llm_tokens);
 
+        // Build the expected output
         let mut state_0: BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)> = BTreeMap::new();
-        todo!();
+        state_0.insert(vec![0], (0, vec![b"a"]));
+        state_0.insert(vec![1], (0, vec![b"b", b"bc"]));
+        state_0.insert(vec![0, 1], (0, vec![b"ab", b"abc"]));
+        state_0.insert(vec![2], (0, vec![b"ab"]));
+        state_0.insert(vec![3], (0, vec![b"abc"]));
+        state_0.insert(vec![0, 2], (0, vec![b"abc"]));
 
         let mut state_1: BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)> = BTreeMap::new();
-        todo!();
-
-        let mut state_2: BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)> = BTreeMap::new();
-        todo!();
+        state_1.insert(vec![0], (3, vec![b"b"]));
+        state_1.insert(vec![0, 3], (0, vec![b"bc"]));
 
         let mut state_3: BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)> = BTreeMap::new();
-        todo!();
+        state_3.insert(vec![3], (0, vec![b"c"]));
 
-        let mut expected: BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)>> = BTreeMap::new();
+        let mut expected: BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)>> =
+            BTreeMap::new();
         expected.insert(0, state_0);
         expected.insert(1, state_1);
-        expected.insert(2, state_2);
         expected.insert(3, state_3);
-
-        expected.retain(|_, state| !state.is_empty());
 
         assert_eq!(result, expected);
     }
