@@ -84,8 +84,25 @@ impl Tokenizer for Regex {
     }
 }
 
-pub fn precompute<'a>(tokenizer: &impl Tokenizer, llm_tokens: &[&'a [u8]]) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&'a [u8]>)>> {
-    todo!()
+pub fn precompute<'a>(
+    tokenizer: &impl Tokenizer,
+    llm_tokens: &[&'a [u8]],
+) -> BTreeMap<StateID, BTreeMap<&'a [u8], BTreeMap<Vec<TokenID>, StateID>>> {
+    let mut result = BTreeMap::new();
+
+    for state in 0..tokenizer.max_state() {
+        let mut state_map = BTreeMap::new();
+        for &llm_token in llm_tokens {
+            let token_sequences = tokenizer.execute_all_from_state(llm_token, state);
+            if !token_sequences.is_empty() {
+                state_map.insert(llm_token, token_sequences);
+            }
+        }
+        if !state_map.is_empty() {
+            result.insert(state, state_map);
+        }
+    }
+    result
 }
 
 /// Tests for the precompute module.
@@ -128,18 +145,101 @@ mod tests {
 
     #[test]
     fn test_precompute() {
+        // Define a tokenizer with overlapping tokens
         let tokenizer = groups![
-            eat_u8(b'a'), // Token 0: 'a'
-            eat_u8(b'b'), // Token 1: 'b'
-            seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
+            eat_u8(b'a'),                           // Token 0: 'a'
+            eat_u8(b'b'),                           // Token 1: 'b'
+            seq![eat_u8(b'a'), eat_u8(b'b')],       // Token 2: 'ab'
             seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
         ].build();
 
-        let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
+        dbg!(&tokenizer);
+
+        let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"abc"];
 
         let result = precompute(&tokenizer, llm_tokens);
 
-        let expected: BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)>> = todo!();
+        // Manually compute the expected output
+        use std::collections::BTreeMap;
+
+        let mut expected = BTreeMap::new();
+
+        // For state 0
+        let mut state_0_map: BTreeMap<&[u8], BTreeMap<Vec<TokenID>, StateID>> = BTreeMap::new();
+
+        // LLM token: b"a"
+        {
+            let mut sequences = BTreeMap::new();
+            // From state 0, consuming "a"
+            // Possible matches:
+            // - Token 0 ("a"), match_length = 1
+            // Remaining text is empty, so state resets to 0
+            sequences.insert(vec![0], 0);
+
+            // Also, since "ab" and "abc" start with "a", the tokenizer can be in a non-final state
+            let ExecuteResult { matches: _, new_state } = tokenizer.execute_from_state(b"a", 0);
+            if let Some(new_state) = new_state {
+                sequences.insert(vec![], new_state);
+            }
+
+            state_0_map.insert(b"a", sequences);
+        }
+
+        // LLM token: b"b"
+        {
+            let mut sequences = BTreeMap::new();
+            // From state 0, consuming "b"
+            // Possible matches:
+            // - Token 1 ("b"), match_length = 1
+            sequences.insert(vec![1], 0);
+            state_0_map.insert(b"b", sequences);
+        }
+
+        // LLM token: b"c"
+        {
+            let mut sequences = BTreeMap::new();
+            // From state 0, consuming "c"
+            // No matches, but tokenizer might be in a non-final state
+            let ExecuteResult { matches: _, new_state } = tokenizer.execute_from_state(b"c", 0);
+            if let Some(new_state) = new_state {
+                sequences.insert(vec![], new_state);
+            }
+            if !sequences.is_empty() {
+                state_0_map.insert(b"c", sequences);
+            }
+        }
+
+        // LLM token: b"ab"
+        {
+            let mut sequences = BTreeMap::new();
+            // From state 0, consuming "ab"
+            // Possible matches:
+            // - Token 0 ("a") followed by Token 1 ("b"): [0,1]
+            // - Token 2 ("ab"): [2]
+            sequences.insert(vec![2], 0);
+            sequences.insert(vec![0, 1], 0);
+
+            // Also, "abc" starts with "ab", so tokenizer may be in a non-final state
+            let ExecuteResult { matches: _, new_state } = tokenizer.execute_from_state(b"ab", 0);
+            if let Some(new_state) = new_state {
+                sequences.insert(vec![], new_state);
+            }
+
+            state_0_map.insert(b"ab", sequences);
+        }
+
+        // LLM token: b"abc"
+        {
+            let mut sequences = BTreeMap::new();
+            // From state 0, consuming "abc"
+            // Possible matches:
+            // - Token 3 ("abc"): [3]
+            sequences.insert(vec![3], 0);
+
+            state_0_map.insert(b"abc", sequences);
+        }
+
+        expected.insert(0, state_0_map);
 
         assert_eq!(result, expected);
     }
