@@ -20,7 +20,47 @@ pub trait Tokenizer: Sized {
     fn execute_all_from_state(&self, text: &[u8], state: StateID) -> BTreeMap<Vec<TokenID>, StateID> {
         // Implement using recursion? For each end position, start a new instance of the tokenizer and execute it on the remaining text.
         // Return all possible token sequences and the final state they lead to.
-        todo!()
+
+        // Note: is *is* possible to do this using just `execute_from_state` - i.e. without access to private fields of the implementing type.
+        //  How? `ExecuteResult` tells us, from the given state, which matches are possible and what the final state is.
+        //  Here, the 'final' state is the state reached by running the tokenizer up to the end of the string.
+        //  It is NOT the state reached for which a finalizer was encountered that triggered a match.
+        //
+        //  How do we use this? Consider a single (token, position) pair in a `ExecuteResult`.
+        //  If the position is the end of the string, the state `new_state` is the final state.
+        //  We add an entry to the final results map with the token sequence and the final state.
+        //  If the position is not the end of the string, then we need to keep track of the token matched and then
+        //  run the tokenizer again from the initial state (by convention, the initial state is 0). We keep doing this until.
+        //  we reach the end of the string.
+        struct QueueItem {
+            tokens: Vec<TokenID>,
+            position: usize,
+            state: StateID,
+        }
+
+        let mut queue: Vec<QueueItem> = vec![];
+        let mut final_results: BTreeMap<Vec<TokenID>, StateID> = BTreeMap::new();
+
+        queue.push(QueueItem { tokens: vec![], position: 0, state: 0 });
+
+        while let Some(QueueItem { tokens, position: start_position, state }) = queue.pop() {
+            let mut results = self.execute_from_state(&text[start_position..], state);
+            for (token, offset) in results.matches {
+                let position = start_position + offset;
+                let mut new_tokens = tokens.clone();
+                new_tokens.push(token);
+                if position == text.len() {
+                    final_results.insert(new_tokens, 0);
+                } else {
+                    queue.push(QueueItem { tokens: new_tokens, position, state: 0 });
+                }
+            }
+            if let Some(new_state) = results.new_state {
+                final_results.insert(tokens, new_state);
+            }
+        }
+
+        final_results
     }
 }
 
@@ -69,18 +109,21 @@ mod tests {
         let ExecuteResult { matches, new_state } = tokenizer.execute_from_state(b"ab", 0);
 
         // Check the results
-        assert_eq!(matches.get(&1), Some(&0)); // 'a' matched at position 1
-        assert_eq!(matches.get(&2), Some(&2)); // 'ab' matched at position 2
+        assert_eq!(matches, BTreeMap::from([
+            (0, 1), // 'a' matched at position 1
+            (2, 2), // 'ab' matched at position 2
+        ]));
 
         // Get all possible token sequences
         let results = tokenizer.execute_all_from_state(b"ab", 0);
 
-        // The two possible token sequences are [0, 1] or [2]. In both cases, the final state should be the initial state.
-        assert_eq!(results.get(&vec![0, 1]), Some(&0));
-        assert_eq!(results.get(&vec![2]), Some(&0));
-
-        // The third case is where we match the first two characters of token 3, but not the third yet.
-        assert_eq!(results.get(&vec![]), new_state.as_ref());
+        assert_eq!(results, BTreeMap::from([
+            // The two possible token sequences are [0, 1] or [2]. In both cases, the final state should be the initial state.
+            (vec![0, 1], 0),
+            (vec![2], 0),
+            // The third case is where we match the first two characters of token 3, but not the third yet.
+            (vec![], new_state.unwrap()),
+        ]));
     }
 
     #[test]
