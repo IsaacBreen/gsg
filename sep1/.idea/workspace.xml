@@ -10,7 +10,6 @@
     <list default="true" id="e21f0efd-fbe4-4ac7-9898-df25bf81a2c4" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/finite_automata.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/finite_automata.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/precompute.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/precompute.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -59,6 +58,9 @@
   "keyToString": {
     "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "Cargo.Test finite_automata.executor": "Run",
+    "Cargo.Test possible_group_ids_tests.executor": "Run",
+    "Cargo.Test precompute.executor": "Run",
+    "Cargo.Test precompute::tests::test_precompute.executor": "Run",
     "Cargo.Test.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.rust.reset.selective.auto.import": "true",
@@ -94,9 +96,26 @@
   <component name="RsExternalLinterProjectSettings">
     <option name="runOnTheFly" value="true" />
   </component>
-  <component name="RunManager" selected="Cargo.Test precompute">
+  <component name="RunManager" selected="Cargo.Test finite_automata">
     <configuration name="Test finite_automata" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="command" value="test --package sep1 --lib finite_automata" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test possible_group_ids_tests" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package sep1 --lib finite_automata::possible_group_ids_tests" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <envs />
       <option name="emulateTerminal" value="true" />
@@ -165,9 +184,10 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Cargo.Test finite_automata" />
+        <item itemvalue="Cargo.Test possible_group_ids_tests" />
         <item itemvalue="Cargo.Test precompute" />
         <item itemvalue="Cargo.Test precompute::tests::test_precompute" />
-        <item itemvalue="Cargo.Test finite_automata" />
       </list>
     </recent_temporary>
   </component>
@@ -184,7 +204,7 @@
       <updated>1726388950923</updated>
       <workItem from="1726388952618" duration="5770000" />
       <workItem from="1726549842004" duration="13710000" />
-      <workItem from="1726725370533" duration="8088000" />
+      <workItem from="1726725370533" duration="9018000" />
     </task>
     <servers />
   </component>

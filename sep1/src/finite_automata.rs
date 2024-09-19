@@ -1,10 +1,10 @@
+// src/finite_automata.rs
 use crate::charmap::TrieMap;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::fmt::{Debug, Formatter};
-use std::hash::{Hash, Hasher};
-use std::ops::Range;
 use crate::frozenset::FrozenSet;
 use crate::u8set::U8Set;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
+use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
 
 type GroupID = usize;
 
@@ -548,6 +548,32 @@ impl RegexState<'_> {
     pub fn clear_matches(&mut self) {
         self.matches.clear();
     }
+
+    pub fn possible_group_ids(&self) -> BTreeSet<GroupID> {
+        let mut possible_groups = BTreeSet::new();
+        let mut visited = HashSet::new();
+        let mut worklist = VecDeque::new();
+
+        worklist.push_back(self.current_state);
+        visited.insert(self.current_state);
+
+        while let Some(state_index) = worklist.pop_front() {
+            let state = &self.regex.dfa.states[state_index];
+
+            // Add finalizers of the current state to possible groups
+            possible_groups.extend(state.finalizers.iter().cloned());
+
+            // Add unvisited neighbors to the worklist
+            for &next_state in state.transitions.values() {
+                if !visited.contains(&next_state) {
+                    visited.insert(next_state);
+                    worklist.push_back(next_state);
+                }
+            }
+        }
+
+        possible_groups
+    }
 }
 
 impl Regex {
@@ -952,5 +978,92 @@ mod even_more_complex_tests {
         state.execute(b"aa");
         // group 0 should have the later match
         assert_eq!(state.matches, BTreeMap::from([(0, 2), (1, 1)]));
+    }
+}
+
+#[cfg(test)]
+mod possible_group_ids_tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_regex() {
+        let expr = seq![];
+        let regex = expr.build();
+        let state = regex.init();
+        assert_eq!(state.possible_group_ids(), BTreeSet::from([0]));
+    }
+
+    #[test]
+    fn test_literal_match() {
+        let expr = eat_u8(b'a');
+        let regex = expr.build();
+        let state = regex.init();
+        assert_eq!(state.possible_group_ids(), BTreeSet::from([0]));
+    }
+
+    #[test]
+    fn test_choice() {
+        let expr = groups![eat_u8(b'a'), eat_u8(b'b')];
+        let regex = expr.build();
+        let state = regex.init();
+        assert_eq!(state.possible_group_ids(), BTreeSet::from([0, 1]));
+    }
+
+    #[test]
+    fn test_sequence() {
+        let expr = seq![eat_u8(b'a'), eat_u8(b'b')];
+        let regex = expr.build();
+        let mut state = regex.init();
+        assert_eq!(state.possible_group_ids(), BTreeSet::from([0]));
+        state.execute(b"a");
+        assert_eq!(state.possible_group_ids(), BTreeSet::from([0]));
+    }
+
+    #[test]
+    fn test_quantifier() {
+        let expr = rep(eat_u8(b'a'));
+        let regex = expr.build();
+        let state = regex.init();
+        assert_eq!(state.possible_group_ids(), BTreeSet::from([0]));
+    }
+
+    #[test]
+    fn test_nested_structures() {
+        let expr = groups![
+            choice![opt(eat_u8(b'a')), rep(eat_u8(b'b')), eat_u8(b'c')],
+            eat_u8(b'a'),
+        ];
+        let regex = expr.build();
+        let state = regex.init();
+        assert_eq!(state.possible_group_ids(), BTreeSet::from([0, 1]));
+    }
+
+    #[test]
+    fn test_multiple_finalizers() {
+        let expr = groups![
+            eat_u8(b'a'),
+            seq![eat_u8(b'a'), eat_u8(b'a')],
+        ];
+
+        let regex = expr.build();
+        let state = regex.init();
+        assert_eq!(state.possible_group_ids(), BTreeSet::from([0, 1]));
+    }
+
+    #[test]
+    fn test_multiple_finalizers_after_execution() {
+        let expr = groups![
+            eat_u8(b'a'),
+            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'a')],
+            seq![eat_u8(b'a'), eat_u8(b'c'), eat_u8(b'a')],
+        ];
+
+        let regex = expr.build();
+        let mut state = regex.init();
+        state.execute(b"a");
+        assert_eq!(state.possible_group_ids(), BTreeSet::from([0, 1, 2]));
+
+        state.execute(b"b");
+        assert_eq!(state.possible_group_ids(), BTreeSet::from([1]));
     }
 }
