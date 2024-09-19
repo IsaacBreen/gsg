@@ -1,5 +1,5 @@
 use crate::finite_automata::{Regex, RegexState};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::hash::Hash;
 
 type TokenID = usize;
@@ -84,7 +84,10 @@ impl Tokenizer for Regex {
     }
 }
 
-pub fn precompute<'a>(tokenizer: &impl Tokenizer, llm_tokens: &[&'a [u8]]) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&'a [u8]>)>> {
+pub fn precompute<'a>(
+    tokenizer: &impl Tokenizer,
+    llm_tokens: &[&'a [u8]],
+) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&'a [u8]>)>> {
     todo!()
 }
 
@@ -141,24 +144,24 @@ mod tests {
             dfa: DFA {
                 states: vec![
                     DFAState {
-                        transitions: TrieMap::from([(97, 1), (98, 2)]),
+                        transitions: TrieMap::from([(97, 1), (98, 2)]), // 'a' -> 1, 'b' -> 2
                         finalizers: BTreeSet::new(),
                     },
                     DFAState {
-                        transitions: TrieMap::from([(98, 3)]),
-                        finalizers: BTreeSet::from([0]),
+                        transitions: TrieMap::from([(98, 3)]), // 'b' -> 3
+                        finalizers: BTreeSet::from([0]), // Token 0: 'a'
                     },
                     DFAState {
                         transitions: TrieMap::new(),
-                        finalizers: BTreeSet::from([1]),
+                        finalizers: BTreeSet::from([1]), // Token 1: 'b'
                     },
                     DFAState {
-                        transitions: TrieMap::from([(99, 4)]),
-                        finalizers: BTreeSet::from([2]),
+                        transitions: TrieMap::from([(99, 4)]), // 'c' -> 4
+                        finalizers: BTreeSet::from([2]), // Token 2: 'ab'
                     },
                     DFAState {
                         transitions: TrieMap::new(),
-                        finalizers: BTreeSet::from([3]),
+                        finalizers: BTreeSet::from([3]), // Token 3: 'abc'
                     },
                 ],
                 start_state: 0,
@@ -169,7 +172,25 @@ mod tests {
 
         let result = precompute(&tokenizer, llm_tokens);
 
-        let expected: BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)>> = todo!();
+        let mut state_0: BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)> = BTreeMap::new();
+        todo!();
+
+        let mut state_1: BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)> = BTreeMap::new();
+        todo!();
+
+        let mut state_2: BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)> = BTreeMap::new();
+        todo!();
+
+        let mut state_3: BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)> = BTreeMap::new();
+        todo!();
+
+        let mut expected: BTreeMap<StateID, BTreeMap<Vec<TokenID>, (StateID, Vec<&[u8]>)>> = BTreeMap::new();
+        expected.insert(0, state_0);
+        expected.insert(1, state_1);
+        expected.insert(2, state_2);
+        expected.insert(3, state_3);
+
+        expected.retain(|_, state| !state.is_empty());
 
         assert_eq!(result, expected);
     }
