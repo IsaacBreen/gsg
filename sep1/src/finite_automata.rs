@@ -38,16 +38,10 @@ pub struct Regex {
     dfa: DFA,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Match {
-    pub position: usize,
-    pub group_id: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
 pub struct FinalStateReport {
     pub position: usize,
-    pub inner: Option<Match>,
+    pub matches: BTreeMap<GroupID, usize>, // GroupID to position
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -55,7 +49,7 @@ pub struct RegexState<'a> {
     pub regex: &'a Regex,
     pub(crate) position: usize,
     pub(crate) current_state: usize,
-    pub matches: BTreeMap<GroupID, Match>, // Publicly accessible matches
+    pub matches: BTreeMap<GroupID, usize>, // Publicly accessible matches (GroupID to position)
     done: bool,
 }
 
@@ -454,10 +448,7 @@ impl RegexState<'_> {
                 local_position += 1;
                 // Store matches for all finalizers in the current state
                 for &group_id in &dfa.states[self.current_state].finalizers {
-                    self.matches.insert(group_id, Match {
-                        position: self.position + local_position,
-                        group_id,
-                    });
+                    self.matches.insert(group_id, self.position + local_position);
                 }
             } else {
                 // No matching transition, we're done
@@ -473,18 +464,6 @@ impl RegexState<'_> {
         }
     }
 
-    pub fn prev_match(&self) -> Option<Match> {
-        self.matches.values().next().cloned()
-    }
-
-    pub fn final_match(&self) -> Option<Match> {
-        if self.done {
-            self.prev_match()
-        } else {
-            None
-        }
-    }
-
     pub fn end(&mut self) {
         self.done = true;
     }
@@ -492,7 +471,7 @@ impl RegexState<'_> {
     pub fn final_state_report(&self) -> FinalStateReport {
         FinalStateReport {
             position: self.position,
-            inner: self.prev_match(),
+            matches: self.matches.clone(),
         }
     }
 
@@ -514,11 +493,6 @@ impl RegexState<'_> {
         u8set
     }
 
-    pub fn get_prev_match(&self) -> Option<Match> {
-        // Returns the previous match if it exists
-        self.prev_match()
-    }
-
     pub fn matches(&self) -> Option<bool> {
         if !self.matches.is_empty() {
             Some(true)
@@ -538,7 +512,15 @@ impl RegexState<'_> {
     }
 
     pub fn fully_matches(&self) -> Option<bool> {
-        self.get_prev_match().map(|m| m.position == self.position)
+        if let Some(max_position) = self.matches.values().max() {
+            Some(*max_position == self.position)
+        } else {
+            if self.done {
+                Some(false)
+            } else {
+                None
+            }
+        }
     }
 
     pub fn definitely_fully_matches(&self) -> bool {
@@ -571,7 +553,7 @@ impl RegexState<'_> {
 impl Regex {
     pub fn init_to_state(&self, state: usize) -> RegexState {
         let done = self.dfa.states[state].transitions.is_empty();
-        let matches = self.dfa.states[state].finalizers.iter().map(|&group_id| (group_id, Match { position: 0, group_id })).collect();
+        let matches = self.dfa.states[state].finalizers.iter().map(|&group_id| (group_id, 0)).collect();
         RegexState {
             regex: self,
             position: 0,
@@ -593,10 +575,10 @@ impl Regex {
         result
     }
 
-    pub fn find(&self, text: &[u8]) -> Option<Match> {
+    pub fn find(&self, text: &[u8]) -> Option<(GroupID, usize)> {
         let mut regex_state = self.init();
         regex_state.execute(text);
-        regex_state.prev_match()
+        regex_state.matches.iter().next().map(|(&group_id, &position)| (group_id, position))
     }
 
     pub fn matches(&self, text: &[u8]) -> Option<bool> {
@@ -628,49 +610,6 @@ impl Regex {
     }
 }
 
-impl RegexState<'_> {
-    /// Finds all matches in the input `bytes` and returns them as a vector of `Match`.
-    ///
-    /// This method steps through the input bytes, character by character,
-    /// and checks if the regex matches at each position. If a match is found,
-    /// a `Match` object is created and added to the results vector.
-    ///
-    /// # Arguments
-    ///
-    /// * `bytes` - The input bytes to search for matches.
-    ///
-    /// # Returns
-    ///
-    /// A vector of `Match` objects, each representing a match found in the input.
-    pub fn find_matches(&mut self, bytes: &[u8]) -> Vec<Match> {
-        let mut matches = Vec::new(); // Use Vec::new() for clarity
-        let mut local_position = 0;
-        let dfa = &self.regex.dfa;
-
-        while local_position < bytes.len() {
-            let state_data = &dfa.states[self.current_state];
-            let next_u8 = bytes[local_position];
-
-            if let Some(&next_state) = state_data.transitions.get(next_u8) {
-                self.current_state = next_state;
-                local_position += 1;
-
-                for &group_id in &dfa.states[self.current_state].finalizers {
-                    matches.push(Match {
-                        position: self.position + local_position,
-                        group_id,
-                    });
-                }
-            } else {
-                break;
-            }
-        }
-
-        self.position += bytes.len();
-
-        matches
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -706,7 +645,7 @@ mod tests {
 
         let mut state = regex.init();
         state.execute(b"aa");
-        assert_eq!(state.matches, BTreeMap::from([(0, Match { position: 2, group_id: 0 })]));
+        assert_eq!(state.matches, BTreeMap::from([(0, 2)]));
         assert!(!state.done()); // Could match more 'a's
     }
 
@@ -1000,10 +939,10 @@ mod even_more_complex_tests {
         let mut state = regex.init();
 
         state.execute(b"a");
-        assert_eq!(state.matches, BTreeMap::from([(0, Match { position: 1, group_id: 0 })]));
+        assert_eq!(state.matches, BTreeMap::from([(0, 1)]));
 
         state.execute(b"a");
-        assert_eq!(state.matches, BTreeMap::from([(0, Match { position: 1, group_id: 0 }), (1, Match { position: 2, group_id: 1 })]));
+        assert_eq!(state.matches, BTreeMap::from([(0, 1), (1, 2)]));
     }
 
     #[test]
@@ -1020,6 +959,6 @@ mod even_more_complex_tests {
 
         state.execute(b"aa");
         // group 0 should have the later match
-        assert_eq!(state.matches, BTreeMap::from([(0, Match { position: 2, group_id: 0 }), (1, Match { position: 1, group_id: 1 })]));
+        assert_eq!(state.matches, BTreeMap::from([(0, 2), (1, 1)]));
     }
 }
