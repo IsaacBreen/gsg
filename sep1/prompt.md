@@ -48,14 +48,6 @@ Note that the notion of ambiguity of the regex/finite automata code attached abo
 
 Some of the reasons we want `Tokenizer` to be ambiguous is so we can match 'literals'. For example, in the Python grammar we have *soft keywords* like `match` that can be an identifier or a special 'match' token.
 
-Try answer the following question(s):
-
-What should `test_precompute` do, exactly? An equivalent question: how should `precompute` work? (There should a lot of assertions.)
-
-We want to check the full precompute output. We should first enumerate every possible state the regex can be in. Then we should, for each one of those, for each LLM token, consider what'd happen if `execute_all_from_state` were called on that state with that LLM token - i.e. what grammar token sequences are possible and which tokenizer states they take us to.
-
-Then, we have to use all this information to produce the output of `precompute` which tells us, for each tokenizer state, every possible grammar token sequence and the final state it us to, as well as which LLM token sequences can do this.
-
 ## How to respond
 
 Use CoT to plan and reason. Figure out the best way to achieve the aims laid out here. You aren't bound by my exact requirements.
