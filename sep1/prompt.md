@@ -67,11 +67,3 @@ Think mathematically. Be exhaustive. As comprehensive as possible. Very long res
 Exhaustively reconsider. Improve recursively. Very long response.
 
 Then, finally, write the code (if any code was requested). Ensure the documentation is conceptually complete and all reasoning is transferred there. It should be sufficient to explain the code and all reasoning used to arrive at the choices there.
-
-
-## Request
-
-Todo list:
-
-- [ ] Make `possible_group_ids` more efficient by precomputing things.
-- [ ] Add a variation of `get_u8set` that takes a group ID and gets a `u8set` of all bytes that take us to a state where `possible_group_ids` contains the given group ID. Again, make sure this is efficient by precomputing what's needed. In this case, we'll need to precompute a map for each state from group ID to a `u8set` and do a simple lookup when needed.
