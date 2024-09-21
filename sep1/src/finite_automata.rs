@@ -487,7 +487,7 @@ impl DFA {
             for state_index in 0..self.states.len() {
                 let state = self.states[state_index].clone();
                 for (_input, &next_state_index) in &state.transitions {
-                    let next_possible_groups = &self.states[next_state_index].possible_group_ids;
+                    let next_possible_groups = self.states[next_state_index].possible_group_ids.clone();
                     let state_possible_groups = &mut self.states[state_index].possible_group_ids;
 
                     let old_len = state_possible_groups.len();
@@ -502,11 +502,18 @@ impl DFA {
     }
 
     pub fn compute_group_id_to_u8set(&mut self) {
-        for (state_index, state) in self.states.iter_mut().enumerate() {
+        // Create the vector of possible group IDs within a block scope, cloning the data
+        let possible_group_ids: Vec<_> = {
+            self.states.iter().map(|s| s.possible_group_ids.clone()).collect()
+        };
+
+        // Now that the block has ended, there are no borrows of self.states
+        for state in self.states.iter_mut() {
             let mut group_id_to_u8set: BTreeMap<GroupID, U8Set> = BTreeMap::new();
 
             for (input_u8, &next_state_index) in &state.transitions {
-                let next_possible_groups = &self.states[next_state_index].possible_group_ids;
+                // Access possible_group_ids using the precomputed vector (cloned data)
+                let next_possible_groups = &possible_group_ids[next_state_index];
 
                 for &group_id in next_possible_groups {
                     group_id_to_u8set
