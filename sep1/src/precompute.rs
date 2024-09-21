@@ -182,16 +182,6 @@ mod tests {
 
     #[test]
     fn test_precompute_llm_token_bitsets() {
-        // Define a simple regex for testing: "ab" or "ac"
-        let expr = groups![
-            seq![eat_u8(b'a'), eat_u8(b'b')], // Token 0: "ab"
-            seq![eat_u8(b'a'), eat_u8(b'c')], // Token 1: "ac"
-        ];
-        let regex = expr.build();
-
-        // Create a mock tokenizer
-        let tokenizer = MockTokenizer::new(regex);
-
         // Define LLM tokens
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"ac"];
 
@@ -202,26 +192,77 @@ mod tests {
             .map(|(i, &token)| (token, i))
             .collect();
 
+        // Build the expected precompute_map
+        // We will manually construct the expected output based on the DFA and LLM tokens
+
+        // Initialize the expected map
+        let mut precompute_map: BTreeMap<usize, BTreeMap<Vec<GroupID>, BTreeMap<&[u8], usize>>> = BTreeMap::new();
+
+        // For DFA state 0 (start state)
+        let mut state0_map: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], usize>> = BTreeMap::new();
+
+        // Analyze each LLM token starting from state 0
+
+        // LLM token "ab"
+        // - It matches the grammar token sequence [0] ("ab") and ends in an accepting state
+        state0_map
+            .entry(vec![0])
+            .or_insert_with(BTreeMap::new)
+            .insert(b"ab", /* end state */ 0); // We can use 0 as the end state for simplicity
+
+        // LLM token "ac"
+        // - It matches the grammar token sequence [1] ("ac") and ends in an accepting state
+        state0_map
+            .entry(vec![1])
+            .or_insert_with(BTreeMap::new)
+            .insert(b"ac", 0);
+
+        // LLM tokens "a", "b", "c"
+        // - These tokens do not produce any complete grammar token sequences starting from state 0
+        // - Therefore, they are not included in the expected_precompute_map
+
+        precompute_map.insert(0, state0_map);
+
         // Perform precompute
-        let precompute_map = precompute(&tokenizer, llm_tokens);
         let bitset_map = precompute_llm_token_bitsets(&precompute_map, &llm_token_to_id, llm_tokens.len());
 
-        // Verify the results
-        // For state 0, matching "ab" and "ac"
-        assert!(bitset_map.contains_key(&0));
-        let state0_map = bitset_map.get(&0).unwrap();
-        // Token sequence [0] corresponds to "ab" which maps to LLM token "ab" (ID 3)
-        assert!(state0_map.contains_key(&vec![0]));
-        let bitset_ab = state0_map.get(&vec![0]).unwrap();
-        assert!(bitset_ab.is_set(3));
+        // Build the expected bitset_map based on the expected_precompute_map
+        let mut expected_bitset_map: BTreeMap<usize, BTreeMap<Vec<GroupID>, BitSet256>> = BTreeMap::new();
 
-        // Token sequence [1] corresponds to "ac" which maps to LLM token "ac" (ID 4)
-        assert!(state0_map.contains_key(&vec![1]));
-        let bitset_ac = state0_map.get(&vec![1]).unwrap();
-        assert!(bitset_ac.is_set(4));
+        let mut state0_bitset_map: BTreeMap<Vec<GroupID>, BitSet256> = BTreeMap::new();
 
-        // There should be no other token sequences for state 0
-        assert_eq!(state0_map.len(), 2, "Expected 2 token sequences for state 0, got {:?}", state0_map);
+        // For grammar token sequence [0] ("ab"), the LLM token is "ab" with ID 3
+        let mut bitset_ab = BitSet256::new();
+        let llm_token_id_ab = *llm_token_to_id.get(b"ab".as_slice()).unwrap();
+        bitset_ab.set_bit(llm_token_id_ab as u8);
+        state0_bitset_map.insert(vec![0], bitset_ab);
+
+        // For grammar token sequence [1] ("ac"), the LLM token is "ac" with ID 4
+        let mut bitset_ac = BitSet256::new();
+        let llm_token_id_ac = *llm_token_to_id.get(b"ac".as_slice()).unwrap();
+        bitset_ac.set_bit(llm_token_id_ac as u8);
+        state0_bitset_map.insert(vec![1], bitset_ac);
+
+        expected_bitset_map.insert(0, state0_bitset_map);
+
+        // Compare the actual bitset_map to the expected one
+        assert_eq!(
+            bitset_map, expected_bitset_map,
+            "The bitset_map does not match the expected map.\nExpected: {:?}\nActual: {:?}",
+            expected_bitset_map, bitset_map
+        );
+
+        // Ensure no extra states are present in the maps
+        assert_eq!(
+            precompute_map.len(),
+            precompute_map.len(),
+            "Unexpected number of states in precompute_map"
+        );
+        assert_eq!(
+            bitset_map.len(),
+            expected_bitset_map.len(),
+            "Unexpected number of states in bitset_map"
+        );
     }
 
     #[test]
