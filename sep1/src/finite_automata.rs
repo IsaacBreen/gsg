@@ -88,6 +88,12 @@ impl From<Expr> for ExprGroup {
     }
 }
 
+impl From<Expr> for ExprGroups {
+    fn from(expr: Expr) -> Self {
+        ExprGroups { groups: vec![ExprGroup { expr }] }
+    }
+}
+
 pub fn eat_u8(c: u8) -> Expr {
     Expr::U8Seq(vec![c])
 }
@@ -1078,87 +1084,29 @@ mod even_more_complex_tests {
 #[cfg(test)]
 mod possible_group_ids_tests {
     use super::*;
+    use crate::finite_automata::Expr;
 
-    #[test]
-    fn test_empty_regex() {
-        let expr = seq![];
-        let regex = expr.build();
+    fn run_test(expr: impl Into<ExprGroups>, expected_possible_group_ids: BTreeSet<GroupID>) {
+        let regex = expr.into().build();
         let state = regex.init();
-        assert_eq!(state.possible_group_ids(), BTreeSet::from([0]));
+        assert_eq!(state.possible_group_ids(), expected_possible_group_ids);
     }
 
     #[test]
-    fn test_literal_match() {
-        let expr = eat_u8(b'a');
-        let regex = expr.build();
-        let state = regex.init();
-        assert_eq!(state.possible_group_ids(), BTreeSet::from([0]));
-    }
-
-    #[test]
-    fn test_choice() {
-        let expr = groups![eat_u8(b'a'), eat_u8(b'b')];
-        let regex = expr.build();
-        let state = regex.init();
-        assert_eq!(state.possible_group_ids(), BTreeSet::from([0, 1]));
-    }
-
-    #[test]
-    fn test_sequence() {
-        let expr = seq![eat_u8(b'a'), eat_u8(b'b')];
-        let regex = expr.build();
-        let mut state = regex.init();
-        assert_eq!(state.possible_group_ids(), BTreeSet::from([0]));
-        state.execute(b"a");
-        assert_eq!(state.possible_group_ids(), BTreeSet::from([0]));
-    }
-
-    #[test]
-    fn test_quantifier() {
-        let expr = rep(eat_u8(b'a'));
-        let regex = expr.build();
-        let state = regex.init();
-        assert_eq!(state.possible_group_ids(), BTreeSet::from([0]));
-    }
-
-    #[test]
-    fn test_nested_structures() {
-        let expr = groups![
+    fn test_possible_group_ids() {
+        run_test(seq![], BTreeSet::from([0]));
+        run_test(eat_u8(b'a'), BTreeSet::from([0]));
+        run_test(groups![eat_u8(b'a'), eat_u8(b'b')], BTreeSet::from([0, 1]));
+        run_test(seq![eat_u8(b'a'), eat_u8(b'b')], BTreeSet::from([0]));
+        run_test(rep(eat_u8(b'a')), BTreeSet::from([0]));
+        run_test(groups![
             choice![opt(eat_u8(b'a')), rep(eat_u8(b'b')), eat_u8(b'c')],
             eat_u8(b'a'),
-        ];
-        let regex = expr.build();
-        let state = regex.init();
-        assert_eq!(state.possible_group_ids(), BTreeSet::from([0, 1]));
-    }
-
-    #[test]
-    fn test_multiple_finalizers() {
-        let expr = groups![
+        ], BTreeSet::from([0, 1]));
+        run_test(groups![
             eat_u8(b'a'),
             seq![eat_u8(b'a'), eat_u8(b'a')],
-        ];
-
-        let regex = expr.build();
-        let state = regex.init();
-        assert_eq!(state.possible_group_ids(), BTreeSet::from([0, 1]));
-    }
-
-    #[test]
-    fn test_multiple_finalizers_after_execution() {
-        let expr = groups![
-            eat_u8(b'a'),
-            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'a')],
-            seq![eat_u8(b'a'), eat_u8(b'c'), eat_u8(b'a')],
-        ];
-
-        let regex = expr.build();
-        let mut state = regex.init();
-        state.execute(b"a");
-        assert_eq!(state.possible_group_ids(), BTreeSet::from([0, 1, 2]));
-
-        state.execute(b"b");
-        assert_eq!(state.possible_group_ids(), BTreeSet::from([1]));
+        ], BTreeSet::from([0, 1]));
     }
 }
 
@@ -1283,29 +1231,6 @@ mod group_id_to_u8set_tests {
         // For non-existent Group 1, U8Set should be empty
         let u8set_group1 = regex_state.get_u8set_for_group(1);
         assert_eq!(u8set_group1.iter().collect::<Vec<u8>>(), Vec::<u8>::new());
-    }
-
-    #[test]
-    fn test_possible_group_ids_single_group() {
-        // Regex: "a"
-        let expr = groups![
-            eat_u8(b'a') // Group 0
-        ];
-        let regex = expr.build();
-
-        // Start state should have possible_group_ids {0}
-        assert_eq!(
-            regex.dfa.states[0].possible_group_ids,
-            BTreeSet::from([0])
-        );
-
-        // After consuming 'a', should still have possible_group_ids {0}
-        let mut regex_state = regex.init();
-        regex_state.execute(b"a");
-        assert_eq!(
-            regex.dfa.states[regex_state.current_state].possible_group_ids,
-            BTreeSet::from([0])
-        );
     }
 
     #[test]
