@@ -1160,4 +1160,682 @@ mod possible_group_ids_tests {
         state.execute(b"b");
         assert_eq!(state.possible_group_ids(), BTreeSet::from([1]));
     }
+
+    /// Helper function to create a DFA from an expression with multiple groups.
+    fn build_dfa_with_groups(exprs: Vec<Expr>) -> Regex {
+        let expr_groups = ExprGroups {
+            groups: exprs.into_iter().map(ExprGroup::from).collect(),
+        };
+        expr_groups.build()
+    }
+
+    #[test]
+    fn test_compute_possible_group_ids_single_group() {
+        // Regex: "a"
+        let expr = groups![
+            eat_u8(b'a') // Group 0
+        ];
+        let regex = expr.build();
+
+        // Compute possible_group_ids is already done in DFA::to_dfa
+        // Check all states for possible_group_ids
+
+        for (state_index, state) in regex.dfa.states.iter().enumerate() {
+            if state.finalizers.contains(&0) {
+                // Final state should have possible_group_ids containing 0
+                assert!(state.possible_group_ids.contains(&0));
+            } else {
+                // Non-final states should not have possible_group_ids containing 0
+                assert!(!state.possible_group_ids.contains(&0));
+            }
+        }
+    }
+
+    #[test]
+    fn test_compute_possible_group_ids_multiple_groups() {
+        // Regex: "a" or "b"
+        let expr = groups![
+            eat_u8(b'a'), // Group 0
+            eat_u8(b'b'), // Group 1
+        ];
+        let regex = expr.build();
+
+        // State 0 is the start state
+        // It should have possible_group_ids {0,1}
+        assert_eq!(
+            regex.dfa.states[0].possible_group_ids,
+            BTreeSet::from([0, 1])
+        );
+
+        // States after 'a' and 'b' should have possible_group_ids {0,1}
+        for state_index in 1..=2 {
+            assert_eq!(
+                regex.dfa.states[state_index].possible_group_ids,
+                BTreeSet::from([0, 1])
+            );
+        }
+    }
+
+    #[test]
+    fn test_compute_possible_group_ids_nested_groups() {
+        // Regex: (a|b)*c
+        let expr = groups![
+            rep(choice![eat_u8(b'a'), eat_u8(b'b')]), // Group 0
+            eat_u8(b'c'),                           // Group 1
+        ];
+        let regex = expr.build();
+
+        // Start state (state 0)
+        // possible_group_ids should include {0,1}
+        assert_eq!(
+            regex.dfa.states[0].possible_group_ids,
+            BTreeSet::from([0, 1])
+        );
+
+        // After consuming 'a' or 'b', possible_group_ids should still include {0,1}
+        // After consuming 'c', possible_group_ids should include {1}
+        // Final state should have possible_group_ids {1}
+
+        // Assuming state indices:
+        // 0: start
+        // 1: after 'a' or 'b'
+        // 2: after 'c'
+
+        // Check state 1
+        assert_eq!(
+            regex.dfa.states[1].possible_group_ids,
+            BTreeSet::from([0, 1])
+        );
+
+        // Check state 2 (final state)
+        assert_eq!(
+            regex.dfa.states[2].possible_group_ids,
+            BTreeSet::from([1])
+        );
+    }
+
+    #[test]
+    fn test_compute_group_id_to_u8set_single_group() {
+        // Regex: "a"
+        let expr = groups![
+            eat_u8(b'a') // Group 0
+        ];
+        let regex = expr.build();
+
+        // State 0 transitions to state 1 on 'a'
+        // group_id_to_u8set for state 0 should map group 0 to {'a'}
+        let group_id_to_u8set = &regex.dfa.states[0].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set.len(), 1);
+        assert!(group_id_to_u8set.contains_key(&0));
+        let u8set = group_id_to_u8set.get(&0).unwrap();
+        assert!(u8set.contains(b'a'));
+        assert_eq!(u8set.iter().collect::<Vec<u8>>(), vec![b'a']);
+    }
+
+    #[test]
+    fn test_compute_group_id_to_u8set_multiple_groups() {
+        // Regex: "a" or "b"
+        let expr = groups![
+            eat_u8(b'a'), // Group 0
+            eat_u8(b'b'), // Group 1
+        ];
+        let regex = expr.build();
+
+        // State 0 transitions on 'a' to state 1 and on 'b' to state 2
+        // group_id_to_u8set for state 0 should map:
+        // - Group 0 to {'a'}
+        // - Group 1 to {'b'}
+
+        let group_id_to_u8set = &regex.dfa.states[0].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set.len(), 2);
+        assert!(group_id_to_u8set.contains_key(&0));
+        assert!(group_id_to_u8set.contains_key(&1));
+
+        let u8set_a = group_id_to_u8set.get(&0).unwrap();
+        assert!(u8set_a.contains(b'a'));
+        assert_eq!(u8set_a.iter().collect::<Vec<u8>>(), vec![b'a']);
+
+        let u8set_b = group_id_to_u8set.get(&1).unwrap();
+        assert!(u8set_b.contains(b'b'));
+        assert_eq!(u8set_b.iter().collect::<Vec<u8>>(), vec![b'b']);
+    }
+
+    #[test]
+    fn test_compute_group_id_to_u8set_overlapping_groups() {
+        // Regex: "a" or "a"
+        let expr = groups![
+            eat_u8(b'a'), // Group 0
+            eat_u8(b'a'), // Group 1
+        ];
+        let regex = expr.build();
+
+        // State 0 transitions on 'a' to state 1 and state 2
+        // group_id_to_u8set for state 0 should map:
+        // - Group 0 to {'a'}
+        // - Group 1 to {'a'}
+
+        let group_id_to_u8set = &regex.dfa.states[0].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set.len(), 2);
+        assert!(group_id_to_u8set.contains_key(&0));
+        assert!(group_id_to_u8set.contains_key(&1));
+
+        let u8set_a0 = group_id_to_u8set.get(&0).unwrap();
+        assert!(u8set_a0.contains(b'a'));
+        assert_eq!(u8set_a0.iter().collect::<Vec<u8>>(), vec![b'a']);
+
+        let u8set_a1 = group_id_to_u8set.get(&1).unwrap();
+        assert!(u8set_a1.contains(b'a'));
+        assert_eq!(u8set_a1.iter().collect::<Vec<u8>>(), vec![b'a']);
+    }
+
+    #[test]
+    fn test_get_u8set_for_group_existing_group() {
+        // Regex: "a" or "b"
+        let expr = groups![
+            eat_u8(b'a'), // Group 0
+            eat_u8(b'b'), // Group 1
+        ];
+        let regex = expr.build();
+
+        let regex_state = regex.init();
+
+        // For Group 0, U8Set should contain 'a'
+        let u8set_group0 = regex_state.get_u8set_for_group(0);
+        assert!(u8set_group0.contains(b'a'));
+        assert_eq!(u8set_group0.iter().collect::<Vec<u8>>(), vec![b'a']);
+
+        // For Group 1, U8Set should contain 'b'
+        let u8set_group1 = regex_state.get_u8set_for_group(1);
+        assert!(u8set_group1.contains(b'b'));
+        assert_eq!(u8set_group1.iter().collect::<Vec<u8>>(), vec![b'b']);
+    }
+
+    #[test]
+    fn test_get_u8set_for_group_nonexistent_group() {
+        // Regex: "a"
+        let expr = groups![
+            eat_u8(b'a') // Group 0
+        ];
+        let regex = expr.build();
+
+        let regex_state = regex.init();
+
+        // For non-existent Group 1, U8Set should be empty
+        let u8set_group1 = regex_state.get_u8set_for_group(1);
+        assert_eq!(u8set_group1.iter().collect::<Vec<u8>>(), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn test_possible_group_ids_single_group() {
+        // Regex: "a"
+        let expr = groups![
+            eat_u8(b'a') // Group 0
+        ];
+        let regex = expr.build();
+
+        // Start state should have possible_group_ids {0}
+        assert_eq!(
+            regex.dfa.states[0].possible_group_ids,
+            BTreeSet::from([0])
+        );
+
+        // After consuming 'a', should still have possible_group_ids {0}
+        let mut regex_state = regex.init();
+        regex_state.execute(b"a");
+        assert_eq!(
+            regex.dfa.states[regex_state.current_state].possible_group_ids,
+            BTreeSet::from([0])
+        );
+    }
+
+    #[test]
+    fn test_possible_group_ids_multiple_groups() {
+        // Regex: "a" or "b"
+        let expr = groups![
+            eat_u8(b'a'), // Group 0
+            eat_u8(b'b'), // Group 1
+        ];
+        let regex = expr.build();
+
+        // Start state should have possible_group_ids {0,1}
+        assert_eq!(
+            regex.dfa.states[0].possible_group_ids,
+            BTreeSet::from([0, 1])
+        );
+
+        // After consuming 'a', should have possible_group_ids {0,1}
+        let mut regex_state_a = regex.init();
+        regex_state_a.execute(b"a");
+        assert_eq!(
+            regex.dfa.states[regex_state_a.current_state].possible_group_ids,
+            BTreeSet::from([0, 1])
+        );
+
+        // After consuming 'b', should have possible_group_ids {0,1}
+        let mut regex_state_b = regex.init();
+        regex_state_b.execute(b"b");
+        assert_eq!(
+            regex.dfa.states[regex_state_b.current_state].possible_group_ids,
+            BTreeSet::from([0, 1])
+        );
+    }
+
+    #[test]
+    fn test_possible_group_ids_nested_groups() {
+        // Regex: (a|b)*c
+        let expr = groups![
+            rep(choice![eat_u8(b'a'), eat_u8(b'b')]), // Group 0
+            eat_u8(b'c'),                           // Group 1
+        ];
+        let regex = expr.build();
+
+        // Start state should have possible_group_ids {0,1}
+        assert_eq!(
+            regex.dfa.states[0].possible_group_ids,
+            BTreeSet::from([0, 1])
+        );
+
+        // After consuming 'a', should have possible_group_ids {0,1}
+        let mut regex_state_a = regex.init();
+        regex_state_a.execute(b"a");
+        assert_eq!(
+            regex.dfa.states[regex_state_a.current_state].possible_group_ids,
+            BTreeSet::from([0, 1])
+        );
+
+        // After consuming 'a' and 'b', still {0,1}
+        let mut regex_state_ab = regex.init();
+        regex_state_ab.execute(b"ab");
+        assert_eq!(
+            regex.dfa.states[regex_state_ab.current_state].possible_group_ids,
+            BTreeSet::from([0, 1])
+        );
+
+        // After consuming 'a', 'b', and 'c', should have {1}
+        let mut regex_state_abc = regex.init();
+        regex_state_abc.execute(b"abc");
+        assert_eq!(
+            regex.dfa.states[regex_state_abc.current_state].possible_group_ids,
+            BTreeSet::from([1])
+        );
+    }
+
+    #[test]
+    fn test_group_id_to_u8set_nested_groups() {
+        // Regex: (a|b)*c
+        let expr = groups![
+            rep(choice![eat_u8(b'a'), eat_u8(b'b')]), // Group 0
+            eat_u8(b'c'),                           // Group 1
+        ];
+        let regex = expr.build();
+
+        // Start state (state 0)
+        // group_id_to_u8set for state 0:
+        // - Group 0: {'a', 'b'}
+        // - Group 1: {'c'}
+
+        let group_id_to_u8set = &regex.dfa.states[0].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set.len(), 2);
+
+        let u8set_group0 = group_id_to_u8set.get(&0).unwrap();
+        assert!(u8set_group0.contains(b'a'));
+        assert!(u8set_group0.contains(b'b'));
+        assert_eq!(u8set_group0.iter().collect::<Vec<u8>>(), vec![b'a', b'b']);
+
+        let u8set_group1 = group_id_to_u8set.get(&1).unwrap();
+        assert!(u8set_group1.contains(b'c'));
+        assert_eq!(u8set_group1.iter().collect::<Vec<u8>>(), vec![b'c']);
+    }
+
+    #[test]
+    fn test_group_id_to_u8set_nonexistent_group() {
+        // Regex: "a"
+        let expr = groups![
+            eat_u8(b'a') // Group 0
+        ];
+        let regex = expr.build();
+
+        // Attempt to get U8Set for non-existent Group 1
+        let regex_state = regex.init();
+        let u8set_group1 = regex_state.get_u8set_for_group(1);
+        assert_eq!(u8set_group1.iter().collect::<Vec<u8>>(), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn test_group_id_to_u8set_overlapping_groups() {
+        // Regex: "a" or "a"
+        let expr = groups![
+            eat_u8(b'a'), // Group 0
+            eat_u8(b'a'), // Group 1
+        ];
+        let regex = expr.build();
+
+        // Start state (state 0)
+        // group_id_to_u8set for state 0:
+        // - Group 0: {'a'}
+        // - Group 1: {'a'}
+
+        let group_id_to_u8set = &regex.dfa.states[0].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set.len(), 2);
+
+        let u8set_group0 = group_id_to_u8set.get(&0).unwrap();
+        assert!(u8set_group0.contains(b'a'));
+        assert_eq!(u8set_group0.iter().collect::<Vec<u8>>(), vec![b'a']);
+
+        let u8set_group1 = group_id_to_u8set.get(&1).unwrap();
+        assert!(u8set_group1.contains(b'a'));
+        assert_eq!(u8set_group1.iter().collect::<Vec<u8>>(), vec![b'a']);
+    }
+
+    #[test]
+    fn test_get_u8set_for_group_after_transition() {
+        // Regex: "ab" or "ac"
+        let expr = groups![
+            seq![eat_u8(b'a'), eat_u8(b'b')], // Group 0
+            seq![eat_u8(b'a'), eat_u8(b'c')], // Group 1
+        ];
+        let regex = expr.build();
+
+        // Start state (state 0)
+        // group_id_to_u8set for state 0 should map:
+        // - Group 0: {'a'}
+        // - Group 1: {'a'}
+
+        let group_id_to_u8set_0 = &regex.dfa.states[0].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_0.len(), 2);
+        assert!(group_id_to_u8set_0.contains_key(&0));
+        assert!(group_id_to_u8set_0.contains_key(&1));
+        let u8set_0_group0 = group_id_to_u8set_0.get(&0).unwrap();
+        let u8set_0_group1 = group_id_to_u8set_0.get(&1).unwrap();
+        assert!(u8set_0_group0.contains(b'a'));
+        assert!(u8set_0_group1.contains(b'a'));
+
+        // After consuming 'a', move to state(s) corresponding to 'ab' and 'ac'
+        let mut regex_state = regex.init();
+        regex_state.execute(b"a");
+
+        // Now, current_state should be one of the states after 'a' (say, state 1 and 2)
+        // For simplicity, assuming DFA has merged states, but depending on implementation, adjust accordingly
+
+        // Let's assume state 1 and 2 are separate for "ab" and "ac"
+
+        // For this test, we'll iterate through possible transitions
+
+        // Verify that in both resulting states, possible_group_ids contain their respective groups
+        // Here, it's likely that the DFA has merged states if they share the same possible_group_ids
+        // For this test, we'll assume separate states
+
+        // Since the DFA construction merges states with identical possible_group_ids, in this case:
+        // - After 'a', possible_group_ids should still include {0,1} because both 'ab' and 'ac' can follow.
+
+        // Verify possible_group_ids
+        assert_eq!(
+            regex.dfa.states[regex_state.current_state].possible_group_ids,
+            BTreeSet::from([0, 1])
+        );
+
+        // Verify group_id_to_u8set for the new state
+        let group_id_to_u8set_new = &regex.dfa.states[regex_state.current_state].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_new.len(), 2);
+        assert!(group_id_to_u8set_new.contains_key(&0));
+        assert!(group_id_to_u8set_new.contains_key(&1));
+
+        let u8set_new_group0 = group_id_to_u8set_new.get(&0).unwrap();
+        let u8set_new_group1 = group_id_to_u8set_new.get(&1).unwrap();
+
+        assert!(u8set_new_group0.contains(b'b'));
+        assert!(u8set_new_group1.contains(b'c'));
+    }
+
+    #[test]
+    fn test_group_id_to_u8set_after_multiple_transitions() {
+        // Regex: "abc" or "abd" or "abe"
+        let expr = groups![
+            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Group 0
+            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'd')], // Group 1
+            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'e')], // Group 2
+        ];
+        let regex = expr.build();
+
+        // Start state (state 0)
+        // group_id_to_u8set for state 0:
+        // - Group 0: {'a'}
+        // - Group 1: {'a'}
+        // - Group 2: {'a'}
+
+        let group_id_to_u8set_0 = &regex.dfa.states[0].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_0.len(), 3);
+        assert!(group_id_to_u8set_0.contains_key(&0));
+        assert!(group_id_to_u8set_0.contains_key(&1));
+        assert!(group_id_to_u8set_0.contains_key(&2));
+
+        let u8set_0_group0 = group_id_to_u8set_0.get(&0).unwrap();
+        let u8set_0_group1 = group_id_to_u8set_0.get(&1).unwrap();
+        let u8set_0_group2 = group_id_to_u8set_0.get(&2).unwrap();
+
+        assert!(u8set_0_group0.contains(b'a'));
+        assert!(u8set_0_group1.contains(b'a'));
+        assert!(u8set_0_group2.contains(b'a'));
+
+        // After consuming 'a', move to state after 'a'
+        let mut regex_state_a = regex.init();
+        regex_state_a.execute(b"a");
+
+        // possible_group_ids should still include {0,1,2}
+        assert_eq!(
+            regex.dfa.states[regex_state_a.current_state].possible_group_ids,
+            BTreeSet::from([0, 1, 2])
+        );
+
+        // group_id_to_u8set should map:
+        // - Group 0: 'b'
+        // - Group 1: 'b'
+        // - Group 2: 'b'
+
+        let group_id_to_u8set_a = &regex.dfa.states[regex_state_a.current_state].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_a.len(), 3);
+        assert!(group_id_to_u8set_a.contains_key(&0));
+        assert!(group_id_to_u8set_a.contains_key(&1));
+        assert!(group_id_to_u8set_a.contains_key(&2));
+
+        let u8set_a_group0 = group_id_to_u8set_a.get(&0).unwrap();
+        let u8set_a_group1 = group_id_to_u8set_a.get(&1).unwrap();
+        let u8set_a_group2 = group_id_to_u8set_a.get(&2).unwrap();
+
+        assert!(u8set_a_group0.contains(b'b'));
+        assert!(u8set_a_group1.contains(b'b'));
+        assert!(u8set_a_group2.contains(b'b'));
+
+        // After consuming 'a' and 'b', move to state after 'a' and 'b'
+        let mut regex_state_ab = regex.init();
+        regex_state_ab.execute(b"ab");
+
+        // possible_group_ids should still include {0,1,2}
+        assert_eq!(
+            regex.dfa.states[regex_state_ab.current_state].possible_group_ids,
+            BTreeSet::from([0, 1, 2])
+        );
+
+        // group_id_to_u8set should map:
+        // - Group 0: 'c'
+        // - Group 1: 'd'
+        // - Group 2: 'e'
+
+        let group_id_to_u8set_ab = &regex.dfa.states[regex_state_ab.current_state].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_ab.len(), 3);
+        assert!(group_id_to_u8set_ab.contains_key(&0));
+        assert!(group_id_to_u8set_ab.contains_key(&1));
+        assert!(group_id_to_u8set_ab.contains_key(&2));
+
+        let u8set_ab_group0 = group_id_to_u8set_ab.get(&0).unwrap();
+        let u8set_ab_group1 = group_id_to_u8set_ab.get(&1).unwrap();
+        let u8set_ab_group2 = group_id_to_u8set_ab.get(&2).unwrap();
+
+        assert!(u8set_ab_group0.contains(b'c'));
+        assert!(u8set_ab_group1.contains(b'd'));
+        assert!(u8set_ab_group2.contains(b'e'));
+    }
+
+    #[test]
+    fn test_group_id_to_u8set_complex() {
+        // Regex: (a|b)*c(d|e)
+        let expr = groups![
+            rep(choice![eat_u8(b'a'), eat_u8(b'b')]), // Group 0: (a|b)*
+            eat_u8(b'c'),                            // Group 1: c
+            choice![eat_u8(b'd'), eat_u8(b'e')],    // Group 2: (d|e)
+        ];
+        let regex = expr.build();
+
+        // Start state (state 0)
+        // possible_group_ids should include {0,1,2}
+        assert_eq!(
+            regex.dfa.states[0].possible_group_ids,
+            BTreeSet::from([0, 1, 2])
+        );
+
+        // group_id_to_u8set for state 0:
+        // - Group 0: {'a', 'b'}
+        // - Group 1: {'c'}
+        // - Group 2: {} // 'd' and 'e' come after 'c'
+
+        let group_id_to_u8set_0 = &regex.dfa.states[0].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_0.len(), 2);
+        assert!(group_id_to_u8set_0.contains_key(&0));
+        assert!(group_id_to_u8set_0.contains_key(&1));
+
+        let u8set_0_group0 = group_id_to_u8set_0.get(&0).unwrap();
+        let u8set_0_group1 = group_id_to_u8set_0.get(&1).unwrap();
+
+        assert!(u8set_0_group0.contains(b'a'));
+        assert!(u8set_0_group0.contains(b'b'));
+        assert_eq!(
+            u8set_0_group0.iter().collect::<Vec<u8>>(),
+            vec![b'a', b'b']
+        );
+
+        assert!(u8set_0_group1.contains(b'c'));
+        assert_eq!(u8set_0_group1.iter().collect::<Vec<u8>>(), vec![b'c']);
+
+        // After consuming 'a' or 'b', still possible_group_ids {0,1,2}
+        let mut regex_state_ab = regex.init();
+        regex_state_ab.execute(b"aab");
+        assert_eq!(
+            regex.dfa.states[regex_state_ab.current_state].possible_group_ids,
+            BTreeSet::from([0, 1, 2])
+        );
+
+        // After consuming 'aab', expect to consume 'c'
+        regex_state_ab.execute(b"c");
+        assert_eq!(
+            regex.dfa.states[regex_state_ab.current_state].possible_group_ids,
+            BTreeSet::from([1, 2])
+        );
+
+        // group_id_to_u8set for state after 'aab' and 'c'
+        let group_id_to_u8set_after_c =
+            &regex.dfa.states[regex_state_ab.current_state].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_after_c.len(), 2);
+        assert!(group_id_to_u8set_after_c.contains_key(&1));
+        assert!(group_id_to_u8set_after_c.contains_key(&2));
+
+        let u8set_after_c_group1 = group_id_to_u8set_after_c.get(&1).unwrap();
+        let u8set_after_c_group2 = group_id_to_u8set_after_c.get(&2).unwrap();
+
+        // Group 1 has no transitions from here, as 'c' is already consumed
+        assert!(u8set_after_c_group1.iter().collect::<Vec<u8>>().is_empty());
+
+        // Group 2 should have {'d', 'e'}
+        assert!(u8set_after_c_group2.contains(b'd'));
+        assert!(u8set_after_c_group2.contains(b'e'));
+        assert_eq!(
+            u8set_after_c_group2.iter().collect::<Vec<u8>>(),
+            vec![b'd', b'e']
+        );
+    }
+
+    #[test]
+    fn test_group_id_to_u8set_after_consuming_all() {
+        // Regex: "ab"
+        let expr = groups![
+            seq![eat_u8(b'a'), eat_u8(b'b')] // Group 0
+        ];
+        let regex = expr.build();
+
+        // Start state (state 0)
+        // group_id_to_u8set for state 0:
+        // - Group 0: {'a'}
+
+        let group_id_to_u8set_0 = &regex.dfa.states[0].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_0.len(), 1);
+        assert!(group_id_to_u8set_0.contains_key(&0));
+
+        let u8set_0_group0 = group_id_to_u8set_0.get(&0).unwrap();
+        assert!(u8set_0_group0.contains(b'a'));
+        assert_eq!(u8set_0_group0.iter().collect::<Vec<u8>>(), vec![b'a']);
+
+        // After consuming 'a', move to state after 'a'
+        let mut regex_state_a = regex.init();
+        regex_state_a.execute(b"a");
+        assert_eq!(
+            regex.dfa.states[regex_state_a.current_state].possible_group_ids,
+            BTreeSet::from([0])
+        );
+
+        // group_id_to_u8set for state after 'a':
+        // - Group 0: {'b'}
+        let group_id_to_u8set_a = &regex.dfa.states[regex_state_a.current_state].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_a.len(), 1);
+        assert!(group_id_to_u8set_a.contains_key(&0));
+
+        let u8set_a_group0 = group_id_to_u8set_a.get(&0).unwrap();
+        assert!(u8set_a_group0.contains(b'b'));
+        assert_eq!(u8set_a_group0.iter().collect::<Vec<u8>>(), vec![b'b']);
+    }
+
+    #[test]
+    fn test_get_u8set_for_group_multiple_transitions() {
+        // Regex: "a" followed by "b" or "c"
+        let expr = groups![
+            seq![eat_u8(b'a'), eat_u8(b'b')], // Group 0
+            seq![eat_u8(b'a'), eat_u8(b'c')], // Group 1
+        ];
+        let regex = expr.build();
+
+        // Start state (state 0)
+        // group_id_to_u8set for state 0:
+        // - Group 0: {'a'}
+        // - Group 1: {'a'}
+
+        let group_id_to_u8set_0 = &regex.dfa.states[0].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_0.len(), 2);
+        assert!(group_id_to_u8set_0.contains_key(&0));
+        assert!(group_id_to_u8set_0.contains_key(&1));
+
+        let u8set_0_group0 = group_id_to_u8set_0.get(&0).unwrap();
+        let u8set_0_group1 = group_id_to_u8set_0.get(&1).unwrap();
+
+        assert!(u8set_0_group0.contains(b'a'));
+        assert!(u8set_0_group1.contains(b'a'));
+        assert_eq!(u8set_0_group0.iter().collect::<Vec<u8>>(), vec![b'a']);
+        assert_eq!(u8set_0_group1.iter().collect::<Vec<u8>>(), vec![b'a']);
+
+        // After consuming 'a', current_state should have group_id_to_u8set:
+        // - Group 0: {'b'}
+        // - Group 1: {'c'}
+        let mut regex_state_a = regex.init();
+        regex_state_a.execute(b"a");
+
+        let group_id_to_u8set_a = &regex.dfa.states[regex_state_a.current_state].group_id_to_u8set;
+        assert_eq!(group_id_to_u8set_a.len(), 2);
+        assert!(group_id_to_u8set_a.contains_key(&0));
+        assert!(group_id_to_u8set_a.contains_key(&1));
+
+        let u8set_a_group0 = group_id_to_u8set_a.get(&0).unwrap();
+        let u8set_a_group1 = group_id_to_u8set_a.get(&1).unwrap();
+
+        assert!(u8set_a_group0.contains(b'b'));
+        assert!(u8set_a_group1.contains(b'c'));
+        assert_eq!(u8set_a_group0.iter().collect::<Vec<u8>>(), vec![b'b']);
+        assert_eq!(u8set_a_group1.iter().collect::<Vec<u8>>(), vec![b'c']);
+    }
 }

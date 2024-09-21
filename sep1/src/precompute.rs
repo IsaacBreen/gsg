@@ -3,6 +3,9 @@ use std::collections::{BTreeMap, HashMap};
 use crate::bitset256::BitSet256;
 use crate::finite_automata::GroupID;
 
+type StateID = usize;
+type TokenID = usize;
+
 /// Represents the result of executing the tokenizer from a specific state.
 pub struct ExecuteResult {
     pub matches: BTreeMap<GroupID, usize>, // GroupID to position
@@ -141,9 +144,11 @@ pub fn precompute<'a>(
 mod tests {
     use super::*;
     use crate::bitset256::BitSet256;
-    use std::collections::HashMap;
-    use crate::finite_automata::{eat_u8, Regex};
+    use std::collections::{BTreeSet, HashMap};
+    use crate::finite_automata::{eat_u8, DFAState, Regex, DFA};
     use crate::{groups, seq};
+    use crate::charmap::TrieMap;
+    use crate::u8set::U8Set;
 
     struct MockTokenizer {
         regex: Regex,
@@ -221,39 +226,58 @@ mod tests {
 
     #[test]
     fn test_precompute() {
-        // let tokenizer = groups![
-        //     eat_u8(b'a'), // Token 0: 'a'
-        //     eat_u8(b'b'), // Token 1: 'b'
-        //     seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
-        //     seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
-        // ].build();
+        let tokenizer = groups![
+            eat_u8(b'a'), // Token 0: 'a'
+            eat_u8(b'b'), // Token 1: 'b'
+            seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
+            seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
+        ].build();
 
-        let tokenizer = Regex {
-            dfa: DFA {
-                states: vec![
-                    DFAState {
-                        transitions: TrieMap::from_iter(vec![(b'a', 1), (b'b', 2)]),
-                        finalizers: BTreeSet::new(),
-                    },
-                    DFAState {
-                        transitions: TrieMap::from_iter(vec![(b'b', 3)]),
-                        finalizers: BTreeSet::from([0]),
-                    },
-                    DFAState {
-                        transitions: TrieMap::new(),
-                        finalizers: BTreeSet::from([1]),
-                    },
-                    DFAState {
-                        transitions: TrieMap::from_iter(vec![(b'c', 4)]),
-                        finalizers: BTreeSet::from([2]),
-                    },
-                    DFAState {
-                        transitions: TrieMap::new(),
-                        finalizers: BTreeSet::from([3]),
-                    },
-                ],
-                start_state: 0,
-            },
+        let tokenizer = MockTokenizer {
+            regex: Regex {
+                dfa: DFA {
+                    states: vec![
+                        DFAState {
+                            transitions: TrieMap::from_iter(vec![(b'a', 1), (b'b', 2)]),
+                            finalizers: BTreeSet::new(),
+                            possible_group_ids: BTreeSet::from([0, 1]),
+                            group_id_to_u8set: BTreeMap::from([
+                                (0, U8Set::from_bytes(b"a")),
+                                (1, U8Set::from_bytes(b"b")),
+                                (2, U8Set::from_bytes(b"a")),
+                                (3, U8Set::from_bytes(b"a")),
+                            ]),
+                        },
+                        DFAState {
+                            transitions: TrieMap::from_iter(vec![(b'b', 3)]),
+                            finalizers: BTreeSet::from([0]),
+                            possible_group_ids: BTreeSet::from([0, 2, 3]),
+                            group_id_to_u8set: BTreeMap::from([
+                                (2, U8Set::from_bytes(b"b")),
+                                (3, U8Set::from_bytes(b"b")),
+                            ]),                        },
+                        DFAState {
+                            transitions: TrieMap::new(),
+                            finalizers: BTreeSet::from([1]),
+                            possible_group_ids: BTreeSet::from([1]),
+                            group_id_to_u8set: BTreeMap::new(),
+                        },
+                        DFAState {
+                            transitions: TrieMap::from_iter(vec![(b'c', 4)]),
+                            finalizers: BTreeSet::from([2]),
+                            possible_group_ids: BTreeSet::from([2, 3]),
+                            group_id_to_u8set: BTreeMap::from([(3, U8Set::from_bytes(b"c"))]),
+                        },
+                        DFAState {
+                            transitions: TrieMap::new(),
+                            finalizers: BTreeSet::from([3]),
+                            possible_group_ids: BTreeSet::from([3]),
+                            group_id_to_u8set: BTreeMap::new(),
+                        },
+                    ],
+                    start_state: 0,
+                },
+            }
         };
 
         // Define the LLM tokens
