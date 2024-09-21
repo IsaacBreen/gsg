@@ -85,11 +85,11 @@ pub trait Tokenizer: Sized {
 
 /// Precomputes a map from each state and token sequence to a bitset of LLM token IDs.
 pub fn precompute_llm_token_bitsets<'a>(
-    precompute_map: &BTreeMap<usize, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>>,
+    precompute_map: &BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>>,
     llm_token_to_id: &HashMap<&'a [u8], usize>,
     _total_llm_tokens: usize,
-) -> BTreeMap<usize, BTreeMap<Vec<GroupID>, BitSet256>> {
-    let mut result: BTreeMap<usize, BTreeMap<Vec<GroupID>, BitSet256>> = BTreeMap::new();
+) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BitSet256>> {
+    let mut result: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BitSet256>> = BTreeMap::new();
 
     for (&state_id, token_sequence_map) in precompute_map {
         let mut sequence_bitset_map: BTreeMap<Vec<GroupID>, BitSet256> = BTreeMap::new();
@@ -114,8 +114,8 @@ pub fn precompute_llm_token_bitsets<'a>(
 pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
     llm_tokens: &[&'a [u8]],
-) -> BTreeMap<usize, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>> {
-    let mut result: BTreeMap<usize, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>> = BTreeMap::new();
+) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>> {
+    let mut result: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>> = BTreeMap::new();
 
     for state_id in 0..tokenizer.max_state() {
         let mut state_map: BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>> = BTreeMap::new();
@@ -221,7 +221,7 @@ mod tests {
         assert!(bitset_ac.is_set(4));
 
         // There should be no other token sequences for state 0
-        assert_eq!(state0_map.len(), 2);
+        assert_eq!(state0_map.len(), 2, "Expected 2 token sequences for state 0, got {:?}", state0_map);
     }
 
     #[test]
