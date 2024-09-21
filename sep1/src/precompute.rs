@@ -251,18 +251,6 @@ mod tests {
             "The bitset_map does not match the expected map.\nExpected: {:?}\nActual: {:?}",
             expected_bitset_map, bitset_map
         );
-
-        // Ensure no extra states are present in the maps
-        assert_eq!(
-            precompute_map.len(),
-            precompute_map.len(),
-            "Unexpected number of states in precompute_map"
-        );
-        assert_eq!(
-            bitset_map.len(),
-            expected_bitset_map.len(),
-            "Unexpected number of states in bitset_map"
-        );
     }
 
     #[test]
