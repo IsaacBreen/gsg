@@ -221,40 +221,101 @@ mod tests {
 
     #[test]
     fn test_precompute() {
-        // Define a simple regex: "a" or "b"
-        let expr = groups![
-            eat_u8(b'a'), // Token 0: "a"
-            eat_u8(b'b'), // Token 1: "b"
-        ];
-        let regex = expr.build();
+        // let tokenizer = groups![
+        //     eat_u8(b'a'), // Token 0: 'a'
+        //     eat_u8(b'b'), // Token 1: 'b'
+        //     seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
+        //     seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
+        // ].build();
 
-        // Create a mock tokenizer
-        let tokenizer = MockTokenizer::new(regex);
+        let tokenizer = Regex {
+            dfa: DFA {
+                states: vec![
+                    DFAState {
+                        transitions: TrieMap::from_iter(vec![(b'a', 1), (b'b', 2)]),
+                        finalizers: BTreeSet::new(),
+                    },
+                    DFAState {
+                        transitions: TrieMap::from_iter(vec![(b'b', 3)]),
+                        finalizers: BTreeSet::from([0]),
+                    },
+                    DFAState {
+                        transitions: TrieMap::new(),
+                        finalizers: BTreeSet::from([1]),
+                    },
+                    DFAState {
+                        transitions: TrieMap::from_iter(vec![(b'c', 4)]),
+                        finalizers: BTreeSet::from([2]),
+                    },
+                    DFAState {
+                        transitions: TrieMap::new(),
+                        finalizers: BTreeSet::from([3]),
+                    },
+                ],
+                start_state: 0,
+            },
+        };
 
-        // Define LLM tokens
-        let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab"];
+        // Define the LLM tokens
+        let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
 
-        // Perform precompute
-        let precompute_map = precompute(&tokenizer, llm_tokens);
+        // Run precompute
+        let result = precompute(&tokenizer, llm_tokens);
 
-        // Expected map:
-        // State 0:
-        //   [0] -> "a" -> state 0
-        //   [1] -> "b" -> state 0
-        //
-        // Since "c" and "ab" don't match any tokens, they should not be present.
+        // Build the expected output
+        let mut state_0: BTreeMap<Vec<TokenID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        state_0.insert(vec![], BTreeMap::from([(b"a".as_slice(), 1), (b"ab", 3)]));
+        state_0.insert(vec![0], BTreeMap::from([(b"a".as_slice(), 0)]));
+        state_0.insert(vec![0, 1], BTreeMap::from([(b"ab".as_slice(), 0)]));
+        state_0.insert(vec![1], BTreeMap::from([(b"b".as_slice(), 0)]));
+        state_0.insert(vec![2], BTreeMap::from([(b"ab".as_slice(), 0)]));
+        state_0.insert(vec![3], BTreeMap::from([(b"abc".as_slice(), 0)]));
 
-        let expected_map: BTreeMap<usize, BTreeMap<Vec<GroupID>, BTreeMap<&[u8], usize>>> =
-            BTreeMap::from([
-                (
-                    0,
-                    BTreeMap::from([
-                        (vec![0], BTreeMap::from([(&b"a"[..], 0)])),
-                        (vec![1], BTreeMap::from([(&b"b"[..], 0)])),
-                    ]),
-                ),
-            ]);
+        let mut state_1: BTreeMap<Vec<TokenID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        state_1.insert(vec![], BTreeMap::from([(b"b".as_slice(), 3)]));
+        state_1.insert(vec![0], BTreeMap::from([(b"a".as_slice(), 1), (b"ab".as_slice(), 3)]));
+        state_1.insert(vec![0, 0], BTreeMap::from([(b"a".as_slice(), 0)]));
+        state_1.insert(vec![0, 0, 1], BTreeMap::from([(b"ab".as_slice(), 0)]));
+        state_1.insert(vec![0, 1], BTreeMap::from([(b"b".as_slice(), 0)]));
+        state_1.insert(vec![0, 2], BTreeMap::from([(b"ab".as_slice(), 0)]));
+        state_1.insert(vec![0, 3], BTreeMap::from([(b"abc".as_slice(), 0)]));
+        state_1.insert(vec![2], BTreeMap::from([(b"b".as_slice(), 0)]));
+        state_1.insert(vec![3], BTreeMap::from([(b"bc".as_slice(), 0)]));
 
-        assert_eq!(precompute_map, expected_map);
+        let mut state_2: BTreeMap<Vec<TokenID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        state_2.insert(vec![1], BTreeMap::from([(b"a".as_slice(), 1), (b"ab".as_slice(), 3)]));
+        state_2.insert(vec![1, 0], BTreeMap::from([(b"a".as_slice(), 0)]));
+        state_2.insert(vec![1, 0, 1], BTreeMap::from([(b"ab".as_slice(), 0)]));
+        state_2.insert(vec![1, 1], BTreeMap::from([(b"b".as_slice(), 0)]));
+        state_2.insert(vec![1, 2], BTreeMap::from([(b"ab".as_slice(), 0)]));
+        state_2.insert(vec![1, 3], BTreeMap::from([(b"abc".as_slice(), 0)]));
+
+        let mut state_3: BTreeMap<Vec<TokenID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        state_3.insert(vec![2], BTreeMap::from([(b"a".as_slice(), 1), (b"ab".as_slice(), 3)]));
+        state_3.insert(vec![2, 0], BTreeMap::from([(b"a".as_slice(), 0)]));
+        state_3.insert(vec![2, 0, 1], BTreeMap::from([(b"ab".as_slice(), 0)]));
+        state_3.insert(vec![2, 1], BTreeMap::from([(b"b".as_slice(), 0)]));
+        state_3.insert(vec![2, 2], BTreeMap::from([(b"ab".as_slice(), 0)]));
+        state_3.insert(vec![2, 3], BTreeMap::from([(b"abc".as_slice(), 0)]));
+        state_3.insert(vec![3], BTreeMap::from([(b"c".as_slice(), 0)]));
+
+        let mut state_4: BTreeMap<Vec<TokenID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        state_4.insert(vec![3], BTreeMap::from([(b"a".as_slice(), 1), (b"ab".as_slice(), 3)]));
+        state_4.insert(vec![3, 0], BTreeMap::from([(b"a".as_slice(), 0)]));
+        state_4.insert(vec![3, 0, 1], BTreeMap::from([(b"ab".as_slice(), 0)]));
+        state_4.insert(vec![3, 1], BTreeMap::from([(b"b".as_slice(), 0)]));
+        state_4.insert(vec![3, 2], BTreeMap::from([(b"ab".as_slice(), 0)]));
+        state_4.insert(vec![3, 3], BTreeMap::from([(b"abc".as_slice(), 0)]));
+
+        let mut expected: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&[u8], StateID>>> = BTreeMap::new();
+        expected.insert(0, state_0);
+        expected.insert(1, state_1);
+        expected.insert(2, state_2);
+        expected.insert(3, state_3);
+        expected.insert(4, state_4);
+
+        expected.retain(|_, v| !v.is_empty());
+
+        assert_eq!(result, expected);
     }
 }
