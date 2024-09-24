@@ -1,4 +1,3 @@
-// src/finite_automata.rs
 use crate::charmap::TrieMap;
 use crate::frozenset::FrozenSet;
 use crate::u8set::U8Set;
@@ -132,14 +131,14 @@ pub fn _choice(exprs: Vec<Expr>) -> Expr {
 #[macro_export]
 macro_rules! choice {
     ($($expr:expr),* $(,)?) => {
-        $crate::finite_automata::Expr::Choice(vec![$($expr.into()),*])
+        $crate::finite_automata::Expr::Choice(vec![$($crate::finite_automata::expr.into()),*])
     };
 }
 
 #[macro_export]
 macro_rules! seq {
     ($($expr:expr),* $(,)?) => {
-        $crate::finite_automata::Expr::Seq(vec![$($expr.into()),*])
+        $crate::finite_automata::Expr::Seq(vec![$($crate::finite_automata::expr.into()),*])
     };
 }
 
@@ -147,24 +146,15 @@ macro_rules! seq {
 macro_rules! groups {
     ($($expr:expr),* $(,)?) => {
         $crate::finite_automata::ExprGroups {
-            groups: vec![$($crate::finite_automata::ExprGroup::from_expr($expr, false)),*]
+            groups: vec![$($crate::finite_automata::expr.into()),*]
         }
     };
 }
 
-#[macro_export]
-macro_rules! non_greedy_groups {
-    ($($expr:expr),* $(,)?) => {
-        $crate::finite_automata::ExprGroups {
-            groups: vec![$($crate::finite_automata::ExprGroup::from_expr($expr, true)),*]
-        }
-    };
-}
-
-impl ExprGroup {
-    pub fn from_expr(expr: Expr, is_non_greedy: bool) -> Self {
-        ExprGroup { expr, is_non_greedy }
-    }
+pub fn non_greedy_group<T: Into<ExprGroup>>(expr: T) -> ExprGroup {
+    let mut group = expr.into();
+    group.is_non_greedy = true;
+    group
 }
 
 impl Debug for NFA {
@@ -776,7 +766,7 @@ impl Regex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{choice, groups, non_greedy_groups, seq};
+    use crate::{choice, groups, non_greedy_group, seq};
 
     #[test]
     fn test_literal() {
@@ -1129,7 +1119,7 @@ mod even_more_complex_tests {
     fn test_non_greedy_matching() {
         // Define regex: (a*)?a where group 0 is non-greedy and group 1 is greedy
         let expr = groups![
-            non_greedy_groups![rep(eat_u8(b'a'))], // Group 0: non-greedy
+            non_greedy_group(rep(eat_u8(b'a'))), // Group 0: non-greedy
             eat_u8(b'a'),                         // Group 1: greedy
         ];
 
