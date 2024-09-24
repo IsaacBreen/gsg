@@ -584,10 +584,23 @@ impl RegexState<'_> {
                     }
                 }
 
-                if self.matches.len() == self.regex.dfa.states[self.current_state].possible_group_ids.len() {
-                    self.position += local_position;
-                    self.done = true;
-                    return;
+                // Only continue if it's possible to match either:
+                // - a greedy group, or
+                // - a non-greedy group that has not been matched yet
+                if !dfa.non_greedy_finalizers.is_empty() {
+                    // Check for a non-greedy group that hasn't been matched
+                    if !dfa.non_greedy_finalizers.iter().all(|&group_id| self.matches.contains_key(&group_id)) {
+                        continue;
+                    }
+                }
+                // Check for a greedy group
+                if !dfa.non_greedy_finalizers.is_empty() {
+                    // No non-greedy groups left, so we can terminate if all greedy groups have been matched
+                    if self.matches.len() == dfa.states[self.current_state].possible_group_ids.len() {
+                        self.position += text.len();
+                        self.done = true;
+                        return;
+                    }
                 }
             } else {
                 // No matching transition, we're done
@@ -913,7 +926,7 @@ mod complex_tests {
         assert!(!regex.definitely_matches(b"a"));
         assert!(!regex.could_match(b"b"));
         assert!(regex.definitely_matches(b"cc"));
-        assert!(!regex.definitely_fully_matches(b"cc"));
+        assert_eq!(regex.fully_matches(b"cc"), Some(false));
     }
 
     #[test]
