@@ -1,9 +1,9 @@
-use crate::bitset256::BitSet256;
+use crate::byteset::ByteSet;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct U8Set {
-    pub(crate) bitset: BitSet256,
+    pub(crate) bitset: ByteSet,
 }
 
 impl Default for U8Set {
@@ -87,15 +87,15 @@ impl U8Set {
     }
 
     pub fn all() -> Self {
-        U8Set { bitset: BitSet256::all() }
+        U8Set { bitset: ByteSet::all() }
     }
 
     pub fn new() -> Self {
-        U8Set { bitset: BitSet256::new() }
+        U8Set { bitset: ByteSet::new() }
     }
 
     pub fn none() -> Self {
-        U8Set { bitset: BitSet256::none() }
+        U8Set { bitset: ByteSet::none() }
     }
 
     pub fn from_byte(byte: u8) -> Self {

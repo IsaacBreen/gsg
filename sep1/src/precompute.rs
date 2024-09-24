@@ -1,6 +1,6 @@
 // src/precompute.rs
 use std::collections::{BTreeMap, HashMap};
-use crate::bitset256::BitSet256;
+use crate::byteset::ByteSet;
 use crate::finite_automata::GroupID;
 
 type StateID = usize;
@@ -88,14 +88,14 @@ pub fn precompute_llm_token_bitsets<'a>(
     precompute_map: &BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>>,
     llm_token_to_id: &HashMap<&'a [u8], usize>,
     _total_llm_tokens: usize,
-) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BitSet256>> {
-    let mut result: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BitSet256>> = BTreeMap::new();
+) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, ByteSet>> {
+    let mut result: BTreeMap<StateID, BTreeMap<Vec<GroupID>, ByteSet>> = BTreeMap::new();
 
     for (&state_id, token_sequence_map) in precompute_map {
-        let mut sequence_bitset_map: BTreeMap<Vec<GroupID>, BitSet256> = BTreeMap::new();
+        let mut sequence_bitset_map: BTreeMap<Vec<GroupID>, ByteSet> = BTreeMap::new();
 
         for (token_sequence, llm_token_state_map) in token_sequence_map {
-            let mut bitset = BitSet256::new();
+            let mut bitset = ByteSet::new();
             for (&llm_token, &_next_state) in llm_token_state_map {
                 if let Some(&llm_token_id) = llm_token_to_id.get(llm_token) {
                     bitset.set_bit(llm_token_id as u8);
@@ -143,7 +143,7 @@ pub fn precompute<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitset256::BitSet256;
+    use crate::byteset::ByteSet;
     use std::collections::{BTreeSet, HashMap};
     use crate::finite_automata::{eat_u8, DFAState, Regex, DFA};
     use crate::{groups, seq};
@@ -227,18 +227,18 @@ mod tests {
         let bitset_map = precompute_llm_token_bitsets(&precompute_map, &llm_token_to_id, llm_tokens.len());
 
         // Build the expected bitset_map based on the expected_precompute_map
-        let mut expected_bitset_map: BTreeMap<usize, BTreeMap<Vec<GroupID>, BitSet256>> = BTreeMap::new();
+        let mut expected_bitset_map: BTreeMap<usize, BTreeMap<Vec<GroupID>, ByteSet>> = BTreeMap::new();
 
-        let mut state0_bitset_map: BTreeMap<Vec<GroupID>, BitSet256> = BTreeMap::new();
+        let mut state0_bitset_map: BTreeMap<Vec<GroupID>, ByteSet> = BTreeMap::new();
 
         // For grammar token sequence [0] ("ab"), the LLM token is "ab" with ID 3
-        let mut bitset_ab = BitSet256::new();
+        let mut bitset_ab = ByteSet::new();
         let llm_token_id_ab = *llm_token_to_id.get(b"ab".as_slice()).unwrap();
         bitset_ab.set_bit(llm_token_id_ab as u8);
         state0_bitset_map.insert(vec![0], bitset_ab);
 
         // For grammar token sequence [1] ("ac"), the LLM token is "ac" with ID 4
-        let mut bitset_ac = BitSet256::new();
+        let mut bitset_ac = ByteSet::new();
         let llm_token_id_ac = *llm_token_to_id.get(b"ac".as_slice()).unwrap();
         bitset_ac.set_bit(llm_token_id_ac as u8);
         state0_bitset_map.insert(vec![1], bitset_ac);
