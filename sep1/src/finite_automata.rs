@@ -13,6 +13,7 @@ pub struct NFAState {
     transitions: TrieMap<Vec<usize>>,
     epsilon_transitions: Vec<usize>,
     finalizers: BTreeSet<GroupID>,
+    non_greedy_finalizers: BTreeSet<GroupID>,
 }
 
 #[derive(Clone)]
@@ -25,6 +26,7 @@ pub struct NFA {
 pub struct DFAState {
     pub transitions: TrieMap<usize>,
     pub finalizers: BTreeSet<GroupID>,
+    pub non_greedy_finalizers: BTreeSet<GroupID>,
     pub possible_group_ids: BTreeSet<GroupID>,          // Precomputed possible group IDs
     pub group_id_to_u8set: BTreeMap<GroupID, U8Set>,   // Precomputed mapping from group ID to U8Set
 }
@@ -72,9 +74,10 @@ pub enum QuantifierType {
     ZeroOrOne,  // ?
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprGroup {
     pub expr: Expr,
+    pub is_non_greedy: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -84,13 +87,13 @@ pub struct ExprGroups {
 
 impl From<Expr> for ExprGroup {
     fn from(expr: Expr) -> Self {
-        ExprGroup { expr }
+        ExprGroup { expr, is_non_greedy: false }
     }
 }
 
 impl From<Expr> for ExprGroups {
     fn from(expr: Expr) -> Self {
-        ExprGroups { groups: vec![ExprGroup { expr }] }
+        ExprGroups { groups: vec![ExprGroup { expr, is_non_greedy: false }] }
     }
 }
 
@@ -111,7 +114,7 @@ pub fn opt<T: Into<Expr>>(expr: T) -> Expr {
 }
 
 pub fn prec<T: Into<Expr>>(_precedence: isize, expr: T) -> ExprGroup {
-    ExprGroup { expr: expr.into() }
+    ExprGroup { expr: expr.into(), is_non_greedy: false }
 }
 
 pub fn eps() -> Expr {
@@ -144,9 +147,24 @@ macro_rules! seq {
 macro_rules! groups {
     ($($expr:expr),* $(,)?) => {
         $crate::finite_automata::ExprGroups {
-            groups: vec![$($expr.into()),*]
+            groups: vec![$(ExprGroup::from_expr($expr, false)),*]
         }
     };
+}
+
+#[macro_export]
+macro_rules! non_greedy_groups {
+    ($($expr:expr),* $(,)?) => {
+        $crate::finite_automata::ExprGroups {
+            groups: vec![$(ExprGroup::from_expr($expr, true)),*]
+        }
+    };
+}
+
+impl ExprGroup {
+    pub fn from_expr(expr: Expr, is_non_greedy: bool) -> Self {
+        ExprGroup { expr, is_non_greedy }
+    }
 }
 
 impl Debug for NFA {
@@ -167,6 +185,10 @@ impl Debug for NFA {
             if !state.finalizers.is_empty() {
                 f.write_str(&format!("  - Finalizers: {:?}\n", state.finalizers))?;
             }
+
+            if !state.non_greedy_finalizers.is_empty() {
+                f.write_str(&format!("  - Non-Greedy Finalizers: {:?}\n", state.non_greedy_finalizers))?;
+            }
         }
 
         Ok(())
@@ -186,6 +208,10 @@ impl Debug for DFA {
 
             if !state.finalizers.is_empty() {
                 f.write_str(&format!("  - Finalizers: {:?}\n", state.finalizers))?;
+            }
+
+            if !state.non_greedy_finalizers.is_empty() {
+                f.write_str(&format!("  - Non-Greedy Finalizers: {:?}\n", state.non_greedy_finalizers))?;
             }
 
             if !state.possible_group_ids.is_empty() {
@@ -210,6 +236,7 @@ impl NFAState {
             transitions: TrieMap::new(),
             epsilon_transitions: Vec::new(),
             finalizers: BTreeSet::new(),
+            non_greedy_finalizers: BTreeSet::new(),
         }
     }
 }
@@ -217,7 +244,7 @@ impl NFAState {
 impl ExprGroups {
     pub fn build(self) -> Regex {
         Regex {
-            dfa: self.build_nfa().to_dfa(),
+            dfa: self.build_nfa().to_dfa_with_greediness(),
         }
     }
 
@@ -227,9 +254,15 @@ impl ExprGroups {
             start_state: 0,
         };
 
-        for (group, ExprGroup { expr }) in self.groups.into_iter().enumerate() {
+        for (group, ExprGroup { expr, is_non_greedy }) in self.groups.into_iter().enumerate() {
             let end_state = Expr::handle_expr(expr, &mut nfa, 0);
-            nfa.states[end_state].finalizers.insert(group);
+            if is_non_greedy {
+                nfa.states[end_state].finalizers.insert(group);
+                // Additionally, track that this finalizer is non-greedy
+                nfa.states[end_state].non_greedy_finalizers.insert(group);
+            } else {
+                nfa.states[end_state].finalizers.insert(group);
+            }
         }
 
         nfa
@@ -238,7 +271,7 @@ impl ExprGroups {
 
 impl Expr {
     pub fn build(self) -> Regex {
-        ExprGroups { groups: vec![ExprGroup { expr: self }] }.build()
+        ExprGroups { groups: vec![ExprGroup { expr: self, is_non_greedy: false }] }.build()
     }
 
     fn handle_expr(expr: Expr, nfa: &mut NFA, mut current_state: usize) -> usize {
@@ -368,7 +401,7 @@ impl NFA {
         self.states[from].epsilon_transitions.push(to);
     }
 
-    pub fn to_dfa(self) -> DFA {
+    pub fn to_dfa_with_greediness(self) -> DFA {
         let mut dfa_states: Vec<DFAState> = Vec::new();
         let mut dfa_state_map: HashMap<FrozenSet<usize>, usize> = HashMap::new();
         let mut worklist: Vec<FrozenSet<usize>> = Vec::new();
@@ -384,13 +417,16 @@ impl NFA {
         // Initialize the first DFA state
         let closure = epsilon_closures[self.start_state].clone();
         let mut finalizers = BTreeSet::new();
+        let mut non_greedy_finalizers = BTreeSet::new();
         for &state in &closure {
             finalizers.extend(self.states[state].finalizers.iter().cloned());
+            non_greedy_finalizers.extend(self.states[state].non_greedy_finalizers.iter().cloned());
         }
 
         dfa_states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers,
+            non_greedy_finalizers,
             possible_group_ids: BTreeSet::new(), // Will be computed later
             group_id_to_u8set: BTreeMap::new(),  // Will be computed later
         });
@@ -429,13 +465,16 @@ impl NFA {
 
                     // Compute finalizers for the new DFA state
                     let mut new_finalizers = BTreeSet::new();
+                    let mut new_non_greedy_finalizers = BTreeSet::new();
                     for &state in closure.iter() {
                         new_finalizers.extend(self.states[state].finalizers.iter().cloned());
+                        new_non_greedy_finalizers.extend(self.states[state].non_greedy_finalizers.iter().cloned());
                     }
 
                     dfa_states.push(DFAState {
                         transitions: TrieMap::new(),
                         finalizers: new_finalizers,
+                        non_greedy_finalizers: new_non_greedy_finalizers,
                         possible_group_ids: BTreeSet::new(), // Will be computed later
                         group_id_to_u8set: BTreeMap::new(),  // Will be computed later
                     });
@@ -548,9 +587,15 @@ impl RegexState<'_> {
             if let Some(&next_state) = state_data.transitions.get(next_u8) {
                 self.current_state = next_state;
                 local_position += 1;
-                // Store matches for all finalizers in the current state
+                // Handle greedy finalizers
                 for &group_id in &dfa.states[self.current_state].finalizers {
+                    // Overwrite existing match for greedy groups
                     self.matches.insert(group_id, self.position + local_position);
+                }
+                // Handle non-greedy finalizers
+                for &group_id in &dfa.states[self.current_state].non_greedy_finalizers {
+                    // Only insert if not already present
+                    self.matches.entry(group_id).or_insert(self.position + local_position);
                 }
             } else {
                 // No matching transition, we're done
@@ -731,7 +776,7 @@ impl Regex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{choice, groups, seq};
+    use crate::{choice, groups, non_greedy_groups, seq};
 
     #[test]
     fn test_literal() {
@@ -1078,6 +1123,48 @@ mod even_more_complex_tests {
         state.execute(b"aa");
         // group 0 should have the later match
         assert_eq!(state.matches, BTreeMap::from([(0, 2), (1, 1)]));
+    }
+
+    #[test]
+    fn test_non_greedy_matching() {
+        // Define regex: (a*)?a where group 0 is non-greedy and group 1 is greedy
+        let expr = groups![
+            non_greedy_groups![rep(eat_u8(b'a'))], // Group 0: non-greedy
+            eat_u8(b'a'),                         // Group 1: greedy
+        ];
+
+        let regex = expr.build();
+
+        // Input: "aaa"
+        let mut regex_state = regex.init();
+        regex_state.execute(b"aaa");
+
+        // Expected:
+        // Group 0 (non-greedy) should match "" (empty string)
+        // Group 1 (greedy) should match "aaa"
+        assert_eq!(regex_state.matches.get(&0), Some(&0));
+        assert_eq!(regex_state.matches.get(&1), Some(&3));
+    }
+
+    #[test]
+    fn test_greedy_matching() {
+        // Define regex: (a*)a where group 0 is greedy and group 1 is greedy
+        let expr = groups![
+            rep(eat_u8(b'a')), // Group 0: greedy
+            eat_u8(b'a'),      // Group 1: greedy
+        ];
+
+        let regex = expr.build();
+
+        // Input: "aaa"
+        let mut regex_state = regex.init();
+        regex_state.execute(b"aaa");
+
+        // Expected:
+        // Group 0 (greedy) should match "aa"
+        // Group 1 (greedy) should match "a"
+        assert_eq!(regex_state.matches.get(&0), Some(&2));
+        assert_eq!(regex_state.matches.get(&1), Some(&3));
     }
 }
 
@@ -1571,6 +1658,7 @@ mod group_u8set_tests {
         dfa.states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers: BTreeSet::new(),
+            non_greedy_finalizers: BTreeSet::new(),
             possible_group_ids: BTreeSet::new(), // Will be computed
             group_id_to_u8set: BTreeMap::new(),   // Will be computed
         });
@@ -1579,6 +1667,7 @@ mod group_u8set_tests {
         dfa.states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers: BTreeSet::new(),
+            non_greedy_finalizers: BTreeSet::new(),
             possible_group_ids: BTreeSet::new(),
             group_id_to_u8set: BTreeMap::new(),
         });
@@ -1587,6 +1676,7 @@ mod group_u8set_tests {
         dfa.states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers: BTreeSet::from([0]),
+            non_greedy_finalizers: BTreeSet::new(),
             possible_group_ids: BTreeSet::new(),
             group_id_to_u8set: BTreeMap::new(),
         });
@@ -1595,6 +1685,7 @@ mod group_u8set_tests {
         dfa.states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers: BTreeSet::from([1]),
+            non_greedy_finalizers: BTreeSet::new(),
             possible_group_ids: BTreeSet::new(),
             group_id_to_u8set: BTreeMap::new(),
         });
