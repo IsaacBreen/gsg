@@ -131,14 +131,14 @@ pub fn _choice(exprs: Vec<Expr>) -> Expr {
 #[macro_export]
 macro_rules! choice {
     ($($expr:expr),* $(,)?) => {
-        $crate::finite_automata::Expr::Choice(vec![$($crate::finite_automata::expr.into()),*])
+        $crate::finite_automata::Expr::Choice(vec![$($expr.into()),*])
     };
 }
 
 #[macro_export]
 macro_rules! seq {
     ($($expr:expr),* $(,)?) => {
-        $crate::finite_automata::Expr::Seq(vec![$($crate::finite_automata::expr.into()),*])
+        $crate::finite_automata::Expr::Seq(vec![$($expr.into()),*])
     };
 }
 
@@ -146,7 +146,7 @@ macro_rules! seq {
 macro_rules! groups {
     ($($expr:expr),* $(,)?) => {
         $crate::finite_automata::ExprGroups {
-            groups: vec![$($crate::finite_automata::expr.into()),*]
+            groups: vec![$($expr.into()),*]
         }
     };
 }
@@ -766,7 +766,7 @@ impl Regex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{choice, groups, non_greedy_group, seq};
+    use crate::{choice, groups, seq};
 
     #[test]
     fn test_literal() {
