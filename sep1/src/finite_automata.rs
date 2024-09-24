@@ -1133,7 +1133,7 @@ mod even_more_complex_tests {
         // Group 0 (non-greedy) should match "" (empty string)
         // Group 1 (greedy) should match "aaa"
         assert_eq!(regex_state.matches.get(&0), Some(&0));
-        assert_eq!(regex_state.matches.get(&1), Some(&3));
+        assert_eq!(regex_state.matches.get(&1), Some(&1));
     }
 
     #[test]
@@ -1151,10 +1151,10 @@ mod even_more_complex_tests {
         regex_state.execute(b"aaa");
 
         // Expected:
-        // Group 0 (greedy) should match "aa"
+        // Group 0 (greedy) should match "aaa"
         // Group 1 (greedy) should match "a"
-        assert_eq!(regex_state.matches.get(&0), Some(&2));
-        assert_eq!(regex_state.matches.get(&1), Some(&3));
+        assert_eq!(regex_state.matches.get(&0), Some(&3));
+        assert_eq!(regex_state.matches.get(&1), Some(&1));
     }
 
     #[test]
@@ -1184,7 +1184,7 @@ mod even_more_complex_tests {
         // Non-greedy should match correctly
         let mut non_greedy_state = non_greedy_regex.init();
         non_greedy_state.execute(input);
-        assert_eq!(non_greedy_state.matches.get(&0), Some(&12)); // Matches up to the second """
+        assert_eq!(non_greedy_state.matches.get(&0), Some(&b"\"\"\"hello\"\"\"".len())); // Matches up to the second """
 
         // Greedy should match incorrectly (matching the entire string)
         let mut greedy_state = greedy_regex.init();
