@@ -269,6 +269,7 @@ mod tests {
                         DFAState {
                             transitions: TrieMap::from_iter(vec![(b'a', 1), (b'b', 2)]),
                             finalizers: BTreeSet::new(),
+                            non_greedy_finalizers: BTreeSet::new(),
                             possible_group_ids: BTreeSet::from([0, 1]),
                             group_id_to_u8set: BTreeMap::from([
                                 (0, U8Set::from_bytes(b"a")),
@@ -280,6 +281,7 @@ mod tests {
                         DFAState {
                             transitions: TrieMap::from_iter(vec![(b'b', 3)]),
                             finalizers: BTreeSet::from([0]),
+                            non_greedy_finalizers: BTreeSet::new(),
                             possible_group_ids: BTreeSet::from([0, 2, 3]),
                             group_id_to_u8set: BTreeMap::from([
                                 (2, U8Set::from_bytes(b"b")),
@@ -288,18 +290,21 @@ mod tests {
                         DFAState {
                             transitions: TrieMap::new(),
                             finalizers: BTreeSet::from([1]),
+                            non_greedy_finalizers: BTreeSet::new(),
                             possible_group_ids: BTreeSet::from([1]),
                             group_id_to_u8set: BTreeMap::new(),
                         },
                         DFAState {
                             transitions: TrieMap::from_iter(vec![(b'c', 4)]),
                             finalizers: BTreeSet::from([2]),
+                            non_greedy_finalizers: BTreeSet::new(),
                             possible_group_ids: BTreeSet::from([2, 3]),
                             group_id_to_u8set: BTreeMap::from([(3, U8Set::from_bytes(b"c"))]),
                         },
                         DFAState {
                             transitions: TrieMap::new(),
                             finalizers: BTreeSet::from([3]),
+                            non_greedy_finalizers: BTreeSet::new(),
                             possible_group_ids: BTreeSet::from([3]),
                             group_id_to_u8set: BTreeMap::new(),
                         },

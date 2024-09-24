@@ -57,7 +57,7 @@ pub struct RegexState<'a> {
     pub done: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     U8Seq(Vec<u8>),
     U8Class(U8Set),
@@ -67,7 +67,7 @@ pub enum Expr {
     Epsilon, // Explicit epsilon transition
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum QuantifierType {
     ZeroOrMore, // *
     OneOrMore,  // +
@@ -147,7 +147,7 @@ macro_rules! seq {
 macro_rules! groups {
     ($($expr:expr),* $(,)?) => {
         $crate::finite_automata::ExprGroups {
-            groups: vec![$(ExprGroup::from_expr($expr, false)),*]
+            groups: vec![$($crate::finite_automata::ExprGroup::from_expr($expr, false)),*]
         }
     };
 }
@@ -156,7 +156,7 @@ macro_rules! groups {
 macro_rules! non_greedy_groups {
     ($($expr:expr),* $(,)?) => {
         $crate::finite_automata::ExprGroups {
-            groups: vec![$(ExprGroup::from_expr($expr, true)),*]
+            groups: vec![$($crate::finite_automata::ExprGroup::from_expr($expr, true)),*]
         }
     };
 }
