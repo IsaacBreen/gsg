@@ -587,15 +587,9 @@ impl RegexState<'_> {
                 // Check for early termination. Only continue if it's possible to match either:
                 // - a greedy group, or
                 // - a non-greedy group that has not been matched yet
-                // TODO: this isn't efficient.
-                let mut should_terminate = true;
-                for &group_id in &dfa.states[self.current_state].possible_group_ids {
-                    if !dfa.non_greedy_finalizers.contains(&group_id) || !self.matches.contains_key(&group_id) {
-                        // Either a greedy group or a non-greedy group that hasn't been matched yet
-                        should_terminate = false;
-                        break;
-                    }
-                }
+                let matched: BTreeSet<GroupID> = self.matches.keys().cloned().collect();
+                let excluded: BTreeSet<GroupID> = matched.intersection(&dfa.non_greedy_finalizers).cloned().collect();
+                let should_terminate = dfa.states[self.current_state].possible_group_ids.difference(&excluded).next().is_none();
 
                 if should_terminate {
                     self.position += text.len();
