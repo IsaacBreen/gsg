@@ -230,7 +230,7 @@ impl NFAState {
 impl ExprGroups {
     pub fn build(self) -> Regex {
         Regex {
-            dfa: self.build_nfa().to_dfa_with_greediness(),
+            dfa: self.build_nfa().to_dfa(),
         }
     }
 
@@ -387,7 +387,7 @@ impl NFA {
         self.states[from].epsilon_transitions.push(to);
     }
 
-    pub fn to_dfa_with_greediness(self) -> DFA {
+    pub fn to_dfa(self) -> DFA {
         let mut dfa_states: Vec<DFAState> = Vec::new();
         let mut dfa_state_map: HashMap<FrozenSet<usize>, usize> = HashMap::new();
         let mut worklist: Vec<FrozenSet<usize>> = Vec::new();
