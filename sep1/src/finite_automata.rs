@@ -598,7 +598,7 @@ impl RegexState<'_> {
                 }
 
                 if should_terminate {
-                    self.position += local_position;
+                    self.position += text.len();
                     self.done = true;
                     return;
                 }
