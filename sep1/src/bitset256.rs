@@ -1,12 +1,12 @@
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub struct ByteSet {
+pub struct BitSet256 {
     x: u128,
     y: u128,
 }
 
-impl ByteSet {
+impl BitSet256 {
     pub fn is_set(&self, index: u8) -> bool {
         if index < 128 {
             self.x & (1 << index) != 0
@@ -58,40 +58,40 @@ impl ByteSet {
     }
 
     pub fn all() -> Self {
-        ByteSet { x: u128::MAX, y: u128::MAX }
+        BitSet256 { x: u128::MAX, y: u128::MAX }
     }
 
     pub fn new() -> Self {
-        ByteSet { x: 0, y: 0 }
+        BitSet256 { x: 0, y: 0 }
     }
 
     pub fn none() -> Self {
-        ByteSet { x: 0, y: 0 }
+        BitSet256 { x: 0, y: 0 }
     }
 
     pub fn union(&self, other: &Self) -> Self {
-        ByteSet {
+        BitSet256 {
             x: self.x | other.x,
             y: self.y | other.y,
         }
     }
 
     pub fn intersection(&self, other: &Self) -> Self {
-        ByteSet {
+        BitSet256 {
             x: self.x & other.x,
             y: self.y & other.y,
         }
     }
 
     pub fn complement(&self) -> Self {
-        ByteSet {
+        BitSet256 {
             x: !self.x,
             y: !self.y,
         }
     }
 }
 
-impl BitOr for ByteSet {
+impl BitOr for BitSet256 {
     type Output = Self;
 
     fn bitor(self, other: Self) -> Self {
@@ -99,7 +99,7 @@ impl BitOr for ByteSet {
     }
 }
 
-impl BitAnd for ByteSet {
+impl BitAnd for BitSet256 {
     type Output = Self;
 
     fn bitand(self, other: Self) -> Self {
@@ -107,25 +107,25 @@ impl BitAnd for ByteSet {
     }
 }
 
-impl Not for ByteSet {
+impl Not for BitSet256 {
     type Output = Self;
 
     fn not(self) -> Self {
-        ByteSet {
+        BitSet256 {
             x: !self.x,
             y: !self.y,
         }
     }
 }
 
-impl BitAndAssign for ByteSet {
+impl BitAndAssign for BitSet256 {
     fn bitand_assign(&mut self, other: Self) {
         self.x &= other.x;
         self.y &= other.y;
     }
 }
 
-impl BitOrAssign for ByteSet {
+impl BitOrAssign for BitSet256 {
     fn bitor_assign(&mut self, other: Self) {
         self.x |= other.x;
         self.y |= other.y;
