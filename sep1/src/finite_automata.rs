@@ -25,15 +25,15 @@ pub struct NFA {
 pub struct DFAState {
     pub transitions: TrieMap<usize>,
     pub finalizers: BTreeSet<GroupID>,
-    pub non_greedy_finalizers: BTreeSet<GroupID>,
-    pub possible_group_ids: BTreeSet<GroupID>,          // Precomputed possible group IDs
-    pub group_id_to_u8set: BTreeMap<GroupID, U8Set>,   // Precomputed mapping from group ID to U8Set
+    pub possible_group_ids: BTreeSet<GroupID>,
+    pub group_id_to_u8set: BTreeMap<GroupID, U8Set>,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DFA {
     pub states: Vec<DFAState>,
     pub start_state: usize,
+    pub non_greedy_finalizers: BTreeSet<GroupID>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -198,10 +198,6 @@ impl Debug for DFA {
 
             if !state.finalizers.is_empty() {
                 f.write_str(&format!("  - Finalizers: {:?}\n", state.finalizers))?;
-            }
-
-            if !state.non_greedy_finalizers.is_empty() {
-                f.write_str(&format!("  - Non-Greedy Finalizers: {:?}\n", state.non_greedy_finalizers))?;
             }
 
             if !state.possible_group_ids.is_empty() {
@@ -416,7 +412,6 @@ impl NFA {
         dfa_states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers,
-            non_greedy_finalizers,
             possible_group_ids: BTreeSet::new(), // Will be computed later
             group_id_to_u8set: BTreeMap::new(),  // Will be computed later
         });
@@ -464,7 +459,6 @@ impl NFA {
                     dfa_states.push(DFAState {
                         transitions: TrieMap::new(),
                         finalizers: new_finalizers,
-                        non_greedy_finalizers: new_non_greedy_finalizers,
                         possible_group_ids: BTreeSet::new(), // Will be computed later
                         group_id_to_u8set: BTreeMap::new(),  // Will be computed later
                     });
@@ -480,9 +474,13 @@ impl NFA {
         let mut dfa = DFA {
             states: dfa_states,
             start_state: 0,
+            non_greedy_finalizers: BTreeSet::new(),
         };
 
-        // Precompute possible_group_ids and group_id_to_u8set
+        for state in &self.states {
+            dfa.non_greedy_finalizers.extend(state.non_greedy_finalizers.iter().cloned());
+        }
+
         dfa.compute_possible_group_ids();
         dfa.compute_group_id_to_u8set();
 
@@ -511,7 +509,6 @@ impl NFA {
 
 impl DFA {
     pub fn compute_possible_group_ids(&mut self) {
-        // Initialize possible_group_ids[state] = finalizers[state]
         for state in &mut self.states {
             state.possible_group_ids = state.finalizers.clone();
         }
@@ -579,13 +576,18 @@ impl RegexState<'_> {
                 local_position += 1;
                 // Handle greedy finalizers
                 for &group_id in &dfa.states[self.current_state].finalizers {
-                    // Overwrite existing match for greedy groups
-                    self.matches.insert(group_id, self.position + local_position);
+                    if dfa.non_greedy_finalizers.contains(&group_id) {
+                        self.matches.entry(group_id).or_insert(self.position + local_position);
+                    } else {
+                        // Overwrite existing match for greedy groups
+                        self.matches.insert(group_id, self.position + local_position);
+                    }
                 }
-                // Handle non-greedy finalizers
-                for &group_id in &dfa.states[self.current_state].non_greedy_finalizers {
-                    // Only insert if not already present
-                    self.matches.entry(group_id).or_insert(self.position + local_position);
+
+                if self.matches.len() == self.regex.dfa.states[self.current_state].possible_group_ids.len() {
+                    self.position += local_position;
+                    self.done = true;
+                    return;
                 }
             } else {
                 // No matching transition, we're done
@@ -1610,7 +1612,7 @@ mod group_id_to_u8set_tests {
         let regex = expr.build();
 
         // Start state (state 0)
-        // group_id_to_u8set for state 0:
+        // group_id_to_u8set for state 0
         // - Group 0: {'a'}
         // - Group 1: {'a'}
 
@@ -1677,13 +1679,13 @@ mod group_u8set_tests {
         let mut dfa = DFA {
             states: Vec::new(),
             start_state: 0,
+            non_greedy_finalizers: BTreeSet::new(), // Initialize here
         };
 
         // State 0: Start state
         dfa.states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers: BTreeSet::new(),
-            non_greedy_finalizers: BTreeSet::new(),
             possible_group_ids: BTreeSet::new(), // Will be computed
             group_id_to_u8set: BTreeMap::new(),   // Will be computed
         });
@@ -1692,7 +1694,6 @@ mod group_u8set_tests {
         dfa.states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers: BTreeSet::new(),
-            non_greedy_finalizers: BTreeSet::new(),
             possible_group_ids: BTreeSet::new(),
             group_id_to_u8set: BTreeMap::new(),
         });
@@ -1701,7 +1702,6 @@ mod group_u8set_tests {
         dfa.states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers: BTreeSet::from([0]),
-            non_greedy_finalizers: BTreeSet::new(),
             possible_group_ids: BTreeSet::new(),
             group_id_to_u8set: BTreeMap::new(),
         });
@@ -1710,7 +1710,6 @@ mod group_u8set_tests {
         dfa.states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers: BTreeSet::from([1]),
-            non_greedy_finalizers: BTreeSet::new(),
             possible_group_ids: BTreeSet::new(),
             group_id_to_u8set: BTreeMap::new(),
         });
