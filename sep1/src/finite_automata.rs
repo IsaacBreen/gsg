@@ -584,23 +584,23 @@ impl RegexState<'_> {
                     }
                 }
 
-                // Only continue if it's possible to match either:
+                // Check for early termination. Only continue if it's possible to match either:
                 // - a greedy group, or
                 // - a non-greedy group that has not been matched yet
-                if !dfa.non_greedy_finalizers.is_empty() {
-                    // Check for a non-greedy group that hasn't been matched
-                    if !dfa.non_greedy_finalizers.iter().all(|&group_id| self.matches.contains_key(&group_id)) {
-                        continue;
+                // TODO: this isn't efficient.
+                let mut should_terminate = true;
+                for &group_id in &dfa.states[self.current_state].possible_group_ids {
+                    if !dfa.non_greedy_finalizers.contains(&group_id) || !self.matches.contains_key(&group_id) {
+                        // Either a greedy group or a non-greedy group that hasn't been matched yet
+                        should_terminate = false;
+                        break;
                     }
                 }
-                // Check for a greedy group
-                if !dfa.non_greedy_finalizers.is_empty() {
-                    // No non-greedy groups left, so we can terminate if all greedy groups have been matched
-                    if self.matches.len() == dfa.states[self.current_state].possible_group_ids.len() {
-                        self.position += text.len();
-                        self.done = true;
-                        return;
-                    }
+
+                if should_terminate {
+                    self.position += local_position;
+                    self.done = true;
+                    return;
                 }
             } else {
                 // No matching transition, we're done
