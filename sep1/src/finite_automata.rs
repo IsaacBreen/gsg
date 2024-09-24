@@ -1156,6 +1156,41 @@ mod even_more_complex_tests {
         assert_eq!(regex_state.matches.get(&0), Some(&2));
         assert_eq!(regex_state.matches.get(&1), Some(&3));
     }
+
+    #[test]
+    fn test_triple_quoted_string() {
+        // Regex: """.*?""" (non-greedy)
+        let non_greedy_expr = groups![
+            non_greedy_group(seq![
+                Expr::U8Seq(b"\"\"\"".to_vec()),
+                rep(Expr::U8Class(U8Set::all())),
+                Expr::U8Seq(b"\"\"\"".to_vec())
+            ])
+        ];
+        let non_greedy_regex = non_greedy_expr.build();
+
+        // Regex: """.*""" (greedy)
+        let greedy_expr = groups![
+            seq![
+                Expr::U8Seq(b"\"\"\"".to_vec()),
+                rep(Expr::U8Class(U8Set::all())),
+                Expr::U8Seq(b"\"\"\"".to_vec())
+            ]
+        ];
+        let greedy_regex = greedy_expr.build();
+
+        let input = b"\"\"\"hello\"\"\"world\"\"\"";
+
+        // Non-greedy should match correctly
+        let mut non_greedy_state = non_greedy_regex.init();
+        non_greedy_state.execute(input);
+        assert_eq!(non_greedy_state.matches.get(&0), Some(&12)); // Matches up to the second """
+
+        // Greedy should match incorrectly (matching the entire string)
+        let mut greedy_state = greedy_regex.init();
+        greedy_state.execute(input);
+        assert_eq!(greedy_state.matches.get(&0), Some(&input.len())); // Matches the whole input
+    }
 }
 
 #[cfg(test)]
