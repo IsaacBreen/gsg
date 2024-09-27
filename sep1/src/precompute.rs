@@ -1,6 +1,5 @@
 // src/precompute.rs
 use std::collections::{BTreeMap, HashMap};
-use crate::bitset256::BitSet256;
 use crate::finite_automata::GroupID;
 
 type StateID = usize;
@@ -83,28 +82,27 @@ pub trait Tokenizer: Sized {
     }
 }
 
-/// Precomputes a map from each state and token sequence to a bitset of LLM token IDs.
-pub fn precompute_llm_token_bitsets<'a>(
+/// Precomputes a map from each state and token sequence to a set of LLM token IDs.
+pub fn precompute_llm_token_sets<'a>(
     precompute_map: &BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>>,
     llm_token_to_id: &HashMap<&'a [u8], usize>,
-    _total_llm_tokens: usize,
-) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BitSet256>> {
-    let mut result: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BitSet256>> = BTreeMap::new();
+) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeSet<usize>>> {
+    let mut result: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeSet<usize>>> = BTreeMap::new();
 
     for (&state_id, token_sequence_map) in precompute_map {
-        let mut sequence_bitset_map: BTreeMap<Vec<GroupID>, BitSet256> = BTreeMap::new();
+        let mut sequence_set_map: BTreeMap<Vec<GroupID>, BTreeSet<usize>> = BTreeMap::new();
 
         for (token_sequence, llm_token_state_map) in token_sequence_map {
-            let mut bitset = BitSet256::new();
+            let mut set = BTreeSet::new();
             for (&llm_token, &_next_state) in llm_token_state_map {
                 if let Some(&llm_token_id) = llm_token_to_id.get(llm_token) {
-                    bitset.set_bit(llm_token_id as u8);
+                    set.insert(llm_token_id);
                 }
             }
-            sequence_bitset_map.insert(token_sequence.clone(), bitset);
+            sequence_set_map.insert(token_sequence.clone(), set);
         }
 
-        result.insert(state_id, sequence_bitset_map);
+        result.insert(state_id, sequence_set_map);
     }
 
     result
@@ -115,7 +113,7 @@ pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
     llm_tokens: &[&'a [u8]],
 ) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>> {
-    let mut result: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>> = BTreeMap::new();
+    let mut result = BTreeMap::new();
 
     for state_id in 0..tokenizer.max_state() {
         let mut state_map: BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>> = BTreeMap::new();
@@ -143,7 +141,6 @@ pub fn precompute<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitset256::BitSet256;
     use std::collections::{BTreeSet, HashMap};
     use crate::finite_automata::{eat_u8, DFAState, Regex, DFA};
     use crate::{groups, seq};
@@ -181,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn test_precompute_llm_token_bitsets() {
+    fn test_precompute_llm_token_sets() {
         // Define LLM tokens
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"ac"];
 
