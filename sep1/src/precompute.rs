@@ -1,5 +1,5 @@
 // src/precompute.rs
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use crate::finite_automata::GroupID;
 
 type StateID = usize;
@@ -221,23 +221,23 @@ mod tests {
         precompute_map.insert(0, state0_map);
 
         // Perform precompute
-        let bitset_map = precompute_llm_token_bitsets(&precompute_map, &llm_token_to_id, llm_tokens.len());
+        let bitset_map = precompute_llm_token_sets(&precompute_map, &llm_token_to_id);
 
         // Build the expected bitset_map based on the expected_precompute_map
-        let mut expected_bitset_map: BTreeMap<usize, BTreeMap<Vec<GroupID>, BitSet256>> = BTreeMap::new();
+        let mut expected_bitset_map: BTreeMap<usize, BTreeMap<Vec<GroupID>, BTreeSet<usize>>> = BTreeMap::new();
 
-        let mut state0_bitset_map: BTreeMap<Vec<GroupID>, BitSet256> = BTreeMap::new();
+        let mut state0_bitset_map: BTreeMap<Vec<GroupID>, BTreeSet<usize>> = BTreeMap::new();
 
         // For grammar token sequence [0] ("ab"), the LLM token is "ab" with ID 3
-        let mut bitset_ab = BitSet256::new();
+        let mut bitset_ab = BTreeSet::<usize>::new();
         let llm_token_id_ab = *llm_token_to_id.get(b"ab".as_slice()).unwrap();
-        bitset_ab.set_bit(llm_token_id_ab as u8);
+        bitset_ab.insert(llm_token_id_ab);
         state0_bitset_map.insert(vec![0], bitset_ab);
 
         // For grammar token sequence [1] ("ac"), the LLM token is "ac" with ID 4
-        let mut bitset_ac = BitSet256::new();
+        let mut bitset_ac = BTreeSet::<usize>::new();
         let llm_token_id_ac = *llm_token_to_id.get(b"ac".as_slice()).unwrap();
-        bitset_ac.set_bit(llm_token_id_ac as u8);
+        bitset_ac.insert(llm_token_id_ac);
         state0_bitset_map.insert(vec![1], bitset_ac);
 
         expected_bitset_map.insert(0, state0_bitset_map);
