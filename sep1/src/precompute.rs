@@ -12,7 +12,7 @@ pub struct ExecuteResult {
 }
 
 /// Trait defining the tokenizer behavior.
-pub trait Tokenizer: Sized {
+pub trait PrecomputableTokenizer: Sized {
     /// Executes the tokenizer on the given text starting from the specified state.
     fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult;
 
@@ -110,7 +110,7 @@ pub fn precompute_llm_token_sets<'a>(
 
 /// Precomputes a map from state -> token sequence -> LLM token -> state.
 pub fn precompute<'a>(
-    tokenizer: &impl Tokenizer,
+    tokenizer: &impl PrecomputableTokenizer,
     llm_tokens: &[&'a [u8]],
 ) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], usize>>> {
     let mut result = BTreeMap::new();
@@ -147,17 +147,17 @@ mod tests {
     use crate::charmap::TrieMap;
     use crate::u8set::U8Set;
 
-    struct MockTokenizer {
+    struct MockPrecomputableTokenizer {
         regex: Regex,
     }
 
-    impl MockTokenizer {
+    impl MockPrecomputableTokenizer {
         fn new(regex: Regex) -> Self {
-            MockTokenizer { regex }
+            MockPrecomputableTokenizer { regex }
         }
     }
 
-    impl Tokenizer for MockTokenizer {
+    impl PrecomputableTokenizer for MockPrecomputableTokenizer {
         fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult {
             let mut regex_state = self.regex.init_to_state(state);
             regex_state.execute(text);
@@ -259,7 +259,7 @@ mod tests {
             seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
         ].build();
 
-        let tokenizer = MockTokenizer {
+        let tokenizer = MockPrecomputableTokenizer {
             regex: Regex {
                 dfa: DFA {
                     states: vec![
