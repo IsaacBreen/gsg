@@ -6,7 +6,7 @@ type StateID = usize;
 type TokenID = usize;
 
 /// Represents a token with its ID and width.
-#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Token {
     pub id: GroupID,
     pub width: usize,
@@ -14,7 +14,7 @@ pub struct Token {
 
 /// Represents the result of executing the tokenizer from a specific state.
 pub struct ExecuteResult {
-    pub matches: BTreeMap<GroupID, usize>, // GroupID to position
+    pub matches: Vec<Token>,
     pub new_state: Option<usize>,
 }
 
@@ -23,7 +23,7 @@ pub trait Tokenizer: Sized {
     /// Executes the tokenizer on the given text starting from the specified state.
     fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult;
 
-    /// Returns the list of token IDs accessible from the given state.
+    /// Returns the list of tokens accessible from the given state.
     fn tokens_accessible_from_state(&self, state: usize) -> Vec<Token>;
 
     /// Returns the maximum state ID in the DFA.
@@ -63,10 +63,10 @@ pub trait Tokenizer: Sized {
             let execute_result = self.execute_from_state(remaining_text, item.state);
 
             // Process all matches
-            for (&token_id, &offset) in &execute_result.matches {
-                let new_position = item.position + offset;
+            for token in &execute_result.matches {
+                let new_position = item.position + token.width;
                 let mut new_tokens = item.tokens.clone();
-                new_tokens.push(Token { id: token_id, width: offset });
+                new_tokens.push(token.clone());
 
                 if new_position == text.len() {
                     final_results.insert(new_tokens, 0); // Assuming 0 is the final state
@@ -168,19 +168,18 @@ mod tests {
         fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult {
             let mut regex_state = self.regex.init_to_state(state);
             regex_state.execute(text);
+
+            let matches = regex_state.matches.iter().map(|(&id, &width)| Token { id, width }).collect();
+
             ExecuteResult {
-                matches: regex_state.matches.clone(),
+                matches,
                 new_state: if regex_state.done { None } else { Some(regex_state.current_state) },
             }
         }
 
         fn tokens_accessible_from_state(&self, state: usize) -> Vec<Token> {
             let regex_state = self.regex.init_to_state(state);
-            regex_state
-                .possible_group_ids()
-                .iter()
-                .map(|&group_id| Token { id: group_id, width: 0 }) // Placeholder width
-                .collect()
+            regex_state.matches.iter().map(|(&id, &width)| Token { id, width }).collect()
         }
 
         fn max_state(&self) -> usize {
