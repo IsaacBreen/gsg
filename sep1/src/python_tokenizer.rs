@@ -3,4 +3,4 @@ struct PythonSpecialTokenizer {
     indents: Vec<Vec<u8>>,
 }
 
-impl PrecomputableTokenizer
+impl Tokenizer for

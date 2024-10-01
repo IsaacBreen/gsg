@@ -8,4 +8,4 @@ pub mod u8set;
 pub mod finite_automata;
 mod gss;
 mod python_tokenizer;
-mod tokenizer;
+mod dynamic_tokenizer;
