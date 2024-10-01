@@ -1,3 +1,3 @@
-pub trait DynamicTokenizer {
+pub trait PostprocessTokens {
 
 }
