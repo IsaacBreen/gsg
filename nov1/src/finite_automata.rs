@@ -567,14 +567,22 @@ impl RegexState<'_> {
             return;
         }
         let dfa = &self.regex.dfa;
-        let start_position = self.position;
-        while self.position - start_position < text.len() {
+        let mut local_position = 0;
+        while local_position < text.len() {
             let state_data = &dfa.states[self.current_state];
-            let next_u8 = text[self.position - start_position];
+            let next_u8 = text[local_position];
             if let Some(&next_state) = state_data.transitions.get(next_u8) {
                 self.current_state = next_state;
-                self.position += 1;
-                self.add_finalizers();
+                local_position += 1;
+                // Handle greedy finalizers
+                for &group_id in &dfa.states[self.current_state].finalizers {
+                    if dfa.non_greedy_finalizers.contains(&group_id) {
+                        self.matches.entry(group_id).or_insert(self.position + local_position);
+                    } else {
+                        // Overwrite existing match for greedy groups
+                        self.matches.insert(group_id, self.position + local_position);
+                    }
+                }
 
                 // Check for early termination. Only continue if it's possible to match either:
                 // - a greedy group, or
@@ -584,33 +592,21 @@ impl RegexState<'_> {
                 let should_terminate = dfa.states[self.current_state].possible_group_ids.difference(&excluded).next().is_none();
 
                 if should_terminate {
-                    self.position = start_position + text.len();
+                    self.position += text.len();
                     self.done = true;
                     return;
                 }
             } else {
                 // No matching transition, we're done
-                self.position = start_position + text.len();
+                self.position += text.len();
                 self.done = true;
                 return;
             }
         }
         // Reached the end of input, mark as done if no further transitions
+        self.position += text.len();
         if dfa.states[self.current_state].transitions.is_empty() {
             self.done = true;
-        }
-        self.position = start_position + text.len();
-    }
-
-    pub fn add_finalizers(&mut self) {
-        // Handle greedy finalizers
-        for &group_id in &self.regex.dfa.states[self.current_state].finalizers {
-            if self.regex.dfa.non_greedy_finalizers.contains(&group_id) {
-                self.matches.entry(group_id).or_insert(self.position);
-            } else {
-                // Overwrite existing match for greedy groups
-                self.matches.insert(group_id, self.position);
-            }
         }
     }
 
