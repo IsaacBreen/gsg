@@ -1783,3 +1783,25 @@ mod group_u8set_tests {
         assert!(u8set_group1_state3.iter().next().is_none());
     }
 }
+
+#[cfg(test)]
+mod tests_nov_24 {
+    use super::*;
+
+    #[test]
+    fn test_eat_u8() {
+        let expr = groups![
+            eat_u8(b'a'),
+            seq![eat_u8(b'a'), eat_u8(b'b')],
+        ];
+
+        let regex = expr.build();
+        let mut state = regex.init();
+        state.execute(b"a");
+        assert_eq!(state.matches, BTreeMap::from([(0, 1)]));
+        state.clear_matches();
+
+        state.execute(b"b");
+        assert_eq!(state.matches, BTreeMap::from([(1, 2)]));
+    }
+}
