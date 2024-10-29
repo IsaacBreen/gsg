@@ -344,39 +344,15 @@ mod tests {
 
         let mut state_1: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
         state_1.insert(vec![], BTreeMap::from([(b"b".as_slice(), 3)]));
-        state_1.insert(vec![], BTreeMap::from([(b"a".as_slice(), 1), (b"ab".as_slice(), 3)]));
-        state_1.insert(vec![Token { id: 0, width: 1 }], BTreeMap::from([(b"a".as_slice(), 0)]));
-        state_1.insert(vec![Token { id: 0, width: 1 }, Token { id: 1, width: 1 }], BTreeMap::from([(b"ab".as_slice(), 0)]));
-        state_1.insert(vec![Token { id: 1, width: 1 }], BTreeMap::from([(b"b".as_slice(), 0)]));
-        state_1.insert(vec![Token { id: 2, width: 2 }], BTreeMap::from([(b"ab".as_slice(), 0)]));
-        state_1.insert(vec![Token { id: 3, width: 3 }], BTreeMap::from([(b"abc".as_slice(), 0)]));
         state_1.insert(vec![Token { id: 2, width: 1 }], BTreeMap::from([(b"b".as_slice(), 0)]));
         state_1.insert(vec![Token { id: 3, width: 2 }], BTreeMap::from([(b"bc".as_slice(), 0)]));
 
         let mut state_2: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
-        state_2.insert(vec![], BTreeMap::from([(b"a".as_slice(), 1), (b"ab".as_slice(), 3)]));
-        state_2.insert(vec![Token { id: 0, width: 1 }], BTreeMap::from([(b"a".as_slice(), 0)]));
-        state_2.insert(vec![Token { id: 0, width: 1 }, Token { id: 1, width: 1 }], BTreeMap::from([(b"ab".as_slice(), 0)]));
-        state_2.insert(vec![Token { id: 1, width: 1 }], BTreeMap::from([(b"b".as_slice(), 0)]));
-        state_2.insert(vec![Token { id: 2, width: 2 }], BTreeMap::from([(b"ab".as_slice(), 0)]));
-        state_2.insert(vec![Token { id: 3, width: 3 }], BTreeMap::from([(b"abc".as_slice(), 0)]));
 
         let mut state_3: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
-        state_3.insert(vec![], BTreeMap::from([(b"a".as_slice(), 1), (b"ab".as_slice(), 3)]));
-        state_3.insert(vec![Token { id: 0, width: 1 }], BTreeMap::from([(b"a".as_slice(), 0)]));
-        state_3.insert(vec![Token { id: 0, width: 1 }, Token { id: 1, width: 1 }], BTreeMap::from([(b"ab".as_slice(), 0)]));
-        state_3.insert(vec![Token { id: 1, width: 1 }], BTreeMap::from([(b"b".as_slice(), 0)]));
-        state_3.insert(vec![Token { id: 2, width: 2 }], BTreeMap::from([(b"ab".as_slice(), 0)]));
-        state_3.insert(vec![Token { id: 3, width: 3 }], BTreeMap::from([(b"abc".as_slice(), 0)]));
         state_3.insert(vec![Token { id: 3, width: 1 }], BTreeMap::from([(b"c".as_slice(), 0)]));
 
         let mut state_4: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
-        state_4.insert(vec![], BTreeMap::from([(b"a".as_slice(), 1), (b"ab".as_slice(), 3)]));
-        state_4.insert(vec![Token { id: 0, width: 1 }], BTreeMap::from([(b"a".as_slice(), 0)]));
-        state_4.insert(vec![Token { id: 0, width: 1 }, Token { id: 1, width: 1 }], BTreeMap::from([(b"ab".as_slice(), 0)]));
-        state_4.insert(vec![Token { id: 1, width: 1 }], BTreeMap::from([(b"b".as_slice(), 0)]));
-        state_4.insert(vec![Token { id: 2, width: 2 }], BTreeMap::from([(b"ab".as_slice(), 0)]));
-        state_4.insert(vec![Token { id: 3, width: 3 }], BTreeMap::from([(b"abc".as_slice(), 0)]));
 
         let mut expected: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>>> = BTreeMap::new();
         expected.insert(0, state_0);
