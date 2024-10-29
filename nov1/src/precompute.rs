@@ -123,6 +123,12 @@ pub fn precompute<'a>(
 ) -> BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&'a [u8], usize>>> {
     let mut result = BTreeMap::new();
 
+    // Ensure the tokenizer doesn't match on empty strings
+    let execute_result = tokenizer.execute_from_state(&[], 0);
+    if !execute_result.matches.is_empty() {
+        panic!("Tokenizer should not match on empty string. If it did, there would be infinitely many possible token sequences for any LLM token.");
+    }
+
     for state_id in 0..tokenizer.max_state() {
         let mut state_map: BTreeMap<Vec<Token>, BTreeMap<&'a [u8], usize>> = BTreeMap::new();
 
@@ -170,7 +176,10 @@ mod tests {
             let mut regex_state = self.regex.init_to_state(state);
             regex_state.execute(text);
 
-            let matches = regex_state.matches.iter().map(|(&id, &width)| Token { id, width }).collect();
+            let matches: Vec<_> = regex_state.matches.iter().map(|(&id, &width)| Token { id, width })
+                // Filter out zero-width tokens
+                .filter(|token| token.width != 0)
+                .collect();
 
             ExecuteResult {
                 matches,
