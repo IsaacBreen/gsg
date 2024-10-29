@@ -193,7 +193,7 @@ impl Debug for DFA {
             f.write_str(&format!("State {}:\n", state_index))?;
 
             for (transition_u8, next_state) in &state.transitions {
-                f.write_str(&format!("  - '{}': {}\n", transition_u8, next_state))?;
+                f.write_str(&format!("  - {} ({:?}): {}\n", transition_u8, transition_u8 as char, next_state))?;
             }
 
             if !state.finalizers.is_empty() {
