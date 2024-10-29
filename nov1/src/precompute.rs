@@ -167,9 +167,9 @@ mod tests {
     impl Tokenizer for MockTokenizer {
         fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult {
             let mut regex_state = self.regex.init_to_state(state);
-            let result = regex_state.execute(text);
+            regex_state.execute(text);
 
-            let matches = result.matches.iter().map(|(&id, &width)| Token { id, width }).collect();
+            let matches = regex_state.matches.iter().map(|(&id, &width)| Token { id, width }).collect();
 
             ExecuteResult {
                 matches,
@@ -179,7 +179,7 @@ mod tests {
 
         fn tokens_accessible_from_state(&self, state: usize) -> Vec<TokenID> {
             let regex_state = self.regex.init_to_state(state);
-            todo!()
+            regex_state.matches.iter().map(|(&id, &width)| id).collect()
         }
 
         fn max_state(&self) -> usize {
