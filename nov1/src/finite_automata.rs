@@ -50,10 +50,14 @@ pub struct FinalStateReport {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RegexState<'a> {
     pub regex: &'a Regex,
-    pub position: usize,
     pub current_state: usize,
-    pub matches: BTreeMap<GroupID, usize>, // Publicly accessible matches (GroupID to position)
     pub done: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RegexResults {
+    pub matches: BTreeMap<GroupID, usize>,
+    pub num_read: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -561,10 +565,10 @@ impl DFA {
 }
 
 impl RegexState<'_> {
-    pub fn execute(&mut self, text: &[u8]) {
+    pub fn execute(&mut self, text: &[u8]) -> RegexResults {
+        let mut matches = BTreeMap::new();
         if self.done {
-            self.position += text.len();
-            return;
+            return RegexResults { matches, num_read: 0 };
         }
         let dfa = &self.regex.dfa;
         let mut local_position = 0;
@@ -577,48 +581,39 @@ impl RegexState<'_> {
                 // Handle greedy finalizers
                 for &group_id in &dfa.states[self.current_state].finalizers {
                     if dfa.non_greedy_finalizers.contains(&group_id) {
-                        self.matches.entry(group_id).or_insert(self.position + local_position);
+                        matches.entry(group_id).or_insert(local_position);
                     } else {
                         // Overwrite existing match for greedy groups
-                        self.matches.insert(group_id, self.position + local_position);
+                        matches.insert(group_id, local_position);
                     }
                 }
 
                 // Check for early termination. Only continue if it's possible to match either:
                 // - a greedy group, or
                 // - a non-greedy group that has not been matched yet
-                let matched: BTreeSet<GroupID> = self.matches.keys().cloned().collect();
+                let matched: BTreeSet<GroupID> = matches.keys().cloned().collect();
                 let excluded: BTreeSet<GroupID> = matched.intersection(&dfa.non_greedy_finalizers).cloned().collect();
                 let should_terminate = dfa.states[self.current_state].possible_group_ids.difference(&excluded).next().is_none();
 
                 if should_terminate {
-                    self.position += text.len();
                     self.done = true;
-                    return;
+                    return RegexResults { matches, num_read: local_position };
                 }
             } else {
                 // No matching transition, we're done
-                self.position += text.len();
                 self.done = true;
-                return;
+                return RegexResults { matches, num_read: local_position };
             }
         }
         // Reached the end of input, mark as done if no further transitions
-        self.position += text.len();
         if dfa.states[self.current_state].transitions.is_empty() {
             self.done = true;
         }
+        RegexResults { matches, num_read: local_position }
     }
 
     pub fn end(&mut self) {
         self.done = true;
-    }
-
-    pub fn final_state_report(&self) -> FinalStateReport {
-        FinalStateReport {
-            position: self.position,
-            matches: self.matches.clone(),
-        }
     }
 
     pub fn get_u8set(&self) -> U8Set {
@@ -641,8 +636,8 @@ impl RegexState<'_> {
         u8set
     }
 
-    pub fn matches(&self) -> Option<bool> {
-        if !self.matches.is_empty() {
+    pub fn matches(&self, matches: &BTreeMap<GroupID, usize>) -> Option<bool> {
+        if !matches.is_empty() {
             Some(true)
         } else if self.done {
             Some(false)
@@ -651,17 +646,17 @@ impl RegexState<'_> {
         }
     }
 
-    pub fn definitely_matches(&self) -> bool {
-        self.matches().unwrap_or(false)
+    pub fn definitely_matches(&self, matches: &BTreeMap<GroupID, usize>) -> bool {
+        self.matches(matches).unwrap_or(false)
     }
 
-    pub fn could_match(&self) -> bool {
-        self.matches().unwrap_or(true)
+    pub fn could_match(&self, matches: &BTreeMap<GroupID, usize>) -> bool {
+        self.matches(matches).unwrap_or(true)
     }
 
-    pub fn fully_matches(&self) -> Option<bool> {
-        if let Some(max_position) = self.matches.values().max() {
-            Some(*max_position == self.position)
+    pub fn fully_matches(&self, matches: &BTreeMap<GroupID, usize>, fragment: &[u8]) -> Option<bool> {
+        if let Some(max_position) = matches.values().max() {
+            Some(*max_position == fragment.len() - 1)
         } else {
             if self.done {
                 Some(false)
@@ -671,16 +666,16 @@ impl RegexState<'_> {
         }
     }
 
-    pub fn definitely_fully_matches(&self) -> bool {
-        self.fully_matches().unwrap_or(false)
+    pub fn definitely_fully_matches(&self, matches: &BTreeMap<GroupID, usize>, fragment: &[u8]) -> bool {
+        self.fully_matches(matches, fragment).unwrap_or(false)
     }
 
-    pub fn could_fully_match(&self) -> bool {
-        self.fully_matches().unwrap_or(true)
+    pub fn could_fully_match(&self, matches: &BTreeMap<GroupID, usize>, fragment: &[u8]) -> bool {
+        self.fully_matches(matches, fragment).unwrap_or(true)
     }
 
-    pub fn fully_matches_here(&self) -> bool {
-        self.definitely_fully_matches()
+    pub fn fully_matches_here(&self, matches: &BTreeMap<GroupID, usize>, fragment: &[u8]) -> bool {
+        self.definitely_fully_matches(matches, fragment)
     }
 
     pub fn done(&self) -> bool {
@@ -688,13 +683,9 @@ impl RegexState<'_> {
         self.done
     }
 
-    pub fn failed(&self) -> bool {
+    pub fn failed(&self, matches: &BTreeMap<GroupID, usize>) -> bool {
         // Returns true if the regex has failed to match and cannot possibly match
-        !self.could_match()
-    }
-
-    pub fn clear_matches(&mut self) {
-        self.matches.clear();
+        !self.could_match(matches)
     }
 
     pub fn possible_group_ids(&self) -> BTreeSet<GroupID> {
@@ -715,16 +706,9 @@ impl RegexState<'_> {
 impl Regex {
     pub fn init_to_state(&self, state: usize) -> RegexState {
         let done = self.dfa.states[state].transitions.is_empty();
-        let matches = self.dfa.states[state]
-            .finalizers
-            .iter()
-            .map(|&group_id| (group_id, 0))
-            .collect();
         RegexState {
             regex: self,
-            position: 0,
             current_state: state,
-            matches,
             done,
         }
     }
@@ -735,9 +719,8 @@ impl Regex {
 
     pub fn find(&self, text: &[u8]) -> Option<(GroupID, usize)> {
         let mut regex_state = self.init();
-        regex_state.execute(text);
-        regex_state
-            .matches
+        let result = regex_state.execute(text);
+        result.matches
             .iter()
             .next()
             .map(|(&group_id, &position)| (group_id, position))
@@ -745,8 +728,8 @@ impl Regex {
 
     pub fn matches(&self, text: &[u8]) -> Option<bool> {
         let mut regex_state = self.init();
-        regex_state.execute(text);
-        regex_state.matches()
+        let result = regex_state.execute(text);
+        regex_state.matches(&result.matches)
     }
 
     pub fn definitely_matches(&self, text: &[u8]) -> bool {
@@ -759,8 +742,8 @@ impl Regex {
 
     pub fn fully_matches(&self, text: &[u8]) -> Option<bool> {
         let mut regex_state = self.init();
-        regex_state.execute(text);
-        regex_state.fully_matches()
+        let result = regex_state.execute(text);
+        regex_state.fully_matches(&result.matches, text)
     }
 
     pub fn definitely_fully_matches(&self, text: &[u8]) -> bool {
@@ -806,8 +789,8 @@ mod tests {
         assert!(regex.could_match(b"b"));
 
         let mut state = regex.init();
-        state.execute(b"aa");
-        assert_eq!(state.matches, BTreeMap::from([(0, 2)]));
+        let result = state.execute(b"aa");
+        assert_eq!(result.matches, BTreeMap::from([(0, 2)]));
         assert!(!state.done()); // Could match more 'a's
     }
 
@@ -1100,11 +1083,11 @@ mod even_more_complex_tests {
 
         let mut state = regex.init();
 
-        state.execute(b"a");
-        assert_eq!(state.matches, BTreeMap::from([(0, 1)]));
+        let result = state.execute(b"a");
+        assert_eq!(result.matches, BTreeMap::from([(0, 1)]));
 
-        state.execute(b"a");
-        assert_eq!(state.matches, BTreeMap::from([(0, 1), (1, 2)]));
+        let result = state.execute(b"a");
+        assert_eq!(result.matches, BTreeMap::from([(0, 1), (1, 2)]));
     }
 
     #[test]
@@ -1119,9 +1102,9 @@ mod even_more_complex_tests {
 
         let mut state = regex.init();
 
-        state.execute(b"aa");
+        let result = state.execute(b"aa");
         // group 0 should have the later match
-        assert_eq!(state.matches, BTreeMap::from([(0, 2), (1, 1)]));
+        assert_eq!(result.matches, BTreeMap::from([(0, 2), (1, 1)]));
     }
 
     #[test]
@@ -1136,13 +1119,13 @@ mod even_more_complex_tests {
 
         // Input: "aaa"
         let mut regex_state = regex.init();
-        regex_state.execute(b"aaa");
+        let result = regex_state.execute(b"aaa");
 
         // Expected:
         // Group 0 (non-greedy) should match "" (empty string)
         // Group 1 (greedy) should match "aaa"
-        assert_eq!(regex_state.matches.get(&0), Some(&0));
-        assert_eq!(regex_state.matches.get(&1), Some(&1));
+        assert_eq!(result.matches.get(&0), Some(&0));
+        assert_eq!(result.matches.get(&1), Some(&1));
     }
 
     #[test]
@@ -1157,13 +1140,13 @@ mod even_more_complex_tests {
 
         // Input: "aaa"
         let mut regex_state = regex.init();
-        regex_state.execute(b"aaa");
+        let result = regex_state.execute(b"aaa");
 
         // Expected:
         // Group 0 (greedy) should match "aaa"
         // Group 1 (greedy) should match "a"
-        assert_eq!(regex_state.matches.get(&0), Some(&3));
-        assert_eq!(regex_state.matches.get(&1), Some(&1));
+        assert_eq!(result.matches.get(&0), Some(&3));
+        assert_eq!(result.matches.get(&1), Some(&1));
     }
 
     #[test]
@@ -1192,13 +1175,13 @@ mod even_more_complex_tests {
 
         // Non-greedy should match correctly
         let mut non_greedy_state = non_greedy_regex.init();
-        non_greedy_state.execute(input);
-        assert_eq!(non_greedy_state.matches.get(&0), Some(&b"\"\"\"hello\"\"\"".len())); // Matches up to the second """
+        let result = non_greedy_state.execute(input);
+        assert_eq!(result.matches.get(&0), Some(&b"\"\"\"hello\"\"\"".len())); // Matches up to the second """
 
         // Greedy should match incorrectly (matching the entire string)
         let mut greedy_state = greedy_regex.init();
         greedy_state.execute(input);
-        assert_eq!(greedy_state.matches.get(&0), Some(&input.len())); // Matches the whole input
+        assert_eq!(result.matches.get(&0), Some(&input.len())); // Matches the whole input
     }
 }
 
