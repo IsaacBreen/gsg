@@ -41,39 +41,7 @@ struct Item {
 }
 
 fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BTreeSet<Item> {
-    let mut closure = items.clone();
-    let mut changed = true;
-
-    // Keep adding items until no new ones can be added
-    while changed {
-        changed = false;
-        let current_items = closure.clone();
-
-        for item in current_items {
-            // Get the symbol after the dot
-            if let Some(symbol) = item.production.rhs.get(item.dot_position) {
-                // If it's a non-terminal, add all productions with that non-terminal on LHS
-                if let Symbol::NonTerminal(name) = symbol {
-                    for production in productions {
-                        if let Symbol::NonTerminal(prod_name) = &production.lhs {
-                            if prod_name == name {
-                                let new_item = Item {
-                                    production: production.clone(),
-                                    dot_position: 0,
-                                };
-                                if !closure.contains(&new_item) {
-                                    closure.insert(new_item);
-                                    changed = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    closure
+    todo!()
 }
 
 fn compute_goto(items: &BTreeSet<Item>) -> BTreeSet<Item> {
@@ -98,103 +66,6 @@ fn split_on_dot(items: &BTreeSet<Item>) -> HashMap<Option<Symbol>, BTreeSet<Item
     result
 }
 
-
-fn compute_firsts(productions: &[Production]) -> HashMap<Symbol, BTreeSet<Symbol>> {
-    let mut firsts: HashMap<Symbol, BTreeSet<Symbol>> = HashMap::new();
-    let mut changed = true;
-
-    // Initialize firsts sets
-    for production in productions {
-        firsts.entry(production.lhs.clone()).or_default();
-    }
-
-    // Keep iterating until no changes are made
-    while changed {
-        changed = false;
-
-        for production in productions {
-            let lhs = &production.lhs;
-
-            // For each production A → β, add first(β) to first(A)
-            if let Some(first_symbol) = production.rhs.first() {
-                match first_symbol {
-                    // If it's a terminal, add it directly
-                    Symbol::Terminal(_) => {
-                        let first_set = firsts.get_mut(lhs).unwrap();
-                        if first_set.insert(first_symbol.clone()) {
-                            changed = true;
-                        }
-                    }
-                    // If it's a non-terminal, add all its firsts
-                    Symbol::NonTerminal(_) => {
-                        let first_symbols: Vec<_> = firsts
-                            .get(first_symbol)
-                            .map(|set| set.iter().cloned().collect())
-                            .unwrap_or_default();
-
-                        let first_set = firsts.get_mut(lhs).unwrap();
-                        for symbol in first_symbols {
-                            if first_set.insert(symbol) {
-                                changed = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    firsts
-}
-
-fn compute_lasts(productions: &[Production]) -> HashMap<Symbol, BTreeSet<Symbol>> {
-    let mut lasts: HashMap<Symbol, BTreeSet<Symbol>> = HashMap::new();
-    let mut changed = true;
-
-    // Initialize lasts sets
-    for production in productions {
-        lasts.entry(production.lhs.clone()).or_default();
-    }
-
-    // Keep iterating until no changes are made
-    while changed {
-        changed = false;
-
-        for production in productions {
-            let lhs = &production.lhs;
-
-            // For each production A → β, add last(β) to last(A)
-            if let Some(last_symbol) = production.rhs.last() {
-                match last_symbol {
-                    // If it's a terminal, add it directly
-                    Symbol::Terminal(_) => {
-                        let last_set = lasts.get_mut(lhs).unwrap();
-                        if last_set.insert(last_symbol.clone()) {
-                            changed = true;
-                        }
-                    }
-                    // If it's a non-terminal, add all its lasts
-                    Symbol::NonTerminal(_) => {
-                        let last_symbols: Vec<_> = lasts
-                            .get(last_symbol)
-                            .map(|set| set.iter().cloned().collect())
-                            .unwrap_or_default();
-
-                        let last_set = lasts.get_mut(lhs).unwrap();
-                        for symbol in last_symbols {
-                            if last_set.insert(symbol) {
-                                changed = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    lasts
-}
-
 type Stage1Table = HashMap<BTreeSet<Item>, Stage1Row>;
 type Stage2Table = HashMap<BTreeSet<Item>, Stage2Row>;
 type Stage3Table = HashMap<BTreeSet<Item>, Stage3Row>;
@@ -211,20 +82,26 @@ struct Stage2Row {
 struct Stage3Row {
     shifts: HashMap<Terminal, BTreeSet<Item>>,
     gotos: HashMap<NonTerminal, BTreeSet<Item>>,
+    /// Split the reduce items by lookahead.
+    /// For LR(0), all possible terminals map to the entire reduce item set.
+    /// But there are various cleverer and more selective ways to compute lookaheads.
+    /// For simplicity, use LALR.
     reduces: HashMap<Terminal, BTreeSet<Item>>,
 }
 struct Stage4Row {
     shifts: HashMap<Terminal, BTreeSet<Item>>,
     gotos: HashMap<NonTerminal, BTreeSet<Item>>,
+    /// Each item in the reduce has a dot at the end, so throw away the dot and just store the production ID.
     reduces: HashMap<Terminal, BTreeSet<ProductionID>>,
 }
 struct Stage5Row {
     shifts: HashMap<Terminal, BTreeSet<Item>>,
     gotos: HashMap<NonTerminal, BTreeSet<Item>>,
-    /// The `usize` here is the length of the production, i.e. the number of items to pop off the stack during reduction
+    /// The `usize` here is the length of the production, i.e. the number of items to pop off the stack during reduction.
     reduces: HashMap<Terminal, BTreeMap<usize, BTreeSet<NonTerminal>>>,
 }
 struct Stage6Row {
+    /// Map each item set to a unique ID, and do the same for terminals and nonterminals.
     shifts: HashMap<TerminalID, StateID>,
     gotos: HashMap<NonTerminalID, StateID>,
     reduces: HashMap<TerminalID, BTreeMap<usize, BTreeSet<NonTerminalID>>>,
