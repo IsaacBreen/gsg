@@ -235,7 +235,7 @@ type Stage2Result = Stage2Table;
 type Stage3Result = Stage3Table;
 type Stage4Result = Stage4Table;
 type Stage5Result = Stage5Table;
-type Stage6Result = (Stage6Table, BiMap<BTreeSet<Item>, StateID>, BiMap<String, NonTerminalID>);
+type Stage6Result = (Stage6Table, BiMap<Terminal, TerminalID>, BiMap<NonTerminal, NonTerminalID>, BiMap<BTreeSet<Item>, StateID>);
 
 fn stage_1(productions: &[Production]) -> Stage1Result {
     let mut worklist = VecDeque::from([BTreeSet::from([Item {
@@ -281,19 +281,28 @@ fn stage_5(stage_4_table: Stage4Table) -> Stage5Result {
     todo!()
 }
 
-fn stage_6(stage_5_table: Stage5Table, terminal_map: &HashMap<Terminal, TerminalID>) -> Stage6Result {
+fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
     todo!()
 }
 
-fn parse(input: &[TerminalID], stage_6_table: Stage6Table) -> Vec<Vec<Symbol>> {
+fn parse(input: &[TerminalID], stage_6_table: &Stage6Table) -> Vec<Vec<Symbol>> {
     todo!()
+}
+
+fn generate_parse_table(productions: &[Production]) -> Stage6Result {
+    let stage_1_table = stage_1(productions);
+    let stage_2_table = stage_2(stage_1_table);
+    let stage_3_table = stage_3(stage_2_table);
+    let stage_4_table = stage_4(stage_3_table);
+    let stage_5_table = stage_5(stage_4_table);
+    stage_6(stage_5_table)
 }
 
 fn nt(name: &str) -> Symbol {
     Symbol::NonTerminal(NonTerminal(name.to_string()))
 }
 
-fn term(name: &str) -> Symbol {
+fn t(name: &str) -> Symbol {
     Symbol::Terminal(Terminal(name.to_string()))
 }
 
@@ -310,37 +319,42 @@ mod glalr_tests {
 
     #[test]
     fn test_parse_simple_expression() {
-        let plus = term("+");
-        let times = term("*");
-        let lparen = term("(");
-        let rparen = term(")");
-        let i = term("i");
         let productions = vec![
+            // S -> E
+            prod("S", vec![nt("E")]),
             // E -> E + T
-            prod("E", vec![nt("E"), plus, nt("T")]),
+            prod("E", vec![nt("E"), t("+"), nt("T")]),
             // E -> T
             prod("E", vec![nt("T")]),
             // T -> T * F
-            prod("T", vec![nt("T"), times, nt("F")]),
+            prod("T", vec![nt("T"), t("*"), nt("F")]),
             // T -> F
             prod("T", vec![nt("F")]),
             // F -> ( E )
-            prod("F", vec![lparen, nt("E"), rparen]),
+            prod("F", vec![t("("), nt("E"), t(")")]),
             // F -> i
-            prod("F", vec![i]),
+            prod("F", vec![t("i")]),
         ];
 
-    //     let parse_table = generate_parse_table(&productions, "S");
-    //
-    //     assert!(parse("i+i*i", &parse_table, &productions, "S").is_ok());
-    //     assert!(parse("i+i", &parse_table, &productions, "S").is_ok());
-    //     assert!(parse("i*i", &parse_table, &productions, "S").is_ok());
-    //     assert!(parse("i", &parse_table, &productions, "S").is_ok());
-    //     assert!(parse("(i+i)*i", &parse_table, &productions, "S").is_ok());
-    //
-    //     assert!(parse("i+", &parse_table, &productions, "S").is_err());
-    //     assert!(parse("i++i", &parse_table, &productions, "S").is_err());
-    //     assert!(parse("", &parse_table, &productions, "S").is_err());
-    //     assert!(parse(")", &parse_table, &productions, "S").is_err());
+        let (parse_table, terminal_map, non_terminal_map, state_map) = generate_parse_table(&productions);
+
+        let tokenize = |input: &str| -> Vec<TerminalID> {
+            let mut result = Vec::new();
+            for c in input.chars() {
+                result.push(terminal_map.get_by_left(&Terminal(c.to_string())).unwrap().clone());
+            }
+            result
+        };
+
+        assert!(!parse(&tokenize("i+i*i"), &parse_table).is_empty());
+        assert!(!parse(&tokenize("i+i"), &parse_table).is_empty());
+        assert!(!parse(&tokenize("i*i"), &parse_table).is_empty());
+        assert!(!parse(&tokenize("i"), &parse_table).is_empty());
+        assert!(!parse(&tokenize("(i+i)*i"), &parse_table).is_empty());
+
+        assert!(parse(&tokenize("i+"), &parse_table).is_empty());
+        assert!(parse(&tokenize("i++i"), &parse_table).is_empty());
+        assert!(parse(&tokenize(""), &parse_table).is_empty());
+        assert!(parse(&tokenize(")"), &parse_table).is_empty());
     }
 }
