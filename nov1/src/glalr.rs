@@ -49,6 +49,13 @@ fn term(c: char) -> Symbol {
     Symbol::Terminal(c)
 }
 
+fn prod(name: &str, rhs: Vec<Symbol>) -> Production {
+    Production {
+        lhs: nt(name),
+        rhs,
+    }
+}
+
 #[cfg(test)]
 mod glalr_tests {
     use super::*;
@@ -56,7 +63,18 @@ mod glalr_tests {
     #[test]
     fn test_parse_simple_expression() {
         let productions = vec![
-
+            // E -> E + T
+            prod("E", vec![nt("E"), term('+'), nt("T")]),
+            // E -> T
+            prod("E", vec![nt("T")]),
+            // T -> T * F
+            prod("T", vec![nt("T"), term('*'), nt("F")]),
+            // T -> F
+            prod("T", vec![nt("F")]),
+            // F -> ( E )
+            prod("F", vec![term('('), nt("E"), term(')')]),
+            // F -> i
+            prod("F", vec![term('i')]),
         ];
 
         let parse_table = generate_parse_table(&productions, "S");
