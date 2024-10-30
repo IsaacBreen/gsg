@@ -10,7 +10,7 @@ struct NonTerminalID(usize);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Symbol {
-    Terminal(char),
+    Terminal(u8),
     NonTerminal(String),
 }
 
@@ -197,30 +197,30 @@ type Stage6Table = HashMap<StateID, Stage6Row>;
 
 type Stage1Row = HashMap<Option<Symbol>, BTreeSet<Item>>;
 struct Stage2Row {
-    shifts: HashMap<char, BTreeSet<Item>>,
+    shifts: HashMap<u8, BTreeSet<Item>>,
     gotos: HashMap<String, BTreeSet<Item>>,
     reduces: BTreeSet<Item>,
 }
 struct Stage3Row {
-    shifts: HashMap<char, BTreeSet<Item>>,
+    shifts: HashMap<u8, BTreeSet<Item>>,
     gotos: HashMap<String, BTreeSet<Item>>,
-    reduces: HashMap<char, BTreeSet<Item>>,
+    reduces: HashMap<u8, BTreeSet<Item>>,
 }
 struct Stage4Row {
-    shifts: HashMap<char, BTreeSet<Item>>,
+    shifts: HashMap<u8, BTreeSet<Item>>,
     gotos: HashMap<String, BTreeSet<Item>>,
-    reduces: HashMap<char, BTreeSet<ProductionID>>,
+    reduces: HashMap<u8, BTreeSet<ProductionID>>,
 }
 struct Stage5Row {
-    shifts: HashMap<char, BTreeSet<Item>>,
+    shifts: HashMap<u8, BTreeSet<Item>>,
     gotos: HashMap<String, BTreeSet<Item>>,
     /// The `usize` here is the length of the production, i.e. the number of items to pop off the stack during reduction
-    reduces: HashMap<char, BTreeMap<usize, String>>,
+    reduces: HashMap<u8, BTreeMap<usize, String>>,
 }
 struct Stage6Row {
-    shifts: HashMap<char, StateID>,
+    shifts: HashMap<u8, StateID>,
     gotos: HashMap<NonTerminalID, StateID>,
-    reduces: HashMap<char, BTreeMap<usize, NonTerminalID>>,
+    reduces: HashMap<u8, BTreeMap<usize, NonTerminalID>>,
 }
 
 type Stage1Result = Stage1Table;
@@ -282,7 +282,7 @@ fn nt(name: &str) -> Symbol {
     Symbol::NonTerminal(name.to_string())
 }
 
-fn term(c: char) -> Symbol {
+fn term(c: u8) -> Symbol {
     Symbol::Terminal(c)
 }
 
@@ -301,17 +301,17 @@ mod glalr_tests {
     fn test_parse_simple_expression() {
         let productions = vec![
             // E -> E + T
-            prod("E", vec![nt("E"), term('+'), nt("T")]),
+            prod("E", vec![nt("E"), term(b'+'), nt("T")]),
             // E -> T
             prod("E", vec![nt("T")]),
             // T -> T * F
-            prod("T", vec![nt("T"), term('*'), nt("F")]),
+            prod("T", vec![nt("T"), term(b'*'), nt("F")]),
             // T -> F
             prod("T", vec![nt("F")]),
             // F -> ( E )
-            prod("F", vec![term('('), nt("E"), term(')')]),
+            prod("F", vec![term(b'('), nt("E"), term(b')')]),
             // F -> i
-            prod("F", vec![term('i')]),
+            prod("F", vec![term(b'i')]),
         ];
 
     //     let parse_table = generate_parse_table(&productions, "S");
