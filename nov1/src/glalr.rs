@@ -25,7 +25,7 @@ enum Symbol {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct Production {
-    lhs: Symbol,
+    lhs: NonTerminal,
     rhs: Vec<Symbol>,
 }
 
@@ -43,7 +43,7 @@ fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BTreeS
         let mut new_items = BTreeSet::new();
         for item in &closure {
             if let Some(Symbol::NonTerminal(nt)) = item.production.rhs.get(item.dot_position) {
-                for prod in productions.iter().filter(|p| p.lhs == Symbol::NonTerminal(nt.clone())) {
+                for prod in productions.iter().filter(|p| p.lhs == nt.clone()) {
                     let new_item = Item {
                         production: prod.clone(),
                         dot_position: 0,
@@ -213,8 +213,8 @@ fn stage_2(stage_1_table: Stage1Table) -> Stage2Result {
 
 use std::collections::HashSet;
 
-fn compute_first_sets(productions: &[Production]) -> HashMap<Symbol, HashSet<Terminal>> {
-    let mut first_sets: HashMap<Symbol, HashSet<Terminal>> = HashMap::new();
+fn compute_first_sets(productions: &[Production]) -> HashMap<NonTerminal, HashSet<Terminal>> {
+    let mut first_sets: HashMap<NonTerminal, HashSet<Terminal>> = HashMap::new();
 
     // Initialize first sets
     for production in productions {
@@ -222,21 +222,8 @@ fn compute_first_sets(productions: &[Production]) -> HashMap<Symbol, HashSet<Ter
         if !first_sets.contains_key(lhs) {
             first_sets.insert(lhs.clone(), HashSet::new());
         }
-        for symbol in &production.rhs {
-            match symbol {
-                Symbol::Terminal(_) => {
-                    if !first_sets.contains_key(symbol) {
-                        let mut set = HashSet::new();
-                        if let Symbol::Terminal(t) = symbol {
-                            set.insert(t.clone());
-                        }
-                        first_sets.insert(symbol.clone(), set);
-                    }
-                }
-                Symbol::NonTerminal(_) => {
-                    first_sets.entry(symbol.clone()).or_default();
-                }
-            }
+        if let Symbol::Terminal(t) = &production.rhs[0] {
+            first_sets.get_mut(lhs).unwrap().insert(t.clone());
         }
     }
 
@@ -251,12 +238,11 @@ fn compute_first_sets(productions: &[Production]) -> HashMap<Symbol, HashSet<Ter
 
             let old_size = first_sets.get_mut(lhs).unwrap().len();
 
-            for symbol in rhs {
-                let symbol_first_set = first_sets.get(symbol).unwrap().clone();
-                first_sets.get_mut(lhs).unwrap().extend(symbol_first_set);
+            let first_rhs = &rhs[0];
 
-                // For LR(0), we can assume no epsilon productions
-                break;
+            if let Symbol::NonTerminal(nt) = first_rhs {
+                let first_nt = first_sets[nt].clone();
+                first_sets.get_mut(lhs).unwrap().extend(first_nt);
             }
 
             if first_sets.get_mut(lhs).unwrap().len() != old_size {
@@ -270,9 +256,9 @@ fn compute_first_sets(productions: &[Production]) -> HashMap<Symbol, HashSet<Ter
 
 fn compute_follow_sets(
     productions: &[Production],
-    first_sets: &HashMap<Symbol, HashSet<Terminal>>,
-) -> HashMap<Symbol, HashSet<Terminal>> {
-    let mut follow_sets: HashMap<Symbol, HashSet<Terminal>> = HashMap::new();
+    first_sets: &HashMap<NonTerminal, HashSet<Terminal>>,
+) -> HashMap<NonTerminal, HashSet<Terminal>> {
+    let mut follow_sets: HashMap<NonTerminal, HashSet<Terminal>> = HashMap::new();
 
     // Initialize follow sets
     for production in productions {
@@ -298,27 +284,27 @@ fn compute_follow_sets(
             let rhs = &production.rhs;
 
             for (i, symbol) in rhs.iter().enumerate() {
-                if let Symbol::NonTerminal(_) = symbol {
-                    let old_size = follow_sets.get_mut(symbol).unwrap().len();
+                if let Symbol::NonTerminal(nt) = symbol {
+                    let old_size = follow_sets.get_mut(nt).unwrap().len();
 
                     if i + 1 < rhs.len() {
                         let next_symbol = &rhs[i + 1];
                         match next_symbol {
-                            Symbol::Terminal(t) => {
-                                follow_sets.get_mut(symbol).unwrap().insert(t.clone());
+                            Symbol::Terminal(t_next) => {
+                                follow_sets.get_mut(nt).unwrap().insert(t_next.clone());
                             }
-                            Symbol::NonTerminal(_) => {
-                                let first_next = &first_sets[next_symbol];
-                                follow_sets.get_mut(symbol).unwrap().extend(first_next.clone());
+                            Symbol::NonTerminal(nt_next) => {
+                                let first_next = &first_sets[nt_next];
+                                follow_sets.get_mut(nt).unwrap().extend(first_next.clone());
                             }
                         }
                     } else {
                         // Last symbol in the production
                         let follow_lhs = follow_sets.get(lhs).unwrap().clone();
-                        follow_sets.get_mut(symbol).unwrap().extend(follow_lhs);
+                        follow_sets.get_mut(nt).unwrap().extend(follow_lhs);
                     }
 
-                    if follow_sets.get_mut(symbol).unwrap().len() != old_size {
+                    if follow_sets.get_mut(nt).unwrap().len() != old_size {
                         changed = true;
                     }
                 }
@@ -401,13 +387,7 @@ fn stage_5(stage_4_table: Stage4Table, productions: &[Production]) -> Stage5Resu
     let production_info: HashMap<ProductionID, (usize, NonTerminal)> = productions
         .iter()
         .enumerate()
-        .filter_map(|(i, p)| {
-            if let Symbol::NonTerminal(nt) = &p.lhs {
-                Some((ProductionID(i), (p.rhs.len(), nt.clone())))
-            } else {
-                None
-            }
-        })
+        .map(|(i, p)| (ProductionID(i), (p.rhs.len(), p.lhs.clone())))
         .collect();
 
     let mut stage_5_table = HashMap::new();
@@ -503,6 +483,8 @@ fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
             for (len, nts) in len_map {
                 let mut nt_ids = BTreeSet::new();
                 for nt in nts {
+                    dbg!(&non_terminal_map);
+                    dbg!(&nt);
                     let nt_id = *non_terminal_map.get_by_left(&nt).unwrap();
                     nt_ids.insert(nt_id);
                 }
@@ -601,7 +583,7 @@ fn t(name: &str) -> Symbol {
 }
 
 fn prod(name: &str, rhs: Vec<Symbol>) -> Production {
-    Production { lhs: nt(name), rhs }
+    Production { lhs: NonTerminal(name.to_string()), rhs }
 }
 
 #[cfg(test)]
