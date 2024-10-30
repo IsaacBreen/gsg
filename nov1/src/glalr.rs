@@ -566,14 +566,20 @@ fn parse(
                 .and_then(|row| row.gotos.get(&nt_id))
             {
                 Some(&state) => state,
-                None => return vec![], // Error
+                None => {
+                    // TODO: is this a valid accept condition?
+                    if stack.len() == 1 && input_pos == input.len() {
+                        // Accept
+                        return vec![symbols_stack];
+                    } else {
+                        // Error
+                        return vec![];
+                    }
+                }
             };
             stack.push(goto_state_id);
             let non_terminal = non_terminal_map.get_by_right(&nt_id).unwrap().clone();
             symbols_stack.push(Symbol::NonTerminal(non_terminal));
-        } else if stack.len() == 1 && input_pos == input.len() {
-            // Accept
-            return vec![symbols_stack];
         } else {
             // Error
             return vec![];
@@ -582,22 +588,22 @@ fn parse(
 }
 
 fn generate_parse_table(productions: &[Production]) -> Stage6Result {
-    dbg!(&productions);
+    // dbg!(&productions);
     let stage_1_table = stage_1(productions);
-    dbg!(&stage_1_table);
+    // dbg!(&stage_1_table);
     let stage_2_table = stage_2(stage_1_table);
-    dbg!(&stage_2_table);
+    // dbg!(&stage_2_table);
     let stage_3_table = stage_3(stage_2_table, productions);
-    dbg!(&stage_3_table);
+    // dbg!(&stage_3_table);
     let stage_4_table = stage_4(stage_3_table, productions);
-    dbg!(&stage_4_table);
+    // dbg!(&stage_4_table);
     let stage_5_table = stage_5(stage_4_table, productions);
-    dbg!(&stage_5_table);
+    // dbg!(&stage_5_table);
     let (stage_6_table, terminal_map, non_terminal_map, state_map) = stage_6(stage_5_table);
-    dbg!(&stage_6_table);
-    dbg!(&terminal_map);
-    dbg!(&non_terminal_map);
-    dbg!(&state_map);
+    // dbg!(&stage_6_table);
+    // dbg!(&terminal_map);
+    // dbg!(&non_terminal_map);
+    // dbg!(&state_map);
 
     (stage_6_table, terminal_map, non_terminal_map, state_map)
 }
