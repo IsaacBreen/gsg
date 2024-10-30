@@ -1,9 +1,24 @@
-use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
+use bimap::BiMap;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct StateID(usize);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct ProductionID(usize);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct NonTerminalID(usize);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Symbol {
     Terminal(char),
     NonTerminal(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Action {
+    Shift(StateID),
+    Reduce(ProductionID),
+    Accept,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -76,40 +91,6 @@ fn split_on_dot(items: &BTreeSet<Item>) -> HashMap<Option<Symbol>, BTreeSet<Item
     result
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-enum Action {
-    Shift(usize),
-    Reduce(usize),
-    Accept,
-}
-
-fn generate_transitions(productions: &[Production]) -> HashMap<BTreeSet<Item>, HashMap<Option<Symbol>, BTreeSet<Item>>> {
-    let mut worklist = VecDeque::from([BTreeSet::from([Item {
-        production: productions[0].clone(),
-        dot_position: 0,
-    }])]);
-
-    let mut transitions: HashMap<BTreeSet<Item>, HashMap<Option<Symbol>, BTreeSet<Item>>> = HashMap::new();
-
-    while let Some(items) = worklist.pop_front() {
-        if transitions.contains_key(&items) {
-            // Already processed
-            continue;
-        }
-
-        transitions.insert(items.clone(), HashMap::new());
-
-        let closure = compute_closure(&items, productions);
-
-        for (maybe_symbol, items) in split_on_dot(&closure) {
-            transitions.get_mut(&items).unwrap().insert(maybe_symbol, compute_goto(&items));
-
-            worklist.push_back(items);
-        }
-    }
-
-    transitions
-}
 
 fn compute_firsts(productions: &[Production]) -> HashMap<Symbol, BTreeSet<Symbol>> {
     let mut firsts: HashMap<Symbol, BTreeSet<Symbol>> = HashMap::new();
@@ -205,6 +186,92 @@ fn compute_lasts(productions: &[Production]) -> HashMap<Symbol, BTreeSet<Symbol>
     }
 
     lasts
+}
+
+type Stage1Table = HashMap<BTreeSet<Item>, Stage1Row>;
+type Stage2Table = HashMap<BTreeSet<Item>, Stage2Row>;
+type Stage3Table = HashMap<BTreeSet<Item>, Stage3Row>;
+type Stage4Table = HashMap<BTreeSet<Item>, Stage4Row>;
+type Stage5Table = HashMap<BTreeSet<Item>, Stage5Row>;
+type Stage6Table = HashMap<StateID, Stage6Row>;
+
+type Stage1Row = HashMap<Option<Symbol>, BTreeSet<Item>>;
+struct Stage2Row {
+    shifts: HashMap<char, BTreeSet<Item>>,
+    gotos: HashMap<String, BTreeSet<Item>>,
+    reduces: BTreeSet<Item>,
+}
+struct Stage3Row {
+    shifts: HashMap<char, BTreeSet<Item>>,
+    gotos: HashMap<String, BTreeSet<Item>>,
+    reduces: HashMap<char, BTreeSet<Item>>,
+}
+struct Stage4Row {
+    shifts: HashMap<char, BTreeSet<Item>>,
+    gotos: HashMap<String, BTreeSet<Item>>,
+    reduces: HashMap<char, BTreeSet<ProductionID>>,
+}
+struct Stage5Row {
+    shifts: HashMap<char, BTreeSet<Item>>,
+    gotos: HashMap<String, BTreeSet<Item>>,
+    /// The `usize` here is the length of the production, i.e. the number of items to pop off the stack during reduction
+    reduces: HashMap<char, BTreeMap<usize, String>>,
+}
+struct Stage6Row {
+    shifts: HashMap<char, StateID>,
+    gotos: HashMap<NonTerminalID, StateID>,
+    reduces: HashMap<char, BTreeMap<usize, NonTerminalID>>,
+}
+
+type Stage1Result = Stage1Table;
+type Stage2Result = Stage2Table;
+type Stage3Result = Stage3Table;
+type Stage4Result = Stage4Table;
+type Stage5Result = Stage5Table;
+type Stage6Result = (Stage4Table, BiMap<BTreeSet<Item>, StateID>, BiMap<String, NonTerminalID>);
+
+fn stage_1(productions: &[Production]) -> Stage1Result {
+    let mut worklist = VecDeque::from([BTreeSet::from([Item {
+        production: productions[0].clone(),
+        dot_position: 0,
+    }])]);
+
+    let mut transitions: HashMap<BTreeSet<Item>, HashMap<Option<Symbol>, BTreeSet<Item>>> = HashMap::new();
+
+    while let Some(items) = worklist.pop_front() {
+        if transitions.contains_key(&items) {
+            // Already processed
+            continue;
+        }
+
+        transitions.insert(items.clone(), HashMap::new());
+
+        let closure = compute_closure(&items, productions);
+
+        for (maybe_symbol, items) in split_on_dot(&closure) {
+            transitions.get_mut(&items).unwrap().insert(maybe_symbol, compute_goto(&items));
+
+            worklist.push_back(items);
+        }
+    }
+
+    transitions
+}
+
+fn stage_2(stage_1_table: Stage1Table) -> Stage2Result {
+    todo!()
+}
+
+fn stage_3(stage_2_table: Stage2Table) -> Stage3Result {
+    todo!()
+}
+
+fn stage_4(stage_3_table: Stage3Table) -> Stage4Result {
+    todo!()
+}
+
+fn stage_5(stage_4_table: Stage4Table) -> Stage5Result {
+    todo!()
 }
 
 // fn parse(input: &str, parse_table: &HashMap<BTreeSet<Item>, HashMap<Option<Symbol>, BTreeSet<(Action, BTreeSet<Item>)>>>, productions: &[Production], start_symbol: &str) -> Result<(), String> {
