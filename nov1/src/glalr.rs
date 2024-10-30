@@ -1,22 +1,29 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use bimap::BiMap;
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct NonTerminal(String);
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct Terminal(String);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct StateID(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct ProductionID(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct NonTerminalID(usize);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct TerminalID(usize);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Symbol {
-    Terminal(u8),
-    NonTerminal(String),
+    Terminal(Terminal),
+    NonTerminal(NonTerminal),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum Action {
-    Shift(StateID),
+    Shift(TerminalID),
     Reduce(ProductionID),
     Accept,
 }
@@ -197,30 +204,30 @@ type Stage6Table = HashMap<StateID, Stage6Row>;
 
 type Stage1Row = HashMap<Option<Symbol>, BTreeSet<Item>>;
 struct Stage2Row {
-    shifts: HashMap<u8, BTreeSet<Item>>,
-    gotos: HashMap<String, BTreeSet<Item>>,
+    shifts: HashMap<Terminal, BTreeSet<Item>>,
+    gotos: HashMap<NonTerminal, BTreeSet<Item>>,
     reduces: BTreeSet<Item>,
 }
 struct Stage3Row {
-    shifts: HashMap<u8, BTreeSet<Item>>,
-    gotos: HashMap<String, BTreeSet<Item>>,
-    reduces: HashMap<u8, BTreeSet<Item>>,
+    shifts: HashMap<Terminal, BTreeSet<Item>>,
+    gotos: HashMap<NonTerminal, BTreeSet<Item>>,
+    reduces: HashMap<Terminal, BTreeSet<Item>>,
 }
 struct Stage4Row {
-    shifts: HashMap<u8, BTreeSet<Item>>,
-    gotos: HashMap<String, BTreeSet<Item>>,
-    reduces: HashMap<u8, BTreeSet<ProductionID>>,
+    shifts: HashMap<Terminal, BTreeSet<Item>>,
+    gotos: HashMap<NonTerminal, BTreeSet<Item>>,
+    reduces: HashMap<Terminal, BTreeSet<ProductionID>>,
 }
 struct Stage5Row {
-    shifts: HashMap<u8, BTreeSet<Item>>,
-    gotos: HashMap<String, BTreeSet<Item>>,
+    shifts: HashMap<Terminal, BTreeSet<Item>>,
+    gotos: HashMap<NonTerminal, BTreeSet<Item>>,
     /// The `usize` here is the length of the production, i.e. the number of items to pop off the stack during reduction
-    reduces: HashMap<u8, BTreeMap<usize, String>>,
+    reduces: HashMap<Terminal, BTreeMap<usize, BTreeSet<NonTerminal>>>,
 }
 struct Stage6Row {
-    shifts: HashMap<u8, StateID>,
+    shifts: HashMap<TerminalID, StateID>,
     gotos: HashMap<NonTerminalID, StateID>,
-    reduces: HashMap<u8, BTreeMap<usize, NonTerminalID>>,
+    reduces: HashMap<TerminalID, BTreeMap<usize, BTreeSet<NonTerminalID>>>,
 }
 
 type Stage1Result = Stage1Table;
@@ -228,7 +235,7 @@ type Stage2Result = Stage2Table;
 type Stage3Result = Stage3Table;
 type Stage4Result = Stage4Table;
 type Stage5Result = Stage5Table;
-type Stage6Result = (Stage4Table, BiMap<BTreeSet<Item>, StateID>, BiMap<String, NonTerminalID>);
+type Stage6Result = (Stage6Table, BiMap<BTreeSet<Item>, StateID>, BiMap<String, NonTerminalID>);
 
 fn stage_1(productions: &[Production]) -> Stage1Result {
     let mut worklist = VecDeque::from([BTreeSet::from([Item {
@@ -274,16 +281,20 @@ fn stage_5(stage_4_table: Stage4Table) -> Stage5Result {
     todo!()
 }
 
-// fn parse(input: &str, parse_table: &HashMap<BTreeSet<Item>, HashMap<Option<Symbol>, BTreeSet<(Action, BTreeSet<Item>)>>>, productions: &[Production], start_symbol: &str) -> Result<(), String> {
-//     todo!()
-// }
-
-fn nt(name: &str) -> Symbol {
-    Symbol::NonTerminal(name.to_string())
+fn stage_6(stage_5_table: Stage5Table, terminal_map: &HashMap<Terminal, TerminalID>) -> Stage6Result {
+    todo!()
 }
 
-fn term(c: u8) -> Symbol {
-    Symbol::Terminal(c)
+fn parse(input: &[TerminalID], stage_6_table: Stage6Table) -> Vec<Vec<Symbol>> {
+    todo!()
+}
+
+fn nt(name: &str) -> Symbol {
+    Symbol::NonTerminal(NonTerminal(name.to_string()))
+}
+
+fn term(name: &str) -> Symbol {
+    Symbol::Terminal(Terminal(name.to_string()))
 }
 
 fn prod(name: &str, rhs: Vec<Symbol>) -> Production {
@@ -299,19 +310,24 @@ mod glalr_tests {
 
     #[test]
     fn test_parse_simple_expression() {
+        let plus = term("+");
+        let times = term("*");
+        let lparen = term("(");
+        let rparen = term(")");
+        let i = term("i");
         let productions = vec![
             // E -> E + T
-            prod("E", vec![nt("E"), term(b'+'), nt("T")]),
+            prod("E", vec![nt("E"), plus, nt("T")]),
             // E -> T
             prod("E", vec![nt("T")]),
             // T -> T * F
-            prod("T", vec![nt("T"), term(b'*'), nt("F")]),
+            prod("T", vec![nt("T"), times, nt("F")]),
             // T -> F
             prod("T", vec![nt("F")]),
             // F -> ( E )
-            prod("F", vec![term(b'('), nt("E"), term(b')')]),
+            prod("F", vec![lparen, nt("E"), rparen]),
             // F -> i
-            prod("F", vec![term(b'i')]),
+            prod("F", vec![i]),
         ];
 
     //     let parse_table = generate_parse_table(&productions, "S");
