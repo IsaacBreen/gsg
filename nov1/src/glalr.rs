@@ -92,11 +92,13 @@ type Stage5Table = HashMap<BTreeSet<Item>, Stage5Row>;
 type Stage6Table = HashMap<StateID, Stage6Row>;
 
 type Stage1Row = HashMap<Option<Symbol>, BTreeSet<Item>>;
+#[derive(Debug)]
 struct Stage2Row {
     shifts: HashMap<Terminal, BTreeSet<Item>>,
     gotos: HashMap<NonTerminal, BTreeSet<Item>>,
     reduces: BTreeSet<Item>,
 }
+#[derive(Debug)]
 struct Stage3Row {
     shifts: HashMap<Terminal, BTreeSet<Item>>,
     gotos: HashMap<NonTerminal, BTreeSet<Item>>,
@@ -106,18 +108,21 @@ struct Stage3Row {
     /// For simplicity, use LALR.
     reduces: HashMap<Terminal, BTreeSet<Item>>,
 }
+#[derive(Debug)]
 struct Stage4Row {
     shifts: HashMap<Terminal, BTreeSet<Item>>,
     gotos: HashMap<NonTerminal, BTreeSet<Item>>,
     /// Each item in the reduce has a dot at the end, so throw away the dot and just store the production ID.
     reduces: HashMap<Terminal, BTreeSet<ProductionID>>,
 }
+#[derive(Debug)]
 struct Stage5Row {
     shifts: HashMap<Terminal, BTreeSet<Item>>,
     gotos: HashMap<NonTerminal, BTreeSet<Item>>,
     /// The `usize` here is the length of the production, i.e. the number of items to pop off the stack during reduction.
     reduces: HashMap<Terminal, BTreeMap<usize, BTreeSet<NonTerminal>>>,
 }
+#[derive(Debug)]
 struct Stage6Row {
     /// Map each item set to a unique ID, and do the same for terminals and nonterminals.
     shifts: HashMap<TerminalID, StateID>,
@@ -456,6 +461,19 @@ fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
         next_non_terminal_id += 1;
     }
 
+    for (_, row) in &stage_5_table {
+        for (_, len_map) in &row.reduces {
+            for (_, nts) in len_map {
+                for nt in nts {
+                    if !non_terminal_map.contains_left(nt) {
+                        non_terminal_map.insert(nt.clone(), NonTerminalID(next_non_terminal_id));
+                        next_non_terminal_id += 1;
+                    }
+                }
+            }
+        }
+    }
+
     let mut stage_6_table = HashMap::new();
 
     for (item_set, row) in stage_5_table {
@@ -483,8 +501,6 @@ fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
             for (len, nts) in len_map {
                 let mut nt_ids = BTreeSet::new();
                 for nt in nts {
-                    dbg!(&non_terminal_map);
-                    dbg!(&nt);
                     let nt_id = *non_terminal_map.get_by_left(&nt).unwrap();
                     nt_ids.insert(nt_id);
                 }
@@ -566,12 +582,24 @@ fn parse(
 }
 
 fn generate_parse_table(productions: &[Production]) -> Stage6Result {
+    dbg!(&productions);
     let stage_1_table = stage_1(productions);
+    dbg!(&stage_1_table);
     let stage_2_table = stage_2(stage_1_table);
+    dbg!(&stage_2_table);
     let stage_3_table = stage_3(stage_2_table, productions);
+    dbg!(&stage_3_table);
     let stage_4_table = stage_4(stage_3_table, productions);
+    dbg!(&stage_4_table);
     let stage_5_table = stage_5(stage_4_table, productions);
-    stage_6(stage_5_table)
+    dbg!(&stage_5_table);
+    let (stage_6_table, terminal_map, non_terminal_map, state_map) = stage_6(stage_5_table);
+    dbg!(&stage_6_table);
+    dbg!(&terminal_map);
+    dbg!(&non_terminal_map);
+    dbg!(&state_map);
+
+    (stage_6_table, terminal_map, non_terminal_map, state_map)
 }
 
 fn nt(name: &str) -> Symbol {
