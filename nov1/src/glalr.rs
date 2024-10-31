@@ -700,7 +700,21 @@ fn print_parse_table(
     for (item_set, state_id) in state_map {
         writeln!(&mut output, "  State {}:", state_id.0).unwrap();
         for item in item_set {
-            writeln!(&mut output, "    - {:?}", item).unwrap();
+            write!(&mut output, "    - {} ->", item.production.lhs.0).unwrap();
+            for (i, symbol) in item.production.rhs.iter().enumerate() {
+                if i == item.dot_position {
+                    write!(&mut output, " .").unwrap();
+                }
+                match symbol {
+                    Symbol::Terminal(terminal) => {
+                        write!(&mut output, " {:?}", terminal.0).unwrap();
+                    }
+                    Symbol::NonTerminal(non_terminal) => {
+                        write!(&mut output, " {}", non_terminal.0).unwrap();
+                    }
+                }
+            }
+            writeln!(&mut output, "").unwrap();
         }
     }
 
