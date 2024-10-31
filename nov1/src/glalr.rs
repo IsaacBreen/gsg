@@ -523,17 +523,29 @@ fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
     (stage_6_table, terminal_map, non_terminal_map, state_map)
 }
 
+struct ParseState {
+    stack: Vec<StateID>,
+    symbols_stack: Vec<Symbol>,
+    input_pos: usize,
+}
+
 fn parse(
     input: &[TerminalID],
     stage_6_table: &Stage6Table,
     terminal_map: &BiMap<Terminal, TerminalID>,
     non_terminal_map: &BiMap<NonTerminal, NonTerminalID>,
-) -> Vec<Vec<Symbol>> {
-    let mut stack = vec![StateID(0)];
-    let mut symbols_stack: Vec<Symbol> = Vec::new();
-    let mut input_pos = 0;
+) -> Vec<ParseState> {
+    let mut active_states = vec![ParseState {
+        stack: vec![StateID(0)],
+        symbols_stack: vec![],
+        input_pos: 0,
+    }];
+    let mut final_states = Vec::new();
 
-    loop {
+    while let Some(state) = active_states.pop() {
+        let mut stack = state.stack;
+        let mut symbols_stack = state.symbols_stack;
+        let mut input_pos = state.input_pos;
         let state_id = *stack.last().unwrap();
         let token = if input_pos < input.len() {
             input[input_pos]
@@ -542,10 +554,7 @@ fn parse(
             terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap()
         };
 
-        let row = match stage_6_table.get(&state_id) {
-            Some(row) => row,
-            None => return vec![], // Error
-        };
+        let row = stage_6_table.get(&state_id).unwrap();
 
         if let Some(&next_state_id) = row.shifts.get(&token) {
             // Shift
@@ -553,38 +562,55 @@ fn parse(
             let terminal = terminal_map.get_by_right(&token).unwrap().clone();
             symbols_stack.push(Symbol::Terminal(terminal));
             input_pos += 1;
+            active_states.push(ParseState {
+                stack,
+                symbols_stack,
+                input_pos,
+            });
         } else if let Some(reduces) = row.reduces.get(&token) {
             // Reduce
-            let (&len, nt_ids) = reduces.iter().next().unwrap(); // Simplified: pick the first reduce action
-            for _ in 0..len {
-                stack.pop();
-                symbols_stack.pop();
-            }
-            let nt_id = *nt_ids.iter().next().unwrap(); // Simplified
-            let goto_state_id = match stage_6_table
-                .get(stack.last().unwrap())
-                .and_then(|row| row.gotos.get(&nt_id))
-            {
-                Some(&state) => state,
-                None => {
-                    // TODO: is this a valid accept condition?
-                    if stack.len() == 1 && input_pos == input.len() {
-                        // Accept
-                        return vec![symbols_stack];
+            for (&len, nt_ids) in reduces {
+                let mut stack = stack.clone();
+                let mut symbols_stack = symbols_stack.clone();
+                for _ in 0..len {
+                    stack.pop();
+                    symbols_stack.pop();
+                }
+                for &nt_id in nt_ids {
+                    let mut stack = stack.clone();
+                    let mut symbols_stack = symbols_stack.clone();
+                    let revealed_state = stack.last().unwrap();
+                    let goto_row = stage_6_table.get(revealed_state).unwrap();
+                    if let Some(&goto_state) = goto_row.gotos.get(&nt_id) {
+                        stack.push(goto_state);
+                        let non_terminal = non_terminal_map.get_by_right(&nt_id).unwrap().clone();
+                        symbols_stack.push(Symbol::NonTerminal(non_terminal));
+                        active_states.push(ParseState {
+                            stack,
+                            symbols_stack,
+                            input_pos,
+                        });
                     } else {
-                        // Error
-                        return vec![];
+                        // TODO: is this a valid accept condition?
+                        if stack.len() == 1 && input_pos == input.len() {
+                            // Accept
+                            final_states.push(ParseState {
+                                stack,
+                                symbols_stack,
+                                input_pos,
+                            });
+                        } else {
+                            // Error
+                        }
                     }
                 }
-            };
-            stack.push(goto_state_id);
-            let non_terminal = non_terminal_map.get_by_right(&nt_id).unwrap().clone();
-            symbols_stack.push(Symbol::NonTerminal(non_terminal));
+            }
         } else {
             // Error
-            return vec![];
         }
     }
+
+    final_states
 }
 
 fn generate_parse_table(productions: &[Production]) -> Stage6Result {
@@ -623,6 +649,24 @@ fn prod(name: &str, rhs: Vec<Symbol>) -> Production {
 #[cfg(test)]
 mod glalr_tests {
     use super::*;
+
+    #[test]
+    fn test_simple_parse_table() {
+        let productions = vec![
+            // S -> a
+            prod("S", vec![nt("A")]),
+            // A -> A a | b
+            prod("A", vec![nt("A"), t("a")]),
+            prod("A", vec![t("b")]),
+        ];
+
+        let (parse_table, terminal_map, non_terminal_map, item_set_map) = generate_parse_table(&productions);
+
+        dbg!(&parse_table);
+        dbg!(&terminal_map);
+        dbg!(&non_terminal_map);
+        dbg!(&item_set_map);
+    }
 
     #[test]
     fn test_parse_simple_expression() {
