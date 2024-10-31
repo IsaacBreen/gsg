@@ -679,7 +679,6 @@ fn print_parse_table(
             if item.dot_position == item.production.rhs.len() {
                 write!(&mut output, " •").unwrap();
             }
-            write!(&mut output, " ({})", item.dot_position).unwrap();
             writeln!(&mut output, "").unwrap();
         }
 
