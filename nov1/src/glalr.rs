@@ -662,24 +662,24 @@ fn print_parse_table(
         writeln!(&mut output, "    Shifts:").unwrap();
         for (&terminal_id, &next_state_id) in &row.shifts {
             let terminal = terminal_map.get_by_right(&terminal_id).unwrap();
-            writeln!(&mut output, "      - {:?} -> {}", terminal, next_state_id.0).unwrap();
+            writeln!(&mut output, "      - {:?} -> {}", terminal.0, next_state_id.0).unwrap();
         }
 
         writeln!(&mut output, "    Gotos:").unwrap();
         for (&non_terminal_id, &next_state_id) in &row.gotos {
             let non_terminal = non_terminal_map.get_by_right(&non_terminal_id).unwrap();
-            writeln!(&mut output, "      - {:?} -> {}", non_terminal, next_state_id.0).unwrap();
+            writeln!(&mut output, "      - {:?} -> {}", non_terminal.0, next_state_id.0).unwrap();
         }
 
         writeln!(&mut output, "    Reduces:").unwrap();
         for (&terminal_id, reduces) in &row.reduces {
             let terminal = terminal_map.get_by_right(&terminal_id).unwrap();
-            writeln!(&mut output, "      - {:?}:", terminal).unwrap();
+            writeln!(&mut output, "      - {:?}:", terminal.0).unwrap();
             for (&len, nt_ids) in reduces {
                 writeln!(&mut output, "        - Pop {}:", len).unwrap();
                 for &nt_id in nt_ids {
                     let non_terminal = non_terminal_map.get_by_right(&nt_id).unwrap();
-                    writeln!(&mut output, "          - {:?}", non_terminal).unwrap();
+                    writeln!(&mut output, "          - {:?}", non_terminal.0).unwrap();
                 }
             }
         }
@@ -688,12 +688,12 @@ fn print_parse_table(
 
     writeln!(&mut output, "\nTerminal Map:").unwrap();
     for (terminal, terminal_id) in terminal_map {
-        writeln!(&mut output, "  {:?} -> {}", terminal, terminal_id.0).unwrap();
+        writeln!(&mut output, "  {:?} -> {}", terminal.0, terminal_id.0).unwrap();
     }
 
     writeln!(&mut output, "\nNon-Terminal Map:").unwrap();
     for (non_terminal, non_terminal_id) in non_terminal_map {
-        writeln!(&mut output, "  {:?} -> {}", non_terminal, non_terminal_id.0).unwrap();
+        writeln!(&mut output, "  {:?} -> {}", non_terminal.0, non_terminal_id.0).unwrap();
     }
 
     writeln!(&mut output, "\nState Map:").unwrap();
