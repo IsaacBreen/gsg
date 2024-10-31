@@ -141,6 +141,7 @@ type Stage6Result = (
     BiMap<Terminal, TerminalID>,
     BiMap<NonTerminal, NonTerminalID>,
     BiMap<BTreeSet<Item>, StateID>,
+    StateID,
 );
 
 fn stage_1(productions: &[Production]) -> Stage1Result {
@@ -178,7 +179,7 @@ fn stage_1(productions: &[Production]) -> Stage1Result {
     transitions
 }
 
-fn stage_2(stage_1_table: Stage1Table) -> Stage2Result {
+fn stage_2(stage_1_table: Stage1Table, productions: &[Production]) -> Stage2Result {
     let mut stage_2_table = HashMap::new();
     for (item_set, transitions) in stage_1_table {
         let mut shifts = HashMap::new();
@@ -423,10 +424,10 @@ fn stage_5(stage_4_table: Stage4Table, productions: &[Production]) -> Stage5Resu
     stage_5_table
 }
 
-fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
+fn stage_6(stage_5_table: Stage5Table, productions: &[Production]) -> Stage6Result {
     let mut terminal_map = BiMap::new();
     let mut non_terminal_map = BiMap::new();
-    let mut state_map = BiMap::new();
+    let mut item_set_map = BiMap::new();
     let mut next_terminal_id = 0;
     let mut next_non_terminal_id = 0;
     let mut next_state_id = 0;
@@ -436,7 +437,7 @@ fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
     let mut non_terminals = BTreeSet::new();
 
     for (item_set, row) in &stage_5_table {
-        state_map.insert(item_set.clone(), StateID(next_state_id));
+        item_set_map.insert(item_set.clone(), StateID(next_state_id));
         next_state_id += 1;
 
         for t in row.shifts.keys() {
@@ -478,19 +479,19 @@ fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
     let mut stage_6_table = HashMap::new();
 
     for (item_set, row) in stage_5_table {
-        let state_id = *state_map.get_by_left(&item_set).unwrap();
+        let state_id = *item_set_map.get_by_left(&item_set).unwrap();
 
         let mut shifts = HashMap::new();
         for (t, next_item_set) in row.shifts {
             let terminal_id = *terminal_map.get_by_left(&t).unwrap();
-            let next_state_id = *state_map.get_by_left(&next_item_set).unwrap();
+            let next_state_id = *item_set_map.get_by_left(&next_item_set).unwrap();
             shifts.insert(terminal_id, next_state_id);
         }
 
         let mut gotos = HashMap::new();
         for (nt, next_item_set) in row.gotos {
             let non_terminal_id = *non_terminal_map.get_by_left(&nt).unwrap();
-            let next_state_id = *state_map.get_by_left(&next_item_set).unwrap();
+            let next_state_id = *item_set_map.get_by_left(&next_item_set).unwrap();
             gotos.insert(non_terminal_id, next_state_id);
         }
 
@@ -521,7 +522,13 @@ fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
         );
     }
 
-    (stage_6_table, terminal_map, non_terminal_map, state_map)
+    let start_item = Item {
+        production: productions[0].clone(),
+        dot_position: 0,
+    };
+    let start_state_id = *item_set_map.get_by_left(&BTreeSet::from([start_item])).unwrap();
+
+    (stage_6_table, terminal_map, non_terminal_map, item_set_map, start_state_id)
 }
 
 struct ParseState {
@@ -618,22 +625,13 @@ fn parse(
 fn generate_parse_table(productions: &[Production]) -> Stage6Result {
     // dbg!(&productions);
     let stage_1_table = stage_1(productions);
-    // dbg!(&stage_1_table);
-    let stage_2_table = stage_2(stage_1_table);
-    // dbg!(&stage_2_table);
+    let stage_2_table = stage_2(stage_1_table, productions);
     let stage_3_table = stage_3(stage_2_table, productions);
-    // dbg!(&stage_3_table);
     let stage_4_table = stage_4(stage_3_table, productions);
-    // dbg!(&stage_4_table);
     let stage_5_table = stage_5(stage_4_table, productions);
-    // dbg!(&stage_5_table);
-    let (stage_6_table, terminal_map, non_terminal_map, state_map) = stage_6(stage_5_table);
-    // dbg!(&stage_6_table);
-    // dbg!(&terminal_map);
-    // dbg!(&non_terminal_map);
-    // dbg!(&state_map);
+    let (stage_6_table, terminal_map, non_terminal_map, item_set_map, start_state_id) = stage_6(stage_5_table, productions);
 
-    (stage_6_table, terminal_map, non_terminal_map, state_map)
+    (stage_6_table, terminal_map, non_terminal_map, item_set_map, start_state_id)
 }
 
 fn nt(name: &str) -> Symbol {
@@ -652,7 +650,7 @@ fn print_parse_table(
     stage_6_table: &Stage6Table,
     terminal_map: &BiMap<Terminal, TerminalID>,
     non_terminal_map: &BiMap<NonTerminal, NonTerminalID>,
-    state_map: &BiMap<BTreeSet<Item>, StateID>,
+    item_set_map: &BiMap<BTreeSet<Item>, StateID>,
 ) {
     let mut output = String::new();
 
@@ -661,7 +659,7 @@ fn print_parse_table(
         writeln!(&mut output, "  State {}:", state_id.0).unwrap();
 
         writeln!(&mut output, "    Items:").unwrap();
-        let item_set = state_map.get_by_right(&state_id).unwrap();
+        let item_set = item_set_map.get_by_right(&state_id).unwrap();
         for item in item_set {
             write!(&mut output, "      - {} ->", item.production.lhs.0).unwrap();
             for (i, symbol) in item.production.rhs.iter().enumerate() {
@@ -737,7 +735,7 @@ mod glalr_tests {
             prod("A", vec![t("b")]),
         ];
 
-        let (parse_table, terminal_map, non_terminal_map, item_set_map) = generate_parse_table(&productions);
+        let (parse_table, terminal_map, non_terminal_map, item_set_map, start_state_id) = generate_parse_table(&productions);
 
         print_parse_table(&parse_table, &terminal_map, &non_terminal_map, &item_set_map);
 
@@ -753,14 +751,6 @@ mod glalr_tests {
             }
             result
         };
-
-        // The start state is the state contains the initial item for the first production.
-        let start_item = Item {
-            production: productions[0].clone(),
-            dot_position: 0,
-        };
-
-        let start_state_id = *item_set_map.get_by_left(&BTreeSet::from([start_item])).unwrap();
 
         assert!(!parse(
             &tokenize("b"),
@@ -825,7 +815,7 @@ mod glalr_tests {
             prod("F", vec![t("i")]),
         ];
 
-        let (parse_table, terminal_map, non_terminal_map, item_set_map) = generate_parse_table(&productions);
+        let (parse_table, terminal_map, non_terminal_map, item_set_map, start_state_id) = generate_parse_table(&productions);
 
         print_parse_table(&parse_table, &terminal_map, &non_terminal_map, &item_set_map);
 
@@ -841,13 +831,6 @@ mod glalr_tests {
             }
             result
         };
-
-        let start_item = Item {
-            production: productions[0].clone(),
-            dot_position: 0,
-        };
-
-        let start_state_id = *item_set_map.get_by_left(&BTreeSet::from([start_item])).unwrap();
 
         assert!(!parse(
             &tokenize("i"),
