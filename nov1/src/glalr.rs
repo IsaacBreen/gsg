@@ -148,7 +148,7 @@ fn stage_1(productions: &[Production]) -> Stage1Result {
         production: productions[0].clone(),
         dot_position: 0,
     };
-    let initial_closure = compute_closure(&BTreeSet::from([initial_item]), productions);
+    let initial_closure = BTreeSet::from([initial_item]);
     let mut worklist = VecDeque::from([initial_closure.clone()]);
 
     let mut transitions: HashMap<BTreeSet<Item>, HashMap<Option<Symbol>, BTreeSet<Item>>> = HashMap::new();
