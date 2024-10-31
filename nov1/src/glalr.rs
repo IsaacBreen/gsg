@@ -676,6 +676,10 @@ fn print_parse_table(
                     }
                 }
             }
+            if item.dot_position == item.production.rhs.len() {
+                write!(&mut output, " •").unwrap();
+            }
+            write!(&mut output, " ({})", item.dot_position).unwrap();
             writeln!(&mut output, "").unwrap();
         }
 
@@ -808,7 +812,9 @@ mod glalr_tests {
             prod("F", vec![t("i")]),
         ];
 
-        let (parse_table, terminal_map, non_terminal_map, _) = generate_parse_table(&productions);
+        let (parse_table, terminal_map, non_terminal_map, item_set_map) = generate_parse_table(&productions);
+
+        print_parse_table(&parse_table, &terminal_map, &non_terminal_map, &item_set_map);
 
         let tokenize = |input: &str| -> Vec<TerminalID> {
             let mut result = Vec::new();
@@ -823,6 +829,13 @@ mod glalr_tests {
             result
         };
 
+        assert!(!parse(
+            &tokenize("i"),
+            &parse_table,
+            &terminal_map,
+            &non_terminal_map
+        )
+        .is_empty());
         assert!(!parse(
             &tokenize("i+i*i"),
             &parse_table,
