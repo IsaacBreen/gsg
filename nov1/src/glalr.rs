@@ -656,7 +656,7 @@ fn print_parse_table(
     let mut output = String::new();
 
     writeln!(&mut output, "Parse Table:").unwrap();
-    for (&state_id, row) in stage_6_table {
+    for (state_id, row) in stage_6_table.iter().collect::<BTreeMap<_, _>>() {
         writeln!(&mut output, "  State {}:", state_id.0).unwrap();
 
         writeln!(&mut output, "    Items:").unwrap();
