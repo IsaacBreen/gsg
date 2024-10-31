@@ -532,12 +532,13 @@ struct ParseState {
 
 fn parse(
     input: &[TerminalID],
+    start_state_id: StateID,
     stage_6_table: &Stage6Table,
     terminal_map: &BiMap<Terminal, TerminalID>,
     non_terminal_map: &BiMap<NonTerminal, NonTerminalID>,
 ) -> Vec<ParseState> {
     let mut active_states = vec![ParseState {
-        stack: vec![StateID(0)],
+        stack: vec![start_state_id],
         symbols_stack: vec![],
         input_pos: 0,
     }];
@@ -753,8 +754,17 @@ mod glalr_tests {
             result
         };
 
+        // The start state is the state contains the initial item for the first production.
+        let start_item = Item {
+            production: productions[0].clone(),
+            dot_position: 0,
+        };
+
+        let start_state_id = *item_set_map.get_by_left(&BTreeSet::from([start_item])).unwrap();
+
         assert!(!parse(
             &tokenize("b"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -762,6 +772,7 @@ mod glalr_tests {
         .is_empty());
         assert!(!parse(
             &tokenize("ba"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -769,6 +780,7 @@ mod glalr_tests {
         .is_empty());
         assert!(!parse(
             &tokenize("baa"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -777,6 +789,7 @@ mod glalr_tests {
 
         assert!(parse(
             &tokenize("a"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -785,6 +798,7 @@ mod glalr_tests {
 
         assert!(parse(
             &tokenize("bb"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -828,8 +842,16 @@ mod glalr_tests {
             result
         };
 
+        let start_item = Item {
+            production: productions[0].clone(),
+            dot_position: 0,
+        };
+
+        let start_state_id = *item_set_map.get_by_left(&BTreeSet::from([start_item])).unwrap();
+
         assert!(!parse(
             &tokenize("i"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -837,6 +859,7 @@ mod glalr_tests {
         .is_empty());
         assert!(!parse(
             &tokenize("i+i*i"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -844,6 +867,7 @@ mod glalr_tests {
         .is_empty());
         assert!(!parse(
             &tokenize("i+i"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -851,6 +875,7 @@ mod glalr_tests {
         .is_empty());
         assert!(!parse(
             &tokenize("i*i"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -858,6 +883,7 @@ mod glalr_tests {
         .is_empty());
         assert!(!parse(
             &tokenize("i"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -865,6 +891,7 @@ mod glalr_tests {
         .is_empty());
         assert!(!parse(
             &tokenize("(i+i)*i"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -873,6 +900,7 @@ mod glalr_tests {
 
         assert!(parse(
             &tokenize("i+"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -880,6 +908,7 @@ mod glalr_tests {
         .is_empty());
         assert!(parse(
             &tokenize("i++i"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -887,6 +916,7 @@ mod glalr_tests {
         .is_empty());
         assert!(parse(
             &tokenize(""),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
@@ -894,6 +924,7 @@ mod glalr_tests {
         .is_empty());
         assert!(parse(
             &tokenize(")"),
+            start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
