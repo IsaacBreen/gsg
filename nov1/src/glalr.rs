@@ -703,7 +703,7 @@ fn print_parse_table(
             write!(&mut output, "    - {} ->", item.production.lhs.0).unwrap();
             for (i, symbol) in item.production.rhs.iter().enumerate() {
                 if i == item.dot_position {
-                    write!(&mut output, " .").unwrap();
+                    write!(&mut output, " ●").unwrap();
                 }
                 match symbol {
                     Symbol::Terminal(terminal) => {
