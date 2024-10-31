@@ -659,6 +659,26 @@ fn print_parse_table(
     for (&state_id, row) in stage_6_table {
         writeln!(&mut output, "  State {}:", state_id.0).unwrap();
 
+        writeln!(&mut output, "    Items:").unwrap();
+        let item_set = state_map.get_by_right(&state_id).unwrap();
+        for item in item_set {
+            write!(&mut output, "      - {} ->", item.production.lhs.0).unwrap();
+            for (i, symbol) in item.production.rhs.iter().enumerate() {
+                if i == item.dot_position {
+                    write!(&mut output, " •").unwrap();
+                }
+                match symbol {
+                    Symbol::Terminal(terminal) => {
+                        write!(&mut output, " {:?}", terminal.0).unwrap();
+                    }
+                    Symbol::NonTerminal(non_terminal) => {
+                        write!(&mut output, " {}", non_terminal.0).unwrap();
+                    }
+                }
+            }
+            writeln!(&mut output, "").unwrap();
+        }
+
         writeln!(&mut output, "    Shifts:").unwrap();
         for (&terminal_id, &next_state_id) in &row.shifts {
             let terminal = terminal_map.get_by_right(&terminal_id).unwrap();
@@ -694,28 +714,6 @@ fn print_parse_table(
     writeln!(&mut output, "\nNon-Terminal Map:").unwrap();
     for (non_terminal, non_terminal_id) in non_terminal_map {
         writeln!(&mut output, "  {:?} -> {}", non_terminal.0, non_terminal_id.0).unwrap();
-    }
-
-    writeln!(&mut output, "\nState Map:").unwrap();
-    for (item_set, state_id) in state_map {
-        writeln!(&mut output, "  State {}:", state_id.0).unwrap();
-        for item in item_set {
-            write!(&mut output, "    - {} ->", item.production.lhs.0).unwrap();
-            for (i, symbol) in item.production.rhs.iter().enumerate() {
-                if i == item.dot_position {
-                    write!(&mut output, " ●").unwrap();
-                }
-                match symbol {
-                    Symbol::Terminal(terminal) => {
-                        write!(&mut output, " {:?}", terminal.0).unwrap();
-                    }
-                    Symbol::NonTerminal(non_terminal) => {
-                        write!(&mut output, " {}", non_terminal.0).unwrap();
-                    }
-                }
-            }
-            writeln!(&mut output, "").unwrap();
-        }
     }
 
     println!("{}", output);
