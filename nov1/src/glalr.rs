@@ -736,6 +736,57 @@ mod glalr_tests {
         let (parse_table, terminal_map, non_terminal_map, item_set_map) = generate_parse_table(&productions);
 
         print_parse_table(&parse_table, &terminal_map, &non_terminal_map, &item_set_map);
+
+        let tokenize = |input: &str| -> Vec<TerminalID> {
+            let mut result = Vec::new();
+            for c in input.chars() {
+                let terminal = Terminal(c.to_string());
+                if let Some(id) = terminal_map.get_by_left(&terminal) {
+                    result.push(*id);
+                } else {
+                    panic!("Unknown token: {}", c);
+                }
+            }
+            result
+        };
+
+        assert!(!parse(
+            &tokenize("b"),
+            &parse_table,
+            &terminal_map,
+            &non_terminal_map
+        )
+        .is_empty());
+        assert!(!parse(
+            &tokenize("ba"),
+            &parse_table,
+            &terminal_map,
+            &non_terminal_map
+        )
+        .is_empty());
+        assert!(!parse(
+            &tokenize("baa"),
+            &parse_table,
+            &terminal_map,
+            &non_terminal_map
+        )
+        .is_empty());
+
+        assert!(parse(
+            &tokenize("a"),
+            &parse_table,
+            &terminal_map,
+            &non_terminal_map
+        )
+        .is_empty());
+
+        assert!(parse(
+            &tokenize("bb"),
+            &parse_table,
+            &terminal_map,
+            &non_terminal_map
+        )
+        .is_empty());
     }
 
     #[test]
