@@ -117,8 +117,14 @@ pub struct GLRParserState<'a> {
 
 pub struct ParseState {
     pub stack: Rc<GSSNode<StateID>>,
-    pub symbols_stack: Rc<GSSNode<Symbol>>,
+    pub action_stack: Rc<GSSNode<Action>>,
     pub status: ParseStatus,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Action {
+    Shift,
+    Reduce { len: usize, nonterminal: NonTerminalID },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -142,7 +148,7 @@ impl GLRParserState<'_> {
             parser,
             active_states: vec![ParseState {
                 stack: start_stack,
-                symbols_stack: start_symbols,
+                action_stack: start_symbols,
                 status: ParseStatus::Active,
             }],
             inactive_states: HashMap::new(),
@@ -172,7 +178,7 @@ impl GLRParserState<'_> {
 
         while let Some(state) = self.active_states.pop() {
             let stack = state.stack;
-            let symbols_stack = state.symbols_stack;
+            let symbols_stack = state.action_stack;
             let state_id = *stack.peek();
 
             let row = self.parser.stage_7_table.get(&state_id).unwrap();
@@ -185,7 +191,7 @@ impl GLRParserState<'_> {
                         let new_symbols = symbols_stack.push(Symbol::Terminal(terminal));
                         next_active_states.push(ParseState {
                             stack: Rc::new(new_stack),
-                            symbols_stack: Rc::new(new_symbols),
+                            action_stack: Rc::new(new_symbols),
                             status: ParseStatus::Active,
                         });
 
@@ -204,13 +210,13 @@ impl GLRParserState<'_> {
                                 let new_symbols = symbol_node.push(Symbol::NonTerminal(nt));
                                 self.active_states.push(ParseState {
                                     stack: Rc::new(new_stack),
-                                    symbols_stack: Rc::new(new_symbols),
+                                    action_stack: Rc::new(new_symbols),
                                     status: ParseStatus::Active,
                                 });
                             } else {
                                 inactive_states.push(ParseState {
                                     stack: stack_node.clone(),
-                                    symbols_stack: symbol_node.clone(),
+                                    action_stack: symbol_node.clone(),
                                     status: ParseStatus::Inactive(StopReason::GotoNotFound),
                                 });
                             }
@@ -225,7 +231,7 @@ impl GLRParserState<'_> {
 
                             next_active_states.push(ParseState {
                                 stack: Rc::new(new_stack),
-                                symbols_stack: Rc::new(new_symbols),
+                                action_stack: Rc::new(new_symbols),
                                 status: ParseStatus::Active,
                             });
                         }
@@ -244,14 +250,14 @@ impl GLRParserState<'_> {
                                         let new_symbols = symbol_node.push(Symbol::NonTerminal(nt));
                                         self.active_states.push(ParseState {
                                             stack: Rc::new(new_stack),
-                                            symbols_stack: Rc::new(new_symbols),
+                                            action_stack: Rc::new(new_symbols),
                                             status: ParseStatus::Active,
                                         });
 
                                     } else {
                                         inactive_states.push(ParseState {
                                             stack: stack_node.clone(),
-                                            symbols_stack: symbol_node.clone(),
+                                            action_stack: symbol_node.clone(),
                                             status: ParseStatus::Inactive(StopReason::GotoNotFound),
                                         });
                                     }
@@ -263,7 +269,7 @@ impl GLRParserState<'_> {
             } else {
                 inactive_states.push(ParseState {
                     stack,
-                    symbols_stack,
+                    action_stack: symbols_stack,
                     status: ParseStatus::Inactive(StopReason::ActionNotFound),
                 });
             }
@@ -275,6 +281,12 @@ impl GLRParserState<'_> {
         if token != &self1.eof_terminal_id {
             self.input_pos += 1;
         }
+    }
+
+    pub fn merge_active_states(&mut self) {
+        let active_state_map: HashMap<(StateID, Action), ParseState> = HashMap::new();
+        
+        todo!()
     }
 
     pub fn fully_matches(&self) -> bool {
@@ -292,4 +304,3 @@ impl GLRParserState<'_> {
         }
     }
 }
-// src/glr/parser.rs
