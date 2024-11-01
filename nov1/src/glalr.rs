@@ -713,7 +713,6 @@ fn print_parse_table(
 struct ParseState {
     stack: Vec<StateID>,
     symbols_stack: Vec<Symbol>,
-    input_pos: usize,
 }
 
 struct ParseResult {
@@ -736,124 +735,120 @@ fn parse(
     let mut active_states = vec![ParseState {
         stack: vec![start_state_id],
         symbols_stack: vec![],
-        input_pos: 0,
     }];
     let mut final_states = Vec::new();
+    let mut input_pos = 0;
 
-    while let Some(state) = active_states.pop() {
-        let stack = state.stack;
-        let symbols_stack = state.symbols_stack;
-        let input_pos = state.input_pos;
-        let state_id = *stack.last().unwrap();
+    while input_pos <= input.len() {
         let token = if input_pos < input.len() {
             input[input_pos]
         } else {
             terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap()
         };
 
-        let row = stage_7_table.get(&state_id).unwrap();
+        let mut next_active_states = Vec::new();
 
-        if let Some(action) = row.shifts_and_reduces.get(&token) {
-            match action {
-                Stage7ShiftsAndReduces::Shift(next_state_id) => {
-                    let mut new_stack = stack;
-                    let mut new_symbols = symbols_stack;
-                    new_stack.push(*next_state_id);
-                    new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
-                    active_states.push(ParseState {
-                        stack: new_stack,
-                        symbols_stack: new_symbols,
-                        input_pos: input_pos + 1,
-                    });
-                }
-                Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
-                    let mut new_stack = stack;
-                    let mut new_symbols = symbols_stack;
-                    for _ in 0..*len {
-                        new_stack.pop();
-                        new_symbols.pop();
-                    }
-                    let revealed_state = *new_stack.last().unwrap();
-                    let goto_row = stage_7_table.get(&revealed_state).unwrap();
-                    if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
-                        new_stack.push(goto_state);
-                        new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nonterminal).unwrap().clone()));
-                        active_states.push(ParseState {
+        for state in active_states {
+            let stack = state.stack;
+            let symbols_stack = state.symbols_stack;
+            let state_id = *stack.last().unwrap();
+
+            let row = stage_7_table.get(&state_id).unwrap();
+
+            if let Some(action) = row.shifts_and_reduces.get(&token) {
+                match action {
+                    Stage7ShiftsAndReduces::Shift(next_state_id) => {
+                        let mut new_stack = stack;
+                        let mut new_symbols = symbols_stack;
+                        new_stack.push(*next_state_id);
+                        new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
+                        next_active_states.push(ParseState {
                             stack: new_stack,
                             symbols_stack: new_symbols,
-                            input_pos,
                         });
-                    } else {
-                        // Sanity tests
-                        assert_eq!(new_stack.len(), 1);
-                        assert_eq!(new_stack[0], start_state_id);
-                        if input_pos == input.len() {
-                            // Accept
-                            final_states.push(ParseState {
+                    }
+                    Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
+                        let mut new_stack = stack;
+                        let mut new_symbols = symbols_stack;
+                        for _ in 0..*len {
+                            new_stack.pop();
+                            new_symbols.pop();
+                        }
+                        let revealed_state = *new_stack.last().unwrap();
+                        let goto_row = stage_7_table.get(&revealed_state).unwrap();
+                        if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
+                            new_stack.push(goto_state);
+                            new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nonterminal).unwrap().clone()));
+                            next_active_states.push(ParseState {
                                 stack: new_stack,
                                 symbols_stack: new_symbols,
-                                input_pos,
                             });
                         } else {
-                            // Error
-                            print!("Parse error: Finished before consuming all input\n");
-                        }
-                    }
-                }
-                Stage7ShiftsAndReduces::Split { shift, reduces } => {
-                    if let Some(shift_state) = shift {
-                        let mut new_stack = stack.clone();
-                        let mut new_symbols = symbols_stack.clone();
-                        new_stack.push(*shift_state);
-                        new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
-                        active_states.push(ParseState {
-                            stack: new_stack,
-                            symbols_stack: new_symbols,
-                            input_pos: input_pos + 1,
-                        });
-                    }
-
-                    for (len, nt_ids) in reduces {
-                        for nt_id in nt_ids {
-                            let mut new_stack = stack.clone();
-                            let mut new_symbols = symbols_stack.clone();
-                            for _ in 0..*len {
-                                new_stack.pop();
-                                new_symbols.pop();
-                            }
-                            let revealed_state = *new_stack.last().unwrap();
-                            let goto_row = stage_7_table.get(&revealed_state).unwrap();
-
-                            if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
-                                new_stack.push(goto_state);
-                                new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nt_id).unwrap().clone()));
-                                active_states.push(ParseState {
+                            // Sanity checks for successful parse at end of input
+                            if input_pos == input.len() && new_stack.len() == 1 && new_stack[0] == start_state_id {
+                                final_states.push(ParseState {
                                     stack: new_stack,
                                     symbols_stack: new_symbols,
-                                    input_pos,
                                 });
-                            } else {
-                                // Sanity tests
-                                assert_eq!(new_stack.len(), 1);
-                                assert_eq!(new_stack[0], start_state_id);
-                                if input_pos == input.len() {
-                                    // Accept
-                                    final_states.push(ParseState {
+                            }
+                        }
+                    }
+                    Stage7ShiftsAndReduces::Split { shift, reduces } => {
+                        if let Some(shift_state) = shift {
+                            let mut new_stack = stack.clone();
+                            let mut new_symbols = symbols_stack.clone();
+                            new_stack.push(*shift_state);
+                            new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
+                            next_active_states.push(ParseState {
+                                stack: new_stack,
+                                symbols_stack: new_symbols,
+                            });
+                        }
+
+                        for (len, nt_ids) in reduces {
+                            for nt_id in nt_ids {
+                                let mut new_stack = stack.clone();
+                                let mut new_symbols = symbols_stack.clone();
+                                for _ in 0..*len {
+                                    new_stack.pop();
+                                    new_symbols.pop();
+                                }
+                                let revealed_state = *new_stack.last().unwrap();
+                                let goto_row = stage_7_table.get(&revealed_state).unwrap();
+                                if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
+                                    new_stack.push(goto_state);
+                                    new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nt_id).unwrap().clone()));
+                                    next_active_states.push(ParseState {
                                         stack: new_stack,
                                         symbols_stack: new_symbols,
-                                        input_pos,
                                     });
                                 } else {
-                                    // Error
-                                    print!("Parse error: Finished before consuming all input\n");
+                                    // Sanity checks for successful parse at end of input
+                                    if input_pos == input.len() && new_stack.len() == 1 && new_stack[0] == start_state_id {
+                                        final_states.push(ParseState {
+                                            stack: new_stack,
+                                            symbols_stack: new_symbols,
+                                        });
+                                    }
                                 }
                             }
                         }
                     }
                 }
+            } else {
+                // No valid action found for this state and token
             }
+        }
+
+        active_states = next_active_states;
+        if active_states.is_empty() && input_pos < input.len() {
+            return ParseResult { final_states: vec![] }; // Parse error: no valid transitions
+        }
+
+        if input_pos < input.len() {
+            input_pos += 1;
         } else {
-            println!("Parse error: No action found for state {} and token {:?}", state_id.0, token);
+            break; // Reached end of input (including EOF)
         }
     }
 
