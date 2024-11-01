@@ -284,23 +284,20 @@ impl GLRParserState<'_> {
     }
 
     pub fn merge_active_states(&mut self) {
-        let mut active_state_map: HashMap<(StateID, Option<Rc<GSSNode<Action>>>), Vec<ParseState>> = HashMap::new();
+        let mut active_state_map: HashMap<(StateID, Option<Rc<GSSNode<Action>>>), ParseState> = HashMap::new();
 
         let mut new_active_states = Vec::new();
-        std::mem::swap(&mut self.active_states, &mut new_active_states);
 
-        for mut state in new_active_states {
+        for mut state in std::mem::take(&mut self.active_states) {
             let key = (*state.stack.peek(), state.action_stack.clone());
-            active_state_map.entry(key).or_default().push(state);
-        }
-
-        for (_key, states) in active_state_map {
-            let mut merged_state = states[0].clone();
-            for i in 1..states.len() {
-                Rc::make_mut(&mut merged_state.stack).merge(states[i].stack.as_ref().clone());
-
+            if let Some(existing) = active_state_map.get_mut(&key) {
+                Rc::make_mut(&mut existing.stack).merge(state.stack.as_ref().clone());
+                if let Some(existing_action_stack) = existing.action_stack.as_mut() {
+                    Rc::make_mut(existing_action_stack).merge(state.action_stack.as_ref().unwrap().clone());
+                }
+            } else {
+                new_active_states.push(state);
             }
-            self.active_states.push(merged_state);
         }
     }
 
