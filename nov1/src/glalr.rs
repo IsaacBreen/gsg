@@ -784,10 +784,13 @@ impl GLRParserState<'_> {
         }
     }
 
+    fn end_parse(&mut self) {
+        self.step(&self.parser.eof_token());
+    }
+
     fn parse(&mut self, input: &[TerminalID]) {
         self.partial_parse(input);
-        self.step(&self.parser.eof_token());
-
+        self.end_parse();
     }
 
     fn step(&mut self, token: &TerminalID) {
