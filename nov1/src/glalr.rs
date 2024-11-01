@@ -713,15 +713,27 @@ fn print_parse_table(
 struct ParseState {
     stack: Vec<StateID>,
     symbols_stack: Vec<Symbol>,
+    status: ParseStatus,
 }
 
-struct ParseResult {
-    final_states: Vec<ParseState>,
+enum ParseStatus {
+    Active,
+    Inactive(StopReason),
 }
 
-impl ParseResult {
+enum StopReason {
+    ActionNotFound,
+    GotoNotFound,
+}
+
+struct GLRParserState {
+    active_states: Vec<ParseState>,
+    inactive_states: HashMap<usize, ParseState>,
+}
+
+impl GLRParserState {
     fn is_ok(&self) -> bool {
-        self.final_states.len() > 0
+        todo!()
     }
 }
 
@@ -731,12 +743,13 @@ fn parse(
     stage_7_table: &Stage7Table,
     terminal_map: &BiMap<Terminal, TerminalID>,
     non_terminal_map: &BiMap<NonTerminal, NonTerminalID>,
-) -> ParseResult {
+) -> GLRParserState {
     let mut active_states = vec![ParseState {
         stack: vec![start_state_id],
         symbols_stack: vec![],
+        status: ParseStatus::Active,
     }];
-    let mut final_states = Vec::new();
+    let mut inactive_states = HashMap::new();
     let mut input_pos = 0;
 
     while input_pos <= input.len() {
@@ -746,11 +759,12 @@ fn parse(
             terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap()
         };
 
-        let next_active_states = step(stage_7_table, terminal_map, non_terminal_map, active_states, &token);
+        let (next_active_states, mut new_inactive_states) = step(stage_7_table, terminal_map, non_terminal_map, active_states, &token);
 
         active_states = next_active_states;
-        if active_states.is_empty() && input_pos < input.len() {
-            return ParseResult { final_states: vec![] }; // Parse error: no valid transitions
+
+        for state in new_inactive_states {
+            inactive_states.insert(input_pos, state);
         }
 
         if input_pos < input.len() {
@@ -760,11 +774,15 @@ fn parse(
         }
     }
 
-    ParseResult { final_states }
+    GLRParserState {
+        active_states,
+        inactive_states,
+    }
 }
 
-fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>, non_terminal_map: &BiMap<NonTerminal, NonTerminalID>, mut active_states: Vec<ParseState>, token: &TerminalID) -> Vec<ParseState> {
+fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>, non_terminal_map: &BiMap<NonTerminal, NonTerminalID>, mut active_states: Vec<ParseState>, token: &TerminalID) -> (Vec<ParseState>, Vec<ParseState>) {
     let mut next_active_states = Vec::new();
+    let mut inactive_states = Vec::new();
     while let Some(state) = active_states.pop() {
         let stack = state.stack;
         let symbols_stack = state.symbols_stack;
@@ -782,6 +800,7 @@ fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>,
                     next_active_states.push(ParseState {
                         stack: new_stack,
                         symbols_stack: new_symbols,
+                        status: ParseStatus::Active,
                     });
                 }
                 Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
@@ -799,10 +818,10 @@ fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>,
                         active_states.push(ParseState {
                             stack: new_stack,
                             symbols_stack: new_symbols,
+                            status: ParseStatus::Active,
                         });
                     } else {
-                        // Sanity checks for successful parse at end of input
-                        todo!()
+
                     }
                 }
                 Stage7ShiftsAndReduces::Split { shift, reduces } => {
@@ -814,6 +833,7 @@ fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>,
                         next_active_states.push(ParseState {
                             stack: new_stack,
                             symbols_stack: new_symbols,
+                            status: ParseStatus::Active,
                         });
                     }
 
@@ -833,6 +853,7 @@ fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>,
                                 active_states.push(ParseState {
                                     stack: new_stack,
                                     symbols_stack: new_symbols,
+                                    status: ParseStatus::Active,
                                 });
                             } else {
                                 todo!()
@@ -851,7 +872,7 @@ fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>,
 
     }
 
-    next_active_states
+    (next_active_states, inactive_states)
 }
 
 #[cfg(test)]
