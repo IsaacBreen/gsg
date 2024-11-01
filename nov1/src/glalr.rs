@@ -605,15 +605,22 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production]) -> Stage7Resu
     (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id)
 }
 
-fn generate_parse_table(productions: &[Production]) -> Stage7Result {
+fn generate_glr_parser(productions: &[Production]) -> GLRParser {
     let stage_1_table = stage_1(productions);
     let stage_2_table = stage_2(stage_1_table, productions);
     let stage_3_table = stage_3(stage_2_table, productions);
     let stage_4_table = stage_4(stage_3_table, productions);
     let stage_5_table = stage_5(stage_4_table, productions);
     let stage_6_table = stage_6(stage_5_table);
-    let stage_7_result = stage_7(stage_6_table, productions);
-    stage_7_result
+    let (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id) = stage_7(stage_6_table, productions);
+
+    GLRParser {
+        stage_7_table,
+        start_state_id,
+        terminal_map,
+        non_terminal_map,
+        item_set_map,
+    }
 }
 
 fn nt(name: &str) -> Symbol {
@@ -746,39 +753,36 @@ impl GLRParserState {
     }
 }
 
+struct GLRParser {
+    stage_7_table: Stage7Table,
+    start_state_id: StateID,
+    terminal_map: BiMap<Terminal, TerminalID>,
+    non_terminal_map: BiMap<NonTerminal, NonTerminalID>,
+    item_set_map: BiMap<BTreeSet<Item>, StateID>,
+}
+
 fn parse(
     input: &[TerminalID],
-    start_state_id: StateID,
-    stage_7_table: &Stage7Table,
-    terminal_map: &BiMap<Terminal, TerminalID>,
-    non_terminal_map: &BiMap<NonTerminal, NonTerminalID>,
+    glr_parser: &GLRParser,
 ) -> GLRParserState {
     let mut active_states = vec![ParseState {
-        stack: vec![start_state_id],
+        stack: vec![glr_parser.start_state_id],
         symbols_stack: vec![],
         status: ParseStatus::Active,
     }];
     let mut inactive_states = HashMap::new();
     let mut input_pos = 0;
 
-    while input_pos <= input.len() {
-        let token = if input_pos < input.len() {
-            input[input_pos]
-        } else {
-            terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap()
-        };
-
-        let (next_active_states, mut new_inactive_states) = step(stage_7_table, terminal_map, non_terminal_map, active_states, &token);
-
+    for token in input {
+        let (next_active_states, new_inactive_states) = step(&glr_parser.stage_7_table, &glr_parser.terminal_map, &glr_parser.non_terminal_map, active_states, &token);
         active_states = next_active_states;
         inactive_states.insert(input_pos, new_inactive_states);
-
-        if input_pos < input.len() {
-            input_pos += 1;
-        } else {
-            break; // Reached end of input (including EOF)
-        }
     }
+
+    let eof_token = glr_parser.terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap();
+    let (next_active_states, new_inactive_states) = step(&glr_parser.stage_7_table, &glr_parser.terminal_map, &glr_parser.non_terminal_map, active_states, &eof_token);
+    active_states = next_active_states;
+    inactive_states.insert(input_pos, new_inactive_states);
 
     GLRParserState {
         active_states,
@@ -904,15 +908,15 @@ mod glalr_tests {
             prod("A", vec![t("b")]),
         ];
 
-        let (parse_table, terminal_map, non_terminal_map, item_set_map, start_state_id) = generate_parse_table(&productions);
+        let parser = generate_glr_parser(&productions);
 
-        print_parse_table(&parse_table, &terminal_map, &non_terminal_map, &item_set_map);
+        print_parse_table(&parser.stage_7_table, &parser.terminal_map, &parser.non_terminal_map, &parser.item_set_map);
 
         let tokenize = |input: &str| -> Vec<TerminalID> {
             let mut result = Vec::new();
             for c in input.chars() {
                 let terminal = Terminal(c.to_string());
-                if let Some(id) = terminal_map.get_by_left(&terminal) {
+                if let Some(id) = parser.terminal_map.get_by_left(&terminal) {
                     result.push(*id);
                 } else {
                     panic!("Unknown token: {}", c);
@@ -923,44 +927,29 @@ mod glalr_tests {
 
         assert!(parse(
             &tokenize("b"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
         assert!(parse(
             &tokenize("ba"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
         assert!(parse(
             &tokenize("baa"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
 
         assert!(!parse(
             &tokenize("a"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
 
         assert!(!parse(
             &tokenize("bb"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
     }
@@ -984,15 +973,15 @@ mod glalr_tests {
             prod("F", vec![t("i")]),
         ];
 
-        let (parse_table, terminal_map, non_terminal_map, item_set_map, start_state_id) = generate_parse_table(&productions);
+        let parser = generate_glr_parser(&productions);
 
-        print_parse_table(&parse_table, &terminal_map, &non_terminal_map, &item_set_map);
+        print_parse_table(&parser.stage_7_table, &parser.terminal_map, &parser.non_terminal_map, &parser.item_set_map);
 
         let tokenize = |input: &str| -> Vec<TerminalID> {
             let mut result = Vec::new();
             for c in input.chars() {
                 let terminal = Terminal(c.to_string());
-                if let Some(id) = terminal_map.get_by_left(&terminal) {
+                if let Some(id) = parser.terminal_map.get_by_left(&terminal) {
                     result.push(*id);
                 } else {
                     panic!("Unknown token: {}", c);
@@ -1003,83 +992,53 @@ mod glalr_tests {
 
         assert!(parse(
             &tokenize("i"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
         assert!(parse(
             &tokenize("i+i*i"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
         assert!(parse(
             &tokenize("i+i"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
         assert!(parse(
             &tokenize("i*i"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
         assert!(parse(
             &tokenize("i"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
         assert!(parse(
             &tokenize("(i+i)*i"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
 
         assert!(!parse(
             &tokenize("i+"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
         assert!(!parse(
             &tokenize("i++i"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
         assert!(!parse(
             &tokenize(""),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
         assert!(!parse(
             &tokenize(")"),
-            start_state_id,
-            &parse_table,
-            &terminal_map,
-            &non_terminal_map
+            &parser
         )
         .fully_matches());
     }
