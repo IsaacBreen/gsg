@@ -796,19 +796,19 @@ impl GLRParserState<'_> {
         }];
 
         for token in input {
-            let (next_active_states, new_inactive_states) = self.step(&self.parser.stage_7_table, &self.parser.terminal_map, &self.parser.non_terminal_map, active_states, &token);
+            let (next_active_states, new_inactive_states) = self.step(active_states, &token);
             active_states = next_active_states;
             self.inactive_states.insert(self.input_pos, new_inactive_states);
         }
 
         let eof_token = self.parser.terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap();
-        let (next_active_states, new_inactive_states) = self.step(&self.parser.stage_7_table, &self.parser.terminal_map, &self.parser.non_terminal_map, active_states, &eof_token);
+        let (next_active_states, new_inactive_states) = self.step(active_states, &eof_token);
         active_states = next_active_states;
         self.inactive_states.insert(self.input_pos, new_inactive_states);
 
     }
 
-    fn step(&self, stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>, non_terminal_map: &BiMap<NonTerminal, NonTerminalID>, mut active_states: Vec<ParseState>, token: &TerminalID) -> (Vec<ParseState>, Vec<ParseState>) {
+    fn step(&self, mut active_states: Vec<ParseState>, token: &TerminalID) -> (Vec<ParseState>, Vec<ParseState>) {
         let mut next_active_states = Vec::new();
         let mut inactive_states = Vec::new();
         while let Some(state) = active_states.pop() {
@@ -816,7 +816,7 @@ impl GLRParserState<'_> {
             let symbols_stack = state.symbols_stack;
             let state_id = *stack.last().unwrap();
 
-            let row = stage_7_table.get(&state_id).unwrap();
+            let row = self.parser.stage_7_table.get(&state_id).unwrap();
 
             if let Some(action) = row.shifts_and_reduces.get(&token) {
                 match action {
@@ -824,7 +824,7 @@ impl GLRParserState<'_> {
                         let mut new_stack = stack;
                         let mut new_symbols = symbols_stack;
                         new_stack.push(*next_state_id);
-                        new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
+                        new_symbols.push(Symbol::Terminal(self.parser.terminal_map.get_by_right(&token).unwrap().clone()));
                         next_active_states.push(ParseState {
                             stack: new_stack,
                             symbols_stack: new_symbols,
@@ -839,10 +839,10 @@ impl GLRParserState<'_> {
                             new_symbols.pop();
                         }
                         let revealed_state = *new_stack.last().unwrap();
-                        let goto_row = stage_7_table.get(&revealed_state).unwrap();
+                        let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
                         if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
                             new_stack.push(goto_state);
-                            new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nonterminal).unwrap().clone()));
+                            new_symbols.push(Symbol::NonTerminal(self.parser.non_terminal_map.get_by_right(nonterminal).unwrap().clone()));
                             active_states.push(ParseState {
                                 stack: new_stack,
                                 symbols_stack: new_symbols,
@@ -861,7 +861,7 @@ impl GLRParserState<'_> {
                             let mut new_stack = stack.clone();
                             let mut new_symbols = symbols_stack.clone();
                             new_stack.push(*shift_state);
-                            new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
+                            new_symbols.push(Symbol::Terminal(self.parser.terminal_map.get_by_right(&token).unwrap().clone()));
                             next_active_states.push(ParseState {
                                 stack: new_stack,
                                 symbols_stack: new_symbols,
@@ -878,10 +878,10 @@ impl GLRParserState<'_> {
                                     new_symbols.pop();
                                 }
                                 let revealed_state = *new_stack.last().unwrap();
-                                let goto_row = stage_7_table.get(&revealed_state).unwrap();
+                                let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
                                 if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
                                     new_stack.push(goto_state);
-                                    new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nt_id).unwrap().clone()));
+                                    new_symbols.push(Symbol::NonTerminal(self.parser.non_terminal_map.get_by_right(nt_id).unwrap().clone()));
                                     active_states.push(ParseState {
                                         stack: new_stack,
                                         symbols_stack: new_symbols,
