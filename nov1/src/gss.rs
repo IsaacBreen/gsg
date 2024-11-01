@@ -118,6 +118,31 @@ impl<T: Clone> GSSNode<T> {
     }
 }
 
+pub trait GSSOptionRcTrait<T: Clone> {
+    fn peek(&self) -> Option<&T>;
+    fn push(self, value: T) -> GSSNode<T>;
+    fn pop(&self) -> Vec<Rc<GSSNode<T>>>;
+    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>>;
+}
+
+impl<T: Clone> GSSOptionRcTrait<T> for Option<Rc<GSSNode<T>>> {
+    fn peek(&self) -> Option<&T> {
+        self.as_ref().map(|node| node.peek())
+    }
+
+    fn push(self, value: T) -> GSSNode<T> {
+        self.map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
+    }
+
+    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
+        self.as_ref().map(|node| node.pop()).unwrap_or_default()
+    }
+
+    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
+        self.as_ref().map(|node| node.popn(n)).unwrap_or_default()
+    }
+}
+
 pub trait GSSOptionTrait<T: Clone> {
     fn peek(&self) -> Option<&T>;
     fn push(self, value: T) -> GSSNode<T>;
@@ -125,7 +150,7 @@ pub trait GSSOptionTrait<T: Clone> {
     fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>>;
 }
 
-impl<T: Clone> GSSOptionTrait<T> for Option<Rc<GSSNode<T>>> {
+impl<T: Clone> GSSOptionTrait<T> for Option<GSSNode<T>> {
     fn peek(&self) -> Option<&T> {
         self.as_ref().map(|node| node.peek())
     }
