@@ -774,7 +774,12 @@ fn parse(
                             input_pos,
                         });
                     } else {
-                        println!("Parse error: No goto defined after reduce in state {} with nonterminal {:?}", revealed_state.0, nonterminal);
+                        // Accept
+                        final_states.push(ParseState {
+                            stack: new_stack,
+                            symbols_stack: new_symbols,
+                            input_pos,
+                        });
                     }
                 }
                 Stage7ShiftsAndReduces::Split { shift, reduces } => {
@@ -810,7 +815,12 @@ fn parse(
                                     input_pos,
                                 });
                             } else {
-                                println!("Parse error: No goto defined after reduce in state {} with nonterminal {:?}", revealed_state.0, nt_id);
+                                // Accept
+                                final_states.push(ParseState {
+                                    stack: new_stack,
+                                    symbols_stack: new_symbols,
+                                    input_pos,
+                                });
                             }
                         }
                     }
@@ -818,12 +828,6 @@ fn parse(
             }
         } else {
             println!("Parse error: No action found for state {} and token {:?}", state_id.0, token);
-        }
-    }
-
-    for state in active_states {
-        if state.input_pos == input.len() && state.stack.len() == 1 {
-            final_states.push(state);
         }
     }
 
