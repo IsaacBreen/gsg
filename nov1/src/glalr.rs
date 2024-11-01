@@ -746,8 +746,8 @@ fn parse(
         if let Some(action) = row.shifts_and_reduces.get(&token) {
             match action {
                 Stage7ShiftsAndReduces::Shift(next_state_id) => {
-                    let mut new_stack = stack.clone();
-                    let mut new_symbols = symbols_stack.clone();
+                    let mut new_stack = stack;
+                    let mut new_symbols = symbols_stack;
                     new_stack.push(*next_state_id);
                     new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
                     active_states.push(ParseState {
@@ -757,8 +757,8 @@ fn parse(
                     });
                 }
                 Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
-                    let mut new_stack = stack.clone();
-                    let mut new_symbols = symbols_stack.clone();
+                    let mut new_stack = stack;
+                    let mut new_symbols = symbols_stack;
                     for _ in 0..*len {
                         new_stack.pop();
                         new_symbols.pop();
