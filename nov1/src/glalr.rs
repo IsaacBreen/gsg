@@ -716,11 +716,13 @@ struct ParseState {
     status: ParseStatus,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum ParseStatus {
     Active,
     Inactive(StopReason),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum StopReason {
     ActionNotFound,
     GotoNotFound,
@@ -728,12 +730,19 @@ enum StopReason {
 
 struct GLRParserState {
     active_states: Vec<ParseState>,
-    inactive_states: HashMap<usize, ParseState>,
+    inactive_states: HashMap<usize, Vec<ParseState>>,
+    input_pos: usize,
 }
 
 impl GLRParserState {
-    fn is_ok(&self) -> bool {
-        todo!()
+    fn fully_matches(&self) -> bool {
+        for state in &self.inactive_states[&self.input_pos] {
+            if state.status == ParseStatus::Inactive(StopReason::GotoNotFound) {
+                return true;
+            }
+        }
+
+        false
     }
 }
 
@@ -762,10 +771,7 @@ fn parse(
         let (next_active_states, mut new_inactive_states) = step(stage_7_table, terminal_map, non_terminal_map, active_states, &token);
 
         active_states = next_active_states;
-
-        for state in new_inactive_states {
-            inactive_states.insert(input_pos, state);
-        }
+        inactive_states.insert(input_pos, new_inactive_states);
 
         if input_pos < input.len() {
             input_pos += 1;
@@ -777,6 +783,7 @@ fn parse(
     GLRParserState {
         active_states,
         inactive_states,
+        input_pos,
     }
 }
 
@@ -821,7 +828,11 @@ fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>,
                             status: ParseStatus::Active,
                         });
                     } else {
-
+                        inactive_states.push(ParseState {
+                            stack: new_stack,
+                            symbols_stack: new_symbols,
+                            status: ParseStatus::Inactive(StopReason::GotoNotFound),
+                        });
                     }
                 }
                 Stage7ShiftsAndReduces::Split { shift, reduces } => {
@@ -856,18 +867,22 @@ fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>,
                                     status: ParseStatus::Active,
                                 });
                             } else {
-                                todo!()
-                                // final_states.push(ParseState {
-                                //     stack: new_stack,
-                                //     symbols_stack: new_symbols,
-                                // });
+                                inactive_states.push(ParseState {
+                                    stack: new_stack,
+                                    symbols_stack: new_symbols,
+                                    status: ParseStatus::Inactive(StopReason::GotoNotFound),
+                                })
                             }
                         }
                     }
                 }
             }
         } else {
-            // No valid action found for this state and token
+            inactive_states.push(ParseState {
+                stack,
+                symbols_stack,
+                status: ParseStatus::Inactive(StopReason::ActionNotFound),
+            });
         }
 
     }
@@ -913,7 +928,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
         assert!(parse(
             &tokenize("ba"),
             start_state_id,
@@ -921,7 +936,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
         assert!(parse(
             &tokenize("baa"),
             start_state_id,
@@ -929,7 +944,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
 
         assert!(!parse(
             &tokenize("a"),
@@ -938,7 +953,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
 
         assert!(!parse(
             &tokenize("bb"),
@@ -947,7 +962,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
     }
 
     #[test]
@@ -993,7 +1008,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
         assert!(parse(
             &tokenize("i+i*i"),
             start_state_id,
@@ -1001,7 +1016,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
         assert!(parse(
             &tokenize("i+i"),
             start_state_id,
@@ -1009,7 +1024,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
         assert!(parse(
             &tokenize("i*i"),
             start_state_id,
@@ -1017,7 +1032,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
         assert!(parse(
             &tokenize("i"),
             start_state_id,
@@ -1025,7 +1040,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
         assert!(parse(
             &tokenize("(i+i)*i"),
             start_state_id,
@@ -1033,7 +1048,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
 
         assert!(!parse(
             &tokenize("i+"),
@@ -1042,7 +1057,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
         assert!(!parse(
             &tokenize("i++i"),
             start_state_id,
@@ -1050,7 +1065,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
         assert!(!parse(
             &tokenize(""),
             start_state_id,
@@ -1058,7 +1073,7 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
         assert!(!parse(
             &tokenize(")"),
             start_state_id,
@@ -1066,6 +1081,6 @@ mod glalr_tests {
             &terminal_map,
             &non_terminal_map
         )
-        .is_ok());
+        .fully_matches());
     }
 }
