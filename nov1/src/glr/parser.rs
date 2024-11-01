@@ -1,6 +1,6 @@
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::items::Item;
-use crate::glr::table::{NonTerminalID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
+use crate::glr::table::{NonTerminalID, ProductionID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
 use crate::gss::{GSSNode, GSSOptionTrait, GSSRefTrait};
 
 use bimap::BiMap;
@@ -130,7 +130,7 @@ pub struct ParseState {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Action {
     Shift(TerminalID),
-    Reduce { len: usize, nonterminal: NonTerminalID },
+    Reduce { production_id: ProductionID, len: usize, nonterminal_id: NonTerminalID },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -209,7 +209,7 @@ impl GLRParserState<'_> {
 
                             if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
                                 let new_stack = stack_node.push(goto_state);
-                                let new_actions = action_stack.clone().push(Action::Reduce { len: *len, nonterminal: *nonterminal });
+                                let new_actions = action_stack.clone().push(Action::Reduce { production_id: *production_id, len: *len, nonterminal_id: *nonterminal });
                                 self.active_states.push(ParseState {
                                     stack: Rc::new(new_stack),
                                     action_stack: Some(Rc::new(new_actions)),
@@ -238,21 +238,22 @@ impl GLRParserState<'_> {
                         }
 
                         for (len, nt_ids) in reduces {
-                            for (nt_id, _) in nt_ids {
+                            for (nt_id, prod_ids) in nt_ids {
                                 let popped_stack_nodes = stack.popn(*len);
 
                                 for stack_node in popped_stack_nodes.into_iter() {
                                     let revealed_state = *stack_node.peek();
                                     let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
                                     if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
-                                        let new_stack = stack_node.push(goto_state);
-                                        let new_actions = action_stack.clone().push(Action::Reduce { len: *len, nonterminal: *nt_id });
-                                        self.active_states.push(ParseState {
-                                            stack: Rc::new(new_stack),
-                                            action_stack: Some(Rc::new(new_actions)),
-                                            status: ParseStatus::Active,
-                                        });
-
+                                        for prod_id in prod_ids {
+                                            let new_stack = stack_node.push(goto_state);
+                                            let new_actions = action_stack.clone().push(Action::Reduce { production_id: *prod_id, len: *len, nonterminal_id: *nt_id });
+                                            self.active_states.push(ParseState {
+                                                stack: Rc::new(new_stack),
+                                                action_stack: Some(Rc::new(new_actions)),
+                                                status: ParseStatus::Active,
+                                            });
+                                        }
                                     } else {
                                         inactive_states.push(ParseState {
                                             stack: stack_node.clone(),
