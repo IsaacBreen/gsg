@@ -761,89 +761,53 @@ struct GLRParser {
     item_set_map: BiMap<BTreeSet<Item>, StateID>,
 }
 
-fn parse(
-    input: &[TerminalID],
-    glr_parser: &GLRParser,
-) -> GLRParserState {
-    let mut active_states = vec![ParseState {
-        stack: vec![glr_parser.start_state_id],
-        symbols_stack: vec![],
-        status: ParseStatus::Active,
-    }];
-    let mut inactive_states = HashMap::new();
-    let mut input_pos = 0;
+impl GLRParser {
+    fn parse(
+        &self,
+        input: &[TerminalID],
+    ) -> GLRParserState {
+        let mut active_states = vec![ParseState {
+            stack: vec![self.start_state_id],
+            symbols_stack: vec![],
+            status: ParseStatus::Active,
+        }];
+        let mut inactive_states = HashMap::new();
+        let mut input_pos = 0;
 
-    for token in input {
-        let (next_active_states, new_inactive_states) = step(&glr_parser.stage_7_table, &glr_parser.terminal_map, &glr_parser.non_terminal_map, active_states, &token);
+        for token in input {
+            let (next_active_states, new_inactive_states) = self.step(&self.stage_7_table, &self.terminal_map, &self.non_terminal_map, active_states, &token);
+            active_states = next_active_states;
+            inactive_states.insert(input_pos, new_inactive_states);
+        }
+
+        let eof_token = self.terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap();
+        let (next_active_states, new_inactive_states) = self.step(&self.stage_7_table, &self.terminal_map, &self.non_terminal_map, active_states, &eof_token);
         active_states = next_active_states;
         inactive_states.insert(input_pos, new_inactive_states);
+
+        GLRParserState {
+            active_states,
+            inactive_states,
+            input_pos,
+        }
     }
 
-    let eof_token = glr_parser.terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap();
-    let (next_active_states, new_inactive_states) = step(&glr_parser.stage_7_table, &glr_parser.terminal_map, &glr_parser.non_terminal_map, active_states, &eof_token);
-    active_states = next_active_states;
-    inactive_states.insert(input_pos, new_inactive_states);
+    fn step(&self, stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>, non_terminal_map: &BiMap<NonTerminal, NonTerminalID>, mut active_states: Vec<ParseState>, token: &TerminalID) -> (Vec<ParseState>, Vec<ParseState>) {
+        let mut next_active_states = Vec::new();
+        let mut inactive_states = Vec::new();
+        while let Some(state) = active_states.pop() {
+            let stack = state.stack;
+            let symbols_stack = state.symbols_stack;
+            let state_id = *stack.last().unwrap();
 
-    GLRParserState {
-        active_states,
-        inactive_states,
-        input_pos,
-    }
-}
+            let row = stage_7_table.get(&state_id).unwrap();
 
-fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>, non_terminal_map: &BiMap<NonTerminal, NonTerminalID>, mut active_states: Vec<ParseState>, token: &TerminalID) -> (Vec<ParseState>, Vec<ParseState>) {
-    let mut next_active_states = Vec::new();
-    let mut inactive_states = Vec::new();
-    while let Some(state) = active_states.pop() {
-        let stack = state.stack;
-        let symbols_stack = state.symbols_stack;
-        let state_id = *stack.last().unwrap();
-
-        let row = stage_7_table.get(&state_id).unwrap();
-
-        if let Some(action) = row.shifts_and_reduces.get(&token) {
-            match action {
-                Stage7ShiftsAndReduces::Shift(next_state_id) => {
-                    let mut new_stack = stack;
-                    let mut new_symbols = symbols_stack;
-                    new_stack.push(*next_state_id);
-                    new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
-                    next_active_states.push(ParseState {
-                        stack: new_stack,
-                        symbols_stack: new_symbols,
-                        status: ParseStatus::Active,
-                    });
-                }
-                Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
-                    let mut new_stack = stack;
-                    let mut new_symbols = symbols_stack;
-                    for _ in 0..*len {
-                        new_stack.pop();
-                        new_symbols.pop();
-                    }
-                    let revealed_state = *new_stack.last().unwrap();
-                    let goto_row = stage_7_table.get(&revealed_state).unwrap();
-                    if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
-                        new_stack.push(goto_state);
-                        new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nonterminal).unwrap().clone()));
-                        active_states.push(ParseState {
-                            stack: new_stack,
-                            symbols_stack: new_symbols,
-                            status: ParseStatus::Active,
-                        });
-                    } else {
-                        inactive_states.push(ParseState {
-                            stack: new_stack,
-                            symbols_stack: new_symbols,
-                            status: ParseStatus::Inactive(StopReason::GotoNotFound),
-                        });
-                    }
-                }
-                Stage7ShiftsAndReduces::Split { shift, reduces } => {
-                    if let Some(shift_state) = shift {
-                        let mut new_stack = stack.clone();
-                        let mut new_symbols = symbols_stack.clone();
-                        new_stack.push(*shift_state);
+            if let Some(action) = row.shifts_and_reduces.get(&token) {
+                match action {
+                    Stage7ShiftsAndReduces::Shift(next_state_id) => {
+                        let mut new_stack = stack;
+                        let mut new_symbols = symbols_stack;
+                        new_stack.push(*next_state_id);
                         new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
                         next_active_states.push(ParseState {
                             stack: new_stack,
@@ -851,47 +815,85 @@ fn step(stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>,
                             status: ParseStatus::Active,
                         });
                     }
-
-                    for (len, nt_ids) in reduces {
-                        for nt_id in nt_ids {
+                    Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
+                        let mut new_stack = stack;
+                        let mut new_symbols = symbols_stack;
+                        for _ in 0..*len {
+                            new_stack.pop();
+                            new_symbols.pop();
+                        }
+                        let revealed_state = *new_stack.last().unwrap();
+                        let goto_row = stage_7_table.get(&revealed_state).unwrap();
+                        if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
+                            new_stack.push(goto_state);
+                            new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nonterminal).unwrap().clone()));
+                            active_states.push(ParseState {
+                                stack: new_stack,
+                                symbols_stack: new_symbols,
+                                status: ParseStatus::Active,
+                            });
+                        } else {
+                            inactive_states.push(ParseState {
+                                stack: new_stack,
+                                symbols_stack: new_symbols,
+                                status: ParseStatus::Inactive(StopReason::GotoNotFound),
+                            });
+                        }
+                    }
+                    Stage7ShiftsAndReduces::Split { shift, reduces } => {
+                        if let Some(shift_state) = shift {
                             let mut new_stack = stack.clone();
                             let mut new_symbols = symbols_stack.clone();
-                            for _ in 0..*len {
-                                new_stack.pop();
-                                new_symbols.pop();
-                            }
-                            let revealed_state = *new_stack.last().unwrap();
-                            let goto_row = stage_7_table.get(&revealed_state).unwrap();
-                            if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
-                                new_stack.push(goto_state);
-                                new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nt_id).unwrap().clone()));
-                                active_states.push(ParseState {
-                                    stack: new_stack,
-                                    symbols_stack: new_symbols,
-                                    status: ParseStatus::Active,
-                                });
-                            } else {
-                                inactive_states.push(ParseState {
-                                    stack: new_stack,
-                                    symbols_stack: new_symbols,
-                                    status: ParseStatus::Inactive(StopReason::GotoNotFound),
-                                })
+                            new_stack.push(*shift_state);
+                            new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
+                            next_active_states.push(ParseState {
+                                stack: new_stack,
+                                symbols_stack: new_symbols,
+                                status: ParseStatus::Active,
+                            });
+                        }
+
+                        for (len, nt_ids) in reduces {
+                            for nt_id in nt_ids {
+                                let mut new_stack = stack.clone();
+                                let mut new_symbols = symbols_stack.clone();
+                                for _ in 0..*len {
+                                    new_stack.pop();
+                                    new_symbols.pop();
+                                }
+                                let revealed_state = *new_stack.last().unwrap();
+                                let goto_row = stage_7_table.get(&revealed_state).unwrap();
+                                if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
+                                    new_stack.push(goto_state);
+                                    new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nt_id).unwrap().clone()));
+                                    active_states.push(ParseState {
+                                        stack: new_stack,
+                                        symbols_stack: new_symbols,
+                                        status: ParseStatus::Active,
+                                    });
+                                } else {
+                                    inactive_states.push(ParseState {
+                                        stack: new_stack,
+                                        symbols_stack: new_symbols,
+                                        status: ParseStatus::Inactive(StopReason::GotoNotFound),
+                                    })
+                                }
                             }
                         }
                     }
                 }
+            } else {
+                inactive_states.push(ParseState {
+                    stack,
+                    symbols_stack,
+                    status: ParseStatus::Inactive(StopReason::ActionNotFound),
+                });
             }
-        } else {
-            inactive_states.push(ParseState {
-                stack,
-                symbols_stack,
-                status: ParseStatus::Inactive(StopReason::ActionNotFound),
-            });
+
         }
 
+        (next_active_states, inactive_states)
     }
-
-    (next_active_states, inactive_states)
 }
 
 #[cfg(test)]
@@ -925,31 +927,26 @@ mod glalr_tests {
             result
         };
 
-        assert!(parse(
+        assert!(parser.parse(
             &tokenize("b"),
-            &parser
         )
         .fully_matches());
-        assert!(parse(
+        assert!(parser.parse(
             &tokenize("ba"),
-            &parser
         )
         .fully_matches());
-        assert!(parse(
+        assert!(parser.parse(
             &tokenize("baa"),
-            &parser
         )
         .fully_matches());
 
-        assert!(!parse(
+        assert!(!parser.parse(
             &tokenize("a"),
-            &parser
         )
         .fully_matches());
 
-        assert!(!parse(
+        assert!(!parser.parse(
             &tokenize("bb"),
-            &parser
         )
         .fully_matches());
     }
@@ -990,55 +987,45 @@ mod glalr_tests {
             result
         };
 
-        assert!(parse(
+        assert!(parser.parse(
             &tokenize("i"),
-            &parser
         )
         .fully_matches());
-        assert!(parse(
+        assert!(parser.parse(
             &tokenize("i+i*i"),
-            &parser
         )
         .fully_matches());
-        assert!(parse(
+        assert!(parser.parse(
             &tokenize("i+i"),
-            &parser
         )
         .fully_matches());
-        assert!(parse(
+        assert!(parser.parse(
             &tokenize("i*i"),
-            &parser
         )
         .fully_matches());
-        assert!(parse(
+        assert!(parser.parse(
             &tokenize("i"),
-            &parser
         )
         .fully_matches());
-        assert!(parse(
+        assert!(parser.parse(
             &tokenize("(i+i)*i"),
-            &parser
         )
         .fully_matches());
 
-        assert!(!parse(
+        assert!(!parser.parse(
             &tokenize("i+"),
-            &parser
         )
         .fully_matches());
-        assert!(!parse(
+        assert!(!parser.parse(
             &tokenize("i++i"),
-            &parser
         )
         .fully_matches());
-        assert!(!parse(
+        assert!(!parser.parse(
             &tokenize(""),
-            &parser
         )
         .fully_matches());
-        assert!(!parse(
+        assert!(!parser.parse(
             &tokenize(")"),
-            &parser
         )
         .fully_matches());
     }
