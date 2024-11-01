@@ -1,5 +1,5 @@
-use std::collections::{BTreeSet, HashMap};
 use crate::glr::grammar::{Production, Symbol};
+use std::collections::{BTreeSet, HashMap};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Item {

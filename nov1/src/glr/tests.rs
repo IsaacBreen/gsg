@@ -1,4 +1,3 @@
-
 use crate::glr::grammar::{nt, prod, t, Terminal};
 use crate::glr::parser::GLRParser;
 use crate::glr::table::{generate_glr_parser, TerminalID};

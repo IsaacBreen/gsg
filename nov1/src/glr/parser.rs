@@ -1,9 +1,9 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::fmt::{Display, Write};
-use bimap::BiMap;
 use crate::glr::grammar::{NonTerminal, Symbol, Terminal};
 use crate::glr::items::Item;
 use crate::glr::table::{NonTerminalID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
+use bimap::BiMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt::{Display, Write};
 
 pub struct GLRParser {
     pub stage_7_table: Stage7Table,
