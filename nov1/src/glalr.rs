@@ -777,6 +777,11 @@ impl GLRParserState<'_> {
             input_pos: 0,
         }
     }
+    
+    fn parse(&mut self, input: &[TerminalID]) {
+        self.partial_parse(input);
+        self.end_parse();
+    }
 
     fn partial_parse(&mut self, input: &[TerminalID]) {
         for token in input {
@@ -786,11 +791,6 @@ impl GLRParserState<'_> {
 
     fn end_parse(&mut self) {
         self.step(&self.parser.eof_token());
-    }
-
-    fn parse(&mut self, input: &[TerminalID]) {
-        self.partial_parse(input);
-        self.end_parse();
     }
 
     fn step(&mut self, token: &TerminalID) {
