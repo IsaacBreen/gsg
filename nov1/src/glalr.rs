@@ -725,6 +725,13 @@ struct GLRParser {
     item_set_map: BiMap<BTreeSet<Item>, StateID>,
 }
 
+struct GLRParserState<'a> {
+    parser: &'a GLRParser,
+    active_states: Vec<ParseState>,
+    inactive_states: HashMap<usize, Vec<ParseState>>,
+    input_pos: usize,
+}
+
 struct ParseState {
     stack: Vec<StateID>,
     symbols_stack: Vec<Symbol>,
@@ -741,13 +748,6 @@ enum ParseStatus {
 enum StopReason {
     ActionNotFound,
     GotoNotFound,
-}
-
-struct GLRParserState<'a> {
-    parser: &'a GLRParser,
-    active_states: Vec<ParseState>,
-    inactive_states: HashMap<usize, Vec<ParseState>>,
-    input_pos: usize,
 }
 
 impl GLRParserState<'_> {
@@ -785,10 +785,8 @@ impl GLRParserState<'_> {
             input_pos: 0,
         }
     }
-    fn parse(
-        &mut self,
-        input: &[TerminalID],
-    ) {
+
+    fn parse(&mut self, input: &[TerminalID]) {
         let mut active_states = vec![ParseState {
             stack: vec![self.parser.start_state_id],
             symbols_stack: vec![],
