@@ -892,13 +892,7 @@ impl GLRParserState<'_> {
     }
 
     fn fully_matches(&self) -> bool {
-        for state in &self.inactive_states[&self.input_pos] {
-            if state.status == ParseStatus::Inactive(StopReason::GotoNotFound) {
-                return true;
-            }
-        }
-
-        false
+        self.inactive_states[&self.input_pos].iter().any(|state| state.status == ParseStatus::Inactive(StopReason::GotoNotFound))
     }
 }
 
