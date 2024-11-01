@@ -117,3 +117,54 @@ impl<T: Clone> GSSNode<T> {
         result
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GSSHead<T> {
+    node: Option<GSSNode<T>>,
+}
+
+impl<T: Clone> GSSHead<T> {
+    pub fn new() -> Self {
+        GSSHead { node: None }
+    }
+}
+
+impl<T: Clone> From<GSSNode<T>> for GSSHead<T> {
+    fn from(node: GSSNode<T>) -> Self {
+        GSSHead { node: Some(node) }
+    }
+}
+
+impl<T: Clone> GSSHead<T> {
+    pub fn peek(&self) -> &T {
+        self.node.as_ref().unwrap().peek()
+    }
+
+    pub fn push(&self, value: T) -> GSSHead<T> {
+        if let Some(node) = &self.node {
+            GSSHead {
+                node: Some(node.push(value)),
+            }
+        } else {
+            GSSHead {
+                node: Some(GSSNode::new(value)),
+            }
+        }
+    }
+
+    pub fn pop(&self) -> Vec<Rc<GSSHead<T>>> {
+        if let Some(node) = &self.node {
+            node.pop().into_iter().map(Into::into).collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn popn(&self, n: usize) -> Vec<Rc<GSSHead<T>>> {
+        if let Some(node) = &self.node {
+            node.popn(n)
+        } else {
+            Vec::new()
+        }
+    }
+}
