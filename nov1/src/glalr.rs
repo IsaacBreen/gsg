@@ -61,6 +61,7 @@ fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BTreeS
     closure
 }
 
+/// Computes the GOTO function for a set of LR(0) items.
 fn compute_goto(items: &BTreeSet<Item>) -> BTreeSet<Item> {
     let mut result = BTreeSet::new();
     for item in items {
@@ -74,6 +75,7 @@ fn compute_goto(items: &BTreeSet<Item>) -> BTreeSet<Item> {
     result
 }
 
+/// Splits a set of LR(0) items based on the symbol after the dot.
 fn split_on_dot(items: &BTreeSet<Item>) -> HashMap<Option<Symbol>, BTreeSet<Item>> {
     let mut result: HashMap<Option<Symbol>, BTreeSet<Item>> = HashMap::new();
     for item in items {
@@ -90,7 +92,9 @@ type Stage2Table = HashMap<BTreeSet<Item>, Stage2Row>;
 type Stage3Table = HashMap<BTreeSet<Item>, Stage3Row>;
 type Stage4Table = HashMap<BTreeSet<Item>, Stage4Row>;
 type Stage5Table = HashMap<BTreeSet<Item>, Stage5Row>;
-type Stage6Table = HashMap<StateID, Stage6Row>;
+type Stage6Table = HashMap<BTreeSet<Item>, Stage6Row>;
+type Stage7Table = HashMap<StateID, Stage7Row>;
+
 
 type Stage1Row = HashMap<Option<Symbol>, BTreeSet<Item>>;
 #[derive(Debug)]
@@ -125,10 +129,36 @@ struct Stage5Row {
 }
 #[derive(Debug)]
 struct Stage6Row {
+    shifts_and_reduces: HashMap<Terminal, Stage6ShiftsAndReduces>,
+    gotos: HashMap<NonTerminal, BTreeSet<Item>>,
+}
+
+#[derive(Debug)]
+enum Stage6ShiftsAndReduces {
+    Shift(BTreeSet<Item>),
+    Reduce { nonterminal: NonTerminal, len: usize },
+    Split {
+        shift: Option<BTreeSet<Item>>,
+        reduces: BTreeMap<usize, BTreeSet<NonTerminal>>,
+    },
+}
+
+#[derive(Debug)]
+enum Stage7ShiftsAndReduces {
     /// Map each item set to a unique ID, and do the same for terminals and nonterminals.
-    shifts: HashMap<TerminalID, StateID>,
+    Shift(StateID),
+    Reduce { nonterminal: NonTerminalID, len: usize },
+    Split {
+        shift: Option<StateID>,
+        reduces: BTreeMap<usize, BTreeSet<NonTerminalID>>,
+    },
+}
+
+#[derive(Debug)]
+struct Stage7Row {
+    /// Map each item set to a unique ID, and do the same for terminals and nonterminals.
+    shifts_and_reduces: HashMap<TerminalID, Stage7ShiftsAndReduces>,
     gotos: HashMap<NonTerminalID, StateID>,
-    reduces: HashMap<TerminalID, BTreeMap<usize, BTreeSet<NonTerminalID>>>,
 }
 
 type Stage1Result = Stage1Table;
@@ -136,8 +166,9 @@ type Stage2Result = Stage2Table;
 type Stage3Result = Stage3Table;
 type Stage4Result = Stage4Table;
 type Stage5Result = Stage5Table;
-type Stage6Result = (
-    Stage6Table,
+type Stage6Result = Stage6Table;
+type Stage7Result = (
+    Stage7Table,
     BiMap<Terminal, TerminalID>,
     BiMap<NonTerminal, NonTerminalID>,
     BiMap<BTreeSet<Item>, StateID>,
@@ -424,7 +455,50 @@ fn stage_5(stage_4_table: Stage4Table, productions: &[Production]) -> Stage5Resu
     stage_5_table
 }
 
-fn stage_6(stage_5_table: Stage5Table, productions: &[Production]) -> Stage6Result {
+fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
+    let mut stage_6_table = HashMap::new();
+
+    for (item_set, row) in stage_5_table {
+        let mut shifts_and_reduces = HashMap::new();
+
+        for (terminal, next_item_set) in row.shifts {
+            shifts_and_reduces.insert(terminal, Stage6ShiftsAndReduces::Shift(next_item_set));
+        }
+
+        for (terminal, len_map) in row.reduces {
+            if shifts_and_reduces.contains_key(&terminal) {
+                let existing_entry = shifts_and_reduces.remove(&terminal).unwrap();
+                if let Stage6ShiftsAndReduces::Shift(shift_set) = existing_entry {
+                    shifts_and_reduces.insert(terminal, Stage6ShiftsAndReduces::Split {
+                        shift: Some(shift_set),
+                        reduces: len_map,
+                    });
+                } else {
+                    panic!("Unexpected entry in shifts_and_reduces");
+                }
+            } else {
+                let (len, nts) = len_map.iter().next().unwrap();
+                let nt = nts.iter().next().unwrap();
+                shifts_and_reduces.insert(terminal, Stage6ShiftsAndReduces::Reduce {
+                    nonterminal: nt.clone(),
+                    len: *len,
+                });
+            }
+        }
+
+        stage_6_table.insert(
+            item_set,
+            Stage6Row {
+                shifts_and_reduces,
+                gotos: row.gotos,
+            },
+        );
+    }
+
+    stage_6_table
+}
+
+fn stage_7(stage_6_table: Stage6Table, productions: &[Production]) -> Stage7Result {
     let mut terminal_map = BiMap::new();
     let mut non_terminal_map = BiMap::new();
     let mut item_set_map = BiMap::new();
@@ -436,20 +510,16 @@ fn stage_6(stage_5_table: Stage5Table, productions: &[Production]) -> Stage6Resu
     let mut terminals = BTreeSet::new();
     let mut non_terminals = BTreeSet::new();
 
-    for (item_set, row) in &stage_5_table {
+    for (item_set, row) in &stage_6_table {
         item_set_map.insert(item_set.clone(), StateID(next_state_id));
         next_state_id += 1;
 
-        for t in row.shifts.keys() {
+        for t in row.shifts_and_reduces.keys() {
             terminals.insert(t.clone());
         }
 
         for nt in row.gotos.keys() {
             non_terminals.insert(nt.clone());
-        }
-
-        for t in row.reduces.keys() {
-            terminals.insert(t.clone());
         }
     }
 
@@ -463,63 +533,67 @@ fn stage_6(stage_5_table: Stage5Table, productions: &[Production]) -> Stage6Resu
         next_non_terminal_id += 1;
     }
 
-    for (_, row) in &stage_5_table {
-        for (_, len_map) in &row.reduces {
-            for (_, nts) in len_map {
-                for nt in nts {
-                    if !non_terminal_map.contains_left(nt) {
-                        non_terminal_map.insert(nt.clone(), NonTerminalID(next_non_terminal_id));
+    for (_, row) in &stage_6_table {
+        for (_, action) in &row.shifts_and_reduces {
+            match action {
+                Stage6ShiftsAndReduces::Reduce { nonterminal, .. } => {
+                    if !non_terminal_map.contains_left(nonterminal) {
+                        non_terminal_map.insert(nonterminal.clone(), NonTerminalID(next_non_terminal_id));
                         next_non_terminal_id += 1;
                     }
                 }
+                Stage6ShiftsAndReduces::Split { reduces, .. } => {
+                    for (_, nts) in reduces {
+                        for nt in nts {
+                            if !non_terminal_map.contains_left(nt) {
+                                non_terminal_map.insert(nt.clone(), NonTerminalID(next_non_terminal_id));
+                                next_non_terminal_id += 1;
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }
 
-    let mut stage_6_table = HashMap::new();
+    let mut stage_7_table = HashMap::new();
 
-    for (item_set, row) in stage_5_table {
+    for (item_set, row) in stage_6_table {
         let state_id = *item_set_map.get_by_left(&item_set).unwrap();
+        let mut shifts_and_reduces = HashMap::new();
+        let mut gotos = HashMap::new();
 
-        let mut shifts = HashMap::new();
-        for (t, next_item_set) in row.shifts {
-            let terminal_id = *terminal_map.get_by_left(&t).unwrap();
-            let next_state_id = *item_set_map.get_by_left(&next_item_set).unwrap();
-            shifts.insert(terminal_id, next_state_id);
+        for (terminal, action) in row.shifts_and_reduces {
+            let terminal_id = *terminal_map.get_by_left(&terminal).unwrap();
+            let converted_action = match action {
+                Stage6ShiftsAndReduces::Shift(next_item_set) => {
+                    let next_state_id = *item_set_map.get_by_left(&next_item_set).unwrap();
+                    Stage7ShiftsAndReduces::Shift(next_state_id)
+                }
+                Stage6ShiftsAndReduces::Reduce { nonterminal, len } => {
+                    let nonterminal_id = *non_terminal_map.get_by_left(&nonterminal).unwrap();
+                    Stage7ShiftsAndReduces::Reduce { nonterminal: nonterminal_id, len }
+                }
+                Stage6ShiftsAndReduces::Split { shift, reduces } => {
+                    let shift_state_id = shift.as_ref().map(|set| *item_set_map.get_by_left(set).unwrap());
+                    let converted_reduces: BTreeMap<usize, BTreeSet<NonTerminalID>> = reduces.into_iter().map(|(len, nts)| {
+                        let nt_ids = nts.into_iter().map(|nt| *non_terminal_map.get_by_left(&nt).unwrap()).collect();
+                        (len, nt_ids)
+                    }).collect();
+                    Stage7ShiftsAndReduces::Split { shift: shift_state_id, reduces: converted_reduces }
+                }
+            };
+            shifts_and_reduces.insert(terminal_id, converted_action);
         }
 
-        let mut gotos = HashMap::new();
-        for (nt, next_item_set) in row.gotos {
-            let non_terminal_id = *non_terminal_map.get_by_left(&nt).unwrap();
+        for (nonterminal, next_item_set) in row.gotos {
+            let non_terminal_id = *non_terminal_map.get_by_left(&nonterminal).unwrap();
             let next_state_id = *item_set_map.get_by_left(&next_item_set).unwrap();
             gotos.insert(non_terminal_id, next_state_id);
         }
 
-        let mut reduces = HashMap::new();
-        for (t, len_map) in row.reduces {
-            let terminal_id = *terminal_map.get_by_left(&t).unwrap();
-            let mut len_nt_map = BTreeMap::new();
-
-            for (len, nts) in len_map {
-                let mut nt_ids = BTreeSet::new();
-                for nt in nts {
-                    let nt_id = *non_terminal_map.get_by_left(&nt).unwrap();
-                    nt_ids.insert(nt_id);
-                }
-                len_nt_map.insert(len, nt_ids);
-            }
-
-            reduces.insert(terminal_id, len_nt_map);
-        }
-
-        stage_6_table.insert(
-            state_id,
-            Stage6Row {
-                shifts,
-                gotos,
-                reduces,
-            },
-        );
+        stage_7_table.insert(state_id, Stage7Row { shifts_and_reduces, gotos });
     }
 
     let start_item = Item {
@@ -528,110 +602,18 @@ fn stage_6(stage_5_table: Stage5Table, productions: &[Production]) -> Stage6Resu
     };
     let start_state_id = *item_set_map.get_by_left(&BTreeSet::from([start_item])).unwrap();
 
-    (stage_6_table, terminal_map, non_terminal_map, item_set_map, start_state_id)
+    (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id)
 }
 
-struct ParseState {
-    stack: Vec<StateID>,
-    symbols_stack: Vec<Symbol>,
-    input_pos: usize,
-}
-
-fn parse(
-    input: &[TerminalID],
-    start_state_id: StateID,
-    stage_6_table: &Stage6Table,
-    terminal_map: &BiMap<Terminal, TerminalID>,
-    non_terminal_map: &BiMap<NonTerminal, NonTerminalID>,
-) -> Vec<ParseState> {
-    let mut active_states = vec![ParseState {
-        stack: vec![start_state_id],
-        symbols_stack: vec![],
-        input_pos: 0,
-    }];
-    let mut final_states = Vec::new();
-
-    while let Some(state) = active_states.pop() {
-        let mut stack = state.stack;
-        let mut symbols_stack = state.symbols_stack;
-        let mut input_pos = state.input_pos;
-        let state_id = *stack.last().unwrap();
-        let token = if input_pos < input.len() {
-            input[input_pos]
-        } else {
-            // EOF TerminalID
-            terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap()
-        };
-
-        let row = stage_6_table.get(&state_id).unwrap();
-
-        if let Some(&next_state_id) = row.shifts.get(&token) {
-            // Shift
-            stack.push(next_state_id);
-            let terminal = terminal_map.get_by_right(&token).unwrap().clone();
-            symbols_stack.push(Symbol::Terminal(terminal));
-            input_pos += 1;
-            active_states.push(ParseState {
-                stack,
-                symbols_stack,
-                input_pos,
-            });
-        } else if let Some(reduces) = row.reduces.get(&token) {
-            // Reduce
-            for (&len, nt_ids) in reduces {
-                let mut stack = stack.clone();
-                let mut symbols_stack = symbols_stack.clone();
-                for _ in 0..len {
-                    stack.pop();
-                    symbols_stack.pop();
-                }
-                for &nt_id in nt_ids {
-                    let mut stack = stack.clone();
-                    let mut symbols_stack = symbols_stack.clone();
-                    let revealed_state = stack.last().unwrap();
-                    let goto_row = stage_6_table.get(revealed_state).unwrap();
-                    if let Some(&goto_state) = goto_row.gotos.get(&nt_id) {
-                        stack.push(goto_state);
-                        let non_terminal = non_terminal_map.get_by_right(&nt_id).unwrap().clone();
-                        symbols_stack.push(Symbol::NonTerminal(non_terminal));
-                        active_states.push(ParseState {
-                            stack,
-                            symbols_stack,
-                            input_pos,
-                        });
-                    } else {
-                        // TODO: is this a valid accept condition?
-                        if stack.len() == 1 && input_pos == input.len() {
-                            // Accept
-                            final_states.push(ParseState {
-                                stack,
-                                symbols_stack,
-                                input_pos,
-                            });
-                        } else {
-                            // Error
-                        }
-                    }
-                }
-            }
-        } else {
-            // Error
-        }
-    }
-
-    final_states
-}
-
-fn generate_parse_table(productions: &[Production]) -> Stage6Result {
-    // dbg!(&productions);
+fn generate_parse_table(productions: &[Production]) -> Stage7Result {
     let stage_1_table = stage_1(productions);
     let stage_2_table = stage_2(stage_1_table, productions);
     let stage_3_table = stage_3(stage_2_table, productions);
     let stage_4_table = stage_4(stage_3_table, productions);
     let stage_5_table = stage_5(stage_4_table, productions);
-    let (stage_6_table, terminal_map, non_terminal_map, item_set_map, start_state_id) = stage_6(stage_5_table, productions);
-
-    (stage_6_table, terminal_map, non_terminal_map, item_set_map, start_state_id)
+    let stage_6_table = stage_6(stage_5_table);
+    let stage_7_result = stage_7(stage_6_table, productions);
+    stage_7_result
 }
 
 fn nt(name: &str) -> Symbol {
@@ -647,7 +629,7 @@ fn prod(name: &str, rhs: Vec<Symbol>) -> Production {
 }
 
 fn print_parse_table(
-    stage_6_table: &Stage6Table,
+    stage_7_table: &Stage7Table,
     terminal_map: &BiMap<Terminal, TerminalID>,
     non_terminal_map: &BiMap<NonTerminal, NonTerminalID>,
     item_set_map: &BiMap<BTreeSet<Item>, StateID>,
@@ -655,7 +637,7 @@ fn print_parse_table(
     let mut output = String::new();
 
     writeln!(&mut output, "Parse Table:").unwrap();
-    for (state_id, row) in stage_6_table.iter().collect::<BTreeMap<_, _>>() {
+    for (&state_id, row) in stage_7_table.iter().collect::<BTreeMap<_, _>>() {
         writeln!(&mut output, "  State {}:", state_id.0).unwrap();
 
         writeln!(&mut output, "    Items:").unwrap();
@@ -681,10 +663,31 @@ fn print_parse_table(
             writeln!(&mut output, "").unwrap();
         }
 
-        writeln!(&mut output, "    Shifts:").unwrap();
-        for (&terminal_id, &next_state_id) in &row.shifts {
+        writeln!(&mut output, "    Actions:").unwrap();
+        for (&terminal_id, action) in &row.shifts_and_reduces {
             let terminal = terminal_map.get_by_right(&terminal_id).unwrap();
-            writeln!(&mut output, "      - {:?} -> {}", terminal.0, next_state_id.0).unwrap();
+            match action {
+                Stage7ShiftsAndReduces::Shift(next_state_id) => {
+                    writeln!(&mut output, "      - {:?} -> Shift {}", terminal.0, next_state_id.0).unwrap();
+                }
+                Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
+                    let nt = non_terminal_map.get_by_right(nonterminal).unwrap();
+                    writeln!(&mut output, "      - {:?} -> Reduce {} (len {})", terminal.0, nt.0, len).unwrap();
+                }
+                Stage7ShiftsAndReduces::Split { shift, reduces } => {
+                    writeln!(&mut output, "      - {:?} -> Conflict:", terminal.0).unwrap();
+                    if let Some(shift_state) = shift {
+                        writeln!(&mut output, "        - Shift {}", shift_state.0).unwrap();
+                    }
+                    for (len, nt_ids) in reduces {
+                        writeln!(&mut output, "        - Reduce (len {}):", len).unwrap();
+                        for nt_id in nt_ids {
+                            let nt = non_terminal_map.get_by_right(nt_id).unwrap();
+                            writeln!(&mut output, "          - {}", nt.0).unwrap();
+                        }
+                    }
+                }
+            }
         }
 
         writeln!(&mut output, "    Gotos:").unwrap();
@@ -692,21 +695,7 @@ fn print_parse_table(
             let non_terminal = non_terminal_map.get_by_right(&non_terminal_id).unwrap();
             writeln!(&mut output, "      - {:?} -> {}", non_terminal.0, next_state_id.0).unwrap();
         }
-
-        writeln!(&mut output, "    Reduces:").unwrap();
-        for (&terminal_id, reduces) in &row.reduces {
-            let terminal = terminal_map.get_by_right(&terminal_id).unwrap();
-            writeln!(&mut output, "      - {:?}:", terminal.0).unwrap();
-            for (&len, nt_ids) in reduces {
-                writeln!(&mut output, "        - Pop {}:", len).unwrap();
-                for &nt_id in nt_ids {
-                    let non_terminal = non_terminal_map.get_by_right(&nt_id).unwrap();
-                    writeln!(&mut output, "          - {:?}", non_terminal.0).unwrap();
-                }
-            }
-        }
     }
-
 
     writeln!(&mut output, "\nTerminal Map:").unwrap();
     for (terminal, terminal_id) in terminal_map {
@@ -719,6 +708,126 @@ fn print_parse_table(
     }
 
     println!("{}", output);
+}
+
+struct ParseState {
+    stack: Vec<StateID>,
+    symbols_stack: Vec<Symbol>,
+    input_pos: usize,
+}
+
+fn parse(
+    input: &[TerminalID],
+    start_state_id: StateID,
+    stage_7_table: &Stage7Table,
+    terminal_map: &BiMap<Terminal, TerminalID>,
+    non_terminal_map: &BiMap<NonTerminal, NonTerminalID>,
+) -> Vec<ParseState> {
+    let mut active_states = vec![ParseState {
+        stack: vec![start_state_id],
+        symbols_stack: vec![],
+        input_pos: 0,
+    }];
+    let mut final_states = Vec::new();
+
+    while let Some(state) = active_states.pop() {
+        let stack = state.stack;
+        let symbols_stack = state.symbols_stack;
+        let input_pos = state.input_pos;
+        let state_id = *stack.last().unwrap();
+        let token = if input_pos < input.len() {
+            input[input_pos]
+        } else {
+            terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap()
+        };
+
+        let row = stage_7_table.get(&state_id).unwrap();
+
+        if let Some(action) = row.shifts_and_reduces.get(&token) {
+            match action {
+                Stage7ShiftsAndReduces::Shift(next_state_id) => {
+                    let mut new_stack = stack.clone();
+                    let mut new_symbols = symbols_stack.clone();
+                    new_stack.push(*next_state_id);
+                    new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
+                    active_states.push(ParseState {
+                        stack: new_stack,
+                        symbols_stack: new_symbols,
+                        input_pos: input_pos + 1,
+                    });
+                }
+                Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
+                    let mut new_stack = stack.clone();
+                    let mut new_symbols = symbols_stack.clone();
+                    for _ in 0..*len {
+                        new_stack.pop();
+                        new_symbols.pop();
+                    }
+                    let revealed_state = *new_stack.last().unwrap();
+                    let goto_row = stage_7_table.get(&revealed_state).unwrap();
+                    if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
+                        new_stack.push(goto_state);
+                        new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nonterminal).unwrap().clone()));
+                        active_states.push(ParseState {
+                            stack: new_stack,
+                            symbols_stack: new_symbols,
+                            input_pos,
+                        });
+                    } else {
+                        println!("Parse error: No goto defined after reduce in state {} with nonterminal {:?}", revealed_state.0, nonterminal);
+                    }
+                }
+                Stage7ShiftsAndReduces::Split { shift, reduces } => {
+                    if let Some(shift_state) = shift {
+                        let mut new_stack = stack.clone();
+                        let mut new_symbols = symbols_stack.clone();
+                        new_stack.push(*shift_state);
+                        new_symbols.push(Symbol::Terminal(terminal_map.get_by_right(&token).unwrap().clone()));
+                        active_states.push(ParseState {
+                            stack: new_stack,
+                            symbols_stack: new_symbols,
+                            input_pos: input_pos + 1,
+                        });
+                    }
+
+                    for (len, nt_ids) in reduces {
+                        for nt_id in nt_ids {
+                            let mut new_stack = stack.clone();
+                            let mut new_symbols = symbols_stack.clone();
+                            for _ in 0..*len {
+                                new_stack.pop();
+                                new_symbols.pop();
+                            }
+                            let revealed_state = *new_stack.last().unwrap();
+                            let goto_row = stage_7_table.get(&revealed_state).unwrap();
+
+                            if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
+                                new_stack.push(goto_state);
+                                new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nt_id).unwrap().clone()));
+                                active_states.push(ParseState {
+                                    stack: new_stack,
+                                    symbols_stack: new_symbols,
+                                    input_pos,
+                                });
+                            } else {
+                                println!("Parse error: No goto defined after reduce in state {} with nonterminal {:?}", revealed_state.0, nt_id);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            println!("Parse error: No action found for state {} and token {:?}", state_id.0, token);
+        }
+    }
+
+    for state in active_states {
+        if state.input_pos == input.len() && state.stack.len() == 1 {
+            final_states.push(state);
+        }
+    }
+
+    final_states
 }
 
 #[cfg(test)]
