@@ -830,80 +830,78 @@ impl Display for GLRParser {
         let terminal_map = &self.terminal_map;
         let non_terminal_map = &self.non_terminal_map;
         let item_set_map = &self.item_set_map;
-        let mut output = String::new();
 
-        writeln!(&mut output, "Parse Table:").unwrap();
+        writeln!(f, "Parse Table:")?;
         for (&state_id, row) in stage_7_table.iter().collect::<BTreeMap<_, _>>() {
-            writeln!(&mut output, "  State {}:", state_id.0).unwrap();
+            writeln!(f, "  State {}:", state_id.0)?;
     
-            writeln!(&mut output, "    Items:").unwrap();
+            writeln!(f, "    Items:")?;
             let item_set = item_set_map.get_by_right(&state_id).unwrap();
             for item in item_set {
-                write!(&mut output, "      - {} ->", item.production.lhs.0).unwrap();
+                write!(f, "      - {} ->", item.production.lhs.0)?;
                 for (i, symbol) in item.production.rhs.iter().enumerate() {
                     if i == item.dot_position {
-                        write!(&mut output, " •").unwrap();
+                        write!(f, " •")?;
                     }
                     match symbol {
                         Symbol::Terminal(terminal) => {
-                            write!(&mut output, " {:?}", terminal.0).unwrap();
+                            write!(f, " {:?}", terminal.0)?;
                         }
                         Symbol::NonTerminal(non_terminal) => {
-                            write!(&mut output, " {}", non_terminal.0).unwrap();
+                            write!(f, " {}", non_terminal.0)?;
                         }
                     }
                 }
                 if item.dot_position == item.production.rhs.len() {
-                    write!(&mut output, " •").unwrap();
+                    write!(f, " •")?;
                 }
-                writeln!(&mut output, "").unwrap();
+                writeln!(f)?;
             }
     
-            writeln!(&mut output, "    Actions:").unwrap();
+            writeln!(f, "    Actions:")?;
             for (&terminal_id, action) in &row.shifts_and_reduces {
                 let terminal = terminal_map.get_by_right(&terminal_id).unwrap();
                 match action {
                     Stage7ShiftsAndReduces::Shift(next_state_id) => {
-                        writeln!(&mut output, "      - {:?} -> Shift {}", terminal.0, next_state_id.0).unwrap();
+                        writeln!(f, "      - {:?} -> Shift {}", terminal.0, next_state_id.0)?;
                     }
                     Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
                         let nt = non_terminal_map.get_by_right(nonterminal).unwrap();
-                        writeln!(&mut output, "      - {:?} -> Reduce {} (len {})", terminal.0, nt.0, len).unwrap();
+                        writeln!(f, "      - {:?} -> Reduce {} (len {})", terminal.0, nt.0, len)?;
                     }
                     Stage7ShiftsAndReduces::Split { shift, reduces } => {
-                        writeln!(&mut output, "      - {:?} -> Conflict:", terminal.0).unwrap();
+                        writeln!(f, "      - {:?} -> Conflict:", terminal.0)?;
                         if let Some(shift_state) = shift {
-                            writeln!(&mut output, "        - Shift {}", shift_state.0).unwrap();
+                            writeln!(f, "        - Shift {}", shift_state.0)?;
                         }
                         for (len, nt_ids) in reduces {
-                            writeln!(&mut output, "        - Reduce (len {}):", len).unwrap();
+                            writeln!(f, "        - Reduce (len {}):", len)?;
                             for nt_id in nt_ids {
                                 let nt = non_terminal_map.get_by_right(nt_id).unwrap();
-                                writeln!(&mut output, "          - {}", nt.0).unwrap();
+                                writeln!(f, "          - {}", nt.0)?;
                             }
                         }
                     }
                 }
             }
     
-            writeln!(&mut output, "    Gotos:").unwrap();
+            writeln!(f, "    Gotos:")?;
             for (&non_terminal_id, &next_state_id) in &row.gotos {
                 let non_terminal = non_terminal_map.get_by_right(&non_terminal_id).unwrap();
-                writeln!(&mut output, "      - {:?} -> {}", non_terminal.0, next_state_id.0).unwrap();
+                writeln!(f, "      - {:?} -> {}", non_terminal.0, next_state_id.0)?;
             }
         }
 
-        writeln!(&mut output, "\nTerminal Map:").unwrap();
+        writeln!(f, "\nTerminal Map:")?;
         for (terminal, terminal_id) in terminal_map {
-            writeln!(&mut output, "  {:?} -> {}", terminal.0, terminal_id.0).unwrap();
+            writeln!(f, "  {:?} -> {}", terminal.0, terminal_id.0)?;
         }
 
-        writeln!(&mut output, "\nNon-Terminal Map:").unwrap();
+        writeln!(f, "\nNon-Terminal Map:")?;
         for (non_terminal, non_terminal_id) in non_terminal_map {
-            writeln!(&mut output, "  {:?} -> {}", non_terminal.0, non_terminal_id.0).unwrap();
+            writeln!(f, "  {:?} -> {}", non_terminal.0, non_terminal_id.0)?;
         }
 
-        println!("{}", output);
         Ok(())
     }
 }
