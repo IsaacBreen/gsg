@@ -937,28 +937,12 @@ mod glalr_tests {
             result
         };
 
-        assert!(parser.parse(
-            &tokenize("b"),
-        )
-        .fully_matches());
-        assert!(parser.parse(
-            &tokenize("ba"),
-        )
-        .fully_matches());
-        assert!(parser.parse(
-            &tokenize("baa"),
-        )
-        .fully_matches());
+        assert!(parser.parse(&tokenize("b")).fully_matches());
+        assert!(parser.parse(&tokenize("ba")).fully_matches());
+        assert!(parser.parse(&tokenize("baa")).fully_matches());
 
-        assert!(!parser.parse(
-            &tokenize("a"),
-        )
-        .fully_matches());
-
-        assert!(!parser.parse(
-            &tokenize("bb"),
-        )
-        .fully_matches());
+        assert!(!parser.parse(&tokenize("a")).fully_matches());
+        assert!(!parser.parse(&tokenize("bb")).fully_matches());
     }
 
     #[test]
@@ -997,46 +981,16 @@ mod glalr_tests {
             result
         };
 
-        assert!(parser.parse(
-            &tokenize("i"),
-        )
-        .fully_matches());
-        assert!(parser.parse(
-            &tokenize("i+i*i"),
-        )
-        .fully_matches());
-        assert!(parser.parse(
-            &tokenize("i+i"),
-        )
-        .fully_matches());
-        assert!(parser.parse(
-            &tokenize("i*i"),
-        )
-        .fully_matches());
-        assert!(parser.parse(
-            &tokenize("i"),
-        )
-        .fully_matches());
-        assert!(parser.parse(
-            &tokenize("(i+i)*i"),
-        )
-        .fully_matches());
+        assert!(parser.parse(&tokenize("i")).fully_matches());
+        assert!(parser.parse(&tokenize("i+i*i")).fully_matches());
+        assert!(parser.parse(&tokenize("i+i")).fully_matches());
+        assert!(parser.parse(&tokenize("i*i")).fully_matches());
+        assert!(parser.parse(&tokenize("i")).fully_matches());
+        assert!(parser.parse(&tokenize("(i+i)*i")).fully_matches());
 
-        assert!(!parser.parse(
-            &tokenize("i+"),
-        )
-        .fully_matches());
-        assert!(!parser.parse(
-            &tokenize("i++i"),
-        )
-        .fully_matches());
-        assert!(!parser.parse(
-            &tokenize(""),
-        )
-        .fully_matches());
-        assert!(!parser.parse(
-            &tokenize(")"),
-        )
-        .fully_matches());
+        assert!(!parser.parse(&tokenize("i+")).fully_matches());
+        assert!(!parser.parse(&tokenize("i++i")).fully_matches());
+        assert!(!parser.parse(&tokenize("")).fully_matches());
+        assert!(!parser.parse(&tokenize(")")).fully_matches());
     }
 }
