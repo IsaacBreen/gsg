@@ -7,4 +7,4 @@ pub mod tokenizer_combinators;
 pub mod u8set;
 pub mod finite_automata;
 mod gss;
-mod glalr;
+mod glr;
