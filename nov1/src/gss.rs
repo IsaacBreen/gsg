@@ -139,18 +139,6 @@ impl<T: Clone> GSSOptionTrait<T> for Option<Rc<GSSNode<T>>> {
     }
 
     fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
-        if let Some(inner) = self {
-            let mut nodes = vec![inner.clone()];
-            for _ in 0..n {
-                let mut new_nodes = Vec::new();
-                for node in nodes {
-                    new_nodes.extend(node.pop());
-                }
-                nodes = new_nodes.clone();
-            }
-            nodes
-        } else {
-            Vec::new()
-        }
+        self.as_ref().map(|node| node.popn(n)).unwrap_or_default()
     }
 }
