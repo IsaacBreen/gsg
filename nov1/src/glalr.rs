@@ -717,6 +717,14 @@ fn print_parse_table(
     println!("{}", output);
 }
 
+struct GLRParser {
+    stage_7_table: Stage7Table,
+    start_state_id: StateID,
+    terminal_map: BiMap<Terminal, TerminalID>,
+    non_terminal_map: BiMap<NonTerminal, NonTerminalID>,
+    item_set_map: BiMap<BTreeSet<Item>, StateID>,
+}
+
 struct ParseState {
     stack: Vec<StateID>,
     symbols_stack: Vec<Symbol>,
@@ -735,13 +743,14 @@ enum StopReason {
     GotoNotFound,
 }
 
-struct GLRParserState {
+struct GLRParserState<'a> {
+    parser: &'a GLRParser,
     active_states: Vec<ParseState>,
     inactive_states: HashMap<usize, Vec<ParseState>>,
     input_pos: usize,
 }
 
-impl GLRParserState {
+impl GLRParserState<'_> {
     fn fully_matches(&self) -> bool {
         for state in &self.inactive_states[&self.input_pos] {
             if state.status == ParseStatus::Inactive(StopReason::GotoNotFound) {
@@ -753,43 +762,50 @@ impl GLRParserState {
     }
 }
 
-struct GLRParser {
-    stage_7_table: Stage7Table,
-    start_state_id: StateID,
-    terminal_map: BiMap<Terminal, TerminalID>,
-    non_terminal_map: BiMap<NonTerminal, NonTerminalID>,
-    item_set_map: BiMap<BTreeSet<Item>, StateID>,
+impl GLRParser {
+    fn parse(&self, input: &[TerminalID]) -> GLRParserState {
+        let mut state = GLRParserState::new(self);
+        state.parse(input);
+        state
+    }
 }
 
-impl GLRParser {
+impl GLRParserState<'_> {
+    fn new(parser: &GLRParser) -> GLRParserState {
+        GLRParserState {
+            parser,
+            active_states: vec![
+                ParseState {
+                    stack: vec![parser.start_state_id],
+                    symbols_stack: vec![],
+                    status: ParseStatus::Active,
+                },
+            ],
+            inactive_states: HashMap::new(),
+            input_pos: 0,
+        }
+    }
     fn parse(
-        &self,
+        &mut self,
         input: &[TerminalID],
-    ) -> GLRParserState {
+    ) {
         let mut active_states = vec![ParseState {
-            stack: vec![self.start_state_id],
+            stack: vec![self.parser.start_state_id],
             symbols_stack: vec![],
             status: ParseStatus::Active,
         }];
-        let mut inactive_states = HashMap::new();
-        let mut input_pos = 0;
 
         for token in input {
-            let (next_active_states, new_inactive_states) = self.step(&self.stage_7_table, &self.terminal_map, &self.non_terminal_map, active_states, &token);
+            let (next_active_states, new_inactive_states) = self.step(&self.parser.stage_7_table, &self.parser.terminal_map, &self.parser.non_terminal_map, active_states, &token);
             active_states = next_active_states;
-            inactive_states.insert(input_pos, new_inactive_states);
+            self.inactive_states.insert(self.input_pos, new_inactive_states);
         }
 
-        let eof_token = self.terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap();
-        let (next_active_states, new_inactive_states) = self.step(&self.stage_7_table, &self.terminal_map, &self.non_terminal_map, active_states, &eof_token);
+        let eof_token = self.parser.terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap();
+        let (next_active_states, new_inactive_states) = self.step(&self.parser.stage_7_table, &self.parser.terminal_map, &self.parser.non_terminal_map, active_states, &eof_token);
         active_states = next_active_states;
-        inactive_states.insert(input_pos, new_inactive_states);
+        self.inactive_states.insert(self.input_pos, new_inactive_states);
 
-        GLRParserState {
-            active_states,
-            inactive_states,
-            input_pos,
-        }
     }
 
     fn step(&self, stage_7_table: &Stage7Table, terminal_map: &BiMap<Terminal, TerminalID>, non_terminal_map: &BiMap<NonTerminal, NonTerminalID>, mut active_states: Vec<ParseState>, token: &TerminalID) -> (Vec<ParseState>, Vec<ParseState>) {
