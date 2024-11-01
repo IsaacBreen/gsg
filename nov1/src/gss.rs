@@ -36,53 +36,30 @@ impl<T> Drop for GSSNode<T> {
     }
 }
 
-pub trait GSSRefTrait<T> {
-    fn peek(&self) -> &T;
+pub trait GSSTrait<T: Clone> {
+    type Peek;
+    fn peek(&self) -> Self::Peek;
     fn push(&self, value: T) -> GSSNode<T>;
-    fn pop(&self) -> Vec<Self> where Self: Sized;
-    fn popn(&self, n: usize) -> Vec<Self> where Self: Sized + Clone {
-        let mut nodes = vec![self.clone()];
-        for _ in 0..n {
-            let mut new_nodes = Vec::new();
-            for node in nodes {
-                new_nodes.extend(node.pop());
-            }
-            nodes = new_nodes.clone();
-        }
-        nodes
-    }
+    fn pop(&self) -> Vec<Rc<GSSNode<T>>>;
+    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>>;
 }
 
-impl<T> GSSRefTrait<T> for Rc<GSSNode<T>> {
-    fn peek(&self) -> &T {
+impl<T: Clone> GSSTrait<T> for GSSNode<T> {
+    type Peek = &T;
+
+    fn peek(&self) -> Self::Peek {
         &self.value
     }
 
     fn push(&self, value: T) -> GSSNode<T> {
-        let mut new_node = GSSNode::new(value);
-        new_node.predecessors.push(self.clone());
-        new_node
+        Rc::new(self.clone()).push(value)
     }
 
-    fn pop(&self) -> Vec<Self> {
-        self.predecessors.clone()
-    }
-}
-
-impl<T> GSSNode<T> {
-    pub fn peek(&self) -> &T {
-        &self.value
-    }
-
-    pub fn push(self, value: T) -> GSSNode<T> {
-        Rc::new(self).push(value)
-    }
-
-    pub fn pop(&self) -> Vec<Rc<Self>> {
+    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
         self.predecessors.clone()
     }
 
-    pub fn popn(&self, n: usize) -> Vec<Rc<Self>> where T: Clone {
+    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
         if n == 0 {
             return vec![Rc::new(self.clone())];
         }
@@ -92,12 +69,80 @@ impl<T> GSSNode<T> {
         }
         nodes
     }
+}
 
-    pub fn merge(&mut self, mut other: Self) where T: PartialEq {
-        assert!(self.value == other.value);
-        self.predecessors.extend(other.predecessors.drain(..));
+
+
+impl<T: Clone> GSSTrait<T> for Rc<GSSNode<T>> {
+    type Peek = &T;
+
+    fn peek(&self) -> Self::Peek {
+        &self.value
+    }
+
+    fn push(&self, value: T) -> GSSNode<T> {
+        let mut new_node = GSSNode::new(value);
+        new_node.predecessors.push(self.clone());
+        new_node
+    }
+
+    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
+        self.predecessors.clone()
+    }
+
+    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
+        if n == 0 {
+            return vec![self.clone()];
+        }
+        let mut nodes = Vec::new();
+        for popped in self.pop() {
+            nodes.extend(popped.popn(n - 1));
+        }
+        nodes
     }
 }
+
+impl<T: Clone> GSSTrait<T> for Option<Rc<GSSNode<T>>> {
+    type Peek = Option<&T>;
+
+    fn peek(&self) -> Self::Peek {
+        self.as_ref().map(|node| node.peek())
+    }
+
+    fn push(&self, value: T) -> GSSNode<T> {
+        self.clone().map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
+    }
+
+    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
+        self.as_ref().map(|node| node.pop()).unwrap_or_default()
+    }
+
+    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
+        self.as_ref().map(|node| node.popn(n)).unwrap_or_default()
+    }
+}
+
+
+impl<T: Clone> GSSTrait<T> for Option<GSSNode<T>> {
+    type Peek = Option<&T>;
+
+    fn peek(&self) -> Self::Peek {
+        self.as_ref().map(|node| node.peek())
+    }
+
+    fn push(&self, value: T) -> GSSNode<T> {
+        self.clone().map(|node| node.push(value)).unwrap_or_else(|| GSSNode::new(value))
+    }
+
+    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
+        self.as_ref().map(|node| node.pop()).unwrap_or_default()
+    }
+
+    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
+        self.as_ref().map(|node| node.popn(n)).unwrap_or_default()
+    }
+}
+
 
 impl<T: Clone> GSSNode<T> {
     pub fn flatten(&self) -> Vec<Vec<T>> {
@@ -116,54 +161,9 @@ impl<T: Clone> GSSNode<T> {
         }
         result
     }
-}
 
-pub trait GSSOptionRcTrait<T: Clone> {
-    fn peek(&self) -> Option<&T>;
-    fn push(self, value: T) -> GSSNode<T>;
-    fn pop(&self) -> Vec<Rc<GSSNode<T>>>;
-    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>>;
-}
-
-impl<T: Clone> GSSOptionRcTrait<T> for Option<Rc<GSSNode<T>>> {
-    fn peek(&self) -> Option<&T> {
-        self.as_ref().map(|node| node.peek())
-    }
-
-    fn push(self, value: T) -> GSSNode<T> {
-        self.map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
-    }
-
-    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
-        self.as_ref().map(|node| node.pop()).unwrap_or_default()
-    }
-
-    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
-        self.as_ref().map(|node| node.popn(n)).unwrap_or_default()
-    }
-}
-
-pub trait GSSOptionTrait<T: Clone> {
-    fn peek(&self) -> Option<&T>;
-    fn push(self, value: T) -> GSSNode<T>;
-    fn pop(&self) -> Vec<Rc<GSSNode<T>>>;
-    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>>;
-}
-
-impl<T: Clone> GSSOptionTrait<T> for Option<GSSNode<T>> {
-    fn peek(&self) -> Option<&T> {
-        self.as_ref().map(|node| node.peek())
-    }
-
-    fn push(self, value: T) -> GSSNode<T> {
-        self.map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
-    }
-
-    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
-        self.as_ref().map(|node| node.pop()).unwrap_or_default()
-    }
-
-    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
-        self.as_ref().map(|node| node.popn(n)).unwrap_or_default()
+    pub fn merge(&mut self, mut other: Self) where T: PartialEq {
+        assert!(self.value == other.value);
+        self.predecessors.extend(other.predecessors.drain(..));
     }
 }

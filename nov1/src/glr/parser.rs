@@ -1,7 +1,7 @@
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::items::Item;
 use crate::glr::table::{NonTerminalID, ProductionID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
-use crate::gss::{GSSNode, GSSOptionRcTrait, GSSRefTrait};
+use crate::gss::{GSSNode};
 
 use bimap::BiMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
