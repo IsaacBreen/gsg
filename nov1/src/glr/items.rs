@@ -1,5 +1,4 @@
-// src/glr/items.rs
-use crate::glr::grammar::{Production, Symbol, NonTerminal, Terminal};
+use crate::glr::grammar::{Production, Symbol};
 use std::collections::{BTreeSet, HashMap};
 
 
