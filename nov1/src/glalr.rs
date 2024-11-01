@@ -716,13 +716,23 @@ struct ParseState {
     input_pos: usize,
 }
 
+struct ParseResult {
+    final_states: Vec<ParseState>,
+}
+
+impl ParseResult {
+    fn is_ok(&self) -> bool {
+        self.final_states.len() > 0
+    }
+}
+
 fn parse(
     input: &[TerminalID],
     start_state_id: StateID,
     stage_7_table: &Stage7Table,
     terminal_map: &BiMap<Terminal, TerminalID>,
     non_terminal_map: &BiMap<NonTerminal, NonTerminalID>,
-) -> Vec<ParseState> {
+) -> ParseResult {
     let mut active_states = vec![ParseState {
         stack: vec![start_state_id],
         symbols_stack: vec![],
@@ -775,6 +785,8 @@ fn parse(
                         });
                     } else {
                         // Accept
+                        assert_eq!(new_stack.len(), 1);
+                        assert_eq!(new_stack[0], start_state_id);
                         final_states.push(ParseState {
                             stack: new_stack,
                             symbols_stack: new_symbols,
@@ -816,6 +828,8 @@ fn parse(
                                 });
                             } else {
                                 // Accept
+                                assert_eq!(new_stack.len(), 1);
+                                assert_eq!(new_stack[0], start_state_id);
                                 final_states.push(ParseState {
                                     stack: new_stack,
                                     symbols_stack: new_symbols,
@@ -831,7 +845,7 @@ fn parse(
         }
     }
 
-    final_states
+    ParseResult { final_states }
 }
 
 #[cfg(test)]
@@ -865,48 +879,48 @@ mod glalr_tests {
             result
         };
 
-        assert!(!parse(
+        assert!(parse(
             &tokenize("b"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
-        assert!(!parse(
+        .is_ok());
+        assert!(parse(
             &tokenize("ba"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
-        assert!(!parse(
+        .is_ok());
+        assert!(parse(
             &tokenize("baa"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
+        .is_ok());
 
-        assert!(parse(
+        assert!(!parse(
             &tokenize("a"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
+        .is_ok());
 
-        assert!(parse(
+        assert!(!parse(
             &tokenize("bb"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
+        .is_ok());
     }
 
     #[test]
@@ -945,86 +959,86 @@ mod glalr_tests {
             result
         };
 
-        assert!(!parse(
+        assert!(parse(
             &tokenize("i"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
-        assert!(!parse(
+        .is_ok());
+        assert!(parse(
             &tokenize("i+i*i"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
-        assert!(!parse(
+        .is_ok());
+        assert!(parse(
             &tokenize("i+i"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
-        assert!(!parse(
+        .is_ok());
+        assert!(parse(
             &tokenize("i*i"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
-        assert!(!parse(
+        .is_ok());
+        assert!(parse(
             &tokenize("i"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
-        assert!(!parse(
+        .is_ok());
+        assert!(parse(
             &tokenize("(i+i)*i"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
+        .is_ok());
 
-        assert!(parse(
+        assert!(!parse(
             &tokenize("i+"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
-        assert!(parse(
+        .is_ok());
+        assert!(!parse(
             &tokenize("i++i"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
-        assert!(parse(
+        .is_ok());
+        assert!(!parse(
             &tokenize(""),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
-        assert!(parse(
+        .is_ok());
+        assert!(!parse(
             &tokenize(")"),
             start_state_id,
             &parse_table,
             &terminal_map,
             &non_terminal_map
         )
-        .is_empty());
+        .is_ok());
     }
 }
