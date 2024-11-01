@@ -8,3 +8,4 @@ pub mod u8set;
 pub mod finite_automata;
 mod gss;
 mod glr;
+mod constrained_generation;

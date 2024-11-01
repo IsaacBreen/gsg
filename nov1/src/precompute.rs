@@ -2,7 +2,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use crate::finite_automata::GroupID;
 
-type StateID = usize;
+pub(crate) type StateID = usize;
 type TokenID = usize;
 
 /// Represents a token with its ID and width.
