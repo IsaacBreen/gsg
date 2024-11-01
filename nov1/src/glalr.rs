@@ -784,14 +784,20 @@ fn parse(
                             input_pos,
                         });
                     } else {
-                        // Accept
+                        // Sanity tests
                         assert_eq!(new_stack.len(), 1);
                         assert_eq!(new_stack[0], start_state_id);
-                        final_states.push(ParseState {
-                            stack: new_stack,
-                            symbols_stack: new_symbols,
-                            input_pos,
-                        });
+                        if input_pos == input.len() {
+                            // Accept
+                            final_states.push(ParseState {
+                                stack: new_stack,
+                                symbols_stack: new_symbols,
+                                input_pos,
+                            });
+                        } else {
+                            // Error
+                            print!("Parse error: Finished before consuming all input\n");
+                        }
                     }
                 }
                 Stage7ShiftsAndReduces::Split { shift, reduces } => {
@@ -827,14 +833,20 @@ fn parse(
                                     input_pos,
                                 });
                             } else {
-                                // Accept
+                                // Sanity tests
                                 assert_eq!(new_stack.len(), 1);
                                 assert_eq!(new_stack[0], start_state_id);
-                                final_states.push(ParseState {
-                                    stack: new_stack,
-                                    symbols_stack: new_symbols,
-                                    input_pos,
-                                });
+                                if input_pos == input.len() {
+                                    // Accept
+                                    final_states.push(ParseState {
+                                        stack: new_stack,
+                                        symbols_stack: new_symbols,
+                                        input_pos,
+                                    });
+                                } else {
+                                    // Error
+                                    print!("Parse error: Finished before consuming all input\n");
+                                }
                             }
                         }
                     }
