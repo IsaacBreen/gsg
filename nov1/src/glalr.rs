@@ -748,7 +748,7 @@ fn parse(
 
         let mut next_active_states = Vec::new();
 
-        for state in active_states {
+        while let Some(state) = active_states.pop() {
             let stack = state.stack;
             let symbols_stack = state.symbols_stack;
             let state_id = *stack.last().unwrap();
@@ -779,7 +779,7 @@ fn parse(
                         if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
                             new_stack.push(goto_state);
                             new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nonterminal).unwrap().clone()));
-                            next_active_states.push(ParseState {
+                            active_states.push(ParseState {
                                 stack: new_stack,
                                 symbols_stack: new_symbols,
                             });
@@ -818,7 +818,7 @@ fn parse(
                                 if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
                                     new_stack.push(goto_state);
                                     new_symbols.push(Symbol::NonTerminal(non_terminal_map.get_by_right(nt_id).unwrap().clone()));
-                                    next_active_states.push(ParseState {
+                                    active_states.push(ParseState {
                                         stack: new_stack,
                                         symbols_stack: new_symbols,
                                     });
