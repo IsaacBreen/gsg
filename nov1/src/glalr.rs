@@ -750,23 +750,15 @@ enum StopReason {
     GotoNotFound,
 }
 
-impl GLRParserState<'_> {
-    fn fully_matches(&self) -> bool {
-        for state in &self.inactive_states[&self.input_pos] {
-            if state.status == ParseStatus::Inactive(StopReason::GotoNotFound) {
-                return true;
-            }
-        }
-
-        false
-    }
-}
-
 impl GLRParser {
     fn parse(&self, input: &[TerminalID]) -> GLRParserState {
         let mut state = GLRParserState::new(self);
         state.parse(input);
         state
+    }
+
+    fn eof_token(&self) -> TerminalID {
+        self.terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap()
     }
 }
 
@@ -791,8 +783,7 @@ impl GLRParserState<'_> {
             self.step(&token);
         }
 
-        let eof_token = self.parser.terminal_map.get_by_left(&Terminal("$".to_string())).cloned().unwrap();
-        self.step(&eof_token);
+        self.step(&self.parser.eof_token());
 
     }
 
@@ -898,6 +889,16 @@ impl GLRParserState<'_> {
 
         self.active_states = next_active_states;
         self.inactive_states.insert(self.input_pos, inactive_states);
+    }
+
+    fn fully_matches(&self) -> bool {
+        for state in &self.inactive_states[&self.input_pos] {
+            if state.status == ParseStatus::Inactive(StopReason::GotoNotFound) {
+                return true;
+            }
+        }
+
+        false
     }
 }
 
