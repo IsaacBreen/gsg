@@ -1,4 +1,4 @@
-use crate::glr::grammar::{NonTerminal, Symbol, Terminal};
+use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::items::Item;
 use crate::glr::table::{NonTerminalID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
 use crate::gss::{GSSNode, GSSOptionTrait, GSSRefTrait};
@@ -10,6 +10,7 @@ use std::rc::Rc;
 
 pub struct GLRParser {
     pub stage_7_table: Stage7Table,
+    pub productions: Vec<Production>,
     pub terminal_map: BiMap<Terminal, TerminalID>,
     pub non_terminal_map: BiMap<NonTerminal, NonTerminalID>,
     pub item_set_map: BiMap<BTreeSet<Item>, StateID>,
@@ -66,7 +67,7 @@ impl Display for GLRParser {
                     Stage7ShiftsAndReduces::Shift(next_state_id) => {
                         writeln!(f, "      - {:?} -> Shift {}", terminal.0, next_state_id.0)?;
                     }
-                    Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
+                    Stage7ShiftsAndReduces::Reduce { production_id, nonterminal_id: nonterminal, len } => {
                         let nt = non_terminal_map.get_by_right(nonterminal).unwrap();
                         writeln!(f, "      - {:?} -> Reduce {} (len {})", terminal.0, nt.0, len)?;
                     }
@@ -75,12 +76,16 @@ impl Display for GLRParser {
                         if let Some(shift_state) = shift {
                             writeln!(f, "        - Shift {}", shift_state.0)?;
                         }
-                        for (len, nt_ids) in reduces {
+                        for (len, nt_id_to_prod_ids) in reduces {
                             writeln!(f, "        - Reduce (len {}):", len)?;
-                            for nt_id in nt_ids {
+                            for (nt_id, prod_ids) in nt_id_to_prod_ids {
                                 let nt = non_terminal_map.get_by_right(nt_id).unwrap();
-                                writeln!(f, "          - {}", nt.0)?;
+                                for prod_id in prod_ids {
+                                    let prod = self.productions.get(prod_id.0).unwrap();
+                                    writeln!(f, "          - {} -> {}", nt.0, prod.lhs.0)?;
+                                }
                             }
+
                         }
                     }
                 }
@@ -195,7 +200,7 @@ impl GLRParserState<'_> {
                         });
 
                     }
-                    Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
+                    Stage7ShiftsAndReduces::Reduce { production_id, nonterminal_id: nonterminal, len } => {
                         let popped_stack_nodes = stack.popn(*len);
 
                         for stack_node in popped_stack_nodes.into_iter() {
@@ -233,7 +238,7 @@ impl GLRParserState<'_> {
                         }
 
                         for (len, nt_ids) in reduces {
-                            for nt_id in nt_ids {
+                            for (nt_id, _) in nt_ids {
                                 let popped_stack_nodes = stack.popn(*len);
 
                                 for stack_node in popped_stack_nodes.into_iter() {
