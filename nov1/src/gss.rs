@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GSSNode<T> {
     value: T,
     predecessors: Vec<Rc<GSSNode<T>>>,
@@ -36,7 +36,7 @@ impl<T> Drop for GSSNode<T> {
     }
 }
 
-pub trait GSSTrait<T> {
+pub trait GSSRefTrait<T> {
     fn peek(&self) -> &T;
     fn push(&self, value: T) -> GSSNode<T>;
     fn pop(&self) -> Vec<Self> where Self: Sized;
@@ -53,7 +53,7 @@ pub trait GSSTrait<T> {
     }
 }
 
-impl<T> GSSTrait<T> for Rc<GSSNode<T>> {
+impl<T> GSSRefTrait<T> for Rc<GSSNode<T>> {
     fn peek(&self) -> &T {
         &self.value
     }
@@ -118,51 +118,37 @@ impl<T: Clone> GSSNode<T> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GSSHead<T> {
-    node: Option<GSSNode<T>>,
+pub trait GSSOptionTrait<T: Clone> {
+    fn peek(&self) -> Option<&T>;
+    fn push(self, value: T) -> GSSNode<T>;
+    fn pop(&self) -> Vec<GSSNode<T>>;
+    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>>;
 }
 
-impl<T: Clone> GSSHead<T> {
-    pub fn new() -> Self {
-        GSSHead { node: None }
-    }
-}
-
-impl<T: Clone> From<GSSNode<T>> for GSSHead<T> {
-    fn from(node: GSSNode<T>) -> Self {
-        GSSHead { node: Some(node) }
-    }
-}
-
-impl<T: Clone> GSSHead<T> {
-    pub fn peek(&self) -> &T {
-        self.node.as_ref().unwrap().peek()
+impl<T: Clone> GSSOptionTrait<T> for Option<Rc<GSSNode<T>>> {
+    fn peek(&self) -> Option<&T> {
+        todo!()
     }
 
-    pub fn push(&self, value: T) -> GSSHead<T> {
-        if let Some(node) = &self.node {
-            GSSHead {
-                node: Some(node.push(value)),
+    fn push(self, value: T) -> GSSNode<T> {
+        todo!()
+    }
+
+    fn pop(&self) -> Vec<GSSNode<T>> {
+        todo!()
+    }
+
+    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
+        if let Some(inner) = self {
+            let mut nodes = vec![inner.clone()];
+            for _ in 0..n {
+                let mut new_nodes = Vec::new();
+                for node in nodes {
+                    new_nodes.extend(node.pop());
+                }
+                nodes = new_nodes.clone();
             }
-        } else {
-            GSSHead {
-                node: Some(GSSNode::new(value)),
-            }
-        }
-    }
-
-    pub fn pop(&self) -> Vec<Rc<GSSHead<T>>> {
-        if let Some(node) = &self.node {
-            node.pop().into_iter().map(Into::into).collect()
-        } else {
-            Vec::new()
-        }
-    }
-
-    pub fn popn(&self, n: usize) -> Vec<Rc<GSSHead<T>>> {
-        if let Some(node) = &self.node {
-            node.popn(n)
+            nodes
         } else {
             Vec::new()
         }

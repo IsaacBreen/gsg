@@ -1,7 +1,7 @@
 use crate::glr::grammar::{NonTerminal, Symbol, Terminal};
 use crate::glr::items::Item;
 use crate::glr::table::{NonTerminalID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
-use crate::gss::{GSSHead, GSSNode, GSSTrait};
+use crate::gss::{GSSNode, GSSOptionTrait, GSSRefTrait};
 
 use bimap::BiMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -115,9 +115,10 @@ pub struct GLRParserState<'a> {
     pub input_pos: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ParseState {
     pub stack: Rc<GSSNode<StateID>>,
-    pub action_stack: Rc<GSSHead<Action>>,
+    pub action_stack: Option<Rc<GSSNode<Action>>>,
     pub status: ParseStatus,
 }
 
@@ -141,14 +142,13 @@ pub enum StopReason {
 
 impl GLRParserState<'_> {
     pub fn new(parser: &GLRParser) -> GLRParserState {
-        let start_stack = Rc::new(GSSNode::new(parser.start_state_id));
-        let action_stack = Rc::new(GSSHead::new());
+        let start_stack = GSSNode::new(parser.start_state_id);
 
         GLRParserState {
             parser,
             active_states: vec![ParseState {
-                stack: start_stack,
-                action_stack,
+                stack: Rc::new(start_stack),
+                action_stack: None,
                 status: ParseStatus::Active,
             }],
             inactive_states: HashMap::new(),
@@ -178,7 +178,7 @@ impl GLRParserState<'_> {
 
         while let Some(state) = self.active_states.pop() {
             let stack = state.stack;
-            let symbols_stack = state.action_stack;
+            let action_stack = state.action_stack;
             let state_id = *stack.peek();
 
             let row = self.parser.stage_7_table.get(&state_id).unwrap();
@@ -188,35 +188,35 @@ impl GLRParserState<'_> {
                     Stage7ShiftsAndReduces::Shift(next_state_id) => {
                         let new_stack = stack.push(*next_state_id);
                         let terminal = self.parser.terminal_map.get_by_right(&token).unwrap().clone();
-                        let new_symbols = symbols_stack.push(Action::Shift(*token));
+                        let new_actions = action_stack.push(Action::Shift(*token));
                         next_active_states.push(ParseState {
                             stack: Rc::new(new_stack),
-                            action_stack: Rc::new(new_symbols),
+                            action_stack: Some(Rc::new(new_actions)),
                             status: ParseStatus::Active,
                         });
 
                     }
                     Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
                         let popped_stack_nodes = stack.popn(*len);
-                        let popped_symbol_nodes = symbols_stack.popn(*len);
+                        let popped_action_nodes = action_stack.popn(*len);
 
-                        for (stack_node, symbol_node) in popped_stack_nodes.iter().zip(popped_symbol_nodes.iter()) {
+                        for (stack_node, action_node) in popped_stack_nodes.into_iter().zip(popped_action_nodes.iter()) {
                             let revealed_state = *stack_node.peek();
                             let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
 
                             if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
                                 let new_stack = stack_node.push(goto_state);
                                 let nt = self.parser.non_terminal_map.get_by_right(nonterminal).unwrap().clone();
-                                let new_symbols = symbol_node.push(Action::Reduce { len: *len, nonterminal: *nonterminal });
+                                let new_actions = action_node.push(Action::Reduce { len: *len, nonterminal: *nonterminal });
                                 self.active_states.push(ParseState {
                                     stack: Rc::new(new_stack),
-                                    action_stack: Rc::new(new_symbols),
+                                    action_stack: Some(Rc::new(new_actions)),
                                     status: ParseStatus::Active,
                                 });
                             } else {
                                 inactive_states.push(ParseState {
-                                    stack: stack_node.clone(),
-                                    action_stack: symbol_node.clone(),
+                                    stack: stack_node,
+                                    action_stack: None,
                                     status: ParseStatus::Inactive(StopReason::GotoNotFound),
                                 });
                             }
@@ -227,11 +227,11 @@ impl GLRParserState<'_> {
 
                             let new_stack = stack.push(*shift_state);
                             let terminal = self.parser.terminal_map.get_by_right(&token).unwrap().clone();
-                            let new_symbols = symbols_stack.push(Symbol::Terminal(terminal));
+                            let new_actions = action_stack.clone().push(Action::Shift(*token));
 
                             next_active_states.push(ParseState {
                                 stack: Rc::new(new_stack),
-                                action_stack: Rc::new(new_symbols),
+                                action_stack: Some(Rc::new(new_actions)),
                                 status: ParseStatus::Active,
                             });
                         }
@@ -239,25 +239,25 @@ impl GLRParserState<'_> {
                         for (len, nt_ids) in reduces {
                             for nt_id in nt_ids {
                                 let popped_stack_nodes = stack.popn(*len);
-                                let popped_symbol_nodes = symbols_stack.popn(*len);
+                                let popped_action_nodes = action_stack.popn(*len);
 
-                                for (stack_node, symbol_node) in popped_stack_nodes.iter().zip(popped_symbol_nodes.iter()) {
+                                for (stack_node, action_node) in popped_stack_nodes.iter().zip(popped_action_nodes.iter()) {
                                     let revealed_state = *stack_node.peek();
                                     let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
                                     if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
                                         let new_stack = stack_node.push(goto_state);
                                         let nt = self.parser.non_terminal_map.get_by_right(nt_id).unwrap().clone();
-                                        let new_symbols = symbol_node.push(Symbol::NonTerminal(nt));
+                                        let new_actions = action_node.push(Action::Reduce { len: *len, nonterminal: *nt_id });
                                         self.active_states.push(ParseState {
                                             stack: Rc::new(new_stack),
-                                            action_stack: Rc::new(new_symbols),
+                                            action_stack: Some(Rc::new(new_actions)),
                                             status: ParseStatus::Active,
                                         });
 
                                     } else {
                                         inactive_states.push(ParseState {
                                             stack: stack_node.clone(),
-                                            action_stack: symbol_node.clone(),
+                                            action_stack: Some(action_node.clone()),
                                             status: ParseStatus::Inactive(StopReason::GotoNotFound),
                                         });
                                     }
@@ -269,7 +269,7 @@ impl GLRParserState<'_> {
             } else {
                 inactive_states.push(ParseState {
                     stack,
-                    action_stack: symbols_stack,
+                    action_stack,
                     status: ParseStatus::Inactive(StopReason::ActionNotFound),
                 });
             }
@@ -284,7 +284,7 @@ impl GLRParserState<'_> {
     }
 
     pub fn merge_active_states(&mut self) {
-        let mut active_state_map: HashMap<(StateID, Rc<GSSNode<Action>>), Vec<ParseState>> = HashMap::new();
+        let mut active_state_map: HashMap<(StateID, Option<Rc<GSSNode<Action>>>), Vec<ParseState>> = HashMap::new();
 
         let mut new_active_states = Vec::new();
         std::mem::swap(&mut self.active_states, &mut new_active_states);
@@ -297,7 +297,7 @@ impl GLRParserState<'_> {
         for (_key, states) in active_state_map {
             let mut merged_state = states[0].clone();
             for i in 1..states.len() {
-                merged_state.stack.merge(states[i].stack.clone().into());
+                Rc::make_mut(&mut merged_state.stack).merge(states[i].stack.as_ref().clone());
 
             }
             self.active_states.push(merged_state);
