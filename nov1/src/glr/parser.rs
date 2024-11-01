@@ -241,7 +241,6 @@ impl GLRParserState<'_> {
                                     let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
                                     if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
                                         let new_stack = stack_node.push(goto_state);
-                                        let nt = self.parser.non_terminal_map.get_by_right(nt_id).unwrap().clone();
                                         let new_actions = action_stack.clone().push(Action::Reduce { len: *len, nonterminal: *nt_id });
                                         self.active_states.push(ParseState {
                                             stack: Rc::new(new_stack),
