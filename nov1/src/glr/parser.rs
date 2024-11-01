@@ -6,7 +6,7 @@ use crate::gss::{GSSNode, GSSTrait};
 use bimap::BiMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Display;
-use std::sync::Arc;
+use std::rc::Rc;
 
 pub struct GLRParser {
     pub stage_7_table: Stage7Table,
@@ -116,8 +116,8 @@ pub struct GLRParserState<'a> {
 }
 
 pub struct ParseState {
-    pub stack: Arc<GSSNode<StateID>>,
-    pub symbols_stack: Arc<GSSNode<Symbol>>,
+    pub stack: Rc<GSSNode<StateID>>,
+    pub symbols_stack: Rc<GSSNode<Symbol>>,
     pub status: ParseStatus,
 }
 
@@ -135,8 +135,8 @@ pub enum StopReason {
 
 impl GLRParserState<'_> {
     pub fn new(parser: &GLRParser) -> GLRParserState {
-        let start_stack = Arc::new(GSSNode::new(parser.start_state_id));
-        let start_symbols = Arc::new(GSSNode::new(Symbol::NonTerminal(NonTerminal("START".to_string())))); // Dummy start symbol
+        let start_stack = Rc::new(GSSNode::new(parser.start_state_id));
+        let start_symbols = Rc::new(GSSNode::new(Symbol::NonTerminal(NonTerminal("START".to_string())))); // Dummy start symbol
 
         GLRParserState {
             parser,
@@ -184,8 +184,8 @@ impl GLRParserState<'_> {
                         let terminal = self.parser.terminal_map.get_by_right(&token).unwrap().clone();
                         let new_symbols = symbols_stack.push(Symbol::Terminal(terminal));
                         next_active_states.push(ParseState {
-                            stack: Arc::new(new_stack),
-                            symbols_stack: Arc::new(new_symbols),
+                            stack: Rc::new(new_stack),
+                            symbols_stack: Rc::new(new_symbols),
                             status: ParseStatus::Active,
                         });
 
@@ -203,8 +203,8 @@ impl GLRParserState<'_> {
                                 let nt = self.parser.non_terminal_map.get_by_right(nonterminal).unwrap().clone();
                                 let new_symbols = symbol_node.push(Symbol::NonTerminal(nt));
                                 self.active_states.push(ParseState {
-                                    stack: Arc::new(new_stack),
-                                    symbols_stack: Arc::new(new_symbols),
+                                    stack: Rc::new(new_stack),
+                                    symbols_stack: Rc::new(new_symbols),
                                     status: ParseStatus::Active,
                                 });
                             } else {
@@ -224,8 +224,8 @@ impl GLRParserState<'_> {
                             let new_symbols = symbols_stack.push(Symbol::Terminal(terminal));
 
                             next_active_states.push(ParseState {
-                                stack: Arc::new(new_stack),
-                                symbols_stack: Arc::new(new_symbols),
+                                stack: Rc::new(new_stack),
+                                symbols_stack: Rc::new(new_symbols),
                                 status: ParseStatus::Active,
                             });
                         }
@@ -243,8 +243,8 @@ impl GLRParserState<'_> {
                                         let nt = self.parser.non_terminal_map.get_by_right(nt_id).unwrap().clone();
                                         let new_symbols = symbol_node.push(Symbol::NonTerminal(nt));
                                         self.active_states.push(ParseState {
-                                            stack: Arc::new(new_stack),
-                                            symbols_stack: Arc::new(new_symbols),
+                                            stack: Rc::new(new_stack),
+                                            symbols_stack: Rc::new(new_symbols),
                                             status: ParseStatus::Active,
                                         });
 

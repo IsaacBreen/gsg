@@ -1,10 +1,10 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GSSNode<T> {
     value: T,
-    predecessors: Vec<Arc<GSSNode<T>>>,
+    predecessors: Vec<Rc<GSSNode<T>>>,
 }
 
 impl<T> GSSNode<T> {
@@ -29,7 +29,7 @@ impl<T> Drop for GSSNode<T> {
     fn drop(&mut self) {
         let mut cur_nodes = std::mem::take(&mut self.predecessors);
         while let Some(node) = cur_nodes.pop() {
-            if let Ok(mut inner_node) = Arc::try_unwrap(node) {
+            if let Ok(mut inner_node) = Rc::try_unwrap(node) {
                 cur_nodes.append(&mut inner_node.predecessors);
             }
         }
@@ -53,7 +53,7 @@ pub trait GSSTrait<T> {
     }
 }
 
-impl<T> GSSTrait<T> for Arc<GSSNode<T>> {
+impl<T> GSSTrait<T> for Rc<GSSNode<T>> {
     fn peek(&self) -> &T {
         &self.value
     }
@@ -75,16 +75,16 @@ impl<T> GSSNode<T> {
     }
 
     pub fn push(self, value: T) -> GSSNode<T> {
-        Arc::new(self).push(value)
+        Rc::new(self).push(value)
     }
 
-    pub fn pop(&self) -> Vec<Arc<Self>> {
+    pub fn pop(&self) -> Vec<Rc<Self>> {
         self.predecessors.clone()
     }
 
-    pub fn popn(&self, n: usize) -> Vec<Arc<Self>> where T: Clone {
+    pub fn popn(&self, n: usize) -> Vec<Rc<Self>> where T: Clone {
         if n == 0 {
-            return vec![Arc::new(self.clone())];
+            return vec![Rc::new(self.clone())];
         }
         let mut nodes = Vec::new();
         for popped in self.pop() {
