@@ -28,6 +28,10 @@ struct Stage2Row {
 struct Stage3Row {
     shifts: HashMap<Terminal, BTreeSet<Item>>,
     gotos: HashMap<NonTerminal, BTreeSet<Item>>,
+    /// Split the reduce items by lookahead.
+    /// For LR(0), all possible terminals map to the entire reduce item set.
+    /// But there are various cleverer and more selective ways to compute lookaheads.
+    /// For simplicity, use LALR.
     reduces: HashMap<Terminal, BTreeSet<Item>>,
 }
 #[derive(Debug)]
@@ -60,6 +64,7 @@ enum Stage6ShiftsAndReduces {
 
 #[derive(Debug)]
 pub enum Stage7ShiftsAndReduces {
+    /// Map each item set to a unique ID, and do the same for terminals and nonterminals.
     Shift(StateID),
     Reduce { nonterminal: NonTerminalID, len: usize },
     Split {
@@ -70,6 +75,7 @@ pub enum Stage7ShiftsAndReduces {
 
 #[derive(Debug)]
 pub struct Stage7Row {
+    /// Map each item set to a unique ID, and do the same for terminals and nonterminals.
     pub shifts_and_reduces: HashMap<TerminalID, Stage7ShiftsAndReduces>,
     pub gotos: HashMap<NonTerminalID, StateID>,
 }

@@ -1,7 +1,9 @@
-use crate::glr::grammar::{Production, Symbol};
+// src/glr/items.rs
+use crate::glr::grammar::{Production, Symbol, NonTerminal, Terminal};
 use std::collections::{BTreeSet, HashMap};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Item {
     pub production: Production,
     pub dot_position: usize,
@@ -32,6 +34,7 @@ pub fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BT
     closure
 }
 
+/// Computes the GOTO function for a set of LR(0) items.
 pub fn compute_goto(items: &BTreeSet<Item>) -> BTreeSet<Item> {
     let mut result = BTreeSet::new();
     for item in items {
@@ -45,6 +48,7 @@ pub fn compute_goto(items: &BTreeSet<Item>) -> BTreeSet<Item> {
     result
 }
 
+/// Splits a set of LR(0) items based on the symbol after the dot.
 pub fn split_on_dot(items: &BTreeSet<Item>) -> HashMap<Option<Symbol>, BTreeSet<Item>> {
     let mut result: HashMap<Option<Symbol>, BTreeSet<Item>> = HashMap::new();
     for item in items {
