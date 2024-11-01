@@ -1,7 +1,7 @@
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::items::Item;
 use crate::glr::table::{NonTerminalID, ProductionID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
-use crate::gss::{GSSNode, GSSOptionRcTrait, GSSOptionTrait, GSSRefTrait};
+use crate::gss::{GSSNode, GSSOptionRcTrait, GSSRefTrait};
 
 use bimap::BiMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -122,8 +122,8 @@ pub struct GLRParserState<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ParseState {
-    pub stack: GSSNode<StateID>,
-    pub action_stack: Option<GSSNode<Action>>,
+    pub stack: Rc<GSSNode<StateID>>,
+    pub action_stack: Option<Rc<GSSNode<Action>>>,
     pub status: ParseStatus,
 }
 
@@ -152,7 +152,7 @@ impl GLRParserState<'_> {
         GLRParserState {
             parser,
             active_states: vec![ParseState {
-                stack: start_stack,
+                stack: Rc::new(start_stack.clone()),
                 action_stack: None,
                 status: ParseStatus::Active,
             }],
@@ -194,8 +194,8 @@ impl GLRParserState<'_> {
                         let new_stack = stack.push(*next_state_id);
                         let new_actions = action_stack.push(Action::Shift(*token));
                         next_active_states.push(ParseState {
-                            stack: new_stack,
-                            action_stack: Some(new_actions),
+                            stack: Rc::new(new_stack),
+                            action_stack: Some(Rc::new(new_actions)),
                             status: ParseStatus::Active,
                         });
 
@@ -211,8 +211,8 @@ impl GLRParserState<'_> {
                                 let new_stack = stack_node.push(goto_state);
                                 let new_actions = action_stack.clone().push(Action::Reduce { production_id: *production_id, len: *len, nonterminal_id: *nonterminal });
                                 self.active_states.push(ParseState {
-                                    stack: new_stack,
-                                    action_stack: Some(new_actions),
+                                    stack: Rc::new(new_stack),
+                                    action_stack: Some(Rc::new(new_actions)),
                                     status: ParseStatus::Active,
                                 });
                             } else {
@@ -293,12 +293,13 @@ impl GLRParserState<'_> {
             if let Some(existing) = active_state_map.get_mut(&key) {
                 Rc::make_mut(&mut existing.stack).merge(state.stack.as_ref().clone());
                 if let Some(existing_action_stack) = existing.action_stack.as_mut() {
-                    Rc::make_mut(existing_action_stack).merge(state.action_stack.as_ref().unwrap().clone());
+                    Rc::make_mut(existing_action_stack).merge(state.action_stack.unwrap().as_ref().clone());
                 }
             } else {
                 new_active_states.push(state);
             }
         }
+        self.active_states = new_active_states;
     }
 
     pub fn fully_matches(&self) -> bool {
