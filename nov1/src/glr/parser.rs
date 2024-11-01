@@ -7,10 +7,11 @@ use crate::glr::table::{NonTerminalID, Stage7ShiftsAndReduces, Stage7Table, Stat
 
 pub struct GLRParser {
     pub stage_7_table: Stage7Table,
-    pub start_state_id: StateID,
     pub terminal_map: BiMap<Terminal, TerminalID>,
     pub non_terminal_map: BiMap<NonTerminal, NonTerminalID>,
     pub item_set_map: BiMap<BTreeSet<Item>, StateID>,
+    pub start_state_id: StateID,
+    pub eof_terminal_id: TerminalID,
 }
 
 impl GLRParser {

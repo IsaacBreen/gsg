@@ -16,16 +16,7 @@ mod glalr_tests {
             prod("A", vec![t("b")]),
         ];
 
-        let (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id) =
-            generate_glr_parser(&productions);
-
-        let parser = GLRParser {
-            stage_7_table,
-            start_state_id,
-            terminal_map,
-            non_terminal_map,
-            item_set_map,
-        };
+        let parser = generate_glr_parser(&productions);
 
         println!("{}", parser);
 
@@ -69,16 +60,7 @@ mod glalr_tests {
             prod("F", vec![t("i")]),
         ];
 
-        let (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id) =
-            generate_glr_parser(&productions);
-
-        let parser = GLRParser {
-            stage_7_table,
-            start_state_id,
-            terminal_map,
-            non_terminal_map,
-            item_set_map,
-        };
+        let parser = generate_glr_parser(&productions);
 
         println!("{}", parser);
 

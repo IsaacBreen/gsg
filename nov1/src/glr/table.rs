@@ -5,6 +5,7 @@ use bimap::BiMap;
 use std::fmt::{Display, Write};
 use std::collections::VecDeque;
 use crate::glr::grammar::{compute_first_sets, compute_follow_sets, NonTerminal, Production, Symbol, Terminal};
+use crate::glr::parser::GLRParser;
 use super::items::{compute_closure, compute_goto, split_on_dot, Item};
 
 type Stage1Table = HashMap<BTreeSet<Item>, Stage1Row>;
@@ -424,12 +425,21 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production]) -> Stage7Resu
     (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id)
 }
 
-pub fn generate_glr_parser(productions: &[Production]) -> (Stage7Table, BiMap<Terminal, TerminalID>, BiMap<NonTerminal, NonTerminalID>, BiMap<BTreeSet<Item>, StateID>, StateID) {
+pub fn generate_glr_parser(productions: &[Production]) -> GLRParser {
     let stage_1_table = stage_1(productions);
     let stage_2_table = stage_2(stage_1_table, productions);
     let stage_3_table = stage_3(stage_2_table, productions);
     let stage_4_table = stage_4(stage_3_table, productions);
     let stage_5_table = stage_5(stage_4_table, productions);
     let stage_6_table = stage_6(stage_5_table);
-    stage_7(stage_6_table, productions)
+    let (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id) = stage_7(stage_6_table, productions);
+    let eof_terminal_id = *terminal_map.get_by_left(&Terminal("$".to_string())).unwrap();
+    GLRParser {
+        stage_7_table,
+        terminal_map,
+        non_terminal_map,
+        item_set_map,
+        start_state_id,
+        eof_terminal_id,
+    }
 }
