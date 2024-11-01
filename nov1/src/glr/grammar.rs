@@ -26,7 +26,10 @@ pub fn t(name: &str) -> Symbol {
 }
 
 pub fn prod(name: &str, rhs: Vec<Symbol>) -> Production {
-    Production { lhs: NonTerminal(name.to_string()), rhs }
+    Production {
+        lhs: NonTerminal(name.to_string()),
+        rhs,
+    }
 }
 
 
@@ -131,3 +134,4 @@ pub fn compute_follow_sets(
 
     follow_sets
 }
+// src/glr/grammar.rs

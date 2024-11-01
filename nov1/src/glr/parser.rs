@@ -1,9 +1,12 @@
 use crate::glr::grammar::{NonTerminal, Symbol, Terminal};
 use crate::glr::items::Item;
 use crate::glr::table::{NonTerminalID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
+use crate::gss::{GSSNode, GSSTrait};
+
 use bimap::BiMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Display;
+use std::sync::Arc;
 
 pub struct GLRParser {
     pub stage_7_table: Stage7Table,
@@ -113,8 +116,8 @@ pub struct GLRParserState<'a> {
 }
 
 pub struct ParseState {
-    pub stack: Vec<StateID>,
-    pub symbols_stack: Vec<Symbol>,
+    pub stack: Arc<GSSNode<StateID>>,
+    pub symbols_stack: Arc<GSSNode<Symbol>>,
     pub status: ParseStatus,
 }
 
@@ -132,11 +135,14 @@ pub enum StopReason {
 
 impl GLRParserState<'_> {
     pub fn new(parser: &GLRParser) -> GLRParserState {
+        let start_stack = Arc::new(GSSNode::new(parser.start_state_id));
+        let start_symbols = Arc::new(GSSNode::new(Symbol::NonTerminal(NonTerminal("START".to_string())))); // Dummy start symbol
+
         GLRParserState {
             parser,
             active_states: vec![ParseState {
-                stack: vec![parser.start_state_id],
-                symbols_stack: vec![],
+                stack: start_stack,
+                symbols_stack: start_symbols,
                 status: ParseStatus::Active,
             }],
             inactive_states: HashMap::new(),
@@ -163,116 +169,92 @@ impl GLRParserState<'_> {
     pub fn step(&mut self, token: &TerminalID) {
         let mut next_active_states = Vec::new();
         let mut inactive_states = Vec::new();
+
         while let Some(state) = self.active_states.pop() {
             let stack = state.stack;
             let symbols_stack = state.symbols_stack;
-            let state_id = *stack.last().unwrap();
+            let state_id = *stack.peek();
 
             let row = self.parser.stage_7_table.get(&state_id).unwrap();
 
             if let Some(action) = row.shifts_and_reduces.get(&token) {
                 match action {
                     Stage7ShiftsAndReduces::Shift(next_state_id) => {
-                        let mut new_stack = stack;
-                        let mut new_symbols = symbols_stack;
-                        new_stack.push(*next_state_id);
-                        new_symbols.push(Symbol::Terminal(
-                            self.parser
-                                .terminal_map
-                                .get_by_right(&token)
-                                .unwrap()
-                                .clone(),
-                        ));
+                        let new_stack = stack.push(*next_state_id);
+                        let terminal = self.parser.terminal_map.get_by_right(&token).unwrap().clone();
+                        let new_symbols = symbols_stack.push(Symbol::Terminal(terminal));
                         next_active_states.push(ParseState {
-                            stack: new_stack,
-                            symbols_stack: new_symbols,
+                            stack: Arc::new(new_stack),
+                            symbols_stack: Arc::new(new_symbols),
                             status: ParseStatus::Active,
                         });
+
                     }
                     Stage7ShiftsAndReduces::Reduce { nonterminal, len } => {
-                        let mut new_stack = stack;
-                        let mut new_symbols = symbols_stack;
-                        for _ in 0..*len {
-                            new_stack.pop();
-                            new_symbols.pop();
-                        }
-                        let revealed_state = *new_stack.last().unwrap();
-                        let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
-                        if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
-                            new_stack.push(goto_state);
-                            new_symbols.push(Symbol::NonTerminal(
-                                self.parser
-                                    .non_terminal_map
-                                    .get_by_right(nonterminal)
-                                    .unwrap()
-                                    .clone(),
-                            ));
-                            self.active_states.push(ParseState {
-                                stack: new_stack,
-                                symbols_stack: new_symbols,
-                                status: ParseStatus::Active,
-                            });
-                        } else {
-                            inactive_states.push(ParseState {
-                                stack: new_stack,
-                                symbols_stack: new_symbols,
-                                status: ParseStatus::Inactive(StopReason::GotoNotFound),
-                            });
+                        let popped_stack_nodes = stack.popn(*len);
+                        let popped_symbol_nodes = symbols_stack.popn(*len);
+
+                        for (stack_node, symbol_node) in popped_stack_nodes.iter().zip(popped_symbol_nodes.iter()) {
+                            let revealed_state = *stack_node.peek();
+                            let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
+
+                            if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
+                                let new_stack = stack_node.push(goto_state);
+                                let nt = self.parser.non_terminal_map.get_by_right(nonterminal).unwrap().clone();
+                                let new_symbols = symbol_node.push(Symbol::NonTerminal(nt));
+                                self.active_states.push(ParseState {
+                                    stack: Arc::new(new_stack),
+                                    symbols_stack: Arc::new(new_symbols),
+                                    status: ParseStatus::Active,
+                                });
+                            } else {
+                                inactive_states.push(ParseState {
+                                    stack: stack_node.clone(),
+                                    symbols_stack: symbol_node.clone(),
+                                    status: ParseStatus::Inactive(StopReason::GotoNotFound),
+                                });
+                            }
                         }
                     }
                     Stage7ShiftsAndReduces::Split { shift, reduces } => {
                         if let Some(shift_state) = shift {
-                            let mut new_stack = stack.clone();
-                            let mut new_symbols = symbols_stack.clone();
-                            new_stack.push(*shift_state);
-                            new_symbols.push(Symbol::Terminal(
-                                self.parser
-                                    .terminal_map
-                                    .get_by_right(&token)
-                                    .unwrap()
-                                    .clone(),
-                            ));
+
+                            let new_stack = stack.push(*shift_state);
+                            let terminal = self.parser.terminal_map.get_by_right(&token).unwrap().clone();
+                            let new_symbols = symbols_stack.push(Symbol::Terminal(terminal));
+
                             next_active_states.push(ParseState {
-                                stack: new_stack,
-                                symbols_stack: new_symbols,
+                                stack: Arc::new(new_stack),
+                                symbols_stack: Arc::new(new_symbols),
                                 status: ParseStatus::Active,
                             });
                         }
 
                         for (len, nt_ids) in reduces {
                             for nt_id in nt_ids {
-                                let mut new_stack = stack.clone();
-                                let mut new_symbols = symbols_stack.clone();
-                                for _ in 0..*len {
-                                    new_stack.pop();
-                                    new_symbols.pop();
-                                }
-                                let revealed_state = *new_stack.last().unwrap();
-                                let goto_row = self
-                                    .parser
-                                    .stage_7_table
-                                    .get(&revealed_state)
-                                    .unwrap();
-                                if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
-                                    new_stack.push(goto_state);
-                                    new_symbols.push(Symbol::NonTerminal(
-                                        self.parser
-                                            .non_terminal_map
-                                            .get_by_right(nt_id)
-                                            .unwrap()
-                                            .clone(),
-                                    ));
-                                    self.active_states.push(ParseState {
-                                        stack: new_stack,
-                                        symbols_stack: new_symbols,
-                                        status: ParseStatus::Active,
-                                    });
-                                } else {
-                                    inactive_states.push(ParseState {
-                                        stack: new_stack,
-                                        symbols_stack: new_symbols,
-                                        status: ParseStatus::Inactive(StopReason::GotoNotFound),
-                                    });
+                                let popped_stack_nodes = stack.popn(*len);
+                                let popped_symbol_nodes = symbols_stack.popn(*len);
+
+                                for (stack_node, symbol_node) in popped_stack_nodes.iter().zip(popped_symbol_nodes.iter()) {
+                                    let revealed_state = *stack_node.peek();
+                                    let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
+                                    if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
+                                        let new_stack = stack_node.push(goto_state);
+                                        let nt = self.parser.non_terminal_map.get_by_right(nt_id).unwrap().clone();
+                                        let new_symbols = symbol_node.push(Symbol::NonTerminal(nt));
+                                        self.active_states.push(ParseState {
+                                            stack: Arc::new(new_stack),
+                                            symbols_stack: Arc::new(new_symbols),
+                                            status: ParseStatus::Active,
+                                        });
+
+                                    } else {
+                                        inactive_states.push(ParseState {
+                                            stack: stack_node.clone(),
+                                            symbols_stack: symbol_node.clone(),
+                                            status: ParseStatus::Inactive(StopReason::GotoNotFound),
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -286,7 +268,6 @@ impl GLRParserState<'_> {
                 });
             }
         }
-
         self.active_states = next_active_states;
         self.inactive_states.insert(self.input_pos, inactive_states);
 
@@ -311,3 +292,4 @@ impl GLRParserState<'_> {
         }
     }
 }
+// src/glr/parser.rs

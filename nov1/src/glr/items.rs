@@ -58,3 +58,4 @@ pub fn split_on_dot(items: &BTreeSet<Item>) -> HashMap<Option<Symbol>, BTreeSet<
     }
     result
 }
+// src/glr/items.rs
