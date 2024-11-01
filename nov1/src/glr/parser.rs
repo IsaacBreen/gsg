@@ -20,13 +20,6 @@ impl GLRParser {
         state.parse(input);
         state
     }
-
-    pub fn eof_token(&self) -> TerminalID {
-        self.terminal_map
-            .get_by_left(&Terminal("$".to_string()))
-            .cloned()
-            .unwrap()
-    }
 }
 
 impl Display for GLRParser {
@@ -163,7 +156,8 @@ impl GLRParserState<'_> {
     }
 
     pub fn end_parse(&mut self) {
-        self.step(&self.parser.eof_token());
+        let self1 = &self.parser;
+        self.step(&self1.eof_terminal_id);
     }
 
     pub fn step(&mut self, token: &TerminalID) {
@@ -296,7 +290,8 @@ impl GLRParserState<'_> {
         self.active_states = next_active_states;
         self.inactive_states.insert(self.input_pos, inactive_states);
 
-        if token != &self.parser.eof_token() {
+        let self1 = &self.parser;
+        if token != &self1.eof_terminal_id {
             self.input_pos += 1;
         }
     }
