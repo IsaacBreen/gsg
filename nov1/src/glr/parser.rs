@@ -19,6 +19,14 @@ pub struct GLRParser {
 }
 
 impl GLRParser {
+    pub fn init_parser(&self) -> GLRParserState {
+        GLRParserState::new(self)
+    }
+
+    pub fn init_parser_from_parse_state(&self, parse_state: ParseState) -> GLRParserState {
+        GLRParserState::new_from_parse_state(self, parse_state)
+    }
+
     pub fn parse(&self, input: &[TerminalID]) -> GLRParserState {
         let mut state = GLRParserState::new(self);
         state.parse(input);
@@ -112,7 +120,7 @@ impl Display for GLRParser {
     }
 }
 
-
+#[derive(Clone)]
 pub struct GLRParserState<'a> {
     pub parser: &'a GLRParser,
     pub active_states: Vec<ParseState>,
@@ -159,6 +167,12 @@ impl GLRParserState<'_> {
             inactive_states: HashMap::new(),
             input_pos: 0,
         }
+    }
+
+    pub fn new_from_parse_state(parser: &GLRParser, parse_state: ParseState) -> GLRParserState {
+        let mut state = GLRParserState::new(parser);
+        state.active_states.push(parse_state.clone());
+        state
     }
 
     pub fn parse(&mut self, input: &[TerminalID]) {
@@ -315,5 +329,9 @@ impl GLRParserState<'_> {
         } else {
             vec![]
         }
+    }
+
+    pub fn is_ok(&self) -> bool {
+        !self.active_states.is_empty() || self.fully_matches()
     }
 }
