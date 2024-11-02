@@ -30,7 +30,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
                         for possible_next_grammar_token in self.tokenizer.tokens_accessible_from_state(*tokenizer_state_id) {
                             let mut new_new_glr_parse_state = new_glr_parse_state.clone();
                             let possible_next_grammar_token_id = table::TerminalID(possible_next_grammar_token);
-                            new_glr_parse_state.partial_parse(&[possible_next_grammar_token_id]);
+                            new_new_glr_parse_state.partial_parse(&[possible_next_grammar_token_id]);
                             if new_new_glr_parse_state.is_ok() {
                                 any_next_tokens_are_valid = true;
                                 break;
@@ -65,5 +65,11 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
             }
         }
         self.states = new_states;
+    }
+
+    fn commit_many(&mut self, llm_tokens: &[LLMToken]) {
+        for llm_token in llm_tokens {
+            self.commit(llm_token);
+        }
     }
 }
