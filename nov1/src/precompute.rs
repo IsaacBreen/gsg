@@ -92,7 +92,7 @@ pub trait Tokenizer: Sized {
 
 /// Precomputes a map from each state and token sequence to a set of LLM token IDs.
 pub fn precompute_llm_token_sets<'a>(
-    precompute_map: &BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&'a [u8], usize>>>,
+    precompute_map: &BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>>>,
     llm_token_to_id: &HashMap<&'a [u8], usize>,
 ) -> BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeSet<usize>>> {
     let mut result: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeSet<usize>>> = BTreeMap::new();
