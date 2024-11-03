@@ -315,12 +315,12 @@ impl<'a> GLRParserState<'a> {
     }
 
     pub fn merge_active_states(&mut self) {
-        let mut active_state_map: HashMap<(StateID, Option<Rc<GSSNode<Action>>>), ParseState> = HashMap::new();
+        let mut active_state_map: HashMap<ParseStateKey, ParseState> = HashMap::new();
 
         let mut new_active_states = Vec::new();
 
         for mut state in std::mem::take(&mut self.active_states) {
-            let key = (*state.stack.peek(), state.action_stack.clone());
+            let key = state.key();
             if let Some(existing) = active_state_map.get_mut(&key) {
                 Rc::make_mut(&mut existing.stack).merge(state.stack.as_ref().clone());
                 if let Some(existing_action_stack) = existing.action_stack.as_mut() {
@@ -351,5 +351,20 @@ impl<'a> GLRParserState<'a> {
 
     pub fn is_ok(&self) -> bool {
         !self.active_states.is_empty() || self.fully_matches()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct ParseStateKey {
+    stack: StateID,
+    action_stack: Option<Action>,
+}
+
+impl ParseState {
+    pub fn key(&self) -> ParseStateKey {
+        ParseStateKey {
+            stack: *self.stack.peek(),
+            action_stack: self.action_stack.peek().cloned(),
+        }
     }
 }

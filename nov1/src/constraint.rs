@@ -24,13 +24,13 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
                 for (grammar_token_sequence, llm_token_to_state_id) in &self.precomputed[&tokenizer_state_id] {
                     let mut new_glr_parse_state = self.parser.init_parser_from_parse_state(parse_state.clone());
                     let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(t.id)).collect::<Vec<_>>();
-                    new_glr_parse_state.partial_parse(&grammar_token_id_sequence);
+                    new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                     if new_glr_parse_state.is_ok() {
                         let mut any_next_tokens_are_valid = false;
                         for possible_next_grammar_token in self.tokenizer.tokens_accessible_from_state(*tokenizer_state_id) {
                             let mut new_new_glr_parse_state = new_glr_parse_state.clone();
                             let possible_next_grammar_token_id = table::TerminalID(possible_next_grammar_token);
-                            new_new_glr_parse_state.partial_parse(&[possible_next_grammar_token_id]);
+                            new_new_glr_parse_state.parse_part(&[possible_next_grammar_token_id]);
                             if new_new_glr_parse_state.is_ok() {
                                 any_next_tokens_are_valid = true;
                                 break;
@@ -56,7 +56,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
                     if let Some(&next_tokenizer_state_id) = llm_token_to_state_id.get(llm_token) {
                         let mut new_glr_parse_state = self.parser.init_parser_from_parse_state(parse_state.clone());
                         let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(t.id)).collect::<Vec<_>>();
-                        new_glr_parse_state.partial_parse(&grammar_token_id_sequence);
+                        new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                         for active_parse_state in new_glr_parse_state.active_states {
                             new_states.push((active_parse_state, HashSet::from([next_tokenizer_state_id])));
                         }
