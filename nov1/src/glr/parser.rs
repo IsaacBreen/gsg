@@ -371,7 +371,7 @@ impl ParseState {
 
     pub fn merge(&mut self, other: ParseState) {
         assert_eq!(self.key(), other.key());
-        Rc::make_mut(&mut self.stack).merge(other.stack.as_ref().clone());
+        Rc::make_mut(&mut self.stack).merge(Rc::unwrap_or_clone(other.stack));
         match (&mut self.action_stack, other.action_stack) {
             (Some(a), Some(b)) => {
                 Rc::make_mut(a).merge(Rc::unwrap_or_clone(b));
