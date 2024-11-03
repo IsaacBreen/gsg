@@ -6,6 +6,7 @@ use crate::gss::{GSSNode, GSSTrait};
 use bimap::BiMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Display;
+use std::hash::Hash;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -355,7 +356,7 @@ impl<'a> GLRParserState<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct ParseStateKey {
+pub struct ParseStateKey {
     stack: StateID,
     action_stack: Option<Action>,
 }
@@ -365,6 +366,36 @@ impl ParseState {
         ParseStateKey {
             stack: *self.stack.peek(),
             action_stack: self.action_stack.peek().cloned(),
+        }
+    }
+
+    pub fn merge(&mut self, other: ParseState) {
+        assert_eq!(self.key(), other.key());
+        Rc::make_mut(&mut self.stack).merge(other.stack.as_ref().clone());
+        match (&mut self.action_stack, other.action_stack) {
+            (Some(a), Some(b)) => {
+                Rc::make_mut(a).merge(Rc::unwrap_or_clone(b));
+            }
+            (None, None) => {}
+            _ => unreachable!(),
+        }
+    }
+}
+
+pub trait InsertWith<K, V> {
+    fn insert_with<F: FnOnce(&mut V, V)>(&mut self, k: K, v: V, combine: F);
+}
+
+impl<K, V> InsertWith<K, V> for HashMap<K, V> where K: Eq + Hash {
+    fn insert_with<F: FnOnce(&mut V, V)>(&mut self, k: K, v: V, combine: F) {
+        match self.entry(k) {
+            std::collections::hash_map::Entry::Occupied(mut occupied) => {
+                let value = occupied.get_mut();
+                combine(value, v);
+            }
+            std::collections::hash_map::Entry::Vacant(vacant) => {
+                vacant.insert(v);
+            }
         }
     }
 }

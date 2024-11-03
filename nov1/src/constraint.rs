@@ -1,7 +1,7 @@
-use crate::glr::parser::{GLRParser, ParseState};
+use crate::glr::parser::{GLRParser, InsertWith, ParseState, ParseStateKey};
 use crate::precompute;
 use crate::precompute::{Token, Tokenizer};
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use crate::glr::table;
 
 type LLMToken = &'static [u8];
@@ -10,7 +10,7 @@ struct GrammarConstraintState<T: Tokenizer> {
     tokenizer: T,
     parser: GLRParser,
     precomputed: BTreeMap<precompute::StateID, BTreeMap<Vec<Token>, BTreeMap<LLMToken, precompute::StateID>>>,
-    states: Vec<(ParseState, HashSet<precompute::StateID>)>,
+    states: Vec<(ParseState, BTreeSet<precompute::StateID>)>,
 }
 
 impl<T: Tokenizer> GrammarConstraintState<T> {
@@ -49,7 +49,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
     }
 
     fn commit(&mut self, llm_token: LLMToken) {
-        let mut new_states = Vec::new();
+        let mut new_states: HashMap<(ParseStateKey, BTreeSet<precompute::StateID>), ParseState> = HashMap::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state_id in tokenizer_state_ids {
                 for (grammar_token_sequence, llm_token_to_state_id) in &self.precomputed[&tokenizer_state_id] {
@@ -58,13 +58,21 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
                         let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(t.id)).collect::<Vec<_>>();
                         new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                         for active_parse_state in new_glr_parse_state.active_states {
-                            new_states.push((active_parse_state, HashSet::from([next_tokenizer_state_id])));
+                            new_states.insert_with(
+                                (active_parse_state.key(), BTreeSet::from([next_tokenizer_state_id])),
+                                active_parse_state,
+                                |old, new| {
+                                    old.merge(new);
+                                }
+                            );
                         }
                     }
                 }
             }
         }
-        self.states = new_states;
+        self.states = new_states.into_iter().map(|((key, tokenizer_state_ids), parse_state)| {
+            (parse_state, tokenizer_state_ids)
+        }).collect();
     }
 
     fn commit_many(&mut self, llm_tokens: &[LLMToken]) {
