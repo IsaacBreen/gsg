@@ -46,7 +46,6 @@ pub struct GLRParser {
 }
 
 impl GLRParser {
-
     pub fn new(
         stage_7_table: Stage7Table,
         productions: Vec<Production>,
@@ -67,30 +66,31 @@ impl GLRParser {
         }
     }
 
-    pub fn init_parser(&self) -> GLRParserState {
-        let start_stack = GSSNode::new(self.start_state_id);
-
+    pub fn init_glr_parser(&self) -> GLRParserState {
         GLRParserState {
             parser: self,
-            active_states: vec![ParseState {
-                stack: Rc::new(start_stack.clone()),
-                action_stack: None,
-                status: ParseStatus::Active,
-            }],
+            active_states: vec![self.init_parse_state()],
             inactive_states: HashMap::new(),
             input_pos: 0,
         }
     }
 
-    pub fn init_parser_from_parse_state(&self, parse_state: ParseState) -> GLRParserState {
-        let mut state = self.init_parser();
+    pub fn init_glr_parser_from_parse_state(&self, parse_state: ParseState) -> GLRParserState {
+        let mut state = self.init_glr_parser();
         state.active_states.push(parse_state.clone());
         state
     }
 
+    pub fn init_parse_state(&self) -> ParseState {
+        ParseState {
+            stack: Rc::new(GSSNode::new(self.start_state_id)),
+            action_stack: None,
+            status: ParseStatus::Active,
+        }
+    }
 
     pub fn parse(&self, input: &[TerminalID]) -> GLRParserState {
-        let mut state = self.init_parser();
+        let mut state = self.init_glr_parser();
         state.parse(input);
         state
     }

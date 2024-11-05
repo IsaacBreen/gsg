@@ -14,15 +14,23 @@ struct GrammarConstraintState<T: Tokenizer> {
 }
 
 impl<T: Tokenizer> GrammarConstraintState<T> {
-    fn new() -> Self {
-        todo!()
+    fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
+        let precomputed = precompute::precompute(&tokenizer, llm_tokens);
+        let states = vec![(parser.init_parse_state(), BTreeSet::from([tokenizer.initial_state_id()]))];
+        Self {
+            tokenizer,
+            parser,
+            precomputed,
+            states,
+        }
     }
+
     fn get_mask(&self) -> HashSet<LLMToken> {
         let mut result = HashSet::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state_id in tokenizer_state_ids {
                 for (grammar_token_sequence, llm_token_to_state_id) in &self.precomputed[&tokenizer_state_id] {
-                    let mut new_glr_parse_state = self.parser.init_parser_from_parse_state(parse_state.clone());
+                    let mut new_glr_parse_state = self.parser.init_glr_parser_from_parse_state(parse_state.clone());
                     let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(t.id)).collect::<Vec<_>>();
                     new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                     if new_glr_parse_state.is_ok() {
@@ -54,7 +62,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
             for tokenizer_state_id in tokenizer_state_ids {
                 for (grammar_token_sequence, llm_token_to_state_id) in &self.precomputed[&tokenizer_state_id] {
                     if let Some(&next_tokenizer_state_id) = llm_token_to_state_id.get(llm_token) {
-                        let mut new_glr_parse_state = self.parser.init_parser_from_parse_state(parse_state.clone());
+                        let mut new_glr_parse_state = self.parser.init_glr_parser_from_parse_state(parse_state.clone());
                         let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(t.id)).collect::<Vec<_>>();
                         new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                         for active_parse_state in new_glr_parse_state.active_states {

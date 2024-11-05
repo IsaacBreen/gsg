@@ -20,6 +20,9 @@ pub struct ExecuteResult {
 
 /// Trait defining the tokenizer behavior.
 pub trait Tokenizer: Sized {
+    /// Returns the initial state ID.
+    fn initial_state_id(&self) -> usize;
+
     /// Executes the tokenizer on the given text starting from the specified state.
     /// Returns all possible next tokens (**not** a sequence of tokens).
     fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult;
@@ -172,6 +175,10 @@ mod tests {
     }
 
     impl Tokenizer for MockTokenizer {
+        fn initial_state_id(&self) -> usize {
+            0
+        }
+
         fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult {
             let mut regex_state = self.regex.init_to_state(state);
             regex_state.execute(text);
