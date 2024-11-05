@@ -81,12 +81,13 @@ impl Grammar {
                     let mut symbols = Vec::new();
 
                     for byte in u8set.iter() {
-                        let terminal = Terminal(byte as char).to_string();
-                        if !terminal_map.contains_left(&Terminal(terminal.clone())) {
-                            terminal_map.insert(Terminal(terminal.clone()), TerminalID(*next_terminal_id));
+                        let terminal_str = (byte as char).to_string();
+                        let terminal = Terminal(terminal_str.clone());
+                        if !terminal_map.contains_left(&terminal) {
+                            terminal_map.insert(terminal.clone(), TerminalID(*next_terminal_id));
                             *next_terminal_id += 1;
                         }
-                        symbols.push(Symbol::Terminal(Terminal(terminal)));
+                        symbols.push(Symbol::Terminal(terminal));
                     }
                     if symbols.is_empty() {
                         // Handle the case where the terminal matches nothing
@@ -107,9 +108,7 @@ impl Grammar {
                     }
                     vec![Symbol::NonTerminal(NonTerminal(name.clone()))]
                 }
-                GrammarExpr::Sequence(exprs) => {
-                    exprs.iter().flat_map(|e| convert_expr(e, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id)).collect()
-                }
+                GrammarExpr::Sequence(exprs) => exprs.iter().flat_map(|e| convert_expr(e, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id)).collect(),
                 GrammarExpr::Choice(exprs) => {
                     let new_nonterminal = format!("Choice{}", *next_non_terminal_id);
                     if !non_terminal_map.contains_left(&NonTerminal(new_nonterminal.clone())) {
@@ -117,12 +116,15 @@ impl Grammar {
                         *next_non_terminal_id += 1;
                     }
 
+                    let mut choice_productions = Vec::new();
                     for expr in exprs {
-                        productions.push(Production {
+                        choice_productions.push(Production {
                             lhs: NonTerminal(new_nonterminal.clone()),
                             rhs: convert_expr(expr, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id),
                         });
                     }
+                    productions.extend(choice_productions);
+
                     vec![Symbol::NonTerminal(NonTerminal(new_nonterminal))]
                 }
                 GrammarExpr::Optional(expr) => convert_expr(&GrammarExpr::choice(vec![expr.as_ref().clone(), GrammarExpr::sequence(vec![])]), productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id),
@@ -130,10 +132,10 @@ impl Grammar {
             }
         }
 
-        for (name, expr) in exprs {
+        for (name, expr) in &exprs {
             productions.push(Production {
-                lhs: NonTerminal(name),
-                rhs: convert_expr(&expr, &mut productions, &mut terminal_map, &mut non_terminal_map, &mut next_terminal_id, &mut next_non_terminal_id),
+                lhs: NonTerminal(name.clone()),
+                rhs: convert_expr(expr, &mut productions, &mut terminal_map, &mut non_terminal_map, &mut next_terminal_id, &mut next_non_terminal_id),
             });
         }
 
