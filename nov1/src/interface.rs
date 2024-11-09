@@ -297,7 +297,7 @@ mod tests {
             result
         };
 
-        let valid_strings = [b"i".as_slice(), b"i+i", b"i*i", b"(i)", b"i+i*i", b"(i+i)*i"];
+        let valid_strings = [b"i".as_slice(), b"i+i", b"i*i", b"(i)", b"i+i*i", b"(i+i)*i", b"(((i))+(i)*i)+(((((i)))))"];
         let invalid_strings = [b"i+".as_slice(), b"i++i", b")"];
 
         for &input_str in &valid_strings {
