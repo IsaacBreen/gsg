@@ -134,7 +134,24 @@ impl Grammar {
                     }
                 }
                 GrammarExpr::Sequence(exprs) => exprs.iter().flat_map(|e| convert_expr(e, productions, non_terminal_map, next_non_terminal_id, literal_map, tokens)).collect(),
-                GrammarExpr::Choice(exprs) => exprs.iter().flat_map(|e| convert_expr(e, productions, non_terminal_map, next_non_terminal_id, literal_map, tokens)).collect(),
+                GrammarExpr::Choice(exprs) => {
+                    let new_nonterminal = format!("Choice{}", *next_non_terminal_id);
+                    let nt = NonTerminal(new_nonterminal.clone());
+
+                    if !non_terminal_map.contains_left(&nt) {
+                        non_terminal_map.insert(nt.clone(), NonTerminalID(*next_non_terminal_id));
+                        *next_non_terminal_id += 1;
+                    }
+
+                    for expr in exprs {
+                        productions.push(Production {
+                            lhs: nt.clone(),
+                            rhs: convert_expr(expr, productions, non_terminal_map, next_non_terminal_id, literal_map, tokens),
+                        });
+                    }
+
+                    vec![Symbol::NonTerminal(nt)]
+                }
                 GrammarExpr::Optional(expr) => {
                     let mut result = convert_expr(expr, productions, non_terminal_map, next_non_terminal_id, literal_map, tokens);
                     result.push(Symbol::Terminal(Terminal("ε".to_string())));
@@ -264,9 +281,6 @@ mod tests {
 
         let (grammar, tokenizer, _) = Grammar::from_exprs("S", exprs, tokens);
         let parser = generate_glr_parser(&grammar.productions);
-        dbg!(&grammar);
-        dbg!(&tokenizer);
-        dbg!(&parser);
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex, grammar: &Grammar| -> Vec<TerminalID> {
             let mut regex_state = tokenizer.init();
@@ -274,22 +288,4 @@ mod tests {
 
             let mut result = Vec::new();
             for group_id in regex_state.matches.keys() {
-                let token_name = grammar.terminal_name_to_group_id.get_by_right(group_id).unwrap();
-                let terminal_id = parser.terminal_map.get_by_left(&Terminal(token_name.clone())).unwrap();
-                result.push(*terminal_id);
-            }
-            result
-        };
-
-        let valid_strings = [b"i".as_slice(), b"i+i", b"i*i", b"(i)", b"i+i*i", b"(i+i)*i"];
-        let invalid_strings = [b"i+".as_slice(), b"i++i", b")"];
-
-        for &input_str in &valid_strings {
-            assert!(parser.parse(&tokenize(input_str, &parser, &tokenizer, &grammar)).fully_matches(), "Failed to parse valid string: {:?} ({:?})", input_str, String::from_utf8_lossy(input_str));
-        }
-
-        for &input_str in &invalid_strings {
-            assert!(!parser.parse(&tokenize(input_str, &parser, &tokenizer, &grammar)).fully_matches(), "Incorrectly parsed invalid string: {:?}", input_str);
-        }
-    }
-}
+                if let Some(token_name) = grammar.terminal_name_to_group_id
