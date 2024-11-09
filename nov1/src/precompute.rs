@@ -156,12 +156,12 @@ pub fn precompute<'a>(
     result
 }
 
-struct RegexTokenizer {
+pub struct RegexTokenizer {
     regex: Regex,
 }
 
 impl RegexTokenizer {
-    fn new(regex: Regex) -> Self {
+    pub fn new(regex: Regex) -> Self {
         RegexTokenizer { regex }
     }
 }
