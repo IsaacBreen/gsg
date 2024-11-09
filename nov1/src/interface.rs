@@ -6,9 +6,9 @@ use crate::glr::parser::{GLRParser, ParseState};
 use crate::glr::table::{generate_glr_parser, NonTerminalID, StateID, TerminalID};
 use crate::precompute::{precompute, Token, Tokenizer};
 use crate::tokenizer_combinators::*;
-use bimap::BiMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
+use bimap::BiBTreeMap;
 use crate::groups;
 
 type LLMToken = &'static [u8];
@@ -53,8 +53,8 @@ impl GrammarExpr {
 pub struct Grammar {
     pub productions: Vec<Production>,
     pub start_symbol: NonTerminal,
-    pub terminal_map: BiMap<Terminal, TerminalID>,
-    pub non_terminal_map: BiMap<NonTerminal, NonTerminalID>,
+    pub terminal_map: BiBTreeMap<Terminal, TerminalID>,
+    pub non_terminal_map: BiBTreeMap<NonTerminal, NonTerminalID>,
 }
 
 impl Debug for Grammar {
@@ -98,8 +98,8 @@ impl Debug for Grammar {
 impl Grammar {
     pub fn from_exprs(start_symbol: &str, exprs: Vec<(String, GrammarExpr)>) -> (Self, Regex) {
         let mut productions = Vec::new();
-        let mut terminal_map = BiMap::new();
-        let mut non_terminal_map = BiMap::new();
+        let mut terminal_map = BiBTreeMap::new();
+        let mut non_terminal_map = BiBTreeMap::new();
         let mut next_terminal_id = 0;
         let mut next_non_terminal_id = 0;
         let mut tokenizer_exprs = Vec::new();
@@ -107,8 +107,8 @@ impl Grammar {
         fn convert_expr(
             expr: &GrammarExpr,
             productions: &mut Vec<Production>,
-            terminal_map: &mut BiMap<Terminal, TerminalID>,
-            non_terminal_map: &mut BiMap<NonTerminal, NonTerminalID>,
+            terminal_map: &mut BiBTreeMap<Terminal, TerminalID>,
+            non_terminal_map: &mut BiBTreeMap<NonTerminal, NonTerminalID>,
             next_terminal_id: &mut usize,
             next_non_terminal_id: &mut usize,
             tokenizer_exprs: &mut Vec<(usize, Expr)>,

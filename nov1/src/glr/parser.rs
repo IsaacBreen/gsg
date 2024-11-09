@@ -3,7 +3,7 @@ use crate::glr::items::Item;
 use crate::glr::table::{NonTerminalID, ProductionID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
 use crate::gss::{GSSNode, GSSTrait};
 
-use bimap::BiMap;
+use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 use std::rc::Rc;
@@ -37,9 +37,9 @@ pub enum StopReason {
 pub struct GLRParser {
     pub stage_7_table: Stage7Table,
     pub productions: Vec<Production>,
-    pub terminal_map: BiMap<Terminal, TerminalID>,
-    pub non_terminal_map: BiMap<NonTerminal, NonTerminalID>,
-    pub item_set_map: BiMap<BTreeSet<Item>, StateID>,
+    pub terminal_map: BiBTreeMap<Terminal, TerminalID>,
+    pub non_terminal_map: BiBTreeMap<NonTerminal, NonTerminalID>,
+    pub item_set_map: BiBTreeMap<BTreeSet<Item>, StateID>,
     pub start_state_id: StateID,
     pub eof_terminal_id: TerminalID,
 }
@@ -48,9 +48,9 @@ impl GLRParser {
     pub fn new(
         stage_7_table: Stage7Table,
         productions: Vec<Production>,
-        terminal_map: BiMap<Terminal, TerminalID>,
-        non_terminal_map: BiMap<NonTerminal, NonTerminalID>,
-        item_set_map: BiMap<BTreeSet<Item>, StateID>,
+        terminal_map: BiBTreeMap<Terminal, TerminalID>,
+        non_terminal_map: BiBTreeMap<NonTerminal, NonTerminalID>,
+        item_set_map: BiBTreeMap<BTreeSet<Item>, StateID>,
         start_state_id: StateID,
         eof_terminal_id: TerminalID,
     ) -> Self {

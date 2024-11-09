@@ -1,4 +1,4 @@
-use bimap::BiMap;
+use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use super::items::{compute_closure, compute_goto, split_on_dot, Item};
 use crate::glr::grammar::{compute_first_sets, compute_follow_sets, NonTerminal, Production, Symbol, Terminal};
@@ -92,9 +92,9 @@ type Stage5Result = Stage5Table;
 type Stage6Result = Stage6Table;
 type Stage7Result = (
     Stage7Table,
-    BiMap<Terminal, TerminalID>,
-    BiMap<NonTerminal, NonTerminalID>,
-    BiMap<BTreeSet<Item>, StateID>,
+    BiBTreeMap<Terminal, TerminalID>,
+    BiBTreeMap<NonTerminal, NonTerminalID>,
+    BiBTreeMap<BTreeSet<Item>, StateID>,
     StateID,
     TerminalID,
 );
@@ -301,9 +301,9 @@ fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
 }
 
 fn stage_7(stage_6_table: Stage6Table, productions: &[Production]) -> Stage7Result {
-    let mut terminal_map = BiMap::new();
-    let mut non_terminal_map = BiMap::new();
-    let mut item_set_map = BiMap::new();
+    let mut terminal_map = BiBTreeMap::new();
+    let mut non_terminal_map = BiBTreeMap::new();
+    let mut item_set_map = BiBTreeMap::new();
     let mut next_terminal_id = 0;
     let mut next_non_terminal_id = 0;
     let mut next_state_id = 0;
