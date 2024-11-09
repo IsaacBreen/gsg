@@ -18,6 +18,14 @@ pub struct ExecuteResult {
     pub new_state: Option<usize>,
 }
 
+impl ExecuteResult {
+    pub fn new(mut matches: Vec<Token>, new_state: Option<usize>) -> Self {
+        // Remove zero-width matches, since they cause infinite loops
+        matches.retain(|token| token.width > 0);
+        ExecuteResult { matches, new_state }
+    }
+}
+
 /// Trait defining the tokenizer behavior.
 pub trait Tokenizer: Sized {
     /// Executes the tokenizer on the given text starting from the specified state.
@@ -171,10 +179,10 @@ mod tests {
 
             let matches = regex_state.matches.iter().map(|(&id, &width)| Token { id, width }).collect();
 
-            ExecuteResult {
+            ExecuteResult::new(
                 matches,
-                new_state: if regex_state.done { None } else { Some(regex_state.current_state) },
-            }
+                if regex_state.done { None } else { Some(regex_state.current_state) },
+            )
         }
 
         fn possible_tokens_from_state(&self, state: usize) -> Vec<Token> {
