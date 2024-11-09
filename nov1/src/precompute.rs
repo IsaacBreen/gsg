@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_precompute() {
-        let tokenizer = groups![
+        let _tokenizer = groups![
             eat_u8(b'a'), // Token 0: 'a'
             eat_u8(b'b'), // Token 1: 'b'
             seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
@@ -293,7 +293,7 @@ mod tests {
                         DFAState {
                             transitions: TrieMap::from_iter(vec![(b'a', 1), (b'b', 2)]),
                             finalizers: BTreeSet::new(),
-                            possible_group_ids: BTreeSet::from([0, 1]),
+                            possible_group_ids: BTreeSet::from([0, 1, 2, 3]),
                             group_id_to_u8set: BTreeMap::from([
                                 (0, U8Set::from_bytes(b"a")),
                                 (1, U8Set::from_bytes(b"b")),
@@ -308,7 +308,8 @@ mod tests {
                             group_id_to_u8set: BTreeMap::from([
                                 (2, U8Set::from_bytes(b"b")),
                                 (3, U8Set::from_bytes(b"b")),
-                            ]),                        },
+                            ]),
+                        },
                         DFAState {
                             transitions: TrieMap::new(),
                             finalizers: BTreeSet::from([1]),
@@ -333,6 +334,7 @@ mod tests {
                 },
             }
         };
+        assert_eq!(_tokenizer, tokenizer.regex);
 
         // Define the LLM tokens
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
@@ -348,28 +350,27 @@ mod tests {
         state_0.insert(vec![Token { id: 1, width: 1 }], BTreeMap::from([(b"b".as_slice(), 0)]));
         state_0.insert(vec![Token { id: 2, width: 2 }], BTreeMap::from([(b"ab".as_slice(), 0)]));
         state_0.insert(vec![Token { id: 3, width: 3 }], BTreeMap::from([(b"abc".as_slice(), 0)]));
+        assert_eq!(Some(&state_0), result.get(&0));
 
         let mut state_1: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
         state_1.insert(vec![], BTreeMap::from([(b"b".as_slice(), 3)]));
         state_1.insert(vec![Token { id: 2, width: 1 }], BTreeMap::from([(b"b".as_slice(), 0)]));
         state_1.insert(vec![Token { id: 3, width: 2 }], BTreeMap::from([(b"bc".as_slice(), 0)]));
+        assert_eq!(Some(&state_1), result.get(&1));
 
-        let mut state_2: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        assert_eq!(None, result.get(&2));
 
         let mut state_3: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
         state_3.insert(vec![Token { id: 3, width: 1 }], BTreeMap::from([(b"c".as_slice(), 0)]));
+        assert_eq!(Some(&state_3), result.get(&3));
 
-        let mut state_4: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        assert_eq!(None, result.get(&4));
 
         let mut expected: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>>> = BTreeMap::new();
         expected.insert(0, state_0);
         expected.insert(1, state_1);
-        expected.insert(2, state_2);
         expected.insert(3, state_3);
-        expected.insert(4, state_4);
 
-        expected.retain(|_, v| !v.is_empty());
-
-        assert_eq!(result, expected);
+        assert_eq!(&expected, &result);
     }
 }
