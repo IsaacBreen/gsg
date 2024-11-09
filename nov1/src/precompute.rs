@@ -1,7 +1,6 @@
 use crate::finite_automata::{GroupID, Regex};
 use crate::glr;
 use crate::glr::table::StateID;
-// src/precompute.rs
 use std::collections::{BTreeMap, BTreeSet};
 
 type TokenID = usize;
