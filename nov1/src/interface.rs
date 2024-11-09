@@ -1,14 +1,12 @@
 use crate::finite_automata::{groups, non_greedy_group, ExprGroup, ExprGroups};
-use crate::charmap::TrieMap;
-use crate::finite_automata::{Expr, Regex, RegexState};
+use crate::finite_automata::{Expr, Regex};
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
 use crate::glr::table::{generate_glr_parser, NonTerminalID, StateID, TerminalID};
 use crate::precompute::{precompute, Token, Tokenizer};
-use crate::tokenizer_combinators::*;
+use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
-use bimap::BiBTreeMap;
 
 type LLMToken = &'static [u8];
 
@@ -228,9 +226,8 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::finite_automata::eat_u8;
-    use crate::groups;
     use super::*;
+    use crate::finite_automata::eat_u8;
 
     #[test]
     fn test_glr_parser_with_grammar_from_exprs() {

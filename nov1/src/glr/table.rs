@@ -1,9 +1,9 @@
-use bimap::BiBTreeMap;
-use std::collections::{BTreeMap, BTreeSet};
 use super::items::{compute_closure, compute_goto, split_on_dot, Item};
 use crate::glr::grammar::{compute_first_sets, compute_follow_sets, NonTerminal, Production, Symbol, Terminal};
-use crate::glr::parser::{GLRParser};
+use crate::glr::parser::GLRParser;
+use bimap::BiBTreeMap;
 use std::collections::VecDeque;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 
 type Stage1Table = BTreeMap<BTreeSet<Item>, Stage1Row>;

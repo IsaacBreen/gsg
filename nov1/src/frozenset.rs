@@ -1,5 +1,4 @@
-use std::collections::{BTreeSet};
-use std::sync::Arc;
+use std::collections::BTreeSet;
 
 /// A frozen set implementation in Rust, similar to Python's frozenset.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

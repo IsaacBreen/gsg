@@ -1,9 +1,9 @@
-use crate::glr::table;
 use crate::glr::parser::{GLRParser, InsertWith, ParseState, ParseStateKey};
+use crate::glr::table;
+use crate::glr::table::StateID;
 use crate::precompute;
 use crate::precompute::{Token, Tokenizer};
 use std::collections::{BTreeMap, BTreeSet};
-use crate::glr::table::StateID;
 
 type LLMToken = &'static [u8];
 

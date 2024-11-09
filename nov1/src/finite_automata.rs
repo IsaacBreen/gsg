@@ -1,7 +1,7 @@
 use crate::charmap::TrieMap;
 use crate::frozenset::FrozenSet;
 use crate::u8set::U8Set;
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 
 pub type GroupID = usize;
@@ -864,7 +864,7 @@ impl Regex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{choice, groups, seq};
+    use crate::{choice, seq};
 
     #[test]
     fn test_literal() {
@@ -1294,7 +1294,6 @@ mod even_more_complex_tests {
 #[cfg(test)]
 mod possible_group_ids_tests {
     use super::*;
-    use crate::finite_automata::Expr;
 
     fn run_test(expr: impl Into<ExprGroups>, expected_possible_group_ids: BTreeSet<GroupID>) {
         let regex = expr.into().build();

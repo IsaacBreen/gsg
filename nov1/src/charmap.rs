@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use crate::u8set::U8Set;
 use std::ops::{Index, IndexMut};
 

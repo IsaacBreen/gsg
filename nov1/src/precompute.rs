@@ -1,8 +1,8 @@
-// src/precompute.rs
-use std::collections::{BTreeMap, BTreeSet};
 use crate::finite_automata::{GroupID, Regex};
 use crate::glr;
 use crate::glr::table::StateID;
+// src/precompute.rs
+use std::collections::{BTreeMap, BTreeSet};
 
 type TokenID = usize;
 
@@ -188,11 +188,11 @@ impl Tokenizer for Regex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::{BTreeSet, BTreeMap};
-    use crate::finite_automata::{eat_u8, DFAState, Regex, DFA};
-    use crate::{groups, seq};
     use crate::charmap::TrieMap;
+    use crate::finite_automata::{eat_u8, DFAState, Regex, DFA};
     use crate::u8set::U8Set;
+    use crate::{groups, seq};
+    use std::collections::{BTreeMap, BTreeSet};
 
     #[test]
     fn test_precompute_llm_token_sets() {
