@@ -157,41 +157,50 @@ impl Grammar {
                     }
                 }
                 GrammarExpr::Sequence(exprs) => {
-                    exprs.iter().flat_map(|e| convert_expr(e, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map, tokens)).collect()
-                },
+                    let mut sequence_symbols = Vec::new();
+                    for e in exprs {
+                        sequence_symbols.extend(convert_expr(e, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map, tokens));
+                    }
+                    sequence_symbols
+                }
                 GrammarExpr::Choice(exprs) => {
-                    exprs.iter().flat_map(|e| convert_expr(e, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map, tokens)).collect()
-                },
-                GrammarExpr::Optional(expr) => {
-                    let mut result = convert_expr(expr, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map, tokens);
-                    result.push(Symbol::Terminal(Terminal("ε".to_string()))); 
-                    result
-                },
-                GrammarExpr::Repeat(expr) => {
-                    convert_expr(expr, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map, tokens)
-                },
+                    let new_nonterminal = format!("Choice{}", *next_non_terminal_id);
+                    if !non_terminal_map.contains_left(&NonTerminal(new_nonterminal.clone())) {
+                        non_terminal_map.insert(NonTerminal(new_nonterminal.clone()), NonTerminalID(*next_non_terminal_id));
+                        *next_non_terminal_id += 1;
+                    }
+
+                    let mut choice_productions = Vec::new();
+                    for expr in exprs {
+                        choice_productions.push(Production {
+                            lhs: NonTerminal(new_nonterminal.clone()),
+                            rhs: convert_expr(expr, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map, tokens),
+                        });
+                    }
+                    productions.extend(choice_productions);
+
+                    vec![Symbol::NonTerminal(NonTerminal(new_nonterminal))]
+                }
+                GrammarExpr::Optional(expr) => convert_expr(&GrammarExpr::choice(vec![expr.as_ref().clone(), GrammarExpr::sequence(vec![])]), productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map, tokens),
+                GrammarExpr::Repeat(expr) => convert_expr(&GrammarExpr::optional(GrammarExpr::sequence(vec![expr.as_ref().clone(), GrammarExpr::repeat(expr.as_ref().clone())])), productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map, tokens),
             }
         }
 
         for (name, expr) in &exprs {
             let rhs = convert_expr(expr, &mut productions, &mut terminal_map, &mut non_terminal_map, &mut next_terminal_id, &mut next_non_terminal_id, &mut tokenizer_exprs, &mut literal_map, &tokens);
-
-            if rhs.len() == 1 && rhs[0] == Symbol::NonTerminal(NonTerminal(name.clone())) {
-                continue; 
-            }
-
             productions.push(Production {
                 lhs: NonTerminal(name.clone()),
                 rhs,
             });
         }
 
+        productions.insert(0, Production {
+            lhs: NonTerminal(start_symbol.to_string()),
+            rhs: vec![Symbol::NonTerminal(NonTerminal(exprs.iter().next().map(|(name, _)| name.clone()).expect("Grammar must have at least one rule").clone()))],
+        });
 
-        if !productions.iter().any(|p| p.lhs == NonTerminal(start_symbol.to_string())) {
-            productions.insert(0, Production {
-                lhs: NonTerminal(start_symbol.to_string()),
-                rhs: vec![Symbol::NonTerminal(NonTerminal(exprs.iter().next().map(|(name, _)| name.clone()).unwrap_or_else(|| panic!("Grammar must have at least one rule")).clone()))],
-            });
+        if !non_terminal_map.contains_left(&NonTerminal(start_symbol.to_string())) {
+            non_terminal_map.insert(NonTerminal(start_symbol.to_string()), NonTerminalID(next_non_terminal_id));
         }
 
         let tokenizer_exprs_vec: Vec<ExprGroup> = tokenizer_exprs.into_iter().map(|(_, expr)| non_greedy_group(expr)).collect();
