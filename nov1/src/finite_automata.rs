@@ -631,9 +631,9 @@ impl RegexState<'_> {
     }
 
     /// Matches repeatedly, resolving ambiguity in the following way:
-    /// 1. If it's still possible to match something, stop. Don't return a result for the final match, since we can't rule out the possibility of a longer match.
-    /// 2. Otherwise, if there is more than one match, return the longest match.
-    /// 3. If there is more than one match of this length, return the one with the lowest group ID.
+    // 1. If it's still possible to match something, stop. Don't return a result for the final match, since we can't rule out the possibility of a longer match.
+    // 2. Otherwise, if there is more than one match, return the longest match.
+    // 3. If there is more than one match of this length, return the one with the lowest group ID.
     pub fn greedy_find_all(&mut self, text: &[u8]) -> Vec<Match> {
         let mut matches = Vec::new();
         let mut current_position = 0;
