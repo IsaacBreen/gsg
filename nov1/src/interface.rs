@@ -1,3 +1,4 @@
+use crate::finite_automata::{groups, non_greedy_group, ExprGroup};
 use crate::charmap::TrieMap;
 use crate::finite_automata::{Expr, Regex, RegexState};
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
@@ -152,8 +153,8 @@ impl Grammar {
             non_terminal_map.insert(NonTerminal(start_symbol.to_string()), NonTerminalID(next_non_terminal_id));
         }
 
-        let tokenizer_exprs_vec: Vec<_> = tokenizer_exprs.into_iter().map(|(_, expr)| expr).collect();
-        let tokenizer = groups!(tokenizer_exprs_vec).build();
+        let tokenizer_exprs_vec: Vec<ExprGroup> = tokenizer_exprs.into_iter().map(|(_, expr)| non_greedy_group(expr)).collect();
+        let tokenizer = groups(tokenizer_exprs_vec).build();
 
         (
             Self {

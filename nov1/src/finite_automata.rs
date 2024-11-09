@@ -145,10 +145,12 @@ macro_rules! seq {
 #[macro_export]
 macro_rules! groups {
     ($($expr:expr),* $(,)?) => {
-        $crate::finite_automata::ExprGroups {
-            groups: vec![$($expr.into()),*]
-        }
+        $crate::finite_automata::groups(vec![$($expr.into()),*])
     };
+}
+
+pub fn groups(groups: Vec<ExprGroup>) -> ExprGroups {
+    ExprGroups { groups }
 }
 
 pub fn non_greedy_group<T: Into<ExprGroup>>(expr: T) -> ExprGroup {
