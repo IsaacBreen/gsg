@@ -111,6 +111,7 @@ impl Display for GLRParser {
         let item_set_map = &self.item_set_map;
 
         writeln!(f, "Parse Table:")?;
+        writeln!(f, "  Start State: {}", self.start_state_id.0)?;
         for (&state_id, row) in stage_7_table.iter().collect::<BTreeMap<_, _>>() {
             writeln!(f, "  State {}:", state_id.0)?;
 
@@ -171,7 +172,7 @@ impl Display for GLRParser {
             writeln!(f, "    Gotos:")?;
             for (&non_terminal_id, &next_state_id) in &row.gotos {
                 let non_terminal = non_terminal_map.get_by_right(&non_terminal_id).unwrap();
-                writeln!(f, "      - {:?} -> {}", non_terminal.0, next_state_id.0)?;
+                writeln!(f, "      - {} -> {}", non_terminal.0, next_state_id.0)?;
             }
         }
 
@@ -182,7 +183,7 @@ impl Display for GLRParser {
 
         writeln!(f, "\nNon-Terminal Map:")?;
         for (non_terminal, non_terminal_id) in non_terminal_map {
-            writeln!(f, "  {:?} -> {}", non_terminal.0, non_terminal_id.0)?;
+            writeln!(f, "  {} -> {}", non_terminal.0, non_terminal_id.0)?;
         }
 
         Ok(())
