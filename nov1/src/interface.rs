@@ -304,11 +304,13 @@ mod tests {
         let invalid_strings = [b"i+".as_slice(), b"i++i", b")"];
 
         for &input_str in &valid_strings {
-            assert!(parser.parse(&tokenize(input_str, &parser, &tokenizer, &grammar)).fully_matches(), "Failed to parse valid string: {:?} ({:?})", input_str, String::from_utf8_lossy(input_str));
+            let tokens = tokenize(input_str, &parser, &tokenizer, &grammar);
+            assert!(parser.parse(&tokens).fully_matches(), "Failed to parse valid input: {:?}, string: {:?}, tokens: {:?}", input_str, String::from_utf8_lossy(input_str), tokens);
         }
 
         for &input_str in &invalid_strings {
-            assert!(!parser.parse(&tokenize(input_str, &parser, &tokenizer, &grammar)).fully_matches(), "Incorrectly parsed invalid string: {:?}", input_str);
+            let tokens = tokenize(input_str, &parser, &tokenizer, &grammar);
+            assert!(!parser.parse(&tokens).fully_matches(), "Incorrectly parsed invalid input: {:?}, string: {:?}, tokens: {:?}", input_str, String::from_utf8_lossy(input_str), tokens);
         }
     }
 }
