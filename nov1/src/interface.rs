@@ -1,4 +1,4 @@
-use crate::finite_automata::{groups, non_greedy_group, ExprGroup};
+use crate::finite_automata::{groups, non_greedy_group, ExprGroup, ExprGroups};
 use crate::charmap::TrieMap;
 use crate::finite_automata::{Expr, Regex, RegexState};
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
@@ -102,7 +102,7 @@ impl Debug for Grammar {
 }
 
 impl Grammar {
-    pub fn from_exprs(start_symbol: &str, exprs: Vec<(String, GrammarExpr)>, tokens: BTreeMap<String, Expr>) -> (Self, Regex) {
+    pub fn from_exprs(start_symbol: &str, exprs: Vec<(String, GrammarExpr)>, tokens: BTreeMap<String, Expr>) -> (Self, Regex, ExprGroups) {
         let mut productions = Vec::new();
         let mut terminal_map = BiBTreeMap::new();
         let mut non_terminal_map = BiBTreeMap::new();
@@ -204,7 +204,8 @@ impl Grammar {
         }
 
         let tokenizer_exprs_vec: Vec<ExprGroup> = tokenizer_exprs.into_iter().map(|(_, expr)| non_greedy_group(expr)).collect();
-        let tokenizer = groups(tokenizer_exprs_vec).build();
+        let tokenizer_expr_groups = groups(tokenizer_exprs_vec);
+        let tokenizer = tokenizer_expr_groups.clone().build();
 
         (
             Self {
@@ -215,6 +216,7 @@ impl Grammar {
                 literal_map,
             },
             tokenizer,
+            tokenizer_expr_groups,
         )
     }
 
@@ -302,8 +304,10 @@ mod tests {
             ),
         ];
 
-        let (grammar, tokenizer) = Grammar::from_exprs("S", exprs, tokens);
+        let (grammar, tokenizer, groups) = Grammar::from_exprs("S", exprs, tokens);
         dbg!(&grammar);
+        dbg!(&tokenizer);
+        dbg!(&groups);
         let parser = generate_glr_parser(&grammar.productions);
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex| -> Vec<TerminalID> {
