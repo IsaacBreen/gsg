@@ -627,6 +627,13 @@ impl RegexState<'_> {
         self.done
     }
 
+    pub fn reset(&mut self) {
+        self.current_state = self.regex.dfa.start_state;
+        self.matches.clear();
+        self.position = 0;
+        self.done = false;
+    }
+    
     /// Matches repeatedly, resolving ambiguity in the following way:
     /// 1. If it's still possible to match something, stop. Don't return a result for the final match, since we can't rule out the possibility of a longer match.
     /// 2. Otherwise, if there is more than one match, return the longest match.
@@ -635,6 +642,7 @@ impl RegexState<'_> {
         let mut matches: Vec<Match> = Vec::new();
         let start_position = self.position;
         let mut local_position = 0;
+        self.position = 0;
         loop {
             self.execute(&text[local_position..]);
             if self.ended() {
@@ -646,9 +654,7 @@ impl RegexState<'_> {
                     matches.push(m);
 
                     // Reset the state and advance the internal position.
-                    self.current_state = self.regex.dfa.start_state;
-                    self.matches.clear();
-                    self.position = start_position + local_position;
+                    self.reset();
                 } else {
                     // Ended but no match. This indicates a tokenization error.
                     // Return the successful matches.
