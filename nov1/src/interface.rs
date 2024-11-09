@@ -173,7 +173,6 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
     pub fn new_from_grammar(tokenizer: T, grammar: Grammar, llm_tokens: &[LLMToken]) -> Self {
         let parser = generate_glr_parser(&grammar.productions);
         let precomputed = precompute(&tokenizer, llm_tokens);
-        // Convert `precompute::StateID` into `glr::table::StateID`
         let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];
         Self {
             tokenizer,
@@ -182,5 +181,4 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
             states,
         }
     }
-    // ... other methods for GrammarConstraintState ...
 }
