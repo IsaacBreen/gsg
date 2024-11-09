@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn test_precompute() {
-        let tokenizer = groups![
+        let _tokenizer = groups![
             eat_u8(b'a'), // Token 0: 'a'
             eat_u8(b'b'), // Token 1: 'b'
             seq![eat_u8(b'a'), eat_u8(b'b')], // Token 2: 'ab'
@@ -276,7 +276,7 @@ mod tests {
                         DFAState {
                             transitions: TrieMap::from_iter(vec![(b'a', 1), (b'b', 2)]),
                             finalizers: BTreeSet::new(),
-                            possible_group_ids: BTreeSet::from([0, 1]),
+                            possible_group_ids: BTreeSet::from([0, 1, 2, 3]),
                             group_id_to_u8set: BTreeMap::from([
                                 (0, U8Set::from_bytes(b"a")),
                                 (1, U8Set::from_bytes(b"b")),
@@ -286,12 +286,13 @@ mod tests {
                         },
                         DFAState {
                             transitions: TrieMap::from_iter(vec![(b'b', 3)]),
-                            finalizers: BTreeSet::from([0]),
+                            finalizers: BTreeSet::new(),
                             possible_group_ids: BTreeSet::from([0, 2, 3]),
                             group_id_to_u8set: BTreeMap::from([
                                 (2, U8Set::from_bytes(b"b")),
                                 (3, U8Set::from_bytes(b"b")),
-                            ]),                        },
+                            ]),
+                        },
                         DFAState {
                             transitions: TrieMap::new(),
                             finalizers: BTreeSet::from([1]),
@@ -316,6 +317,7 @@ mod tests {
                 },
             }
         };
+        assert_eq!(_tokenizer, tokenizer.regex);
 
         // Define the LLM tokens
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
