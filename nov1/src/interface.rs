@@ -182,3 +182,75 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::finite_automata::eat_u8;
+    use crate::groups;
+    use super::*;
+
+    #[test]
+    fn test_grammar_from_exprs() {
+        let exprs: HashMap<String, GrammarExpr> = HashMap::from([
+            (
+                "E".to_string(),
+                GrammarExpr::choice(vec![
+                    GrammarExpr::sequence(vec![
+                        GrammarExpr::nonterminal("E"),
+                        GrammarExpr::terminal(eat_u8(b'+')),
+                        GrammarExpr::nonterminal("T"),
+                    ]),
+                    GrammarExpr::nonterminal("T"),
+                ]),
+            ),
+            (
+                "T".to_string(),
+                GrammarExpr::choice(vec![
+                    GrammarExpr::sequence(vec![
+                        GrammarExpr::nonterminal("T"),
+                        GrammarExpr::terminal(eat_u8(b'*')),
+                        GrammarExpr::nonterminal("F"),
+                    ]),
+                    GrammarExpr::nonterminal("F"),
+                ]),
+            ),
+            (
+                "F".to_string(),
+                GrammarExpr::choice(vec![
+                    GrammarExpr::sequence(vec![
+                        GrammarExpr::terminal(eat_u8(b'(')),
+                        GrammarExpr::nonterminal("E"),
+                        GrammarExpr::terminal(eat_u8(b')')),
+                    ]),
+                    GrammarExpr::terminal(eat_u8(b'i')),
+                ]),
+            ),
+        ]);
+
+        let grammar = Grammar::from_exprs("S", exprs);
+        let tokenizer = groups![
+            eat_u8(b'i'),
+            eat_u8(b'+'),
+            eat_u8(b'*'),
+            eat_u8(b'('),
+            eat_u8(b')'),
+        ]
+        .build();
+
+        let llm_tokens = &[b"i".as_slice(), b"i+i", b"i*i", b"(i)", b"i+i*i", b"(i+i)*i", b"i+", b"i++i", b")"];
+
+        let constraint_state = GrammarConstraintState::new_from_grammar(tokenizer, grammar, llm_tokens);
+
+        let tokenize = |input: &str, parser: &GLRParser| -> Vec<TerminalID> {
+            input.bytes().filter_map(|c| parser.terminal_map.get_by_left(&Terminal((c as char).to_string()))
+                .copied()).collect()
+        };
+
+        assert!(constraint_state.parser.parse(&tokenize("i", &constraint_state.parser)).fully_matches());
+        assert!(constraint_state.parser.parse(&tokenize("i+i*i", &constraint_state.parser)).fully_matches());
+        assert!(constraint_state.parser.parse(&tokenize("(i+i)*i", &constraint_state.parser)).fully_matches());
+
+        assert!(!constraint_state.parser.parse(&tokenize("i+", &constraint_state.parser)).fully_matches());
+        assert!(!constraint_state.parser.parse(&tokenize("i++i", &constraint_state.parser)).fully_matches());
+    }
+}
