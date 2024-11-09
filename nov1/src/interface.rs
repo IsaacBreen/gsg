@@ -144,9 +144,10 @@ impl Grammar {
                     }
 
                     for expr in exprs {
+                        let rhs = convert_expr(expr, productions, non_terminal_map, next_non_terminal_id, literal_map, tokens);
                         productions.push(Production {
                             lhs: nt.clone(),
-                            rhs: convert_expr(expr, productions, non_terminal_map, next_non_terminal_id, literal_map, tokens),
+                            rhs,
                         });
                     }
 
@@ -288,4 +289,26 @@ mod tests {
 
             let mut result = Vec::new();
             for group_id in regex_state.matches.keys() {
-                if let Some(token_name) = grammar.terminal_name_to_group_id
+                if let Some(token_name) = grammar.terminal_name_to_group_id.get_by_right(group_id) {
+                    if let Some(&terminal_id) = parser.terminal_map.get_by_left(&Terminal(token_name.clone())) {
+                        result.push(terminal_id);
+                    } else {
+                        panic!("Token name '{}' not found in terminal map", token_name);
+                    }
+                }
+            }
+            result
+        };
+
+        let valid_strings = [b"i".as_slice(), b"i+i", b"i*i", b"(i)", b"i+i*i", b"(i+i)*i"];
+        let invalid_strings = [b"i+".as_slice(), b"i++i", b")"];
+
+        for &input_str in &valid_strings {
+            assert!(parser.parse(&tokenize(input_str, &parser, &tokenizer, &grammar)).fully_matches(), "Failed to parse valid string: {:?} ({:?})", input_str, String::from_utf8_lossy(input_str));
+        }
+
+        for &input_str in &invalid_strings {
+            assert!(!parser.parse(&tokenize(input_str, &parser, &tokenizer, &grammar)).fully_matches(), "Incorrectly parsed invalid string: {:?}", input_str);
+        }
+    }
+}
