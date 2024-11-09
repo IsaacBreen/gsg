@@ -284,11 +284,11 @@ mod tests {
         let parser = generate_glr_parser(&grammar.productions);
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex, grammar: &Grammar| -> Vec<TerminalID> {
-            let mut regex_state = tokenizer.init();
-            let mut regex_matches = regex_state.greedy_find_all(input);
+            let mut tokenizer_state = tokenizer.init();
+            let tokenizer_matches = tokenizer_state.greedy_find_all(input);
 
             let mut result = Vec::new();
-            for m in regex_matches.iter() {
+            for m in tokenizer_matches {
                 let group_id = m.group_id;
                 let token_name = grammar.terminal_name_to_group_id.get_by_right(&group_id).unwrap();
                 let terminal_id = parser.terminal_map.get_by_left(&Terminal(token_name.clone())).unwrap();

@@ -46,13 +46,6 @@ pub struct Match {
     pub position: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GreedyFindAllResult {
-    pub matches: Vec<Match>,
-    pub final_position: usize,
-    pub final_state: Option<usize>,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct FinalStateReport {
     pub position: usize,
@@ -630,45 +623,61 @@ impl RegexState<'_> {
         self.done = true;
     }
 
+    pub fn ended(&self) -> bool {
+        self.done
+    }
+
     /// Matches repeatedly, resolving ambiguity in the following way:
-    // 1. If it's still possible to match something, stop. Don't return a result for the final match, since we can't rule out the possibility of a longer match.
-    // 2. Otherwise, if there is more than one match, return the longest match.
-    // 3. If there is more than one match of this length, return the one with the lowest group ID.
+    /// 1. If it's still possible to match something, stop. Don't return a result for the final match, since we can't rule out the possibility of a longer match.
+    /// 2. Otherwise, if there is more than one match, return the longest match.
+    /// 3. If there is more than one match of this length, return the one with the lowest group ID.
     pub fn greedy_find_all(&mut self, text: &[u8]) -> Vec<Match> {
-        let mut matches = Vec::new();
-        let mut current_position = 0;
+        let mut matches: Vec<Match> = Vec::new();
+        loop {
+            self.execute(&text[self.position..]);
+            if self.ended() {
+                if let Some(m) = self.get_greedy_match() {
+                    // Add the match to the list of successful matches.
+                    matches.push(m);
 
-        while current_position < text.len() {
-            // Reset state for new match attempt
-            self.current_state = self.regex.dfa.start_state;
-            self.matches.clear();
-            self.done = false;
-
-            // Try to match starting at current_position
-            let slice = &text[current_position..];
-            self.execute(slice);
-
-            if !self.matches.is_empty() {
-                // Find the longest match
-                let max_length = self.matches.values().max().unwrap() - current_position;
-
-                // Among matches of the longest length, find the one with lowest group ID
-                let best_match = self.matches.iter().filter(|(_, &pos)| pos - current_position == max_length).min_by_key(|(&group_id, _)| group_id).unwrap();
-
-                matches.push(Match {
-                    group_id: *best_match.0,
-                    position: current_position,
-                });
-
-                // Move past this match
-                current_position = *best_match.1;
+                    // Reset the state.
+                    self.current_state = self.regex.dfa.start_state;
+                    self.matches.clear();
+                } else {
+                    // Ended but no match. This indicates a tokenization error.
+                    // Return the successful matches.
+                    return matches;
+                }
             } else {
-                // No match found at current position, move to next character
-                current_position += 1;
+                // Didn't end, so we ran out of input.
+                // Return the successful matches.
+                return matches;
             }
         }
+    }
 
-        matches
+    /// Returns a single match as follows:
+    ///
+    /// 1. If there is more than one match, return the longest match.
+    /// 2. If there is more than one match of this length, return the one with the lowest group ID.
+    ///
+    /// If there is no match, returns None.
+    pub fn get_greedy_match(&self) -> Option<Match> {
+        if self.matches.len() == 0 {
+            return None;
+        }
+        let mut matches = self.matches.iter();
+        let (mut longest_match_group_id, mut longest_match_position) = matches.next().unwrap();
+        for (group_id, position) in matches {
+            if position > longest_match_position {
+                longest_match_group_id = group_id;
+                longest_match_position = position;
+            }
+        }
+        Some(Match {
+            group_id: *longest_match_group_id,
+            position: *longest_match_position,
+        })
     }
 
     pub fn final_state_report(&self) -> FinalStateReport {
@@ -798,10 +807,6 @@ impl Regex {
             .iter()
             .next()
             .map(|(&group_id, &position)| (group_id, position))
-    }
-
-    pub fn greedy_find_all(&self, text: &[u8]) -> GreedyFindAllResult {
-        todo!()
     }
 
     pub fn matches(&self, text: &[u8]) -> Option<bool> {
