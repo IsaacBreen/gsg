@@ -46,6 +46,13 @@ pub struct Match {
     pub position: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GreedyFindAllResult {
+    pub matches: Vec<Match>,
+    pub final_position: usize,
+    pub final_state: Option<usize>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct FinalStateReport {
     pub position: usize,
@@ -624,9 +631,10 @@ impl RegexState<'_> {
     }
 
     /// Matches repeatedly, resolving ambiguity in the following way:
-    /// 1. If there is more than one match, return the longest match.
-    /// 2. If there is more than one match of this length, return the one with the lowest group ID.
-    fn greedy_find_all(&mut self, text: &[u8]) -> Vec<Match> {
+    /// 1. If it's still possible to match something, stop. Don't return a result for the final match, since we can't rule out the possibility of a longer match.
+    /// 2. Otherwise, if there is more than one match, return the longest match.
+    /// 3. If there is more than one match of this length, return the one with the lowest group ID.
+    pub fn greedy_find_all(&mut self, text: &[u8]) -> Vec<Match> {
         let mut matches = Vec::new();
         let mut current_position = 0;
 
@@ -790,6 +798,10 @@ impl Regex {
             .iter()
             .next()
             .map(|(&group_id, &position)| (group_id, position))
+    }
+
+    pub fn greedy_find_all(&self, text: &[u8]) -> GreedyFindAllResult {
+        todo!()
     }
 
     pub fn matches(&self, text: &[u8]) -> Option<bool> {

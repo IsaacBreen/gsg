@@ -284,24 +284,22 @@ mod tests {
         let parser = generate_glr_parser(&grammar.productions);
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex, grammar: &Grammar| -> Vec<TerminalID> {
-            let execute_result = tokenizer.execute_from_state(input, 0);
+            let mut regex_state = tokenizer.init();
+            let mut regex_matches = regex_state.greedy_find_all(input);
 
             let mut result = Vec::new();
-            for m in execute_result.matches.iter() {
-                let group_id = m.id;
-                if let Some(token_name) = grammar.terminal_name_to_group_id.get_by_right(&group_id) {
-                    if let Some(&terminal_id) = parser.terminal_map.get_by_left(&Terminal(token_name.clone())) {
-                        result.push(terminal_id);
-                    } else {
-                        panic!("Token name '{}' not found in terminal map", token_name);
-                    }
-                }
+            for m in regex_matches.iter() {
+                let group_id = m.group_id;
+                let token_name = grammar.terminal_name_to_group_id.get_by_right(&group_id).unwrap();
+                let terminal_id = parser.terminal_map.get_by_left(&Terminal(token_name.clone())).unwrap();
+                result.push(*terminal_id);
             }
             result
         };
 
         // let valid_strings = [b"i".as_slice(), b"i+i", b"i*i", b"(i)", b"i+i*i", b"(i+i)*i"];
-        let valid_strings = [b"(i)"];
+        let valid_strings = [b"i+i"];
+        // let valid_strings = [b"(i)"];
         let invalid_strings = [b"i+".as_slice(), b"i++i", b")"];
 
         for &input_str in &valid_strings {
