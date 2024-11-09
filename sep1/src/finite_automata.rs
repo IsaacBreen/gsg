@@ -1,7 +1,7 @@
 use crate::charmap::TrieMap;
 use crate::frozenset::FrozenSet;
 use crate::u8set::U8Set;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 
@@ -389,7 +389,7 @@ impl NFA {
 
     pub fn to_dfa(self) -> DFA {
         let mut dfa_states: Vec<DFAState> = Vec::new();
-        let mut dfa_state_map: HashMap<FrozenSet<usize>, usize> = HashMap::new();
+        let mut dfa_state_map: BTreeMap<FrozenSet<usize>, usize> = BTreeMap::new();
         let mut worklist: Vec<FrozenSet<usize>> = Vec::new();
 
         let mut epsilon_closures = self.compute_epsilon_closures();
@@ -418,7 +418,7 @@ impl NFA {
 
         while let Some(current_set) = worklist.pop() {
             let current_dfa_state = *dfa_state_map.get(&current_set).unwrap();
-            let mut transition_map: HashMap<u8, HashSet<usize>> = HashMap::new();
+            let mut transition_map: BTreeMap<u8, BTreeSet<usize>> = BTreeMap::new();
 
             // For each state in the current DFA state, look at the NFA transitions
             for &state in current_set.iter() {
@@ -426,7 +426,7 @@ impl NFA {
                     for &next_state in next_states {
                         transition_map
                             .entry(input)
-                            .or_insert_with(HashSet::new)
+                            .or_insert_with(BTreeSet::new)
                             .insert(next_state);
                     }
                 }
@@ -434,7 +434,7 @@ impl NFA {
 
             // For each transition, compute the epsilon closure of the resulting state set
             for (&input_u8, next_states) in &transition_map {
-                let mut closure = HashSet::new();
+                let mut closure = BTreeSet::new();
                 for &next_state in next_states {
                     closure.extend(&epsilon_closures[next_state]);
                 }
@@ -487,8 +487,8 @@ impl NFA {
         dfa
     }
 
-    fn epsilon_closure(&self, state: usize) -> HashSet<usize> {
-        let mut closure = HashSet::new();
+    fn epsilon_closure(&self, state: usize) -> BTreeSet<usize> {
+        let mut closure = BTreeSet::new();
         let mut stack = vec![state];
 
         while let Some(state) = stack.pop() {
@@ -500,7 +500,7 @@ impl NFA {
         closure
     }
 
-    fn compute_epsilon_closures(&self) -> Vec<HashSet<usize>> {
+    fn compute_epsilon_closures(&self) -> Vec<BTreeSet<usize>> {
         (0..self.states.len())
             .map(|state| self.epsilon_closure(state))
             .collect()
