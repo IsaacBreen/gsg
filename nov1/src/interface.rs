@@ -190,7 +190,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_grammar_from_exprs() {
+    fn test_glr_parser_with_grammar_from_exprs() {
         let exprs: HashMap<String, GrammarExpr> = HashMap::from([
             (
                 "E".to_string(),
@@ -228,29 +228,26 @@ mod tests {
         ]);
 
         let grammar = Grammar::from_exprs("S", exprs);
-        let tokenizer = groups![
-            eat_u8(b'i'),
-            eat_u8(b'+'),
-            eat_u8(b'*'),
-            eat_u8(b'('),
-            eat_u8(b')'),
-        ]
-        .build();
+        let parser = generate_glr_parser(&grammar.productions);
 
-        let llm_tokens = &[b"i".as_slice(), b"i+i", b"i*i", b"(i)", b"i+i*i", b"(i+i)*i", b"i+", b"i++i", b")"];
 
-        let constraint_state = GrammarConstraintState::new_from_grammar(tokenizer, grammar, llm_tokens);
-
-        let tokenize = |input: &str, parser: &GLRParser| -> Vec<TerminalID> {
-            input.bytes().filter_map(|c| parser.terminal_map.get_by_left(&Terminal((c as char).to_string()))
+        let tokenize = |input: &[u8], parser: &GLRParser| -> Vec<TerminalID> {
+            input.into_iter().filter_map(|c| parser.terminal_map.get_by_left(&Terminal(c.to_string()))
                 .copied()).collect()
         };
 
-        assert!(constraint_state.parser.parse(&tokenize("i", &constraint_state.parser)).fully_matches());
-        assert!(constraint_state.parser.parse(&tokenize("i+i*i", &constraint_state.parser)).fully_matches());
-        assert!(constraint_state.parser.parse(&tokenize("(i+i)*i", &constraint_state.parser)).fully_matches());
+        // Example and counterexample strings (to test the parser)
+        let valid_strings = [b"i".as_slice(), b"i+i", b"i*i", b"(i)", b"i+i*i", b"(i+i)*i"];
+        let invalid_strings = [b"i+".as_slice(), b"i++i", b")"];
 
-        assert!(!constraint_state.parser.parse(&tokenize("i+", &constraint_state.parser)).fully_matches());
-        assert!(!constraint_state.parser.parse(&tokenize("i++i", &constraint_state.parser)).fully_matches());
+        // Test valid strings
+        for &input_str in &valid_strings {
+            assert!(parser.parse(&tokenize(input_str, &parser)).fully_matches(), "Failed to parse valid string: {:?}", input_str);
+        }
+
+        // Test invalid strings
+        for &input_str in &invalid_strings {
+            assert!(!parser.parse(&tokenize(input_str, &parser)).fully_matches(), "Incorrectly parsed invalid string: {:?}", input_str);
+        }
     }
 }
