@@ -513,9 +513,8 @@ impl DFA {
             state.possible_group_ids = state.finalizers.clone();
         }
 
-        let mut changed = true;
-        while changed {
-            changed = false;
+        loop {
+            let mut changed = false;
             for state_index in 0..self.states.len() {
                 let state = self.states[state_index].clone();
                 for (_input, &next_state_index) in &state.transitions {
@@ -529,6 +528,9 @@ impl DFA {
                         changed = true;
                     }
                 }
+            }
+            if !changed {
+                break;
             }
         }
     }
