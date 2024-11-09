@@ -178,8 +178,7 @@ mod tests {
         }
 
         fn possible_tokens_from_state(&self, state: usize) -> Vec<Token> {
-            let regex_state = self.regex.init_to_state(state);
-            regex_state.matches.iter().map(|(&id, &width)| Token { id, width }).collect()
+            todo!()
         }
 
         fn max_state(&self) -> usize {
