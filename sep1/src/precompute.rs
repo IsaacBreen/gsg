@@ -343,7 +343,6 @@ mod tests {
         assert_eq!(Some(&state_0), result.get(&0));
 
         let mut state_1: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
-        // Some({[]: {[98]: 3}, [Token { id: 2, width: 1 }]: {[98]: 0}, [Token { id: 3, width: 2 }]: {[98, 99]: 0}})
         state_1.insert(vec![], BTreeMap::from([(b"b".as_slice(), 3)]));
         state_1.insert(vec![Token { id: 2, width: 1 }], BTreeMap::from([(b"b".as_slice(), 0)]));
         state_1.insert(vec![Token { id: 3, width: 2 }], BTreeMap::from([(b"bc".as_slice(), 0)]));
@@ -352,7 +351,6 @@ mod tests {
         assert_eq!(None, result.get(&2));
 
         let mut state_3: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
-        // Some({[Token { id: 3, width: 1 }]: {[99]: 0}})
         state_3.insert(vec![Token { id: 3, width: 1 }], BTreeMap::from([(b"c".as_slice(), 0)]));
         assert_eq!(Some(&state_3), result.get(&3));
 
