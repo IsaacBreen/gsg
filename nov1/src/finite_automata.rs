@@ -628,55 +628,38 @@ impl RegexState<'_> {
     /// 2. If there is more than one match of this length, return the one with the lowest group ID.
     fn greedy_find_all(&mut self, text: &[u8]) -> Vec<Match> {
         let mut matches = Vec::new();
-        let mut start_position = 0;
+        let mut current_position = 0;
 
-        while start_position < text.len() {
-            let mut best_match: Option<Match> = None;
-            let mut current_position = start_position;
+        while current_position < text.len() {
+            // Reset state for new match attempt
+            self.current_state = self.regex.dfa.start_state;
+            self.matches.clear();
+            self.done = false;
 
-            while current_position < text.len() {
-                let mut temp_state = self.clone();
-                temp_state.position = current_position;
-                temp_state.execute(&text[current_position..]);
+            // Try to match starting at current_position
+            let slice = &text[current_position..];
+            self.execute(slice);
 
-                if let Some(matched_group_id) = temp_state.matches.keys().min() {
-                    let match_position = temp_state.matches[matched_group_id];
-                    let current_match = Match {
-                        group_id: *matched_group_id,
-                        position: match_position,
-                    };
+            if !self.matches.is_empty() {
+                // Find the longest match
+                let max_length = self.matches.values().max().unwrap() - current_position;
 
-                    if let Some(ref bm) = best_match {
-                        if current_match.position > bm.position {
-                            best_match = Some(current_match);
-                        } else if current_match.position == bm.position && current_match.group_id < bm.group_id {
-                            best_match = Some(current_match);
-                        }
-                    } else {
-                        best_match = Some(current_match);
-                    }
-                }
+                // Among matches of the longest length, find the one with lowest group ID
+                let best_match = self.matches.iter().filter(|(_, &pos)| pos - current_position == max_length).min_by_key(|(&group_id, _)| group_id).unwrap();
 
+                matches.push(Match {
+                    group_id: *best_match.0,
+                    position: current_position,
+                });
+
+                // Move past this match
+                current_position = *best_match.1;
+            } else {
+                // No match found at current position, move to next character
                 current_position += 1;
-
-                if let Some(ref bm) = best_match {
-                    // Check for early termination
-                    if current_position + 1 > bm.position {
-                        break;
-                    }
-                }
-
-
-            }
-
-            if let Some(m) = best_match {
-                start_position = m.position; // ensures no overlaps
-                matches.push(m);
-            }
-            else {
-                break; // no matches found.
             }
         }
+
         matches
     }
 
