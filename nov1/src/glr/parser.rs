@@ -4,7 +4,7 @@ use crate::glr::table::{NonTerminalID, ProductionID, Stage7ShiftsAndReduces, Sta
 use crate::gss::{GSSNode, GSSTrait};
 
 use bimap::BiMap;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::rc::Rc;
@@ -70,7 +70,7 @@ impl GLRParser {
         GLRParserState {
             parser: self,
             active_states: vec![self.init_parse_state()],
-            inactive_states: HashMap::new(),
+            inactive_states: BTreeMap::new(),
             input_pos: 0,
         }
     }
@@ -187,7 +187,7 @@ impl Display for GLRParser {
 pub struct GLRParserState<'a> {
     pub parser: &'a GLRParser,
     pub active_states: Vec<ParseState>,
-    pub inactive_states: HashMap<usize, Vec<ParseState>>,
+    pub inactive_states: BTreeMap<usize, Vec<ParseState>>,
     pub input_pos: usize,
 }
 
@@ -316,7 +316,7 @@ impl<'a> GLRParserState<'a> {
     }
 
     pub fn merge_active_states(&mut self) {
-        let mut active_state_map: HashMap<ParseStateKey, ParseState> = HashMap::new();
+        let mut active_state_map: BTreeMap<ParseStateKey, ParseState> = BTreeMap::new();
 
         let mut new_active_states = Vec::new();
 
@@ -386,14 +386,14 @@ pub trait InsertWith<K, V> {
     fn insert_with<F: FnOnce(&mut V, V)>(&mut self, k: K, v: V, combine: F);
 }
 
-impl<K, V> InsertWith<K, V> for HashMap<K, V> where K: Eq + Hash {
+impl<K, V> InsertWith<K, V> for BTreeMap<K, V> where K: Eq + Ord {
     fn insert_with<F: FnOnce(&mut V, V)>(&mut self, k: K, v: V, combine: F) {
         match self.entry(k) {
-            std::collections::hash_map::Entry::Occupied(mut occupied) => {
+            std::collections::btree_map::Entry::Occupied(mut occupied) => {
                 let value = occupied.get_mut();
                 combine(value, v);
             }
-            std::collections::hash_map::Entry::Vacant(vacant) => {
+            std::collections::btree_map::Entry::Vacant(vacant) => {
                 vacant.insert(v);
             }
         }

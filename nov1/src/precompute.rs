@@ -1,5 +1,5 @@
 // src/precompute.rs
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use crate::finite_automata::{GroupID, Regex};
 use crate::glr;
 use crate::glr::table::StateID;
@@ -97,7 +97,7 @@ pub trait Tokenizer: Sized {
 /// Precomputes a map from each state and token sequence to a set of LLM token IDs.
 pub fn precompute_llm_token_sets<'a>(
     precompute_map: &BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>>>,
-    llm_token_to_id: &HashMap<&'a [u8], usize>,
+    llm_token_to_id: &BTreeMap<&'a [u8], usize>,
 ) -> BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeSet<usize>>> {
     let mut result: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeSet<usize>>> = BTreeMap::new();
 
@@ -188,7 +188,7 @@ impl Tokenizer for Regex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::{BTreeSet, HashMap};
+    use std::collections::{BTreeSet, BTreeMap};
     use crate::finite_automata::{eat_u8, DFAState, Regex, DFA};
     use crate::{groups, seq};
     use crate::charmap::TrieMap;
@@ -200,7 +200,7 @@ mod tests {
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"ac"];
 
         // Map LLM tokens to unique IDs
-        let llm_token_to_id: HashMap<&[u8], usize> = llm_tokens.iter().enumerate().map(|(i, &token)| (token, i)).collect();
+        let llm_token_to_id: BTreeMap<&[u8], usize> = llm_tokens.iter().enumerate().map(|(i, &token)| (token, i)).collect();
 
         // Build the expected precompute_map
         // We will manually construct the expected output based on the DFA and LLM tokens

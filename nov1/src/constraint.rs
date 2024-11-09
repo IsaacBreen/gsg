@@ -2,7 +2,7 @@ use crate::glr::table;
 use crate::glr::parser::{GLRParser, InsertWith, ParseState, ParseStateKey};
 use crate::precompute;
 use crate::precompute::{Token, Tokenizer};
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use crate::glr::table::StateID;
 
 type LLMToken = &'static [u8];
@@ -26,8 +26,8 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
         }
     }
 
-    fn get_mask(&self) -> HashSet<LLMToken> {
-        let mut result = HashSet::new();
+    fn get_mask(&self) -> BTreeSet<LLMToken> {
+        let mut result = BTreeSet::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state in tokenizer_state_ids {
                 for (grammar_token_sequence, llm_token_to_state_id) in &self.precomputed[&tokenizer_state] {
@@ -58,7 +58,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
     }
 
     fn commit(&mut self, llm_token: LLMToken) {
-        let mut new_states: HashMap<(ParseStateKey, BTreeSet<StateID>), ParseState> = HashMap::new();
+        let mut new_states: BTreeMap<(ParseStateKey, BTreeSet<StateID>), ParseState> = BTreeMap::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state_id in tokenizer_state_ids {
                 for (grammar_token_sequence, llm_token_to_state_id) in &self.precomputed[&tokenizer_state_id] {
