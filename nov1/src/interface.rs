@@ -22,30 +22,28 @@ pub enum GrammarExpr {
     Repeat(Box<GrammarExpr>),
 }
 
-impl GrammarExpr {
-    pub fn literal(literal: &str) -> Self {
-        GrammarExpr::Literal(literal.to_string())
-    }
+pub fn literal(literal: &str) -> GrammarExpr {
+    GrammarExpr::Literal(literal.to_string())
+}
 
-    pub fn r#ref(name: &str) -> Self {
-        GrammarExpr::Ref(name.to_string())
-    }
+pub fn r#ref(name: &str) -> GrammarExpr {
+    GrammarExpr::Ref(name.to_string())
+}
 
-    pub fn sequence(exprs: Vec<GrammarExpr>) -> Self {
-        GrammarExpr::Sequence(exprs)
-    }
+pub fn sequence(exprs: Vec<GrammarExpr>) -> GrammarExpr {
+    GrammarExpr::Sequence(exprs)
+}
 
-    pub fn choice(exprs: Vec<GrammarExpr>) -> Self {
-        GrammarExpr::Choice(exprs)
-    }
+pub fn choice(exprs: Vec<GrammarExpr>) -> GrammarExpr {
+    GrammarExpr::Choice(exprs)
+}
 
-    pub fn optional(expr: GrammarExpr) -> Self {
-        GrammarExpr::Optional(Box::new(expr))
-    }
+pub fn optional(expr: GrammarExpr) -> GrammarExpr {
+    GrammarExpr::Optional(Box::new(expr))
+}
 
-    pub fn repeat(expr: GrammarExpr) -> Self {
-        GrammarExpr::Repeat(Box::new(expr))
-    }
+pub fn repeat(expr: GrammarExpr) -> GrammarExpr {
+    GrammarExpr::Repeat(Box::new(expr))
 }
 
 #[derive(Clone)]
@@ -247,35 +245,35 @@ mod tests {
         let exprs: Vec<(String, GrammarExpr)> = vec![
             (
                 "E".to_string(),
-                GrammarExpr::choice(vec![
-                    GrammarExpr::sequence(vec![
-                        GrammarExpr::r#ref("E"),
-                        GrammarExpr::r#ref("plus"),
-                        GrammarExpr::r#ref("T"),
+                choice(vec![
+                    sequence(vec![
+                        r#ref("E"),
+                        r#ref("plus"),
+                        r#ref("T"),
                     ]),
-                    GrammarExpr::r#ref("T"),
+                    r#ref("T"),
                 ]),
             ),
             (
                 "T".to_string(),
-                GrammarExpr::choice(vec![
-                    GrammarExpr::sequence(vec![
-                        GrammarExpr::r#ref("T"),
-                        GrammarExpr::r#ref("star"),
-                        GrammarExpr::r#ref("F"),
+                choice(vec![
+                    sequence(vec![
+                        r#ref("T"),
+                        r#ref("star"),
+                        r#ref("F"),
                     ]),
-                    GrammarExpr::r#ref("F"),
+                    r#ref("F"),
                 ]),
             ),
             (
                 "F".to_string(),
-                GrammarExpr::choice(vec![
-                    GrammarExpr::sequence(vec![
-                        GrammarExpr::r#ref("lparen"),
-                        GrammarExpr::r#ref("E"),
-                        GrammarExpr::r#ref("rparen"),
+                choice(vec![
+                    sequence(vec![
+                        r#ref("lparen"),
+                        r#ref("E"),
+                        r#ref("rparen"),
                     ]),
-                    GrammarExpr::r#ref("i"),
+                    r#ref("i"),
                 ]),
             ),
         ];
