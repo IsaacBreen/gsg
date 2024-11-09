@@ -136,10 +136,11 @@ impl Grammar {
         }
 
         for (name, expr) in &exprs {
-            productions.push(Production {
-                lhs: NonTerminal(name.clone()),
-                rhs: convert_expr(expr, &mut productions, &mut terminal_map, &mut non_terminal_map, &mut next_terminal_id, &mut next_non_terminal_id),
-            });
+            todo!()
+            // productions.push(Production {
+            //     lhs: NonTerminal(name.clone()),
+            //     rhs: convert_expr(expr, &mut productions, &mut terminal_map, &mut non_terminal_map, &mut next_terminal_id, &mut next_non_terminal_id),
+            // });
         }
 
         // Add the start production
@@ -173,13 +174,13 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
         let parser = generate_glr_parser(&grammar.productions);
         let precomputed = precompute(&tokenizer, llm_tokens);
         let states = vec![(parser.init_parse_state(), BTreeSet::from([tokenizer.initial_state_id()]))];
-
-        Self {
-            tokenizer,
-            parser,
-            precomputed,
-            states,
-        }
+        todo!()
+        // Self {
+        //     tokenizer,
+        //     parser,
+        //     precomputed,
+        //     states,
+        // }
     }
     // ... other methods for GrammarConstraintState ...
 }
