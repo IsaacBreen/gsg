@@ -264,6 +264,9 @@ mod tests {
 
         let (grammar, tokenizer, _) = Grammar::from_exprs("S", exprs, tokens);
         let parser = generate_glr_parser(&grammar.productions);
+        dbg!(&grammar);
+        dbg!(&tokenizer);
+        dbg!(&parser);
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex, grammar: &Grammar| -> Vec<TerminalID> {
             let mut regex_state = tokenizer.init();
@@ -271,13 +274,9 @@ mod tests {
 
             let mut result = Vec::new();
             for group_id in regex_state.matches.keys() {
-                if let Some(token_name) = grammar.terminal_name_to_group_id.get_by_right(group_id) {
-                    if let Some(&terminal_id) = parser.terminal_map.get_by_left(&Terminal(token_name.clone())) {
-                        result.push(terminal_id);
-                    } else {
-                        panic!("Token name '{}' not found in terminal map", token_name);
-                    }
-                }
+                let token_name = grammar.terminal_name_to_group_id.get_by_right(group_id).unwrap();
+                let terminal_id = parser.terminal_map.get_by_left(&Terminal(token_name.clone())).unwrap();
+                result.push(*terminal_id);
             }
             result
         };
