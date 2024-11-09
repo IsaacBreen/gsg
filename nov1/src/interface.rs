@@ -285,7 +285,7 @@ mod tests {
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex, grammar: &Grammar| -> Vec<TerminalID> {
             let mut tokenizer_state = tokenizer.init();
-            let tokenizer_matches = tokenizer_state.greedy_find_all(input);
+            let tokenizer_matches = tokenizer_state.greedy_find_all(input, true);
 
             let mut result = Vec::new();
             for m in tokenizer_matches {
@@ -298,8 +298,7 @@ mod tests {
         };
 
         // let valid_strings = [b"i".as_slice(), b"i+i", b"i*i", b"(i)", b"i+i*i", b"(i+i)*i"];
-        let valid_strings = [b"i+i"];
-        // let valid_strings = [b"(i)"];
+        let valid_strings = [b"(i)"];
         let invalid_strings = [b"i+".as_slice(), b"i++i", b")"];
 
         for &input_str in &valid_strings {

@@ -631,7 +631,7 @@ impl RegexState<'_> {
     /// 1. If it's still possible to match something, stop. Don't return a result for the final match, since we can't rule out the possibility of a longer match.
     /// 2. Otherwise, if there is more than one match, return the longest match.
     /// 3. If there is more than one match of this length, return the one with the lowest group ID.
-    pub fn greedy_find_all(&mut self, text: &[u8]) -> Vec<Match> {
+    pub fn greedy_find_all(&mut self, text: &[u8], terminate: bool) -> Vec<Match> {
         let mut matches: Vec<Match> = Vec::new();
         let start_position = self.position;
         let mut local_position = 0;
@@ -656,7 +656,16 @@ impl RegexState<'_> {
                     return matches;
                 }
             } else {
-                // Didn't end, so we ran out of input.
+                // Didn't end. We must have run out of input.
+                // If we're supposed to terminate, add the final match (if any) and terminate.
+                if terminate {
+                    if let Some(m) = self.get_greedy_match() {
+                        // Add the final match to the list of successful matches.
+                        matches.push(m);
+                    }
+                    self.end();
+                    return matches;
+                }
                 // Return the successful matches.
                 self.position = start_position + local_position;
                 return matches;
