@@ -633,24 +633,32 @@ impl RegexState<'_> {
     /// 3. If there is more than one match of this length, return the one with the lowest group ID.
     pub fn greedy_find_all(&mut self, text: &[u8]) -> Vec<Match> {
         let mut matches: Vec<Match> = Vec::new();
+        let start_position = self.position;
+        let mut local_position = 0;
         loop {
-            self.execute(&text[self.position..]);
+            self.execute(&text[local_position..]);
             if self.ended() {
                 if let Some(m) = self.get_greedy_match() {
+                    // Advance the local position to the end of the match.
+                    local_position += m.position;
+
                     // Add the match to the list of successful matches.
                     matches.push(m);
 
-                    // Reset the state.
+                    // Reset the state and advance the internal position.
                     self.current_state = self.regex.dfa.start_state;
                     self.matches.clear();
+                    self.position = start_position + local_position;
                 } else {
                     // Ended but no match. This indicates a tokenization error.
                     // Return the successful matches.
+                    self.position = start_position + local_position;
                     return matches;
                 }
             } else {
                 // Didn't end, so we ran out of input.
                 // Return the successful matches.
+                self.position = start_position + local_position;
                 return matches;
             }
         }
