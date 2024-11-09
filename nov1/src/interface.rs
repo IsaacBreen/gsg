@@ -6,7 +6,7 @@ use crate::glr::parser::{GLRParser, ParseState};
 use crate::glr::table::{generate_glr_parser, NonTerminalID, StateID, TerminalID};
 use crate::precompute::{precompute, Token, Tokenizer};
 use crate::tokenizer_combinators::*;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 use bimap::BiBTreeMap;
 use crate::groups;
@@ -55,7 +55,7 @@ pub struct Grammar {
     pub start_symbol: NonTerminal,
     pub terminal_map: BiBTreeMap<Terminal, TerminalID>,
     pub non_terminal_map: BiBTreeMap<NonTerminal, NonTerminalID>,
-    pub literal_map: HashMap<String, String>, 
+    pub literal_map: BTreeMap<String, String>, 
 }
 
 impl Debug for Grammar {
@@ -102,11 +102,11 @@ impl Debug for Grammar {
 }
 
 impl Grammar {
-    pub fn from_exprs(start_symbol: &str, exprs: Vec<(String, GrammarExpr)>, tokens: HashMap<String, Expr>) -> (Self, Regex) {
+    pub fn from_exprs(start_symbol: &str, exprs: Vec<(String, GrammarExpr)>, tokens: BTreeMap<String, Expr>) -> (Self, Regex) {
         let mut productions = Vec::new();
         let mut terminal_map = BiBTreeMap::new();
         let mut non_terminal_map = BiBTreeMap::new();
-        let mut literal_map = HashMap::new();
+        let mut literal_map = BTreeMap::new();
         let mut next_terminal_id = 0;
         let mut next_non_terminal_id = 0;
         let mut tokenizer_exprs = Vec::new();
@@ -130,8 +130,8 @@ impl Grammar {
             next_terminal_id: &mut usize,
             next_non_terminal_id: &mut usize,
             tokenizer_exprs: &mut Vec<(usize, Expr)>,
-            literal_map: &mut HashMap<String, String>,
-            tokens: &HashMap<String, Expr>,
+            literal_map: &mut BTreeMap<String, String>,
+            tokens: &BTreeMap<String, Expr>,
         ) -> Vec<Symbol> {
             match expr {
                 GrammarExpr::Literal(literal) => {
@@ -258,7 +258,7 @@ mod tests {
 
     #[test]
     fn test_glr_parser_with_grammar_from_exprs() {
-        let tokens = HashMap::from([
+        let tokens = BTreeMap::from([
             ("plus".to_string(), eat_u8(b'+')),
             ("star".to_string(), eat_u8(b'*')),
             ("lparen".to_string(), eat_u8(b'(')),
@@ -316,7 +316,7 @@ mod tests {
         let invalid_strings = [b"i+".as_slice(), b"i++i", b")"];
 
         for &input_str in &valid_strings {
-            assert!(parser.parse(&tokenize(input_str, &parser, &tokenizer)).fully_matches(), "Failed to parse valid string: {:?}", input_str);
+            assert!(parser.parse(&tokenize(input_str, &parser, &tokenizer)).fully_matches(), "Failed to parse valid string: {:?} ({:?})", input_str, String::from_utf8_lossy(input_str));
         }
 
         for &input_str in &invalid_strings {
