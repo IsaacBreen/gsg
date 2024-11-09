@@ -1,5 +1,5 @@
 use crate::glr::grammar::{Production, Symbol};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -48,8 +48,8 @@ pub fn compute_goto(items: &BTreeSet<Item>) -> BTreeSet<Item> {
 }
 
 /// Splits a set of LR(0) items based on the symbol after the dot.
-pub fn split_on_dot(items: &BTreeSet<Item>) -> HashMap<Option<Symbol>, BTreeSet<Item>> {
-    let mut result: HashMap<Option<Symbol>, BTreeSet<Item>> = HashMap::new();
+pub fn split_on_dot(items: &BTreeSet<Item>) -> BTreeMap<Option<Symbol>, BTreeSet<Item>> {
+    let mut result: BTreeMap<Option<Symbol>, BTreeSet<Item>> = BTreeMap::new();
     for item in items {
         result
             .entry(item.production.rhs.get(item.dot_position).cloned())

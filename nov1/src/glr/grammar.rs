@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NonTerminal(pub String);
@@ -33,14 +33,14 @@ pub fn prod(name: &str, rhs: Vec<Symbol>) -> Production {
 }
 
 
-pub fn compute_first_sets(productions: &[Production]) -> HashMap<NonTerminal, HashSet<Terminal>> {
-    let mut first_sets: HashMap<NonTerminal, HashSet<Terminal>> = HashMap::new();
+pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, BTreeSet<Terminal>> {
+    let mut first_sets: BTreeMap<NonTerminal, BTreeSet<Terminal>> = BTreeMap::new();
 
     // Initialize first sets
     for production in productions {
         let lhs = &production.lhs;
         if !first_sets.contains_key(lhs) {
-            first_sets.insert(lhs.clone(), HashSet::new());
+            first_sets.insert(lhs.clone(), BTreeSet::new());
         }
         if let Symbol::Terminal(t) = &production.rhs[0] {
             first_sets.get_mut(lhs).unwrap().insert(t.clone());
@@ -76,9 +76,9 @@ pub fn compute_first_sets(productions: &[Production]) -> HashMap<NonTerminal, Ha
 
 pub fn compute_follow_sets(
     productions: &[Production],
-    first_sets: &HashMap<NonTerminal, HashSet<Terminal>>,
-) -> HashMap<NonTerminal, HashSet<Terminal>> {
-    let mut follow_sets: HashMap<NonTerminal, HashSet<Terminal>> = HashMap::new();
+    first_sets: &BTreeMap<NonTerminal, BTreeSet<Terminal>>,
+) -> BTreeMap<NonTerminal, BTreeSet<Terminal>> {
+    let mut follow_sets: BTreeMap<NonTerminal, BTreeSet<Terminal>> = BTreeMap::new();
 
     // Initialize follow sets
     for production in productions {
