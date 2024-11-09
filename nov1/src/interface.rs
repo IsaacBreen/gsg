@@ -6,7 +6,7 @@ use crate::glr::parser::{GLRParser, ParseState};
 use crate::glr::table::{generate_glr_parser, NonTerminalID, StateID, TerminalID};
 use crate::precompute::{precompute, Token, Tokenizer};
 use crate::tokenizer_combinators::*;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 use bimap::BiBTreeMap;
 
@@ -53,6 +53,7 @@ pub struct Grammar {
     pub productions: Vec<Production>,
     pub start_symbol: NonTerminal,
     pub literal_map: BTreeMap<String, String>,
+    pub terminal_name_to_group_id: BiBTreeMap<String, usize>,
 }
 
 impl Debug for Grammar {
@@ -84,20 +85,25 @@ impl Debug for Grammar {
             writeln!(f, "    {:?}: {}", literal, mangled_name)?;
         }
 
+        writeln!(f, "  Terminal Name to Group ID Map:")?;
+        for (name, group_id) in &self.terminal_name_to_group_id {
+            writeln!(f, "    {:?}: {}", name, group_id)?;
+        }
+
         Ok(())
     }
 }
 
 impl Grammar {
-    pub fn from_exprs(start_symbol: &str, exprs: Vec<(String, GrammarExpr)>, tokens: BTreeMap<String, Expr>) -> (Self, Regex, HashMap<String, usize>, ExprGroups) {
+    pub fn from_exprs(start_symbol: &str, exprs: Vec<(String, GrammarExpr)>, tokens: BTreeMap<String, Expr>) -> (Self, Regex, ExprGroups) {
         let mut productions = Vec::new();
         let mut literal_map = BTreeMap::new();
+        let mut terminal_name_to_group_id = BiBTreeMap::new();
         let mut tokenizer_exprs = Vec::new();
-        let mut token_name_to_group_id = HashMap::new();
         let mut next_terminal_id = 0;
 
         for (name, expr) in &tokens {
-            token_name_to_group_id.insert(name.clone(), next_terminal_id);
+            terminal_name_to_group_id.insert(name.clone(), next_terminal_id);
             tokenizer_exprs.push((next_terminal_id, expr.clone()));
             next_terminal_id += 1;
         }
@@ -165,9 +171,9 @@ impl Grammar {
                 productions,
                 start_symbol: NonTerminal(start_symbol.to_string()),
                 literal_map,
+                terminal_name_to_group_id,
             },
             tokenizer,
-            token_name_to_group_id,
             tokenizer_expr_groups,
         )
     }
@@ -256,23 +262,20 @@ mod tests {
             ),
         ];
 
-        let (grammar, tokenizer, token_name_to_group_id, expr_groups) = Grammar::from_exprs("S", exprs, tokens);
+        let (grammar, tokenizer, _) = Grammar::from_exprs("S", exprs, tokens);
         let parser = generate_glr_parser(&grammar.productions);
 
-        let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex, token_name_to_group_id: &HashMap<String, usize>| -> Vec<TerminalID> {
+        let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex, grammar: &Grammar| -> Vec<TerminalID> {
             let mut regex_state = tokenizer.init();
             regex_state.execute(input);
 
             let mut result = Vec::new();
             for group_id in regex_state.matches.keys() {
-                for (token_name, expected_group_id) in token_name_to_group_id {
-                    if *group_id == *expected_group_id {
-                        if let Some(&terminal_id) = parser.terminal_map.get_by_left(&Terminal(token_name.clone())) {
-                            result.push(terminal_id);
-                        } else {
-                            panic!("Token name '{}' not found in terminal map", token_name);
-                        }
-                        break;
+                if let Some(token_name) = grammar.terminal_name_to_group_id.get_by_right(group_id) {
+                    if let Some(&terminal_id) = parser.terminal_map.get_by_left(&Terminal(token_name.clone())) {
+                        result.push(terminal_id);
+                    } else {
+                        panic!("Token name '{}' not found in terminal map", token_name);
                     }
                 }
             }
@@ -283,11 +286,11 @@ mod tests {
         let invalid_strings = [b"i+".as_slice(), b"i++i", b")"];
 
         for &input_str in &valid_strings {
-            assert!(parser.parse(&tokenize(input_str, &parser, &tokenizer, &token_name_to_group_id)).fully_matches(), "Failed to parse valid string: {:?} ({:?})", input_str, String::from_utf8_lossy(input_str));
+            assert!(parser.parse(&tokenize(input_str, &parser, &tokenizer, &grammar)).fully_matches(), "Failed to parse valid string: {:?} ({:?})", input_str, String::from_utf8_lossy(input_str));
         }
 
         for &input_str in &invalid_strings {
-            assert!(!parser.parse(&tokenize(input_str, &parser, &tokenizer, &token_name_to_group_id)).fully_matches(), "Incorrectly parsed invalid string: {:?}", input_str);
+            assert!(!parser.parse(&tokenize(input_str, &parser, &tokenizer, &grammar)).fully_matches(), "Incorrectly parsed invalid string: {:?}", input_str);
         }
     }
 }
