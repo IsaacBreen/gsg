@@ -156,23 +156,13 @@ pub fn precompute<'a>(
     result
 }
 
-pub struct RegexTokenizer {
-    regex: Regex,
-}
-
-impl RegexTokenizer {
-    pub fn new(regex: Regex) -> Self {
-        RegexTokenizer { regex }
-    }
-}
-
-impl Tokenizer for RegexTokenizer {
+impl Tokenizer for Regex {
     fn initial_state_id(&self) -> usize {
         0
     }
 
     fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult {
-        let mut regex_state = self.regex.init_to_state(state);
+        let mut regex_state = self.init_to_state(state);
         regex_state.execute(text);
 
         let matches: Vec<_> = regex_state.matches.iter().map(|(&id, &width)| Token { id, width })
@@ -186,12 +176,12 @@ impl Tokenizer for RegexTokenizer {
     }
 
     fn tokens_accessible_from_state(&self, state: usize) -> Vec<TokenID> {
-        let regex_state = self.regex.init_to_state(state);
+        let regex_state = self.init_to_state(state);
         regex_state.matches.iter().map(|(&id, &width)| id).collect()
     }
 
     fn max_state(&self) -> usize {
-        self.regex.dfa.states.len()
+        self.dfa.states.len()
     }
 }
 
@@ -210,11 +200,7 @@ mod tests {
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"ac"];
 
         // Map LLM tokens to unique IDs
-        let llm_token_to_id: HashMap<&[u8], usize> = llm_tokens
-            .iter()
-            .enumerate()
-            .map(|(i, &token)| (token, i))
-            .collect();
+        let llm_token_to_id: HashMap<&[u8], usize> = llm_tokens.iter().enumerate().map(|(i, &token)| (token, i)).collect();
 
         // Build the expected precompute_map
         // We will manually construct the expected output based on the DFA and LLM tokens
@@ -229,17 +215,11 @@ mod tests {
 
         // LLM token "ab"
         // - It matches the grammar token sequence [0] ("ab") and ends in an accepting state
-        state0_map
-            .entry(vec![Token { id: 0, width: 2 }])
-            .or_insert_with(BTreeMap::new)
-            .insert(b"ab", /* end state */ StateID(0)); // We can use 0 as the end state for simplicity
+        state0_map.entry(vec![Token { id: 0, width: 2 }]).or_insert_with(BTreeMap::new).insert(b"ab", /* end state */ StateID(0)); // We can use 0 as the end state for simplicity
 
         // LLM token "ac"
         // - It matches the grammar token sequence [1] ("ac") and ends in an accepting state
-        state0_map
-            .entry(vec![Token { id: 1, width: 2 }])
-            .or_insert_with(BTreeMap::new)
-            .insert(b"ac", StateID(0));
+        state0_map.entry(vec![Token { id: 1, width: 2 }]).or_insert_with(BTreeMap::new).insert(b"ac", StateID(0));
 
         // LLM tokens "a", "b", "c"
         // - These tokens do not produce any complete grammar token sequences starting from state 0
@@ -286,55 +266,53 @@ mod tests {
             seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
         ].build();
 
-        let tokenizer = RegexTokenizer {
-            regex: Regex {
-                dfa: DFA {
-                    states: vec![
-                        DFAState {
-                            transitions: TrieMap::from_iter(vec![(b'a', 1), (b'b', 2)]),
-                            finalizers: BTreeSet::new(),
-                            possible_group_ids: BTreeSet::from([0, 1, 2, 3]),
-                            group_id_to_u8set: BTreeMap::from([
-                                (0, U8Set::from_bytes(b"a")),
-                                (1, U8Set::from_bytes(b"b")),
-                                (2, U8Set::from_bytes(b"a")),
-                                (3, U8Set::from_bytes(b"a")),
-                            ]),
-                        },
-                        DFAState {
-                            transitions: TrieMap::from_iter(vec![(b'b', 3)]),
-                            finalizers: BTreeSet::from([0]),
-                            possible_group_ids: BTreeSet::from([0, 2, 3]),
-                            group_id_to_u8set: BTreeMap::from([
-                                (2, U8Set::from_bytes(b"b")),
-                                (3, U8Set::from_bytes(b"b")),
-                            ]),
-                        },
-                        DFAState {
-                            transitions: TrieMap::new(),
-                            finalizers: BTreeSet::from([1]),
-                            possible_group_ids: BTreeSet::from([1]),
-                            group_id_to_u8set: BTreeMap::new(),
-                        },
-                        DFAState {
-                            transitions: TrieMap::from_iter(vec![(b'c', 4)]),
-                            finalizers: BTreeSet::from([2]),
-                            possible_group_ids: BTreeSet::from([2, 3]),
-                            group_id_to_u8set: BTreeMap::from([(3, U8Set::from_bytes(b"c"))]),
-                        },
-                        DFAState {
-                            transitions: TrieMap::new(),
-                            finalizers: BTreeSet::from([3]),
-                            possible_group_ids: BTreeSet::from([3]),
-                            group_id_to_u8set: BTreeMap::new(),
-                        },
-                    ],
-                    start_state: 0,
-                    non_greedy_finalizers: BTreeSet::new(),
-                },
-            }
+        let tokenizer = Regex {
+            dfa: DFA {
+                states: vec![
+                    DFAState {
+                        transitions: TrieMap::from_iter(vec![(b'a', 1), (b'b', 2)]),
+                        finalizers: BTreeSet::new(),
+                        possible_group_ids: BTreeSet::from([0, 1, 2, 3]),
+                        group_id_to_u8set: BTreeMap::from([
+                            (0, U8Set::from_bytes(b"a")),
+                            (1, U8Set::from_bytes(b"b")),
+                            (2, U8Set::from_bytes(b"a")),
+                            (3, U8Set::from_bytes(b"a")),
+                        ]),
+                    },
+                    DFAState {
+                        transitions: TrieMap::from_iter(vec![(b'b', 3)]),
+                        finalizers: BTreeSet::from([0]),
+                        possible_group_ids: BTreeSet::from([0, 2, 3]),
+                        group_id_to_u8set: BTreeMap::from([
+                            (2, U8Set::from_bytes(b"b")),
+                            (3, U8Set::from_bytes(b"b")),
+                        ]),
+                    },
+                    DFAState {
+                        transitions: TrieMap::new(),
+                        finalizers: BTreeSet::from([1]),
+                        possible_group_ids: BTreeSet::from([1]),
+                        group_id_to_u8set: BTreeMap::new(),
+                    },
+                    DFAState {
+                        transitions: TrieMap::from_iter(vec![(b'c', 4)]),
+                        finalizers: BTreeSet::from([2]),
+                        possible_group_ids: BTreeSet::from([2, 3]),
+                        group_id_to_u8set: BTreeMap::from([(3, U8Set::from_bytes(b"c"))]),
+                    },
+                    DFAState {
+                        transitions: TrieMap::new(),
+                        finalizers: BTreeSet::from([3]),
+                        possible_group_ids: BTreeSet::from([3]),
+                        group_id_to_u8set: BTreeMap::new(),
+                    },
+                ],
+                start_state: 0,
+                non_greedy_finalizers: BTreeSet::new(),
+            },
         };
-        assert_eq!(_tokenizer, tokenizer.regex);
+        assert_eq!(_tokenizer, tokenizer);
 
         // Define the LLM tokens
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
