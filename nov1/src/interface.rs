@@ -59,12 +59,44 @@ pub struct Grammar {
 
 impl Debug for Grammar {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        writeln!(f, "Grammar:")?;
+        writeln!(f, "  Start Symbol: {}", self.start_symbol.0)?;
+        writeln!(f, "  Productions:")?;
+
+        for production in &self.productions {
+            write!(f, "    {} -> ", production.lhs.0)?;
+            for (i, symbol) in production.rhs.iter().enumerate() {
+                match symbol {
+                    Symbol::Terminal(terminal) => {
+                        write!(f, "{}", terminal.0)?;
+                    }
+                    Symbol::NonTerminal(non_terminal) => {
+                        write!(f, "{}", non_terminal.0)?;
+                    }
+                }
+                if i < production.rhs.len() - 1 {
+                    write!(f, " ")?;
+                }
+            }
+            writeln!(f)?;
+        }
+
+        writeln!(f, "  Terminal Map:")?;
+        for (terminal, terminal_id) in &self.terminal_map {
+            writeln!(f, "    {}: {}", terminal.0, terminal_id.0)?;
+        }
+
+        writeln!(f, "  Non-Terminal Map:")?;
+        for (non_terminal, non_terminal_id) in &self.non_terminal_map {
+            writeln!(f, "    {}: {}", non_terminal.0, non_terminal_id.0)?;
+        }
+
+        Ok(())
     }
 }
 
 impl Grammar {
-    pub fn from_exprs(start_symbol: &str, exprs: HashMap<String, GrammarExpr>) -> (Self, Regex) {
+    pub fn from_exprs(start_symbol: &str, exprs: Vec<(String, GrammarExpr)>) -> (Self, Regex) {
         let mut productions = Vec::new();
         let mut terminal_map = BiMap::new();
         let mut non_terminal_map = BiMap::new();
@@ -154,7 +186,7 @@ impl Grammar {
 
         productions.insert(0, Production {
             lhs: NonTerminal(start_symbol.to_string()),
-            rhs: vec![Symbol::NonTerminal(NonTerminal(exprs.keys().next().expect("Grammar must have at least one rule").clone()))],
+            rhs: vec![Symbol::NonTerminal(NonTerminal(exprs.iter().next().map(|(name, _)| name.clone()).expect("Grammar must have at least one rule").clone()))],
         });
 
         if !non_terminal_map.contains_left(&NonTerminal(start_symbol.to_string())) {
@@ -205,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_glr_parser_with_grammar_from_exprs() {
-        let exprs: HashMap<String, GrammarExpr> = HashMap::from([
+        let exprs: Vec<(String, GrammarExpr)> = vec![
             (
                 "E".to_string(),
                 GrammarExpr::choice(vec![
@@ -239,7 +271,7 @@ mod tests {
                     GrammarExpr::terminal(eat_u8(b'i')),
                 ]),
             ),
-        ]);
+        ];
 
         let (grammar, tokenizer) = Grammar::from_exprs("S", exprs);
         dbg!(&grammar);
