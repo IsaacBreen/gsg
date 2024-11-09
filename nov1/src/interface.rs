@@ -6,7 +6,7 @@ use crate::glr::parser::{GLRParser, ParseState};
 use crate::glr::table::{generate_glr_parser, NonTerminalID, StateID, TerminalID};
 use crate::precompute::{precompute, Token, Tokenizer};
 use crate::tokenizer_combinators::*;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::{Debug, Formatter};
 use bimap::BiBTreeMap;
 use crate::groups;
@@ -15,7 +15,7 @@ type LLMToken = &'static [u8];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GrammarExpr {
-    Terminal(Expr),
+    Literal(String),
     NonTerminal(String),
     Sequence(Vec<GrammarExpr>),
     Choice(Vec<GrammarExpr>),
@@ -24,8 +24,8 @@ pub enum GrammarExpr {
 }
 
 impl GrammarExpr {
-    pub fn terminal(expr: Expr) -> Self {
-        GrammarExpr::Terminal(expr)
+    pub fn literal(literal: &str) -> Self {
+        GrammarExpr::Literal(literal.to_string())
     }
 
     pub fn nonterminal(name: &str) -> Self {
@@ -55,6 +55,7 @@ pub struct Grammar {
     pub start_symbol: NonTerminal,
     pub terminal_map: BiBTreeMap<Terminal, TerminalID>,
     pub non_terminal_map: BiBTreeMap<NonTerminal, NonTerminalID>,
+    pub literal_map: HashMap<String, String>, // Map literal to mangled name
 }
 
 impl Debug for Grammar {
@@ -91,18 +92,37 @@ impl Debug for Grammar {
             writeln!(f, "    {}: {}", non_terminal.0, non_terminal_id.0)?;
         }
 
+        writeln!(f, "  Literal Map:")?;
+        for (literal, mangled_name) in &self.literal_map {
+            writeln!(f, "    {:?}: {}", literal, mangled_name)?;
+        }
+
         Ok(())
     }
 }
 
 impl Grammar {
-    pub fn from_exprs(start_symbol: &str, exprs: Vec<(String, GrammarExpr)>) -> (Self, Regex) {
+    pub fn from_exprs(start_symbol: &str, exprs: Vec<(String, GrammarExpr)>, tokens: HashMap<String, Expr>) -> (Self, Regex) {
         let mut productions = Vec::new();
         let mut terminal_map = BiBTreeMap::new();
         let mut non_terminal_map = BiBTreeMap::new();
+        let mut literal_map = HashMap::new();
         let mut next_terminal_id = 0;
         let mut next_non_terminal_id = 0;
         let mut tokenizer_exprs = Vec::new();
+
+        // Add token productions and tokenizer expressions
+        for (name, expr) in &tokens {
+            let terminal = Terminal(name.clone());
+            terminal_map.insert(terminal.clone(), TerminalID(next_terminal_id));
+            tokenizer_exprs.push((next_terminal_id, expr.clone()));
+            productions.push(Production {
+                lhs: NonTerminal(name.clone()),
+                rhs: vec![Symbol::Terminal(terminal)],
+            });
+            next_terminal_id += 1;
+        }
+
 
         fn convert_expr(
             expr: &GrammarExpr,
@@ -112,32 +132,19 @@ impl Grammar {
             next_terminal_id: &mut usize,
             next_non_terminal_id: &mut usize,
             tokenizer_exprs: &mut Vec<(usize, Expr)>,
+            literal_map: &mut HashMap<String, String>,
         ) -> Vec<Symbol> {
             match expr {
-                GrammarExpr::Terminal(expr) => {
-                    tokenizer_exprs.push((*next_terminal_id, expr.clone()));
-                    let regex = expr.clone().build();
-                    let mut regex_state = regex.init();
-                    let u8set = regex_state.get_u8set();
-                    let mut symbols = Vec::new();
-                    for byte in u8set.iter() {
-                        let terminal_str = String::from_utf8_lossy(std::slice::from_ref(&byte)).to_string();
-                        let terminal = Terminal(terminal_str.clone());
-                        if !terminal_map.contains_left(&terminal) {
-                            terminal_map.insert(terminal.clone(), TerminalID(*next_terminal_id));
-                            *next_terminal_id += 1;
-                        }
-                        symbols.push(Symbol::Terminal(terminal));
+                GrammarExpr::Literal(literal) => {
+                    let mangled_name = Grammar::mangle_literal(literal, terminal_map);
+                    literal_map.insert(literal.clone(), mangled_name.clone());
+
+                    if !terminal_map.contains_left(&Terminal(mangled_name.clone())) {
+                        terminal_map.insert(Terminal(mangled_name.clone()), TerminalID(*next_terminal_id));
+                        *next_terminal_id += 1;
                     }
-                    if symbols.is_empty() {
-                        let epsilon_terminal = Terminal("ε".to_string());
-                        if !terminal_map.contains_left(&epsilon_terminal) {
-                            terminal_map.insert(epsilon_terminal.clone(), TerminalID(*next_terminal_id));
-                            *next_terminal_id += 1;
-                        }
-                        symbols.push(Symbol::Terminal(epsilon_terminal));
-                    }
-                    symbols
+
+                    vec![Symbol::Terminal(Terminal(mangled_name))]
                 }
                 GrammarExpr::NonTerminal(name) => {
                     if !non_terminal_map.contains_left(&NonTerminal(name.clone())) {
@@ -149,7 +156,7 @@ impl Grammar {
                 GrammarExpr::Sequence(exprs) => {
                     let mut sequence_symbols = Vec::new();
                     for e in exprs {
-                        sequence_symbols.extend(convert_expr(e, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs));
+                        sequence_symbols.extend(convert_expr(e, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map));
                     }
                     sequence_symbols
                 }
@@ -164,20 +171,20 @@ impl Grammar {
                     for expr in exprs {
                         choice_productions.push(Production {
                             lhs: NonTerminal(new_nonterminal.clone()),
-                            rhs: convert_expr(expr, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs),
+                            rhs: convert_expr(expr, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map),
                         });
                     }
                     productions.extend(choice_productions);
 
                     vec![Symbol::NonTerminal(NonTerminal(new_nonterminal))]
                 }
-                GrammarExpr::Optional(expr) => convert_expr(&GrammarExpr::choice(vec![expr.as_ref().clone(), GrammarExpr::sequence(vec![])]), productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs),
-                GrammarExpr::Repeat(expr) => convert_expr(&GrammarExpr::optional(GrammarExpr::sequence(vec![expr.as_ref().clone(), GrammarExpr::repeat(expr.as_ref().clone())])), productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs),
+                GrammarExpr::Optional(expr) => convert_expr(&GrammarExpr::choice(vec![expr.as_ref().clone(), GrammarExpr::sequence(vec![])]), productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map),
+                GrammarExpr::Repeat(expr) => convert_expr(&GrammarExpr::optional(GrammarExpr::sequence(vec![expr.as_ref().clone(), GrammarExpr::repeat(expr.as_ref().clone())])), productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id, tokenizer_exprs, literal_map),
             }
         }
 
         for (name, expr) in &exprs {
-            let rhs = convert_expr(expr, &mut productions, &mut terminal_map, &mut non_terminal_map, &mut next_terminal_id, &mut next_non_terminal_id, &mut tokenizer_exprs);
+            let rhs = convert_expr(expr, &mut productions, &mut terminal_map, &mut non_terminal_map, &mut next_terminal_id, &mut next_non_terminal_id, &mut tokenizer_exprs, &mut literal_map);
             productions.push(Production {
                 lhs: NonTerminal(name.clone()),
                 rhs,
@@ -202,9 +209,20 @@ impl Grammar {
                 start_symbol: NonTerminal(start_symbol.to_string()),
                 terminal_map: terminal_map.clone(),
                 non_terminal_map,
+                literal_map,
             },
             tokenizer,
         )
+    }
+
+    fn mangle_literal(literal: &str, terminal_map: &BiBTreeMap<Terminal, TerminalID>) -> String {
+        let mut mangled_name = literal.to_string();
+        let mut i = 0;
+        while terminal_map.contains_left(&Terminal(mangled_name.clone())) {
+            mangled_name = format!("{}__literal_{}", literal, i);
+            i += 1;
+        }
+        mangled_name
     }
 }
 
@@ -237,13 +255,21 @@ mod tests {
 
     #[test]
     fn test_glr_parser_with_grammar_from_exprs() {
+        let tokens = HashMap::from([
+            ("plus".to_string(), eat_u8(b'+')),
+            ("star".to_string(), eat_u8(b'*')),
+            ("lparen".to_string(), eat_u8(b'(')),
+            ("rparen".to_string(), eat_u8(b')')),
+            ("i".to_string(), eat_u8(b'i')),
+        ]);
+
         let exprs: Vec<(String, GrammarExpr)> = vec![
             (
                 "E".to_string(),
                 GrammarExpr::choice(vec![
                     GrammarExpr::sequence(vec![
                         GrammarExpr::nonterminal("E"),
-                        GrammarExpr::terminal(eat_u8(b'+')),
+                        GrammarExpr::nonterminal("plus"),
                         GrammarExpr::nonterminal("T"),
                     ]),
                     GrammarExpr::nonterminal("T"),
@@ -254,7 +280,7 @@ mod tests {
                 GrammarExpr::choice(vec![
                     GrammarExpr::sequence(vec![
                         GrammarExpr::nonterminal("T"),
-                        GrammarExpr::terminal(eat_u8(b'*')),
+                        GrammarExpr::nonterminal("star"),
                         GrammarExpr::nonterminal("F"),
                     ]),
                     GrammarExpr::nonterminal("F"),
@@ -264,23 +290,23 @@ mod tests {
                 "F".to_string(),
                 GrammarExpr::choice(vec![
                     GrammarExpr::sequence(vec![
-                        GrammarExpr::terminal(eat_u8(b'(')),
+                        GrammarExpr::nonterminal("lparen"),
                         GrammarExpr::nonterminal("E"),
-                        GrammarExpr::terminal(eat_u8(b')')),
+                        GrammarExpr::nonterminal("rparen"),
                     ]),
-                    GrammarExpr::terminal(eat_u8(b'i')),
+                    GrammarExpr::nonterminal("i"),
                 ]),
             ),
         ];
 
-        let (grammar, tokenizer) = Grammar::from_exprs("S", exprs);
+        let (grammar, tokenizer) = Grammar::from_exprs("S", exprs, tokens);
         dbg!(&grammar);
         let parser = generate_glr_parser(&grammar.productions);
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex| -> Vec<TerminalID> {
             let mut regex_state = tokenizer.init();
             regex_state.execute(input);
-            regex_state.matches.keys().copied().map(TerminalID).collect()
+            regex_state.matches.keys().copied().map(|id| TerminalID(id)).collect()
         };
 
         let valid_strings = [b"i".as_slice(), b"i+i", b"i*i", b"(i)", b"i+i*i", b"(i+i)*i"];
