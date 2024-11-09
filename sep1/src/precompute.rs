@@ -24,7 +24,7 @@ pub trait Tokenizer: Sized {
     fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult;
 
     /// Returns the list of tokens accessible from the given state.
-    fn tokens_accessible_from_state(&self, state: usize) -> Vec<Token>;
+    fn possible_tokens_from_state(&self, state: usize) -> Vec<Token>;
 
     /// Returns the maximum state ID in the DFA.
     fn max_state(&self) -> usize;
@@ -177,7 +177,7 @@ mod tests {
             }
         }
 
-        fn tokens_accessible_from_state(&self, state: usize) -> Vec<Token> {
+        fn possible_tokens_from_state(&self, state: usize) -> Vec<Token> {
             let regex_state = self.regex.init_to_state(state);
             regex_state.matches.iter().map(|(&id, &width)| Token { id, width }).collect()
         }
