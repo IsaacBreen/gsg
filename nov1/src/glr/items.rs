@@ -2,7 +2,7 @@ use crate::glr::grammar::{Production, Symbol};
 use std::collections::{BTreeMap, BTreeSet};
 
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Item {
     pub production: Production,
     pub dot_position: usize,

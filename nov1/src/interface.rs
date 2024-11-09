@@ -13,7 +13,7 @@ use crate::groups;
 
 type LLMToken = &'static [u8];
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GrammarExpr {
     Terminal(Expr),
     NonTerminal(String),

@@ -7,7 +7,7 @@ use crate::glr::table::StateID;
 type TokenID = usize;
 
 /// Represents a token with its ID and width.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Token {
     pub id: GroupID,
     pub width: usize,

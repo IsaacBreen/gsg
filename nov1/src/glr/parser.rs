@@ -6,29 +6,28 @@ use crate::gss::{GSSNode, GSSTrait};
 use bimap::BiMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
-use std::hash::Hash;
 use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ParseState {
     pub stack: Rc<GSSNode<StateID>>,
     pub action_stack: Option<Rc<GSSNode<Action>>>,
     pub status: ParseStatus,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Action {
     Shift(TerminalID),
     Reduce { production_id: ProductionID, len: usize, nonterminal_id: NonTerminalID },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParseStatus {
     Active,
     Inactive(StopReason),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StopReason {
     ActionNotFound,
     GotoNotFound,
@@ -355,7 +354,7 @@ impl<'a> GLRParserState<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ParseStateKey {
     stack: StateID,
     action_stack: Option<Action>,

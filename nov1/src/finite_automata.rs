@@ -3,7 +3,6 @@ use crate::frozenset::FrozenSet;
 use crate::u8set::U8Set;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt::{Debug, Formatter};
-use std::hash::{Hash, Hasher};
 
 pub type GroupID = usize;
 
@@ -21,7 +20,7 @@ pub struct NFA {
     start_state: usize,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DFAState {
     pub transitions: TrieMap<usize>,
     pub finalizers: BTreeSet<GroupID>,
@@ -29,25 +28,25 @@ pub struct DFAState {
     pub group_id_to_u8set: BTreeMap<GroupID, U8Set>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DFA {
     pub states: Vec<DFAState>,
     pub start_state: usize,
     pub non_greedy_finalizers: BTreeSet<GroupID>,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Regex {
     pub dfa: DFA,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct FinalStateReport {
     pub position: usize,
     pub matches: BTreeMap<GroupID, usize>, // GroupID to position
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RegexState<'a> {
     pub regex: &'a Regex,
     pub position: usize,
@@ -56,7 +55,7 @@ pub struct RegexState<'a> {
     pub done: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
     U8Seq(Vec<u8>),
     U8Class(U8Set),
@@ -66,14 +65,14 @@ pub enum Expr {
     Epsilon, // Explicit epsilon transition
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum QuantifierType {
     ZeroOrMore, // *
     OneOrMore,  // +
     ZeroOrOne,  // ?
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExprGroup {
     pub expr: Expr,
     pub is_non_greedy: bool,
