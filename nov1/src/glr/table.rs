@@ -1,5 +1,5 @@
 use bimap::BiMap;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::collections::hash_map::Entry;
 use super::items::{compute_closure, compute_goto, split_on_dot, Item};
 use crate::glr::grammar::{compute_first_sets, compute_follow_sets, NonTerminal, Production, Symbol, Terminal};
@@ -7,43 +7,43 @@ use crate::glr::parser::{GLRParser};
 use std::collections::VecDeque;
 use std::fmt::Display;
 
-type Stage1Table = HashMap<BTreeSet<Item>, Stage1Row>;
-type Stage2Table = HashMap<BTreeSet<Item>, Stage2Row>;
-type Stage3Table = HashMap<BTreeSet<Item>, Stage3Row>;
-type Stage4Table = HashMap<BTreeSet<Item>, Stage4Row>;
-type Stage5Table = HashMap<BTreeSet<Item>, Stage5Row>;
-type Stage6Table = HashMap<BTreeSet<Item>, Stage6Row>;
-pub type Stage7Table = HashMap<StateID, Stage7Row>;
+type Stage1Table = BTreeMap<BTreeSet<Item>, Stage1Row>;
+type Stage2Table = BTreeMap<BTreeSet<Item>, Stage2Row>;
+type Stage3Table = BTreeMap<BTreeSet<Item>, Stage3Row>;
+type Stage4Table = BTreeMap<BTreeSet<Item>, Stage4Row>;
+type Stage5Table = BTreeMap<BTreeSet<Item>, Stage5Row>;
+type Stage6Table = BTreeMap<BTreeSet<Item>, Stage6Row>;
+pub type Stage7Table = BTreeMap<StateID, Stage7Row>;
 
 
-type Stage1Row = HashMap<Option<Symbol>, BTreeSet<Item>>;
+type Stage1Row = BTreeMap<Option<Symbol>, BTreeSet<Item>>;
 #[derive(Debug)]
 struct Stage2Row {
-    shifts: HashMap<Terminal, BTreeSet<Item>>,
-    gotos: HashMap<NonTerminal, BTreeSet<Item>>,
+    shifts: BTreeMap<Terminal, BTreeSet<Item>>,
+    gotos: BTreeMap<NonTerminal, BTreeSet<Item>>,
     reduces: BTreeSet<Item>,
 }
 #[derive(Debug)]
 struct Stage3Row {
-    shifts: HashMap<Terminal, BTreeSet<Item>>,
-    gotos: HashMap<NonTerminal, BTreeSet<Item>>,
+    shifts: BTreeMap<Terminal, BTreeSet<Item>>,
+    gotos: BTreeMap<NonTerminal, BTreeSet<Item>>,
     /// Split the reduce items by lookahead.
     /// For LR(0), all possible terminals map to the entire reduce item set.
     /// But there are various cleverer and more selective ways to compute lookaheads.
     /// For simplicity, use LALR.
-    reduces: HashMap<Terminal, BTreeSet<Item>>,
+    reduces: BTreeMap<Terminal, BTreeSet<Item>>,
 }
 #[derive(Debug)]
 struct Stage4Row {
-    shifts: HashMap<Terminal, BTreeSet<Item>>,
-    gotos: HashMap<NonTerminal, BTreeSet<Item>>,
-    reduces: HashMap<Terminal, BTreeSet<ProductionID>>,
+    shifts: BTreeMap<Terminal, BTreeSet<Item>>,
+    gotos: BTreeMap<NonTerminal, BTreeSet<Item>>,
+    reduces: BTreeMap<Terminal, BTreeSet<ProductionID>>,
 }
 type Stage5Row = Stage4Row;
 #[derive(Debug)]
 struct Stage6Row {
-    shifts_and_reduces: HashMap<Terminal, Stage6ShiftsAndReduces>,
-    gotos: HashMap<NonTerminal, BTreeSet<Item>>,
+    shifts_and_reduces: BTreeMap<Terminal, Stage6ShiftsAndReduces>,
+    gotos: BTreeMap<NonTerminal, BTreeSet<Item>>,
 }
 
 #[derive(Debug)]
@@ -70,8 +70,8 @@ pub enum Stage7ShiftsAndReduces {
 #[derive(Debug)]
 pub struct Stage7Row {
     /// Map each item set to a unique ID, and do the same for terminals and nonterminals.
-    pub shifts_and_reduces: HashMap<TerminalID, Stage7ShiftsAndReduces>,
-    pub gotos: HashMap<NonTerminalID, StateID>,
+    pub shifts_and_reduces: BTreeMap<TerminalID, Stage7ShiftsAndReduces>,
+    pub gotos: BTreeMap<NonTerminalID, StateID>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -108,7 +108,7 @@ fn stage_1(productions: &[Production]) -> Stage1Result {
     let initial_closure = BTreeSet::from([initial_item]);
     let mut worklist = VecDeque::from([initial_closure.clone()]);
 
-    let mut transitions: HashMap<BTreeSet<Item>, HashMap<Option<Symbol>, BTreeSet<Item>>> = HashMap::new();
+    let mut transitions: BTreeMap<BTreeSet<Item>, BTreeMap<Option<Symbol>, BTreeSet<Item>>> = BTreeMap::new();
 
     while let Some(items) = worklist.pop_front() {
         if transitions.contains_key(&items) {
@@ -117,7 +117,7 @@ fn stage_1(productions: &[Production]) -> Stage1Result {
 
         let closure = compute_closure(&items, productions);
         let splits = split_on_dot(&closure);
-        let mut row = HashMap::new();
+        let mut row = BTreeMap::new();
 
         for (symbol, items) in splits {
             if symbol.is_none() {
@@ -136,10 +136,10 @@ fn stage_1(productions: &[Production]) -> Stage1Result {
 }
 
 fn stage_2(stage_1_table: Stage1Table, productions: &[Production]) -> Stage2Result {
-    let mut stage_2_table = HashMap::new();
+    let mut stage_2_table = BTreeMap::new();
     for (item_set, transitions) in stage_1_table {
-        let mut shifts = HashMap::new();
-        let mut gotos = HashMap::new();
+        let mut shifts = BTreeMap::new();
+        let mut gotos = BTreeMap::new();
         let mut reduces = BTreeSet::new();
 
         for item in &item_set {
@@ -179,10 +179,10 @@ fn stage_3(stage_2_table: Stage2Table, productions: &[Production]) -> Stage3Resu
     let first_sets = compute_first_sets(productions);
     let follow_sets = compute_follow_sets(productions, &first_sets);
 
-    let mut stage_3_table = HashMap::new();
+    let mut stage_3_table = BTreeMap::new();
 
     for (item_set, row) in stage_2_table {
-        let mut reduces: HashMap<Terminal, BTreeSet<Item>> = HashMap::new();
+        let mut reduces: BTreeMap<Terminal, BTreeSet<Item>> = BTreeMap::new();
 
         for item in &row.reduces {
             let lhs = &item.production.lhs;
@@ -210,16 +210,16 @@ fn stage_3(stage_2_table: Stage2Table, productions: &[Production]) -> Stage3Resu
 }
 
 fn stage_4(stage_3_table: Stage3Table, productions: &[Production]) -> Stage4Result {
-    let production_ids: HashMap<Production, ProductionID> = productions
+    let production_ids: BTreeMap<Production, ProductionID> = productions
         .iter()
         .enumerate()
         .map(|(i, p)| (p.clone(), ProductionID(i)))
         .collect();
 
-    let mut stage_4_table = HashMap::new();
+    let mut stage_4_table = BTreeMap::new();
 
     for (item_set, row) in stage_3_table {
-        let mut reduces = HashMap::new();
+        let mut reduces = BTreeMap::new();
 
         for (terminal, items) in row.reduces {
             let mut prod_ids = BTreeSet::new();
@@ -249,10 +249,10 @@ fn stage_5(stage_4_table: Stage4Table, productions: &[Production]) -> Stage5Resu
 }
 
 fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
-    let mut stage_6_table = HashMap::new();
+    let mut stage_6_table = BTreeMap::new();
 
     for (item_set, row) in stage_5_table {
-        let mut shifts_and_reduces = HashMap::new();
+        let mut shifts_and_reduces = BTreeMap::new();
 
         for (terminal, next_item_set) in row.shifts {
             shifts_and_reduces.insert(terminal, Stage6ShiftsAndReduces::Shift(next_item_set));
@@ -348,12 +348,12 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production]) -> Stage7Resu
         }
     }
 
-    let mut stage_7_table = HashMap::new();
+    let mut stage_7_table = BTreeMap::new();
 
     for (item_set, row) in stage_6_table {
         let state_id = *item_set_map.get_by_left(&item_set).unwrap();
-        let mut shifts_and_reduces = HashMap::new();
-        let mut gotos = HashMap::new();
+        let mut shifts_and_reduces = BTreeMap::new();
+        let mut gotos = BTreeMap::new();
 
         for (terminal, action) in row.shifts_and_reduces {
             let terminal_id = *terminal_map.get_by_left(&terminal).unwrap();

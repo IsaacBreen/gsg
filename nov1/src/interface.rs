@@ -7,7 +7,7 @@ use crate::glr::table::{generate_glr_parser, NonTerminalID, StateID, TerminalID}
 use crate::precompute::{precompute, Token, Tokenizer};
 use crate::tokenizer_combinators::*;
 use bimap::BiMap;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 use crate::groups;
 
