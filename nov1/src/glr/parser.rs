@@ -5,7 +5,7 @@ use crate::gss::{GSSNode, GSSTrait};
 
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Display;
+use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -92,6 +92,14 @@ impl GLRParser {
         let mut state = self.init_glr_parser();
         state.parse(input);
         state
+    }
+}
+
+
+impl Debug for GLRParser {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // Use Display
+        write!(f, "{}", self)
     }
 }
 

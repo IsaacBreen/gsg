@@ -28,7 +28,8 @@ impl GrammarExpr {
         GrammarExpr::Literal(literal.to_string())
     }
 
-    pub fn r#ref(name: &str) -> Self { 
+    pub fn r#ref(name: &str) -> Self {
+
         GrammarExpr::Ref(name.to_string())
     }
 
@@ -309,6 +310,7 @@ mod tests {
         dbg!(&tokenizer);
         dbg!(&groups);
         let parser = generate_glr_parser(&grammar.productions);
+        dbg!(&parser);
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex| -> Vec<TerminalID> {
             let mut regex_state = tokenizer.init();
