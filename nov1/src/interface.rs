@@ -8,6 +8,7 @@ use crate::precompute::{precompute, Token, Tokenizer};
 use crate::tokenizer_combinators::*;
 use bimap::BiMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt::{Debug, Formatter};
 use crate::groups;
 
 type LLMToken = &'static [u8];
@@ -48,11 +49,18 @@ impl GrammarExpr {
     }
 }
 
+#[derive(Clone)]
 pub struct Grammar {
     pub productions: Vec<Production>,
     pub start_symbol: NonTerminal,
     pub terminal_map: BiMap<Terminal, TerminalID>,
     pub non_terminal_map: BiMap<NonTerminal, NonTerminalID>,
+}
+
+impl Debug for Grammar {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 impl Grammar {
@@ -234,6 +242,7 @@ mod tests {
         ]);
 
         let (grammar, tokenizer) = Grammar::from_exprs("S", exprs);
+        dbg!(&grammar);
         let parser = generate_glr_parser(&grammar.productions);
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex| -> Vec<TerminalID> {
