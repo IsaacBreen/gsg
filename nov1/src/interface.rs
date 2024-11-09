@@ -83,7 +83,7 @@ impl Debug for Grammar {
 
         writeln!(f, "  Terminal Map:")?;
         for (terminal, terminal_id) in &self.terminal_map {
-            writeln!(f, "    {}: {}", terminal.0, terminal_id.0)?;
+            writeln!(f, "    {:?}: {}", terminal.0, terminal_id.0)?;
         }
 
         writeln!(f, "  Non-Terminal Map:")?;
