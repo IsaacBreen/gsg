@@ -286,7 +286,7 @@ mod tests {
                         },
                         DFAState {
                             transitions: TrieMap::from_iter(vec![(b'b', 3)]),
-                            finalizers: BTreeSet::new(),
+                            finalizers: BTreeSet::from([0]),
                             possible_group_ids: BTreeSet::from([0, 2, 3]),
                             group_id_to_u8set: BTreeMap::from([
                                 (2, U8Set::from_bytes(b"b")),
