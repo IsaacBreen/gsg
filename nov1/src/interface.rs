@@ -182,3 +182,6 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {}

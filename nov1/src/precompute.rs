@@ -1,6 +1,6 @@
 // src/precompute.rs
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use crate::finite_automata::GroupID;
+use crate::finite_automata::{GroupID, Regex};
 use crate::glr;
 use crate::glr::table::StateID;
 
@@ -156,6 +156,45 @@ pub fn precompute<'a>(
     result
 }
 
+struct RegexTokenizer {
+    regex: Regex,
+}
+
+impl RegexTokenizer {
+    fn new(regex: Regex) -> Self {
+        RegexTokenizer { regex }
+    }
+}
+
+impl Tokenizer for RegexTokenizer {
+    fn initial_state_id(&self) -> usize {
+        0
+    }
+
+    fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult {
+        let mut regex_state = self.regex.init_to_state(state);
+        regex_state.execute(text);
+
+        let matches: Vec<_> = regex_state.matches.iter().map(|(&id, &width)| Token { id, width })
+            // Filter out zero-width tokens
+            .filter(|token| token.width != 0).collect();
+
+        ExecuteResult {
+            matches,
+            new_state: if regex_state.done { None } else { Some(regex_state.current_state) },
+        }
+    }
+
+    fn tokens_accessible_from_state(&self, state: usize) -> Vec<TokenID> {
+        let regex_state = self.regex.init_to_state(state);
+        regex_state.matches.iter().map(|(&id, &width)| id).collect()
+    }
+
+    fn max_state(&self) -> usize {
+        self.regex.dfa.states.len()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -164,46 +203,6 @@ mod tests {
     use crate::{groups, seq};
     use crate::charmap::TrieMap;
     use crate::u8set::U8Set;
-
-    struct MockTokenizer {
-        regex: Regex,
-    }
-
-    impl MockTokenizer {
-        fn new(regex: Regex) -> Self {
-            MockTokenizer { regex }
-        }
-    }
-
-    impl Tokenizer for MockTokenizer {
-        fn initial_state_id(&self) -> usize {
-            0
-        }
-
-        fn execute_from_state(&self, text: &[u8], state: usize) -> ExecuteResult {
-            let mut regex_state = self.regex.init_to_state(state);
-            regex_state.execute(text);
-
-            let matches: Vec<_> = regex_state.matches.iter().map(|(&id, &width)| Token { id, width })
-                // Filter out zero-width tokens
-                .filter(|token| token.width != 0)
-                .collect();
-
-            ExecuteResult {
-                matches,
-                new_state: if regex_state.done { None } else { Some(regex_state.current_state) },
-            }
-        }
-
-        fn tokens_accessible_from_state(&self, state: usize) -> Vec<TokenID> {
-            let regex_state = self.regex.init_to_state(state);
-            regex_state.matches.iter().map(|(&id, &width)| id).collect()
-        }
-
-        fn max_state(&self) -> usize {
-            self.regex.dfa.states.len()
-        }
-    }
 
     #[test]
     fn test_precompute_llm_token_sets() {
@@ -287,7 +286,7 @@ mod tests {
             seq![eat_u8(b'a'), eat_u8(b'b'), eat_u8(b'c')], // Token 3: 'abc'
         ].build();
 
-        let tokenizer = MockTokenizer {
+        let tokenizer = RegexTokenizer {
             regex: Regex {
                 dfa: DFA {
                     states: vec![
