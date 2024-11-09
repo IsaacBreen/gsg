@@ -377,6 +377,8 @@ mod tests {
 
         expected.retain(|_, v| !v.is_empty());
 
-        assert_eq!(result, expected);
+        for state_id in expected.keys().chain(result.keys()) {
+            assert_eq!(expected.get(state_id), result.get(state_id), "State {}", state_id);
+        }
     }
 }

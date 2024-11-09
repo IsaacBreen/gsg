@@ -20,7 +20,6 @@ pub enum GrammarExpr {
     Choice(Vec<GrammarExpr>),
     Optional(Box<GrammarExpr>),
     Repeat(Box<GrammarExpr>),
-    // Add other grammar constructs as needed
 }
 
 impl GrammarExpr {
@@ -56,7 +55,6 @@ pub struct Grammar {
     pub non_terminal_map: BiMap<NonTerminal, NonTerminalID>,
 }
 
-
 impl Grammar {
     pub fn from_exprs(start_symbol: &str, exprs: HashMap<String, GrammarExpr>) -> Self {
         let mut productions = Vec::new();
@@ -75,7 +73,7 @@ impl Grammar {
         ) -> Vec<Symbol> {
             match expr {
                 GrammarExpr::Terminal(expr) => {
-                    let regex = expr.build();
+                    let regex = expr.clone().build();
                     let mut regex_state = regex.init();
                     let u8set = regex_state.get_u8set();
                     let mut symbols = Vec::new();
@@ -90,8 +88,7 @@ impl Grammar {
                         symbols.push(Symbol::Terminal(terminal));
                     }
                     if symbols.is_empty() {
-                        // Handle the case where the terminal matches nothing
-                        let epsilon_terminal = Terminal("ε".to_string()); // Use a dedicated epsilon terminal
+                        let epsilon_terminal = Terminal("ε".to_string()); 
                         if !terminal_map.contains_left(&epsilon_terminal) {
                             terminal_map.insert(epsilon_terminal.clone(), TerminalID(*next_terminal_id));
                             *next_terminal_id += 1;
@@ -108,7 +105,13 @@ impl Grammar {
                     }
                     vec![Symbol::NonTerminal(NonTerminal(name.clone()))]
                 }
-                GrammarExpr::Sequence(exprs) => exprs.iter().flat_map(|e| convert_expr(e, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id)).collect(),
+                GrammarExpr::Sequence(exprs) => {
+                    let mut sequence_symbols = Vec::new();
+                    for e in exprs {
+                        sequence_symbols.extend(convert_expr(e, productions, terminal_map, non_terminal_map, next_terminal_id, next_non_terminal_id));
+                    }
+                    sequence_symbols
+                }
                 GrammarExpr::Choice(exprs) => {
                     let new_nonterminal = format!("Choice{}", *next_non_terminal_id);
                     if !non_terminal_map.contains_left(&NonTerminal(new_nonterminal.clone())) {
@@ -158,14 +161,12 @@ impl Grammar {
     }
 }
 
-
 pub struct GrammarConstraintState<T: Tokenizer> {
     pub tokenizer: T,
     pub parser: GLRParser,
     pub precomputed: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<LLMToken, StateID>>>,
     pub states: Vec<(ParseState, BTreeSet<StateID>)>,
 }
-
 
 impl<T: Tokenizer> GrammarConstraintState<T> {
     pub fn new_from_grammar(tokenizer: T, grammar: Grammar, llm_tokens: &[LLMToken]) -> Self {
