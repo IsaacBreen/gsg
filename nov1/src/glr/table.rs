@@ -375,7 +375,10 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_product
     (stage_7_table, item_set_map, start_state_id, eof_terminal_id)
 }
 
-pub fn generate_glr_parser_with_maps(productions: &[Production], start_production_id: usize, terminal_map: BiBTreeMap<Terminal, TerminalID>, non_terminal_map: BiBTreeMap<NonTerminal, NonTerminalID>) -> GLRParser {
+pub fn generate_glr_parser_with_maps(productions: &[Production], start_production_id: usize, mut terminal_map: BiBTreeMap<Terminal, TerminalID>, non_terminal_map: BiBTreeMap<NonTerminal, NonTerminalID>) -> GLRParser {
+    // todo: this is messy
+    assign_eof_terminal_id(&mut terminal_map);
+
     let stage_1_table = stage_1(productions, start_production_id);
     let stage_2_table = stage_2(stage_1_table, productions);
     let stage_3_table = stage_3(stage_2_table, productions);
@@ -407,7 +410,14 @@ pub fn assign_terminal_ids(productions: &[Production]) -> BiBTreeMap<Terminal, T
             }
         }
     }
+
     terminal_map
+}
+
+pub fn assign_eof_terminal_id(terminal_map: &mut BiBTreeMap<Terminal, TerminalID>) {
+    if !terminal_map.contains_left(&Terminal("$".to_string())) {
+        terminal_map.insert(Terminal("$".to_string()), TerminalID(0));
+    }
 }
 
 pub fn assign_non_terminal_ids(productions: &[Production]) -> BiBTreeMap<NonTerminal, NonTerminalID> {
