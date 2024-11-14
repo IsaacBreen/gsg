@@ -2,7 +2,7 @@ use crate::finite_automata::{greedy_group, groups, non_greedy_group, ExprGroup, 
 use crate::finite_automata::{Expr, Regex};
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
-use crate::glr::table::{generate_glr_parser, NonTerminalID, StateID, TerminalID};
+use crate::glr::table::{assign_non_terminal_ids, generate_glr_parser, generate_glr_parser_with_maps, NonTerminalID, StateID, TerminalID};
 use crate::precompute::{precompute, precompute_add_incomplete_token, Token, Tokenizer};
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
@@ -208,7 +208,9 @@ impl Grammar {
 impl<T: Tokenizer> GrammarConstraintState<T> {
     pub fn new_from_grammar(tokenizer: T, grammar: Grammar, llm_tokens: &[LLMToken]) -> Self {
         // TODO: make sure the start nonterm is unique.
-        let parser = generate_glr_parser(&grammar.productions, grammar.start_production_id);
+        let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
+        let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
+        let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
         let precomputed = precompute(&tokenizer, llm_tokens);
         let precomputed = precompute_add_incomplete_token(&tokenizer, precomputed);
         let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];

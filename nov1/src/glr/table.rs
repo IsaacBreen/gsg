@@ -329,7 +329,7 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_product
         let mut gotos = BTreeMap::new();
 
         for (terminal, action) in row.shifts_and_reduces {
-            let terminal_id = *terminal_map.get_by_left(&terminal).unwrap();
+            let terminal_id = *terminal_map.get_by_left(&terminal).expect(format!("{:?} not found in terminal map", terminal).as_str());
             let converted_action = match action {
                 Stage6ShiftsAndReduces::Shift(next_item_set) => {
                     let next_state_id = *item_set_map.get_by_left(&next_item_set).unwrap();
