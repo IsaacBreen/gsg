@@ -1,6 +1,6 @@
 use crate::finite_automata::{groups, non_greedy_group, ExprGroup, ExprGroups};
 use crate::finite_automata::{Expr, Regex};
-use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
+use crate::glr::grammar::{t, NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
 use crate::glr::table::{generate_glr_parser, NonTerminalID, StateID, TerminalID};
 use crate::precompute::{precompute, Token, Tokenizer};
@@ -53,6 +53,7 @@ impl Grammar {
         let mut productions = Vec::new();
         let mut literal_map = BTreeMap::new();
         let mut terminal_name_to_group_id = BiBTreeMap::new();
+        let mut terminal_expr_to_group_id = BiBTreeMap::new();
         let mut next_terminal_id = 0;
 
         fn convert_easy_expr(
@@ -63,16 +64,23 @@ impl Grammar {
             literal_map: &mut BTreeMap<String, String>,
             tokens: &mut BTreeMap<String, Expr>,
             terminal_name_to_group_id: &mut BiBTreeMap<String, usize>,
+            terminal_expr_to_group_id: &mut BiBTreeMap<Expr, usize>,
             next_terminal_id: &mut usize,
         ) -> Vec<Symbol> {
             match expr {
                 EasyGrammarExpr::RegexExpr(regex_expr) => {
-                    // Create a unique terminal name for this regex expression
-                    let terminal_name = format!("__regex_{}", *next_terminal_id);
-                    terminal_name_to_group_id.insert(terminal_name.clone(), *next_terminal_id);
-                    tokens.insert(terminal_name.clone(), regex_expr.clone());
-                    *next_terminal_id += 1;
-                    vec![Symbol::Terminal(Terminal(terminal_name))]
+                    if let Some(terminal_id) = terminal_expr_to_group_id.get_by_left(&regex_expr) {
+                        vec![Symbol::Terminal(Terminal(format!("__regex_{}", terminal_id)))]
+                    } else {
+                        // Create a unique terminal name for this regex expression
+                        let terminal_id = *next_terminal_id;
+                        let terminal_name = format!("__regex_{}", terminal_id);
+                        terminal_name_to_group_id.insert(terminal_name.clone(), terminal_id);
+                        terminal_expr_to_group_id.insert(regex_expr.clone(), terminal_id);
+                        tokens.insert(terminal_name.clone(), regex_expr.clone());
+                        *next_terminal_id += 1;
+                        vec![Symbol::Terminal(Terminal(terminal_name))]
+                    }
                 }
                 EasyGrammarExpr::Ref(name) => {
                     vec![Symbol::NonTerminal(NonTerminal(name.clone()))]
@@ -88,6 +96,7 @@ impl Grammar {
                             literal_map,
                             tokens,
                             terminal_name_to_group_id,
+                            terminal_expr_to_group_id,
                             next_terminal_id,
                         )
                     })
@@ -110,6 +119,7 @@ impl Grammar {
                             literal_map,
                             tokens,
                             terminal_name_to_group_id,
+                            terminal_expr_to_group_id,
                             next_terminal_id,
                         );
                         productions.push(Production {
@@ -129,6 +139,7 @@ impl Grammar {
                         literal_map,
                         tokens,
                         terminal_name_to_group_id,
+                        terminal_expr_to_group_id,
                         next_terminal_id,
                     );
                     result.push(Symbol::Terminal(Terminal("ε".to_string())));
@@ -143,6 +154,7 @@ impl Grammar {
                         literal_map,
                         tokens,
                         terminal_name_to_group_id,
+                        terminal_expr_to_group_id,
                         next_terminal_id,
                     )
                 }
@@ -162,6 +174,7 @@ impl Grammar {
                 &mut literal_map,
                 &mut tokens,
                 &mut terminal_name_to_group_id,
+                &mut terminal_expr_to_group_id,
                 &mut next_terminal_id,
             );
             productions.push(Production {
@@ -247,6 +260,11 @@ mod tests {
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
         let mut grammar_state = GrammarConstraintState::from_easy_exprs(exprs, llm_tokens);
 
+        // Get the mask.
+        // The valid LLM tokens initially are ["i", "(", "(i"].
+        let mask = grammar_state.get_mask();
+        assert_eq!(mask, BTreeSet::from([b"i".as_slice(), b"(", b"(i"]));
+
         // Simulate generating from a LLM with the grammar constraint.
         // We may have some 'prefill' we want to pass to the parser before we generate the first new LLM token.
         // Let's say the prefill is "(i+i*i".
@@ -258,7 +276,7 @@ mod tests {
         // grammar_state.commit_many(&[b"(i".as_slice(), b"+i", b"*", b"i"]);
 
         // Get the mask.
-        // The valid tokens right now are be ["+", "*", ")", "+i)"].
+        // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_state.get_mask();
         assert_eq!(mask, BTreeSet::from([b"+".as_slice(), b"*", b")", b"+i)"]));
 

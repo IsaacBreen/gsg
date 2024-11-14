@@ -61,7 +61,7 @@ pub struct RegexState<'a> {
     pub done: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Expr {
     U8Seq(Vec<u8>),
     U8Class(U8Set),
@@ -71,7 +71,7 @@ pub enum Expr {
     Epsilon, // Explicit epsilon transition
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum QuantifierType {
     ZeroOrMore, // *
     OneOrMore,  // +
