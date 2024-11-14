@@ -255,7 +255,7 @@ mod tests {
         // Take note of the ambiguity in the LLM tokens; we could the prefill as ["(", "i", "+", "i", "*", "i"],
         // i.e. break the "(i" token into "(" and "i". But that's a waste of a token.
         // A good LLM tokenizer would greedily emit the longest possible token at each step.
-        grammar_state.commit_many(&[b"(i".as_slice(), b"+i", b"*", b"i"]);
+        // grammar_state.commit_many(&[b"(i".as_slice(), b"+i", b"*", b"i"]);
 
         // Get the mask.
         // The valid tokens right now are be ["+", "*", ")", "+i)"].
