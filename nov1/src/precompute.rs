@@ -176,7 +176,7 @@ impl Tokenizer for Regex {
 
     fn tokens_accessible_from_state(&self, state: usize) -> Vec<TokenID> {
         let regex_state = self.init_to_state(state);
-        regex_state.matches.iter().map(|(&id, &width)| id).collect()
+        regex_state.possible_group_ids().iter().cloned().collect()
     }
 
     fn max_state(&self) -> usize {
