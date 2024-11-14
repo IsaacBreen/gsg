@@ -2,7 +2,7 @@ use crate::glr::parser::{GLRParser, InsertWith, ParseState, ParseStateKey};
 use crate::glr::table;
 use crate::glr::table::StateID;
 use crate::precompute;
-use crate::precompute::{Token, Tokenizer};
+use crate::precompute::{Token, TokenID, Tokenizer};
 use std::collections::{BTreeMap, BTreeSet};
 
 type LLMToken = &'static [u8];
@@ -10,13 +10,14 @@ type LLMToken = &'static [u8];
 pub struct GrammarConstraintState<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
-    pub(crate) precomputed: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<LLMToken, StateID>>>,
+    pub(crate) precomputed: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<LLMToken, StateID>>>,
     pub(crate) states: Vec<(ParseState, BTreeSet<StateID>)>,
 }
 
 impl<T: Tokenizer> GrammarConstraintState<T> {
     pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
         let precomputed = precompute::precompute(&tokenizer, llm_tokens);
+        let precomputed = precompute::precompute_add_incomplete_token(&tokenizer, precomputed);
         let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];
         Self {
             tokenizer,
@@ -32,7 +33,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
             for tokenizer_state in tokenizer_state_ids {
                 for (grammar_token_sequence, llm_token_to_state_id) in &self.precomputed[&tokenizer_state] {
                     let mut new_glr_parse_state = self.parser.init_glr_parser_from_parse_state(parse_state.clone());
-                    let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(t.id)).collect::<Vec<_>>();
+                    let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
                     new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                     if new_glr_parse_state.is_ok() {
                         // todo: fix this. this is wrong.
@@ -65,7 +66,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
                 for (grammar_token_sequence, llm_token_to_state_id) in &self.precomputed[&tokenizer_state_id] {
                     if let Some(&next_tokenizer_state_id) = llm_token_to_state_id.get(llm_token) {
                         let mut new_glr_parse_state = self.parser.init_glr_parser_from_parse_state(parse_state.clone());
-                        let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(t.id)).collect::<Vec<_>>();
+                        let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
                         new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                         for active_parse_state in new_glr_parse_state.active_states {
                             new_states.insert_with(

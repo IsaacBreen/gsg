@@ -3,7 +3,7 @@ use crate::glr;
 use crate::glr::table::StateID;
 use std::collections::{BTreeMap, BTreeSet};
 
-type TokenID = usize;
+pub type TokenID = usize;
 
 /// Represents a token with its ID and width.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -157,13 +157,13 @@ pub fn precompute<'a>(
 
 pub fn precompute_add_incomplete_token<'a>(
     tokenizer: &impl Tokenizer,
-    precomputed: &'a BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>>>,
+    precomputed: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>>>,
 ) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>> {
     let mut result: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
-    for (&state_id, token_sequence_map) in precomputed {
+    for (state_id, token_sequence_map) in precomputed {
         for (token_sequence, llm_token_state_map) in token_sequence_map {
             let mut token_id_sequence = token_sequence.iter().map(|t| t.id as TokenID).collect::<Vec<_>>();
-            for (&llm_token, &next_state_id) in llm_token_state_map {
+            for (llm_token, next_state_id) in llm_token_state_map {
                 for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_state_id.0) {
                     let mut new_token_sequence = token_id_sequence.clone();
                     new_token_sequence.push(possible_next_token_id);

@@ -3,7 +3,7 @@ use crate::finite_automata::{Expr, Regex};
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
 use crate::glr::table::{generate_glr_parser, NonTerminalID, StateID, TerminalID};
-use crate::precompute::{precompute, Token, Tokenizer};
+use crate::precompute::{precompute, precompute_add_incomplete_token, Token, Tokenizer};
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
@@ -208,6 +208,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
     pub fn new_from_grammar(tokenizer: T, grammar: Grammar, llm_tokens: &[LLMToken]) -> Self {
         let parser = generate_glr_parser(&grammar.productions);
         let precomputed = precompute(&tokenizer, llm_tokens);
+        let precomputed = precompute_add_incomplete_token(&tokenizer, precomputed);
         let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];
         Self {
             tokenizer,
