@@ -15,7 +15,7 @@ pub struct GrammarConstraintState<T: Tokenizer> {
 }
 
 impl<T: Tokenizer> GrammarConstraintState<T> {
-    fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
+    pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
         let precomputed = precompute::precompute(&tokenizer, llm_tokens);
         let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];
         Self {
@@ -26,7 +26,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
         }
     }
 
-    fn get_mask(&self) -> BTreeSet<LLMToken> {
+    pub fn get_mask(&self) -> BTreeSet<LLMToken> {
         let mut result = BTreeSet::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state in tokenizer_state_ids {
@@ -57,7 +57,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
         result
     }
 
-    fn commit(&mut self, llm_token: LLMToken) {
+    pub fn commit(&mut self, llm_token: LLMToken) {
         let mut new_states: BTreeMap<(ParseStateKey, BTreeSet<StateID>), ParseState> = BTreeMap::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state_id in tokenizer_state_ids {
@@ -84,7 +84,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
         }).collect();
     }
 
-    fn commit_many(&mut self, llm_tokens: &[LLMToken]) {
+    pub fn commit_many(&mut self, llm_tokens: &[LLMToken]) {
         for llm_token in llm_tokens {
             self.commit(llm_token);
         }

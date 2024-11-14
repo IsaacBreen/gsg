@@ -244,7 +244,18 @@ mod tests {
             ),
         ];
 
-        let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")"];
-        let grammar_state = GrammarConstraintState::from_easy_exprs(exprs, llm_tokens);
+        let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
+        let mut grammar_state = GrammarConstraintState::from_easy_exprs(exprs, llm_tokens);
+
+        // Simulate generating from a LLM with the grammar constraint.
+        // We may have some 'prefill' we want to pass to the parser before we generate the first new LLM token.
+        grammar_state.commit_many(&[b"(i".as_slice(), b"+i", b"*", b"i"]);
+
+        // Get the mask.
+        // The valid tokens right now are be ["+", "*", ")", "+i)"].
+        let mask = grammar_state.get_mask();
+        assert_eq!(mask, BTreeSet::from([b"+".as_slice(), b"*", b")", b"+i)"]));
+
+        
     }
 }
