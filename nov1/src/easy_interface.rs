@@ -198,8 +198,6 @@ impl GrammarConstraintState<Regex> {
     pub fn from_easy_exprs(exprs: Vec<(String, EasyGrammarExpr)>, llm_tokens: &[LLMToken]) -> Self {
         let (grammar, tokenizer, _) = Grammar::from_easy_exprs(exprs);
         let parser = generate_glr_parser(&grammar.productions);
-        let precomputed = precompute(&tokenizer, llm_tokens);
-        let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];
         GrammarConstraintState::new_from_grammar(tokenizer, grammar, llm_tokens)
     }
 }
