@@ -276,6 +276,9 @@ mod tests {
         let (grammar, tokenizer, tokenizer_expr_groups) = Grammar::from_easy_exprs(exprs.clone());
         dbg!(&tokenizer_expr_groups);
         dbg!(&grammar);
+        
+        let parser = generate_glr_parser(&grammar.productions);
+        dbg!(&parser);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
         let mut grammar_state = GrammarConstraintState::from_easy_exprs(exprs, llm_tokens);
