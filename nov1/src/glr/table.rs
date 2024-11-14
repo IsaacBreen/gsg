@@ -325,14 +325,14 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_product
         }
     }
 
-    // Add the EOF terminal
-    terminals.insert(Terminal("$".to_string()));
-
-
-    for t in terminals {
+    for t in &terminals {
         terminal_map.insert(t.clone(), TerminalID(next_terminal_id));
         next_terminal_id += 1;
     }
+
+    // Add the EOF terminal
+    assert!(!terminals.contains(&Terminal("$".to_string())));
+    terminals.insert(Terminal("$".to_string()));
 
     for nt in non_terminals {
         non_terminal_map.insert(nt.clone(), NonTerminalID(next_non_terminal_id));
