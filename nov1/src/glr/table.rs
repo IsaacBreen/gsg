@@ -99,9 +99,9 @@ type Stage7Result = (
     TerminalID,
 );
 
-fn stage_1(productions: &[Production], start_production: &Production) -> Stage1Result {
+fn stage_1(productions: &[Production], start_production_id: usize) -> Stage1Result {
     let initial_item = Item {
-        production: start_production.clone(),
+        production: productions[start_production_id].clone(),
         dot_position: 0,
     };
     let initial_closure = BTreeSet::from([initial_item]);
@@ -300,7 +300,7 @@ fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
     stage_6_table
 }
 
-fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_production: &Production) -> Stage7Result {
+fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_production_id: usize) -> Stage7Result {
     let mut terminal_map = BiBTreeMap::new();
     let mut non_terminal_map = BiBTreeMap::new();
     let mut item_set_map = BiBTreeMap::new();
@@ -392,7 +392,7 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_product
     }
 
     let start_item = Item {
-        production: start_production.clone(),
+        production: productions[start_production_id].clone(),
         dot_position: 0,
     };
     let start_state_id = *item_set_map.get_by_left(&BTreeSet::from([start_item])).unwrap();
@@ -401,14 +401,14 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_product
     (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id, eof_terminal_id)
 }
 
-pub fn generate_glr_parser(productions: &[Production], start_production: &Production) -> GLRParser {
-    let stage_1_table = stage_1(productions, start_production);
+pub fn generate_glr_parser(productions: &[Production], start_production_id: usize) -> GLRParser {
+    let stage_1_table = stage_1(productions, start_production_id);
     let stage_2_table = stage_2(stage_1_table, productions);
     let stage_3_table = stage_3(stage_2_table, productions);
     let stage_4_table = stage_4(stage_3_table, productions);
     let stage_5_table = stage_5(stage_4_table, productions);
     let stage_6_table = stage_6(stage_5_table);
-    let (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id, eof_terminal_id) = stage_7(stage_6_table, productions, start_production);
+    let (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id, eof_terminal_id) = stage_7(stage_6_table, productions, start_production_id);
 
     GLRParser::new(stage_7_table, productions.to_vec(), terminal_map, non_terminal_map, item_set_map, start_state_id, eof_terminal_id)
 }

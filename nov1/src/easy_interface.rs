@@ -277,7 +277,7 @@ mod tests {
         dbg!(&tokenizer_expr_groups);
         dbg!(&grammar);
 
-        let parser = generate_glr_parser(&grammar.productions, &Production { lhs: NonTerminal("S'".to_string()), rhs: vec![Symbol::NonTerminal(NonTerminal(grammar.start_symbol.0.clone()))] });
+        let parser = generate_glr_parser(&grammar.productions, 0);
         dbg!(&parser);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
