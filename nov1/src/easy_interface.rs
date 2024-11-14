@@ -69,6 +69,8 @@ impl Grammar {
         ) -> Vec<Symbol> {
             match expr {
                 EasyGrammarExpr::RegexExpr(regex_expr) => {
+                    // TODO: what if this is already in the map (e.g. the user happens to create a rule with name `__regex_0`?
+                    //  We need to generate a unique regex name.
                     if let Some(terminal_id) = terminal_expr_to_group_id.get_by_left(&regex_expr) {
                         vec![Symbol::Terminal(Terminal(format!("__regex_{}", terminal_id)))]
                     } else {
@@ -105,6 +107,8 @@ impl Grammar {
                     let new_nonterminal = format!("Choice{}", *next_non_terminal_id);
                     let nt = NonTerminal(new_nonterminal.clone());
 
+                    // TODO: what if this is already in the map (e.g. the user happens to create a rule with name `Choice0`?
+                    //  We need to generate a unique nonterminal name.
                     if !non_terminal_map.contains_left(&nt) {
                         non_terminal_map.insert(nt.clone(), NonTerminalID(*next_non_terminal_id));
                         *next_non_terminal_id += 1;
