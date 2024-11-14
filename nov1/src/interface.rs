@@ -207,7 +207,8 @@ impl Grammar {
 
 impl<T: Tokenizer> GrammarConstraintState<T> {
     pub fn new_from_grammar(tokenizer: T, grammar: Grammar, llm_tokens: &[LLMToken]) -> Self {
-        let parser = generate_glr_parser(&grammar.productions);
+        // TODO: make sure the start nonterm is unique.
+        let parser = generate_glr_parser(&grammar.productions, &Production { lhs: NonTerminal("S'".to_string()), rhs: vec![Symbol::NonTerminal(NonTerminal(grammar.start_symbol.0.clone()))] });
         let precomputed = precompute(&tokenizer, llm_tokens);
         let precomputed = precompute_add_incomplete_token(&tokenizer, precomputed);
         let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];
@@ -272,7 +273,7 @@ mod tests {
         ];
 
         let (grammar, tokenizer, _) = Grammar::from_exprs("S", exprs, tokens);
-        let parser = generate_glr_parser(&grammar.productions);
+        let parser = generate_glr_parser(&grammar.productions, &Production { lhs: NonTerminal("S'".to_string()), rhs: vec![Symbol::NonTerminal(NonTerminal(grammar.start_symbol.0.clone()))] });
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex, grammar: &Grammar| -> Vec<TerminalID> {
             let mut tokenizer_state = tokenizer.init();

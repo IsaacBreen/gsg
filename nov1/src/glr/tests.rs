@@ -12,7 +12,7 @@ fn test_simple_parse_table() {
         prod("A", vec![t("b")]),
     ];
 
-    let parser = generate_glr_parser(&productions);
+    let parser = generate_glr_parser(&productions, &productions[0]);
 
     println!("{}", parser);
 
@@ -48,7 +48,7 @@ fn test_parse_simple_expression() {
         prod("F", vec![t("i")]),
     ];
 
-    let parser = generate_glr_parser(&productions);
+    let parser = generate_glr_parser(&productions, &productions[0]);
 
     println!("{}", parser);
 
