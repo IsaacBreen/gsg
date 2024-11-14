@@ -48,7 +48,7 @@ pub fn repeat(expr: GrammarExpr) -> GrammarExpr {
 #[derive(Clone)]
 pub struct Grammar {
     pub productions: Vec<Production>,
-    pub start_symbol: NonTerminal,
+    pub start_production_id: usize,
     pub literal_map: BTreeMap<String, String>,
     pub terminal_name_to_group_id: BiBTreeMap<String, usize>,
 }
@@ -56,7 +56,7 @@ pub struct Grammar {
 impl Debug for Grammar {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Grammar:")?;
-        writeln!(f, "  Start Symbol: {}", self.start_symbol.0)?;
+        writeln!(f, "  Start Production ID: {}", self.start_production_id)?;
         writeln!(f, "  Productions:")?;
 
         for production in &self.productions {
@@ -185,7 +185,7 @@ impl Grammar {
         (
             Self {
                 productions,
-                start_symbol: NonTerminal(start_symbol.to_string()),
+                start_production_id: 0,
                 literal_map,
                 terminal_name_to_group_id,
             },
@@ -208,7 +208,7 @@ impl Grammar {
 impl<T: Tokenizer> GrammarConstraintState<T> {
     pub fn new_from_grammar(tokenizer: T, grammar: Grammar, llm_tokens: &[LLMToken]) -> Self {
         // TODO: make sure the start nonterm is unique.
-        let parser = generate_glr_parser(&grammar.productions, 0);
+        let parser = generate_glr_parser(&grammar.productions, grammar.start_production_id);
         let precomputed = precompute(&tokenizer, llm_tokens);
         let precomputed = precompute_add_incomplete_token(&tokenizer, precomputed);
         let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];
@@ -273,7 +273,7 @@ mod tests {
         ];
 
         let (grammar, tokenizer, _) = Grammar::from_exprs("S", exprs, tokens);
-        let parser = generate_glr_parser(&grammar.productions, 0);
+        let parser = generate_glr_parser(&grammar.productions, grammar.start_production_id);
 
         let tokenize = |input: &[u8], parser: &GLRParser, tokenizer: &Regex, grammar: &Grammar| -> Vec<TerminalID> {
             let mut tokenizer_state = tokenizer.init();

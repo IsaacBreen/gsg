@@ -206,9 +206,6 @@ impl Grammar {
             });
         }
 
-        // The start symbol is the first non-terminal in the list
-        let start_symbol = NonTerminal(exprs.first().unwrap().0.clone());
-
         let tokenizer_exprs_vec: Vec<ExprGroup> = tokens
             .into_iter()
             .map(|(_, expr)| greedy_group(expr))
@@ -219,7 +216,7 @@ impl Grammar {
         (
             Self {
                 productions,
-                start_symbol,
+                start_production_id: 0,
                 literal_map,
                 terminal_name_to_group_id,
             },
@@ -284,7 +281,7 @@ mod tests {
         dbg!(&tokenizer_expr_groups);
         dbg!(&grammar);
 
-        let parser = generate_glr_parser(&grammar.productions, 0);
+        let parser = generate_glr_parser(&grammar.productions, grammar.start_production_id);
         dbg!(&parser);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];

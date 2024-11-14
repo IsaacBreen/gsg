@@ -32,6 +32,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state in tokenizer_state_ids {
                 for (grammar_token_sequence, llm_token_to_state_id) in &self.precomputed[&tokenizer_state] {
+                    println!("{:?}", &grammar_token_sequence);
                     let mut new_glr_parse_state = self.parser.init_glr_parser_from_parse_state(parse_state.clone());
                     let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
                     new_glr_parse_state.parse_part(&grammar_token_id_sequence);
