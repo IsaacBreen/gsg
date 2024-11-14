@@ -67,6 +67,9 @@ impl Grammar {
             terminal_expr_to_group_id: &mut BiBTreeMap<Expr, usize>,
             next_terminal_id: &mut usize,
         ) -> Vec<Symbol> {
+            // TODO: define a function that makes us a unique name for an internal rule, with an appropriate prefix.
+            //  e.g. Option0, Repeat0, etc. Make sure there's no existing rule with that name (and there won't be one later either).
+            //  i.e. collect all nonterminals in teh grammar upfront and pass it to convert_easy_expr.
             match expr {
                 EasyGrammarExpr::RegexExpr(regex_expr) => {
                     // TODO: what if this is already in the map (e.g. the user happens to create a rule with name `__regex_0`?
@@ -135,7 +138,26 @@ impl Grammar {
                     vec![Symbol::NonTerminal(nt)]
                 }
                 EasyGrammarExpr::Optional(expr) => {
-                    let mut result = convert_easy_expr(
+                    // TODO: name the internal rule here Option{} or something rather than Choice{}.
+                    convert_easy_expr(
+                        &EasyGrammarExpr::Choice(vec![*expr.clone(), EasyGrammarExpr::Sequence(vec![])]),
+                        productions,
+                        non_terminal_map,
+                        next_non_terminal_id,
+                        literal_map,
+                        tokens,
+                        terminal_name_to_group_id,
+                        terminal_expr_to_group_id,
+                        next_terminal_id,
+                    )
+                }
+                EasyGrammarExpr::Repeat(expr) => {
+                    // TODO: same as above, make sure it's unique.
+                    let nonterminal_id = *next_non_terminal_id;
+                    let nonterminal_name = format!("Repeat{}", nonterminal_id);
+                    non_terminal_map.insert(NonTerminal(nonterminal_name.clone()), NonTerminalID(nonterminal_id));
+                    *next_non_terminal_id += 1;
+                    let rhs = convert_easy_expr(
                         expr,
                         productions,
                         non_terminal_map,
@@ -146,21 +168,11 @@ impl Grammar {
                         terminal_expr_to_group_id,
                         next_terminal_id,
                     );
-                    result.push(Symbol::Terminal(Terminal("ε".to_string())));
-                    result
-                }
-                EasyGrammarExpr::Repeat(expr) => {
-                    convert_easy_expr(
-                        expr,
-                        productions,
-                        non_terminal_map,
-                        next_non_terminal_id,
-                        literal_map,
-                        tokens,
-                        terminal_name_to_group_id,
-                        terminal_expr_to_group_id,
-                        next_terminal_id,
-                    )
+                    productions.push(Production {
+                        lhs: NonTerminal(nonterminal_name.clone()),
+                        rhs,
+                    });
+                    vec![Symbol::NonTerminal(NonTerminal(nonterminal_name))]
                 }
             }
         }

@@ -113,6 +113,7 @@ impl Grammar {
             literal_map: &mut BTreeMap<String, String>,
             tokens: &BTreeMap<String, Expr>,
         ) -> Vec<Symbol> {
+            // TODO: a lot of these conversion are wrong. Look at easy_interface.rs for examples of how to do it right.
             match expr {
                 GrammarExpr::Literal(literal) => {
                     let mangled_name = Grammar::mangle_literal(literal, tokens);
