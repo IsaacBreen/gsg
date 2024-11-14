@@ -176,7 +176,7 @@ impl Display for GLRParser {
             }
         }
 
-        writeln!(f, "\nTerminal Map:")?;
+        writeln!(f, "\nTerminal Map (name to terminal ID):")?;
         for (terminal, terminal_id) in terminal_map {
             writeln!(f, "  {} -> {}", terminal.0, terminal_id.0)?;
         }

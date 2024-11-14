@@ -82,7 +82,7 @@ impl Debug for Grammar {
             writeln!(f, "    {:?}: {}", literal, mangled_name)?;
         }
 
-        writeln!(f, "  Terminal Name to Group ID Map:")?;
+        writeln!(f, "  Terminal Map (name to group ID):")?;
         for (name, group_id) in &self.terminal_name_to_group_id {
             writeln!(f, "    {:?}: {}", name, group_id)?;
         }
