@@ -167,6 +167,7 @@ pub fn precompute_add_incomplete_token<'a>(
                 for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_state_id.0) {
                     let mut new_token_sequence = token_id_sequence.clone();
                     new_token_sequence.push(possible_next_token_id);
+                    // todo: this shouldn't be necessary. Just a sanity check. Consider removing.
                     if let Some(existing) = result.entry(state_id).or_default().entry(new_token_sequence.clone()).or_default().get(llm_token) {
                         assert_eq!(*existing, next_state_id);
                     }
