@@ -2,7 +2,7 @@ use super::items::{compute_closure, compute_goto, split_on_dot, Item};
 use crate::glr::grammar::{compute_first_sets, compute_follow_sets, NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::GLRParser;
 use bimap::BiBTreeMap;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 
@@ -92,8 +92,6 @@ type Stage5Result = Stage5Table;
 type Stage6Result = Stage6Table;
 type Stage7Result = (
     Stage7Table,
-    BiBTreeMap<Terminal, TerminalID>,
-    BiBTreeMap<NonTerminal, NonTerminalID>,
     BiBTreeMap<BTreeSet<Item>, StateID>,
     StateID,
     TerminalID,
@@ -300,9 +298,7 @@ fn stage_6(stage_5_table: Stage5Table) -> Stage6Result {
     stage_6_table
 }
 
-fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_production_id: usize) -> Stage7Result {
-    let mut terminal_map = BiBTreeMap::new();
-    let mut non_terminal_map = BiBTreeMap::new();
+fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_production_id: usize, terminal_map: &BiBTreeMap<Terminal, TerminalID>, non_terminal_map: &BiBTreeMap<NonTerminal, NonTerminalID>) -> Stage7Result {
     let mut item_set_map = BiBTreeMap::new();
     let mut next_terminal_id = 0;
     let mut next_non_terminal_id = 0;
@@ -322,24 +318,6 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_product
 
         for nt in row.gotos.keys() {
             non_terminals.insert(nt.clone());
-        }
-    }
-
-    for t in &terminals {
-        terminal_map.insert(t.clone(), TerminalID(next_terminal_id));
-        next_terminal_id += 1;
-    }
-
-    for nt in non_terminals {
-        non_terminal_map.insert(nt.clone(), NonTerminalID(next_non_terminal_id));
-        next_non_terminal_id += 1;
-    }
-
-    // Ensure all nonterminals on the LHS of productions are in the map
-    for production in productions {
-        if !non_terminal_map.contains_left(&production.lhs) {
-            non_terminal_map.insert(production.lhs.clone(), NonTerminalID(next_non_terminal_id));
-            next_non_terminal_id += 1;
         }
     }
 
@@ -394,17 +372,53 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_product
     let start_state_id = *item_set_map.get_by_left(&BTreeSet::from([start_item])).unwrap();
     let eof_terminal_id = *terminal_map.get_by_left(&Terminal("$".to_string())).unwrap();
 
-    (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id, eof_terminal_id)
+    (stage_7_table, item_set_map, start_state_id, eof_terminal_id)
 }
 
-pub fn generate_glr_parser(productions: &[Production], start_production_id: usize) -> GLRParser {
+pub fn generate_glr_parser_with_maps(productions: &[Production], start_production_id: usize, terminal_map: BiBTreeMap<Terminal, TerminalID>, non_terminal_map: BiBTreeMap<NonTerminal, NonTerminalID>) -> GLRParser {
     let stage_1_table = stage_1(productions, start_production_id);
     let stage_2_table = stage_2(stage_1_table, productions);
     let stage_3_table = stage_3(stage_2_table, productions);
     let stage_4_table = stage_4(stage_3_table, productions);
     let stage_5_table = stage_5(stage_4_table, productions);
     let stage_6_table = stage_6(stage_5_table);
-    let (stage_7_table, terminal_map, non_terminal_map, item_set_map, start_state_id, eof_terminal_id) = stage_7(stage_6_table, productions, start_production_id);
+    let (stage_7_table, item_set_map, start_state_id, eof_terminal_id) = stage_7(stage_6_table, productions, start_production_id, &terminal_map, &non_terminal_map);
 
     GLRParser::new(stage_7_table, productions.to_vec(), terminal_map, non_terminal_map, item_set_map, start_state_id, eof_terminal_id)
+}
+
+pub fn generate_glr_parser(productions: &[Production], start_production_id: usize) -> GLRParser {
+    let terminal_map = assign_terminal_ids(productions);
+    let non_terminal_map = assign_non_terminal_ids(productions);
+    generate_glr_parser_with_maps(productions, start_production_id, terminal_map, non_terminal_map)
+}
+
+pub fn assign_terminal_ids(productions: &[Production]) -> BiBTreeMap<Terminal, TerminalID> {
+    let mut terminal_map = BiBTreeMap::new();
+    let mut next_terminal_id = 0;
+
+    for p in productions {
+        for symbol in &p.rhs {
+            if let Symbol::Terminal(t) = symbol {
+                if !terminal_map.contains_left(t) {
+                    terminal_map.insert(t.clone(), TerminalID(next_terminal_id));
+                    next_terminal_id += 1;
+                }
+            }
+        }
+    }
+    terminal_map
+}
+
+pub fn assign_non_terminal_ids(productions: &[Production]) -> BiBTreeMap<NonTerminal, NonTerminalID> {
+    let mut non_terminal_map = BiBTreeMap::new();
+    let mut next_non_terminal_id = 0;
+
+    for p in productions {
+        if !non_terminal_map.contains_left(&p.lhs) {
+            non_terminal_map.insert(p.lhs.clone(), NonTerminalID(next_non_terminal_id));
+            next_non_terminal_id += 1;
+        }
+    }
+    non_terminal_map
 }
