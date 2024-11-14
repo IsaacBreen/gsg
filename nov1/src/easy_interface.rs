@@ -197,7 +197,6 @@ impl GrammarConstraintState<Regex> {
     /// Constructs a `GrammarConstraintState` from a list of easy grammar expressions.
     pub fn from_easy_exprs(exprs: Vec<(String, EasyGrammarExpr)>, llm_tokens: &[LLMToken]) -> Self {
         let (grammar, tokenizer, _) = Grammar::from_easy_exprs(exprs);
-        let parser = generate_glr_parser(&grammar.productions);
         GrammarConstraintState::new_from_grammar(tokenizer, grammar, llm_tokens)
     }
 }
