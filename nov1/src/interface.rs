@@ -1,4 +1,4 @@
-use crate::finite_automata::{groups, non_greedy_group, ExprGroup, ExprGroups};
+use crate::finite_automata::{greedy_group, groups, non_greedy_group, ExprGroup, ExprGroups};
 use crate::finite_automata::{Expr, Regex};
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
@@ -178,7 +178,7 @@ impl Grammar {
             });
         }
 
-        let tokenizer_exprs_vec: Vec<ExprGroup> = tokenizer_exprs.into_iter().map(|(_, expr)| non_greedy_group(expr)).collect();
+        let tokenizer_exprs_vec: Vec<ExprGroup> = tokenizer_exprs.into_iter().map(|(_, expr)| greedy_group(expr)).collect();
         let tokenizer_expr_groups = groups(tokenizer_exprs_vec);
         let tokenizer = tokenizer_expr_groups.clone().build();
 

@@ -1,4 +1,4 @@
-use crate::finite_automata::{groups, non_greedy_group, ExprGroup, ExprGroups};
+use crate::finite_automata::{greedy_group, groups, non_greedy_group, ExprGroup, ExprGroups};
 use crate::finite_automata::{Expr, Regex};
 use crate::glr::grammar::{t, NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
@@ -204,7 +204,7 @@ impl Grammar {
 
         let tokenizer_exprs_vec: Vec<ExprGroup> = tokens
             .into_iter()
-            .map(|(_, expr)| non_greedy_group(expr))
+            .map(|(_, expr)| greedy_group(expr))
             .collect();
         let tokenizer_expr_groups = groups(tokenizer_exprs_vec);
         let tokenizer = tokenizer_expr_groups.clone().build();
@@ -272,6 +272,10 @@ mod tests {
                 ]),
             ),
         ];
+
+        let (grammar, tokenizer, tokenizer_expr_groups) = Grammar::from_easy_exprs(exprs.clone());
+        dbg!(&tokenizer_expr_groups);
+        dbg!(&grammar);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
         let mut grammar_state = GrammarConstraintState::from_easy_exprs(exprs, llm_tokens);

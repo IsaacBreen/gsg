@@ -158,6 +158,10 @@ pub fn groups(groups: Vec<ExprGroup>) -> ExprGroups {
     ExprGroups { groups }
 }
 
+pub fn greedy_group<T: Into<ExprGroup>>(expr: T) -> ExprGroup {
+    expr.into()
+}
+
 pub fn non_greedy_group<T: Into<ExprGroup>>(expr: T) -> ExprGroup {
     let mut group = expr.into();
     group.is_non_greedy = true;
