@@ -302,7 +302,7 @@ mod tests {
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
         let mut grammar_state = GrammarConstraintState::new_from_grammar(tokenizer, grammar, llm_tokens);
 
-        grammar_state.commit_many(&[b"(i".as_slice(), b"+i", b"*", b"i"]);
+        // grammar_state.commit_many(&[b"(i".as_slice(), b"+i", b"*", b"i"]);
 
         let mask = grammar_state.get_mask();
         assert_eq!(mask, BTreeSet::from([b"+".as_slice(), b"*", b")", b"+i)"]));

@@ -35,6 +35,7 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
                     let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(t.id)).collect::<Vec<_>>();
                     new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                     if new_glr_parse_state.is_ok() {
+                        // todo: fix this. this is wrong.
                         let mut any_next_tokens_are_valid = false;
                         for possible_next_grammar_token in self.tokenizer.tokens_accessible_from_state(tokenizer_state.0) {
                             let mut new_new_glr_parse_state = new_glr_parse_state.clone();
