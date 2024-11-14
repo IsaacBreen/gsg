@@ -56,6 +56,13 @@ impl Grammar {
         let mut terminal_expr_to_group_id = BiBTreeMap::new();
         let mut next_terminal_id = 0;
 
+        // Add a start production.
+        // TODO: make sure the start production name is not already taken. Use a unique name generator function.
+        productions.push(Production {
+            lhs: NonTerminal("start".to_string()),
+            rhs: vec![Symbol::NonTerminal(NonTerminal(exprs[0].0.clone()))],
+        });
+
         fn convert_easy_expr(
             expr: &EasyGrammarExpr,
             productions: &mut Vec<Production>,
