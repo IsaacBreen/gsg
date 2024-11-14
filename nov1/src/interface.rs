@@ -7,6 +7,7 @@ use crate::precompute::{precompute, Token, Tokenizer};
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
+use crate::constraint::GrammarConstraintState;
 
 type LLMToken = &'static [u8];
 
@@ -201,13 +202,6 @@ impl Grammar {
         }
         mangled_name
     }
-}
-
-pub struct GrammarConstraintState<T: Tokenizer> {
-    pub tokenizer: T,
-    pub parser: GLRParser,
-    pub precomputed: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<LLMToken, StateID>>>,
-    pub states: Vec<(ParseState, BTreeSet<StateID>)>,
 }
 
 impl<T: Tokenizer> GrammarConstraintState<T> {

@@ -7,11 +7,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 type LLMToken = &'static [u8];
 
-struct GrammarConstraintState<T: Tokenizer> {
-    tokenizer: T,
-    parser: GLRParser,
-    precomputed: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<LLMToken, StateID>>>,
-    states: Vec<(ParseState, BTreeSet<StateID>)>,
+pub struct GrammarConstraintState<T: Tokenizer> {
+    pub(crate) tokenizer: T,
+    pub(crate) parser: GLRParser,
+    pub(crate) precomputed: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<LLMToken, StateID>>>,
+    pub(crate) states: Vec<(ParseState, BTreeSet<StateID>)>,
 }
 
 impl<T: Tokenizer> GrammarConstraintState<T> {
