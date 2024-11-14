@@ -329,7 +329,7 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_product
         let mut gotos = BTreeMap::new();
 
         for (terminal, action) in row.shifts_and_reduces {
-            let terminal_id = *terminal_map.get_by_left(&terminal).expect(format!("{:?} not found in terminal map", terminal).as_str());
+            let terminal_id = *terminal_map.get_by_left(&terminal).expect(format!("{:?} not found in terminal map {:?}", terminal, terminal_map.left_values().map(|t| t.0.clone()).collect::<Vec<String>>()).as_str());
             let converted_action = match action {
                 Stage6ShiftsAndReduces::Shift(next_item_set) => {
                     let next_state_id = *item_set_map.get_by_left(&next_item_set).unwrap();
@@ -416,7 +416,8 @@ pub fn assign_terminal_ids(productions: &[Production]) -> BiBTreeMap<Terminal, T
 
 pub fn assign_eof_terminal_id(terminal_map: &mut BiBTreeMap<Terminal, TerminalID>) {
     if !terminal_map.contains_left(&Terminal("$".to_string())) {
-        terminal_map.insert(Terminal("$".to_string()), TerminalID(0));
+        let max_terminal_id = terminal_map.right_values().max().unwrap().0;
+        terminal_map.insert(Terminal("$".to_string()), TerminalID(max_terminal_id + 1));
     }
 }
 
