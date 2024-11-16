@@ -2,15 +2,72 @@ use crate::finite_automata::{greedy_group, groups, non_greedy_group, ExprGroup, 
 use crate::finite_automata::{Expr, Regex};
 use crate::glr::grammar::{t, NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
-use crate::glr::table::{generate_glr_parser, NonTerminalID, StateID, TerminalID};
-use crate::precompute::{precompute, Token, Tokenizer};
+use crate::glr::table::{assign_non_terminal_ids, generate_glr_parser, generate_glr_parser_with_maps, NonTerminalID, StateID, TerminalID};
+use crate::precompute::{precompute, precompute_add_incomplete_token, Token, Tokenizer};
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 use crate::constraint::GrammarConstraintState;
-use crate::interface::Grammar;
 
 type LLMToken = &'static [u8];
+
+#[derive(Clone)]
+pub struct Grammar {
+    pub productions: Vec<Production>,
+    pub start_production_id: usize,
+    pub literal_map: BTreeMap<String, String>,
+    pub terminal_name_to_group_id: BiBTreeMap<String, usize>,
+}
+
+impl Debug for Grammar {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Grammar:")?;
+        writeln!(f, "  Start Production ID: {}", self.start_production_id)?;
+        writeln!(f, "  Productions:")?;
+
+        for production in &self.productions {
+            write!(f, "    {} -> ", production.lhs.0)?;
+            for (i, symbol) in production.rhs.iter().enumerate() {
+                match symbol {
+                    Symbol::Terminal(terminal) => {
+                        write!(f, "{}", terminal.0)?;
+                    }
+                    Symbol::NonTerminal(non_terminal) => {
+                        write!(f, "{}", non_terminal.0)?;
+                    }
+                }
+                if i < production.rhs.len() - 1 {
+                    write!(f, " ")?;
+                }
+            }
+            writeln!(f)?;
+        }
+
+        writeln!(f, "  Literal Map:")?;
+        for (literal, mangled_name) in &self.literal_map {
+            writeln!(f, "    {:?}: {}", literal, mangled_name)?;
+        }
+
+        writeln!(f, "  Terminal Map (name to group ID):")?;
+        for (name, group_id) in &self.terminal_name_to_group_id {
+            writeln!(f, "    {:?}: {}", name, group_id)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Grammar {
+    fn mangle_literal(literal: &str, tokens: &BTreeMap<String, Expr>) -> String {
+        let mut mangled_name = literal.to_string();
+        let mut i = 0;
+        while tokens.contains_key(&mangled_name) {
+            mangled_name = format!("{}__literal_{}", literal, i);
+            i += 1;
+        }
+        mangled_name
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EasyGrammarExpr {
@@ -223,6 +280,24 @@ impl Grammar {
             tokenizer,
             tokenizer_expr_groups,
         )
+    }
+}
+
+impl<T: Tokenizer> GrammarConstraintState<T> {
+    pub fn new_from_grammar(tokenizer: T, grammar: Grammar, llm_tokens: &[LLMToken]) -> Self {
+        // TODO: make sure the start nonterm is unique.
+        let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
+        let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
+        let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
+        let precomputed = precompute(&tokenizer, llm_tokens);
+        let precomputed = precompute_add_incomplete_token(&tokenizer, precomputed);
+        let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];
+        Self {
+            tokenizer,
+            parser,
+            precomputed,
+            states,
+        }
     }
 }
 
