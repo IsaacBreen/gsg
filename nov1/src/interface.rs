@@ -288,12 +288,12 @@ impl Grammar<Regex> {
 }
 
 impl<T: Tokenizer> GrammarConstraint<T> {
-    pub fn new_from_grammar(tokenizer: T, grammar: Grammar<T>, llm_tokens: &[LLMToken]) -> Self {
+    pub fn new_from_grammar(grammar: Grammar<T>, llm_tokens: &[LLMToken]) -> Self {
         let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
         let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
-        Self::new_from_parser(tokenizer, parser, llm_tokens)
+        Self::new_from_parser(grammar.tokenizer, parser, llm_tokens)
     }
 
     pub fn new_from_parser(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
@@ -371,7 +371,7 @@ mod tests {
         dbg!(&parser);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
-        let grammar_constraint = GrammarConstraint::new_from_parser(grammar.tokenizer, parser, llm_tokens);
+        let grammar_constraint = GrammarConstraint::new_from_grammar(grammar, llm_tokens);
         let mut grammar_constraint_state = grammar_constraint.init_state();
 
         #[macro_export]
