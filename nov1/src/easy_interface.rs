@@ -388,7 +388,7 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens initially are ["i", "(", "(i"].
         let mask = grammar_state.get_mask();
-        let expected_mask = llm_tokens!(grammar_state, b"i", b"(", b"(i").into_iter().collect();
+        let expected_mask: BTreeSet<_> = llm_tokens!(grammar_state, b"i", b"(", b"(i").into_iter().collect();
         assert_eq!(mask, expected_mask);
 
         // Simulate generating from a LLM with the grammar constraint.
@@ -405,7 +405,7 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_state.get_mask();
-        let expected_mask = llm_tokens!(grammar_state, b"+", b"*", b")", b"+i").into_iter().collect();
+        let expected_mask: BTreeSet<_> = llm_tokens!(grammar_state, b"+", b"*", b")", b"+i").into_iter().collect();
         assert_eq!(mask, expected_mask);
     }
 }
