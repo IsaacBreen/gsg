@@ -293,10 +293,7 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
-        Self::from_parser(grammar.tokenizer, parser, llm_tokens)
-    }
-
-    pub fn from_parser(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
+        let tokenizer = grammar.tokenizer;
         let mut llm_token_to_id = BTreeMap::new();
         let mut llm_token_id_to_token = BTreeMap::new();
         for (i, &token) in llm_tokens.iter().enumerate() {
