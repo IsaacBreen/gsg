@@ -1,9 +1,9 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GSSNode<T> {
     value: T,
-    predecessors: Vec<Rc<GSSNode<T>>>,
+    predecessors: Vec<Arc<GSSNode<T>>>,
 }
 
 impl<T> GSSNode<T> {
@@ -29,20 +29,20 @@ impl<T> GSSNode<T> {
 
     pub fn push(self, value: T) -> Self {
         let mut new_node = Self::new(value);
-        new_node.predecessors.push(Rc::new(self));
+        new_node.predecessors.push(Arc::new(self));
         new_node
     }
 
-    pub fn pop(&self) -> Vec<Rc<Self>> {
+    pub fn pop(&self) -> Vec<Arc<Self>> {
         self.predecessors.clone()
     }
 
-    pub fn popn(&self, n: usize) -> Vec<Rc<Self>>
+    pub fn popn(&self, n: usize) -> Vec<Arc<Self>>
     where
         T: Clone,
     {
         if n == 0 {
-            return vec![Rc::new(self.clone())];
+            return vec![Arc::new(self.clone())];
         }
         let mut nodes = Vec::new();
         for popped in self.pop() {
@@ -88,7 +88,7 @@ impl<T> Drop for GSSNode<T> {
     fn drop(&mut self) {
         let mut cur_nodes = std::mem::take(&mut self.predecessors);
         while let Some(node) = cur_nodes.pop() {
-            if let Ok(mut inner_node) = Rc::try_unwrap(node) {
+            if let Ok(mut inner_node) = Arc::try_unwrap(node) {
                 cur_nodes.append(&mut inner_node.predecessors);
             }
         }
@@ -100,8 +100,8 @@ pub trait GSSTrait<T: Clone> {
     type Peek<'a> where T: 'a, Self: 'a;
     fn peek(&self) -> Self::Peek<'_>;
     fn push(&self, value: T) -> GSSNode<T>;
-    fn pop(&self) -> Vec<Rc<GSSNode<T>>>;
-    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>>;
+    fn pop(&self) -> Vec<Arc<GSSNode<T>>>;
+    fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>>;
 }
 
 impl<T: Clone> GSSTrait<T> for GSSNode<T> {
@@ -113,17 +113,17 @@ impl<T: Clone> GSSTrait<T> for GSSNode<T> {
 
     fn push(&self, value: T) -> GSSNode<T> {
         let mut new_node = GSSNode::new(value);
-        new_node.predecessors.push(Rc::new(self.clone()));
+        new_node.predecessors.push(Arc::new(self.clone()));
         new_node
     }
 
-    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
+    fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
         self.predecessors.clone()
     }
 
-    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
+    fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>> {
         if n == 0 {
-            return vec![Rc::new(self.clone())];
+            return vec![Arc::new(self.clone())];
         }
         let mut nodes = Vec::new();
         for popped in self.pop() {
@@ -133,7 +133,7 @@ impl<T: Clone> GSSTrait<T> for GSSNode<T> {
     }
 }
 
-impl<T: Clone> GSSTrait<T> for Rc<GSSNode<T>> {
+impl<T: Clone> GSSTrait<T> for Arc<GSSNode<T>> {
     type Peek<'a> = &'a T where T: 'a;
 
     fn peek(&self) -> Self::Peek<'_> {
@@ -146,11 +146,11 @@ impl<T: Clone> GSSTrait<T> for Rc<GSSNode<T>> {
         new_node
     }
 
-    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
+    fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
         self.predecessors.clone()
     }
 
-    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
+    fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>> {
         if n == 0 {
             return vec![self.clone()];
         }
@@ -162,7 +162,7 @@ impl<T: Clone> GSSTrait<T> for Rc<GSSNode<T>> {
     }
 }
 
-impl<T: Clone> GSSTrait<T> for Option<Rc<GSSNode<T>>> {
+impl<T: Clone> GSSTrait<T> for Option<Arc<GSSNode<T>>> {
     type Peek<'a> = Option<&'a T> where T: 'a;
 
     fn peek(&self) -> Self::Peek<'_> {
@@ -173,11 +173,11 @@ impl<T: Clone> GSSTrait<T> for Option<Rc<GSSNode<T>>> {
         self.clone().map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
     }
 
-    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
+    fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
         self.as_ref().map(|node| node.pop()).unwrap_or_default()
     }
 
-    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
+    fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>> {
         self.as_ref().map(|node| node.popn(n)).unwrap_or_default()
     }
 }
@@ -193,11 +193,11 @@ impl<T: Clone> GSSTrait<T> for Option<GSSNode<T>> {
         self.clone().map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
     }
 
-    fn pop(&self) -> Vec<Rc<GSSNode<T>>> {
+    fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
         self.as_ref().map(|node| node.pop()).unwrap_or_default()
     }
 
-    fn popn(&self, n: usize) -> Vec<Rc<GSSNode<T>>> {
+    fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>> {
         self.as_ref().map(|node| node.popn(n)).unwrap_or_default()
     }
 }
