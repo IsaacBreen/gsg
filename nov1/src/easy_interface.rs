@@ -1,13 +1,13 @@
 use crate::finite_automata::{greedy_group, groups, non_greedy_group, ExprGroup, ExprGroups};
 use crate::finite_automata::{Expr, Regex};
-use crate::glr::grammar::{t, NonTerminal, Production, Symbol, Terminal};
+use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
-use crate::glr::table::{assign_non_terminal_ids, generate_glr_parser, generate_glr_parser_with_maps, NonTerminalID, StateID, TerminalID};
+use crate::glr::table::{assign_non_terminal_ids, generate_glr_parser_with_maps, NonTerminalID, StateID, TerminalID};
 use crate::precompute::{precompute, precompute_add_incomplete_token, Token, Tokenizer};
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
-use crate::constraint::GrammarConstraintState;
+use crate::constraint::{GrammarConstraintState, LLMTokenID, convert_precomputed_to_llm_token_ids};
 
 type LLMToken = &'static [u8];
 
@@ -285,18 +285,29 @@ impl Grammar {
 
 impl<T: Tokenizer> GrammarConstraintState<T> {
     pub fn new_from_grammar(tokenizer: T, grammar: Grammar, llm_tokens: &[LLMToken]) -> Self {
-        // TODO: make sure the start nonterm is unique.
+        let mut llm_token_to_id = BTreeMap::new();
+        let mut llm_token_id_to_token = BTreeMap::new();
+        for (i, &token) in llm_tokens.iter().enumerate() {
+            let id = LLMTokenID(i);
+            llm_token_to_id.insert(token, id);
+            llm_token_id_to_token.insert(id, token);
+        }
+
         let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
         let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
         let precomputed = precompute(&tokenizer, llm_tokens);
         let precomputed = precompute_add_incomplete_token(&tokenizer, precomputed);
+        let precomputed = convert_precomputed_to_llm_token_ids(precomputed, &llm_token_to_id);
         let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];
+
         Self {
             tokenizer,
             parser,
             precomputed,
             states,
+            llm_token_to_id,
+            llm_token_id_to_token,
         }
     }
 }
@@ -313,6 +324,7 @@ impl GrammarConstraintState<Regex> {
 mod tests {
     use super::*;
     use crate::finite_automata::eat_u8;
+    use crate::glr::table::generate_glr_parser;
 
     #[test]
     fn test_easy_grammar_from_exprs() {
@@ -365,7 +377,12 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens initially are ["i", "(", "(i"].
         let mask = grammar_state.get_mask();
-        assert_eq!(mask, BTreeSet::from([b"i".as_slice(), b"(", b"(i"]));
+        let expected_mask = BTreeSet::from([
+            *grammar_state.llm_token_to_id.get(b"i".as_slice()).unwrap(),
+            *grammar_state.llm_token_to_id.get(b"(".as_slice()).unwrap(),
+            *grammar_state.llm_token_to_id.get(b"(i".as_slice()).unwrap(),
+        ]);
+        assert_eq!(mask, expected_mask);
 
         // Simulate generating from a LLM with the grammar constraint.
         // We may have some 'prefill' we want to pass to the parser before we generate the first new LLM token.
@@ -375,11 +392,23 @@ mod tests {
         // Take note of the ambiguity in the LLM tokens; we could the prefill as ["(", "i", "+", "i", "*", "i"],
         // i.e. break the "(i" token into "(" and "i". But that's a waste of a token.
         // A good LLM tokenizer would greedily emit the longest possible token at each step.
-        grammar_state.commit_many(&[b"(i".as_slice(), b"+i", b"*", b"i"]);
+        let prefill = vec![
+            *grammar_state.llm_token_to_id.get(b"(i".as_slice()).unwrap(),
+            *grammar_state.llm_token_to_id.get(b"+i".as_slice()).unwrap(),
+            *grammar_state.llm_token_to_id.get(b"*".as_slice()).unwrap(),
+            *grammar_state.llm_token_to_id.get(b"i".as_slice()).unwrap(),
+        ];
+        grammar_state.commit_many(&prefill);
 
         // Get the mask.
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_state.get_mask();
-        assert_eq!(mask, BTreeSet::from([b"+".as_slice(), b"*", b")", b"+i"]));
+        let expected_mask = BTreeSet::from([
+            *grammar_state.llm_token_to_id.get(b"+".as_slice()).unwrap(),
+            *grammar_state.llm_token_to_id.get(b"*".as_slice()).unwrap(),
+            *grammar_state.llm_token_to_id.get(b")".as_slice()).unwrap(),
+            *grammar_state.llm_token_to_id.get(b"+i".as_slice()).unwrap(),
+        ]);
+        assert_eq!(mask, expected_mask);
     }
 }

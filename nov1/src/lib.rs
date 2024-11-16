@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod frozenset;
 pub mod charmap;
 pub mod precompute;
@@ -7,5 +9,4 @@ pub mod finite_automata;
 mod gss;
 mod glr;
 mod constraint;
-mod interface;
 mod easy_interface;
