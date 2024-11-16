@@ -106,7 +106,7 @@ pub fn repeat(expr: GrammarExpr) -> GrammarExpr {
 impl Grammar {
     /// Constructs a `Grammar` and `Regex` tokenizer from a list of grammar expressions.
     /// The first non-terminal in the list is treated as the start symbol.
-    pub fn from_exprs(exprs: Vec<(String, GrammarExpr)>) -> (Self, Regex, ExprGroups) {
+    pub fn from_exprs(exprs: Vec<(String, GrammarExpr)>) -> (Self, Regex) {
         let mut productions = Vec::new();
         let mut literal_map = BTreeMap::new();
         let mut terminal_name_to_group_id = BiBTreeMap::new();
@@ -278,13 +278,20 @@ impl Grammar {
                 terminal_name_to_group_id,
             },
             tokenizer,
-            tokenizer_expr_groups,
         )
     }
 }
 
 impl<T: Tokenizer> GrammarConstraintState<T> {
     pub fn new_from_grammar(tokenizer: T, grammar: Grammar, llm_tokens: &[LLMToken]) -> Self {
+        let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
+        let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
+        let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
+
+        Self::new_from_parser(tokenizer, parser, llm_tokens)
+    }
+
+    pub fn new_from_parser(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
         let mut llm_token_to_id = BTreeMap::new();
         let mut llm_token_id_to_token = BTreeMap::new();
         for (i, &token) in llm_tokens.iter().enumerate() {
@@ -293,9 +300,6 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
             llm_token_id_to_token.insert(id, token);
         }
 
-        let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
-        let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
-        let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
         let precomputed = precompute(&tokenizer, llm_tokens);
         let precomputed = precompute_add_incomplete_token(&tokenizer, precomputed);
         let precomputed = convert_precomputed_to_llm_token_ids(precomputed, &llm_token_to_id);
@@ -309,14 +313,6 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
             llm_token_to_id,
             llm_token_id_to_token,
         }
-    }
-}
-
-impl GrammarConstraintState<Regex> {
-    /// Constructs a `GrammarConstraintState` from a list of grammar expressions.
-    pub fn from_exprs(exprs: Vec<(String, GrammarExpr)>, llm_tokens: &[LLMToken]) -> Self {
-        let (grammar, tokenizer, _) = Grammar::from_exprs(exprs);
-        GrammarConstraintState::new_from_grammar(tokenizer, grammar, llm_tokens)
     }
 }
 
@@ -364,15 +360,14 @@ mod tests {
             ),
         ];
 
-        let (grammar, tokenizer, tokenizer_expr_groups) = Grammar::from_exprs(exprs.clone());
-        dbg!(&tokenizer_expr_groups);
+        let (grammar, tokenizer) = Grammar::from_exprs(exprs.clone());
         dbg!(&grammar);
 
         let parser = generate_glr_parser(&grammar.productions, grammar.start_production_id);
         dbg!(&parser);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
-        let mut grammar_state = GrammarConstraintState::from_exprs(exprs, llm_tokens);
+        let mut grammar_state = GrammarConstraintState::new_from_parser(tokenizer, parser, llm_tokens);
 
         #[macro_export]
         macro_rules! llm_tokens {
