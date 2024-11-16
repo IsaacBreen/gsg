@@ -66,7 +66,7 @@ impl<T: Tokenizer> GrammarConstraint<T> {
             llm_token_id_to_token,
         }
     }
-    
+
     pub fn init(&self) -> GrammarConstraintState<T> {
         GrammarConstraintState {
             parent: self,
