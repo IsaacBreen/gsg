@@ -133,7 +133,7 @@ impl Grammar {
         ) -> Vec<Symbol> {
             // TODO: define a function that makes us a unique name for an internal rule, with an appropriate prefix.
             //  e.g. Option0, Repeat0, etc. Make sure there's no existing rule with that name (and there won't be one later either).
-            //  i.e. collect all nonterminals in teh grammar upfront and pass it to convert_expr.
+            //  i.e. collect all nonterminals in the grammar upfront and pass it to convert_expr.
             match expr {
                 GrammarExpr::RegexExpr(regex_expr) => {
                     // TODO: what if this is already in the map (e.g. the user happens to create a rule with name `__regex_0`?
