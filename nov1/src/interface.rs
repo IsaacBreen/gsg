@@ -305,7 +305,6 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         let precomputed = precompute(&tokenizer, llm_tokens);
         let precomputed = precompute_add_incomplete_token(&tokenizer, precomputed);
         let precomputed = convert_precomputed_to_llm_token_ids(precomputed, &llm_token_to_id);
-        let states = vec![(parser.init_parse_state(), BTreeSet::from([StateID(tokenizer.initial_state_id())]))];
 
         Self {
             tokenizer,
