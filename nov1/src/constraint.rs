@@ -10,13 +10,17 @@ type LLMToken = &'static [u8];
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LLMTokenID(pub usize);
 
-pub struct GrammarConstraintState<T: Tokenizer> {
+pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
     pub(crate) precomputed: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<LLMTokenID, StateID>>>,
-    pub(crate) states: Vec<(ParseState, BTreeSet<StateID>)>,
     pub(crate) llm_token_to_id: BTreeMap<LLMToken, LLMTokenID>,
     pub(crate) llm_token_id_to_token: BTreeMap<LLMTokenID, LLMToken>,
+}
+
+pub struct GrammarConstraintState<'a, T: Tokenizer> {
+    parent: &'a GrammarConstraint<T>,
+    pub(crate) states: Vec<(ParseState, BTreeSet<StateID>)>,
 }
 
 pub fn convert_precomputed_to_llm_token_ids<'a>(
@@ -39,7 +43,7 @@ pub fn convert_precomputed_to_llm_token_ids<'a>(
     result
 }
 
-impl<T: Tokenizer> GrammarConstraintState<T> {
+impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
         let mut llm_token_to_id = BTreeMap::new();
         let mut llm_token_id_to_token = BTreeMap::new();
@@ -58,18 +62,26 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
             tokenizer,
             parser,
             precomputed,
-            states,
             llm_token_to_id,
             llm_token_id_to_token,
         }
     }
+    
+    pub fn init_state(&self) -> GrammarConstraintState<T> {
+        GrammarConstraintState {
+            parent: self,
+            states: vec![(self.parser.init_parse_state(), BTreeSet::from([StateID(self.tokenizer.initial_state_id())]))],
+        }
+    }
+}
 
+impl<'a, T: Tokenizer> GrammarConstraintState<'a, T> {
     pub fn get_mask(&self) -> BTreeSet<LLMTokenID> {
         let mut result = BTreeSet::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state in tokenizer_state_ids {
-                for (tokenizer_token_sequence, llm_token_to_state_id) in &self.precomputed[&tokenizer_state] {
-                    let mut new_glr_parse_state = self.parser.init_glr_parser_from_parse_state(parse_state.clone());
+                for (tokenizer_token_sequence, llm_token_to_state_id) in &self.parent.precomputed[&tokenizer_state] {
+                    let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_state(parse_state.clone());
                     let grammar_token_id_sequence = tokenizer_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
                     new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                     if new_glr_parse_state.is_ok() {
@@ -82,13 +94,13 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
     }
 
     pub fn commit(&mut self, llm_token_id: LLMTokenID) {
-        let llm_token = self.llm_token_id_to_token.get(&llm_token_id).unwrap();
+        let llm_token = self.parent.llm_token_id_to_token.get(&llm_token_id).unwrap();
         let mut new_states: BTreeMap<(ParseStateKey, BTreeSet<StateID>), ParseState> = BTreeMap::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state_id in tokenizer_state_ids {
-                for (grammar_token_sequence, llm_token_id_to_state_id) in &self.precomputed[&tokenizer_state_id] {
+                for (grammar_token_sequence, llm_token_id_to_state_id) in &self.parent.precomputed[&tokenizer_state_id] {
                     if let Some(&next_tokenizer_state_id) = llm_token_id_to_state_id.get(&llm_token_id) {
-                        let mut new_glr_parse_state = self.parser.init_glr_parser_from_parse_state(parse_state.clone());
+                        let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_state(parse_state.clone());
                         let mut grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
                         // omit the incomplete tail token
                         grammar_token_id_sequence.pop();

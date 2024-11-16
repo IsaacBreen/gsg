@@ -2,12 +2,12 @@ use crate::finite_automata::{greedy_group, groups, non_greedy_group, ExprGroup, 
 use crate::finite_automata::{Expr, Regex};
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
-use crate::glr::table::{assign_non_terminal_ids, generate_glr_parser_with_maps, NonTerminalID, StateID, TerminalID};
+use crate::glr::table::{assign_non_terminal_ids, generate_glr_parser, generate_glr_parser_with_maps, NonTerminalID, StateID, TerminalID};
 use crate::precompute::{precompute, precompute_add_incomplete_token, Token, Tokenizer};
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
-use crate::constraint::{GrammarConstraintState, LLMTokenID, convert_precomputed_to_llm_token_ids};
+use crate::constraint::{GrammarConstraint, LLMTokenID, convert_precomputed_to_llm_token_ids};
 
 type LLMToken = &'static [u8];
 
@@ -102,6 +102,12 @@ pub fn optional(expr: GrammarExpr) -> GrammarExpr {
 
 pub fn repeat(expr: GrammarExpr) -> GrammarExpr {
     GrammarExpr::Repeat(Box::new(expr))
+}
+
+impl<T> Grammar<T> {
+    pub fn glr_parser(&self) -> GLRParser {
+        generate_glr_parser(&self.productions, self.start_production_id)
+    }
 }
 
 impl Grammar<Regex> {
@@ -281,7 +287,7 @@ impl Grammar<Regex> {
     }
 }
 
-impl<T: Tokenizer> GrammarConstraintState<T> {
+impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn new_from_grammar(tokenizer: T, grammar: Grammar<T>, llm_tokens: &[LLMToken]) -> Self {
         let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
         let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
@@ -308,7 +314,6 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
             tokenizer,
             parser,
             precomputed,
-            states,
             llm_token_to_id,
             llm_token_id_to_token,
         }
@@ -362,11 +367,12 @@ mod tests {
         let grammar = Grammar::from_exprs(exprs.clone());
         dbg!(&grammar);
 
-        let parser = generate_glr_parser(&grammar.productions, grammar.start_production_id);
+        let parser = grammar.glr_parser();
         dbg!(&parser);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
-        let mut grammar_state = GrammarConstraintState::new_from_parser(grammar.tokenizer, parser, llm_tokens);
+        let grammar_constraint = GrammarConstraint::new_from_parser(grammar.tokenizer, parser, llm_tokens);
+        let mut grammar_constraint_state = grammar_constraint.init_state();
 
         #[macro_export]
         macro_rules! llm_tokens {
@@ -381,8 +387,8 @@ mod tests {
 
         // Get the mask.
         // The valid LLM tokens initially are ["i", "(", "(i"].
-        let mask = grammar_state.get_mask();
-        let expected_mask: BTreeSet<_> = llm_tokens!(grammar_state, b"i", b"(", b"(i").into_iter().collect();
+        let mask = grammar_constraint_state.get_mask();
+        let expected_mask: BTreeSet<_> = llm_tokens!(grammar_constraint, b"i", b"(", b"(i").into_iter().collect();
         assert_eq!(mask, expected_mask);
 
         // Simulate generating from a LLM with the grammar constraint.
@@ -393,13 +399,13 @@ mod tests {
         // Take note of the ambiguity in the LLM tokens; we could the prefill as ["(", "i", "+", "i", "*", "i"],
         // i.e. break the "(i" token into "(" and "i". But that's a waste of a token.
         // A good LLM tokenizer would greedily emit the longest possible token at each step.
-        let prefill = llm_tokens!(grammar_state, b"(i", b"+i", b"*", b"i");
-        grammar_state.commit_many(&prefill);
+        let prefill = llm_tokens!(grammar_constraint, b"(i", b"+i", b"*", b"i");
+        grammar_constraint_state.commit_many(&prefill);
 
         // Get the mask.
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
-        let mask = grammar_state.get_mask();
-        let expected_mask: BTreeSet<_> = llm_tokens!(grammar_state, b"+", b"*", b")", b"+i").into_iter().collect();
+        let mask = grammar_constraint_state.get_mask();
+        let expected_mask: BTreeSet<_> = llm_tokens!(grammar_constraint, b"+", b"*", b")", b"+i").into_iter().collect();
         assert_eq!(mask, expected_mask);
     }
 }
