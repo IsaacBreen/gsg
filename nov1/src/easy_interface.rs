@@ -374,14 +374,21 @@ mod tests {
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
         let mut grammar_state = GrammarConstraintState::from_easy_exprs(exprs, llm_tokens);
 
+        #[macro_export]
+        macro_rules! llm_tokens {
+            ($grammar_state:expr, $($token:expr),* $(,)?) => {
+                vec![
+                    $(
+                        *$grammar_state.llm_token_to_id.get($token.as_slice()).unwrap(),
+                    )*
+                ]
+            };
+        }
+
         // Get the mask.
         // The valid LLM tokens initially are ["i", "(", "(i"].
         let mask = grammar_state.get_mask();
-        let expected_mask = BTreeSet::from([
-            *grammar_state.llm_token_to_id.get(b"i".as_slice()).unwrap(),
-            *grammar_state.llm_token_to_id.get(b"(".as_slice()).unwrap(),
-            *grammar_state.llm_token_to_id.get(b"(i".as_slice()).unwrap(),
-        ]);
+        let expected_mask = llm_tokens!(grammar_state, b"i", b"(", b"(i").into_iter().collect();
         assert_eq!(mask, expected_mask);
 
         // Simulate generating from a LLM with the grammar constraint.
@@ -392,23 +399,13 @@ mod tests {
         // Take note of the ambiguity in the LLM tokens; we could the prefill as ["(", "i", "+", "i", "*", "i"],
         // i.e. break the "(i" token into "(" and "i". But that's a waste of a token.
         // A good LLM tokenizer would greedily emit the longest possible token at each step.
-        let prefill = vec![
-            *grammar_state.llm_token_to_id.get(b"(i".as_slice()).unwrap(),
-            *grammar_state.llm_token_to_id.get(b"+i".as_slice()).unwrap(),
-            *grammar_state.llm_token_to_id.get(b"*".as_slice()).unwrap(),
-            *grammar_state.llm_token_to_id.get(b"i".as_slice()).unwrap(),
-        ];
+        let prefill = llm_tokens!(grammar_state, b"(i", b"+i", b"*", b"i");
         grammar_state.commit_many(&prefill);
 
         // Get the mask.
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_state.get_mask();
-        let expected_mask = BTreeSet::from([
-            *grammar_state.llm_token_to_id.get(b"+".as_slice()).unwrap(),
-            *grammar_state.llm_token_to_id.get(b"*".as_slice()).unwrap(),
-            *grammar_state.llm_token_to_id.get(b")".as_slice()).unwrap(),
-            *grammar_state.llm_token_to_id.get(b"+i".as_slice()).unwrap(),
-        ]);
+        let expected_mask = llm_tokens!(grammar_state, b"+", b"*", b")", b"+i").into_iter().collect();
         assert_eq!(mask, expected_mask);
     }
 }
