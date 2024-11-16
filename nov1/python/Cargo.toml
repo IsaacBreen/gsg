@@ -1,12 +1,31 @@
+#[package]
+#name = "python"
+#version = "0.1.0"
+#edition = "2021"
+#
+## See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+#[lib]
+#name = "python"
+#crate-type = ["cdylib"]
+#
+#[dependencies]
+#pyo3 = "0.20.0"
+#regex = "1.11.1"
+
+
+# python/Cargo.toml
 [package]
-name = "python"
+name = "_tre"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "python"
+name = "_tre"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.20.0"
+pyo3 = { version = "0.19.0", features = ["extension-module"] }
+tre = { path = "../" } # Path to your main crate
+
+[build-dependencies]
+maturin = "1.0"
