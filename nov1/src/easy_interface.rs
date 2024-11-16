@@ -292,11 +292,6 @@ mod tests {
         let mask = grammar_state.get_mask();
         assert_eq!(mask, BTreeSet::from([b"i".as_slice(), b"(", b"(i"]));
 
-        grammar_state.commit_many(&[b"i".as_slice()]);
-        
-        let mask = grammar_state.get_mask();
-        assert_eq!(mask, BTreeSet::from([b"+".as_slice(), b"*", b"(", b"(i", b"+i"]));
-
         // Simulate generating from a LLM with the grammar constraint.
         // We may have some 'prefill' we want to pass to the parser before we generate the first new LLM token.
         // Let's say the prefill is "(i+i*i".
@@ -310,8 +305,6 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_state.get_mask();
-        // assert_eq!(mask, BTreeSet::from([b"+".as_slice(), b"*", b")", b"+i"]));
-
-
+        assert_eq!(mask, BTreeSet::from([b"+".as_slice(), b"*", b")", b"+i"]));
     }
 }
