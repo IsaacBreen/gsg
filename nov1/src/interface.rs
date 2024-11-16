@@ -368,7 +368,7 @@ mod tests {
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
         let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
-        let mut grammar_constraint_state = grammar_constraint.init_state();
+        let mut grammar_constraint_state = grammar_constraint.init();
 
         #[macro_export]
         macro_rules! llm_tokens {

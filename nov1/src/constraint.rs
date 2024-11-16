@@ -67,7 +67,7 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         }
     }
     
-    pub fn init_state(&self) -> GrammarConstraintState<T> {
+    pub fn init(&self) -> GrammarConstraintState<T> {
         GrammarConstraintState {
             parent: self,
             states: vec![(self.parser.init_parse_state(), BTreeSet::from([StateID(self.tokenizer.initial_state_id())]))],
