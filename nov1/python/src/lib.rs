@@ -1,13 +1,13 @@
 // python/src/lib.rs
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use tre::finite_automata::{eat_u8, choice, empty, not_empty, optional, plus, range, seq, star, Expr, Regex};
-use tre::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
-use tre::glr::parser::GLRParser;
-use tre::glr::table::{generate_glr_parser, StateID};
-use tre::interface::{Grammar, GrammarExpr, choice as grammar_choice, optional as grammar_optional, regex as grammar_regex, repeat as grammar_repeat, r#ref as grammar_ref, sequence as grammar_sequence};
-use tre::constraint::{GrammarConstraint, LLMTokenID};
-use tre::precompute::Tokenizer;
+use sep1::finite_automata::{eat_u8, opt, plus, range, star, Expr, Regex};
+use sep1::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
+use sep1::glr::parser::GLRParser;
+use sep1::glr::table::{generate_glr_parser, StateID};
+use sep1::interface::{Grammar, GrammarExpr, choice as grammar_choice, optional as grammar_optional, regex as grammar_regex, repeat as grammar_repeat, r#ref as grammar_ref, sequence as grammar_sequence};
+use sep1::constraint::{GrammarConstraint, LLMTokenID};
+use sep1::precompute::Tokenizer;
 use std::collections::{BTreeMap, BTreeSet};
 use bimap::BiBTreeMap;
 
@@ -179,7 +179,7 @@ impl PyGrammarConstraintState {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn _tre(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _sep1(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyGrammarExpr>()?;
     m.add_class::<PyGrammar>()?;
     m.add_class::<PyGrammarConstraint>()?;
