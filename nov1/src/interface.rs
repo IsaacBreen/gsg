@@ -70,43 +70,43 @@ impl Grammar {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EasyGrammarExpr {
+pub enum GrammarExpr {
     RegexExpr(Expr),
     Ref(String),
-    Sequence(Vec<EasyGrammarExpr>),
-    Choice(Vec<EasyGrammarExpr>),
-    Optional(Box<EasyGrammarExpr>),
-    Repeat(Box<EasyGrammarExpr>),
+    Sequence(Vec<GrammarExpr>),
+    Choice(Vec<GrammarExpr>),
+    Optional(Box<GrammarExpr>),
+    Repeat(Box<GrammarExpr>),
 }
 
-pub fn regex(expr: Expr) -> EasyGrammarExpr {
-    EasyGrammarExpr::RegexExpr(expr)
+pub fn regex(expr: Expr) -> GrammarExpr {
+    GrammarExpr::RegexExpr(expr)
 }
 
-pub fn r#ref(name: &str) -> EasyGrammarExpr {
-    EasyGrammarExpr::Ref(name.to_string())
+pub fn r#ref(name: &str) -> GrammarExpr {
+    GrammarExpr::Ref(name.to_string())
 }
 
-pub fn sequence(exprs: Vec<EasyGrammarExpr>) -> EasyGrammarExpr {
-    EasyGrammarExpr::Sequence(exprs)
+pub fn sequence(exprs: Vec<GrammarExpr>) -> GrammarExpr {
+    GrammarExpr::Sequence(exprs)
 }
 
-pub fn choice(exprs: Vec<EasyGrammarExpr>) -> EasyGrammarExpr {
-    EasyGrammarExpr::Choice(exprs)
+pub fn choice(exprs: Vec<GrammarExpr>) -> GrammarExpr {
+    GrammarExpr::Choice(exprs)
 }
 
-pub fn optional(expr: EasyGrammarExpr) -> EasyGrammarExpr {
-    EasyGrammarExpr::Optional(Box::new(expr))
+pub fn optional(expr: GrammarExpr) -> GrammarExpr {
+    GrammarExpr::Optional(Box::new(expr))
 }
 
-pub fn repeat(expr: EasyGrammarExpr) -> EasyGrammarExpr {
-    EasyGrammarExpr::Repeat(Box::new(expr))
+pub fn repeat(expr: GrammarExpr) -> GrammarExpr {
+    GrammarExpr::Repeat(Box::new(expr))
 }
 
 impl Grammar {
-    /// Constructs a `Grammar` and `Regex` tokenizer from a list of easy grammar expressions.
+    /// Constructs a `Grammar` and `Regex` tokenizer from a list of grammar expressions.
     /// The first non-terminal in the list is treated as the start symbol.
-    pub fn from_easy_exprs(exprs: Vec<(String, EasyGrammarExpr)>) -> (Self, Regex, ExprGroups) {
+    pub fn from_exprs(exprs: Vec<(String, GrammarExpr)>) -> (Self, Regex, ExprGroups) {
         let mut productions = Vec::new();
         let mut literal_map = BTreeMap::new();
         let mut terminal_name_to_group_id = BiBTreeMap::new();
@@ -120,8 +120,8 @@ impl Grammar {
             rhs: vec![Symbol::NonTerminal(NonTerminal(exprs[0].0.clone()))],
         });
 
-        fn convert_easy_expr(
-            expr: &EasyGrammarExpr,
+        fn convert_expr(
+            expr: &GrammarExpr,
             productions: &mut Vec<Production>,
             non_terminal_map: &mut BiBTreeMap<NonTerminal, NonTerminalID>,
             next_non_terminal_id: &mut usize,
@@ -133,9 +133,9 @@ impl Grammar {
         ) -> Vec<Symbol> {
             // TODO: define a function that makes us a unique name for an internal rule, with an appropriate prefix.
             //  e.g. Option0, Repeat0, etc. Make sure there's no existing rule with that name (and there won't be one later either).
-            //  i.e. collect all nonterminals in teh grammar upfront and pass it to convert_easy_expr.
+            //  i.e. collect all nonterminals in teh grammar upfront and pass it to convert_expr.
             match expr {
-                EasyGrammarExpr::RegexExpr(regex_expr) => {
+                GrammarExpr::RegexExpr(regex_expr) => {
                     // TODO: what if this is already in the map (e.g. the user happens to create a rule with name `__regex_0`?
                     //  We need to generate a unique regex name.
                     if let Some(terminal_id) = terminal_expr_to_group_id.get_by_left(&regex_expr) {
@@ -151,13 +151,13 @@ impl Grammar {
                         vec![Symbol::Terminal(Terminal(terminal_name))]
                     }
                 }
-                EasyGrammarExpr::Ref(name) => {
+                GrammarExpr::Ref(name) => {
                     vec![Symbol::NonTerminal(NonTerminal(name.clone()))]
                 }
-                EasyGrammarExpr::Sequence(exprs) => exprs
+                GrammarExpr::Sequence(exprs) => exprs
                     .iter()
                     .flat_map(|e| {
-                        convert_easy_expr(
+                        convert_expr(
                             e,
                             productions,
                             non_terminal_map,
@@ -170,7 +170,7 @@ impl Grammar {
                         )
                     })
                     .collect(),
-                EasyGrammarExpr::Choice(exprs) => {
+                GrammarExpr::Choice(exprs) => {
                     let new_nonterminal = format!("Choice{}", *next_non_terminal_id);
                     let nt = NonTerminal(new_nonterminal.clone());
 
@@ -182,7 +182,7 @@ impl Grammar {
                     }
 
                     for expr in exprs {
-                        let rhs = convert_easy_expr(
+                        let rhs = convert_expr(
                             expr,
                             productions,
                             non_terminal_map,
@@ -201,10 +201,10 @@ impl Grammar {
 
                     vec![Symbol::NonTerminal(nt)]
                 }
-                EasyGrammarExpr::Optional(expr) => {
+                GrammarExpr::Optional(expr) => {
                     // TODO: name the internal rule here Option{} or something rather than Choice{}.
-                    convert_easy_expr(
-                        &EasyGrammarExpr::Choice(vec![*expr.clone(), EasyGrammarExpr::Sequence(vec![])]),
+                    convert_expr(
+                        &GrammarExpr::Choice(vec![*expr.clone(), GrammarExpr::Sequence(vec![])]),
                         productions,
                         non_terminal_map,
                         next_non_terminal_id,
@@ -215,13 +215,13 @@ impl Grammar {
                         next_terminal_id,
                     )
                 }
-                EasyGrammarExpr::Repeat(expr) => {
+                GrammarExpr::Repeat(expr) => {
                     // TODO: same as above, make sure it's unique.
                     let nonterminal_id = *next_non_terminal_id;
                     let nonterminal_name = format!("Repeat{}", nonterminal_id);
                     non_terminal_map.insert(NonTerminal(nonterminal_name.clone()), NonTerminalID(nonterminal_id));
                     *next_non_terminal_id += 1;
-                    let rhs = convert_easy_expr(
+                    let rhs = convert_expr(
                         expr,
                         productions,
                         non_terminal_map,
@@ -246,7 +246,7 @@ impl Grammar {
         let mut tokens = BTreeMap::new();
 
         for (name, expr) in &exprs {
-            let rhs = convert_easy_expr(
+            let rhs = convert_expr(
                 expr,
                 &mut productions,
                 &mut non_terminal_map,
@@ -313,9 +313,9 @@ impl<T: Tokenizer> GrammarConstraintState<T> {
 }
 
 impl GrammarConstraintState<Regex> {
-    /// Constructs a `GrammarConstraintState` from a list of easy grammar expressions.
-    pub fn from_easy_exprs(exprs: Vec<(String, EasyGrammarExpr)>, llm_tokens: &[LLMToken]) -> Self {
-        let (grammar, tokenizer, _) = Grammar::from_easy_exprs(exprs);
+    /// Constructs a `GrammarConstraintState` from a list of grammar expressions.
+    pub fn from_exprs(exprs: Vec<(String, GrammarExpr)>, llm_tokens: &[LLMToken]) -> Self {
+        let (grammar, tokenizer, _) = Grammar::from_exprs(exprs);
         GrammarConstraintState::new_from_grammar(tokenizer, grammar, llm_tokens)
     }
 }
@@ -327,7 +327,7 @@ mod tests {
     use crate::glr::table::generate_glr_parser;
 
     #[test]
-    fn test_easy_grammar_from_exprs() {
+    fn test_grammar_from_exprs() {
         let exprs = vec![
             (
                 "E".to_string(),
@@ -364,7 +364,7 @@ mod tests {
             ),
         ];
 
-        let (grammar, tokenizer, tokenizer_expr_groups) = Grammar::from_easy_exprs(exprs.clone());
+        let (grammar, tokenizer, tokenizer_expr_groups) = Grammar::from_exprs(exprs.clone());
         dbg!(&tokenizer_expr_groups);
         dbg!(&grammar);
 
@@ -372,7 +372,7 @@ mod tests {
         dbg!(&parser);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
-        let mut grammar_state = GrammarConstraintState::from_easy_exprs(exprs, llm_tokens);
+        let mut grammar_state = GrammarConstraintState::from_exprs(exprs, llm_tokens);
 
         #[macro_export]
         macro_rules! llm_tokens {
