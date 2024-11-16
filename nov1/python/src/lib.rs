@@ -1,12 +1,13 @@
 // python/src/lib.rs
+use sep1::finite_automata::Regex;
+use sep1::finite_automata::Expr;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use sep1::finite_automata::{eat_u8, opt, plus, range, star, Expr, Regex};
 use sep1::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use sep1::glr::parser::GLRParser;
 use sep1::glr::table::{generate_glr_parser, StateID};
 use sep1::interface::{Grammar, GrammarExpr, choice as grammar_choice, optional as grammar_optional, regex as grammar_regex, repeat as grammar_repeat, r#ref as grammar_ref, sequence as grammar_sequence};
-use sep1::constraint::{GrammarConstraint, LLMTokenID};
+use sep1::constraint::{GrammarConstraint, GrammarConstraintState, LLMTokenID};
 use sep1::precompute::Tokenizer;
 use std::collections::{BTreeMap, BTreeSet};
 use bimap::BiBTreeMap;
@@ -19,21 +20,6 @@ struct PyGrammarExpr {
 
 #[pymethods]
 impl PyGrammarExpr {
-    #[new]
-    fn new(expr: &str) -> PyResult<Self> {
-        // Attempt to parse the expression. If it fails, return an error.
-        let inner = parse_grammar_expr(expr)?;
-        Ok(Self { inner })
-    }
-
-    #[staticmethod]
-    fn regex(regex_str: &str) -> PyResult<Self> {
-        let regex_expr = parse_regex_expr(regex_str)?;
-        Ok(Self {
-            inner: grammar_regex(regex_expr),
-        })
-    }
-
     #[staticmethod]
     fn r#ref(name: &str) -> PyResult<Self> {
         Ok(Self {
@@ -71,51 +57,6 @@ impl PyGrammarExpr {
 }
 
 
-
-fn parse_grammar_expr(expr: &str) -> PyResult<GrammarExpr> {
-    // Very simple parser for demonstration. Replace with a real parser.
-    let parts: Vec<&str> = expr.split_whitespace().collect();
-    if parts.len() == 1 {
-        if parts[0].starts_with("'") && parts[0].ends_with("'") {
-            let literal = &parts[0][1..parts[0].len() - 1];
-            let expr = grammar_regex(Expr::Literal(literal.as_bytes().to_vec()));
-            Ok(expr)
-        } else {
-            Ok(grammar_ref(parts[0]))
-        }
-    } else if parts[1] == "|" {
-        Ok(grammar_choice(vec![
-            parse_grammar_expr(parts[0])?,
-            parse_grammar_expr(parts[2])?,
-        ]))
-    } else if parts[1] == "+" {
-        Ok(grammar_sequence(vec![
-            parse_grammar_expr(parts[0])?,
-            parse_grammar_expr(parts[2])?,
-        ]))
-    } else {
-        Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "Invalid grammar expression: {}",
-            expr
-        )))
-    }
-}
-
-fn parse_regex_expr(regex_str: &str) -> PyResult<Expr> {
-    // Very simple parser for demonstration. Replace with a real parser.
-    if regex_str.starts_with("'") && regex_str.ends_with("'") {
-        let literal = ®ex_str[1..regex_str.len() - 1];
-        Ok(Expr::Literal(literal.as_bytes().to_vec()))
-    } else if regex_str == "." {
-        Ok(not_empty())
-    } else {
-        Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "Invalid regex expression: {}",
-            regex_str
-        )))
-    }
-}
-
 #[pyclass]
 #[derive(Clone)]
 pub struct PyGrammar {
@@ -145,6 +86,9 @@ pub struct PyGLRParser {
 pub struct PyGrammarConstraint {
     inner: GrammarConstraint<Regex>,
 }
+
+// todo: quick fix
+type LLMToken = &'static [u8];
 
 #[pymethods]
 impl PyGrammarConstraint {
