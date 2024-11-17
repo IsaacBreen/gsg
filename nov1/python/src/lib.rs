@@ -230,7 +230,7 @@ pub struct PyGrammarConstraintState {
 #[pymethods]
 impl PyGrammarConstraintState {
     #[new]
-    fn init(grammar_constraint: PyGrammarConstraint) -> Self {
+    fn new(grammar_constraint: PyGrammarConstraint) -> Self {
         Self { inner: grammar_constraint.inner.init() }
     }
 
