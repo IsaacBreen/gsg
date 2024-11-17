@@ -106,6 +106,14 @@ pub fn eat_u8(c: u8) -> Expr {
     Expr::U8Seq(vec![c])
 }
 
+pub fn eat_u8_negation(c: u8) -> Expr {
+    Expr::U8Seq(vec![c ^ 0xff])
+}
+
+pub fn eat_u8_set(u8s: U8Set) -> Expr {
+    Expr::U8Class(u8s)
+}
+
 pub fn rep<T: Into<Expr>>(expr: T) -> Expr {
     Expr::Quantifier(Box::new(expr.into()), QuantifierType::ZeroOrMore)
 }
