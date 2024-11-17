@@ -6,18 +6,31 @@ import torch
 class GrammarConstrainedLogitsProcessor(LogitsProcessor):
     def __init__(self, grammar_constraint_state):
         self.grammar_constraint_state = grammar_constraint_state
+        self.seen_input_ids = []  # Track the input IDs seen so far
 
     def __call__(self, input_ids, scores):
+        # Flatten input_ids to a 1D list
+        current_input_ids = input_ids.view(-1).tolist()
+
+        # Find the new tokens by comparing with seen_input_ids
+        new_token_ids = current_input_ids[len(self.seen_input_ids):]
+
+        # Commit the new tokens to the grammar constraint state
+        for token_id in new_token_ids:
+            self.grammar_constraint_state.commit(token_id)
+
+        # Update seen_input_ids
+        self.seen_input_ids = current_input_ids
+
+        # Get the mask and apply it (as before)
         mask = self.grammar_constraint_state.get_mask()
-        # We need to ensure the mask aligns with the scores shape
         if len(mask) < scores.shape[-1]:
             padding = np.zeros(scores.shape[-1] - len(mask), dtype=bool)
             mask = np.concatenate((mask, padding))
         elif len(mask) > scores.shape[-1]:
-            mask = mask[:scores.shape[-1]]  # Truncate if necessary
+            mask = mask[:scores.shape[-1]]
 
-        # Apply the mask to the scores
-        scores = np.where(mask, scores, -np.inf)  # -inf masks out the logits
+        scores = np.where(mask, scores, -np.inf)
         return torch.tensor(scores)
 
 # --- Example Usage with GPT-2 ---
