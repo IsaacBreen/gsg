@@ -310,17 +310,20 @@ impl<T: Tokenizer> GrammarConstraint<T> {
 
 #[cfg(test)]
 mod tests {
-    use fixedbitset::FixedBitSet;
+    use bitvec::prelude::*;
     use super::*;
     use crate::finite_automata::eat_u8;
     use crate::glr::table::generate_glr_parser;
+    // ... (other imports and helper functions remain the same) ...
 
-    fn fixed_bitset_with_capacity_and_values(capacity: usize, values: Vec<usize>) -> FixedBitSet {
-        let mut bitset = FixedBitSet::with_capacity(capacity);
+
+    fn bitvec_with_capacity_and_values(capacity: usize, values: Vec<usize>) -> BitVec {
+        let mut bitvec = BitVec::new();
+        bitvec.resize(capacity, false);
         for value in values {
-            bitset.insert(value);
+            bitvec.set(value, true);
         }
-        bitset
+        bitvec
     }
 
     #[test]
@@ -368,7 +371,7 @@ mod tests {
         dbg!(&parser);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
-        let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, &token)| (token.to_vec(), i)).collect();
+        let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, &token)| (token.to_vec(), LLMTokenID(i))).collect();
         let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
         let mut grammar_constraint_state = grammar_constraint.init();
 
@@ -377,7 +380,7 @@ mod tests {
             ($($token:expr),* $(,)?) => {
                 vec![
                     $(
-                        llm_token_to_id.get($token.as_slice()).unwrap().clone(),
+                        llm_token_to_id.get($token.as_slice()).unwrap().0,
                     )*
                 ]
             }
@@ -386,7 +389,7 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens initially are ["i", "(", "(i"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask: FixedBitSet = fixed_bitset_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"i", b"(", b"(i"));
+        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"i", b"(", b"(i"));
         assert_eq!(mask, expected_mask);
 
         // Simulate generating from a LLM with the grammar constraint.
@@ -403,7 +406,7 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask: FixedBitSet = fixed_bitset_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"+", b"*", b")", b"+i"));
+        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"+", b"*", b")", b"+i"));
         assert_eq!(mask, expected_mask);
     }
 }

@@ -52,7 +52,7 @@ def llm_tokens_to_ids(tokens):
 mask = grammar_constraint_state.get_mask()
 expected_mask = set(llm_tokens_to_ids([b"i", b"(", b"(i"]))  # Use set for unordered comparison
 print(f"Initial Mask: {mask}")
-assert set(mask) == expected_mask
+assert set(np.where(mask)[0]) == expected_mask
 
 # Commit prefill tokens
 prefill = llm_tokens_to_ids([b"(i", b"+", b"i", b"*", b"i"])
@@ -63,4 +63,4 @@ for token_id in prefill:
 mask = grammar_constraint_state.get_mask()
 expected_mask = set(llm_tokens_to_ids([b"+", b"*", b")", b"+i"]))
 print(f"Mask after committing prefill: {mask}")
-assert set(mask) == expected_mask
+assert set(np.where(mask)[0]) == expected_mask

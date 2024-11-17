@@ -10,7 +10,7 @@ use sep1::constraint::{GrammarConstraint, GrammarConstraintState, LLMTokenID};
 use sep1::precompute::Tokenizer;
 use std::collections::{BTreeMap, BTreeSet};
 use bimap::BiBTreeMap;
-use numpy::{PyArray1, ToPyArray};
+use numpy::{IntoPyArray, PyArray1, ToPyArray};
 use sep1::u8set::U8Set;
 
 #[pyclass]
@@ -235,10 +235,10 @@ impl PyGrammarConstraintState {
         Self { inner: grammar_constraint.inner.init() }
     }
 
-    fn get_mask<'py>(&self, py: Python<'py>) -> PyResult<&'py PyArray1<bool>> {
+    fn get_mask<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<bool>>> { // Correct return type
         let bitset = self.inner.get_mask();
-        let bools: Vec<bool> = bitset.into_ones().into_iter().collect();
-        let array = bools.to_pyarray_bound(py);
+        let bools: Vec<bool> = bitset.iter().map(|bit_ref| *bit_ref).collect();
+        let array = bools.into_pyarray_bound(py); // Correct usage
         Ok(array)
     }
 
