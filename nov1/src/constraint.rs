@@ -10,6 +10,8 @@ type LLMToken = &'static [u8];
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LLMTokenID(pub usize);
 
+// TODO: should this *really* derive `Clone`? Users probably shouldn't clone this, should they?
+#[derive(Debug, Clone)]
 pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
@@ -18,8 +20,9 @@ pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) llm_token_id_to_token: BTreeMap<LLMTokenID, LLMToken>,
 }
 
-pub struct GrammarConstraintState<'a, T: Tokenizer> {
-    parent: &'a GrammarConstraint<T>,
+#[derive(Debug, Clone)]
+pub struct GrammarConstraintState<T: Tokenizer> {
+    pub(crate) parent: GrammarConstraint<T>,
     pub(crate) states: Vec<(ParseState, BTreeSet<StateID>)>,
 }
 
@@ -66,15 +69,17 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         }
     }
 
-    pub fn init(&self) -> GrammarConstraintState<T> {
+    pub fn init(self) -> GrammarConstraintState<T> {
+        let parser_initial_state = self.parser.init_parse_state();
+        let tokenizer_initial_state_id = StateID(self.tokenizer.initial_state_id());
         GrammarConstraintState {
             parent: self,
-            states: vec![(self.parser.init_parse_state(), BTreeSet::from([StateID(self.tokenizer.initial_state_id())]))],
+            states: vec![(parser_initial_state, BTreeSet::from([tokenizer_initial_state_id]))],
         }
     }
 }
 
-impl<'a, T: Tokenizer> GrammarConstraintState<'a, T> {
+impl<'a, T: Tokenizer> GrammarConstraintState<T> {
     pub fn get_mask(&self) -> BTreeSet<LLMTokenID> {
         let mut result = BTreeSet::new();
         for (parse_state, tokenizer_state_ids) in &self.states {

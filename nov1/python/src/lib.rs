@@ -83,6 +83,7 @@ pub struct PyGLRParser {
 }
 
 #[pyclass]
+#[derive(Clone)]
 pub struct PyGrammarConstraint {
     inner: GrammarConstraint<Regex>,
 }
@@ -98,19 +99,20 @@ impl PyGrammarConstraint {
         // let llm_tokens_vec: Vec<LLMToken> = llm_tokens.into_iter().map(|token| token.as_bytes()).collect();
         // Self { inner: GrammarConstraint::from_grammar(grammar.inner, &llm_tokens_vec) }
     }
-
-    fn init(&self) -> PyGrammarConstraintState {
-        PyGrammarConstraintState { inner: self.inner.init() }
-    }
 }
 
 #[pyclass]
 pub struct PyGrammarConstraintState {
-    inner: GrammarConstraintState<'static, Regex>,
+    inner: GrammarConstraintState<Regex>,
 }
 
 #[pymethods]
 impl PyGrammarConstraintState {
+    #[new]
+    fn init(grammar_constraint: PyGrammarConstraint) -> Self {
+        Self { inner: grammar_constraint.inner.init() }
+    }
+
     fn get_mask(&self) -> Vec<usize> {
         self.inner.get_mask().into_iter().map(|id| id.0).collect()
     }
@@ -124,7 +126,7 @@ impl PyGrammarConstraintState {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn _sep1(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _sep1(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyGrammarExpr>()?;
     m.add_class::<PyGrammar>()?;
     m.add_class::<PyGrammarConstraint>()?;
