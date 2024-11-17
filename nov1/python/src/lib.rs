@@ -10,6 +10,7 @@ use sep1::constraint::{GrammarConstraint, GrammarConstraintState, LLMTokenID};
 use sep1::precompute::Tokenizer;
 use std::collections::{BTreeMap, BTreeSet};
 use bimap::BiBTreeMap;
+use numpy::{PyArray1, ToPyArray};
 use sep1::u8set::U8Set;
 
 #[pyclass]
@@ -234,25 +235,11 @@ impl PyGrammarConstraintState {
         Self { inner: grammar_constraint.inner.init() }
     }
 
-    fn get_mask<'py>(&self, py: Python<'py>) -> PyResult<PyObject> {
+    fn get_mask<'py>(&self, py: Python<'py>) -> PyResult<&'py PyArray1<bool>> {
         let bitset = self.inner.get_mask();
-
-        // Create a byte array to represent the bits
-        let num_bytes = (bitset.len() + 7) / 8;
-        let mut bytes = Vec::with_capacity(num_bytes);
-        for i in 0..num_bytes {
-            let mut byte = 0u8;
-            for j in 0..8 {
-                let bit_index = i * 8 + j;
-                if bitset[bit_index] {
-                    byte |= 1 <<  7 - j;
-                }
-            }
-            bytes.push(byte);
-        }
-
-        // Create a Python bytes object directly
-        Ok(PyBytes::new(py, &bytes).to_object(py))
+        let bools: Vec<bool> = bitset.into_ones().into_iter().collect();
+        let array = bools.to_pyarray_bound(py);
+        Ok(array)
     }
 
     fn commit(&mut self, llm_token_id: usize) {
