@@ -30,6 +30,8 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
         elif len(mask) > scores.shape[-1]:
             mask = mask[:scores.shape[-1]]
 
+        print(mask)
+
         scores = np.where(mask, scores, -np.inf)
         return torch.tensor(scores)
 
@@ -95,7 +97,7 @@ grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state)
 
 # --- Generating text with grammar constraints ---
 
-input_text = "The expression is ("
+input_text = "1 + 1 ="
 input_ids = tokenizer.encode(input_text, return_tensors="pt")
 
 # Commit prefill tokens (using the actual LLM token IDs)
