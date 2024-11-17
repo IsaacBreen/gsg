@@ -296,17 +296,21 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         let precomputed = precompute(&grammar.tokenizer, llm_tokens);
         let precomputed = precompute_add_incomplete_token(&grammar.tokenizer, precomputed);
         let precomputed = convert_precomputed_to_llm_token_ids(precomputed, &llm_tokens.iter().map(|token| token.to_vec()).collect::<Vec<_>>());
-        
+
+        let num_llm_tokens = llm_tokens.len();
+
         Self {
             tokenizer: grammar.tokenizer,
             parser,
             precomputed,
+            num_llm_tokens,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use fixedbitset::FixedBitSet;
     use super::*;
     use crate::finite_automata::eat_u8;
     use crate::glr::table::generate_glr_parser;
@@ -356,25 +360,25 @@ mod tests {
         dbg!(&parser);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
-        let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, &token)| (token.to_vec(), LLMTokenID(i))).collect();
+        let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, &token)| (token.to_vec(), i)).collect();
         let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
         let mut grammar_constraint_state = grammar_constraint.init();
 
         #[macro_export]
-        macro_rules! llm_tokens {
+        macro_rules! llm_token_vec {
             ($($token:expr),* $(,)?) => {
                 vec![
                     $(
                         llm_token_to_id.get($token.as_slice()).unwrap().clone(),
                     )*
                 ]
-            };
+            }
         }
 
         // Get the mask.
         // The valid LLM tokens initially are ["i", "(", "(i"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask: BTreeSet<_> = llm_tokens!(b"i", b"(", b"(i").into_iter().collect();
+        let expected_mask: FixedBitSet = FixedBitSet::from_iter(llm_token_vec!(b"i", b"(", b"(i").into_iter());
         assert_eq!(mask, expected_mask);
 
         // Simulate generating from a LLM with the grammar constraint.
@@ -385,13 +389,13 @@ mod tests {
         // Take note of the ambiguity in the LLM tokens; we could the prefill as ["(", "i", "+", "i", "*", "i"],
         // i.e. break the "(i" token into "(" and "i". But that's a waste of a token.
         // A good LLM tokenizer would greedily emit the longest possible token at each step.
-        let prefill = llm_tokens!(b"(i", b"+i", b"*", b"i");
+        let prefill: Vec<_> = llm_token_vec!(b"(i", b"+i", b"*", b"i").into_iter().map(|token_id| LLMTokenID(token_id)).collect();
         grammar_constraint_state.commit_many(&prefill);
 
         // Get the mask.
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask: BTreeSet<_> = llm_tokens!(b"+", b"*", b")", b"+i").into_iter().collect();
+        let expected_mask: FixedBitSet = FixedBitSet::from_iter(llm_token_vec!(b"+", b"*", b")", b"+i").into_iter());
         assert_eq!(mask, expected_mask);
     }
 }

@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 bimap = "0.6.3"
 regex = "1.11.1"
+fixedbitset = "0.5.7"
