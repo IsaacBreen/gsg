@@ -93,9 +93,10 @@ type LLMToken = &'static [u8];
 #[pymethods]
 impl PyGrammarConstraint {
     #[new]
-    fn new(grammar: PyGrammar, llm_tokens: Vec<&PyBytes>) -> Self {
-        let llm_tokens_vec: Vec<LLMToken> = llm_tokens.into_iter().map(|token| token.as_bytes()).collect();
-        Self { inner: GrammarConstraint::from_grammar(grammar.inner, &llm_tokens_vec) }
+    fn new(grammar: PyGrammar, llm_tokens: Vec<Py<PyBytes>>) -> Self {
+        todo!()
+        // let llm_tokens_vec: Vec<LLMToken> = llm_tokens.into_iter().map(|token| token.as_bytes()).collect();
+        // Self { inner: GrammarConstraint::from_grammar(grammar.inner, &llm_tokens_vec) }
     }
 
     fn init(&self) -> PyGrammarConstraintState {

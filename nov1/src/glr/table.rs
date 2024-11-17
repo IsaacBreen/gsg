@@ -55,7 +55,7 @@ enum Stage6ShiftsAndReduces {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stage7ShiftsAndReduces {
     /// Map each item set to a unique ID, and do the same for terminals and nonterminals.
     Shift(StateID),
@@ -66,7 +66,7 @@ pub enum Stage7ShiftsAndReduces {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Stage7Row {
     /// Map each item set to a unique ID, and do the same for terminals and nonterminals.
     pub shifts_and_reduces: BTreeMap<TerminalID, Stage7ShiftsAndReduces>,

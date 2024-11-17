@@ -35,7 +35,8 @@ pub struct DFA {
     pub non_greedy_finalizers: BTreeSet<GroupID>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+// TODO: should this *really* derive `Clone`? Users probably shouldn't clone this, should they?
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Regex {
     pub dfa: DFA,
 }
