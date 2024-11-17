@@ -1,7 +1,7 @@
 use sep1::finite_automata::{Expr as RegexExpr, ExprGroups as RegexGroups, greedy_group, non_greedy_group, groups as regex_groups, _choice as regex_choice, eat_u8, eat_u8_negation, eat_u8_set, eps, opt, prec, rep, rep1, _seq as regex_seq};
 use sep1::finite_automata::Regex;
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyByteArray, PyBytes};
 use sep1::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use sep1::glr::parser::GLRParser;
 use sep1::glr::table::{generate_glr_parser, StateID};
@@ -234,8 +234,32 @@ impl PyGrammarConstraintState {
         Self { inner: grammar_constraint.inner.init() }
     }
 
-    fn get_mask(&self) -> Vec<usize> {
-        self.inner.get_mask().into_iter().map(|id| id.0).collect()
+    fn get_mask<'py>(&self, py: Python<'py>) -> PyResult<PyObject> {
+        let bitset = self.inner.get_mask();
+
+        // Create a byte array to represent the bits
+        let num_bytes = (bitset.len() + 7) / 8;
+        let mut bytes = Vec::with_capacity(num_bytes);
+        for i in 0..num_bytes {
+            let mut byte = 0u8;
+            for j in 0..8 {
+                let bit_index = i * 8 + j;
+                if bit_index < bitset.len() && bitset[bit_index] {
+                    byte |= 1 << j;
+                }
+            }
+            bytes.push(byte);
+        }
+
+        // Create a Python bytearray from the bytes
+        let py_bytes = PyByteArray::new(py, &bytes);
+
+        // Import the bitstring module and create a Bits object
+        let py_bits = PyModule::import(py, "bitstring")?
+            .getattr("Bits")?
+            .call1((py_bytes,))?; // Pass the bytearray directly
+
+        Ok(py_bits.to_object(py))
     }
 
     fn commit(&mut self, llm_token_id: usize) {

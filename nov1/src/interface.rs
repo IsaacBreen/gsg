@@ -315,6 +315,14 @@ mod tests {
     use crate::finite_automata::eat_u8;
     use crate::glr::table::generate_glr_parser;
 
+    fn fixed_bitset_with_capacity_and_values(capacity: usize, values: Vec<usize>) -> FixedBitSet {
+        let mut bitset = FixedBitSet::with_capacity(capacity);
+        for value in values {
+            bitset.insert(value);
+        }
+        bitset
+    }
+
     #[test]
     fn test_grammar_from_exprs() {
         let exprs = vec![
@@ -378,7 +386,7 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens initially are ["i", "(", "(i"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask: FixedBitSet = FixedBitSet::from_iter(llm_token_vec!(b"i", b"(", b"(i").into_iter());
+        let expected_mask: FixedBitSet = fixed_bitset_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"i", b"(", b"(i"));
         assert_eq!(mask, expected_mask);
 
         // Simulate generating from a LLM with the grammar constraint.
@@ -395,7 +403,7 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask: FixedBitSet = FixedBitSet::from_iter(llm_token_vec!(b"+", b"*", b")", b"+i").into_iter());
+        let expected_mask: FixedBitSet = fixed_bitset_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"+", b"*", b")", b"+i"));
         assert_eq!(mask, expected_mask);
     }
 }
