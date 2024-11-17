@@ -102,7 +102,8 @@ input_ids = tokenizer.encode(input_text, return_tensors="pt")
 prefill_tokens = ["(", "i"]  # Example prefill tokens (make sure they exist in the model's vocab)
 prefill_ids = [llm_token_to_id[token.encode()] for token in prefill_tokens if token.encode() in llm_token_to_id]
 for token_id in prefill_ids:
-    grammar_constraint_state.commit(token_id)
+    grammar_processor.grammar_constraint_state.commit(token_id)  # Commit to the state in the processor
+    grammar_processor.seen_input_ids.append(token_id)  # Update seen_input_ids
 
 output = model.generate(
     input_ids,
