@@ -244,22 +244,15 @@ impl PyGrammarConstraintState {
             let mut byte = 0u8;
             for j in 0..8 {
                 let bit_index = i * 8 + j;
-                if bit_index < bitset.len() && bitset[bit_index] {
-                    byte |= 1 << j;
+                if bitset[bit_index] {
+                    byte |= 1 <<  7 - j;
                 }
             }
             bytes.push(byte);
         }
 
-        // Create a Python bytearray from the bytes
-        let py_bytes = PyByteArray::new(py, &bytes);
-
-        // Import the bitstring module and create a Bits object
-        let py_bits = PyModule::import(py, "bitstring")?
-            .getattr("Bits")?
-            .call1((py_bytes,))?; // Pass the bytearray directly
-
-        Ok(py_bits.to_object(py))
+        // Create a Python bytes object directly
+        Ok(PyBytes::new(py, &bytes).to_object(py))
     }
 
     fn commit(&mut self, llm_token_id: usize) {
