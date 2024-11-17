@@ -5,24 +5,24 @@ import _sep1
 exprs = [
     ("E", _sep1.PyGrammarExpr.choice([
         _sep1.PyGrammarExpr.sequence([
-            _sep1.PyGrammarExpr.r#ref("E"),
+            _sep1.PyGrammarExpr.ref("E"),
             _sep1.PyGrammarExpr.regex("'+'"),
-            _sep1.PyGrammarExpr.r#ref("T"),
+            _sep1.PyGrammarExpr.ref("T"),
         ]),
-        _sep1.PyGrammarExpr.r#ref("T"),
+        _sep1.PyGrammarExpr.ref("T"),
     ])),
     ("T", _sep1.PyGrammarExpr.choice([
         _sep1.PyGrammarExpr.sequence([
-            _sep1.PyGrammarExpr.r#ref("T"),
+            _sep1.PyGrammarExpr.ref("T"),
             _sep1.PyGrammarExpr.regex("'*'"),
-            _sep1.PyGrammarExpr.r#ref("F"),
+            _sep1.PyGrammarExpr.ref("F"),
         ]),
-        _sep1.PyGrammarExpr.r#ref("F"),
+        _sep1.PyGrammarExpr.ref("F"),
     ])),
     ("F", _sep1.PyGrammarExpr.choice([
         _sep1.PyGrammarExpr.sequence([
             _sep1.PyGrammarExpr.regex("'('"),
-            _sep1.PyGrammarExpr.r#ref("E"),
+            _sep1.PyGrammarExpr.ref("E"),
             _sep1.PyGrammarExpr.regex("')'"),
         ]),
         _sep1.PyGrammarExpr.regex("'i'"),
