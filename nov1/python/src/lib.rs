@@ -81,21 +81,6 @@ impl PyRegexExpr {
         Self { inner: eat_u8_negation(c) }
     }
 
-    // Helper function for converting a Python list of integers into a U8Set
-    fn list_to_u8set(list: Vec<u8>) -> U8Set {
-        let mut u8set = U8Set::none();
-        for item in list {
-            u8set.insert(item);
-        }
-        u8set
-    }
-
-    #[staticmethod]
-    fn eat_u8_set(list: Vec<u8>) -> Self {
-        let u8set = Self::list_to_u8set(list);
-        Self { inner: eat_u8_set(u8set) }
-    }
-
     #[staticmethod]
     fn rep(expr: PyRegexExpr) -> Self {
         Self { inner: rep(expr.inner) }
@@ -131,9 +116,8 @@ impl PyRegexExpr {
         Self { inner: regex_choice(exprs.into_iter().map(|e| e.inner).collect()) }
     }
 
-    #[staticmethod]
-    fn build(self) -> PyResult<PyRegex> {
-        Ok(PyRegex { inner: self.inner.build() })
+    fn build(&self) -> PyResult<PyRegex> {
+        Ok(PyRegex { inner: self.inner.clone().build() })
     }
 }
 
@@ -171,9 +155,8 @@ impl PyRegexGroups {
         }
     }
 
-    #[staticmethod]
-    fn build(self) -> PyResult<PyRegex> {
-        Ok(PyRegex { inner: self.inner.build() })
+    fn build(&self) -> PyResult<PyRegex> { // &self, not self
+        Ok(PyRegex { inner: self.inner.clone().build() }) // clone the inner RegexExpr
     }
 }
 
