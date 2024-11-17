@@ -1,6 +1,5 @@
-// python/src/lib.rs
+use sep1::finite_automata::{Expr as RegexExpr, ExprGroups as RegexGroups, greedy_group, non_greedy_group, groups as regex_groups, _choice as regex_choice, eat_u8, eat_u8_negation, eat_u8_set, eps, opt, prec, rep, rep1, _seq as regex_seq};
 use sep1::finite_automata::Regex;
-use sep1::finite_automata::Expr;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use sep1::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
@@ -11,6 +10,7 @@ use sep1::constraint::{GrammarConstraint, GrammarConstraintState, LLMTokenID};
 use sep1::precompute::Tokenizer;
 use std::collections::{BTreeMap, BTreeSet};
 use bimap::BiBTreeMap;
+use sep1::u8set::U8Set;
 
 #[pyclass]
 #[derive(Clone)]
@@ -54,7 +54,140 @@ impl PyGrammarExpr {
             inner: grammar_repeat(expr.inner),
         }
     }
+
+    #[staticmethod]
+    fn regex(regex: PyRegexExpr) -> Self {
+        Self {
+            inner: grammar_regex(regex.inner)
+        }
+    }
 }
+
+#[pyclass]
+#[derive(Clone)]
+struct PyRegexExpr {
+    inner: RegexExpr,
+}
+
+#[pymethods]
+impl PyRegexExpr {
+    #[staticmethod]
+    fn eat_u8(c: u8) -> Self {
+        Self { inner: eat_u8(c) }
+    }
+
+    #[staticmethod]
+    fn eat_u8_negation(c: u8) -> Self {
+        Self { inner: eat_u8_negation(c) }
+    }
+
+    // Helper function for converting a Python list of integers into a U8Set
+    fn list_to_u8set(list: Vec<u8>) -> U8Set {
+        let mut u8set = U8Set::none();
+        for item in list {
+            u8set.insert(item);
+        }
+        u8set
+    }
+
+    #[staticmethod]
+    fn eat_u8_set(list: Vec<u8>) -> Self {
+        let u8set = Self::list_to_u8set(list);
+        Self { inner: eat_u8_set(u8set) }
+    }
+
+    #[staticmethod]
+    fn rep(expr: PyRegexExpr) -> Self {
+        Self { inner: rep(expr.inner) }
+    }
+
+    #[staticmethod]
+    fn rep1(expr: PyRegexExpr) -> Self {
+        Self { inner: rep1(expr.inner) }
+    }
+
+    #[staticmethod]
+    fn opt(expr: PyRegexExpr) -> Self {
+        Self { inner: opt(expr.inner) }
+    }
+
+    #[staticmethod]
+    fn prec(precedence: isize, expr: PyRegexExpr) -> PyRegexGroup {
+        PyRegexGroup { inner: prec(precedence, expr.inner) }
+    }
+
+    #[staticmethod]
+    fn eps() -> Self {
+        Self { inner: eps() }
+    }
+
+    #[staticmethod]
+    fn seq(exprs: Vec<PyRegexExpr>) -> Self {
+        Self { inner: regex_seq(exprs.into_iter().map(|e| e.inner).collect()) }
+    }
+
+    #[staticmethod]
+    fn choice(exprs: Vec<PyRegexExpr>) -> Self {
+        Self { inner: regex_choice(exprs.into_iter().map(|e| e.inner).collect()) }
+    }
+
+    #[staticmethod]
+    fn build(self) -> PyResult<PyRegex> {
+        Ok(PyRegex { inner: self.inner.build() })
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+struct PyRegexGroup {
+    inner: sep1::finite_automata::ExprGroup,
+}
+
+#[pymethods]
+impl PyRegexGroup {
+    #[staticmethod]
+    fn greedy_group(expr: PyRegexExpr) -> Self {
+        Self { inner: greedy_group(expr.inner) }
+    }
+
+    #[staticmethod]
+    fn non_greedy_group(expr: PyRegexExpr) -> Self {
+        Self { inner: non_greedy_group(expr.inner) }
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+struct PyRegexGroups {
+    inner: RegexGroups,
+}
+
+#[pymethods]
+impl PyRegexGroups {
+    #[staticmethod]
+    fn groups(groups: Vec<PyRegexGroup>) -> Self {
+        Self {
+            inner: regex_groups(groups.into_iter().map(|g| g.inner).collect()),
+        }
+    }
+
+    #[staticmethod]
+    fn build(self) -> PyResult<PyRegex> {
+        Ok(PyRegex { inner: self.inner.build() })
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PyRegex {
+    inner: Regex,
+}
+
+#[pymethods]
+impl PyRegex {
+    // Add methods here as needed to expose Regex functionality to Python
+}
+
 
 #[pyclass]
 #[derive(Clone)]
@@ -133,6 +266,9 @@ impl PyGrammarConstraintState {
 #[pymodule]
 fn _sep1(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyGrammarExpr>()?;
+    m.add_class::<PyRegexExpr>()?;
+    m.add_class::<PyRegexGroup>()?;
+    m.add_class::<PyRegexGroups>()?;
     m.add_class::<PyGrammar>()?;
     m.add_class::<PyGrammarConstraint>()?;
     m.add_class::<PyGrammarConstraintState>()?;
