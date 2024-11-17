@@ -293,24 +293,14 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
-        let mut llm_token_to_id = BTreeMap::new();
-        let mut llm_token_id_to_token = BTreeMap::new();
-        for (i, &token) in llm_tokens.iter().enumerate() {
-            let id = LLMTokenID(i);
-            llm_token_to_id.insert(token.to_vec(), id);
-            llm_token_id_to_token.insert(id, token.to_vec());
-        }
-
         let precomputed = precompute(&grammar.tokenizer, llm_tokens);
         let precomputed = precompute_add_incomplete_token(&grammar.tokenizer, precomputed);
-        let precomputed = convert_precomputed_to_llm_token_ids(precomputed, &llm_token_to_id);
-
+        let precomputed = convert_precomputed_to_llm_token_ids(precomputed, &llm_tokens.iter().map(|token| token.to_vec()).collect::<Vec<_>>());
+        
         Self {
             tokenizer: grammar.tokenizer,
             parser,
             precomputed,
-            llm_token_to_id,
-            llm_token_id_to_token,
         }
     }
 }
@@ -366,15 +356,16 @@ mod tests {
         dbg!(&parser);
 
         let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
+        let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, &token)| (token.to_vec(), LLMTokenID(i))).collect();
         let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
         let mut grammar_constraint_state = grammar_constraint.init();
 
         #[macro_export]
         macro_rules! llm_tokens {
-            ($grammar_constraint_state:expr, $($token:expr),* $(,)?) => {
+            ($($token:expr),* $(,)?) => {
                 vec![
                     $(
-                        *$grammar_constraint_state.parent.llm_token_to_id.get($token.as_slice()).unwrap(),
+                        llm_token_to_id.get($token.as_slice()).unwrap().clone(),
                     )*
                 ]
             };
@@ -383,7 +374,7 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens initially are ["i", "(", "(i"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask: BTreeSet<_> = llm_tokens!(grammar_constraint_state, b"i", b"(", b"(i").into_iter().collect();
+        let expected_mask: BTreeSet<_> = llm_tokens!(b"i", b"(", b"(i").into_iter().collect();
         assert_eq!(mask, expected_mask);
 
         // Simulate generating from a LLM with the grammar constraint.
@@ -394,13 +385,13 @@ mod tests {
         // Take note of the ambiguity in the LLM tokens; we could the prefill as ["(", "i", "+", "i", "*", "i"],
         // i.e. break the "(i" token into "(" and "i". But that's a waste of a token.
         // A good LLM tokenizer would greedily emit the longest possible token at each step.
-        let prefill = llm_tokens!(grammar_constraint_state, b"(i", b"+i", b"*", b"i");
+        let prefill = llm_tokens!(b"(i", b"+i", b"*", b"i");
         grammar_constraint_state.commit_many(&prefill);
 
         // Get the mask.
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask: BTreeSet<_> = llm_tokens!(grammar_constraint_state, b"+", b"*", b")", b"+i").into_iter().collect();
+        let expected_mask: BTreeSet<_> = llm_tokens!(b"+", b"*", b")", b"+i").into_iter().collect();
         assert_eq!(mask, expected_mask);
     }
 }

@@ -17,8 +17,6 @@ pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
     pub(crate) precomputed: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<LLMTokenID, StateID>>>,
-    pub(crate) llm_token_to_id: BTreeMap<LLMToken, LLMTokenID>,
-    pub(crate) llm_token_id_to_token: BTreeMap<LLMTokenID, LLMToken>,
 }
 
 #[derive(Debug, Clone)]
@@ -29,8 +27,9 @@ pub struct GrammarConstraintState<T: Tokenizer> {
 
 pub fn convert_precomputed_to_llm_token_ids<'a>(
     precomputed: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>>,
-    llm_token_to_id: &BTreeMap<LLMToken, LLMTokenID>
+    llm_tokens: &[LLMToken],
 ) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<LLMTokenID, StateID>>> {
+    let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
     let mut result = BTreeMap::new();
     for (state_id, token_sequence_map) in precomputed {
         let mut new_token_sequence_map = BTreeMap::new();
@@ -49,24 +48,14 @@ pub fn convert_precomputed_to_llm_token_ids<'a>(
 
 impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
-        let mut llm_token_to_id = BTreeMap::new();
-        let mut llm_token_id_to_token = BTreeMap::new();
-        for (i, &ref token) in llm_tokens.iter().enumerate() {
-            let id = LLMTokenID(i);
-            llm_token_to_id.insert(token.clone(), id);
-            llm_token_id_to_token.insert(id, token.clone());
-        }
-
         let precomputed = precompute::precompute(&tokenizer, &llm_tokens.iter().map(|token| &token[..]).collect::<Vec<_>>());
         let precomputed = precompute::precompute_add_incomplete_token(&tokenizer, precomputed);
-        let precomputed = convert_precomputed_to_llm_token_ids(precomputed, &llm_token_to_id);
+        let precomputed = convert_precomputed_to_llm_token_ids(precomputed, llm_tokens);
 
         Self {
             tokenizer,
             parser,
             precomputed,
-            llm_token_to_id,
-            llm_token_id_to_token,
         }
     }
 
@@ -99,7 +88,6 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
     }
 
     pub fn commit(&mut self, llm_token_id: LLMTokenID) {
-        let llm_token = self.parent.llm_token_id_to_token.get(&llm_token_id).unwrap();
         let mut new_states: BTreeMap<(ParseStateKey, BTreeSet<StateID>), ParseState> = BTreeMap::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state_id in tokenizer_state_ids {
