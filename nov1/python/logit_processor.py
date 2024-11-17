@@ -1,13 +1,13 @@
 import numpy as np
 import _sep1
-from transformers import LogitsProcessor
+from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
+import torch
 
 class GrammarConstrainedLogitsProcessor(LogitsProcessor):
     def __init__(self, grammar_constraint_state):
         self.grammar_constraint_state = grammar_constraint_state
 
     def __call__(self, input_ids, scores):
-        return scores
         mask = self.grammar_constraint_state.get_mask()
         # We need to ensure the mask aligns with the scores shape
         if len(mask) < scores.shape[-1]:
@@ -18,18 +18,29 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 
         # Apply the mask to the scores
         scores = np.where(mask, scores, -np.inf)  # -inf masks out the logits
-        return scores
+        return torch.tensor(scores)
 
-# --- Example Usage (using your provided _sep1 setup) ---
+# --- Example Usage with GPT-2 ---
 
-# Define regexes using PyRegexExpr (as in your example)
+# Load the GPT-2 tokenizer and model
+model_name = "gpt2"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
+
+# Get the actual LLM tokens from the tokenizer
+llm_tokens = [tokenizer.convert_ids_to_tokens(i).encode() for i in range(tokenizer.vocab_size)]
+llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
+
+# --- Define your grammar using _sep1 (as before) ---
+
+# Define regexes using PyRegexExpr
 plus_regex = _sep1.PyRegexExpr.eat_u8(ord('+'))
 times_regex = _sep1.PyRegexExpr.eat_u8(ord('*'))
 open_paren_regex = _sep1.PyRegexExpr.eat_u8(ord('('))
 close_paren_regex = _sep1.PyRegexExpr.eat_u8(ord(')'))
 i_regex = _sep1.PyRegexExpr.eat_u8(ord('i'))
 
-# Define grammar rules using the regexes (as in your example)
+# Define grammar rules using the regexes
 exprs = [
     ("E", _sep1.PyGrammarExpr.choice([
         _sep1.PyGrammarExpr.sequence([
@@ -59,11 +70,7 @@ exprs = [
 
 grammar = _sep1.PyGrammar(exprs)
 
-# Define LLM tokens (as in your example)
-llm_tokens = [b"i", b"+", b"*", b"(", b")", b"(i", b"+i"]
-llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
-
-# Create grammar constraint (as in your example)
+# Create grammar constraint using the actual LLM tokens
 grammar_constraint = _sep1.PyGrammarConstraint(grammar, llm_tokens)
 grammar_constraint_state = _sep1.PyGrammarConstraintState(grammar_constraint)
 
@@ -73,21 +80,15 @@ def llm_tokens_to_ids(tokens):
 # Create the custom logits processor
 grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state)
 
-# --- Integrating with transformers (Illustrative Example) ---
-# This part assumes you have a transformers model and tokenizer set up.
-# Replace with your actual model and tokenizer initialization.
+# --- Generating text with grammar constraints ---
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
-model_name = "gpt2"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
-
-input_text = "2 + 2 ="
+input_text = "The expression is ("
 input_ids = tokenizer.encode(input_text, return_tensors="pt")
 
-# # Commit prefill tokens (as in your example)
-prefill = llm_tokens_to_ids([b"(i", b"+", b"i", b"*", b"i"])
-for token_id in prefill:
+# Commit prefill tokens (using the actual LLM token IDs)
+prefill_tokens = ["(", "i"]  # Example prefill tokens (make sure they exist in the model's vocab)
+prefill_ids = [llm_token_to_id[token.encode()] for token in prefill_tokens if token.encode() in llm_token_to_id]
+for token_id in prefill_ids:
     grammar_constraint_state.commit(token_id)
 
 output = model.generate(
