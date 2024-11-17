@@ -95,13 +95,13 @@ type LLMToken<'a> = &'a [u8];
 impl PyGrammarConstraint {
     #[new]
    fn new(py: Python, grammar: PyGrammar, llm_tokens: Vec<Py<PyBytes>>) -> Self {
-   let llm_tokens_vec: Vec<Vec<u8>> = llm_tokens.into_iter()
-       .map(|token| {
-           let bytes = token.extract::<&[u8]>(py).unwrap();
-           bytes.to_vec()
-       })
-       .collect();
-    Self { inner: GrammarConstraint::from_grammar(grammar.inner, &llm_tokens_vec.iter().map(|token| &token[..]).collect::<Vec<_>>()) }
+       let llm_tokens_vec: Vec<Vec<u8>> = llm_tokens.into_iter()
+           .map(|token| {
+               let bytes = token.extract::<&[u8]>(py).unwrap();
+               bytes.to_vec()
+           })
+           .collect();
+        Self { inner: GrammarConstraint::from_grammar(grammar.inner, &llm_tokens_vec.iter().map(|token| &token[..]).collect::<Vec<_>>()) }
     }
 }
 
