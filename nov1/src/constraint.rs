@@ -6,7 +6,8 @@ use crate::precompute;
 use crate::precompute::{Token, TokenID, Tokenizer};
 use std::collections::{BTreeMap, BTreeSet};
 
-type LLMToken = &'static [u8];
+type LLMToken = Vec<u8>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LLMTokenID(pub usize);
 
@@ -50,13 +51,13 @@ impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
         let mut llm_token_to_id = BTreeMap::new();
         let mut llm_token_id_to_token = BTreeMap::new();
-        for (i, &token) in llm_tokens.iter().enumerate() {
+        for (i, &ref token) in llm_tokens.iter().enumerate() {
             let id = LLMTokenID(i);
-            llm_token_to_id.insert(token, id);
-            llm_token_id_to_token.insert(id, token);
+            llm_token_to_id.insert(token.clone(), id);
+            llm_token_id_to_token.insert(id, token.clone());
         }
 
-        let precomputed = precompute::precompute(&tokenizer, llm_tokens);
+        let precomputed = precompute::precompute(&tokenizer, &llm_tokens.iter().map(|token| &token[..]).collect::<Vec<_>>());
         let precomputed = precompute::precompute_add_incomplete_token(&tokenizer, precomputed);
         let precomputed = convert_precomputed_to_llm_token_ids(precomputed, &llm_token_to_id);
 

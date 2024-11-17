@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 use crate::constraint::{GrammarConstraint, LLMTokenID, convert_precomputed_to_llm_token_ids};
 
-type LLMToken = &'static [u8];
+type LLMToken<'a> = &'a [u8];
 
 #[derive(Clone)]
 pub struct Grammar<T> {
@@ -297,8 +297,8 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         let mut llm_token_id_to_token = BTreeMap::new();
         for (i, &token) in llm_tokens.iter().enumerate() {
             let id = LLMTokenID(i);
-            llm_token_to_id.insert(token, id);
-            llm_token_id_to_token.insert(id, token);
+            llm_token_to_id.insert(token.to_vec(), id);
+            llm_token_id_to_token.insert(id, token.to_vec());
         }
 
         let precomputed = precompute(&grammar.tokenizer, llm_tokens);

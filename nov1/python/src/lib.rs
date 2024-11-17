@@ -56,7 +56,6 @@ impl PyGrammarExpr {
     }
 }
 
-
 #[pyclass]
 #[derive(Clone)]
 pub struct PyGrammar {
@@ -89,17 +88,23 @@ pub struct PyGrammarConstraint {
 }
 
 // todo: quick fix
-type LLMToken = &'static [u8];
+// type LLMToken = Vec<u8>;
+type LLMToken<'a> = &'a [u8];
 
 #[pymethods]
 impl PyGrammarConstraint {
     #[new]
-    fn new(grammar: PyGrammar, llm_tokens: Vec<Py<PyBytes>>) -> Self {
-        todo!()
-        // let llm_tokens_vec: Vec<LLMToken> = llm_tokens.into_iter().map(|token| token.as_bytes()).collect();
-        // Self { inner: GrammarConstraint::from_grammar(grammar.inner, &llm_tokens_vec) }
+   fn new(py: Python, grammar: PyGrammar, llm_tokens: Vec<Py<PyBytes>>) -> Self {
+   let llm_tokens_vec: Vec<Vec<u8>> = llm_tokens.into_iter()
+       .map(|token| {
+           let bytes = token.extract::<&[u8]>(py).unwrap();
+           bytes.to_vec()
+       })
+       .collect();
+    Self { inner: GrammarConstraint::from_grammar(grammar.inner, &llm_tokens_vec.iter().map(|token| &token[..]).collect::<Vec<_>>()) }
     }
 }
+
 
 #[pyclass]
 pub struct PyGrammarConstraintState {
