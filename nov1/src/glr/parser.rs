@@ -227,6 +227,9 @@ impl<'a> GLRParserState<'a> {
         let mut next_active_states = Vec::new();
         let mut inactive_states = Vec::new();
         let mut num_states_processed = 0;
+        let mut num_shifts = 0;
+        let mut num_reduces = 0;
+        let mut num_gotos = 0;
         dbg!(&self.active_states.len());
 
         while let Some(state) = self.active_states.pop() {
@@ -240,6 +243,7 @@ impl<'a> GLRParserState<'a> {
             if let Some(action) = row.shifts_and_reduces.get(&token_id) {
                 match action {
                     Stage7ShiftsAndReduces::Shift(next_state_id) => {
+                        num_shifts += 1;
                         let new_stack = stack.push(*next_state_id);
                         let new_actions = action_stack.push(Action::Shift(token_id));
                         next_active_states.push(ParseState {
@@ -250,9 +254,11 @@ impl<'a> GLRParserState<'a> {
 
                     }
                     Stage7ShiftsAndReduces::Reduce { production_id, nonterminal_id: nonterminal, len } => {
+                        num_reduces += 1;
                         let popped_stack_nodes = stack.popn(*len);
 
                         for stack_node in popped_stack_nodes.into_iter() {
+                            num_gotos += 1;
                             let revealed_state = *stack_node.peek();
                             let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
 
@@ -276,7 +282,7 @@ impl<'a> GLRParserState<'a> {
                     Stage7ShiftsAndReduces::Split { shift, reduces } => {
                         dbg!(shift, reduces);
                         if let Some(shift_state) = shift {
-
+                            num_shifts += 1;
                             let new_stack = stack.push(*shift_state);
                             let new_actions = action_stack.clone().push(Action::Shift(token_id));
 
@@ -289,7 +295,8 @@ impl<'a> GLRParserState<'a> {
 
                         for (len, nt_ids) in reduces {
                             for (nt_id, prod_ids) in nt_ids {
-                                let popped_stack_nodes = stack.popn(*len);
+                                num_reduces += 1;
+                                let popped_stack_nodes = stack.popn(*len); // todo: move this outside loop
 
                                 for stack_node in popped_stack_nodes.into_iter() {
                                     let revealed_state = *stack_node.peek();
@@ -297,6 +304,7 @@ impl<'a> GLRParserState<'a> {
                                     if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
                                         let new_stack = Arc::new(stack_node.push(goto_state));
                                         for prod_id in prod_ids {
+                                            num_gotos += 1;
                                             let new_actions = action_stack.clone().push(Action::Reduce { production_id: *prod_id, len: *len, nonterminal_id: *nt_id });
                                             self.active_states.push(ParseState {
                                                 stack: new_stack.clone(),
