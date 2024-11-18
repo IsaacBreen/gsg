@@ -80,7 +80,13 @@ impl<T> GSSNode<T> {
         T: PartialEq,
     {
         assert!(self.value == other.value);
-        println!("merging");
+        // todo: We should prob make sure there are no ancestors of either of these nodes before
+        //  merging. If there were, those ancestors might get a nasty surprise when they pop through
+        //  this node and see new, unexpected predecessors.
+        //
+        //  But wait... it's the job of the reference checker to make sure we have write permission
+        //  for self. If we have write permission to self, then there can't be ancestors to self.
+        //  So this is fine... (?)
         self.predecessors.append(&mut other.predecessors);
     }
 }

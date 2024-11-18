@@ -401,7 +401,7 @@ mod tests {
         // i.e. break the "(i" token into "(" and "i". But that's a waste of a token.
         // A good LLM tokenizer would greedily emit the longest possible token at each step.
         // let prefill: Vec<_> = llm_token_vec!(b"(i", b"+i", b"*", b"i").into_iter().map(|token_id| LLMTokenID(token_id)).collect();
-        let prefill: Vec<_> = llm_token_vec!(b"(i", b"+i").into_iter().map(|token_id| LLMTokenID(token_id)).collect();
+        let prefill: Vec<_> = llm_token_vec!(b"i", b"+i", b"+i").into_iter().map(|token_id| LLMTokenID(token_id)).collect();
         grammar_constraint_state.commit_many(&prefill);
 
         // Get the mask.

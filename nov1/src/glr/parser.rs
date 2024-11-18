@@ -257,7 +257,7 @@ impl<'a> GLRParserState<'a> {
                         num_reduces += 1;
                         let popped_stack_nodes = stack.popn(*len);
 
-                        for stack_node in popped_stack_nodes.into_iter() {
+                        for stack_node in popped_stack_nodes {
                             num_gotos += 1;
                             let revealed_state = *stack_node.peek();
                             let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
@@ -294,11 +294,11 @@ impl<'a> GLRParserState<'a> {
                         }
 
                         for (len, nt_ids) in reduces {
+                            let popped_stack_nodes = stack.popn(*len); // todo: move this outside loop
                             for (nt_id, prod_ids) in nt_ids {
                                 num_reduces += 1;
-                                let popped_stack_nodes = stack.popn(*len); // todo: move this outside loop
 
-                                for stack_node in popped_stack_nodes.into_iter() {
+                                for stack_node in &popped_stack_nodes {
                                     let revealed_state = *stack_node.peek();
                                     let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
                                     if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
