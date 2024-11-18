@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -220,23 +220,25 @@ impl<T: Clone + Ord> BulkMerge<T> for Vec<Arc<GSSNode<T>>> {
         // todo: should be possible to avoid cloning T in some cases by using &T in this map,
         //  but we need to be careful about lifetimes. If we use `node.as_ref().value`, then node
         //  will go out of bounds while the reference to its value is still inside `groups`.
-        let mut groups: BTreeMap<T, Vec<Arc<GSSNode<T>>>> = BTreeMap::new();
+        let mut groups: BTreeMap<T, HashMap<_, Arc<GSSNode<T>>>> = BTreeMap::new();
         for node in self.drain(..) {
-            groups.entry(node.value.clone()).or_default().push(node);
+            groups.entry(node.value.clone()).or_default().entry(Arc::as_ptr(&node)).or_insert(node);
         }
         for mut group in groups.into_values() {
+            let mut group = group.into_values().collect::<Vec<_>>();
             let mut first = group.pop().unwrap();
             if group.is_empty() {
                 self.push(first);
             } else {
-                let first_mut_ref = Arc::make_mut(&mut first);
-                for mut sibling in group {
-                    if let Some(sibling_mut_ref) = Arc::get_mut(&mut sibling) {
-                        first_mut_ref.predecessors.append(&mut sibling_mut_ref.predecessors);
-                    } else {
-                        first_mut_ref.predecessors.extend(sibling.predecessors.clone());
+                // address map
+                let mut predecessors_set: BTreeMap<_, _> = BTreeMap::new();
+                for sibling in group {
+                    for predecessor in &sibling.predecessors {
+                        predecessors_set.insert(Arc::as_ptr(predecessor), predecessor.clone());
                     }
                 }
+                let first_mut_ref = Arc::make_mut(&mut first);
+                first_mut_ref.predecessors = predecessors_set.into_values().collect();
                 self.push(first);
             }
         }
