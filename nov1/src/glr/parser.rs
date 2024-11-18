@@ -283,7 +283,7 @@ impl<'a> GLRParserState<'a> {
                         }
 
                         for (len, nt_ids) in reduces {
-                            let mut popped_stack_nodes = stack.popn(*len);
+                            let popped_stack_nodes = stack.popn(*len);
                             for (nt_id, prod_ids) in nt_ids {
                                 for stack_node in &popped_stack_nodes {
                                     let revealed_state = *stack_node.peek();
