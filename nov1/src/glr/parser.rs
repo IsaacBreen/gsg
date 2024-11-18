@@ -227,14 +227,8 @@ impl<'a> GLRParserState<'a> {
     pub fn step(&mut self, token_id: TerminalID) {
         let mut next_active_states = Vec::new();
         let mut inactive_states = Vec::new();
-        let mut num_states_processed = 0;
-        let mut num_shifts = 0;
-        let mut num_reduces = 0;
-        let mut num_gotos = 0;
-        let num_active_states = self.active_states.len();
 
         while let Some(state) = self.active_states.pop() {
-            num_states_processed += 1;
             let stack = state.stack;
             let action_stack = state.action_stack;
             let state_id = *stack.peek();
@@ -244,7 +238,6 @@ impl<'a> GLRParserState<'a> {
             if let Some(action) = row.shifts_and_reduces.get(&token_id) {
                 match action {
                     Stage7ShiftsAndReduces::Shift(next_state_id) => {
-                        num_shifts += 1;
                         let new_stack = stack.push(*next_state_id);
                         let new_actions = action_stack.push(Action::Shift(token_id));
                         next_active_states.push(ParseState {
@@ -252,15 +245,12 @@ impl<'a> GLRParserState<'a> {
                             action_stack: Some(Arc::new(new_actions)),
                             status: ParseStatus::Active,
                         });
-
                     }
                     Stage7ShiftsAndReduces::Reduce { production_id, nonterminal_id: nonterminal, len } => {
-                        num_reduces += 1;
                         let mut popped_stack_nodes = stack.popn(*len);
                         popped_stack_nodes.bulk_merge();
 
                         for stack_node in popped_stack_nodes {
-                            num_gotos += 1;
                             let revealed_state = *stack_node.peek();
                             let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
 
@@ -282,9 +272,7 @@ impl<'a> GLRParserState<'a> {
                         }
                     }
                     Stage7ShiftsAndReduces::Split { shift, reduces } => {
-                        dbg!(shift, reduces);
                         if let Some(shift_state) = shift {
-                            num_shifts += 1;
                             let new_stack = stack.push(*shift_state);
                             let new_actions = action_stack.clone().push(Action::Shift(token_id));
 
@@ -298,15 +286,12 @@ impl<'a> GLRParserState<'a> {
                         for (len, nt_ids) in reduces {
                             let popped_stack_nodes = stack.popn(*len); // todo: move this outside loop
                             for (nt_id, prod_ids) in nt_ids {
-                                num_reduces += 1;
-
                                 for stack_node in &popped_stack_nodes {
                                     let revealed_state = *stack_node.peek();
                                     let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
                                     if let Some(&goto_state) = goto_row.gotos.get(nt_id) {
                                         let new_stack = Arc::new(stack_node.push(goto_state));
                                         for prod_id in prod_ids {
-                                            num_gotos += 1;
                                             let new_actions = action_stack.clone().push(Action::Reduce { production_id: *prod_id, len: *len, nonterminal_id: *nt_id });
                                             self.active_states.push(ParseState {
                                                 stack: new_stack.clone(),
@@ -340,14 +325,6 @@ impl<'a> GLRParserState<'a> {
         if token_id != self.parser.eof_terminal_id {
             self.input_pos += 1;
         }
-
-        if num_states_processed > 0 {
-            println!("num states: {}", num_active_states);
-            println!("{} states processed", num_states_processed);
-            println!("{} shifts", num_shifts);
-            println!("{} reduces", num_reduces);
-            println!("{} gotos", num_gotos);
-        }
     }
 
     pub fn merge_active_states(&mut self) {
@@ -375,14 +352,9 @@ impl<'a> GLRParserState<'a> {
     }
 
     pub fn fully_matching_states(&self) -> Vec<&ParseState> {
-        if let Some(states) = self.inactive_states.get(&self.input_pos) {
-            states
-                .iter()
-                .filter(|state| state.status == ParseStatus::Inactive(StopReason::GotoNotFound))
-                .collect()
-        } else {
-            vec![]
-        }
+        self.inactive_states.get(&self.input_pos).map_or(vec![], |states| {
+            states.iter().filter(|state| state.status == ParseStatus::Inactive(StopReason::GotoNotFound)).collect()
+        })
     }
 
     pub fn is_ok(&self) -> bool {

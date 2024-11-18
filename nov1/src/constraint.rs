@@ -88,7 +88,6 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                     for (tokenizer_token_sequence, (llm_token_id_to_state_id, bitset)) in token_sequence_map {
                         let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_state(parse_state.clone());
                         let grammar_token_id_sequence = tokenizer_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
-                        println!("tokenizer_token_sequence: {:?}", tokenizer_token_sequence);
                         new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                         if new_glr_parse_state.is_ok() {
                             result |= bitset;
@@ -134,43 +133,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
 
     pub fn commit_many(&mut self, llm_token_ids: &[LLMTokenID]) {
         for &llm_token_id in llm_token_ids {
-            println!("commit: {}", llm_token_id.0);
             self.commit(llm_token_id);
         }
-    }
-
-    pub fn performance_report(&self) -> String {
-        let mut report = String::new();
-        writeln!(report, "Performance Report:").unwrap();
-        writeln!(report, "  Number of active states: {}", self.states.len()).unwrap();
-
-        let mut state_id_counts = BTreeMap::new();
-        for (_, tokenizer_state_ids) in &self.states {
-            for state_id in tokenizer_state_ids {
-                *state_id_counts.entry(state_id).or_insert(0) += 1;
-            }
-        }
-
-        writeln!(report, "  Tokenizer State ID Counts:").unwrap();
-        for (state_id, count) in state_id_counts {
-            writeln!(report, "    {}: {}", state_id.0, count).unwrap();
-        }
-
-        let mut reachable_state_count = 0;
-        let mut possible_next_token_sequence_count = 0;
-        for (_, tokenizer_state_ids) in &self.states {
-            for tokenizer_state in tokenizer_state_ids {
-                if let Some(token_sequence_map) = self.parent.precomputed.get(tokenizer_state) {
-                    possible_next_token_sequence_count += token_sequence_map.len();
-                    for (_, (llm_token_id_to_state_id, _)) in token_sequence_map {
-                        reachable_state_count += llm_token_id_to_state_id.len();
-                    }
-                }
-            }
-        }
-        writeln!(report, "  Number of reachable states to explore: {}", reachable_state_count).unwrap();
-        writeln!(report, "  Number of possible next token sequences: {}", possible_next_token_sequence_count).unwrap();
-
-        report
     }
 }
