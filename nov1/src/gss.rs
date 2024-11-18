@@ -80,6 +80,7 @@ impl<T> GSSNode<T> {
         T: PartialEq,
     {
         assert!(self.value == other.value);
+        println!("merging");
         self.predecessors.append(&mut other.predecessors);
     }
 }
