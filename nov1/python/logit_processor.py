@@ -101,7 +101,8 @@ def generate_text(model, tokenizer, grammar_processor, input_text, max_new_token
     return tokenizer.decode(output[0], skip_special_tokens=True)
 
 if __name__ == "__main__":
-    model_name = "Qwen/Qwen2.5-Coder-0.5B"
+#     model_name = "Qwen/Qwen2.5-Coder-0.5B"
+    model_name = "gpt2"
     tokenizer, model = load_model_and_tokenizer(model_name)
 
     llm_tokens = [tokenizer.convert_ids_to_tokens(i).encode() for i in range(tokenizer.vocab_size)]
