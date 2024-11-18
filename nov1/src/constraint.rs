@@ -152,6 +152,21 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
             writeln!(report, "    {}: {}", state_id.0, count).unwrap();
         }
 
+        let mut reachable_state_count = 0;
+        let mut possible_next_token_sequence_count = 0;
+        for (_, tokenizer_state_ids) in &self.states {
+            for tokenizer_state in tokenizer_state_ids {
+                if let Some(token_sequence_map) = self.parent.precomputed.get(tokenizer_state) {
+                    possible_next_token_sequence_count += token_sequence_map.len();
+                    for (_, (llm_token_id_to_state_id, _)) in token_sequence_map {
+                        reachable_state_count += llm_token_id_to_state_id.len();
+                    }
+                }
+            }
+        }
+        writeln!(report, "  Number of reachable states to explore: {}", reachable_state_count).unwrap();
+        writeln!(report, "  Number of possible next token sequences: {}", possible_next_token_sequence_count).unwrap();
+
         report
     }
 }
