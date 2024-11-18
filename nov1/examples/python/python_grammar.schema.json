@@ -1,0 +1,220 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Grammar",
+  "type": "object",
+  "properties": {
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "rhs": {
+            "$ref": "#/definitions/rhs"
+          },
+          "visited": {
+            "type": "boolean"
+          },
+          "nullable": {
+            "type": "boolean"
+          },
+          "left_recursive": {
+            "type": "boolean"
+          },
+          "leader": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "rhs",
+          "visited",
+          "nullable",
+          "left_recursive",
+          "leader"
+        ]
+      }
+    },
+    "metas": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "rules",
+    "metas"
+  ],
+  "definitions": {
+    "rhs": {
+      "type": "object",
+      "properties": {
+        "node_type": {
+          "type": "string",
+          "enum": ["rhs"]
+        },
+        "alts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/alt"
+          }
+        }
+      },
+      "required": [
+        "node_type",
+        "alts"
+      ]
+    },
+    "alt": {
+      "type": "object",
+      "properties": {
+        "node_type": {
+          "type": "string",
+          "enum": ["alt"]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/named_item"
+          }
+        },
+        "icut": {
+          "type": ["boolean", "null"]
+        },
+        "action": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": [
+        "node_type",
+        "items",
+        "icut",
+        "action"
+      ]
+    },
+    "named_item": {
+      "type": "object",
+      "properties": {
+        "node_type": {
+          "type": "string",
+          "enum": ["named_item"]
+        },
+        "name": {
+          "type": ["string", "null"]
+        },
+        "item": {
+          "$ref": "#/definitions/item"
+        },
+        "type": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": [
+        "node_type",
+        "name",
+        "item",
+        "type"
+      ]
+    },
+    "item": {
+      "type": "object",
+      "properties": {
+        "node_type": {
+          "type": "string",
+          "enum": [
+            "leaf", "name_leaf", "string_leaf", "group", "opt",
+            "gather", "repeat", "repeat0", "repeat1", "forced",
+            "lookahead", "positive_lookahead", "negative_lookahead",
+            "rhs", "cut"
+          ]
+        },
+        "value": {
+          "type": ["string", "null"]
+        },
+        "rhs": {
+          "$ref": "#/definitions/rhs"
+        },
+        "node": {
+          "$ref": "#/definitions/item"
+        },
+        "separator": {
+          "$ref": "#/definitions/item"
+        },
+        "sign": {
+          "type": ["boolean", "null"]
+        }
+      },
+      "required": [
+        "node_type"
+      ],
+      "oneOf": [
+        {
+          "properties": {
+            "node_type": { "enum": ["leaf", "name_leaf", "string_leaf"] },
+            "value": { "type": "string" }
+          },
+          "required": ["value"]
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["group"] },
+            "rhs": { "$ref": "#/definitions/rhs" }
+          },
+          "required": ["rhs"]
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["opt", "forced", "lookahead", "positive_lookahead", "negative_lookahead"] },
+            "node": { "$ref": "#/definitions/item" }
+          },
+          "required": ["node"]
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["gather"] },
+            "node": { "$ref": "#/definitions/item" },
+            "separator": { "$ref": "#/definitions/item" }
+          },
+          "required": ["node", "separator"]
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["repeat", "repeat0", "repeat1"] },
+            "node": { "$ref": "#/definitions/item" }
+          },
+          "required": ["node"]
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["rhs"] },
+            "rhs": { "$ref": "#/definitions/rhs" }
+          },
+          "required": ["rhs"]
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["cut"] }
+          }
+        },
+        {
+          "properties": {
+            "node_type": { "enum": ["lookahead"] },
+            "node": { "$ref": "#/definitions/item" },
+            "sign": { "type": "boolean" }
+          },
+          "required": ["node", "sign"]
+        }
+      ]
+    }
+  }
+}
