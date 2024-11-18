@@ -1,6 +1,6 @@
 import numpy as np
 import _sep1
-from _sep1 import PyRegexExpr as Regex, PyGrammarExpr as Grammar, PyGrammar, PyGrammarConstraint, PyGrammarConstraintState
+from _sep1 import PyRegexExpr as Regex, PyGrammar, PyGrammarConstraint, PyGrammarConstraintState
 from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
 import torch
 import time
@@ -60,18 +60,25 @@ def define_grammar():
     close_paren_regex = Regex.eat_u8(ord(')'))
     i_regex = Regex.eat_u8(ord('i'))
 
+    from _sep1 import PyGrammar as Grammar
+
+    choice = Grammar.choice
+    sequence = Grammar.sequence
+    ref = Grammar.ref
+    regex = Grammar.regex
+
     exprs = [
-        ("E", Grammar.choice([
-            Grammar.sequence([Grammar.ref("E"), Grammar.regex(plus_regex), Grammar.ref("T")]),
-            Grammar.ref("T"),
+        ("E", choice([
+            sequence([ref("E"), regex(plus_regex), ref("T")]),
+            ref("T"),
         ])),
-        ("T", Grammar.choice([
-            Grammar.sequence([Grammar.ref("T"), Grammar.regex(times_regex), Grammar.ref("F")]),
-            Grammar.ref("F"),
+        ("T", choice([
+            sequence([ref("T"), regex(times_regex), ref("F")]),
+            ref("F"),
         ])),
-        ("F", Grammar.choice([
-            Grammar.sequence([Grammar.regex(open_paren_regex), Grammar.ref("E"), Grammar.regex(close_paren_regex)]),
-            Grammar.regex(i_regex),
+        ("F", choice([
+            sequence([regex(open_paren_regex), ref("E"), regex(close_paren_regex)]),
+            regex(i_regex),
         ])),
     ]
     return PyGrammar(exprs)
