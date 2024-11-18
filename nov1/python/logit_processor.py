@@ -4,12 +4,16 @@ from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
 import torch
 import time
 
+def debug_print(message):
+#     print(message)
+    pass
+
 def timeit(func):
     def wrapper(*args, **kwargs):
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
-        print(f"Time taken: {(end_time - start_time) * 1000:.2f} ms")
+        debug_print(f"Time taken: {(end_time - start_time) * 1000:.2f} ms")
         return result
     return wrapper
 
@@ -27,7 +31,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 
         # Commit the new tokens to the grammar constraint state
         for token_id in new_token_ids:
-            print(f"Committing token: {llm_tokens[token_id]} (ID: {token_id})")
+            debug_print(f"Committing token: {llm_tokens[token_id]} (ID: {token_id})")
             self.grammar_constraint_state.commit(token_id)
 
         # Update seen_input_ids
@@ -43,8 +47,8 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 
         mask_ids = np.where(mask)[0]
         mask_id_map = {id: llm_tokens[id] for id in mask_ids}
-        print(f"Mask IDs: {mask_id_map}")
-        print(f"----------------------------")
+        debug_print(f"Mask IDs: {mask_id_map}")
+        debug_print(f"----------------------------")
 
         scores = np.where(mask, scores, -np.inf)
         return torch.tensor(scores)
@@ -129,7 +133,7 @@ model = AutoModelForCausalLM.from_pretrained(model_name)
 
 output = model.generate(
     input_ids,
-    max_new_tokens=2,  # Adjust as needed
+    max_new_tokens=50,  # Adjust as needed
     logits_processor=[grammar_processor]
 )
 
