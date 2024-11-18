@@ -248,9 +248,6 @@ impl<'a> GLRParserState<'a> {
                     }
                     Stage7ShiftsAndReduces::Reduce { production_id, nonterminal_id: nonterminal, len } => {
                         let mut popped_stack_nodes = stack.popn(*len);
-                        let n = popped_stack_nodes.len();
-                        popped_stack_nodes.bulk_merge();
-                        println!("before: {} after: {}", n, popped_stack_nodes.len());
                         for stack_node in popped_stack_nodes {
                             let revealed_state = *stack_node.peek();
                             let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
@@ -287,9 +284,6 @@ impl<'a> GLRParserState<'a> {
 
                         for (len, nt_ids) in reduces {
                             let mut popped_stack_nodes = stack.popn(*len);
-                            let n = popped_stack_nodes.len();
-                            popped_stack_nodes.bulk_merge();
-                            println!("before: {} after: {}", n, popped_stack_nodes.len());
                             for (nt_id, prod_ids) in nt_ids {
                                 for stack_node in &popped_stack_nodes {
                                     let revealed_state = *stack_node.peek();
