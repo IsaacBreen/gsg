@@ -1,6 +1,6 @@
 import numpy as np
 import _sep1
-from _sep1 import PyRegexExpr as Regex, PyGrammarExpr as ge, PyGrammarConstraint, PyGrammarConstraintState
+from _sep1 import PyRegexExpr as Regex, PyGrammar, PyGrammarExpr as ge, PyGrammarConstraint, PyGrammarConstraintState
 from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
 import torch
 import time
