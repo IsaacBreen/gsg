@@ -101,7 +101,7 @@ def generate_text(model, tokenizer, grammar_processor, input_text, max_new_token
     return tokenizer.decode(output[0], skip_special_tokens=True)
 
 if __name__ == "__main__":
-    model_name = "gpt2"
+    model_name = "Qwen/Qwen2.5-Coder-0.5B"
     tokenizer, model = load_model_and_tokenizer(model_name)
 
     llm_tokens = [tokenizer.convert_ids_to_tokens(i).encode() for i in range(tokenizer.vocab_size)]
@@ -111,6 +111,6 @@ if __name__ == "__main__":
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_tokens)
     grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_tokens)
 
-    input_text = "(i-i)*(i+i)="
+    input_text = "Rewrite this a number N multiplied by i: i+i+i+i="
     output_text = generate_text(model, tokenizer, grammar_processor, input_text)
     print(output_text)
