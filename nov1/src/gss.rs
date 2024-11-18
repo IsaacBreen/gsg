@@ -210,24 +210,24 @@ impl<T: Clone> GSSTrait<T> for Option<GSSNode<T>> {
     }
 }
 
+// todo: weird trait. Maybe this shouldn't be a trait.
 pub trait BulkMerge<T> {
-    fn bulk_merge(nodes: Vec<Arc<GSSNode<T>>>) -> Vec<Arc<GSSNode<T>>>;
+    fn bulk_merge(&mut self);
 }
 
-impl<T: Clone + Ord> BulkMerge<T> for GSSNode<T> {
-    fn bulk_merge(mut nodes: Vec<Arc<GSSNode<T>>>) -> Vec<Arc<GSSNode<T>>> {
+impl<T: Clone + Ord> BulkMerge<T> for Vec<Arc<GSSNode<T>>> {
+    fn bulk_merge(&mut self) {
         // todo: should be possible to avoid cloning T in some cases by using &T in this map,
         //  but we need to be careful about lifetimes. If we use `node.as_ref().value`, then node
         //  will go out of bounds while the reference to its value is still inside `groups`.
         let mut groups: BTreeMap<T, Vec<Arc<GSSNode<T>>>> = BTreeMap::new();
-        for mut node in nodes {
+        for node in self.drain(..) {
             groups.entry(node.value.clone()).or_default().push(node);
         }
-        let mut result = Vec::new();
         for mut group in groups.into_values() {
             let mut first = group.pop().unwrap();
             if group.is_empty() {
-                result.push(first);
+                self.push(first);
             } else {
                 let first_mut_ref = Arc::make_mut(&mut first);
                 for mut sibling in group {
@@ -237,9 +237,8 @@ impl<T: Clone + Ord> BulkMerge<T> for GSSNode<T> {
                         first_mut_ref.predecessors.extend(sibling.predecessors.clone());
                     }
                 }
-                result.push(first);
+                self.push(first);
             }
         }
-        result
     }
 }

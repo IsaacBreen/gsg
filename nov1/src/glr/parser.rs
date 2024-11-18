@@ -1,3 +1,4 @@
+use crate::gss::BulkMerge;
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::items::Item;
 use crate::glr::table::{NonTerminalID, ProductionID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
@@ -255,7 +256,8 @@ impl<'a> GLRParserState<'a> {
                     }
                     Stage7ShiftsAndReduces::Reduce { production_id, nonterminal_id: nonterminal, len } => {
                         num_reduces += 1;
-                        let popped_stack_nodes = stack.popn(*len);
+                        let mut popped_stack_nodes = stack.popn(*len);
+                        popped_stack_nodes.bulk_merge();
 
                         for stack_node in popped_stack_nodes {
                             num_gotos += 1;
