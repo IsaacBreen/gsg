@@ -100,6 +100,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
     }
 
     pub fn commit(&mut self, llm_token_id: LLMTokenID) {
+        dbg!(self.states.len());
         let mut new_states: BTreeMap<(ParseStateKey, BTreeSet<StateID>), ParseState> = BTreeMap::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state_id in tokenizer_state_ids {
