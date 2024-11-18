@@ -132,6 +132,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
 
     pub fn commit_many(&mut self, llm_token_ids: &[LLMTokenID]) {
         for &llm_token_id in llm_token_ids {
+            println!("commit: {}", llm_token_id.0);
             self.commit(llm_token_id);
         }
     }

@@ -130,7 +130,7 @@ model = AutoModelForCausalLM.from_pretrained(model_name)
 
 output = model.generate(
     input_ids,
-    max_new_tokens=7,  # Adjust as needed
+    max_new_tokens=2,  # Adjust as needed
     logits_processor=[grammar_processor]
 )
 
