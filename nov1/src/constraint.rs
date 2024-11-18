@@ -6,6 +6,7 @@ use crate::precompute;
 use crate::precompute::{Token, TokenID, Tokenizer};
 use bitvec::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write;
 
 type LLMToken = Vec<u8>;
 
@@ -132,5 +133,25 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
         for &llm_token_id in llm_token_ids {
             self.commit(llm_token_id);
         }
+    }
+
+    pub fn performance_report(&self) -> String {
+        let mut report = String::new();
+        writeln!(report, "Performance Report:").unwrap();
+        writeln!(report, "  Number of active states: {}", self.states.len()).unwrap();
+
+        let mut state_id_counts = BTreeMap::new();
+        for (_, tokenizer_state_ids) in &self.states {
+            for state_id in tokenizer_state_ids {
+                *state_id_counts.entry(state_id).or_insert(0) += 1;
+            }
+        }
+
+        writeln!(report, "  Tokenizer State ID Counts:").unwrap();
+        for (state_id, count) in state_id_counts {
+            writeln!(report, "    {}: {}", state_id.0, count).unwrap();
+        }
+
+        report
     }
 }

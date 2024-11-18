@@ -245,6 +245,10 @@ impl PyGrammarConstraintState {
     fn commit(&mut self, llm_token_id: usize) {
         self.inner.commit(LLMTokenID(llm_token_id));
     }
+
+    fn performance_report(&self) -> String {
+        self.inner.performance_report()
+    }
 }
 
 
