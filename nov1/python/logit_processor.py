@@ -34,7 +34,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
         self.seen_input_ids = current_input_ids
 
         # Get the mask and apply it (as before)
-        print(self.grammar_constraint_state.performance_report())
+        print(self.grammar_constraint_state.performance_report(), end="")
         mask = timeit(self.grammar_constraint_state.get_mask)()
         if len(mask) < scores.shape[-1]:
             padding = np.zeros(scores.shape[-1] - len(mask), dtype=bool)
