@@ -9,7 +9,7 @@ def timeit(func):
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
-        print(f"Time taken: {(end_time - start_time) * 1000:.2f} ms")
+        print(f"Time taken: {(end_time - start_time) * 1000:.2f} ms", end="; ")
         return result
     return wrapper
 
