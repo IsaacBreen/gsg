@@ -1,6 +1,6 @@
 import numpy as np
 import _sep1
-from _sep1 import PyRegexExpr as r, PyGrammar as g, PyGrammarConstraint, PyGrammarConstraintState
+from _sep1 import PyRegexExpr as Regex, PyGrammar as Grammar, PyGrammarConstraint, PyGrammarConstraintState
 from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
 import torch
 import time
@@ -54,16 +54,16 @@ def load_model_and_tokenizer(model_name):
     return tokenizer, model
 
 def define_grammar():
-    plus_regex = r.eat_u8(ord('+'))
-    times_regex = r.eat_u8(ord('*'))
-    open_paren_regex = r.eat_u8(ord('('))
-    close_paren_regex = r.eat_u8(ord(')'))
-    i_regex = r.eat_u8(ord('i'))
+    plus_regex = Regex.eat_u8(ord('+'))
+    times_regex = Regex.eat_u8(ord('*'))
+    open_paren_regex = Regex.eat_u8(ord('('))
+    close_paren_regex = Regex.eat_u8(ord(')'))
+    i_regex = Regex.eat_u8(ord('i'))
 
-    choice = g.choice
-    sequence = g.sequence
-    ref = g.ref
-    regex = g.regex
+    choice = Grammar.choice
+    sequence = Grammar.sequence
+    ref = Grammar.ref
+    regex = Grammar.regex
 
     exprs = [
         ("E", choice([
