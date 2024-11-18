@@ -1,5 +1,6 @@
 import numpy as np
 import _sep1
+from _sep1 import PyRegexExpr as Regex, PyGrammarExpr as Grammar, PyGrammar, PyGrammarConstraint, PyGrammarConstraintState
 from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
 import torch
 import time
@@ -53,43 +54,31 @@ def load_model_and_tokenizer(model_name):
     return tokenizer, model
 
 def define_grammar():
-    plus_regex = _sep1.PyRegexExpr.eat_u8(ord('+'))
-    times_regex = _sep1.PyRegexExpr.eat_u8(ord('*'))
-    open_paren_regex = _sep1.PyRegexExpr.eat_u8(ord('('))
-    close_paren_regex = _sep1.PyRegexExpr.eat_u8(ord(')'))
-    i_regex = _sep1.PyRegexExpr.eat_u8(ord('i'))
+    plus_regex = Regex.eat_u8(ord('+'))
+    times_regex = Regex.eat_u8(ord('*'))
+    open_paren_regex = Regex.eat_u8(ord('('))
+    close_paren_regex = Regex.eat_u8(ord(')'))
+    i_regex = Regex.eat_u8(ord('i'))
 
     exprs = [
-        ("E", _sep1.PyGrammarExpr.choice([
-            _sep1.PyGrammarExpr.sequence([
-                _sep1.PyGrammarExpr.ref("E"),
-                _sep1.PyGrammarExpr.regex(plus_regex),
-                _sep1.PyGrammarExpr.ref("T"),
-            ]),
-            _sep1.PyGrammarExpr.ref("T"),
+        ("E", Grammar.choice([
+            Grammar.sequence([Grammar.ref("E"), Grammar.regex(plus_regex), Grammar.ref("T")]),
+            Grammar.ref("T"),
         ])),
-        ("T", _sep1.PyGrammarExpr.choice([
-            _sep1.PyGrammarExpr.sequence([
-                _sep1.PyGrammarExpr.ref("T"),
-                _sep1.PyGrammarExpr.regex(times_regex),
-                _sep1.PyGrammarExpr.ref("F"),
-            ]),
-            _sep1.PyGrammarExpr.ref("F"),
+        ("T", Grammar.choice([
+            Grammar.sequence([Grammar.ref("T"), Grammar.regex(times_regex), Grammar.ref("F")]),
+            Grammar.ref("F"),
         ])),
-        ("F", _sep1.PyGrammarExpr.choice([
-            _sep1.PyGrammarExpr.sequence([
-                _sep1.PyGrammarExpr.regex(open_paren_regex),
-                _sep1.PyGrammarExpr.ref("E"),
-                _sep1.PyGrammarExpr.regex(close_paren_regex),
-            ]),
-            _sep1.PyGrammarExpr.regex(i_regex),
+        ("F", Grammar.choice([
+            Grammar.sequence([Grammar.regex(open_paren_regex), Grammar.ref("E"), Grammar.regex(close_paren_regex)]),
+            Grammar.regex(i_regex),
         ])),
     ]
-    return _sep1.PyGrammar(exprs)
+    return PyGrammar(exprs)
 
 def initialize_grammar_constraint(grammar, llm_tokens):
-    grammar_constraint = _sep1.PyGrammarConstraint(grammar, llm_tokens)
-    grammar_constraint_state = _sep1.PyGrammarConstraintState(grammar_constraint)
+    grammar_constraint = PyGrammarConstraint(grammar, llm_tokens)
+    grammar_constraint_state = PyGrammarConstraintState(grammar_constraint)
     initial_mask = grammar_constraint_state.get_mask()
     initial_mask_ids = np.where(initial_mask)[0]
     initial_mask_id_map = {id: llm_tokens[id] for id in initial_mask_ids}
