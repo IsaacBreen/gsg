@@ -104,6 +104,8 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
         let mut new_states: BTreeMap<(ParseStateKey, BTreeSet<StateID>), ParseState> = BTreeMap::new();
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state_id in tokenizer_state_ids {
+                // todo: should be able to do the below loop more efficiently by optimising the precomputed
+                //  stuff for earlier llm token lookup
                 for (grammar_token_sequence, (llm_token_id_to_state_id, _)) in &self.parent.precomputed[&tokenizer_state_id] {
                     if let Some(&next_tokenizer_state_id) = llm_token_id_to_state_id.get(&llm_token_id) {
                         let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_state(parse_state.clone());
