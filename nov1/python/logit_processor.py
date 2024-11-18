@@ -1,6 +1,6 @@
 import numpy as np
 import _sep1
-from _sep1 import PyRegexExpr as Regex, PyGrammar as Grammar, PyGrammarConstraint, PyGrammarConstraintState
+from _sep1 import PyRegexExpr as Regex, PyGrammarExpr as ge, PyGrammarConstraint, PyGrammarConstraintState
 from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
 import torch
 import time
@@ -60,10 +60,10 @@ def define_grammar():
     close_paren_regex = Regex.eat_u8(ord(')'))
     i_regex = Regex.eat_u8(ord('i'))
 
-    choice = Grammar.choice
-    sequence = Grammar.sequence
-    ref = Grammar.ref
-    regex = Grammar.regex
+    choice = ge.choice
+    sequence = ge.sequence
+    ref = ge.ref
+    regex = ge.regex
 
     exprs = [
         ("E", choice([
