@@ -226,12 +226,14 @@ impl<'a> GLRParserState<'a> {
     pub fn step(&mut self, token_id: TerminalID) {
         let mut next_active_states = Vec::new();
         let mut inactive_states = Vec::new();
+        let mut num_states_processed = 0;
+        dbg!(&self.active_states.len());
 
         while let Some(state) = self.active_states.pop() {
+            num_states_processed += 1;
             let stack = state.stack;
             let action_stack = state.action_stack;
             let state_id = *stack.peek();
-            dbg!(state_id);
 
             let row = self.parser.stage_7_table.get(&state_id).unwrap();
 
@@ -272,6 +274,7 @@ impl<'a> GLRParserState<'a> {
                         }
                     }
                     Stage7ShiftsAndReduces::Split { shift, reduces } => {
+                        dbg!(shift, reduces);
                         if let Some(shift_state) = shift {
 
                             let new_stack = stack.push(*shift_state);
@@ -327,6 +330,8 @@ impl<'a> GLRParserState<'a> {
         if token_id != self.parser.eof_terminal_id {
             self.input_pos += 1;
         }
+
+        println!("{} states processed", num_states_processed);
     }
 
     pub fn merge_active_states(&mut self) {
