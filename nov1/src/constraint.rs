@@ -88,6 +88,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                     for (tokenizer_token_sequence, (llm_token_id_to_state_id, bitset)) in token_sequence_map {
                         let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_state(parse_state.clone());
                         let grammar_token_id_sequence = tokenizer_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
+                        println!("tokenizer_token_sequence: {:?}", tokenizer_token_sequence);
                         new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                         if new_glr_parse_state.is_ok() {
                             result |= bitset;
