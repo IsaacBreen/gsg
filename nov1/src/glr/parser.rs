@@ -230,7 +230,7 @@ impl<'a> GLRParserState<'a> {
         let mut num_shifts = 0;
         let mut num_reduces = 0;
         let mut num_gotos = 0;
-        dbg!(&self.active_states.len());
+        let num_active_states = self.active_states.len();
 
         while let Some(state) = self.active_states.pop() {
             num_states_processed += 1;
@@ -339,7 +339,13 @@ impl<'a> GLRParserState<'a> {
             self.input_pos += 1;
         }
 
-        println!("{} states processed", num_states_processed);
+        if num_states_processed > 10 {
+            println!("num states: {}", num_active_states);
+            println!("{} states processed", num_states_processed);
+            println!("{} shifts", num_shifts);
+            println!("{} reduces", num_reduces);
+            println!("{} gotos", num_gotos);
+        }
     }
 
     pub fn merge_active_states(&mut self) {
