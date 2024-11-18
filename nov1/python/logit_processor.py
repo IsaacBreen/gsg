@@ -5,8 +5,8 @@ import torch
 import time
 
 def debug_print(message):
-#     print(message)
-    pass
+    print(message, end='; ')
+#     pass
 
 def timeit(func):
     def wrapper(*args, **kwargs):
@@ -48,7 +48,8 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
         mask_ids = np.where(mask)[0]
         mask_id_map = {id: llm_tokens[id] for id in mask_ids}
         debug_print(f"Mask IDs: {mask_id_map}")
-        debug_print(f"----------------------------")
+#         debug_print(f"----------------------------")
+        print("")
 
         scores = np.where(mask, scores, -np.inf)
         return torch.tensor(scores)
