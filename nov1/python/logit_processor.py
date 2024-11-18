@@ -17,7 +17,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 
         # Commit the new tokens to the grammar constraint state
         for token_id in new_token_ids:
-            print(f"Committing token ID: {token_id}")
+            print(f"Committing token: {llm_tokens[token_id]} (ID: {token_id})", end="; ")
             self.grammar_constraint_state.commit(token_id)
 
         # Update seen_input_ids
@@ -31,8 +31,9 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
         elif len(mask) > scores.shape[-1]:
             mask = mask[:scores.shape[-1]]
 
-        print(mask)
-        print(mask.sum())
+        mask_ids = np.where(mask)[0]
+        mask_id_map = {id: llm_tokens[id] for id in mask_ids}
+        print(f"Mask IDs: {mask_id_map}")
 
         scores = np.where(mask, scores, -np.inf)
         return torch.tensor(scores)
@@ -42,12 +43,11 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 # Load the GPT-2 tokenizer and model
 model_name = "gpt2"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
 
 # Get the actual LLM tokens from the tokenizer
 llm_tokens = [tokenizer.convert_ids_to_tokens(i).encode() for i in range(tokenizer.vocab_size)]
+# llm_tokens = [b"1", b'"', b"#", b"i", b"*", b"(", b"+", b")"]
 llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
-print([t for t in llm_tokens if len(t) == 1])
 
 # --- Define your grammar using _sep1 (as before) ---
 
@@ -91,7 +91,10 @@ grammar = _sep1.PyGrammar(exprs)
 # Create grammar constraint using the actual LLM tokens
 grammar_constraint = _sep1.PyGrammarConstraint(grammar, llm_tokens)
 grammar_constraint_state = _sep1.PyGrammarConstraintState(grammar_constraint)
-print(grammar_constraint_state.get_mask())
+initial_mask = grammar_constraint_state.get_mask()
+initial_mask_ids = np.where(initial_mask)[0]
+initial_mask_id_map = {id: llm_tokens[id] for id in initial_mask_ids}
+print(f"Initial Mask IDs: {initial_mask_id_map}")
 
 def llm_tokens_to_ids(tokens):
     return [llm_token_to_id[token] for token in tokens]
@@ -101,19 +104,22 @@ grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state)
 
 # --- Generating text with grammar constraints ---
 
-input_text = "1 + 1 ="
+input_text = "(i-i)*(i+i)="
 input_ids = tokenizer.encode(input_text, return_tensors="pt")
 
 # Commit prefill tokens (using the actual LLM token IDs)
-# prefill_tokens = ["(", "i"]  # Example prefill tokens (make sure they exist in the model's vocab)
-# prefill_ids = [llm_token_to_id[token.encode()] for token in prefill_tokens if token.encode() in llm_token_to_id]
-# for token_id in prefill_ids:
-#     grammar_processor.grammar_constraint_state.commit(token_id)  # Commit to the state in the processor
-#     grammar_processor.seen_input_ids.append(token_id)  # Update seen_input_ids
+prefill_tokens = []
+prefill_ids = [llm_token_to_id[token.encode()] for token in prefill_tokens if token.encode() in llm_token_to_id]
+for token_id in prefill_ids:
+    grammar_processor.grammar_constraint_state.commit(token_id)  # Commit to the state in the processor
+
+grammar_processor.seen_input_ids = input_ids[0].tolist()
+
+model = AutoModelForCausalLM.from_pretrained(model_name)
 
 output = model.generate(
     input_ids,
-    max_length=50,  # Adjust as needed
+    max_new_tokens=5,  # Adjust as needed
     logits_processor=[grammar_processor]
 )
 
