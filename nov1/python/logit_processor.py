@@ -2,6 +2,16 @@ import numpy as np
 import _sep1
 from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
 import torch
+import time
+
+def timeit(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"Time taken: {(end_time - start_time) * 1000:.2f} ms")
+        return result
+    return wrapper
 
 class GrammarConstrainedLogitsProcessor(LogitsProcessor):
     def __init__(self, grammar_constraint_state):
@@ -24,7 +34,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
         self.seen_input_ids = current_input_ids
 
         # Get the mask and apply it (as before)
-        mask = self.grammar_constraint_state.get_mask()
+        mask = timeit(self.grammar_constraint_state.get_mask)()
         if len(mask) < scores.shape[-1]:
             padding = np.zeros(scores.shape[-1] - len(mask), dtype=bool)
             mask = np.concatenate((mask, padding))
@@ -46,7 +56,6 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 # Get the actual LLM tokens from the tokenizer
 llm_tokens = [tokenizer.convert_ids_to_tokens(i).encode() for i in range(tokenizer.vocab_size)]
-# llm_tokens = [b"1", b'"', b"#", b"i", b"*", b"(", b"+", b")"]
 llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
 
 # --- Define your grammar using _sep1 (as before) ---
