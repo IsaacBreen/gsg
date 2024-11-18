@@ -112,6 +112,6 @@ if __name__ == "__main__":
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_tokens)
     grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_tokens)
 
-    input_text = "i^10=i*i*i"
+    input_text = "i^10=i*"
     output_text = generate_text(model, tokenizer, grammar_processor, input_text)
     print(output_text)
