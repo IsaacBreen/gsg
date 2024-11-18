@@ -151,6 +151,8 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
         for (state_id, count) in state_id_counts {
             writeln!(report, "    {}: {}", state_id.0, count).unwrap();
         }
+        // Strip trailing newline
+        report.pop();
 
         report
     }
