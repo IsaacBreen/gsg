@@ -231,6 +231,7 @@ impl<'a> GLRParserState<'a> {
             let stack = state.stack;
             let action_stack = state.action_stack;
             let state_id = *stack.peek();
+            dbg!(state_id);
 
             let row = self.parser.stage_7_table.get(&state_id).unwrap();
 
