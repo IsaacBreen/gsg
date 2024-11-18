@@ -339,7 +339,7 @@ impl<'a> GLRParserState<'a> {
             self.input_pos += 1;
         }
 
-        if num_states_processed > 10 {
+        if num_states_processed > 100 {
             println!("num states: {}", num_active_states);
             println!("{} states processed", num_states_processed);
             println!("{} shifts", num_shifts);
