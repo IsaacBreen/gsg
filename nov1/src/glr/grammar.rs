@@ -60,6 +60,7 @@ pub fn compute_epsilon_nonterminals(productions: &[Production]) -> BTreeSet<NonT
 }
 
 pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, BTreeSet<Terminal>> {
+    let epsilon_nonterminals = compute_epsilon_nonterminals(productions);
     let mut first_sets: BTreeMap<NonTerminal, BTreeSet<Terminal>> = BTreeMap::new();
 
     // Initialize first sets
@@ -68,8 +69,17 @@ pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, B
         if !first_sets.contains_key(lhs) {
             first_sets.insert(lhs.clone(), BTreeSet::new());
         }
-        if let Some(Symbol::NonTerminal(nt)) = &production.rhs.get(0) {
-            first_sets.get_mut(lhs).unwrap().insert(Terminal(nt.0.clone()));
+        for symbol in &production.rhs {
+            match symbol {
+                Symbol::Terminal(t) => {
+                    first_sets.get_mut(lhs).unwrap().insert(t.clone());
+                }
+                Symbol::NonTerminal(nt) => {
+                    if !epsilon_nonterminals.contains(nt) {
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -84,13 +94,15 @@ pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, B
 
             let old_size = first_sets.get_mut(lhs).unwrap().len();
 
-            let first_rhs = &rhs[0];
-
-            if let Symbol::NonTerminal(nt) = first_rhs {
-                let first_nt = first_sets[nt].clone();
-                first_sets.get_mut(lhs).unwrap().extend(first_nt);
+            for symbol in rhs {
+                if let Symbol::NonTerminal(nt) = symbol {
+                    let first_nt = first_sets[nt].clone();
+                    first_sets.get_mut(lhs).unwrap().extend(first_nt);
+                    if !epsilon_nonterminals.contains(nt) {
+                        break;
+                    }
+                }
             }
-
             if first_sets.get_mut(lhs).unwrap().len() != old_size {
                 changed = true;
             }

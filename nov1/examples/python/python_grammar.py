@@ -75,7 +75,7 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
 
 def define_python_grammar():
     with Path(__file__).parent / "python.gram" as f:
-        grammar_text = f.read()
+        grammar_text = f.read_text()
 
     with io.StringIO(grammar_text) as f:
         tokenizer = pegen.tokenizer.Tokenizer(tokenize.generate_tokens(f.readline))
