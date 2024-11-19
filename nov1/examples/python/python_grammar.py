@@ -1,19 +1,18 @@
 from __future__ import annotations
-import numpy as np
-from _sep1 import PyRegexExpr as Regex, PyGrammar, PyGrammarExpr as ge, PyGrammarConstraint, PyGrammarConstraintState
-from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
-import torch
-import time
 
 import io
+import time
 import tokenize
-from typing import List
+from pathlib import Path
 
+import numpy as np
 import pegen.grammar
 import pegen.grammar_parser
 import pegen.tokenizer
-
+import torch
 from _sep1 import PyRegexExpr as Regex, PyGrammar, PyGrammarExpr as ge, PyGrammarConstraint, PyGrammarConstraintState
+from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
+
 
 def eat_string(s: bytes) -> Regex:
     return Regex.seq([Regex.eat_u8(ord(c)) for c in s])
@@ -75,7 +74,7 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
     return PyGrammar(exprs)
 
 def define_python_grammar():
-    with open("python.gram") as f:
+    with Path(__file__).parent / "python.gram" as f:
         grammar_text = f.read()
 
     with io.StringIO(grammar_text) as f:
