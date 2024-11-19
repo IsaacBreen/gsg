@@ -133,7 +133,7 @@ def load_model_and_tokenizer(model_name):
     return tokenizer, model
 
 def initialize_grammar_constraint(grammar, llm_tokens):
-    print("Initializing Grammar Constraint...")
+    print("Initializing PyGrammarConstraint...")
     grammar_constraint = PyGrammarConstraint(grammar, llm_tokens)
     print("Initializing Grammar Constraint State...")
     grammar_constraint_state = PyGrammarConstraintState(grammar_constraint)
@@ -164,7 +164,7 @@ if __name__ == "__main__":
 
     print("Defining grammar...")
     grammar = define_python_grammar()
-    print("Initializing grammar constraint...")
+    print("Initializing Grammar Constraint...")
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_tokens)
     print("Initializing grammar processor...")
     grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_tokens)
