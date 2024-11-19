@@ -136,11 +136,14 @@ pub fn precompute<'a>(
 
     println!("Precomputing");
     for state_id in tqdm!(0..tokenizer.max_state()) {
+        println!("Precomputing state {}", state_id);
         let mut state_map: BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
 
         for &llm_token in llm_tokens {
+            println!("Precomputing token {:?}", llm_token);
             let sequences = tokenizer.execute_all_from_state(llm_token, state_id);
             for (grammar_token_sequence, end_state) in sequences {
+                println!("Precomputing sequence {:?} -> {}", grammar_token_sequence, end_state);
                 state_map
                     .entry(grammar_token_sequence)
                     .and_modify(|llm_token_to_state| {
