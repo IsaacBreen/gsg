@@ -32,7 +32,7 @@ impl<T> GSSNode<T> {
         new_node.predecessors.push(Arc::new(self));
         new_node
     }
-    
+
     pub fn push_down(&self) -> Vec<Arc<Self>> {
         todo!()
     }
@@ -100,6 +100,16 @@ impl<T> GSSNode<T> {
         //  So this is fine... (?)
         self.predecessors.append(&mut other.predecessors);
     }
+
+    pub fn map<F, U>(&self, f: F) -> GSSNode<U>
+    where
+        F: Copy + Fn(&T) -> U,
+    {
+        GSSNode {
+            value: f(&self.value),
+            predecessors: self.predecessors.clone().into_iter().map(|node| Arc::new(node.map(f))).collect(),
+        }
+    }
 }
 
 impl<T> Drop for GSSNode<T> {
@@ -135,7 +145,7 @@ impl<T: Clone> GSSTrait<T> for GSSNode<T> {
         new_node.predecessors.push(Arc::new(self.clone()));
         new_node
     }
-    
+
     fn push_down(&self) -> Vec<Arc<GSSNode<T>>> {
         todo!()
     }
@@ -168,7 +178,7 @@ impl<T: Clone> GSSTrait<T> for Arc<GSSNode<T>> {
         new_node.predecessors.push(self.clone());
         new_node
     }
-    
+
     fn push_down(&self) -> Vec<Arc<GSSNode<T>>> {
         todo!()
     }
@@ -199,7 +209,7 @@ impl<T: Clone> GSSTrait<T> for Option<Arc<GSSNode<T>>> {
     fn push(&self, value: T) -> GSSNode<T> {
         self.clone().map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
     }
-    
+
     fn push_down(&self) -> Vec<Arc<GSSNode<T>>> {
         todo!()
     }
@@ -223,7 +233,7 @@ impl<T: Clone> GSSTrait<T> for Option<GSSNode<T>> {
     fn push(&self, value: T) -> GSSNode<T> {
         self.clone().map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
     }
-    
+
     fn push_down(&self) -> Vec<Arc<GSSNode<T>>> {
         todo!()
     }
