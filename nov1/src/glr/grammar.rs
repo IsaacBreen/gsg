@@ -134,21 +134,31 @@ pub fn compute_follow_sets(
                 if let Symbol::NonTerminal(nt) = symbol {
                     let old_size = follow_sets.get_mut(nt).unwrap().len();
 
-                    if i + 1 < rhs.len() {
-                        let next_symbol = &rhs[i + 1];
-                        match next_symbol {
-                            Symbol::Terminal(t_next) => {
-                                follow_sets.get_mut(nt).unwrap().insert(t_next.clone());
+                    let mut j = i + 1;
+                    loop {
+                        if j < rhs.len() {
+                            let next_symbol = &rhs[j];
+                            match next_symbol {
+                                Symbol::Terminal(t_next) => {
+                                    follow_sets.get_mut(nt).unwrap().insert(t_next.clone());
+                                    break;
+                                }
+                                Symbol::NonTerminal(nt_next) => {
+                                    let first_next = &first_sets[nt_next];
+                                    follow_sets.get_mut(nt).unwrap().extend(first_next.clone());
+                                    if epsilon_nonterminals.contains(nt_next) {
+                                        j += 1;
+                                    } else {
+                                        break;
+                                    }
+                                }
                             }
-                            Symbol::NonTerminal(nt_next) => {
-                                let first_next = &first_sets[nt_next];
-                                follow_sets.get_mut(nt).unwrap().extend(first_next.clone());
-                            }
+                        } else {
+                            // Last symbol in the production
+                            let follow_lhs = follow_sets.get(lhs).unwrap().clone();
+                            follow_sets.get_mut(nt).unwrap().extend(follow_lhs);
+                            break;
                         }
-                    } else {
-                        // Last symbol in the production
-                        let follow_lhs = follow_sets.get(lhs).unwrap().clone();
-                        follow_sets.get_mut(nt).unwrap().extend(follow_lhs);
                     }
 
                     if follow_sets.get_mut(nt).unwrap().len() != old_size {
