@@ -33,10 +33,6 @@ impl<T> GSSNode<T> {
         new_node
     }
 
-    pub fn push_down(&self) -> Vec<Arc<Self>> {
-        todo!()
-    }
-
     pub fn pop(&self) -> Vec<Arc<Self>> {
         self.predecessors.clone()
     }
@@ -83,7 +79,7 @@ impl<T> GSSNode<T> {
     where
         T: Clone,
     {
-        todo!()
+        nodes.iter().flat_map(|node| node.flatten()).collect()
     }
 
     pub fn merge(&mut self, mut other: Self)
@@ -123,12 +119,10 @@ impl<T> Drop for GSSNode<T> {
     }
 }
 
-
 pub trait GSSTrait<T: Clone> {
     type Peek<'a> where T: 'a, Self: 'a;
     fn peek(&self) -> Self::Peek<'_>;
     fn push(&self, value: T) -> GSSNode<T>;
-    fn push_down(&self) -> Vec<Arc<GSSNode<T>>> { todo!() }
     fn pop(&self) -> Vec<Arc<GSSNode<T>>>;
     fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>>;
 }
@@ -144,10 +138,6 @@ impl<T: Clone> GSSTrait<T> for GSSNode<T> {
         let mut new_node = GSSNode::new(value);
         new_node.predecessors.push(Arc::new(self.clone()));
         new_node
-    }
-
-    fn push_down(&self) -> Vec<Arc<GSSNode<T>>> {
-        todo!()
     }
 
     fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
@@ -179,10 +169,6 @@ impl<T: Clone> GSSTrait<T> for Arc<GSSNode<T>> {
         new_node
     }
 
-    fn push_down(&self) -> Vec<Arc<GSSNode<T>>> {
-        todo!()
-    }
-
     fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
         self.predecessors.clone()
     }
@@ -210,10 +196,6 @@ impl<T: Clone> GSSTrait<T> for Option<Arc<GSSNode<T>>> {
         self.clone().map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
     }
 
-    fn push_down(&self) -> Vec<Arc<GSSNode<T>>> {
-        todo!()
-    }
-
     fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
         self.as_ref().map(|node| node.pop()).unwrap_or_default()
     }
@@ -232,10 +214,6 @@ impl<T: Clone> GSSTrait<T> for Option<GSSNode<T>> {
 
     fn push(&self, value: T) -> GSSNode<T> {
         self.clone().map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
-    }
-
-    fn push_down(&self) -> Vec<Arc<GSSNode<T>>> {
-        todo!()
     }
 
     fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
