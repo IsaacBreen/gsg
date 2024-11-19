@@ -156,6 +156,7 @@ pub fn precompute<'a>(
             //         })
             //         .or_insert_with(|| BTreeMap::from([(llm_token, StateID(end_state))]));
             // }
+            
         }
 
         // if !state_map.is_empty() {
@@ -164,7 +165,7 @@ pub fn precompute<'a>(
     }
 
     // result
-    
+
     todo!()
 }
 

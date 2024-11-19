@@ -35,4 +35,22 @@ where
             }
         }
     }
+    
+    pub(crate) fn map<F, U>(&self, f: F) -> PrecomputeGSSNode<GrammarToken, U>
+    where
+        F: Copy + Fn(&Leaf) -> U,
+    {
+        match self {
+            PrecomputeGSSNode::Internal(children) => {
+                let mut new_children = BTreeMap::new();
+                for (token, child) in children {
+                    new_children.insert(token.clone(), child.map(f));
+                }
+                PrecomputeGSSNode::Internal(new_children)
+            }
+            PrecomputeGSSNode::Leaf(leaf) => {
+                PrecomputeGSSNode::Leaf(f(leaf))
+            }
+        }
+    }
 }
