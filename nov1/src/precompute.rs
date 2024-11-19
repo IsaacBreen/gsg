@@ -40,7 +40,7 @@ pub trait Tokenizer: Sized {
         &self,
         text: &[u8],
         state: usize,
-    ) -> BTreeMap<Vec<Token>, usize> {
+    ) -> PrecomputeGSSNode<Token, usize> {
         use std::collections::VecDeque;
 
         // Define a queue item structure
@@ -91,7 +91,8 @@ pub trait Tokenizer: Sized {
             }
         }
 
-        final_results
+        // final_results
+        todo!()
     }
 }
 
@@ -127,7 +128,7 @@ pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
     llm_tokens: &[&'a [u8]],
 ) -> BTreeMap<StateID, PrecomputeGSSNode<GroupID, &'a [u8]>> {
-    let mut result = BTreeMap::new();
+    let mut result: BTreeMap<StateID, PrecomputeGSSNode<GroupID, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
 
     // Ensure the tokenizer doesn't match on empty strings
     println!("Ensuring tokenizer doesn't match on empty strings");
@@ -145,23 +146,25 @@ pub fn precompute<'a>(
             let token_str = std::str::from_utf8(llm_token).unwrap_or("Invalid UTF-8");
             println!("Precomputing token {:?} ({:?})", llm_token, token_str);
             let sequences = tokenizer.execute_all_from_state(llm_token, state_id);
-            for (grammar_token_sequence, end_state) in sequences {
-                let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| t.id).collect();
-                println!("Precomputing sequence {:?} -> {}", grammar_token_id_sequence, end_state);
-                state_map
-                    .entry(grammar_token_id_sequence)
-                    .and_modify(|llm_token_to_state| {
-                        llm_token_to_state.insert(llm_token, StateID(end_state));
-                    })
-                    .or_insert_with(|| BTreeMap::from([(llm_token, StateID(end_state))]));
-            }
+            // for (grammar_token_sequence, end_state) in sequences {
+            //     let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| t.id).collect();
+            //     println!("Precomputing sequence {:?} -> {}", grammar_token_id_sequence, end_state);
+            //     state_map
+            //         .entry(grammar_token_id_sequence)
+            //         .and_modify(|llm_token_to_state| {
+            //             llm_token_to_state.insert(llm_token, StateID(end_state));
+            //         })
+            //         .or_insert_with(|| BTreeMap::from([(llm_token, StateID(end_state))]));
+            // }
         }
 
-        if !state_map.is_empty() {
-            result.insert(glr::table::StateID(state_id), state_map);
-        }
+        // if !state_map.is_empty() {
+        //     result.insert(glr::table::StateID(state_id), state_map);
+        // }
     }
 
+    // result
+    
     todo!()
 }
 
