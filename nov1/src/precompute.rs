@@ -96,13 +96,13 @@ pub trait Tokenizer: Sized {
 
 /// Precomputes a map from each state and token sequence to a set of LLM token IDs.
 pub fn precompute_llm_token_sets<'a>(
-    precompute_map: &BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>>>,
+    precompute_map: &BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>>>,
     llm_token_to_id: &BTreeMap<&'a [u8], usize>,
-) -> BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeSet<usize>>> {
-    let mut result: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeSet<usize>>> = BTreeMap::new();
+) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeSet<usize>>> {
+    let mut result: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeSet<usize>>> = BTreeMap::new();
 
     for (&state_id, token_sequence_map) in precompute_map {
-        let mut sequence_set_map: BTreeMap<Vec<Token>, BTreeSet<usize>> = BTreeMap::new();
+        let mut sequence_set_map: BTreeMap<Vec<GroupID>, BTreeSet<usize>> = BTreeMap::new();
 
         for (token_sequence, llm_token_state_map) in token_sequence_map {
             let mut set = BTreeSet::new();
@@ -124,7 +124,7 @@ pub fn precompute_llm_token_sets<'a>(
 pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
     llm_tokens: &[&'a [u8]],
-) -> BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>>> {
+) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>>> {
     let mut result = BTreeMap::new();
 
     // Ensure the tokenizer doesn't match on empty strings
@@ -137,15 +137,16 @@ pub fn precompute<'a>(
     println!("Precomputing");
     for state_id in tqdm!(0..tokenizer.max_state()) {
         println!("Precomputing state {}", state_id);
-        let mut state_map: BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
+        let mut state_map: BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
 
         for &llm_token in llm_tokens {
             println!("Precomputing token {:?}", llm_token);
             let sequences = tokenizer.execute_all_from_state(llm_token, state_id);
             for (grammar_token_sequence, end_state) in sequences {
+                let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| t.id).collect();
                 println!("Precomputing sequence {:?} -> {}", grammar_token_sequence, end_state);
                 state_map
-                    .entry(grammar_token_sequence)
+                    .entry(grammar_token_id_sequence)
                     .and_modify(|llm_token_to_state| {
                         llm_token_to_state.insert(llm_token, StateID(end_state));
                     })
@@ -163,12 +164,11 @@ pub fn precompute<'a>(
 
 pub fn precompute_add_incomplete_token<'a>(
     tokenizer: &impl Tokenizer,
-    precomputed: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>>>,
+    precomputed: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>>>,
 ) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>> {
     let mut result: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
     for (state_id, token_sequence_map) in precomputed {
-        for (token_sequence, llm_token_state_map) in token_sequence_map {
-            let mut token_id_sequence = token_sequence.iter().map(|t| t.id as TokenID).collect::<Vec<_>>();
+        for (token_id_sequence, llm_token_state_map) in token_sequence_map {
             for (llm_token, next_state_id) in llm_token_state_map {
                 for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_state_id.0) {
                     let mut new_token_sequence = token_id_sequence.clone();
@@ -235,10 +235,10 @@ mod tests {
         // We will manually construct the expected output based on the DFA and LLM tokens
 
         // Initialize the expected map
-        let mut precompute_map: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>>> = BTreeMap::new();
+        let mut precompute_map: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>>> = BTreeMap::new();
 
         // For DFA state 0 (start state)
-        let mut state0_map: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        let mut state0_map: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
 
         // Analyze each LLM token starting from state 0
 
@@ -350,7 +350,7 @@ mod tests {
         let result = precompute(&tokenizer, llm_tokens);
 
         // Build the expected output
-        let mut state_0: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        let mut state_0: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
         state_0.insert(vec![], BTreeMap::from([(b"a".as_slice(), StateID(1)), (b"ab", StateID(3))]));
         state_0.insert(vec![Token { id: 0, width: 1 }], BTreeMap::from([(b"a".as_slice(), StateID(0))]));
         state_0.insert(vec![Token { id: 0, width: 1 }, Token { id: 1, width: 1 }], BTreeMap::from([(b"ab".as_slice(), StateID(0))]));
@@ -359,7 +359,7 @@ mod tests {
         state_0.insert(vec![Token { id: 3, width: 3 }], BTreeMap::from([(b"abc".as_slice(), StateID(0))]));
         assert_eq!(Some(&state_0), result.get(&StateID(0)));
 
-        let mut state_1: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        let mut state_1: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
         state_1.insert(vec![], BTreeMap::from([(b"b".as_slice(), StateID(3))]));
         state_1.insert(vec![Token { id: 2, width: 1 }], BTreeMap::from([(b"b".as_slice(), StateID(0))]));
         state_1.insert(vec![Token { id: 3, width: 2 }], BTreeMap::from([(b"bc".as_slice(), StateID(0))]));
@@ -367,13 +367,13 @@ mod tests {
 
         assert_eq!(None, result.get(&StateID(2)));
 
-        let mut state_3: BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        let mut state_3: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
         state_3.insert(vec![Token { id: 3, width: 1 }], BTreeMap::from([(b"c".as_slice(), StateID(0))]));
         assert_eq!(Some(&state_3), result.get(&StateID(3)));
 
         assert_eq!(None, result.get(&StateID(4)));
 
-        let mut expected: BTreeMap<StateID, BTreeMap<Vec<Token>, BTreeMap<&[u8], StateID>>> = BTreeMap::new();
+        let mut expected: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>>> = BTreeMap::new();
         expected.insert(StateID(0), state_0);
         expected.insert(StateID(1), state_1);
         expected.insert(StateID(3), state_3);
