@@ -18,7 +18,6 @@ impl<T> GSSNode<T> {
     pub fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = T>,
-        <I as IntoIterator>::IntoIter: DoubleEndedIterator,
     {
         let mut iter = iter.into_iter();
         let mut root = Self::new(iter.next().unwrap());
@@ -242,15 +241,5 @@ impl<T: Clone + Ord> BulkMerge<T> for Vec<Arc<GSSNode<T>>> {
                 self.push(first);
             }
         }
-    }
-}
-
-impl<T> GSSNode<T> {
-    pub fn flatten(&self) -> Vec<Vec<T>> {
-        todo!()
-    }
-    
-    pub fn from_vecs(vecs: Vec<Vec<T>>) -> Self {
-        todo!()
     }
 }
