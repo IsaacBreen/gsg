@@ -2,6 +2,7 @@ use crate::finite_automata::{GroupID, Regex};
 use crate::glr;
 use crate::glr::table::StateID;
 use std::collections::{BTreeMap, BTreeSet};
+use kdam::tqdm;
 
 pub type TokenID = usize;
 
@@ -132,7 +133,7 @@ pub fn precompute<'a>(
         panic!("Tokenizer should not match on empty string. If it did, there would be infinitely many possible token sequences for any LLM token.");
     }
 
-    for state_id in 0..tokenizer.max_state() {
+    for state_id in tqdm!(0..tokenizer.max_state()) {
         let mut state_map: BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
 
         for &llm_token in llm_tokens {
