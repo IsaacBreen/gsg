@@ -17,6 +17,7 @@ pub struct Grammar<T> {
     pub start_production_id: usize,
     pub literal_map: BTreeMap<String, String>,
     pub terminal_name_to_group_id: BiBTreeMap<String, usize>,
+    pub terminal_expr_to_group_id: BiBTreeMap<Expr, usize>,
     pub tokenizer: T,
 }
 
@@ -282,6 +283,7 @@ impl Grammar<Regex> {
             start_production_id: 0,
             literal_map,
             terminal_name_to_group_id,
+            terminal_expr_to_group_id,
             tokenizer,
         }
     }
