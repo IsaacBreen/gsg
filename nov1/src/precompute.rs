@@ -3,6 +3,7 @@ use crate::glr;
 use crate::glr::table::StateID;
 use std::collections::{BTreeMap, BTreeSet};
 use kdam::tqdm;
+use crate::precompute_gss::PrecomputeGSSNode;
 
 pub type TokenID = usize;
 
@@ -94,6 +95,7 @@ pub trait Tokenizer: Sized {
     }
 }
 
+// todo: remove this
 /// Precomputes a map from each state and token sequence to a set of LLM token IDs.
 pub fn precompute_llm_token_sets<'a>(
     precompute_map: &BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>>>,
@@ -124,7 +126,7 @@ pub fn precompute_llm_token_sets<'a>(
 pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
     llm_tokens: &[&'a [u8]],
-) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>>> {
+) -> BTreeMap<StateID, PrecomputeGSSNode<GroupID, &'a [u8]>> {
     let mut result = BTreeMap::new();
 
     // Ensure the tokenizer doesn't match on empty strings
@@ -160,30 +162,31 @@ pub fn precompute<'a>(
         }
     }
 
-    result
+    todo!()
 }
 
 pub fn precompute_add_incomplete_token<'a>(
     tokenizer: &impl Tokenizer,
-    precomputed: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>>>,
-) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>> {
-    let mut result: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
-    for (state_id, token_sequence_map) in precomputed {
-        for (token_id_sequence, llm_token_state_map) in token_sequence_map {
-            for (llm_token, next_state_id) in llm_token_state_map {
-                for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_state_id.0) {
-                    let mut new_token_sequence = token_id_sequence.clone();
-                    new_token_sequence.push(possible_next_token_id);
-                    // todo: this shouldn't be necessary. Just a sanity check. Consider removing.
-                    if let Some(existing) = result.entry(state_id).or_default().entry(new_token_sequence.clone()).or_default().get(llm_token) {
-                        assert_eq!(*existing, next_state_id);
-                    }
-                    result.entry(state_id).or_default().entry(new_token_sequence).or_default().insert(llm_token, next_state_id);
-                }
-            }
-        }
-    }
-    result
+    precomputed: BTreeMap<StateID, PrecomputeGSSNode<GroupID, &'a [u8]>>,
+) -> BTreeMap<StateID, PrecomputeGSSNode<TokenID, BTreeMap<&'a [u8], StateID>>> {
+    todo!()
+    // let mut result: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
+    // for (state_id, token_sequence_map) in precomputed {
+    //     for (token_id_sequence, llm_token_state_map) in token_sequence_map {
+    //         for (llm_token, next_state_id) in llm_token_state_map {
+    //             for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_state_id.0) {
+    //                 let mut new_token_sequence = token_id_sequence.clone();
+    //                 new_token_sequence.push(possible_next_token_id);
+    //                 // todo: this shouldn't be necessary. Just a sanity check. Consider removing.
+    //                 if let Some(existing) = result.entry(state_id).or_default().entry(new_token_sequence.clone()).or_default().get(llm_token) {
+    //                     assert_eq!(*existing, next_state_id);
+    //                 }
+    //                 result.entry(state_id).or_default().entry(new_token_sequence).or_default().insert(llm_token, next_state_id);
+    //             }
+    //         }
+    //     }
+    // }
+    // result
 }
 
 impl Tokenizer for Regex {
@@ -350,35 +353,36 @@ mod tests {
         // Run precompute
         let result = precompute(&tokenizer, llm_tokens);
 
-        // Build the expected output
-        let mut state_0: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
-        state_0.insert(vec![], BTreeMap::from([(b"a".as_slice(), StateID(1)), (b"ab", StateID(3))]));
-        state_0.insert(vec![0], BTreeMap::from([(b"a".as_slice(), StateID(0))]));
-        state_0.insert(vec![0, 1], BTreeMap::from([(b"ab".as_slice(), StateID(0))]));
-        state_0.insert(vec![1], BTreeMap::from([(b"b".as_slice(), StateID(0))]));
-        state_0.insert(vec![2], BTreeMap::from([(b"ab".as_slice(), StateID(0))]));
-        state_0.insert(vec![3], BTreeMap::from([(b"abc".as_slice(), StateID(0))]));
-        assert_eq!(Some(&state_0), result.get(&StateID(0)));
-
-        let mut state_1: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
-        state_1.insert(vec![], BTreeMap::from([(b"b".as_slice(), StateID(3))]));
-        state_1.insert(vec![2], BTreeMap::from([(b"b".as_slice(), StateID(0))]));
-        state_1.insert(vec![3], BTreeMap::from([(b"bc".as_slice(), StateID(0))]));
-        assert_eq!(Some(&state_1), result.get(&StateID(1)));
-
-        assert_eq!(None, result.get(&StateID(2)));
-
-        let mut state_3: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
-        state_3.insert(vec![3], BTreeMap::from([(b"c".as_slice(), StateID(0))]));
-        assert_eq!(Some(&state_3), result.get(&StateID(3)));
-
-        assert_eq!(None, result.get(&StateID(4)));
-
-        let mut expected: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>>> = BTreeMap::new();
-        expected.insert(StateID(0), state_0);
-        expected.insert(StateID(1), state_1);
-        expected.insert(StateID(3), state_3);
-
-        assert_eq!(&expected, &result);
+        // todo: update this for PrecomputeGSSNode
+        // // Build the expected output
+        // let mut state_0: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        // state_0.insert(vec![], BTreeMap::from([(b"a".as_slice(), StateID(1)), (b"ab", StateID(3))]));
+        // state_0.insert(vec![0], BTreeMap::from([(b"a".as_slice(), StateID(0))]));
+        // state_0.insert(vec![0, 1], BTreeMap::from([(b"ab".as_slice(), StateID(0))]));
+        // state_0.insert(vec![1], BTreeMap::from([(b"b".as_slice(), StateID(0))]));
+        // state_0.insert(vec![2], BTreeMap::from([(b"ab".as_slice(), StateID(0))]));
+        // state_0.insert(vec![3], BTreeMap::from([(b"abc".as_slice(), StateID(0))]));
+        // assert_eq!(Some(&state_0), result.get(&StateID(0)));
+        //
+        // let mut state_1: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        // state_1.insert(vec![], BTreeMap::from([(b"b".as_slice(), StateID(3))]));
+        // state_1.insert(vec![2], BTreeMap::from([(b"b".as_slice(), StateID(0))]));
+        // state_1.insert(vec![3], BTreeMap::from([(b"bc".as_slice(), StateID(0))]));
+        // assert_eq!(Some(&state_1), result.get(&StateID(1)));
+        //
+        // assert_eq!(None, result.get(&StateID(2)));
+        //
+        // let mut state_3: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
+        // state_3.insert(vec![3], BTreeMap::from([(b"c".as_slice(), StateID(0))]));
+        // assert_eq!(Some(&state_3), result.get(&StateID(3)));
+        //
+        // assert_eq!(None, result.get(&StateID(4)));
+        //
+        // let mut expected: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>>> = BTreeMap::new();
+        // expected.insert(StateID(0), state_0);
+        // expected.insert(StateID(1), state_1);
+        // expected.insert(StateID(3), state_3);
+        //
+        // assert_eq!(&expected, &result);
     }
 }
