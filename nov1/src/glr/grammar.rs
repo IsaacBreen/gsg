@@ -32,6 +32,32 @@ pub fn prod(name: &str, rhs: Vec<Symbol>) -> Production {
     }
 }
 
+pub fn compute_epsilon_nonterminals(productions: &[Production]) -> BTreeSet<NonTerminal> {
+    let mut epsilon_nonterminals: BTreeSet<NonTerminal> = BTreeSet::new();
+    let mut changed = true;
+
+    while changed {
+        changed = false;
+        for production in productions {
+            if production.rhs.is_empty() && !epsilon_nonterminals.contains(&production.lhs) {
+                epsilon_nonterminals.insert(production.lhs.clone());
+                changed = true;
+            } else if production.rhs.iter().all(|symbol| {
+                if let Symbol::NonTerminal(nt) = symbol {
+                    epsilon_nonterminals.contains(nt)
+                } else {
+                    false
+                }
+            }) && !epsilon_nonterminals.contains(&production.lhs)
+            {
+                epsilon_nonterminals.insert(production.lhs.clone());
+                changed = true;
+            }
+        }
+    }
+
+    epsilon_nonterminals
+}
 
 pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, BTreeSet<Terminal>> {
     let mut first_sets: BTreeMap<NonTerminal, BTreeSet<Terminal>> = BTreeMap::new();
@@ -42,8 +68,8 @@ pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, B
         if !first_sets.contains_key(lhs) {
             first_sets.insert(lhs.clone(), BTreeSet::new());
         }
-        if let Symbol::Terminal(t) = &production.rhs[0] {
-            first_sets.get_mut(lhs).unwrap().insert(t.clone());
+        if let Some(Symbol::NonTerminal(nt)) = &production.rhs.get(0) {
+            first_sets.get_mut(lhs).unwrap().insert(Terminal(nt.0.clone()));
         }
     }
 
@@ -77,10 +103,9 @@ pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, B
 pub fn compute_follow_sets(
     productions: &[Production],
 ) -> BTreeMap<NonTerminal, BTreeSet<Terminal>> {
+    let first_sets = compute_first_sets(productions);
+    let epsilon_nonterminals = compute_epsilon_nonterminals(productions);
     let mut follow_sets: BTreeMap<NonTerminal, BTreeSet<Terminal>> = BTreeMap::new();
-
-    // Compute first sets
-    let mut first_sets = compute_first_sets(productions);
 
     // Initialize follow sets
     for production in productions {
