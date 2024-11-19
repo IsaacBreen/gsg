@@ -244,3 +244,13 @@ impl<T: Clone + Ord> BulkMerge<T> for Vec<Arc<GSSNode<T>>> {
         }
     }
 }
+
+impl<T> GSSNode<T> {
+    pub fn flatten(&self) -> Vec<Vec<T>> {
+        todo!()
+    }
+    
+    pub fn from_vecs(vecs: Vec<Vec<T>>) -> Self {
+        todo!()
+    }
+}
