@@ -76,9 +76,11 @@ pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, B
 
 pub fn compute_follow_sets(
     productions: &[Production],
-    first_sets: &BTreeMap<NonTerminal, BTreeSet<Terminal>>,
 ) -> BTreeMap<NonTerminal, BTreeSet<Terminal>> {
     let mut follow_sets: BTreeMap<NonTerminal, BTreeSet<Terminal>> = BTreeMap::new();
+
+    // Compute first sets
+    let mut first_sets = compute_first_sets(productions);
 
     // Initialize follow sets
     for production in productions {

@@ -173,8 +173,7 @@ fn stage_2(stage_1_table: Stage1Table, productions: &[Production]) -> Stage2Resu
 
 
 fn stage_3(stage_2_table: Stage2Table, productions: &[Production]) -> Stage3Result {
-    let first_sets = compute_first_sets(productions);
-    let follow_sets = compute_follow_sets(productions, &first_sets);
+    let follow_sets = compute_follow_sets(productions);
 
     let mut stage_3_table = BTreeMap::new();
 
