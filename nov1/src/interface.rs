@@ -278,8 +278,6 @@ impl Grammar<Regex> {
         let tokenizer_expr_groups = groups(tokenizer_exprs_vec);
         let tokenizer = tokenizer_expr_groups.clone().build();
 
-        dbg!(&terminal_name_to_group_id);
-        dbg!(&terminal_expr_to_group_id);
         Self {
             productions,
             start_production_id: 0,
