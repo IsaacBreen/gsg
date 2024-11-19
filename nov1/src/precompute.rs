@@ -144,7 +144,7 @@ pub fn precompute<'a>(
             let sequences = tokenizer.execute_all_from_state(llm_token, state_id);
             for (grammar_token_sequence, end_state) in sequences {
                 let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| t.id).collect();
-                println!("Precomputing sequence {:?} -> {}", grammar_token_sequence, end_state);
+                println!("Precomputing sequence {:?} -> {}", grammar_token_id_sequence, end_state);
                 state_map
                     .entry(grammar_token_id_sequence)
                     .and_modify(|llm_token_to_state| {
