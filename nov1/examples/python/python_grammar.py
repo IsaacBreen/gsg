@@ -133,8 +133,11 @@ def load_model_and_tokenizer(model_name):
     return tokenizer, model
 
 def initialize_grammar_constraint(grammar, llm_tokens):
+    print("Initializing Grammar Constraint...")
     grammar_constraint = PyGrammarConstraint(grammar, llm_tokens)
+    print("Initializing Grammar Constraint State...")
     grammar_constraint_state = PyGrammarConstraintState(grammar_constraint)
+    print("Getting Initial Mask...")
     initial_mask = grammar_constraint_state.get_mask()
     initial_mask_ids = np.where(initial_mask)[0]
     initial_mask_id_map = {id: llm_tokens[id] for id in initial_mask_ids}
@@ -159,10 +162,14 @@ if __name__ == "__main__":
     llm_tokens = [tokenizer.convert_ids_to_tokens(i).encode() for i in range(tokenizer.vocab_size)]
     llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
 
+    print("Defining grammar...")
     grammar = define_python_grammar()
+    print("Initializing grammar constraint...")
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_tokens)
+    print("Initializing grammar processor...")
     grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_tokens)
 
+    print("Generating text...")
 #     input_text = "i^10=i*"
     input_text = "(i)+((i))+(((i)))+"
     output_text = generate_text(model, tokenizer, grammar_processor, input_text)
