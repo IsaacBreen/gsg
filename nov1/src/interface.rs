@@ -292,15 +292,16 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         println!("GrammarConstraint::from_grammar");
         let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
         let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
-        println!("non_terminal_map: {:#?}", non_terminal_map);
+        println!("Generating GLR parser");
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
-        println!("precomputing");
+        println!("Precomputing");
         let precomputed = precompute(&grammar.tokenizer, llm_tokens);
+        println!("Adding incomplete token");
         let precomputed = precompute_add_incomplete_token(&grammar.tokenizer, precomputed);
+        println!("Converting to LLM token IDs");
         let precomputed = convert_precomputed_to_llm_token_ids(precomputed, &llm_tokens.iter().map(|token| token.to_vec()).collect::<Vec<_>>());
-
-        println!("precomputed: {:#?}", precomputed);
+        println!("Done precomputing");
 
         let num_llm_tokens = llm_tokens.len();
 
