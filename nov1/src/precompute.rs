@@ -128,11 +128,13 @@ pub fn precompute<'a>(
     let mut result = BTreeMap::new();
 
     // Ensure the tokenizer doesn't match on empty strings
+    println!("Ensuring tokenizer doesn't match on empty strings");
     let execute_result = tokenizer.execute_from_state(&[], 0);
     if !execute_result.matches.is_empty() {
         panic!("Tokenizer should not match on empty string. If it did, there would be infinitely many possible token sequences for any LLM token.");
     }
 
+    println!("Precomputing");
     for state_id in tqdm!(0..tokenizer.max_state()) {
         let mut state_map: BTreeMap<Vec<Token>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
 
