@@ -1,18 +1,18 @@
-        use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 struct TrieNode<T, E> {
-    value: Option<T>,
+    value: T,
     children: BTreeMap<E, Arc<Mutex<TrieNode<T, E>>>>,
     num_parents: usize,
 }
 
-impl<T, E: Ord> TrieNode<T, E> {
+impl<T: Default, E: Ord> TrieNode<T, E> {
     fn new() -> Self {
         TrieNode {
-            value: None,
+            value: T::default(),
             children: BTreeMap::new(),
             num_parents: 0,
         }
@@ -36,7 +36,6 @@ impl<T: Clone + Default, E: Ord + Clone> TrieNode<T, E> {
         V: Clone + Default,
         E: Ord,
     {
-
         // A queue of active states (node and its associated value of type V)
         let mut active_states: VecDeque<(Arc<Mutex<TrieNode<T, E>>>, V)> = VecDeque::new();
 
@@ -54,7 +53,7 @@ impl<T: Clone + Default, E: Ord + Clone> TrieNode<T, E> {
                 let child = child_arc.lock().unwrap();
 
                 // Apply the step function to compute the new value
-                let new_value = step(&value, edge, node.value.as_ref().unwrap());
+                let new_value = step(&value, edge, &node.value);
 
                 // Get the raw pointer to the child node for identification
                 let child_ptr = &*child as *const TrieNode<T, E>;
@@ -104,9 +103,9 @@ impl<T: Clone + Default, E: Ord + Clone> TrieNode<T, E> {
                     if let Some(child) = current_node_guard.get(edge) {
                         if !already_merged_values.contains(&(&*child.lock().unwrap() as *const TrieNode<T, E>)) {
                             // Merge the values
-                            let child_value = child.lock().unwrap().value.as_ref().unwrap().clone();
+                            let child_value = child.lock().unwrap().value.clone();
                             let merged_value = t_merge(vec![child_value, value.clone()]);
-                            child.lock().unwrap().value = Some(merged_value);
+                            child.lock().unwrap().value = merged_value;
                         }
                         new_nodes.push(child);
                     } else {
@@ -119,7 +118,7 @@ impl<T: Clone + Default, E: Ord + Clone> TrieNode<T, E> {
                         } else {
                             // Create a new node and map it
                             let new_node = Arc::new(Mutex::new(TrieNode {
-                                value: Some(value.clone()),
+                                value: value.clone(),
                                 children: BTreeMap::new(),
                                 num_parents: 0,
                             }));
