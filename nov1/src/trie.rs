@@ -73,13 +73,10 @@ impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
             }
         }
 
-        // At the end, merge all remaining dormant states (if any) and return the result
-        let remaining_values: Vec<V> = dormant_states
-            .into_iter()
-            .flat_map(|(_, values)| values)
-            .collect();
-
-        merge(remaining_values);
+        // At the end, if there are any dormant states left, something went wrong
+        if !dormant_states.is_empty() {
+            panic!("Leftover dormant states");
+        }
     }
 
     fn merge(
