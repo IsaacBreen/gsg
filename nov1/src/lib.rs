@@ -11,3 +11,4 @@ pub mod glr;
 pub mod constraint;
 pub mod interface;
 mod precompute_gss;
+mod trie;
