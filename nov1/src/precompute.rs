@@ -48,11 +48,17 @@ pub trait Tokenizer: Sized {
         let root = Arc::new(Mutex::new(TrieNode::new(None)));
 
         // Initialize the queue with the starting state
+        // todo: this can be simplified; any queue entries other than the first one should have initial state (i.e. 0)
         queue.insert((0, state), root.clone());
 
         while let Some(((position, state), node)) = queue.pop_first() {
+            // todo: does it make sense to have this here?
             if position > text.len() {
                 continue;
+            }
+
+            if position == text.len() {
+                node.lock().unwrap().value = Some(state);
             }
 
             let remaining_text = &text[position..];
@@ -60,8 +66,9 @@ pub trait Tokenizer: Sized {
 
             // Process all matches
             for token in &execute_result.matches {
-                assert_ne!(token.width, 0);
                 let new_position = position + token.width;
+                assert_ne!(token.width, 0);
+                assert!(new_position <= text.len());
                 if let Some(new_node) = queue.get_mut(&(new_position, state)) {
                     // Add an edge from the current node to the new node
                     node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
