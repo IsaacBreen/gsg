@@ -41,9 +41,9 @@ pub trait Tokenizer: Sized {
         &self,
         text: &[u8],
         state: usize,
-    ) -> Arc<Mutex<TrieNode<TokenID, usize>>> {
+    ) -> Arc<Mutex<TrieNode<TokenID, Option<usize>>>> {
         // (position, state) -> node
-        let mut queue: BTreeMap<(usize, usize), Arc<Mutex<TrieNode<TokenID, usize>>>> = BTreeMap::new();
+        let mut queue: BTreeMap<(usize, usize), Arc<Mutex<TrieNode<TokenID, Option<usize>>>>> = BTreeMap::new();
 
         let root = Arc::new(Mutex::new(TrieNode::new(None)));
 
