@@ -88,8 +88,7 @@ impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
         t_merge: impl Fn(Vec<T>) -> T,
     ) {
         // A map to track the mapping of nodes from `other` to `self`
-        let mut node_map: HashMap<*const TrieNode<T, E>, Arc<Mutex<TrieNode<T, E>>>> =
-            HashMap::new();
+        let mut node_map: HashMap<*const TrieNode<T, E>, Arc<Mutex<TrieNode<T, E>>>> = HashMap::new();
 
         // Initialize the `special_map` algorithm
         TrieNode::special_map(
@@ -145,5 +144,7 @@ impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
                 merged_nodes
             },
         );
+        
+        
     }
 }
