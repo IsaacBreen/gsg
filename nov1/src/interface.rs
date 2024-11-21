@@ -318,10 +318,12 @@ impl<T: Tokenizer> GrammarConstraint<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
     use bitvec::prelude::*;
     use super::*;
     use crate::finite_automata::eat_u8;
     use crate::glr::table::generate_glr_parser;
+    use crate::trie::TrieNode;
     // ... (other imports and helper functions remain the same) ...
 
 
@@ -391,6 +393,16 @@ mod tests {
                         llm_token_to_id.get($token.as_slice()).unwrap().0,
                     )*
                 ]
+            }
+        }
+
+        for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
+            for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
+                println!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+                // print edge values and destination addresses
+                for (edge, dest) in node.lock().unwrap().children.iter() {
+                    println!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+                }
             }
         }
 
