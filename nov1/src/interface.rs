@@ -302,7 +302,7 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         println!("Adding incomplete token");
         let precomputed = precompute_add_incomplete_token(&grammar.tokenizer, precomputed);
         println!("Converting to LLM token IDs");
-        let precomputed = convert_precomputed_to_llm_token_ids(precomputed, &llm_tokens.iter().map(|token| token.to_vec()).collect::<Vec<_>>());
+        let precomputed = convert_precomputed_to_llm_token_ids(&grammar.tokenizer, precomputed, &llm_tokens.iter().map(|token| token.to_vec()).collect::<Vec<_>>());
         println!("Done precomputing");
 
         let num_llm_tokens = llm_tokens.len();

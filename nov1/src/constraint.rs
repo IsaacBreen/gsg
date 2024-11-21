@@ -19,7 +19,7 @@ pub struct LLMTokenID(pub usize);
 pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
-    pub(crate) precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BitVec)>>,
+    pub(crate) precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BTreeMap<TokenID, BitVec>)>>,
     pub(crate) num_llm_tokens: usize,
 }
 
@@ -30,24 +30,30 @@ pub struct GrammarConstraintState<T: Tokenizer> {
 }
 
 pub fn convert_precomputed_to_llm_token_ids<'a>(
+    tokenizer: &impl Tokenizer,
     precomputed: BTreeMap<StateID, TrieNode<TokenID, BTreeMap<&'a [u8], StateID>>>,
     llm_tokens: &[LLMToken],
 // ) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (BTreeMap<LLMTokenID, StateID>, BitVec)>> {
-) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BitVec)>> {
+) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BTreeMap<TokenID, BitVec>)>> {
     let num_llm_tokens = llm_tokens.len();
     let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
     let mut result = BTreeMap::new();
     for (state_id, token_sequence_map) in precomputed {
         let mut new_token_sequence_map_arc = token_sequence_map.map_t(|llm_token_to_state_id| {
-            let mut bitset = BitVec::new();
-            bitset.resize(num_llm_tokens, false);
             let mut new_llm_token_state_map = BTreeMap::new();
+            let mut bitsets: BTreeMap<TokenID, BitVec> = BTreeMap::new();
             for (llm_token, next_state_id) in llm_token_to_state_id {
                 let llm_token_id = llm_token_to_id.get(llm_token).unwrap();
-                bitset.set(llm_token_id.0, true);
                 new_llm_token_state_map.insert(*llm_token_id, next_state_id);
+                for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_state_id.0) {
+                    bitsets.entry(possible_next_token_id).or_insert_with(|| {
+                        let mut bitset = BitVec::new();
+                        bitset.resize(num_llm_tokens, false);
+                        bitset
+                    }).set(llm_token_id.0, true);
+                }
             }
-            (new_llm_token_state_map, bitset)
+            (new_llm_token_state_map, bitsets)
         });
         let new_token_sequence_map = new_token_sequence_map_arc.lock().unwrap().clone();
         result.insert(state_id, new_token_sequence_map);
@@ -61,7 +67,7 @@ impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
         let precomputed = precompute::precompute(&tokenizer, &llm_tokens.iter().map(|token| &token[..]).collect::<Vec<_>>());
         let precomputed = precompute::precompute_add_incomplete_token(&tokenizer, precomputed);
-        let precomputed = convert_precomputed_to_llm_token_ids(precomputed, llm_tokens);
+        let precomputed = convert_precomputed_to_llm_token_ids(&tokenizer, precomputed, llm_tokens);
         let num_llm_tokens = llm_tokens.len();
 
         Self {
@@ -89,12 +95,19 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state in tokenizer_state_ids {
                 if let Some(token_sequence_map) = self.parent.precomputed.get(tokenizer_state) {
-                    for (tokenizer_token_sequence, (llm_token_id_to_state_id, bitset)) in token_sequence_map.flatten(|(x, _)| !x.is_empty()) {
+                    for (tokenizer_token_sequence, (_, bitsets)) in token_sequence_map.flatten(|(x, _)| !x.is_empty()) {
                         let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_state(parse_state.clone());
                         let grammar_token_id_sequence = tokenizer_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
                         new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                         if new_glr_parse_state.is_ok() {
-                            result |= bitset;
+                            for (possible_next_grammar_token, bitset) in bitsets {
+                                let mut new_new_glr_parse_state = new_glr_parse_state.clone();
+                                let possible_next_grammar_token_id = table::TerminalID(possible_next_grammar_token);
+                                new_new_glr_parse_state.step(possible_next_grammar_token_id);
+                                if new_new_glr_parse_state.is_ok() {
+                                    result |= bitset;
+                                }
+                            }
                         }
                     }
                 }
