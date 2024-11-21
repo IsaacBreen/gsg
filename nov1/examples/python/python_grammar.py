@@ -164,6 +164,7 @@ if __name__ == "__main__":
 
     print("Defining grammar...")
     grammar = define_python_grammar()
+    print(grammar)
     print("Initializing Grammar Constraint...")
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_tokens)
     print("Initializing grammar processor...")
