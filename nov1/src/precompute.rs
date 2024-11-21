@@ -131,13 +131,13 @@ pub fn precompute<'a>(
 
     crate::dbgprintln2!("Precomputing");
     for state_id in tqdm!(0..tokenizer.max_state()) {
-        crate::dbgprintln2!("Precomputing state {}", state_id);
+        // crate::dbgprintln2!("Precomputing state {}", state_id);
         // let mut state_map: BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, BTreeMap<&'a [u8], StateID>>>> = Arc::new(Mutex::new(TrieNode::new(BTreeMap::new())));
 
         for &llm_token in llm_tokens {
             let token_str = std::str::from_utf8(llm_token).unwrap_or("Invalid UTF-8");
-            crate::dbgprintln2!("Precomputing token {:?} ({:?})", llm_token, token_str);
+            // crate::dbgprintln2!("Precomputing token {:?} ({:?})", llm_token, token_str);
             let token_tree = tokenizer.execute_all_from_state(llm_token, state_id);
             // for (x, y) in token_tree.lock().unwrap().flatten(Option::is_some) {
             //     crate::dbgprintln!("Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
