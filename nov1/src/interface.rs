@@ -291,19 +291,19 @@ impl Grammar<Regex> {
 
 impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn from_grammar(grammar: Grammar<T>, llm_tokens: &[LLMToken]) -> Self {
-        println!("GrammarConstraint::from_grammar");
+        crate::dbgprintln!("GrammarConstraint::from_grammar");
         let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
         let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
-        println!("Generating GLR parser");
+        crate::dbgprintln!("Generating GLR parser");
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
-        println!("Precomputing");
+        crate::dbgprintln!("Precomputing");
         let precomputed = precompute(&grammar.tokenizer, llm_tokens);
-        println!("Adding incomplete token");
+        crate::dbgprintln!("Adding incomplete token");
         let precomputed = precompute_add_incomplete_token(&grammar.tokenizer, precomputed);
-        println!("Converting to LLM token IDs");
+        crate::dbgprintln!("Converting to LLM token IDs");
         let precomputed = convert_precomputed_to_llm_token_ids(&grammar.tokenizer, precomputed, &llm_tokens.iter().map(|token| token.to_vec()).collect::<Vec<_>>());
-        println!("Done precomputing");
+        crate::dbgprintln!("Done precomputing");
 
         let num_llm_tokens = llm_tokens.len();
 
@@ -397,12 +397,12 @@ mod tests {
         }
 
         for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
-            println!("Tokenizer state: {}", tokenizer_state.0);
+            crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-                println!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
                 // print edge values and destination addresses
                 for (edge, dest) in node.lock().unwrap().children.iter() {
-                    println!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+                    crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
                 }
             }
         }

@@ -271,7 +271,7 @@ impl<'a> GLRParserState<'a> {
                         }
                     }
                     Stage7ShiftsAndReduces::Split { shift, reduces } => {
-                        println!("Split");
+                        crate::dbgprintln!("Split");
                         if let Some(shift_state) = shift {
                             let new_stack = stack.push(*shift_state);
                             let new_actions = action_stack.clone().push(Action::Shift(token_id));
