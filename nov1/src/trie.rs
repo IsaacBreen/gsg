@@ -4,15 +4,15 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct TrieNode<T, E> {
-    pub value: T,
+    pub value: Option<T>,
     pub children: BTreeMap<E, Arc<Mutex<TrieNode<T, E>>>>,
     pub num_parents: usize,
 }
 
 impl<T, E: Ord> TrieNode<T, E> {
-    pub fn new(value: T) -> Self {
+    pub fn new() -> Self {
         TrieNode {
-            value,
+            value: None,
             children: BTreeMap::new(),
             num_parents: 0,
         }
@@ -55,7 +55,7 @@ impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
                 let child = child_arc.lock().unwrap();
 
                 // Apply the step function to compute the new value
-                let new_value = step(&value, edge, &node.value);
+                let new_value = step(&value, edge, node.value.as_ref().unwrap());
 
                 // Get the raw pointer to the child node for identification
                 let child_ptr = &*child as *const TrieNode<T, E>;
@@ -105,9 +105,9 @@ impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
                     if let Some(child) = current_node_guard.get(edge) {
                         if !already_merged_values.contains(&(&*child.lock().unwrap() as *const TrieNode<T, E>)) {
                             // Merge the values
-                            let child_value = child.lock().unwrap().value.clone();
+                            let child_value = child.lock().unwrap().value.as_ref().unwrap().clone();
                             let merged_value = t_merge(vec![child_value, value.clone()]);
-                            child.lock().unwrap().value = merged_value;
+                            child.lock().unwrap().value = Some(merged_value);
                         }
                         new_nodes.push(child);
                     } else {
@@ -120,7 +120,7 @@ impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
                         } else {
                             // Create a new node and map it
                             let new_node = Arc::new(Mutex::new(TrieNode {
-                                value: value.clone(),
+                                value: Some(value.clone()),
                                 children: BTreeMap::new(),
                                 num_parents: 0,
                             }));
