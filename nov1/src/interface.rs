@@ -291,19 +291,19 @@ impl Grammar<Regex> {
 
 impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn from_grammar(grammar: Grammar<T>, llm_tokens: &[LLMToken]) -> Self {
-        crate::dbgprintln!("GrammarConstraint::from_grammar");
+        crate::dbgprintln2!("GrammarConstraint::from_grammar");
         let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
         let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
-        crate::dbgprintln!("Generating GLR parser");
+        crate::dbgprintln2!("Generating GLR parser");
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
-        crate::dbgprintln!("Precomputing");
+        crate::dbgprintln2!("Precomputing");
         let precomputed = precompute(&grammar.tokenizer, llm_tokens);
-        crate::dbgprintln!("Adding incomplete token");
+        crate::dbgprintln2!("Adding incomplete token");
         let precomputed = precompute_add_incomplete_token(&grammar.tokenizer, precomputed);
-        crate::dbgprintln!("Converting to LLM token IDs");
+        crate::dbgprintln2!("Converting to LLM token IDs");
         let precomputed = convert_precomputed_to_llm_token_ids(&grammar.tokenizer, precomputed, &llm_tokens.iter().map(|token| token.to_vec()).collect::<Vec<_>>());
-        crate::dbgprintln!("Done precomputing");
+        crate::dbgprintln2!("Done precomputing");
 
         let num_llm_tokens = llm_tokens.len();
 
