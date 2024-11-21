@@ -137,19 +137,19 @@ pub fn precompute<'a>(
 
         for &llm_token in llm_tokens {
             let token_str = std::str::from_utf8(llm_token).unwrap_or("Invalid UTF-8");
-            crate::dbgprintln!("Precomputing token {:?} ({:?})", llm_token, token_str);
+            crate::dbgprintln2!("Precomputing token {:?} ({:?})", llm_token, token_str);
             let token_tree = tokenizer.execute_all_from_state(llm_token, state_id);
-            for (x, y) in token_tree.lock().unwrap().flatten(Option::is_some) {
-                crate::dbgprintln!("Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
-            }
-            for node in TrieNode::all_nodes(token_tree.clone()) {
-                // print the node address and value
-                crate::dbgprintln!("Token tree node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
-                // print edge values and destination addresses
-                for (edge, dest) in node.lock().unwrap().children.iter() {
-                    crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
-                }
-            }
+            // for (x, y) in token_tree.lock().unwrap().flatten(Option::is_some) {
+            //     crate::dbgprintln!("Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
+            // }
+            // for node in TrieNode::all_nodes(token_tree.clone()) {
+            //     // print the node address and value
+            //     crate::dbgprintln!("Token tree node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+            //     // print edge values and destination addresses
+            //     for (edge, dest) in node.lock().unwrap().children.iter() {
+            //         crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+            //     }
+            // }
             // Merge into the existing state map
             TrieNode::merge(
                 state_map_root_arc.clone(),
@@ -162,17 +162,17 @@ pub fn precompute<'a>(
                 },
                 || { BTreeMap::new() },
             );
-            for node in TrieNode::all_nodes(state_map_root_arc.clone()) {
-                // print the node address and value
-                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
-                // print edge values and destination addresses
-                for (edge, dest) in node.lock().unwrap().children.iter() {
-                    crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
-                }
-            }
-            for (x, y) in state_map_root_arc.lock().unwrap().flatten(|llm_token_to_state| !llm_token_to_state.is_empty()) {
-                crate::dbgprintln!("HERE: Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
-            }
+            // for node in TrieNode::all_nodes(state_map_root_arc.clone()) {
+            //     // print the node address and value
+            //     crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+            //     // print edge values and destination addresses
+            //     for (edge, dest) in node.lock().unwrap().children.iter() {
+            //         crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+            //     }
+            // }
+            // for (x, y) in state_map_root_arc.lock().unwrap().flatten(|llm_token_to_state| !llm_token_to_state.is_empty()) {
+            //     crate::dbgprintln!("HERE: Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
+            // }
 
         }
 
