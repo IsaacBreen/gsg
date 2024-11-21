@@ -142,7 +142,7 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
                 let child = child_arc.lock().unwrap();
 
                 // Apply the step function to compute the new value
-                let new_value = step(&value, edge, &node);
+                let new_value = step(&value, edge, &child);
 
                 // Get the raw pointer to the child node for identification
                 let child_ptr = &*child as *const TrieNode<E, T>;
