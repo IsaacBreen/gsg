@@ -32,17 +32,19 @@ impl<T, E: Ord> TrieNode<E, T> {
     }
 
     pub fn all_nodes(root: Arc<Mutex<TrieNode<E, T>>>) -> Vec<Arc<Mutex<TrieNode<E, T>>>> {
+        let mut node_ptrs_in_order: Vec<*const TrieNode<E, T>> = Vec::new();
         let mut nodes: BTreeMap<*const TrieNode<E, T>, Arc<Mutex<TrieNode<E, T>>>> = BTreeMap::new();
         let mut queue: VecDeque<Arc<Mutex<TrieNode<E, T>>>> = VecDeque::new();
         queue.push_back(root);
         while let Some(node) = queue.pop_front() {
+            node_ptrs_in_order.push(&*node.lock().unwrap() as *const TrieNode<E, T>);
             nodes.insert(&*node.lock().unwrap() as *const TrieNode<E, T>, node.clone());
             let node = node.lock().unwrap();
             for (_, child) in &node.children {
                 queue.push_back(child.clone());
             }
         }
-        nodes.into_values().collect()
+        node_ptrs_in_order.into_iter().map(|ptr| nodes.get(&ptr).unwrap().clone()).collect()
     }
 
     pub fn map_t<F, U>(self, f: F) -> Arc<Mutex<TrieNode<E, U>>>

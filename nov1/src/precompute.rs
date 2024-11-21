@@ -144,10 +144,10 @@ pub fn precompute<'a>(
             }
             for node in TrieNode::all_nodes(token_tree.clone()) {
                 // print the node address and value
-                println!("Token tree node address: {:p}, value: {:?}", node, node.lock().unwrap().value);
+                println!("Token tree node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
                 // print edge values and destination addresses
                 for (edge, dest) in node.lock().unwrap().children.iter() {
-                    println!("    Edge value: {:?}, destination address: {:p}", edge, dest);
+                    println!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
                 }
             }
             // Merge into the existing state map
@@ -164,10 +164,10 @@ pub fn precompute<'a>(
             );
             for node in TrieNode::all_nodes(state_map_root_arc.clone()) {
                 // print the node address and value
-                println!("Node address: {:p}, value: {:?}", node, node.lock().unwrap().value);
+                println!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
                 // print edge values and destination addresses
                 for (edge, dest) in node.lock().unwrap().children.iter() {
-                    println!("    Edge value: {:?}, destination address: {:p}", edge, dest);
+                    println!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
                 }
             }
             for (x, y) in state_map_root_arc.lock().unwrap().flatten(|llm_token_to_state| !llm_token_to_state.is_empty()) {
