@@ -9,13 +9,22 @@ struct TrieNode<T, E> {
     num_parents: usize,
 }
 
-impl<T, E> TrieNode<T, E> {
+impl<T, E: std::cmp::Ord> TrieNode<T, E> {
     fn new() -> Self {
         TrieNode {
             value: None,
             children: BTreeMap::new(),
             num_parents: 0,
         }
+    }
+
+    fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<T, E>>>) {
+        child.lock().unwrap().num_parents += 1;
+        self.children.insert(edge, child);
+    }
+
+    fn get(&self, edge: &E) -> Option<Arc<Mutex<TrieNode<T, E>>>> {
+        self.children.get(edge).cloned()
     }
 }
 
@@ -71,5 +80,9 @@ impl<T, E> TrieNode<T, E> {
             .collect();
 
         merge(remaining_values);
+    }
+
+    fn merge(node: Arc<Mutex<TrieNode<T, E>>>, other: Arc<Mutex<TrieNode<T, E>>>) {
+        todo!()
     }
 }
