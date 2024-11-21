@@ -9,10 +9,10 @@ struct TrieNode<T, E> {
     num_parents: usize,
 }
 
-impl<T: Default, E: Ord> TrieNode<T, E> {
-    fn new() -> Self {
+impl<T, E: Ord> TrieNode<T, E> {
+    fn new(value: T) -> Self {
         TrieNode {
-            value: T::default(),
+            value,
             children: BTreeMap::new(),
             num_parents: 0,
         }
@@ -28,12 +28,12 @@ impl<T: Default, E: Ord> TrieNode<T, E> {
     }
 }
 
-impl<T: Clone + Default, E: Ord + Clone> TrieNode<T, E> {
+impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
     fn special_map<S, M, V>(initial_node: Arc<Mutex<TrieNode<T, E>>>, initial_value: V, mut step: S, mut merge: M)
     where
         S: FnMut(&V, &E, &T) -> V,
         M: FnMut(Vec<V>) -> V,
-        V: Clone + Default,
+        V: Clone,
         E: Ord,
     {
         // A queue of active states (node and its associated value of type V)
