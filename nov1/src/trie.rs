@@ -1,4 +1,4 @@
-        use std::collections::{HashMap, VecDeque};
+        use std::collections::{HashMap, HashSet, VecDeque};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
@@ -9,7 +9,7 @@ struct TrieNode<T, E> {
     num_parents: usize,
 }
 
-impl<T, E: std::cmp::Ord> TrieNode<T, E> {
+impl<T, E: Ord> TrieNode<T, E> {
     fn new() -> Self {
         TrieNode {
             value: None,
@@ -28,7 +28,7 @@ impl<T, E: std::cmp::Ord> TrieNode<T, E> {
     }
 }
 
-impl<T, E> TrieNode<T, E> {
+impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
     fn special_map<S, M, V>(initial_node: Arc<Mutex<TrieNode<T, E>>>, mut step: S, mut merge: M)
     where
         S: FnMut(&V, &E, &T) -> V,
@@ -82,7 +82,68 @@ impl<T, E> TrieNode<T, E> {
         merge(remaining_values);
     }
 
-    fn merge(node: Arc<Mutex<TrieNode<T, E>>>, other: Arc<Mutex<TrieNode<T, E>>>) {
-        todo!()
+    fn merge(
+        node: Arc<Mutex<TrieNode<T, E>>>,
+        other: Arc<Mutex<TrieNode<T, E>>>,
+        t_merge: impl Fn(Vec<T>) -> T,
+    ) {
+        // A map to track the mapping of nodes from `other` to `self`
+        let mut node_map: HashMap<*const TrieNode<T, E>, Arc<Mutex<TrieNode<T, E>>>> =
+            HashMap::new();
+
+        // Initialize the `special_map` algorithm
+        TrieNode::special_map(
+            other.clone(),
+            // Step function
+            |current_nodes: &Vec<Arc<Mutex<TrieNode<T, E>>>>, edge: &E, value: &T| {
+                let mut new_nodes = Vec::new();
+
+                for current_node in current_nodes {
+                    let mut current_node_guard = current_node.lock().unwrap();
+
+                    // Check if the current node has an equivalent edge
+                    if let Some(child) = current_node_guard.get(edge) {
+                        new_nodes.push(child);
+                    } else {
+                        // Check if the `other` node is already mapped
+                        let other_node_ptr = &other.lock().unwrap() as &TrieNode<T, E> as *const _;
+                        if let Some(mapped_node) = node_map.get(&other_node_ptr) {
+                            // Add the mapped node as a child
+                            current_node_guard.insert(edge.clone(), mapped_node.clone());
+                            new_nodes.push(mapped_node.clone());
+                        } else {
+                            // Create a new node and map it
+                            let new_node = Arc::new(Mutex::new(TrieNode {
+                                value: Some(value.clone()),
+                                children: BTreeMap::new(),
+                                num_parents: 0,
+                            }));
+                            current_node_guard.insert(edge.clone(), new_node.clone());
+                            node_map.insert(other_node_ptr, new_node.clone());
+                            new_nodes.push(new_node);
+                        }
+                    }
+                }
+
+                new_nodes
+            },
+            // Merge function
+            |values: Vec<Vec<Arc<Mutex<TrieNode<T, E>>>>>| {
+                // Flatten the vectors and remove duplicates
+                let mut merged_nodes = Vec::new();
+                let mut seen = HashSet::new();
+
+                for value in values {
+                    for node in value {
+                        let node_ptr = Arc::as_ptr(&node);
+                        if seen.insert(node_ptr) {
+                            merged_nodes.push(node);
+                        }
+                    }
+                }
+
+                merged_nodes
+            },
+        );
     }
 }
