@@ -121,9 +121,8 @@ fn stage_1(productions: &[Production], start_production_id: usize) -> Stage1Resu
                 continue;
             }
             let goto_set = compute_goto(&items);
-            let goto_closure = compute_closure(&goto_set, productions);
-            row.insert(symbol.clone(), goto_closure.clone());
-            worklist.push_back(goto_closure);
+            row.insert(symbol.clone(), goto_set.clone());
+            worklist.push_back(goto_set);
         }
 
         transitions.insert(items.clone(), row);

@@ -9,6 +9,7 @@ pub struct Item {
 }
 
 pub fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BTreeSet<Item> {
+    crate::dbgprintln!("Computing closure");
     let mut closure = items.clone();
     let mut added = true;
     while added {
@@ -30,6 +31,7 @@ pub fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BT
         }
         closure.extend(new_items);
     }
+    crate::dbgprintln!("Done computing closure");
     closure
 }
 
