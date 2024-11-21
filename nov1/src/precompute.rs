@@ -123,15 +123,15 @@ pub fn precompute<'a>(
     let mut result: BTreeMap<StateID, TrieNode<GroupID, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
 
     // Ensure the tokenizer doesn't match on empty strings
-    crate::dbgprintln!("Ensuring tokenizer doesn't match on empty strings");
+    crate::dbgprintln2!("Ensuring tokenizer doesn't match on empty strings");
     let execute_result = tokenizer.execute_from_state(&[], 0);
     if !execute_result.matches.is_empty() {
         panic!("Tokenizer should not match on empty string. If it did, there would be infinitely many possible token sequences for any LLM token.");
     }
 
-    crate::dbgprintln!("Precomputing");
+    crate::dbgprintln2!("Precomputing");
     for state_id in tqdm!(0..tokenizer.max_state()) {
-        crate::dbgprintln!("Precomputing state {}", state_id);
+        crate::dbgprintln2!("Precomputing state {}", state_id);
         // let mut state_map: BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, BTreeMap<&'a [u8], StateID>>>> = Arc::new(Mutex::new(TrieNode::new(BTreeMap::new())));
 
