@@ -144,7 +144,42 @@ impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
                 merged_nodes
             },
         );
-        
-        
+
+        // Traverse the `other` trie and merge its nodes into `self`
+        let mut active_states: VecDeque<(Arc<Mutex<TrieNode<T, E>>>, Arc<Mutex<TrieNode<T, E>>>)> =
+            VecDeque::new();
+        active_states.push_back((node.clone(), other.clone()));
+
+        while let Some((self_node, other_node)) = active_states.pop_front() {
+            let mut self_node_guard = self_node.lock().unwrap();
+            let other_node_guard = other_node.lock().unwrap();
+
+            // Merge the values of the current nodes
+            if let Some(other_value) = &other_node_guard.value {
+                let merged_value = if let Some(self_value) = &self_node_guard.value {
+                    t_merge(vec![self_value.clone(), other_value.clone()])
+                } else {
+                    other_value.clone()
+                };
+                self_node_guard.value = Some(merged_value);
+            }
+
+            // Traverse the children of the `other` node
+            for (edge, other_child) in &other_node_guard.children {
+                if let Some(self_child) = self_node_guard.get(edge) {
+                    // If the edge exists in `self`, add the child pair to the active states
+                    active_states.push_back((self_child, other_child.clone()));
+                } else {
+                    // If the edge does not exist in `self`, clone the `other` child and add it
+                    let new_child = Arc::new(Mutex::new(TrieNode {
+                        value: other_child.lock().unwrap().value.clone(),
+                        children: BTreeMap::new(),
+                        num_parents: 1,
+                    }));
+                    self_node_guard.insert(edge.clone(), new_child.clone());
+                    active_states.push_back((new_child, other_child.clone()));
+                }
+            }
+        }
     }
 }
