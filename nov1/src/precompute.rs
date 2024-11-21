@@ -2,6 +2,7 @@ use crate::finite_automata::{GroupID, Regex};
 use crate::glr;
 use crate::glr::table::StateID;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::{Arc, Mutex};
 use kdam::tqdm;
 use crate::trie::TrieNode;
 
@@ -40,59 +41,43 @@ pub trait Tokenizer: Sized {
         &self,
         text: &[u8],
         state: usize,
-    ) -> TrieNode<Token, usize> {
-        use std::collections::VecDeque;
+    ) -> Arc<Mutex<TrieNode<TokenID, usize>>> {
+        // (position, state) -> node
+        let mut queue: BTreeMap<(usize, usize), Arc<Mutex<TrieNode<TokenID, usize>>>> = BTreeMap::new();
 
-        // Define a queue item structure
-        struct QueueItem {
-            tokens: Vec<Token>,
-            position: usize,
-            state: usize,
-        }
-
-        let mut queue: VecDeque<QueueItem> = VecDeque::new();
-        let mut final_results: BTreeMap<Vec<Token>, usize> = BTreeMap::new();
+        let root = Arc::new(Mutex::new(TrieNode::new(None)));
 
         // Initialize the queue with the starting state
-        queue.push_back(QueueItem {
-            tokens: Vec::new(),
-            position: 0,
-            state,
-        });
+        queue.insert((0, state), root.clone());
 
-        while let Some(item) = queue.pop_front() {
-            if item.position > text.len() {
+        while let Some(((position, state), node)) = queue.pop_first() {
+            if position > text.len() {
                 continue;
             }
 
-            let remaining_text = &text[item.position..];
-            let execute_result = self.execute_from_state(remaining_text, item.state);
+            let remaining_text = &text[position..];
+            let execute_result = self.execute_from_state(remaining_text, state);
 
             // Process all matches
             for token in &execute_result.matches {
-                let new_position = item.position + token.width;
-                let mut new_tokens = item.tokens.clone();
-                new_tokens.push(token.clone());
-
-                if new_position == text.len() {
-                    final_results.insert(new_tokens, 0); // Assuming 0 is the final state
+                assert_ne!(token.width, 0);
+                let new_position = position + token.width;
+                if let Some(new_node) = queue.get_mut(&(new_position, state)) {
+                    // Add an edge from the current node to the new node
+                    node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
                 } else {
-                    queue.push_back(QueueItem {
-                        tokens: new_tokens,
-                        position: new_position,
-                        state: 0, // Assuming 0 is the start state for new tokens
-                    });
+                    // Create a new node and add it to the queue
+                    let new_node = Arc::new(Mutex::new(TrieNode::new(None)));
+                    node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
+                    if let Some(new_state) = execute_result.new_state {
+                        queue.insert((new_position, new_state), new_node.clone());
+                    }
+                    queue.insert((new_position, state), new_node);
                 }
-            }
-
-            // If there's a new state, continue processing
-            if let Some(new_state) = execute_result.new_state {
-                final_results.insert(item.tokens.clone(), new_state);
             }
         }
 
-        // final_results
-        todo!()
+        root
     }
 }
 

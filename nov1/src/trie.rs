@@ -10,9 +10,9 @@ pub struct TrieNode<E, T> {
 }
 
 impl<T, E: Ord> TrieNode<E, T> {
-    pub fn new() -> Self {
+    pub fn new(value: Option<T>) -> TrieNode<E, T> {
         TrieNode {
-            value: None,
+            value,
             children: BTreeMap::new(),
             num_parents: 0,
         }
