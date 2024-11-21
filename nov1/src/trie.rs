@@ -1,3 +1,4 @@
+        use std::collections::{HashMap, VecDeque};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
@@ -16,96 +17,57 @@ impl<T, E> TrieNode<T, E> {
     }
 }
 
-use std::collections::HashMap;
-use std::fmt::Debug;
+impl<T, E> TrieNode<T, E> {
+    fn special_map<S, M, V>(initial_node: Arc<Mutex<TrieNode<T, E>>>, mut step: S, mut merge: M)
+    where
+        S: FnMut(&V, &E, &T) -> V,
+        M: FnMut(Vec<V>) -> V,
+        V: Clone + Default,
+        E: Ord,
+    {
 
-impl<T: Debug + Clone, E: Debug + Ord + Clone> TrieNode<T, E> {
-    /// Merges another trie into this one. The `merge_value` function defines how to merge node values.
-    fn merge(
-        &mut self,
-        other: &Arc<Mutex<TrieNode<T, E>>>,
-        merge_value: &dyn Fn(&Option<T>, &Option<T>) -> Option<T>,
-    ) {
-        // Map from raw pointers of `other` nodes to `Arc<Mutex<TrieNode<T, E>>>` in `self`
-        let mut node_map: HashMap<*const TrieNode<T, E>, Arc<Mutex<TrieNode<T, E>>>> =
-            HashMap::new();
+        // A queue of active states (node and its associated value of type V)
+        let mut active_states: VecDeque<(Arc<Mutex<TrieNode<T, E>>>, V)> = VecDeque::new();
 
-        // Stack for iterative traversal
-        let mut stack: Vec<(Arc<Mutex<TrieNode<T, E>>>, Arc<Mutex<TrieNode<T, E>>>)> = Vec::new();
-        // Push the roots onto the stack
-        let self_arc = Arc::new(Mutex::new(self.clone()));
-        stack.push((self_arc.clone(), other.clone()));
+        // A map of dormant states (node ID to a vector of values of type V)
+        let mut dormant_states: HashMap<*const TrieNode<T, E>, Vec<V>> = HashMap::new();
 
-        while let Some((self_node_arc, other_node_arc)) = stack.pop() {
-            let self_node_ref: &TrieNode<_, _> = &self_node_arc.lock().unwrap();
-            let other_node_ref: &TrieNode<_, _> = &other_node_arc.lock().unwrap();
+        // Initialize the queue with the root node and the default initial value
+        active_states.push_back((initial_node, V::default()));
 
-            let self_node_ptr = self_node_ref as *const TrieNode<T, E>;
-            let other_node_ptr = other_node_ref as *const TrieNode<T, E>;
+        while let Some((node_arc, value)) = active_states.pop_front() {
+            let node = node_arc.lock().unwrap();
 
-            // Check if we've already processed this node
-            if let Some(existing_self_arc) = node_map.get(&other_node_ptr) {
-                // If the current `self_node_arc` is different, we need to ensure they are the same
-                if !Arc::ptr_eq(&self_node_arc, existing_self_arc) {
-                    // Merge the nodes
-                    Self::merge_node_arcs(
-                        &self_node_arc,
-                        existing_self_arc,
-                        merge_value,
-                    );
+            // Traverse each child of the current node
+            for (edge, child_arc) in &node.children {
+                let child = child_arc.lock().unwrap();
+
+                // Apply the step function to compute the new value
+                let new_value = step(&value, edge, node.value.as_ref().unwrap());
+
+                // Get the raw pointer to the child node for identification
+                let child_ptr = &*child as *const TrieNode<T, E>;
+
+                // Update the dormant state map
+                let entry = dormant_states.entry(child_ptr).or_insert_with(Vec::new);
+                entry.push(new_value.clone());
+
+                // Check if we've visited all parents of this child
+                if entry.len() == child.children.len() {
+                    // Merge the values and push the result to the active states queue
+                    let merged_value = merge(entry.clone());
+                    dormant_states.remove(&child_ptr); // Remove the entry from dormant states
+                    active_states.push_back((child_arc.clone(), merged_value));
                 }
-                continue;
-            }
-
-            // Record the mapping
-            node_map.insert(other_node_ptr, self_node_arc.clone());
-
-            // Lock both nodes
-            let mut self_node = self_node_arc.lock().unwrap();
-            let other_node = other_node_arc.lock().unwrap();
-
-            // Merge the values
-            self_node.value = merge_value(&self_node.value, &other_node.value);
-
-            // Merge the children
-            for (edge_label, child_other_arc) in &other_node.children {
-                // Get or create the corresponding child in `self`
-                let child_self_arc = self_node
-                    .children
-                    .entry(edge_label.clone())
-                    .or_insert_with(|| Arc::new(Mutex::new(TrieNode::new())));
-
-                // Push the pair onto the stack for further processing
-                stack.push((child_self_arc.clone(), child_other_arc.clone()));
             }
         }
 
-        // Update the root of `self` after merging
-        *self = Arc::try_unwrap(self_arc).unwrap().into_inner().unwrap();
-    }
+        // At the end, merge all remaining dormant states (if any) and return the result
+        let remaining_values: Vec<V> = dormant_states
+            .into_iter()
+            .flat_map(|(_, values)| values)
+            .collect();
 
-    /// Merges two nodes represented by their `Arc<Mutex<>>` wrappers.
-    fn merge_node_arcs(
-        self_node_arc: &Arc<Mutex<TrieNode<T, E>>>,
-        existing_self_arc: &Arc<Mutex<TrieNode<T, E>>>,
-        merge_value: &dyn Fn(&Option<T>, &Option<T>) -> Option<T>,
-    ) {
-        // Lock both nodes
-        let mut self_node = self_node_arc.lock().unwrap();
-        let existing_node = existing_self_arc.lock().unwrap();
-
-        // Merge the values
-        self_node.value = merge_value(&self_node.value, &existing_node.value);
-
-        // Merge the children
-        for (edge_label, child_existing_arc) in &existing_node.children {
-            let child_self_arc = self_node
-                .children
-                .entry(edge_label.clone())
-                .or_insert_with(|| Arc::new(Mutex::new(TrieNode::new())));
-
-            // Recursively merge the children
-            Self::merge_node_arcs(child_self_arc, child_existing_arc, merge_value);
-        }
+        merge(remaining_values);
     }
 }
