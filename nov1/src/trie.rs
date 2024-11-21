@@ -27,7 +27,7 @@ impl<T: Clone + Debug + PartialEq, E: Clone + Debug + Ord + PartialEq> TrieNode<
         self,
         other: &Arc<Mutex<TrieNode<T, E>>>,
         merge_value: &dyn Fn(&Option<T>, &Option<T>) -> Option<T>,
-    ) -> Arc<Mutex<TrieNode<T, E>>> {
+    ) -> TrieNode<T, E> {
         use std::ptr::NonNull;
 
         // Map from raw pointers of `other` nodes to `Arc<Mutex<TrieNode<T, E>>>` in `self`
@@ -52,13 +52,13 @@ impl<T: Clone + Debug + PartialEq, E: Clone + Debug + Ord + PartialEq> TrieNode<
             let other_node_ptr = NonNull::from(&*other_node);
 
             // Check if we've already processed this node
-            if let Some(existing_self_arc) = node_map.get(&other_node_ptr) {
+            if let Some(existing_self_arc) = node_map.get(&other_node_ptr).cloned() {
                 // If the current `self_node_arc` is different, we need to ensure they are the same
-                if !Arc::ptr_eq(&self_node_arc, existing_self_arc) {
+                if !Arc::ptr_eq(&self_node_arc, &existing_self_arc) {
                     // Merge the nodes
                     Self::merge_node_arcs(
                         &self_node_arc,
-                        existing_self_arc,
+                        &existing_self_arc,
                         merge_value,
                         &mut node_map,
                     );
@@ -88,7 +88,7 @@ impl<T: Clone + Debug + PartialEq, E: Clone + Debug + Ord + PartialEq> TrieNode<
 
         // Update the root of `self` after merging
         let merged_root = Arc::try_unwrap(self_arc).unwrap().into_inner().unwrap();
-        Arc::new(Mutex::new(merged_root))
+        merged_root
     }
 
     /// Merges two nodes represented by their `Arc<Mutex<>>` wrappers.
@@ -124,9 +124,29 @@ impl<T: Clone + Debug + PartialEq, E: Clone + Debug + Ord + PartialEq> TrieNode<
 }
 
 // For testing purposes
-impl<T: PartialEq + Debug, E: PartialEq + Debug> PartialEq for TrieNode<T, E> {
+impl<T: PartialEq + Debug, E: PartialEq + Ord + Debug> PartialEq for TrieNode<T, E> {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.children == other.children
+        if self.value != other.value {
+            return false;
+        }
+
+        if self.children.len() != other.children.len() {
+            return false;
+        }
+
+        for (k, v) in self.children.iter() {
+            if !other.children.contains_key(k) {
+                return false;
+            }
+            let v_self_ref: &TrieNode<T, E> = &v.lock().unwrap();
+            let v_other_ref: &TrieNode<T, E> = &other.children.get(k).unwrap().lock().unwrap();
+
+            if v_self_ref != v_other_ref {
+                return false;
+            }
+        }
+
+        true
     }
 }
 
@@ -207,7 +227,7 @@ mod tests {
         let trie2_arc = Arc::new(Mutex::new(trie2));
 
         // Merge trie2 into trie1
-        trie1.merge(&trie2_arc, &merge_option_values);
+        let trie1 = trie1.merge(&trie2_arc, &merge_option_values);
 
         // Now, trie1 should contain all nodes from both tries, with shared nodes preserved
 
