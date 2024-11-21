@@ -139,6 +139,9 @@ pub fn precompute<'a>(
             let token_str = std::str::from_utf8(llm_token).unwrap_or("Invalid UTF-8");
             println!("Precomputing token {:?} ({:?})", llm_token, token_str);
             let token_tree = tokenizer.execute_all_from_state(llm_token, state_id);
+            for (x, y) in token_tree.lock().unwrap().flatten(Option::is_some) {
+                println!("Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
+            }
             // Merge into the existing state map
             TrieNode::merge(
                 state_map_root_arc.clone(),
@@ -151,6 +154,10 @@ pub fn precompute<'a>(
                 },
                 || { BTreeMap::new() },
             );
+            for (x, y) in state_map_root_arc.lock().unwrap().flatten(|llm_token_to_state| !llm_token_to_state.is_empty()) {
+                println!("HERE: Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
+            }
+
         }
 
         if !state_map_root_arc.lock().unwrap().is_empty() {

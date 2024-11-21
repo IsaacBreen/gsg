@@ -89,7 +89,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state in tokenizer_state_ids {
                 if let Some(token_sequence_map) = self.parent.precomputed.get(tokenizer_state) {
-                    for (tokenizer_token_sequence, (llm_token_id_to_state_id, bitset)) in token_sequence_map.flatten(|(x, _)| x.is_empty()) {
+                    for (tokenizer_token_sequence, (llm_token_id_to_state_id, bitset)) in token_sequence_map.flatten(|(x, _)| !x.is_empty()) {
                         let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_state(parse_state.clone());
                         let grammar_token_id_sequence = tokenizer_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
                         new_glr_parse_state.parse_part(&grammar_token_id_sequence);
@@ -109,7 +109,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
             for tokenizer_state_id in tokenizer_state_ids {
                 // todo: should be able to do the below loop more efficiently by optimising the precomputed
                 //  stuff for earlier llm token lookup
-                for (grammar_token_sequence, (llm_token_id_to_state_id, _)) in &self.parent.precomputed[&tokenizer_state_id].flatten(|(x, _)| x.is_empty()) {
+                for (grammar_token_sequence, (llm_token_id_to_state_id, _)) in &self.parent.precomputed[&tokenizer_state_id].flatten(|(x, _)| !x.is_empty()) {
                     if let Some(&next_tokenizer_state_id) = llm_token_id_to_state_id.get(&llm_token_id) {
                         let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_state(parse_state.clone());
                         let mut grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
