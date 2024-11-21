@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 struct TrieNode<T, E> {
     value: Option<T>,
     children: BTreeMap<E, Arc<Mutex<TrieNode<T, E>>>>,
+    num_parents: usize,
 }
 
 impl<T, E> TrieNode<T, E> {
@@ -13,6 +14,7 @@ impl<T, E> TrieNode<T, E> {
         TrieNode {
             value: None,
             children: BTreeMap::new(),
+            num_parents: 0,
         }
     }
 }
@@ -53,7 +55,7 @@ impl<T, E> TrieNode<T, E> {
                 entry.push(new_value.clone());
 
                 // Check if we've visited all parents of this child
-                if entry.len() == child.children.len() {
+                if entry.len() == child.num_parents {
                     // Merge the values and push the result to the active states queue
                     let merged_value = merge(entry.clone());
                     dormant_states.remove(&child_ptr); // Remove the entry from dormant states
