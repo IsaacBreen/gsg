@@ -36,10 +36,10 @@ impl<T, E: Ord> TrieNode<E, T> {
         let mut queue: VecDeque<Arc<Mutex<TrieNode<E, T>>>> = VecDeque::new();
         queue.push_back(root);
         while let Some(node) = queue.pop_front() {
+            nodes.insert(&*node.lock().unwrap() as *const TrieNode<E, T>, node.clone());
             let node = node.lock().unwrap();
             for (_, child) in &node.children {
                 queue.push_back(child.clone());
-                nodes.insert(&*child.lock().unwrap() as *const TrieNode<E, T>, child.clone());
             }
         }
         nodes.into_values().collect()
