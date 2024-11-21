@@ -145,6 +145,10 @@ pub fn precompute<'a>(
             for node in TrieNode::all_nodes(token_tree.clone()) {
                 // print the node address and value
                 println!("Token tree node address: {:p}, value: {:?}", node, node.lock().unwrap().value);
+                // print edge values and destination addresses
+                for (edge, dest) in node.lock().unwrap().children.iter() {
+                    println!("    Edge value: {:?}, destination address: {:p}", edge, dest);
+                }
             }
             // Merge into the existing state map
             TrieNode::merge(
@@ -161,6 +165,10 @@ pub fn precompute<'a>(
             for node in TrieNode::all_nodes(state_map_root_arc.clone()) {
                 // print the node address and value
                 println!("Node address: {:p}, value: {:?}", node, node.lock().unwrap().value);
+                // print edge values and destination addresses
+                for (edge, dest) in node.lock().unwrap().children.iter() {
+                    println!("    Edge value: {:?}, destination address: {:p}", edge, dest);
+                }
             }
             for (x, y) in state_map_root_arc.lock().unwrap().flatten(|llm_token_to_state| !llm_token_to_state.is_empty()) {
                 println!("HERE: Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
