@@ -27,6 +27,47 @@ impl<T, E: Ord> TrieNode<E, T> {
         self.children.get(edge).cloned()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.children.is_empty()
+    }
+
+    pub fn map_t<F, U>(self, f: F) -> Arc<Mutex<TrieNode<E, U>>>
+    where
+        T: Clone,
+        E: Clone,
+        // todo: is it 'proper' to use `Copy` here?
+        F: Copy + Fn(T) -> U,
+    {
+        let mut active_states: Vec<(Arc<Mutex<TrieNode<E, T>>>, Arc<Mutex<TrieNode<E, U>>>)> = Vec::new();
+        let mut dormant_states: HashMap<*const TrieNode<E, T>, (usize, Arc<Mutex<TrieNode<E, U>>>)> = HashMap::new();
+        let root = Arc::new(Mutex::new(TrieNode::new(f(self.value.clone()))));
+        active_states.push((Arc::new(Mutex::new(self)), root.clone()));
+
+        while let Some((node, new_node)) = active_states.pop() {
+            let node = node.lock().unwrap();
+            for (edge, child_arc) in &node.children {
+                let child = child_arc.lock().unwrap();
+                if let Some((num_parents_seen, new_child)) = dormant_states.get_mut(&(&*child as *const TrieNode<E, T>)) {
+                    new_node.lock().unwrap().insert(edge.clone(), new_child.clone());
+                    *num_parents_seen += 1;
+                    if *num_parents_seen == child.num_parents {
+                        active_states.push((child_arc.clone(), new_child.clone()));
+                    }
+                } else {
+                    let new_child = Arc::new(Mutex::new(TrieNode::new(f(child.value.clone()))));
+                    new_node.lock().unwrap().insert(edge.clone(), new_child.clone());
+                    if child.num_parents == 1 {
+                        active_states.push((child_arc.clone(), new_child.clone()));
+                    } else {
+                        dormant_states.insert(&*child as *const TrieNode<E, T>, (1, new_child.clone()));
+                    }
+                }
+            }
+        }
+
+        root
+    }
+
     pub fn flatten<F>(&self, is_terminal: F) -> BTreeMap<Vec<E>, T>
     where
         E: Clone,
@@ -114,9 +155,9 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
         node: Arc<Mutex<TrieNode<E, T>>>,
         other: Arc<Mutex<TrieNode<E, T2>>>,
         t_merge: impl Fn(T, T2) -> T,
+        t_init: impl Fn() -> T,
     )
     where
-        T: Default,
         T2: Clone,
     {
         // A map to track the mapping of nodes from `other` to `self`
@@ -154,7 +195,7 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
                         } else {
                             // Create a new node and map it
                             let new_node = Arc::new(Mutex::new(TrieNode {
-                                value: t_merge(T::default(), dest_other_node.value.clone()),
+                                value: t_merge(t_init(), dest_other_node.value.clone()),
                                 children: BTreeMap::new(),
                                 num_parents: 0,
                             }));

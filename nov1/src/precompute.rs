@@ -112,7 +112,7 @@ pub fn precompute_llm_token_sets<'a>(
 pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
     llm_tokens: &[&'a [u8]],
-) -> BTreeMap<StateID, TrieNode<GroupID, &'a [u8]>> {
+) -> BTreeMap<StateID, TrieNode<GroupID, BTreeMap<&'a [u8], StateID>>> {
     let mut result: BTreeMap<StateID, TrieNode<GroupID, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
 
     // Ensure the tokenizer doesn't match on empty strings
@@ -125,40 +125,40 @@ pub fn precompute<'a>(
     println!("Precomputing");
     for state_id in tqdm!(0..tokenizer.max_state()) {
         println!("Precomputing state {}", state_id);
-        let mut state_map: BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
+        // let mut state_map: BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
+        let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, BTreeMap<&'a [u8], StateID>>>> = Arc::new(Mutex::new(TrieNode::new(BTreeMap::new())));
 
         for &llm_token in llm_tokens {
             let token_str = std::str::from_utf8(llm_token).unwrap_or("Invalid UTF-8");
             println!("Precomputing token {:?} ({:?})", llm_token, token_str);
-            let sequences = tokenizer.execute_all_from_state(llm_token, state_id);
-            // for (grammar_token_sequence, end_state) in sequences {
-            //     let grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| t.id).collect();
-            //     println!("Precomputing sequence {:?} -> {}", grammar_token_id_sequence, end_state);
-            //     state_map
-            //         .entry(grammar_token_id_sequence)
-            //         .and_modify(|llm_token_to_state| {
-            //             llm_token_to_state.insert(llm_token, StateID(end_state));
-            //         })
-            //         .or_insert_with(|| BTreeMap::from([(llm_token, StateID(end_state))]));
-            // }
-
+            let token_tree = tokenizer.execute_all_from_state(llm_token, state_id);
+            // Merge into the existing state map
+            TrieNode::merge(
+                state_map_root_arc.clone(),
+                token_tree,
+                |mut llm_token_to_state: BTreeMap<&'a [u8], StateID>, maybe_new_final_state_id: Option<usize>| {
+                    if let Some(new_final_state_id) = maybe_new_final_state_id {
+                        llm_token_to_state.insert(llm_token, StateID(new_final_state_id));
+                    }
+                    llm_token_to_state
+                },
+                || { BTreeMap::new() },
+            );
         }
 
-        // if !state_map.is_empty() {
-        //     result.insert(glr::table::StateID(state_id), state_map);
-        // }
+        if !state_map_root_arc.lock().unwrap().is_empty() {
+            let state_map_root = state_map_root_arc.lock().unwrap().clone();
+            result.insert(glr::table::StateID(state_id), state_map_root);
+        }
     }
 
-    // result
-
-    todo!()
+    result
 }
 
 pub fn precompute_add_incomplete_token<'a>(
     tokenizer: &impl Tokenizer,
-    precomputed: BTreeMap<StateID, TrieNode<GroupID, &'a [u8]>>,
+    precomputed: BTreeMap<StateID, TrieNode<GroupID, BTreeMap<&'a [u8], StateID>>>,
 ) -> BTreeMap<StateID, TrieNode<TokenID, BTreeMap<&'a [u8], StateID>>> {
-    todo!()
     // let mut result: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
     // for (state_id, token_sequence_map) in precomputed {
     //     for (token_id_sequence, llm_token_state_map) in token_sequence_map {
@@ -175,7 +175,8 @@ pub fn precompute_add_incomplete_token<'a>(
     //         }
     //     }
     // }
-    // result
+    precomputed
+    // todo: remove this function
 }
 
 impl Tokenizer for Regex {

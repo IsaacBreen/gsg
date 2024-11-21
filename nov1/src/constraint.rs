@@ -34,26 +34,27 @@ pub fn convert_precomputed_to_llm_token_ids<'a>(
     llm_tokens: &[LLMToken],
 // ) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (BTreeMap<LLMTokenID, StateID>, BitVec)>> {
 ) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BitVec)>> {
-    // let num_llm_tokens = llm_tokens.len();
-    // let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
-    // let mut result = BTreeMap::new();
-    // for (state_id, token_sequence_map) in precomputed {
-    //     let mut new_token_sequence_map = BTreeMap::new();
-    //     for (token_sequence, llm_token_state_map) in token_sequence_map {
-    //         let mut bitset = BitVec::new();
-    //         bitset.resize(num_llm_tokens, false);
-    //         let mut new_llm_token_state_map = BTreeMap::new();
-    //         for (llm_token, next_state_id) in llm_token_state_map {
-    //             let llm_token_id = llm_token_to_id.get(llm_token).unwrap();
-    //             bitset.set(llm_token_id.0, true);
-    //             new_llm_token_state_map.insert(*llm_token_id, next_state_id);
-    //         }
-    //         new_token_sequence_map.insert(token_sequence, (new_llm_token_state_map, bitset));
-    //     }
-    //     result.insert(state_id, new_token_sequence_map);
-    // }
-    // result
-    todo!()
+    let num_llm_tokens = llm_tokens.len();
+    let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
+    let mut result = BTreeMap::new();
+    for (state_id, token_sequence_map) in precomputed {
+        let mut new_token_sequence_map_arc = token_sequence_map.map_t(|llm_token_to_state_id| {
+            let mut bitset = BitVec::new();
+            bitset.resize(num_llm_tokens, false);
+            let mut new_llm_token_state_map = BTreeMap::new();
+            for (llm_token, next_state_id) in llm_token_to_state_id {
+                let llm_token_id = llm_token_to_id.get(llm_token).unwrap();
+                bitset.set(llm_token_id.0, true);
+                new_llm_token_state_map.insert(*llm_token_id, next_state_id);
+            }
+            (new_llm_token_state_map, bitset)
+        });
+        let new_token_sequence_map = new_token_sequence_map_arc.lock().unwrap().clone();
+        result.insert(state_id, new_token_sequence_map);
+    }
+
+    result
+
 }
 
 impl<T: Tokenizer> GrammarConstraint<T> {
