@@ -3,14 +3,14 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
-struct TrieNode<T, E> {
-    value: T,
-    children: BTreeMap<E, Arc<Mutex<TrieNode<T, E>>>>,
-    num_parents: usize,
+pub struct TrieNode<T, E> {
+    pub value: T,
+    pub children: BTreeMap<E, Arc<Mutex<TrieNode<T, E>>>>,
+    pub num_parents: usize,
 }
 
 impl<T, E: Ord> TrieNode<T, E> {
-    fn new(value: T) -> Self {
+    pub fn new(value: T) -> Self {
         TrieNode {
             value,
             children: BTreeMap::new(),
@@ -18,18 +18,20 @@ impl<T, E: Ord> TrieNode<T, E> {
         }
     }
 
-    fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<T, E>>>) {
+    pub fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<T, E>>>) {
         child.lock().unwrap().num_parents += 1;
         self.children.insert(edge, child);
     }
 
-    fn get(&self, edge: &E) -> Option<Arc<Mutex<TrieNode<T, E>>>> {
+    pub fn get(&self, edge: &E) -> Option<Arc<Mutex<TrieNode<T, E>>>> {
         self.children.get(edge).cloned()
     }
+    
+
 }
 
 impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
-    fn special_map<S, M, V>(initial_node: Arc<Mutex<TrieNode<T, E>>>, initial_value: V, mut step: S, mut merge: M)
+    pub fn special_map<S, M, V>(initial_node: Arc<Mutex<TrieNode<T, E>>>, initial_value: V, mut step: S, mut merge: M)
     where
         S: FnMut(&V, &E, &T) -> V,
         M: FnMut(Vec<V>) -> V,
@@ -78,7 +80,7 @@ impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
         }
     }
 
-    fn merge(
+    pub fn merge(
         node: Arc<Mutex<TrieNode<T, E>>>,
         other: Arc<Mutex<TrieNode<T, E>>>,
         t_merge: impl Fn(Vec<T>) -> T,
