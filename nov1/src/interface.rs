@@ -397,6 +397,7 @@ mod tests {
         }
 
         for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
+            println!("Tokenizer state: {}", tokenizer_state.0);
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
                 println!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
                 // print edge values and destination addresses
