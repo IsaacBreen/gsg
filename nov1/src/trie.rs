@@ -118,10 +118,11 @@ impl<T, E: Ord> TrieNode<E, T> {
 }
 
 impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
-    pub fn special_map<S, M, V>(initial_node: Arc<Mutex<TrieNode<E, T>>>, initial_value: V, mut step: S, mut merge: M)
+    pub fn special_map<S, M, P, V>(initial_node: Arc<Mutex<TrieNode<E, T>>>, initial_value: V, mut step: S, mut merge: M, mut process: P)
     where
         S: FnMut(&V, &E, &TrieNode<E, T>) -> V,
         M: FnMut(Vec<V>) -> V,
+        P: FnMut(&T, &V),
         V: Clone,
         E: Ord,
     {
@@ -136,6 +137,9 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
 
         while let Some((node_arc, value)) = active_states.pop_front() {
             let node = node_arc.lock().unwrap();
+
+            // Process
+            process(&node.value, &value);
 
             // Traverse each child of the current node
             for (edge, child_arc) in &node.children {
@@ -186,7 +190,6 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
         let new_value = t_merge(existing_value, other.lock().unwrap().value.clone());
         node.lock().unwrap().value = new_value;
 
-        // Initialize the `special_map` algorithm
         TrieNode::special_map(
             other.clone(),
             vec![node.clone()],
@@ -246,6 +249,8 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
 
                 merged_nodes
             },
+            // Process function
+            |_, _| {}
         );
     }
 }

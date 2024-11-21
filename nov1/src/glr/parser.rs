@@ -76,11 +76,20 @@ impl GLRParser {
             input_pos: 0,
         }
     }
-
+    
     pub fn init_glr_parser_from_parse_state(&self, parse_state: ParseState) -> GLRParserState {
         GLRParserState {
             parser: self,
             active_states: vec![parse_state],
+            inactive_states: BTreeMap::new(),
+            input_pos: 0,
+        }
+    }
+
+    pub fn init_glr_parser_from_parse_states(&self, parse_states: Vec<ParseState>) -> GLRParserState {
+        GLRParserState {
+            parser: self,
+            active_states: parse_states,
             inactive_states: BTreeMap::new(),
             input_pos: 0,
         }
