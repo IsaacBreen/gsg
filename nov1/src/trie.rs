@@ -28,7 +28,7 @@ impl<T, E: Ord> TrieNode<T, E> {
     }
 }
 
-impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
+impl<T: Clone + Default, E: Ord + Clone> TrieNode<T, E> {
     fn special_map<S, M, V>(initial_node: Arc<Mutex<TrieNode<T, E>>>, initial_value: V, mut step: S, mut merge: M)
     where
         S: FnMut(&V, &E, &T) -> V,
@@ -87,6 +87,8 @@ impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
         // A map to track the mapping of nodes from `other` to `self`
         let mut node_map: HashMap<*const TrieNode<T, E>, Arc<Mutex<TrieNode<T, E>>>> = HashMap::new();
 
+        let mut already_merged_values: HashSet<*const TrieNode<T, E>> = HashSet::new();
+
         // Initialize the `special_map` algorithm
         TrieNode::special_map(
             other.clone(),
@@ -100,6 +102,12 @@ impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
 
                     // Check if the current node has an equivalent edge
                     if let Some(child) = current_node_guard.get(edge) {
+                        if !already_merged_values.contains(&(&*child.lock().unwrap() as *const TrieNode<T, E>)) {
+                            // Merge the values
+                            let child_value = child.lock().unwrap().value.as_ref().unwrap().clone();
+                            let merged_value = t_merge(vec![child_value, value.clone()]);
+                            child.lock().unwrap().value = Some(merged_value);
+                        }
                         new_nodes.push(child);
                     } else {
                         // Check if the `other` node is already mapped
