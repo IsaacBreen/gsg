@@ -19,7 +19,7 @@ def eat_string(s: bytes) -> Regex:
 
 def pegen_to_sep1_regex(item: pegen.grammar.BaseGrammar, memo: dict) -> Regex:
     if isinstance(item, pegen.grammar.NameLeaf):
-        return ge.regex(eat_string(item.value))
+        return ge.ref(item.value)
     elif isinstance(item, pegen.grammar.StringLeaf):
         value = item.value
         if value[0] == value[-1] in {'"', "'"}:
