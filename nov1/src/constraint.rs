@@ -113,8 +113,8 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                     if let Some(&next_tokenizer_state_id) = llm_token_id_to_state_id.get(&llm_token_id) {
                         let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_state(parse_state.clone());
                         let mut grammar_token_id_sequence = grammar_token_sequence.iter().map(|t| table::TerminalID(*t)).collect::<Vec<_>>();
-                        // omit the incomplete tail token
-                        grammar_token_id_sequence.pop();
+                        // // omit the incomplete tail token
+                        // grammar_token_id_sequence.pop();
 
                         new_glr_parse_state.parse_part(&grammar_token_id_sequence);
                         for active_parse_state in new_glr_parse_state.active_states {
