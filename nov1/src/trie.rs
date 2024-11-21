@@ -166,7 +166,9 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
         let mut already_merged_values: HashSet<*const TrieNode<E, T>> = HashSet::new();
 
         // Special case: merge T for the root node
-        node.lock().unwrap().value = t_merge(node.lock().unwrap().value.clone(), other.lock().unwrap().value.clone());
+        let existing_value = node.lock().unwrap().value.clone();
+        let new_value = t_merge(existing_value, other.lock().unwrap().value.clone());
+        node.lock().unwrap().value = new_value;
 
         // Initialize the `special_map` algorithm
         TrieNode::special_map(
