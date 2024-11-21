@@ -142,6 +142,10 @@ pub fn precompute<'a>(
             for (x, y) in token_tree.lock().unwrap().flatten(Option::is_some) {
                 println!("Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
             }
+            for node in TrieNode::all_nodes(token_tree.clone()) {
+                // print the node address and value
+                println!("Token tree node address: {:p}, value: {:?}", node, node.lock().unwrap().value);
+            }
             // Merge into the existing state map
             TrieNode::merge(
                 state_map_root_arc.clone(),
@@ -154,6 +158,10 @@ pub fn precompute<'a>(
                 },
                 || { BTreeMap::new() },
             );
+            for node in TrieNode::all_nodes(state_map_root_arc.clone()) {
+                // print the node address and value
+                println!("Node address: {:p}, value: {:?}", node, node.lock().unwrap().value);
+            }
             for (x, y) in state_map_root_arc.lock().unwrap().flatten(|llm_token_to_state| !llm_token_to_state.is_empty()) {
                 println!("HERE: Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
             }
