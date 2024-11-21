@@ -3,7 +3,7 @@ use crate::glr;
 use crate::glr::table::StateID;
 use std::collections::{BTreeMap, BTreeSet};
 use kdam::tqdm;
-use crate::precompute_gss::PrecomputeGSSNode;
+use crate::trie::TrieNode;
 
 pub type TokenID = usize;
 
@@ -40,7 +40,7 @@ pub trait Tokenizer: Sized {
         &self,
         text: &[u8],
         state: usize,
-    ) -> PrecomputeGSSNode<Token, usize> {
+    ) -> TrieNode<Token, usize> {
         use std::collections::VecDeque;
 
         // Define a queue item structure
@@ -127,8 +127,8 @@ pub fn precompute_llm_token_sets<'a>(
 pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
     llm_tokens: &[&'a [u8]],
-) -> BTreeMap<StateID, PrecomputeGSSNode<GroupID, &'a [u8]>> {
-    let mut result: BTreeMap<StateID, PrecomputeGSSNode<GroupID, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
+) -> BTreeMap<StateID, TrieNode<GroupID, &'a [u8]>> {
+    let mut result: BTreeMap<StateID, TrieNode<GroupID, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
 
     // Ensure the tokenizer doesn't match on empty strings
     println!("Ensuring tokenizer doesn't match on empty strings");
@@ -156,7 +156,7 @@ pub fn precompute<'a>(
             //         })
             //         .or_insert_with(|| BTreeMap::from([(llm_token, StateID(end_state))]));
             // }
-            
+
         }
 
         // if !state_map.is_empty() {
@@ -171,8 +171,8 @@ pub fn precompute<'a>(
 
 pub fn precompute_add_incomplete_token<'a>(
     tokenizer: &impl Tokenizer,
-    precomputed: BTreeMap<StateID, PrecomputeGSSNode<GroupID, &'a [u8]>>,
-) -> BTreeMap<StateID, PrecomputeGSSNode<TokenID, BTreeMap<&'a [u8], StateID>>> {
+    precomputed: BTreeMap<StateID, TrieNode<GroupID, &'a [u8]>>,
+) -> BTreeMap<StateID, TrieNode<TokenID, BTreeMap<&'a [u8], StateID>>> {
     todo!()
     // let mut result: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
     // for (state_id, token_sequence_map) in precomputed {
@@ -357,7 +357,7 @@ mod tests {
         // Run precompute
         let result = precompute(&tokenizer, llm_tokens);
 
-        // todo: update this for PrecomputeGSSNode
+        // todo: update this for TrieNode
         // // Build the expected output
         // let mut state_0: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
         // state_0.insert(vec![], BTreeMap::from([(b"a".as_slice(), StateID(1)), (b"ab", StateID(3))]));

@@ -7,7 +7,7 @@ use crate::precompute::{Token, TokenID, Tokenizer};
 use bitvec::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
-use crate::precompute_gss::PrecomputeGSSNode;
+use crate::trie::TrieNode;
 
 type LLMToken = Vec<u8>;
 
@@ -19,7 +19,7 @@ pub struct LLMTokenID(pub usize);
 pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
-    pub(crate) precomputed: BTreeMap<StateID, PrecomputeGSSNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BitVec)>>,
+    pub(crate) precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BitVec)>>,
     pub(crate) num_llm_tokens: usize,
 }
 
@@ -30,10 +30,10 @@ pub struct GrammarConstraintState<T: Tokenizer> {
 }
 
 pub fn convert_precomputed_to_llm_token_ids<'a>(
-    precomputed: BTreeMap<StateID, PrecomputeGSSNode<TokenID, BTreeMap<&'a [u8], StateID>>>,
+    precomputed: BTreeMap<StateID, TrieNode<TokenID, BTreeMap<&'a [u8], StateID>>>,
     llm_tokens: &[LLMToken],
 // ) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (BTreeMap<LLMTokenID, StateID>, BitVec)>> {
-) -> BTreeMap<StateID, PrecomputeGSSNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BitVec)>> {
+) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BitVec)>> {
     // let num_llm_tokens = llm_tokens.len();
     // let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
     // let mut result = BTreeMap::new();

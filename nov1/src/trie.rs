@@ -26,8 +26,35 @@ impl<T, E: Ord> TrieNode<T, E> {
     pub fn get(&self, edge: &E) -> Option<Arc<Mutex<TrieNode<T, E>>>> {
         self.children.get(edge).cloned()
     }
-    
 
+    pub fn flatten(&self) -> BTreeMap<Vec<E>, T>
+    where
+        E: Clone,
+        T: Clone,
+    {
+        let mut result = BTreeMap::new();
+        self.flatten_recursive(&mut result, Vec::new());
+        result
+    }
+
+    fn flatten_recursive(
+        &self,
+        result: &mut BTreeMap<Vec<E>, T>,
+        path: Vec<E>,
+    )
+    where
+        E: Clone,
+        T: Clone,
+    {
+        if let Some(value) = &self.value {
+            result.insert(path.clone(), value.clone());
+        }
+        for (edge, child) in &self.children {
+            let mut new_path = path.clone();
+            new_path.push(edge.clone());
+            child.lock().unwrap().flatten_recursive(result, new_path);
+        }
+    }
 }
 
 impl<T: Clone, E: Ord + Clone> TrieNode<T, E> {
