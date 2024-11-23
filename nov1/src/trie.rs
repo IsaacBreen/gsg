@@ -186,6 +186,11 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
     where
         T2: Clone,
     {
+        println!("node structure (before)");
+        dump_structure(node.clone());
+        println!("other structure (before)");
+        dump_structure(other.clone());
+
         // A map to track the mapping of nodes from `other` to `self`
         let mut node_map: HashMap<*const TrieNode<E, T2>, Arc<Mutex<TrieNode<E, T>>>> = HashMap::new();
 
@@ -261,7 +266,16 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
     }
 }
 
+// pub trait TrieNodeTrait<E, T> {
+//     fn insert(self, edge: E, value: T) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
+//         let new_node = TrieNode::new(value);
+//         self.insert(edge, Arc::new(Mutex::new(new_node)));
+//     }
+// }
+
 pub(crate) fn dump_structure<E, T>(root: Arc<Mutex<TrieNode<E, T>>>) {
+    // TODO: modify this to use letter names "a" "b" "c"... for nodes rather than raw pointers.
+    // TODO: make it possible to print edge value and node's internal value if they implement Debug
     let mut queue: VecDeque<Arc<Mutex<TrieNode<E, T>>>> = VecDeque::new();
     let mut seen: HashSet<*const TrieNode<E, T>> = HashSet::new();
 
@@ -273,12 +287,54 @@ pub(crate) fn dump_structure<E, T>(root: Arc<Mutex<TrieNode<E, T>>>) {
         println!("{:?}", node_ptr);
         for (edge, child) in &node.children {
             let child_ptr = &*child.lock().unwrap() as *const TrieNode<E, T>;
-            print!("  - {:?} -> {:?}", "?", child_ptr);
+            println!("  - {:?} -> {:?}", "?", child_ptr);
             if !seen.contains(&child_ptr) {
                 seen.insert(child_ptr);
                 queue.push_back(child.clone());
             }
         }
     }
+}
 
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+    use crate::trie::{dump_structure, TrieNode};
+
+    #[test]
+    fn test_trie() {
+        let mut a = TrieNode::new("a");
+        let mut b = TrieNode::new("b");
+        let c = TrieNode::new("c");
+
+        b.insert("b->c", Arc::new(Mutex::new(c)));
+        a.insert("a->b", Arc::new(Mutex::new(b)));
+
+        let mut a2 = TrieNode::new("a");
+        let mut b2 = TrieNode::new("b");
+        let d = TrieNode::new("d");
+
+        b2.insert("b->d", Arc::new(Mutex::new(d)));
+        a2.insert("a->b", Arc::new(Mutex::new(b2)));
+
+        let a = Arc::new(Mutex::new(a));
+        let a2 = Arc::new(Mutex::new(a2));
+        
+        println!("a structure (before)");
+        dump_structure(a.clone());
+        println!("a2 structure (before)");
+        dump_structure(a2.clone());
+        
+        let merged = TrieNode::merge(
+            a.clone(),
+            a2.clone(),
+            |x, y| { if x.is_empty() { y } else { assert_eq!(x, y); x } },
+            || { "" }
+        );
+
+        println!("a structure (after)");
+        dump_structure(a.clone());
+        println!("a2 structure (after)e");
+        dump_structure(a2.clone());
+    }
 }

@@ -130,7 +130,7 @@ pub fn precompute<'a>(
     }
 
     crate::dbgprintln2!("Precomputing");
-    for state_id in tqdm!(0..tokenizer.max_state()) {
+    for state_id in tqdm!(0..tokenizer.max_state()).skip(88) {
         // crate::dbgprintln2!("Precomputing state {}", state_id);
         // let mut state_map: BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, BTreeMap<&'a [u8], StateID>>>> = Arc::new(Mutex::new(TrieNode::new(BTreeMap::new())));
