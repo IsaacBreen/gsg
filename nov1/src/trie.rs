@@ -19,7 +19,10 @@ impl<T, E: Ord> TrieNode<E, T> {
     }
 
     pub fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>) {
-        child.lock().unwrap().num_parents += 1;
+        if !self.children.contains_key(&edge) {
+            println!("warning: replacing entry in trie");
+            child.lock().unwrap().num_parents += 1;
+        }
         self.children.insert(edge, child);
     }
 
