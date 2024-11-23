@@ -21,10 +21,14 @@ impl<T, E: Ord> TrieNode<E, T> {
     }
 
     pub fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
-        if !self.children.contains_key(&edge) {
-            child.lock().unwrap().num_parents += 1;
+        child.lock().unwrap().num_parents += 1;
+        if let Some(existing_child) = self.children.insert(edge, child) {
+            println!("warning: replacing existing node");
+            existing_child.lock().unwrap().num_parents -= 1;
+            Some(existing_child)
+        } else {
+            None
         }
-        self.children.insert(edge, child)
     }
 
     pub fn get(&self, edge: &E) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
