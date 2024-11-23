@@ -401,7 +401,7 @@ mod tests {
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
                 crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
                 // print edge values and destination addresses
-                for (edge, dest) in node.lock().unwrap().children.iter() {
+                for (edge, dest) in node.lock().unwrap().children() {
                     crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
                 }
             }

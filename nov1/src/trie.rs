@@ -7,8 +7,8 @@ use kdam::term::init;
 #[derive(Debug, Clone)]
 pub struct TrieNode<E, T> {
     pub value: T,
-    pub children: BTreeMap<E, Arc<Mutex<TrieNode<E, T>>>>,
-    pub num_parents: usize,
+    children: BTreeMap<E, Arc<Mutex<TrieNode<E, T>>>>,
+    num_parents: usize,
 }
 
 impl<T, E: Ord> TrieNode<E, T> {
@@ -29,6 +29,10 @@ impl<T, E: Ord> TrieNode<E, T> {
 
     pub fn get(&self, edge: &E) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
         self.children.get(edge).cloned()
+    }
+
+    pub fn children(&self) -> &BTreeMap<E, Arc<Mutex<TrieNode<E, T>>>> {
+        &self.children
     }
 
     pub fn is_empty(&self) -> bool {
@@ -172,6 +176,9 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
         // At the end, if there are any dormant states left, something went wrong
         if !dormant_states.is_empty() {
             dump_structure(initial_node);
+            for (node_ptr, values) in &dormant_states {
+                println!("dormant state: {:?}", node_ptr)
+            }
             panic!("Leftover dormant states");
             // println!("Leftover dormant states");
         }
@@ -280,7 +287,7 @@ pub(crate) fn dump_structure<E, T>(root: Arc<Mutex<TrieNode<E, T>>>) {
     while let Some(node) = queue.pop_front() {
         let node = node.lock().unwrap();
         let node_ptr = &*node as *const TrieNode<E, T>;
-        println!("{:?}", node_ptr);
+        println!("{:?}: num_parents: {}", node_ptr, node.num_parents);
         for (edge, child) in &node.children {
             let child_ptr = &*child.lock().unwrap() as *const TrieNode<E, T>;
             println!("  - {:?} -> {:?}", "?", child_ptr);
