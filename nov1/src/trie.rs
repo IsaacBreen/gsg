@@ -186,10 +186,10 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
     where
         T2: Clone,
     {
-        println!("node structure (before)");
-        dump_structure(node.clone());
-        println!("other structure (before)");
-        dump_structure(other.clone());
+        // println!("node structure (before)");
+        // dump_structure(node.clone());
+        // println!("other structure (before)");
+        // dump_structure(other.clone());
 
         // A map to track the mapping of nodes from `other` to `self`
         let mut node_map: HashMap<*const TrieNode<E, T2>, Arc<Mutex<TrieNode<E, T>>>> = HashMap::new();
@@ -229,11 +229,7 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
                             new_nodes.push(mapped_node.clone());
                         } else {
                             // Create a new node and map it
-                            let new_node = Arc::new(Mutex::new(TrieNode {
-                                value: t_merge(t_init(), dest_other_node.value.clone()),
-                                children: BTreeMap::new(),
-                                num_parents: 0,
-                            }));
+                            let new_node = Arc::new(Mutex::new(TrieNode::new(t_merge(t_init(), dest_other_node.value.clone()))));
                             current_self_node_guard.insert(edge.clone(), new_node.clone());
                             node_map.insert(other_node_ptr, new_node.clone());
                             new_nodes.push(new_node);
@@ -319,12 +315,12 @@ mod tests {
 
         let a = Arc::new(Mutex::new(a));
         let a2 = Arc::new(Mutex::new(a2));
-        
+
         println!("a structure (before)");
         dump_structure(a.clone());
         println!("a2 structure (before)");
         dump_structure(a2.clone());
-        
+
         let merged = TrieNode::merge(
             a.clone(),
             a2.clone(),
