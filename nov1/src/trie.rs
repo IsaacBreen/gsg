@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use kdam::term::init;
 
 #[derive(Debug, Clone)]
 pub struct TrieNode<E, T> {
@@ -135,7 +137,7 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
         let mut dormant_states: HashMap<*const TrieNode<E, T>, Vec<V>> = HashMap::new();
 
         // Initialize the queue with the root node and the default initial value
-        active_states.push_back((initial_node, initial_value));
+        active_states.push_back((initial_node.clone(), initial_value));
 
         while let Some((node_arc, value)) = active_states.pop_front() {
             let node = node_arc.lock().unwrap();
@@ -154,7 +156,7 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
                 let child_ptr = &*child as *const TrieNode<E, T>;
 
                 // Update the dormant state map
-                let entry = dormant_states.entry(child_ptr).or_insert_with(Vec::new);
+                let entry = dormant_states.entry(child_ptr).or_default();
                 entry.push(new_value.clone());
 
                 // Check if we've visited all parents of this child
@@ -169,7 +171,9 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
 
         // At the end, if there are any dormant states left, something went wrong
         if !dormant_states.is_empty() {
+            dump_structure(initial_node);
             panic!("Leftover dormant states");
+            // println!("Leftover dormant states");
         }
     }
 
@@ -255,4 +259,21 @@ impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
             |_, _| {}
         );
     }
+}
+
+pub(crate) fn dump_structure<E, T>(root: Arc<Mutex<TrieNode<E, T>>>) {
+    let mut queue: VecDeque<Arc<Mutex<TrieNode<E, T>>>> = VecDeque::new();
+    let mut seen: HashSet<*const TrieNode<E, T>> = HashSet::new();
+
+    queue.push_back(root);
+
+    while let Some(node) = queue.pop_front() {
+        let node_ptr = &*node.lock().unwrap() as *const TrieNode<E, T>;
+        println!("{:?}", node_ptr);
+        for (edge, child) in &node.lock().unwrap().children {
+            let child_ptr = &*child.lock().unwrap() as *const TrieNode<E, T>;
+            print!("  - {:?} -> {:?}", "?", child_ptr);
+        }
+    }
+
 }
