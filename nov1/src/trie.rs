@@ -18,12 +18,11 @@ impl<T, E: Ord> TrieNode<E, T> {
         }
     }
 
-    pub fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>) {
+    pub fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
         if !self.children.contains_key(&edge) {
-            println!("warning: replacing entry in trie");
             child.lock().unwrap().num_parents += 1;
         }
-        self.children.insert(edge, child);
+        self.children.insert(edge, child)
     }
 
     pub fn get(&self, edge: &E) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
