@@ -23,6 +23,8 @@ impl<T, E: Ord> TrieNode<E, T> {
     pub fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
         child.lock().unwrap().num_parents += 1;
         if let Some(existing_child) = self.children.insert(edge, child) {
+            // todo: remove this warning
+            panic!();
             println!("warning: replacing existing node");
             existing_child.lock().unwrap().num_parents -= 1;
             Some(existing_child)
