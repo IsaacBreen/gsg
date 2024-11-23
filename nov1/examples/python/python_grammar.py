@@ -4,6 +4,7 @@ import io
 import time
 import tokenize
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pegen.grammar
@@ -64,12 +65,78 @@ def pegen_to_sep1_regex(item: pegen.grammar.BaseGrammar, memo: dict) -> Regex:
     else:
         raise ValueError(f"Unknown item type: {type(item)}")
 
+def define_tokens() -> list[tuple[str, Any]]:
+    tokens = {}
+
+    choice = Regex.choice
+    eat_u8 = Regex.eat_u8
+    eat_u8_negation = Regex.eat_u8_negation
+    seq = Regex.seq
+    rep = Regex.rep
+    eps = Regex.eps
+
+    def eat_u8_choice(s):
+        return choice([eat_u8(ord(c)) for c in s])
+
+    ignore = rep(choice([
+        eat_u8(ord(" ")),
+        seq([eat_u8(ord("#")), rep(eat_u8_negation(ord("\n"))), eat_u8(ord("\n"))]),
+    ]))
+
+    def regex(expr):
+        return ge.regex(seq([ignore, expr]))
+
+    digit = choice([eat_u8(c) for c in range(ord("0"), ord("9") + 1)])
+    alph_lower = choice([eat_u8(c) for c in range(ord("a"), ord("z") + 1)])
+    alph_upper = choice([eat_u8(c) for c in range(ord("A"), ord("Z") + 1)])
+
+    name_start = choice([
+        alph_lower,
+        alph_upper,
+        eat_u8(ord("_"))
+    ])
+    name_middle = choice([
+        name_start,
+        digit,
+    ])
+
+    tokens["NAME"] = seq([name_start, rep(name_middle)])
+    tokens["NUMBER"] = choice([
+        rep(digit),
+        seq([rep(digit), eat_u8(ord(".")), rep(digit)]),
+    ])
+    tokens["NEWLINE"] = eps()
+    tokens["INDENT"] = eps()
+    tokens["DEDENT"] = eps()
+    tokens["STRING"] = choice([
+        seq([eat_u8(ord('"')), rep(eat_u8_negation(ord('"'))), eat_u8(ord('"'))]),
+        seq([eat_u8(ord("'")), rep(eat_u8_negation(ord("'"))), eat_u8(ord("'"))]),
+    ])
+    tokens["FSTRING_START"] = choice([
+        eat_string('"""'),
+        eat_string("'''"),
+    ])
+    tokens["FSTRING_END"] = choice([
+        eat_string('"""'),
+        eat_string("'''"),
+    ])
+    tokens["FSTRING_MIDDLE"] = rep(choice([
+        eat_u8_negation(ord("{")),
+        eat_string("{{"),
+    ]))
+    tokens["TYPE_COMMENT"] = eps()
+    tokens["ENDMARKER"] = eps()
+    return [(name, regex(expr)) for name, expr in tokens.items()]
+
 def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
     memo = {}
-    exprs = []
+    exprs: list[tuple[str, Any]] = []
     for rule in grammar.rules.values():
         memo[rule.name] = ge.ref(rule.name)
         exprs.append((rule.name, pegen_to_sep1_regex(rule.rhs, memo)))
+
+    tokens = define_tokens()
+    exprs.extend(tokens)
 
     return PyGrammar(exprs)
 
@@ -127,11 +194,6 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
         scores = np.where(mask, scores, -np.inf)
         return torch.tensor(scores)
 
-def load_model_and_tokenizer(model_name):
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-    return tokenizer, model
-
 def initialize_grammar_constraint(grammar, llm_tokens):
     print("Initializing PyGrammarConstraint...")
     grammar_constraint = PyGrammarConstraint(grammar, llm_tokens)
@@ -157,7 +219,7 @@ def generate_text(model, tokenizer, grammar_processor, input_text, max_new_token
 if __name__ == "__main__":
 #     model_name = "Qwen/Qwen2.5-Coder-0.5B"
     model_name = "gpt2"
-    tokenizer, model = load_model_and_tokenizer(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     llm_tokens = [tokenizer.convert_ids_to_tokens(i).encode() for i in range(tokenizer.vocab_size)]
     llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
@@ -169,6 +231,8 @@ if __name__ == "__main__":
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_tokens)
     print("Initializing grammar processor...")
     grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_tokens)
+
+    model = AutoModelForCausalLM.from_pretrained(model_name)
 
     print("Generating text...")
 #     input_text = "i^10=i*"

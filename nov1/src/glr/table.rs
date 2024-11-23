@@ -377,7 +377,6 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_product
 pub fn generate_glr_parser_with_maps(productions: &[Production], start_production_id: usize, mut terminal_map: BiBTreeMap<Terminal, TerminalID>, non_terminal_map: BiBTreeMap<NonTerminal, NonTerminalID>) -> GLRParser {
     crate::dbgprintln2!("Validating");
     validate(productions).unwrap();
-    panic!();
 
     // todo: this is messy
     assign_eof_terminal_id(&mut terminal_map);
