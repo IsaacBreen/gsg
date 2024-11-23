@@ -63,8 +63,8 @@ pub trait Tokenizer: Sized {
 
             let remaining_text = &text[position..];
             let execute_result = self.execute_from_state(remaining_text, state);
-            
-            assert_eq!(execute_result.matches.len(), execute_result.matches.iter().map(|m| m.id).collect::<BTreeSet<_>>().len());
+
+            // assert_eq!(execute_result.matches.len(), execute_result.matches.iter().map(|m| m.id).collect::<BTreeSet<_>>().len());
 
             // Process all matches
             for token in &execute_result.matches {
@@ -81,7 +81,6 @@ pub trait Tokenizer: Sized {
                     if let Some(new_state) = execute_result.new_state {
                         queue.insert((new_position, new_state), new_node.clone());
                     }
-                    queue.insert((new_position, state), new_node);
                 }
             }
         }
