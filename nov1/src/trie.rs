@@ -268,11 +268,16 @@ pub(crate) fn dump_structure<E, T>(root: Arc<Mutex<TrieNode<E, T>>>) {
     queue.push_back(root);
 
     while let Some(node) = queue.pop_front() {
-        let node_ptr = &*node.lock().unwrap() as *const TrieNode<E, T>;
+        let node = node.lock().unwrap();
+        let node_ptr = &*node as *const TrieNode<E, T>;
         println!("{:?}", node_ptr);
-        for (edge, child) in &node.lock().unwrap().children {
+        for (edge, child) in &node.children {
             let child_ptr = &*child.lock().unwrap() as *const TrieNode<E, T>;
             print!("  - {:?} -> {:?}", "?", child_ptr);
+            if !seen.contains(&child_ptr) {
+                seen.insert(child_ptr);
+                queue.push_back(child.clone());
+            }
         }
     }
 
