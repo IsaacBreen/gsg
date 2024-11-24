@@ -68,13 +68,13 @@ pub fn drop_dead(productions: &[Production]) -> Vec<Production> {
     }
 
     let mut new_productions = vec![start_prod.clone()];
-    crate::dbgprintln2!("Keeping production {:?}", start_prod);
+    // crate::dbgprintln2!("Keeping production {:?}", start_prod);
     for prod in productions.iter().skip(1) {
         if reachable_from_start.contains(&prod.lhs) {
-            crate::dbgprintln2!("Keeping production {:?}", prod);
+            // crate::dbgprintln2!("Keeping production {:?}", prod);
             new_productions.push(prod.clone())
         } else {
-            crate::dbgprintln2!("Removing production {:?}", prod);
+            // crate::dbgprintln2!("Removing production {:?}", prod);
         }
     }
 
