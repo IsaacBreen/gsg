@@ -40,14 +40,14 @@ pub fn drop_dead(productions: &[Production]) -> Vec<Production> {
 
     loop {
         let mut changed = false;
-        for (nt, mut reachables) in nt_reachables.clone() {
-            let old_len = reachables.len();
-            for reachable in reachables.clone() {
-                if let Some(reachable_reachables) = nt_reachables.get(reachable) {
-                    reachables.extend(reachable_reachables);
+        for (nt, _) in nt_reachables.clone() {
+            let old_len = nt_reachables[nt].len();
+            for reachable in nt_reachables[nt].clone() {
+                if let Some(reachable_reachables) = nt_reachables.get(reachable).cloned() {
+                    nt_reachables.get_mut(nt).unwrap().extend(reachable_reachables);
                 }
             }
-            if reachables.len() != old_len {
+            if nt_reachables[nt].len() != old_len {
                 changed = true;
             }
         }
