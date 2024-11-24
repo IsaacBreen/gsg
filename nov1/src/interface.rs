@@ -22,7 +22,7 @@ pub struct Grammar<T> {
     pub tokenizer: T,
 }
 
-impl<T> Debug for Grammar<T> {
+impl<T> Debug for Grammar<T> where T: Debug {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Grammar:")?;
         writeln!(f, "  Start Production ID: {}", self.start_production_id)?;
@@ -55,6 +55,9 @@ impl<T> Debug for Grammar<T> {
         for (name, group_id) in &self.terminal_name_to_group_id {
             writeln!(f, "    {:?}: {}", name, group_id)?;
         }
+        
+        writeln!(f, "Tokenizer:");
+        writeln!(f, "{:?}", &self.tokenizer);
 
         Ok(())
     }
