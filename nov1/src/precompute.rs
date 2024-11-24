@@ -71,14 +71,14 @@ pub trait Tokenizer: Sized {
                 let new_position = position + token.width;
                 assert_ne!(token.width, 0);
                 assert!(new_position <= text.len());
-                if let Some(new_node) = queue.get_mut(&(new_position, state)) {
+                let new_state = execute_result.new_state.unwrap_or(0);
+                if let Some(new_node) = queue.get_mut(&(new_position, new_state)) {
                     // Add an edge from the current node to the new node
                     node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
                 } else {
                     // Create a new node and add it to the queue
                     let new_node = Arc::new(Mutex::new(TrieNode::new(None)));
                     node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
-                    let new_state = execute_result.new_state.unwrap_or(0);
                     queue.insert((new_position, new_state), new_node.clone());
                 }
             }
