@@ -59,7 +59,6 @@ pub trait Tokenizer: Sized {
             assert!(position <= text.len());
             
             if position == text.len() {
-                dbg!(state, text);
                 node.lock().unwrap().value = Some(state);
                 continue;
             }
