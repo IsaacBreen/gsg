@@ -7,6 +7,7 @@ use crate::precompute::{precompute, precompute_add_incomplete_token, Token, Toke
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
+use crate::analyze_grammar::drop_dead;
 use crate::constraint::{GrammarConstraint, LLMTokenID, convert_precomputed_to_llm_token_ids};
 
 type LLMToken<'a> = &'a [u8];
@@ -278,6 +279,9 @@ impl Grammar<Regex> {
         let tokenizer_expr_groups = groups(tokenizer_exprs_vec);
         let tokenizer = tokenizer_expr_groups.clone().build();
 
+        // TODO: this is bad. prob remove this.
+        let productions = drop_dead(&productions);
+        
         Self {
             productions,
             start_production_id: 0,

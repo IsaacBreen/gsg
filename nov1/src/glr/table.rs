@@ -378,8 +378,6 @@ pub fn generate_glr_parser_with_maps(productions: &[Production], start_productio
     crate::dbgprintln2!("Validating");
     validate(productions).unwrap();
 
-    let productions = &drop_dead(productions);
-
     // todo: this is messy
     assign_eof_terminal_id(&mut terminal_map);
 

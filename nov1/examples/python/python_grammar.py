@@ -134,6 +134,7 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
 
     # Make sure the start production is first
     # exprs.append(("start", ))
+    exprs.append(("start", ge.ref("NUMBER")))
 
     for rule in grammar.rules.values():
         memo[rule.name] = ge.ref(rule.name)
@@ -142,7 +143,6 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
     tokens = define_tokens()
     exprs.extend(tokens)
 
-    print(exprs[0])
     return PyGrammar(exprs)
 
 def define_python_grammar():
@@ -231,7 +231,8 @@ if __name__ == "__main__":
 
     print("Defining grammar...")
     grammar = define_python_grammar()
-    print(grammar)
+    # print(grammar)
+    grammar.print()
     print("Initializing Grammar Constraint...")
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_tokens)
     print("Initializing grammar processor...")
