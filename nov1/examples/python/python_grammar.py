@@ -134,7 +134,7 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
 
     # Make sure the start production is first
     # exprs.append(("start", ))
-    exprs.append(("start", ge.ref("NUMBER")))
+    exprs.append(("start'", ge.ref("NUMBER")))
 
     # for rule in grammar.rules.values():
     #     memo[rule.name] = ge.ref(rule.name)
