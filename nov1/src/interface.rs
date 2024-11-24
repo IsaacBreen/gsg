@@ -285,8 +285,8 @@ impl Grammar<Regex> {
 
         let tokenizer_exprs_vec: Vec<ExprGroup> = tokens
             .into_iter()
-            .filter(|(name, expr)| nts.contains(name))
-            .map(|(name, expr)| greedy_group(expr))
+            .filter(|(name, expr)| { dbg!(name); nts.contains(name) })
+            .map(|(_, expr)| greedy_group(expr))
             .collect();
         let tokenizer_expr_groups = groups(tokenizer_exprs_vec);
         let tokenizer = tokenizer_expr_groups.clone().build();
