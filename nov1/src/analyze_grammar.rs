@@ -61,12 +61,17 @@ pub fn drop_dead(productions: &[Production]) -> Vec<Production> {
     for symbol in &start_prod.rhs {
         if let Symbol::NonTerminal(nt) = symbol {
             reachable_from_start.insert(nt);
+            if let Some(nt_reachables) = nt_reachables.get(nt).cloned() {
+                reachable_from_start.extend(nt_reachables);
+            }
         }
     }
 
-    let mut new_productions = vec![productions[0].clone()];
+    let mut new_productions = vec![start_prod.clone()];
+    crate::dbgprintln2!("Keeping production {:?}", start_prod);
     for prod in productions.iter().skip(1) {
         if reachable_from_start.contains(&prod.lhs) {
+            crate::dbgprintln2!("Keeping production {:?}", prod);
             new_productions.push(prod.clone())
         } else {
             crate::dbgprintln2!("Removing production {:?}", prod);
