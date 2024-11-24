@@ -143,7 +143,6 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
     exprs.extend(tokens)
 
     print(exprs[0])
-    exit()
     return PyGrammar(exprs)
 
 def define_python_grammar():

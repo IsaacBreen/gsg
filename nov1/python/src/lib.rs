@@ -190,6 +190,10 @@ impl PyGrammar {
     fn glr_parser(&self) -> PyGLRParser {
         PyGLRParser { inner: self.inner.glr_parser() }
     }
+    
+    fn print(&self) {
+        println!("{:?}", self.inner)
+    }
 }
 
 #[pyclass]
