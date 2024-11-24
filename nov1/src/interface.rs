@@ -271,17 +271,26 @@ impl Grammar<Regex> {
                 rhs,
             });
         }
+        // TODO: this is bad. prob remove this.
+        let productions = drop_dead(&productions);
+        let mut nts = BTreeSet::new();
+        for prod in &productions {
+            nts.insert(prod.lhs.0.clone());
+            for symbol in &prod.rhs {
+                if let Symbol::NonTerminal(nt) = symbol {
+                    nts.insert(nt.0.clone());
+                }
+            }
+        }
 
         let tokenizer_exprs_vec: Vec<ExprGroup> = tokens
             .into_iter()
-            .map(|(_, expr)| greedy_group(expr))
+            .filter(|(name, expr)| nts.contains(name))
+            .map(|(name, expr)| greedy_group(expr))
             .collect();
         let tokenizer_expr_groups = groups(tokenizer_exprs_vec);
         let tokenizer = tokenizer_expr_groups.clone().build();
 
-        // TODO: this is bad. prob remove this.
-        let productions = drop_dead(&productions);
-        
         Self {
             productions,
             start_production_id: 0,
