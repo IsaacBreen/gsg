@@ -136,12 +136,17 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
     # exprs.append(("start", ))
     exprs.append(("start", ge.ref("NUMBER")))
 
-    for rule in grammar.rules.values():
-        memo[rule.name] = ge.ref(rule.name)
-        exprs.append((rule.name, pegen_to_sep1_regex(rule.rhs, memo)))
+    # for rule in grammar.rules.values():
+    #     memo[rule.name] = ge.ref(rule.name)
+    #     exprs.append((rule.name, pegen_to_sep1_regex(rule.rhs, memo)))
 
     tokens = define_tokens()
-    exprs.extend(tokens)
+    # exprs.extend(tokens)
+    for (name, expr) in tokens:
+        if name in ["NUMBER"]:
+            exprs.append((name, expr))
+        else:
+            exprs.append((name, ge.regex(Regex.eps())))
 
     return PyGrammar(exprs)
 
