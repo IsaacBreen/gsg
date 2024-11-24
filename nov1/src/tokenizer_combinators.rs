@@ -67,6 +67,7 @@ pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> Expr {
     for bytes in bytestrings {
         if bytes.len() > 1 {
             // TODO: This is a hack to speed things up.
+            println!("WARNING: hack");
             continue;
         }
         if bytes.len() > 4 {

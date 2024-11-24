@@ -82,6 +82,16 @@ impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn init(self) -> GrammarConstraintState<T> {
         let parser_initial_state = self.parser.init_parse_state();
         let tokenizer_initial_state_id = StateID(self.tokenizer.initial_state_id());
+                for (tokenizer_state, root) in &self.precomputed {
+            crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
+            for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
+                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+                // print edge values and destination addresses
+                for (edge, dest) in node.lock().unwrap().children() {
+                    crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+                }
+            }
+        }
         GrammarConstraintState {
             parent: self,
             states: vec![(parser_initial_state, BTreeSet::from([tokenizer_initial_state_id]))],
@@ -122,6 +132,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                                 let possible_next_grammar_token_id = table::TerminalID(*possible_next_grammar_token);
                                 new_glr_parse_state.step(possible_next_grammar_token_id);
                                 if new_glr_parse_state.is_ok() {
+                                    panic!();
                                     result |= bitset;
                                 }
                             }

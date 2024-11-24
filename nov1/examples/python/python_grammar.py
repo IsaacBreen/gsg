@@ -217,6 +217,7 @@ def initialize_grammar_constraint(grammar, llm_tokens):
     initial_mask_ids = np.where(initial_mask)[0]
     initial_mask_id_map = {id: llm_tokens[id] for id in initial_mask_ids}
     print(f"Initial Mask IDs: {initial_mask_id_map}")
+    assert len(initial_mask_id_map) > 0
     return grammar_constraint_state
 
 def generate_text(model, tokenizer, grammar_processor, input_text, max_new_tokens=50):

@@ -53,12 +53,15 @@ pub trait Tokenizer: Sized {
 
         while let Some(((position, state), node)) = queue.pop_first() {
             // todo: does it make sense to have this here?
-            if position > text.len() {
-                continue;
-            }
-
+            // if position > text.len() {
+            //     continue;
+            // }
+            assert!(position <= text.len());
+            
             if position == text.len() {
+                dbg!(state, text);
                 node.lock().unwrap().value = Some(state);
+                continue;
             }
 
             let remaining_text = &text[position..];
