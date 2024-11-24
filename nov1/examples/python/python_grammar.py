@@ -134,7 +134,9 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
 
     # Make sure the start production is first
     # exprs.append(("start", ))
-    exprs.append(("start'", ge.ref("NUMBER")))
+    # TODO: remove this
+    temp = "NAME"
+    # exprs.append(("start'", ge.ref(temp)))
 
     # for rule in grammar.rules.values():
     #     memo[rule.name] = ge.ref(rule.name)
@@ -142,8 +144,9 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
 
     tokens = define_tokens()
     # exprs.extend(tokens)
+    # TODO: remove this
     for (name, expr) in tokens:
-        if name in ["NUMBER"]:
+        if name in [NAME]:
             exprs.append((name, expr))
         else:
             exprs.append((name, ge.regex(Regex.eps())))
