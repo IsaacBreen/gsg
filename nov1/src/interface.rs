@@ -137,6 +137,7 @@ impl Grammar<Regex> {
             literal_map: &mut BTreeMap<String, String>,
             tokens: &mut BTreeMap<String, Expr>,
             terminal_name_to_group_id: &mut BiBTreeMap<String, usize>,
+            // todo: make this `terminal_group_id_to_expr` instead
             terminal_expr_to_group_id: &mut BiBTreeMap<Expr, usize>,
             next_terminal_id: &mut usize,
         ) -> Vec<Symbol> {
@@ -271,21 +272,12 @@ impl Grammar<Regex> {
                 rhs,
             });
         }
+
         // TODO: this is bad. prob remove this.
         let productions = drop_dead(&productions);
-        let mut nts = BTreeSet::new();
-        for prod in &productions {
-            nts.insert(prod.lhs.0.clone());
-            for symbol in &prod.rhs {
-                if let Symbol::NonTerminal(nt) = symbol {
-                    nts.insert(nt.0.clone());
-                }
-            }
-        }
 
         let tokenizer_exprs_vec: Vec<ExprGroup> = tokens
             .into_iter()
-            .filter(|(name, expr)| { dbg!(name); nts.contains(name) })
             .map(|(_, expr)| greedy_group(expr))
             .collect();
         let tokenizer_expr_groups = groups(tokenizer_exprs_vec);
