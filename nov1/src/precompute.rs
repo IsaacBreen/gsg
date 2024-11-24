@@ -78,9 +78,8 @@ pub trait Tokenizer: Sized {
                     // Create a new node and add it to the queue
                     let new_node = Arc::new(Mutex::new(TrieNode::new(None)));
                     node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
-                    if let Some(new_state) = execute_result.new_state {
-                        queue.insert((new_position, new_state), new_node.clone());
-                    }
+                    let new_state = execute_result.new_state.unwrap_or(0);
+                    queue.insert((new_position, new_state), new_node.clone());
                 }
             }
         }
