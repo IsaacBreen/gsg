@@ -20,7 +20,7 @@ pub struct LLMTokenID(pub usize);
 pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
-    pub precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BTreeMap<TokenID, BitVec>)>>,
+    pub(crate) precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BTreeMap<TokenID, BitVec>)>>,
     pub(crate) num_llm_tokens: usize,
 }
 
@@ -82,6 +82,7 @@ impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn init(self) -> GrammarConstraintState<T> {
         let parser_initial_state = self.parser.init_parse_state();
         let tokenizer_initial_state_id = StateID(self.tokenizer.initial_state_id());
+        crate::dbgprintln2!("precomputed.len(): {}", self.precomputed.len());
         crate::dbgprintln2!("precomputed:");
         for (tokenizer_state, root) in &self.precomputed {
             crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);

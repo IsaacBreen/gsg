@@ -223,7 +223,6 @@ impl PyGrammarConstraint {
            })
            .collect();
         let inner = GrammarConstraint::from_grammar(grammar.inner, &llm_tokens_vec.iter().map(|token| &token[..]).collect::<Vec<_>>());
-        dbg!("precomputed.len(): {}", inner.precomputed.len());
         Self { inner }
     }
 }
