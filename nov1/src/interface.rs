@@ -55,7 +55,7 @@ impl<T> Debug for Grammar<T> where T: Debug {
         for (name, group_id) in &self.terminal_name_to_group_id {
             writeln!(f, "    {:?}: {}", name, group_id)?;
         }
-        
+
         writeln!(f, "Tokenizer:");
         writeln!(f, "{:?}", &self.tokenizer);
 
@@ -307,10 +307,13 @@ impl<T: Tokenizer> GrammarConstraint<T> {
 
         crate::dbgprintln2!("Precomputing");
         let precomputed = precompute(&grammar.tokenizer, llm_tokens);
+        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
         crate::dbgprintln2!("Adding incomplete token");
         let precomputed = precompute_add_incomplete_token(&grammar.tokenizer, precomputed);
+        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
         crate::dbgprintln2!("Converting to LLM token IDs");
         let precomputed = convert_precomputed_to_llm_token_ids(&grammar.tokenizer, precomputed, &llm_tokens.iter().map(|token| token.to_vec()).collect::<Vec<_>>());
+        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
         crate::dbgprintln2!("Done precomputing");
 
         let num_llm_tokens = llm_tokens.len();
