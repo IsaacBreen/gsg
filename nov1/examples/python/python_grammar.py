@@ -131,6 +131,10 @@ def define_tokens() -> list[tuple[str, Any]]:
 def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
     memo = {}
     exprs: list[tuple[str, Any]] = []
+
+    # Make sure the start production is first
+    # exprs.append(("start", ))
+
     for rule in grammar.rules.values():
         memo[rule.name] = ge.ref(rule.name)
         exprs.append((rule.name, pegen_to_sep1_regex(rule.rhs, memo)))
@@ -138,6 +142,8 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
     tokens = define_tokens()
     exprs.extend(tokens)
 
+    print(exprs[0])
+    exit()
     return PyGrammar(exprs)
 
 def define_python_grammar():

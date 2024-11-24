@@ -5,7 +5,7 @@ use bimap::BiBTreeMap;
 use std::collections::{HashMap, VecDeque};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
-use crate::validate_productions::validate;
+use crate::analyze_grammar::validate;
 
 type Stage1Table = BTreeMap<BTreeSet<Item>, Stage1Row>;
 type Stage2Table = BTreeMap<BTreeSet<Item>, Stage2Row>;
