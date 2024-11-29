@@ -134,8 +134,9 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                                 let mut new_glr_parse_state = glr_parse_state.clone();
                                 let possible_next_grammar_token_id = table::TerminalID(*possible_next_grammar_token);
                                 new_glr_parse_state.step(possible_next_grammar_token_id);
+                                    // panic!();
+                                    // result |= bitset;
                                 if new_glr_parse_state.is_ok() {
-                                    panic!();
                                     result |= bitset;
                                 }
                             }
