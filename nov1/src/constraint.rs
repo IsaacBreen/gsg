@@ -110,6 +110,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
             for tokenizer_state in tokenizer_state_ids {
                 let token_sequence_map = &self.parent.precomputed[tokenizer_state];
                 TrieNode::special_map(
+                    // todo (performance): unnecessary clone
                     Arc::new(Mutex::new(token_sequence_map.clone())),
                     vec![parse_state.clone()],
                     // todo: it's messy that we need to access the value in dst_node here.
