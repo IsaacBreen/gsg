@@ -108,44 +108,43 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
         result.resize(self.parent.num_llm_tokens, false);
         for (parse_state, tokenizer_state_ids) in &self.states {
             for tokenizer_state in tokenizer_state_ids {
-                if let Some(token_sequence_map) = self.parent.precomputed.get(tokenizer_state) {
-                    TrieNode::special_map(
-                        Arc::new(Mutex::new(token_sequence_map.clone())),
-                        vec![parse_state.clone()],
-                        // todo: it's messy that we need to access the value in dst_node here.
-                        |current_parse_states, token_id, dst_node| {
-                            // todo: this is introducing redundancy... ?
-                            let mut glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(current_parse_states.clone());
-                            println!("token_id: {:?}", token_id);
-                            glr_parse_state.step(TerminalID(*token_id));
-                            glr_parse_state.active_states
-                        },
-                        |mut parse_states: Vec<Vec<ParseState>>| {
-                            let mut all_parse_states = parse_states.pop().unwrap();
-                            for mut other_parse_state in parse_states {
-                                all_parse_states.append(&mut other_parse_state)
+                let token_sequence_map = &self.parent.precomputed[tokenizer_state];
+                TrieNode::special_map(
+                    Arc::new(Mutex::new(token_sequence_map.clone())),
+                    vec![parse_state.clone()],
+                    // todo: it's messy that we need to access the value in dst_node here.
+                    |current_parse_states, token_id, dst_node| {
+                        // todo: this is introducing redundancy... ?
+                        let mut glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(current_parse_states.clone());
+                        println!("token_id: {:?}", token_id);
+                        glr_parse_state.step(TerminalID(*token_id));
+                        glr_parse_state.active_states
+                    },
+                    |mut parse_states: Vec<Vec<ParseState>>| {
+                        let mut all_parse_states = parse_states.pop().unwrap();
+                        for mut other_parse_state in parse_states {
+                            all_parse_states.append(&mut other_parse_state)
+                        }
+                        let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(all_parse_states);
+                        new_glr_parse_state.merge_active_states();
+                        new_glr_parse_state.active_states
+                    },
+                    |(_, bitsets), current_parse_states| {
+                        let mut glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(current_parse_states.clone());
+                        for (possible_next_grammar_token, bitset) in bitsets {
+                            let mut new_glr_parse_state = glr_parse_state.clone();
+                            let possible_next_grammar_token_id = table::TerminalID(*possible_next_grammar_token);
+                            new_glr_parse_state.step(possible_next_grammar_token_id);
+                            // panic!();
+                            // todo: remove this
+                            println!("possible_next_grammar_token: {:?}", possible_next_grammar_token);
+                            // result |= bitset;
+                            if new_glr_parse_state.is_ok() {
+                                result |= bitset;
                             }
-                            let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(all_parse_states);
-                            new_glr_parse_state.merge_active_states();
-                            new_glr_parse_state.active_states
-                        },
-                        |(_, bitsets), current_parse_states| {
-                            let mut glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(current_parse_states.clone());
-                            for (possible_next_grammar_token, bitset) in bitsets {
-                                let mut new_glr_parse_state = glr_parse_state.clone();
-                                let possible_next_grammar_token_id = table::TerminalID(*possible_next_grammar_token);
-                                new_glr_parse_state.step(possible_next_grammar_token_id);
-                                // panic!();
-                                // todo: remove this
-                                println!("possible_next_grammar_token: {:?}", possible_next_grammar_token);
-                                // result |= bitset;
-                                if new_glr_parse_state.is_ok() {
-                                    result |= bitset;
-                                }
-                            }
-                        },
-                    );
-                }
+                        }
+                    },
+                );
             }
         }
         result
