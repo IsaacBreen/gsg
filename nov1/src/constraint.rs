@@ -87,8 +87,8 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         for (tokenizer_state, root) in &self.precomputed {
             crate::dbgprintln2!("Tokenizer state: {}", tokenizer_state.0);
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-                // crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
-                crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), "node.lock().unwrap().value");
+                crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+                // crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), "node.lock().unwrap().value");
                 // print edge values and destination addresses
                 for (edge, dest) in node.lock().unwrap().children() {
                     crate::dbgprintln2!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
@@ -116,6 +116,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                         |current_parse_states, token_id, dst_node| {
                             // todo: this is introducing redundancy... ?
                             let mut glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(current_parse_states.clone());
+                            println!("token_id: {:?}", token_id);
                             glr_parse_state.step(TerminalID(*token_id));
                             glr_parse_state.active_states
                         },
@@ -134,8 +135,10 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                                 let mut new_glr_parse_state = glr_parse_state.clone();
                                 let possible_next_grammar_token_id = table::TerminalID(*possible_next_grammar_token);
                                 new_glr_parse_state.step(possible_next_grammar_token_id);
-                                    // panic!();
-                                    // result |= bitset;
+                                // panic!();
+                                // todo: remove this
+                                println!("possible_next_grammar_token: {:?}", possible_next_grammar_token);
+                                // result |= bitset;
                                 if new_glr_parse_state.is_ok() {
                                     result |= bitset;
                                 }

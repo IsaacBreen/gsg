@@ -335,7 +335,6 @@ mod tests {
     use crate::finite_automata::eat_u8;
     use crate::glr::table::generate_glr_parser;
     use crate::trie::TrieNode;
-    // ... (other imports and helper functions remain the same) ...
 
 
     fn bitvec_with_capacity_and_values(capacity: usize, values: Vec<usize>) -> BitVec {
@@ -396,7 +395,6 @@ mod tests {
         let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
         let mut grammar_constraint_state = grammar_constraint.init();
 
-        #[macro_export]
         macro_rules! llm_token_vec {
             ($($token:expr),* $(,)?) => {
                 vec![
@@ -439,6 +437,57 @@ mod tests {
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_constraint_state.get_mask();
         let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"+", b"*", b")", b"+i"));
+        assert_eq!(mask, expected_mask);
+    }
+
+    #[test]
+    fn test_grammar_from_exprs_simple() {
+        let exprs = vec![
+            (
+                "E".to_string(),
+                // sequence(vec![
+                    regex(eat_u8(b'a')),
+                    // regex(eat_u8(b'b')),
+                // ]),
+            ),
+        ];
+
+        let grammar = Grammar::from_exprs(exprs.clone());
+        dbg!(&grammar);
+
+        let parser = grammar.glr_parser();
+        dbg!(&parser);
+
+        let llm_tokens = &[b"a".as_slice(), b"b"];
+        let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, &token)| (token.to_vec(), LLMTokenID(i))).collect();
+        let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
+        let mut grammar_constraint_state = grammar_constraint.init();
+
+        for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
+            crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
+            for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
+                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+                // print edge values and destination addresses
+                for (edge, dest) in node.lock().unwrap().children() {
+                    crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+                }
+            }
+        }
+
+        macro_rules! llm_token_vec {
+            ($($token:expr),* $(,)?) => {
+                vec![
+                    $(
+                        llm_token_to_id.get($token.as_slice()).unwrap().0,
+                    )*
+                ]
+            }
+        }
+
+        // Get the mask.
+        // The valid LLM tokens initially are ["i", "(", "(i"].
+        let mask = grammar_constraint_state.get_mask();
+        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"a"));
         assert_eq!(mask, expected_mask);
     }
 }

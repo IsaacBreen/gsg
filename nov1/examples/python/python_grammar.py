@@ -235,7 +235,7 @@ if __name__ == "__main__":
     model_name = "gpt2"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    llm_tokens = [tokenizer.convert_ids_to_tokens(i).encode() for i in range(tokenizer.vocab_size)]
+    llm_tokens = [tokenizer.convert_ids_to_tokens(i).replace("Ġ", " ").encode() for i in range(tokenizer.vocab_size)]
     llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
 
     print("Defining grammar...")

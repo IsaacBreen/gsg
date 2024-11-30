@@ -4,7 +4,7 @@ use crate::glr::table::StateID;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 use kdam::tqdm;
-use crate::trie::TrieNode;
+use crate::trie::{dump_structure, TrieNode};
 
 pub type TokenID = usize;
 
@@ -138,7 +138,7 @@ pub fn precompute<'a>(
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, BTreeMap<&'a [u8], StateID>>>> = Arc::new(Mutex::new(TrieNode::new(BTreeMap::new())));
 
         for &llm_token in llm_tokens {
-            let token_str = std::str::from_utf8(llm_token).unwrap_or("Invalid UTF-8");
+            // let token_str = std::str::from_utf8(llm_token).unwrap_or("Invalid UTF-8");
             // crate::dbgprintln2!("Precomputing token {:?} ({:?})", llm_token, token_str);
             let token_tree = tokenizer.execute_all_from_state(llm_token, state_id);
             // for (x, y) in token_tree.lock().unwrap().flatten(Option::is_some) {
@@ -175,13 +175,16 @@ pub fn precompute<'a>(
             // for (x, y) in state_map_root_arc.lock().unwrap().flatten(|llm_token_to_state| !llm_token_to_state.is_empty()) {
             //     crate::dbgprintln!("HERE: Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
             // }
-
+            // dump_structure(state_map_root_arc.clone());
         }
 
         if !state_map_root_arc.lock().unwrap().is_empty() {
             let state_map_root = state_map_root_arc.lock().unwrap().clone();
             result.insert(glr::table::StateID(state_id), state_map_root);
         }
+        println!("Precomputing state {}", state_id);
+        dump_structure(state_map_root_arc.clone());
+
     }
 
     result
