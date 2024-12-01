@@ -166,7 +166,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                         if let Some(info) = llm_token_id_to_state_id.get(&llm_token_id) {
                             for active_parse_state in new_glr_parse_state.active_states {
                                 new_states.insert_with(
-                                    (active_parse_state.key(), BTreeSet::from([StateID(info.tokenizer_state_id)])),
+                                    (active_parse_state.key(), BTreeSet::from([info.dirty_end_state.unwrap_or(StateID(0))])),
                                     active_parse_state,
                                     |old, new| {
                                         old.merge(new);

@@ -50,7 +50,7 @@ pub trait Tokenizer: Sized {
         // (position, state) -> node
         let mut queue: BTreeMap<(usize, usize), Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>>> = BTreeMap::new();
 
-        let root: Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>> = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: state, position_in_llm_token: 0, dirty_end: false, clean_end: false })));
+        let root: Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>> = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: state, position_in_llm_token: 0, dirty_end_state: None, clean_end: false })));
 
         // Initialize the queue with the starting state
         // todo: this can be simplified; any queue entries other than the first one should have initial state (i.e. 0)
@@ -83,14 +83,14 @@ pub trait Tokenizer: Sized {
                     node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
                 } else {
                     // Create a new node and add it to the queue
-                    let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position, dirty_end: false, clean_end: new_position == text.len() })));
+                    let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position, dirty_end_state: None, clean_end: new_position == text.len() })));
                     node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
                     queue.insert((new_position, new_state), new_node.clone());
                 }
             }
 
-            if execute_result.new_state.is_some() {
-                node.lock().unwrap().value.dirty_end = true;
+            if let Some(new_state) = execute_result.new_state {
+                node.lock().unwrap().value.dirty_end_state = Some(StateID(new_state));
             }
         }
 
@@ -102,7 +102,8 @@ pub trait Tokenizer: Sized {
 pub struct TokenizerStateInfoForLLMToken {
     pub tokenizer_state_id: usize,
     pub position_in_llm_token: usize,
-    pub dirty_end: bool,
+    pub dirty_end_state: Option<StateID>,
+    // todo: do we even need this?
     pub clean_end: bool,
 }
 
@@ -133,8 +134,8 @@ pub fn precompute<'a>(
                 token_tree,
                 |(mut llm_token_id_to_state, mut grammar_token_id_to_bitvec, mut maybe_clean_end_bitvec), info: TokenizerStateInfoForLLMToken| {
                     llm_token_id_to_state.insert(LLMTokenID(llm_token_id), info);
-                    if info.dirty_end {
-                        for possible_grammar_token_id in &tokenizer.tokens_accessible_from_state(info.tokenizer_state_id) {
+                    if let Some(dirty_end_state) = info.dirty_end_state {
+                        for possible_grammar_token_id in &tokenizer.tokens_accessible_from_state(dirty_end_state.0) {
                             grammar_token_id_to_bitvec.entry(*possible_grammar_token_id).or_insert_with(|| {
                                 let mut bitset = BitVec::new();
                                 bitset.resize(llm_tokens.len(), false);
