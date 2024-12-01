@@ -3,7 +3,7 @@ use crate::glr::parser::{GLRParser, GLRParserState, InsertWith, ParseState, Pars
 use crate::glr::table;
 use crate::glr::table::{StateID, TerminalID};
 use crate::precompute;
-use crate::precompute::{Token, TokenID, Tokenizer};
+use crate::precompute::{Token, TokenID, Tokenizer, TokenizerStateInfoForLLMToken};
 use bitvec::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -20,7 +20,7 @@ pub struct LLMTokenID(pub usize);
 pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
-    pub(crate) precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BTreeMap<TokenID, BitVec>)>>,
+    pub(crate) precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>)>>,
     pub(crate) num_llm_tokens: usize,
 }
 
@@ -32,10 +32,10 @@ pub struct GrammarConstraintState<T: Tokenizer> {
 
 pub fn convert_precomputed_to_llm_token_ids<'a>(
     tokenizer: &impl Tokenizer,
-    precomputed: BTreeMap<StateID, TrieNode<TokenID, BTreeMap<&'a [u8], StateID>>>,
+    precomputed: BTreeMap<StateID, TrieNode<TokenID, BTreeMap<&'a [u8], TokenizerStateInfoForLLMToken>>>,
     llm_tokens: &[LLMToken],
 // ) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (BTreeMap<LLMTokenID, StateID>, BitVec)>> {
-) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, StateID>, BTreeMap<TokenID, BitVec>)>> {
+) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>)>> {
     let num_llm_tokens = llm_tokens.len();
     let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
     let mut result = BTreeMap::new();
@@ -46,7 +46,7 @@ pub fn convert_precomputed_to_llm_token_ids<'a>(
             for (llm_token, next_state_id) in llm_token_to_state_id {
                 let llm_token_id = llm_token_to_id.get(llm_token).unwrap();
                 new_llm_token_state_map.insert(*llm_token_id, next_state_id);
-                for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_state_id.0) {
+                for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_state_id.tokenizer_state_id) {
                     bitsets.entry(possible_next_token_id).or_insert_with(|| {
                         let mut bitset = BitVec::new();
                         bitset.resize(num_llm_tokens, false);
@@ -178,10 +178,10 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                     },
                     |(llm_token_id_to_state_id, _), current_parse_states| {
                         let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(current_parse_states.clone());
-                        if let Some(next_tokenizer_state_id) = llm_token_id_to_state_id.get(&llm_token_id) {
+                        if let Some(info) = llm_token_id_to_state_id.get(&llm_token_id) {
                             for active_parse_state in new_glr_parse_state.active_states {
                                 new_states.insert_with(
-                                    (active_parse_state.key(), BTreeSet::from([*next_tokenizer_state_id])),
+                                    (active_parse_state.key(), BTreeSet::from([StateID(info.tokenizer_state_id)])),
                                     active_parse_state,
                                     |old, new| {
                                         old.merge(new);
