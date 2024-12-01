@@ -21,6 +21,7 @@ pub struct ExecuteResult {
     pub new_state: Option<usize>,
 }
 
+// TODO: get rid of this trait. Just implement it directly on the Tokenizer struct.
 /// Trait defining the tokenizer behavior.
 pub trait Tokenizer: Sized {
     /// Returns the initial state ID.
@@ -59,7 +60,6 @@ pub trait Tokenizer: Sized {
             assert!(position <= text.len());
             
             if position == text.len() {
-                node.lock().unwrap().value = TokenizerStateInfoForLLMToken { tokenizer_state_id: state, position_in_llm_token: 0 };
                 continue;
             }
 
@@ -79,7 +79,7 @@ pub trait Tokenizer: Sized {
                     node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
                 } else {
                     // Create a new node and add it to the queue
-                    let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: 0 })));
+                    let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position })));
                     node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
                     queue.insert((new_position, new_state), new_node.clone());
                 }
