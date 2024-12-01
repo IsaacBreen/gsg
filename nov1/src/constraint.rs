@@ -40,13 +40,13 @@ pub fn convert_precomputed_to_llm_token_ids<'a>(
     let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
     let mut result = BTreeMap::new();
     for (state_id, token_sequence_map) in precomputed {
-        let mut new_token_sequence_map_arc = token_sequence_map.map_t(|llm_token_to_state_id| {
+        let mut new_token_sequence_map_arc = token_sequence_map.map_t(|llm_token_to_tokenizer_state_info| {
             let mut new_llm_token_state_map = BTreeMap::new();
             let mut bitsets: BTreeMap<TokenID, BitVec> = BTreeMap::new();
-            for (llm_token, next_state_id) in llm_token_to_state_id {
+            for (llm_token, next_tokenizer_state_info) in llm_token_to_tokenizer_state_info {
                 let llm_token_id = llm_token_to_id.get(llm_token).unwrap();
-                new_llm_token_state_map.insert(*llm_token_id, next_state_id);
-                for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_state_id.tokenizer_state_id) {
+                new_llm_token_state_map.insert(*llm_token_id, next_tokenizer_state_info);
+                for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_tokenizer_state_info.tokenizer_state_id) {
                     bitsets.entry(possible_next_token_id).or_insert_with(|| {
                         let mut bitset = BitVec::new();
                         bitset.resize(num_llm_tokens, false);
