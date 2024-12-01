@@ -158,8 +158,8 @@ pub fn precompute<'a>(
             );
         }
 
-        println!("Precomputing state {}", state_id);
-        dump_structure(state_map_root_arc.clone());
+        // println!("Precomputing state {}", state_id);
+        // dump_structure(state_map_root_arc.clone());
 
         let state_map_root = state_map_root_arc.lock().unwrap().clone();
         result.insert(glr::table::StateID(state_id), state_map_root);

@@ -84,7 +84,8 @@ def define_tokens() -> list[tuple[str, Any]]:
     ]))
 
     def regex(expr):
-        return ge.regex(seq([ignore, expr]))
+#         return ge.regex(seq([ignore, expr]))
+        return ge.regex(expr)
 
     digit = choice([eat_u8(c) for c in range(ord("0"), ord("9") + 1)])
     alph_lower = choice([eat_u8(c) for c in range(ord("a"), ord("z") + 1)])
@@ -150,6 +151,9 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
             exprs.append((name, expr))
         else:
             exprs.append((name, ge.regex(Regex.eps())))
+
+    # todo: remove this
+#     exprs = [("start", ge.regex(Regex.eat_u8(ord("a"))))]
 
     return PyGrammar(exprs)
 

@@ -44,19 +44,19 @@ impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn init(self) -> GrammarConstraintState<T> {
         let parser_initial_state = self.parser.init_parse_state();
         let tokenizer_initial_state_id = StateID(self.tokenizer.initial_state_id());
-        crate::dbgprintln2!("precomputed.len(): {}", self.precomputed.len());
-        crate::dbgprintln2!("precomputed:");
-        for (tokenizer_state, root) in &self.precomputed {
-            crate::dbgprintln2!("Tokenizer state: {}", tokenizer_state.0);
-            for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-                crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
-                // crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), "node.lock().unwrap().value");
-                // print edge values and destination addresses
-                for (edge, dest) in node.lock().unwrap().children() {
-                    crate::dbgprintln2!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
-                }
-            }
-        }
+        // crate::dbgprintln2!("precomputed.len(): {}", self.precomputed.len());
+        // crate::dbgprintln2!("precomputed:");
+        // for (tokenizer_state, root) in &self.precomputed {
+        //     crate::dbgprintln2!("Tokenizer state: {}", tokenizer_state.0);
+        //     for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
+        //         crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+        //         // crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), "node.lock().unwrap().value");
+        //         // print edge values and destination addresses
+        //         for (edge, dest) in node.lock().unwrap().children() {
+        //             crate::dbgprintln2!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+        //         }
+        //     }
+        // }
         GrammarConstraintState {
             parent: self,
             states: vec![(parser_initial_state, BTreeSet::from([tokenizer_initial_state_id]))],
@@ -95,7 +95,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                     |current_parse_states, token_id, dst_node| {
                         // todo: this is introducing redundancy... ?
                         let mut glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(current_parse_states.clone());
-                        println!("token_id: {:?}", token_id);
+                        // println!("token_id: {:?}", token_id);
                         glr_parse_state.step(TerminalID(*token_id));
                         glr_parse_state.active_states
                     },
