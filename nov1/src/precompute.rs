@@ -78,7 +78,7 @@ pub trait Tokenizer: Sized {
                 assert_ne!(token.width, 0);
                 assert!(new_position <= text.len());
                 let new_state = execute_result.new_state.unwrap_or(0);
-                if let Some(new_node) = queue.get_mut(&(new_position, new_state)) {
+                if let Some(new_node) = queue.get(&(new_position, new_state)) {
                     // Add an edge from the current node to the new node
                     node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
                 } else {
@@ -126,6 +126,9 @@ pub fn precompute<'a>(
                 token_tree,
                 |(mut llm_token_id_to_state, mut grammar_token_id_to_bitvec), info: TokenizerStateInfoForLLMToken| {
                     llm_token_id_to_state.insert(LLMTokenID(llm_token_id), info);
+                    if info.position_in_llm_token == llm_token.len() {
+                        // grammar_token_id_to_bitvec.
+                    }
                     (llm_token_id_to_state, grammar_token_id_to_bitvec)
                 },
                 || { (BTreeMap::new(), BTreeMap::new()) },
@@ -179,66 +182,6 @@ mod tests {
     use crate::u8set::U8Set;
     use crate::{groups, seq};
     use std::collections::{BTreeMap, BTreeSet};
-
-    #[test]
-    fn test_precompute_llm_token_sets() {
-        // Define LLM tokens
-        let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"ac"];
-
-        // Map LLM tokens to unique IDs
-        let llm_token_to_id: BTreeMap<&[u8], usize> = llm_tokens.iter().enumerate().map(|(i, &token)| (token, i)).collect();
-
-        // Build the expected precompute_map
-        // We will manually construct the expected output based on the DFA and LLM tokens
-
-        // Initialize the expected map
-        let mut precompute_map: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>>> = BTreeMap::new();
-
-        // For DFA state 0 (start state)
-        let mut state0_map: BTreeMap<Vec<GroupID>, BTreeMap<&[u8], StateID>> = BTreeMap::new();
-
-        // Analyze each LLM token starting from state 0
-
-        // LLM token "ab"
-        // - It matches the grammar token sequence [0] ("ab") and ends in an accepting state
-        state0_map.entry(vec![0]).or_insert_with(BTreeMap::new).insert(b"ab", /* end state */ StateID(0)); // We can use 0 as the end state for simplicity
-
-        // LLM token "ac"
-        // - It matches the grammar token sequence [1] ("ac") and ends in an accepting state
-        state0_map.entry(vec![1]).or_insert_with(BTreeMap::new).insert(b"ac", StateID(0));
-
-        // LLM tokens "a", "b", "c"
-        // - These tokens do not produce any complete grammar token sequences starting from state 0
-        // - Therefore, they are not included in the expected_precompute_map
-
-        precompute_map.insert(StateID(0), state0_map);
-
-        // Build the expected bitset_map based on the expected_precompute_map
-        let mut expected_bitset_map: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeSet<usize>>> = BTreeMap::new();
-
-        let mut state0_bitset_map: BTreeMap<Vec<GroupID>, BTreeSet<usize>> = BTreeMap::new();
-
-        // For grammar token sequence [0] ("ab"), the LLM token is "ab" with ID 3
-        let mut bitset_ab = BTreeSet::<usize>::new();
-        let llm_token_id_ab = *llm_token_to_id.get(b"ab".as_slice()).unwrap();
-        bitset_ab.insert(llm_token_id_ab);
-        state0_bitset_map.insert(vec![0], bitset_ab);
-
-        // For grammar token sequence [1] ("ac"), the LLM token is "ac" with ID 4
-        let mut bitset_ac = BTreeSet::<usize>::new();
-        let llm_token_id_ac = *llm_token_to_id.get(b"ac".as_slice()).unwrap();
-        bitset_ac.insert(llm_token_id_ac);
-        state0_bitset_map.insert(vec![1], bitset_ac);
-
-        expected_bitset_map.insert(StateID(0), state0_bitset_map);
-
-        // Compare the actual bitset_map to the expected one
-        assert_eq!(
-            bitset_map, expected_bitset_map,
-            "The bitset_map does not match the expected map.\nExpected: {:?}\nActual: {:?}",
-            expected_bitset_map, bitset_map
-        );
-    }
 
     #[test]
     fn test_precompute() {
