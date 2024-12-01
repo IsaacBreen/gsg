@@ -94,33 +94,6 @@ pub trait Tokenizer: Sized {
     }
 }
 
-// todo: remove this
-/// Precomputes a map from each state and token sequence to a set of LLM token IDs.
-pub fn precompute_llm_token_sets<'a>(
-    precompute_map: &BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>>>,
-    llm_token_to_id: &BTreeMap<&'a [u8], usize>,
-) -> BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeSet<usize>>> {
-    let mut result: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeSet<usize>>> = BTreeMap::new();
-
-    for (&state_id, token_sequence_map) in precompute_map {
-        let mut sequence_set_map: BTreeMap<Vec<GroupID>, BTreeSet<usize>> = BTreeMap::new();
-
-        for (token_sequence, llm_token_state_map) in token_sequence_map {
-            let mut set = BTreeSet::new();
-            for (&llm_token, &_next_state) in llm_token_state_map {
-                if let Some(&llm_token_id) = llm_token_to_id.get(llm_token) {
-                    set.insert(llm_token_id);
-                }
-            }
-            sequence_set_map.insert(token_sequence.clone(), set);
-        }
-
-        result.insert(state_id, sequence_set_map);
-    }
-
-    result
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TokenizerStateInfoForLLMToken {
     pub tokenizer_state_id: usize,
@@ -239,9 +212,6 @@ mod tests {
         // - Therefore, they are not included in the expected_precompute_map
 
         precompute_map.insert(StateID(0), state0_map);
-
-        // Perform precompute
-        let bitset_map = precompute_llm_token_sets(&precompute_map, &llm_token_to_id);
 
         // Build the expected bitset_map based on the expected_precompute_map
         let mut expected_bitset_map: BTreeMap<StateID, BTreeMap<Vec<GroupID>, BTreeSet<usize>>> = BTreeMap::new();
