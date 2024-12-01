@@ -3,10 +3,14 @@ use crate::glr;
 use crate::glr::table::StateID;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
+use bitvec::prelude::BitVec;
 use kdam::tqdm;
 use crate::trie::{dump_structure, TrieNode};
 
 pub type TokenID = usize;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LLMTokenID(pub usize);
 
 /// Represents a token with its ID and width.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -127,8 +131,8 @@ pub struct TokenizerStateInfoForLLMToken {
 pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
     llm_tokens: &[&'a [u8]],
-) -> BTreeMap<StateID, TrieNode<GroupID, BTreeMap<&'a [u8], TokenizerStateInfoForLLMToken>>> {
-    let mut result: BTreeMap<StateID, TrieNode<GroupID, BTreeMap<&'a [u8], TokenizerStateInfoForLLMToken>>> = BTreeMap::new();
+) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>)>> {
+    let mut result: BTreeMap<StateID, TrieNode<GroupID, _>> = BTreeMap::new();
 
     // Ensure the tokenizer doesn't match on empty strings
     crate::dbgprintln2!("Ensuring tokenizer doesn't match on empty strings");
@@ -139,47 +143,20 @@ pub fn precompute<'a>(
 
     crate::dbgprintln2!("Precomputing");
     for state_id in tqdm!(0..tokenizer.max_state()) {
-        // crate::dbgprintln2!("Precomputing state {}", state_id);
-        // let mut state_map: BTreeMap<Vec<GroupID>, BTreeMap<&'a [u8], StateID>> = BTreeMap::new();
-        let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, BTreeMap<&'a [u8], TokenizerStateInfoForLLMToken>>>> = Arc::new(Mutex::new(TrieNode::new(BTreeMap::new())));
+        let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new()))));
 
-        for &llm_token in llm_tokens {
-            // let token_str = std::str::from_utf8(llm_token).unwrap_or("Invalid UTF-8");
-            // crate::dbgprintln2!("Precomputing token {:?} ({:?})", llm_token, token_str);
+        for (llm_token_id, &llm_token) in llm_tokens.iter().enumerate() {
             let token_tree = tokenizer.execute_all_from_state(llm_token, state_id);
-            // for (x, y) in token_tree.lock().unwrap().flatten(Option::is_some) {
-            //     crate::dbgprintln!("Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
-            // }
-            // for node in TrieNode::all_nodes(token_tree.clone()) {
-            //     // print the node address and value
-            //     crate::dbgprintln!("Token tree node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
-            //     // print edge values and destination addresses
-            //     for (edge, dest) in node.lock().unwrap().children.iter() {
-            //         crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
-            //     }
-            // }
             // Merge into the existing state map
             TrieNode::merge(
                 state_map_root_arc.clone(),
                 token_tree,
-                |mut llm_token_to_state: BTreeMap<&'a [u8], TokenizerStateInfoForLLMToken>, info: TokenizerStateInfoForLLMToken| {
-                    llm_token_to_state.insert(llm_token, info);
-                    llm_token_to_state
+                |(mut llm_token_id_to_state, mut grammar_token_id_to_bitvec), info: TokenizerStateInfoForLLMToken| {
+                    llm_token_id_to_state.insert(LLMTokenID(llm_token_id), info);
+                    (llm_token_id_to_state, grammar_token_id_to_bitvec)
                 },
-                || { BTreeMap::new() },
+                || { (BTreeMap::new(), BTreeMap::new()) },
             );
-            // for node in TrieNode::all_nodes(state_map_root_arc.clone()) {
-            //     // print the node address and value
-            //     crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
-            //     // print edge values and destination addresses
-            //     for (edge, dest) in node.lock().unwrap().children.iter() {
-            //         crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
-            //     }
-            // }
-            // for (x, y) in state_map_root_arc.lock().unwrap().flatten(|llm_token_to_state| !llm_token_to_state.is_empty()) {
-            //     crate::dbgprintln!("HERE: Precomputed token {:?} ({:?}) -> {:?} ({:?})", llm_token, token_str, x, y);
-            // }
-            // dump_structure(state_map_root_arc.clone());
         }
 
         println!("Precomputing state {}", state_id);
@@ -190,30 +167,6 @@ pub fn precompute<'a>(
     }
 
     result
-}
-
-pub fn precompute_add_incomplete_token<'a>(
-    tokenizer: &impl Tokenizer,
-    precomputed: BTreeMap<StateID, TrieNode<GroupID, BTreeMap<&'a [u8], TokenizerStateInfoForLLMToken>>>,
-) -> BTreeMap<StateID, TrieNode<TokenID, BTreeMap<&'a [u8], TokenizerStateInfoForLLMToken>>> {
-    // let mut result: BTreeMap<StateID, BTreeMap<Vec<TokenID>, BTreeMap<&'a [u8], StateID>>> = BTreeMap::new();
-    // for (state_id, token_sequence_map) in precomputed {
-    //     for (token_id_sequence, llm_token_state_map) in token_sequence_map {
-    //         for (llm_token, next_state_id) in llm_token_state_map {
-    //             for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_state_id.0) {
-    //                 let mut new_token_sequence = token_id_sequence.clone();
-    //                 new_token_sequence.push(possible_next_token_id);
-    //                 // todo: this shouldn't be necessary. Just a sanity check. Consider removing.
-    //                 if let Some(existing) = result.entry(state_id).or_default().entry(new_token_sequence.clone()).or_default().get(llm_token) {
-    //                     assert_eq!(*existing, next_state_id);
-    //                 }
-    //                 result.entry(state_id).or_default().entry(new_token_sequence).or_default().insert(llm_token, next_state_id);
-    //             }
-    //         }
-    //     }
-    // }
-    precomputed
-    // todo: remove this function
 }
 
 impl Tokenizer for Regex {

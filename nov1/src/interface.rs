@@ -3,12 +3,12 @@ use crate::finite_automata::{Expr, Regex};
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
 use crate::glr::table::{assign_non_terminal_ids, generate_glr_parser, generate_glr_parser_with_maps, NonTerminalID, StateID, TerminalID};
-use crate::precompute::{precompute, precompute_add_incomplete_token, Token, Tokenizer};
+use crate::precompute::{precompute, Token, Tokenizer};
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 use crate::analyze_grammar::drop_dead;
-use crate::constraint::{GrammarConstraint, LLMTokenID, convert_precomputed_to_llm_token_ids};
+use crate::constraint::{GrammarConstraint};
 
 type LLMToken<'a> = &'a [u8];
 
@@ -308,12 +308,6 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         crate::dbgprintln2!("Precomputing");
         let precomputed = precompute(&grammar.tokenizer, llm_tokens);
         crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
-        crate::dbgprintln2!("Adding incomplete token");
-        let precomputed = precompute_add_incomplete_token(&grammar.tokenizer, precomputed);
-        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
-        crate::dbgprintln2!("Converting to LLM token IDs");
-        let precomputed = convert_precomputed_to_llm_token_ids(&grammar.tokenizer, precomputed, &llm_tokens.iter().map(|token| token.to_vec()).collect::<Vec<_>>());
-        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
         crate::dbgprintln2!("Done precomputing");
 
         let num_llm_tokens = llm_tokens.len();
@@ -334,6 +328,7 @@ mod tests {
     use super::*;
     use crate::finite_automata::eat_u8;
     use crate::glr::table::generate_glr_parser;
+    use crate::precompute::LLMTokenID;
     use crate::trie::TrieNode;
 
 

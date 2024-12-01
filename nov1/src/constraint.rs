@@ -3,7 +3,7 @@ use crate::glr::parser::{GLRParser, GLRParserState, InsertWith, ParseState, Pars
 use crate::glr::table;
 use crate::glr::table::{StateID, TerminalID};
 use crate::precompute;
-use crate::precompute::{Token, TokenID, Tokenizer, TokenizerStateInfoForLLMToken};
+use crate::precompute::{LLMTokenID, Token, TokenID, Tokenizer, TokenizerStateInfoForLLMToken};
 use bitvec::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -11,9 +11,6 @@ use std::sync::{Arc, Mutex};
 use crate::trie::TrieNode;
 
 type LLMToken = Vec<u8>;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LLMTokenID(pub usize);
 
 // TODO: should this *really* derive `Clone`? Users probably shouldn't clone this, should they?
 #[derive(Debug, Clone)]
@@ -30,45 +27,9 @@ pub struct GrammarConstraintState<T: Tokenizer> {
     pub(crate) states: Vec<(ParseState, BTreeSet<StateID>)>,
 }
 
-pub fn convert_precomputed_to_llm_token_ids<'a>(
-    tokenizer: &impl Tokenizer,
-    precomputed: BTreeMap<StateID, TrieNode<TokenID, BTreeMap<&'a [u8], TokenizerStateInfoForLLMToken>>>,
-    llm_tokens: &[LLMToken],
-// ) -> BTreeMap<StateID, BTreeMap<Vec<TokenID>, (BTreeMap<LLMTokenID, StateID>, BitVec)>> {
-) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>)>> {
-    let num_llm_tokens = llm_tokens.len();
-    let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
-    let mut result = BTreeMap::new();
-    for (state_id, token_sequence_map) in precomputed {
-        let mut new_token_sequence_map_arc = token_sequence_map.map_t(|llm_token_to_tokenizer_state_info| {
-            let mut new_llm_token_state_map = BTreeMap::new();
-            let mut bitsets: BTreeMap<TokenID, BitVec> = BTreeMap::new();
-            for (llm_token, next_tokenizer_state_info) in llm_token_to_tokenizer_state_info {
-                let llm_token_id = llm_token_to_id.get(llm_token).unwrap();
-                new_llm_token_state_map.insert(*llm_token_id, next_tokenizer_state_info);
-                for possible_next_token_id in tokenizer.tokens_accessible_from_state(next_tokenizer_state_info.tokenizer_state_id) {
-                    bitsets.entry(possible_next_token_id).or_insert_with(|| {
-                        let mut bitset = BitVec::new();
-                        bitset.resize(num_llm_tokens, false);
-                        bitset
-                    }).set(llm_token_id.0, true);
-                }
-            }
-            (new_llm_token_state_map, bitsets)
-        });
-        let new_token_sequence_map = new_token_sequence_map_arc.lock().unwrap().clone();
-        result.insert(state_id, new_token_sequence_map);
-    }
-
-    result
-
-}
-
 impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
         let precomputed = precompute::precompute(&tokenizer, &llm_tokens.iter().map(|token| &token[..]).collect::<Vec<_>>());
-        let precomputed = precompute::precompute_add_incomplete_token(&tokenizer, precomputed);
-        let precomputed = convert_precomputed_to_llm_token_ids(&tokenizer, precomputed, llm_tokens);
         let num_llm_tokens = llm_tokens.len();
 
         Self {
