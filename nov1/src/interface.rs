@@ -442,7 +442,7 @@ mod tests {
         let mut expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!(b"+", b"*", b"+i"));
         // Add the EOF token
         expected_mask.set(llm_tokens.len(), true);
-        // assert_eq!(mask, expected_mask);
+        assert_eq!(mask, expected_mask);
 
     }
 
@@ -451,10 +451,10 @@ mod tests {
         let exprs = vec![
             (
                 "E".to_string(),
-                // sequence(vec![
+                sequence(vec![
                     regex(eat_u8(b'a')),
-                    // regex(eat_u8(b'b')),
-                // ]),
+                    regex(eat_u8(b'b')),
+                ]),
             ),
         ];
 
@@ -491,9 +491,17 @@ mod tests {
         }
 
         // Get the mask.
-        // The valid LLM tokens initially are ["i", "(", "(i"].
         let mask = grammar_constraint_state.get_mask();
         let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!(b"a"));
+        assert_eq!(mask, expected_mask);
+
+        // Commit "a"
+        let terminals: Vec<_> = llm_token_vec!(b"a").into_iter().map(|token_id| LLMTokenID(token_id)).collect();
+        grammar_constraint_state.commit_many(&terminals);
+
+        // Get the mask.
+        let mask = grammar_constraint_state.get_mask();
+        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!(b"b"));
         assert_eq!(mask, expected_mask);
     }
 }

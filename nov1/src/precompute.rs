@@ -133,7 +133,9 @@ pub fn precompute<'a>(
                 state_map_root_arc.clone(),
                 token_tree,
                 |(mut llm_token_id_to_state, mut grammar_token_id_to_bitvec, mut maybe_clean_end_bitvec), info: TokenizerStateInfoForLLMToken| {
-                    llm_token_id_to_state.insert(LLMTokenID(llm_token_id), info);
+                    if info.dirty_end_state.is_some() | info.clean_end {
+                        llm_token_id_to_state.insert(LLMTokenID(llm_token_id), info);
+                    }
                     if let Some(dirty_end_state) = info.dirty_end_state {
                         for possible_grammar_token_id in &tokenizer.tokens_accessible_from_state(dirty_end_state.0) {
                             grammar_token_id_to_bitvec.entry(*possible_grammar_token_id).or_insert_with(|| {
