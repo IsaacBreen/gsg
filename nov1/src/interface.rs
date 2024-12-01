@@ -306,13 +306,12 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
         crate::dbgprintln2!("Precomputing");
-        let mut precomputed = precompute(&grammar.tokenizer, llm_tokens);
+        let num_llm_tokens = llm_tokens.len() + 1;
+        let mut precomputed = precompute(&grammar.tokenizer, llm_tokens, LLMTokenID(num_llm_tokens));
         crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
-        precompute_add_eof(&mut precomputed, LLMTokenID(llm_tokens.len()), parser.eof_terminal_id.0);
+        precompute_add_eof(&mut precomputed, LLMTokenID(llm_tokens.len()), parser.eof_terminal_id.0, num_llm_tokens);
         crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
         crate::dbgprintln2!("Done precomputing");
-
-        let num_llm_tokens = llm_tokens.len();
 
         Self {
             tokenizer: grammar.tokenizer,
@@ -416,7 +415,7 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens initially are ["i", "(", "(i"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"i", b"(", b"(i"));
+        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!(b"i", b"(", b"(i"));
         assert_eq!(mask, expected_mask);
 
         // Simulate generating from a LLM with the grammar constraint.
@@ -433,8 +432,18 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens right now are ["+", "*", ")", "+i)"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"+", b"*", b")", b"+i"));
+        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!(b"+", b"*", b")", b"+i"));
         assert_eq!(mask, expected_mask);
+
+        // Finish it
+        let terminals: Vec<_> = llm_token_vec!(b")").into_iter().map(|token_id| LLMTokenID(token_id)).collect();
+        grammar_constraint_state.commit_many(&terminals);
+        let mask = grammar_constraint_state.get_mask();
+        let mut expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!(b"+", b"*", b"+i"));
+        // Add the EOF token
+        expected_mask.set(llm_tokens.len(), true);
+        // assert_eq!(mask, expected_mask);
+
     }
 
     #[test]
@@ -484,7 +493,7 @@ mod tests {
         // Get the mask.
         // The valid LLM tokens initially are ["i", "(", "(i"].
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len(), llm_token_vec!(b"a"));
+        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!(b"a"));
         assert_eq!(mask, expected_mask);
     }
 }
