@@ -3,12 +3,12 @@ use crate::finite_automata::{Expr, Regex};
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::parser::{GLRParser, ParseState};
 use crate::glr::table::{assign_non_terminal_ids, generate_glr_parser, generate_glr_parser_with_maps, NonTerminalID, StateID, TerminalID};
-use crate::precompute::{precompute, Token, Tokenizer};
+use crate::precompute::{precompute, LLMTokenID, Token, Tokenizer};
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 use crate::analyze_grammar::drop_dead;
-use crate::constraint::{GrammarConstraint};
+use crate::constraint::{precompute_add_eof, GrammarConstraint};
 
 type LLMToken<'a> = &'a [u8];
 
@@ -306,7 +306,9 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
         crate::dbgprintln2!("Precomputing");
-        let precomputed = precompute(&grammar.tokenizer, llm_tokens);
+        let mut precomputed = precompute(&grammar.tokenizer, llm_tokens);
+        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
+        precompute_add_eof(&mut precomputed, LLMTokenID(llm_tokens.len()), parser.eof_terminal_id.0);
         crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
         crate::dbgprintln2!("Done precomputing");
 

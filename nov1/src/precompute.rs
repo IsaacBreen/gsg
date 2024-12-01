@@ -126,9 +126,7 @@ pub fn precompute<'a>(
                 token_tree,
                 |(mut llm_token_id_to_state, mut grammar_token_id_to_bitvec), info: TokenizerStateInfoForLLMToken| {
                     llm_token_id_to_state.insert(LLMTokenID(llm_token_id), info);
-                    if info.position_in_llm_token == llm_token.len() {
-                        // grammar_token_id_to_bitvec.
-                    }
+
                     (llm_token_id_to_state, grammar_token_id_to_bitvec)
                 },
                 || { (BTreeMap::new(), BTreeMap::new()) },

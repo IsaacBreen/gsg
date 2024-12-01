@@ -29,7 +29,8 @@ pub struct GrammarConstraintState<T: Tokenizer> {
 
 impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
-        let precomputed = precompute::precompute(&tokenizer, &llm_tokens.iter().map(|token| &token[..]).collect::<Vec<_>>());
+        let mut precomputed = precompute::precompute(&tokenizer, &llm_tokens.iter().map(|token| &token[..]).collect::<Vec<_>>());
+        precompute_add_eof(&mut precomputed, LLMTokenID(llm_tokens.len()), parser.eof_terminal_id.0);
         let num_llm_tokens = llm_tokens.len();
 
         Self {
@@ -61,6 +62,19 @@ impl<T: Tokenizer> GrammarConstraint<T> {
             states: vec![(parser_initial_state, BTreeSet::from([tokenizer_initial_state_id]))],
         }
     }
+}
+
+pub fn precompute_add_eof(
+    precomputed: &mut BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>)>>,
+    eof_llm_token_id: LLMTokenID,
+    eof_grammar_token_id: TokenID,
+) {
+    let mut bitset = BitVec::new();
+    bitset.resize(precomputed.len(), false);
+    bitset.set(eof_llm_token_id.0, true);
+    let node = precomputed.get_mut(&StateID(0)).unwrap();
+    assert!(node.value.1.contains_key(&eof_grammar_token_id));
+    node.value.1.insert(eof_grammar_token_id, bitset);
 }
 
 impl<'a, T: Tokenizer> GrammarConstraintState<T> {
