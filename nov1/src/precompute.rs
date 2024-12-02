@@ -46,11 +46,15 @@ pub trait Tokenizer: Sized {
         &self,
         text: &[u8],
         state: usize,
-    ) -> Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>> {
+        state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>,
+        llm_token_id: LLMTokenID,
+        num_llm_tokens: usize,
+    ) {
         // (position, state) -> node
-        let mut queue: BTreeMap<(usize, usize), Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>>> = BTreeMap::new();
+        let mut queue: BTreeMap<(usize, usize), _> = BTreeMap::new();
 
-        let root: Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>> = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: state, position_in_llm_token: 0, dirty_end_state: None, clean_end: false })));
+        // let root: Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>> = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: state, position_in_llm_token: 0, dirty_end_state: None, clean_end: false })));
+        let root = state_map_root_arc.clone();
 
         // Initialize the queue with the starting state
         // todo: this can be simplified; any queue entries other than the first one should have initial state (i.e. 0)
@@ -79,22 +83,36 @@ pub trait Tokenizer: Sized {
                 assert!(new_position <= text.len());
                 let new_state = 0;
                 if let Some(new_node) = queue.get(&(new_position, new_state)) {
-                    // Add an edge from the current node to the new node
-                    node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
+                    if let Some(existing) = node.lock().unwrap().get(&token.id) {
+                        // do nothing
+                    } else {
+                        // Add an edge from the current node to the new node
+                        node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
+                    }
                 } else {
-                    // Create a new node and add it to the queue
-                    let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position, dirty_end_state: None, clean_end: new_position == text.len() })));
-                    node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
-                    queue.insert((new_position, new_state), new_node.clone());
+                    if let Some(existing) = node.lock().unwrap().get(&token.id) {
+                        // Add it to the queue
+                        queue.insert((new_position, new_state), existing.clone());
+                    } else {
+                        // Create a new node and add it to the queue
+                        // let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position, dirty_end_state: None, clean_end: new_position == text.len() })));
+                        let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
+                        node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
+                        queue.insert((new_position, new_state), new_node.clone());
+                    }
                 }
             }
 
             if let Some(new_state) = execute_result.new_state {
-                node.lock().unwrap().value.dirty_end_state = Some(StateID(new_state));
+                for possible_grammar_token_id in &self.tokens_accessible_from_state(new_state) {
+                    let grammar_token_id_to_bitvec = node.lock().unwrap().value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
+                        let mut bitset = BitVec::new();
+                        bitset.resize(num_llm_tokens, false);
+                        bitset
+                    }).insert(llm_token_id.0, true);
+                }
             }
         }
-
-        root
     }
 }
 
@@ -127,35 +145,37 @@ pub fn precompute<'a>(
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
 
         for (llm_token_id, &llm_token) in llm_tokens.iter().enumerate() {
-            let token_tree = tokenizer.execute_all_from_state(llm_token, state_id);
+            crate::dbgprintln2!("Executing token");
+            tokenizer.execute_all_from_state(llm_token, state_id, state_map_root_arc.clone(), LLMTokenID(llm_token_id), llm_tokens.len() + 1);
+            crate::dbgprintln2!("Merge");
             // Merge into the existing state map
-            TrieNode::merge(
-                state_map_root_arc.clone(),
-                token_tree,
-                |(mut llm_token_id_to_state, mut grammar_token_id_to_bitvec, mut maybe_clean_end_bitvec), info: TokenizerStateInfoForLLMToken| {
-                    if info.dirty_end_state.is_some() | info.clean_end {
-                        llm_token_id_to_state.insert(LLMTokenID(llm_token_id), info);
-                    }
-                    if let Some(dirty_end_state) = info.dirty_end_state {
-                        for possible_grammar_token_id in &tokenizer.tokens_accessible_from_state(dirty_end_state.0) {
-                            grammar_token_id_to_bitvec.entry(*possible_grammar_token_id).or_insert_with(|| {
-                                let mut bitset = BitVec::new();
-                                bitset.resize(llm_tokens.len(), false);
-                                bitset
-                            }).set(llm_token_id, true);
-                        }
-                    }
-                    if info.clean_end {
-                        maybe_clean_end_bitvec.get_or_insert_with(|| {
-                            let mut bitset = BitVec::new();
-                            bitset.resize(llm_tokens.len(), false);
-                            bitset
-                        }).set(llm_token_id, true);
-                    }
-                    (llm_token_id_to_state, grammar_token_id_to_bitvec, maybe_clean_end_bitvec)
-                },
-                || { (BTreeMap::new(), BTreeMap::new(), None) },
-            );
+            // TrieNode::merge(
+            //     state_map_root_arc.clone(),
+            //     token_tree,
+            //     |(mut llm_token_id_to_state, mut grammar_token_id_to_bitvec, mut maybe_clean_end_bitvec), info: TokenizerStateInfoForLLMToken| {
+            //         if info.dirty_end_state.is_some() | info.clean_end {
+            //             llm_token_id_to_state.insert(LLMTokenID(llm_token_id), info);
+            //         }
+            //         if let Some(dirty_end_state) = info.dirty_end_state {
+            //             for possible_grammar_token_id in &tokenizer.tokens_accessible_from_state(dirty_end_state.0) {
+            //                 grammar_token_id_to_bitvec.entry(*possible_grammar_token_id).or_insert_with(|| {
+            //                     let mut bitset = BitVec::new();
+            //                     bitset.resize(llm_tokens.len(), false);
+            //                     bitset
+            //                 }).set(llm_token_id, true);
+            //             }
+            //         }
+            //         if info.clean_end {
+            //             maybe_clean_end_bitvec.get_or_insert_with(|| {
+            //                 let mut bitset = BitVec::new();
+            //                 bitset.resize(llm_tokens.len(), false);
+            //                 bitset
+            //             }).set(llm_token_id, true);
+            //         }
+            //         (llm_token_id_to_state, grammar_token_id_to_bitvec, maybe_clean_end_bitvec)
+            //     },
+            //     || { (BTreeMap::new(), BTreeMap::new(), None) },
+            // );
         }
 
         // println!("Precomputing state {}", state_id);

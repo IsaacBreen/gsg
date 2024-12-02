@@ -33,6 +33,10 @@ impl<T, E: Ord> TrieNode<E, T> {
         }
     }
 
+    pub fn insert_with<F: FnOnce(&mut T, T)>(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>, combine: F) {
+        todo!()
+    }
+
     pub fn get(&self, edge: &E) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
         self.children.get(edge).cloned()
     }
