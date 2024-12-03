@@ -603,7 +603,7 @@ mod tests {
         let llm_tokens: Vec<Vec<u8>> = (0..50000).map(|i| format!("a{}", i).as_bytes().to_vec()).collect();
         let llm_tokens_slices: Vec<&[u8]> = llm_tokens.iter().map(|token| &token[..]).collect();
         let precomputed = precompute(&tokenizer, &llm_tokens_slices, LLMTokenID(llm_tokens.len() + 1));
-        println!("Precomputed:");
+        println!("Done precomputing");
         // print_precomputed(&precomputed);
     }
 }
