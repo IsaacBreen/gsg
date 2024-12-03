@@ -215,7 +215,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 def initialize_grammar_constraint(grammar, llm_tokens):
     print("Initializing PyGrammarConstraint...")
     grammar_constraint = PyGrammarConstraint(grammar, llm_tokens)
-    grammar_constraint.print()
+#     grammar_constraint.print()
     print("Initializing Grammar Constraint State...")
     grammar_constraint_state = PyGrammarConstraintState(grammar_constraint)
     print("Getting Initial Mask...")
@@ -241,7 +241,8 @@ if __name__ == "__main__":
     model_name = "gpt2"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    llm_tokens = [tokenizer.convert_ids_to_tokens(i).replace("Ġ", " ").encode() for i in range(tokenizer.vocab_size)]
+    llm_tokens = [x.encode() for x in ['a', ' b']]
+#     llm_tokens = [tokenizer.convert_ids_to_tokens(i).replace("Ġ", " ").encode() for i in range(tokenizer.vocab_size)]
     llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
 
     print("Defining grammar...")
