@@ -594,13 +594,13 @@ mod tests {
 
         let name_start = choice_fast!(alph_lower, alph_upper, eat_u8_fast(b'_'));
         let name_middle = choice_fast!(name_start.clone(), digit);
-        let expr = seq_fast!(name_start, repeat0_fast(seq_fast!(name_middle)));
+        let name = seq_fast!(ignore, name_start, repeat0_fast(seq_fast!(name_middle)));
 
-        let tokenizer = expr.build();
+        let tokenizer = name.build();
         dbg!(&tokenizer);
 
         // Define 50000 LLM tokens
-        let llm_tokens: Vec<Vec<u8>> = (0..50000).map(|i| format!("a{}", i).as_bytes().to_vec()).collect();
+        let llm_tokens: Vec<Vec<u8>> = (0..50000).map(|i| format!("abcdefghijk{}", i).as_bytes().to_vec()).collect();
         let llm_tokens_slices: Vec<&[u8]> = llm_tokens.iter().map(|token| &token[..]).collect();
         let precomputed = precompute(&tokenizer, &llm_tokens_slices, LLMTokenID(llm_tokens.len() + 1));
         println!("Done precomputing");
