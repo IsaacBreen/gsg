@@ -60,13 +60,17 @@ pub trait Tokenizer: Sized {
         // todo: this can be simplified; any queue entries other than the first one should have initial state (i.e. 0)
         queue.insert((0, state), root.clone());
 
+        crate::dbgprintln2!("Precomputing state {}", state);
+
         while let Some(((position, state), node)) = queue.pop_first() {
+            crate::dbgprintln2!("Popped from queue: ({}, {})", position, state);
+
             // todo: does it make sense to have this here?
             // if position > text.len() {
             //     continue;
             // }
             assert!(position <= text.len());
-            
+
             if position == text.len() {
                 continue;
             }
@@ -83,14 +87,16 @@ pub trait Tokenizer: Sized {
                 assert!(new_position <= text.len());
                 let new_state = 0;
                 if let Some(new_node) = queue.get(&(new_position, new_state)) {
-                    if let Some(existing) = node.lock().unwrap().get(&token.id) {
+                    if node.lock().unwrap().get(&token.id).is_some() {
                         // do nothing
                     } else {
                         // Add an edge from the current node to the new node
                         node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
                     }
                 } else {
-                    if let Some(existing) = node.lock().unwrap().get(&token.id) {
+                    // if let Some(existing) = node.lock().unwrap().get(&token.id) {
+                    if node.lock().unwrap().get(&token.id).is_some() {
+                        let existing = node.lock().unwrap().get(&token.id).unwrap();
                         // Add it to the queue
                         queue.insert((new_position, new_state), existing.clone());
                     } else {
@@ -105,7 +111,7 @@ pub trait Tokenizer: Sized {
 
             if let Some(new_state) = execute_result.new_state {
                 for possible_grammar_token_id in &self.tokens_accessible_from_state(new_state) {
-                    let grammar_token_id_to_bitvec = node.lock().unwrap().value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
+                    node.lock().unwrap().value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
                         let mut bitset = BitVec::new();
                         bitset.resize(num_llm_tokens, false);
                         bitset

@@ -504,4 +504,60 @@ mod tests {
         let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!(b"b"));
         assert_eq!(mask, expected_mask);
     }
+
+    #[test]
+    fn test_grammar_from_exprs_very_simple() {
+        let exprs = vec![
+            (
+                "E".to_string(),
+                regex(eat_u8(b'a')),
+            ),
+        ];
+
+        let grammar = Grammar::from_exprs(exprs.clone());
+        dbg!(&grammar);
+
+        let parser = grammar.glr_parser();
+        dbg!(&parser);
+
+        let llm_tokens = &[b"a".as_slice()];
+        let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, &token)| (token.to_vec(), LLMTokenID(i))).collect();
+        let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
+        let mut grammar_constraint_state = grammar_constraint.init();
+
+        for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
+            crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
+            for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
+                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+                // print edge values and destination addresses
+                for (edge, dest) in node.lock().unwrap().children() {
+                    crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+                }
+            }
+        }
+
+        macro_rules! llm_token_vec {
+            ($($token:expr),* $(,)?) => {
+                vec![
+                    $(
+                        llm_token_to_id.get($token.as_slice()).unwrap().0,
+                    )*
+                ]
+            }
+        }
+
+        // Get the mask.
+        let mask = grammar_constraint_state.get_mask();
+        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!(b"a"));
+        assert_eq!(mask, expected_mask);
+
+        // Commit "a"
+        let terminals: Vec<_> = llm_token_vec!(b"a").into_iter().map(|token_id| LLMTokenID(token_id)).collect();
+        grammar_constraint_state.commit_many(&terminals);
+
+        // Get the mask.
+        let mask = grammar_constraint_state.get_mask();
+        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!());
+        assert_eq!(mask, expected_mask);
+    }
 }
