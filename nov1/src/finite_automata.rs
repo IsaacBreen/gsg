@@ -1906,4 +1906,18 @@ mod tests_nov_24 {
         state.execute(b"b");
         assert_eq!(state.matches, BTreeMap::from([(1, 2)]));
     }
+
+    #[test]
+    fn test_reasonable_number_of_states() {
+        // The following expression should yield a DFA with 2 states:
+        // - one to match 'a' or 'b'
+        // - one to hold the finalizer
+        let expr = choice![
+            eat_u8(b'a'),
+            eat_u8(b'b'),
+        ];
+        let regex = expr.build();
+        dbg!(&regex);
+        assert_eq!(regex.dfa.states.len(), 2);
+    }
 }
