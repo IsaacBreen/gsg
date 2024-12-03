@@ -330,6 +330,8 @@ mod tests {
     use crate::finite_automata::eat_u8;
     use crate::glr::table::generate_glr_parser;
     use crate::precompute::{print_precomputed, LLMTokenID};
+    use crate::{choice_fast, seq_fast};
+    use crate::tokenizer_combinators::{eat_u8_fast, eat_u8_negation_fast, eat_u8_range_fast, repeat0_fast};
     use crate::trie::TrieNode;
 
 
@@ -563,5 +565,45 @@ mod tests {
         // Add the EOF token
         expected_mask.set(llm_tokens.len(), true);
         assert_eq!(mask, expected_mask);
+    }
+
+    #[test]
+    fn test_precompute_for_python_name_token() {
+        // ignore = rep(choice([
+        //     eat_u8(ord(" ")),
+        //     seq([eat_u8(ord("#")), rep(eat_u8_negation(ord("\n"))), eat_u8(ord("\n"))]),
+        // ]))
+        // digit = choice([eat_u8(c) for c in range(ord("0"), ord("9") + 1)])
+        // alph_lower = choice([eat_u8(c) for c in range(ord("a"), ord("z") + 1)])
+        // alph_upper = choice([eat_u8(c) for c in range(ord("A"), ord("Z") + 1)])
+        //
+        // name_start = choice([
+        //     alph_lower,
+        //     alph_upper,
+        //     eat_u8(ord("_"))
+        // ])
+        // name_middle = choice([
+        //     name_start,
+        //     digit,
+        // ])
+        let ignore = repeat0_fast(choice_fast!(eat_u8_fast(b' '), seq_fast!(eat_u8_fast(b'#'), repeat0_fast(eat_u8_negation_fast(b'\n')), eat_u8_fast(b'\n'))));
+
+        let digit = eat_u8_range_fast(b'0', b'9');
+        let alph_lower = eat_u8_range_fast(b'a', b'z');
+        let alph_upper = eat_u8_range_fast(b'A', b'Z');
+
+        let name_start = choice_fast!(alph_lower, alph_upper, eat_u8_fast(b'_'));
+        let name_middle = choice_fast!(name_start.clone(), digit);
+        let expr = seq_fast!(name_start, repeat0_fast(seq_fast!(name_middle)));
+
+        let tokenizer = expr.build();
+        dbg!(&tokenizer);
+
+        // Define 50000 LLM tokens
+        let llm_tokens: Vec<Vec<u8>> = (0..50000).map(|i| format!("a{}", i).as_bytes().to_vec()).collect();
+        let llm_tokens_slices: Vec<&[u8]> = llm_tokens.iter().map(|token| &token[..]).collect();
+        let precomputed = precompute(&tokenizer, &llm_tokens_slices, LLMTokenID(llm_tokens.len() + 1));
+        println!("Precomputed:");
+        // print_precomputed(&precomputed);
     }
 }
