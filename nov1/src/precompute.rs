@@ -62,7 +62,7 @@ pub trait Tokenizer: Sized {
 
 
         while let Some(((position, maybe_state), node)) = queue.pop_first() {
-            crate::dbgprintln!("Popped from queue: ({}, {:?})", position, maybe_state);
+            crate::dbgprintln2!("Popped from queue: ({}, {:?})", position, maybe_state);
 
             // todo: does it make sense to have this here?
             // if position > text.len() {
@@ -106,7 +106,7 @@ pub trait Tokenizer: Sized {
                 assert_ne!(token.width, 0);
                 assert!(new_position <= text.len());
                 if let Some(new_node) = queue.get(&(new_position, execute_result.new_state)) {
-                    crate::dbgprintln!("Existing node in queue");
+                    crate::dbgprintln2!("Existing node in queue");
                     if node.lock().unwrap().get(&token.id).is_some() {
                         // do nothing
                     } else {
@@ -116,12 +116,12 @@ pub trait Tokenizer: Sized {
                 } else {
                     // if let Some(existing) = node.lock().unwrap().get(&token.id) {
                     if node.lock().unwrap().get(&token.id).is_some() {
-                        crate::dbgprintln!("Existing node in trie");
+                        crate::dbgprintln2!("Existing node in trie");
                         let existing = node.lock().unwrap().get(&token.id).unwrap();
                         // Add it to the queue
                         queue.insert((new_position, execute_result.new_state), existing.clone());
                     } else {
-                        crate::dbgprintln!("Creating new node");
+                        crate::dbgprintln2!("Creating new node");
                         // Create a new node and add it to the queue
                         // let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position, dirty_end_state: None, clean_end: new_position == text.len() })));
                         let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
@@ -250,14 +250,14 @@ impl Tokenizer for Regex {
 }
 
 pub fn print_precomputed(precomputed: &BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>) {
-    crate::dbgprintln2!("Precomputed:");
+    println!("Precomputed:");
     for (tokenizer_state, root) in precomputed {
-        crate::dbgprintln2!("  Tokenizer state: {}", tokenizer_state.0);
+        println!("  Tokenizer state: {}", tokenizer_state.0);
         for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-            crate::dbgprintln2!("    Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+            println!("    Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
             // print edge values and destination addresses
             for (edge, dest) in node.lock().unwrap().children() {
-                crate::dbgprintln2!("      Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+                println!("      Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
             }
         }
     }

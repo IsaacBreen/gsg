@@ -7,7 +7,7 @@ use sep1::glr::parser::GLRParser;
 use sep1::glr::table::{generate_glr_parser, StateID};
 use sep1::interface::{Grammar, GrammarExpr, choice as grammar_choice, optional as grammar_optional, regex as grammar_regex, repeat as grammar_repeat, r#ref as grammar_ref, sequence as grammar_sequence};
 use sep1::constraint::{GrammarConstraint, GrammarConstraintState};
-use sep1::precompute::{LLMTokenID, Tokenizer};
+use sep1::precompute::{print_precomputed, LLMTokenID, Tokenizer};
 use std::collections::{BTreeMap, BTreeSet};
 use bimap::BiBTreeMap;
 use numpy::{IntoPyArray, PyArray1, ToPyArray};
@@ -224,6 +224,10 @@ impl PyGrammarConstraint {
            .collect();
         let inner = GrammarConstraint::from_grammar(grammar.inner, &llm_tokens_vec.iter().map(|token| &token[..]).collect::<Vec<_>>());
         Self { inner }
+    }
+
+    fn print(&self) {
+        print_precomputed(&self.inner.precomputed);
     }
 }
 

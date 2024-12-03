@@ -17,7 +17,7 @@ type LLMToken = Vec<u8>;
 pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
-    pub(crate) precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
+    pub precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
     pub(crate) num_llm_tokens: usize,
 }
 

@@ -252,6 +252,7 @@ if __name__ == "__main__":
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_tokens)
     print("Initializing grammar processor...")
     grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_tokens)
+    grammar_processor.print()
 
     model = AutoModelForCausalLM.from_pretrained(model_name)
 
