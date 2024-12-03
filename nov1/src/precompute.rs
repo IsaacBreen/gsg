@@ -173,12 +173,12 @@ pub fn precompute<'a>(
 
     crate::dbgprintln2!("Precomputing in precompute");
     for state_id in tqdm!(0..tokenizer.max_state()) {
-        crate::dbgprintln!("Precomputing state {}", state_id);
+        crate::dbgprintln2!("Precomputing state {}", state_id);
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
 
         // for (llm_token_id, &llm_token) in tqdm!(llm_tokens.iter().enumerate()) {
         for (llm_token_id, &llm_token) in llm_tokens.iter().enumerate() {
-            crate::dbgprintln!("Precomputing for token {}", llm_token_id);
+            crate::dbgprintln2!("Precomputing for token {}", llm_token_id);
             tokenizer.execute_all_from_state(llm_token, state_id, state_map_root_arc.clone(), LLMTokenID(llm_token_id), llm_tokens.len() + 1);
             // Merge into the existing state map
             // TrieNode::merge(
