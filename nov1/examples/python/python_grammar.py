@@ -215,6 +215,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 def initialize_grammar_constraint(grammar, llm_tokens):
     print("Initializing PyGrammarConstraint...")
     grammar_constraint = PyGrammarConstraint(grammar, llm_tokens)
+    grammar_constraint.print()
     print("Initializing Grammar Constraint State...")
     grammar_constraint_state = PyGrammarConstraintState(grammar_constraint)
     print("Getting Initial Mask...")
@@ -252,7 +253,6 @@ if __name__ == "__main__":
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_tokens)
     print("Initializing grammar processor...")
     grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_tokens)
-    grammar_processor.print()
 
     model = AutoModelForCausalLM.from_pretrained(model_name)
 

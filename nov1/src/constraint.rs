@@ -71,6 +71,7 @@ pub fn precompute_add_eof(
     num_llm_tokens: usize,
 ) {
     let mut bitset = BitVec::new();
+    dbg!(num_llm_tokens);
     bitset.resize(num_llm_tokens, false);
     bitset.set(eof_llm_token_id.0, true);
     let node = precomputed.get_mut(&StateID(0)).unwrap();

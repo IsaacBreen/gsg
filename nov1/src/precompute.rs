@@ -82,6 +82,7 @@ pub trait Tokenizer: Sized {
                     for possible_grammar_token_id in &self.tokens_accessible_from_state(state) {
                         node.lock().unwrap().value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
                             let mut bitset = BitVec::new();
+                            dbg!(num_llm_tokens);
                             bitset.resize(num_llm_tokens, false);
                             bitset
                         }).insert(llm_token_id.0, true);
@@ -89,6 +90,7 @@ pub trait Tokenizer: Sized {
                 } else {
                     node.lock().unwrap().value.2.get_or_insert_with(|| {
                         let mut bitset = BitVec::new();
+                        dbg!(num_llm_tokens);
                         bitset.resize(num_llm_tokens, false);
                         bitset
                     }).insert(llm_token_id.0, true);
