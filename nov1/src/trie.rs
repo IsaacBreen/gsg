@@ -33,7 +33,7 @@ impl<T, E: Ord> TrieNode<E, T> {
         }
     }
 
-    pub fn insert_with<F: FnOnce(&mut T, T)>(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>, combine: F) {
+    pub fn insert_with(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>, combine: impl FnOnce(&mut T, T)) {
         todo!()
     }
 
@@ -136,11 +136,13 @@ impl<T, E: Ord> TrieNode<E, T> {
 }
 
 impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
-    pub fn special_map<S, M, P, V>(initial_node: Arc<Mutex<TrieNode<E, T>>>, initial_value: V, mut step: S, mut merge: M, mut process: P)
-    where
-        S: FnMut(&V, &E, &TrieNode<E, T>) -> V,
-        M: FnMut(Vec<V>) -> V,
-        P: FnMut(&T, &V),
+pub fn special_map<V>(
+        initial_node: Arc<Mutex<TrieNode<E, T>>>,
+        initial_value: V,
+        mut step: impl FnMut(&V, &E, &TrieNode<E, T>) -> V,
+        mut merge: impl FnMut(Vec<V>) -> V,
+        mut process: impl FnMut(&T, &V),
+    ) where
         V: Clone,
         E: Ord,
     {

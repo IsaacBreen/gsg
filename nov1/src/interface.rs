@@ -329,7 +329,7 @@ mod tests {
     use super::*;
     use crate::finite_automata::eat_u8;
     use crate::glr::table::generate_glr_parser;
-    use crate::precompute::LLMTokenID;
+    use crate::precompute::{print_precomputed, LLMTokenID};
     use crate::trie::TrieNode;
 
 
@@ -525,6 +525,8 @@ mod tests {
         let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
         let mut grammar_constraint_state = grammar_constraint.init();
 
+        print_precomputed(&grammar_constraint_state.parent.precomputed);
+
         for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
             crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
@@ -557,7 +559,9 @@ mod tests {
 
         // Get the mask.
         let mask = grammar_constraint_state.get_mask();
-        let expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!());
+        let mut expected_mask = bitvec_with_capacity_and_values(llm_tokens.len() + 1, llm_token_vec!());
+        // Add the EOF token
+        expected_mask.set(llm_tokens.len(), true);
         assert_eq!(mask, expected_mask);
     }
 }

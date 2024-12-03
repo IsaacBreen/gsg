@@ -111,6 +111,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                     |(_, bitsets, maybe_clean_end_bitset), current_parse_states| {
                         let mut glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(current_parse_states.clone());
                         if glr_parse_state.is_ok() {
+                            // dbg!(&bitsets);
                             for (possible_next_grammar_token, bitset) in bitsets {
                                 let mut new_glr_parse_state = glr_parse_state.clone();
                                 let possible_next_grammar_token_id = table::TerminalID(*possible_next_grammar_token);
