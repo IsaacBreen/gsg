@@ -286,8 +286,8 @@ impl Grammar<Regex> {
         }
 
         // TODO: this is bad. prob remove this.
-        crate::dbgprintln2!("Dropping dead productions");
-        let productions = drop_dead(&productions);
+        // crate::dbgprintln2!("Dropping dead productions");
+        // let productions = drop_dead(&productions);
 
         let tokenizer_exprs_vec: Vec<ExprGroup> = tokens
             .into_iter()
