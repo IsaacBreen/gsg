@@ -18,7 +18,7 @@ pub fn validate(productions: &[Production]) -> Result<(), String> {
     let missing_nonterms: BTreeSet<_> = rhs_nonterms.difference(&lhs_nonterms).collect();
     if !missing_nonterms.is_empty() {
         let missing_nonterm_strings: BTreeSet<_> = missing_nonterms.into_iter().map(|nt| nt.0.clone()).collect();
-        return Err(format!("Nonterminals missing a production: {:?}", missing_nonterm_strings));
+        return Err(format!("Nonterminals missing a production: {:?}. All nonterminals: {:?}", missing_nonterm_strings, rhs_nonterms));
     }
 
     Ok(())
