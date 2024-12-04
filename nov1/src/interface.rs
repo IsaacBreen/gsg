@@ -313,10 +313,9 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
         crate::dbgprintln2!("Precomputing");
-        let num_llm_tokens = llm_tokens.len() + 1;
-        let mut precomputed = precompute(&grammar.tokenizer, &llm_tokens, LLMTokenID(num_llm_tokens), num_llm_tokens);
+        let mut precomputed = precompute(&grammar.tokenizer, &llm_tokens, LLMTokenID(eof_llm_token_id), max_token_id);
         crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
-        precompute_add_eof(&mut precomputed, LLMTokenID(llm_tokens.len()), parser.eof_terminal_id.0, num_llm_tokens);
+        precompute_add_eof(&mut precomputed, LLMTokenID(eof_llm_token_id), parser.eof_terminal_id.0, max_token_id);
         crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
         crate::dbgprintln2!("Done precomputing");
 

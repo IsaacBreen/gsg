@@ -49,7 +49,7 @@ pub trait Tokenizer: Sized {
         state: usize,
         state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>,
         llm_token_id: LLMTokenID,
-        num_llm_tokens: usize,
+        max_token_id: usize,
     ) {
         // (position, state) -> node
         let mut queue: BTreeMap<(usize, Option<usize>), _> = BTreeMap::new();
@@ -82,7 +82,7 @@ pub trait Tokenizer: Sized {
                     for possible_grammar_token_id in &self.tokens_accessible_from_state(state) {
                         node.lock().unwrap().value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
                             let mut bitset = BitVec::new();
-                            bitset.resize(num_llm_tokens, false);
+                            bitset.resize(max_token_id, false);
                             bitset
                         }).set(llm_token_id.0, true);
                     }
@@ -90,7 +90,7 @@ pub trait Tokenizer: Sized {
                     crate::dbgprintln!("No state. Clean end");
                     node.lock().unwrap().value.2.get_or_insert_with(|| {
                         let mut bitset = BitVec::new();
-                        bitset.resize(num_llm_tokens, false);
+                        bitset.resize(max_token_id, false);
                         bitset
                     }).set(llm_token_id.0, true);
                 }
