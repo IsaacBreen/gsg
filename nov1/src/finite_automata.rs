@@ -249,13 +249,12 @@ impl NFAState {
 
 impl ExprGroups {
     pub fn build(self) -> Regex {
-        Regex {
-            dfa: self.build_nfa().to_dfa(),
-        }
+        let mut dfa = self.build_nfa().to_dfa();
+        dfa.minimize();
+        Regex { dfa }
     }
 
     fn build_nfa(self) -> NFA {
-        println!("build_nfa: start");
         let mut nfa = NFA {
             states: vec![NFAState::new()],
             start_state: 0,
@@ -409,7 +408,6 @@ impl NFA {
     }
 
     pub fn to_dfa(self) -> DFA {
-        println!("to_dfa: start");
         let mut dfa_states: Vec<DFAState> = Vec::new();
         let mut dfa_state_map: BTreeMap<FrozenSet<usize>, usize> = BTreeMap::new();
         let mut worklist: Vec<FrozenSet<usize>> = Vec::new();
@@ -581,6 +579,86 @@ impl DFA {
 
             state.group_id_to_u8set = group_id_to_u8set;
         }
+    }
+
+    pub fn minimize(&mut self) {
+        // Step 1: Create initial partition based on finalizers and non-finalizers
+        let mut partitions = BTreeMap::<BTreeSet<GroupID>, BTreeSet<usize>>::new();
+        for (state_idx, state) in self.states.iter().enumerate() {
+            partitions.entry(state.finalizers.clone()).or_default().insert(state_idx);
+        }
+        let mut partition_list: Vec<BTreeSet<usize>> = partitions.into_values().collect();
+
+        // Step 2: Refine partitions until no more refinement is possible
+        let mut changed = true;
+        while changed {
+            changed = false;
+            let mut new_partitions = Vec::new();
+
+            for partition in &partition_list {
+                let mut refined_partitions = BTreeMap::new();
+
+                // For each state in the partition
+                for &state_idx in partition {
+                    // Create a signature based on transitions to other partitions
+                    let mut signature = BTreeMap::new();
+                    for (input, &target) in &self.states[state_idx].transitions {
+                        // Find which partition contains the target state
+                        for (partition_idx, p) in partition_list.iter().enumerate() {
+                            if p.contains(&target) {
+                                signature.insert(input, partition_idx);
+                                break;
+                            }
+                        }
+                    }
+
+                    // Group states by signature
+                    refined_partitions.entry(signature).or_insert_with(BTreeSet::new).insert(state_idx);
+                }
+
+                // If the partition was split
+                if refined_partitions.len() > 1 {
+                    changed = true;
+                    new_partitions.extend(refined_partitions.into_values());
+                } else {
+                    new_partitions.push(partition.clone());
+                }
+            }
+
+            partition_list = new_partitions;
+        }
+
+        // Step 3: Build the minimized DFA
+        let mut state_mapping = vec![0; self.states.len()];
+        for (new_state_idx, partition) in partition_list.iter().enumerate() {
+            for &old_state_idx in partition {
+                state_mapping[old_state_idx] = new_state_idx;
+            }
+        }
+
+        // Create new states
+        let mut new_states = Vec::with_capacity(partition_list.len());
+        for partition in &partition_list {
+            // Take the first state from each partition as representative
+            let old_state = &self.states[*partition.iter().next().unwrap()];
+            let mut new_state = DFAState {
+                transitions: TrieMap::new(),
+                finalizers: old_state.finalizers.clone(),
+                possible_group_ids: old_state.possible_group_ids.clone(),
+                group_id_to_u8set: old_state.group_id_to_u8set.clone(),
+            };
+
+            // Remap transitions
+            for (input, &target) in &old_state.transitions {
+                new_state.transitions.insert(input, state_mapping[target]);
+            }
+
+            new_states.push(new_state);
+        }
+
+        // Update start state
+        self.start_state = state_mapping[self.start_state];
+        self.states = new_states;
     }
 }
 
