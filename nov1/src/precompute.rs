@@ -126,7 +126,6 @@ pub trait Tokenizer: Sized {
                     if exists {
                         crate::dbgprintln2!("Existing node in trie");
                         let existing = node.lock().unwrap().get(&token.id).unwrap();
-                        // Add it to the queue
                         queue.insert((new_position, new_state), existing.clone());
                     } else {
                         crate::dbgprintln2!("Creating new node");
