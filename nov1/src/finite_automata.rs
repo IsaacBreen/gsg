@@ -580,109 +580,90 @@ impl DFA {
             state.group_id_to_u8set = group_id_to_u8set;
         }
     }
-}
 
-impl DFA {
     fn minimize(&mut self) {
-        // Step 1: Initial partition
-        let mut p: Vec<BTreeSet<usize>> = vec![];
-        let mut final_states: BTreeSet<usize> = BTreeSet::new();
-        let mut non_final_states: BTreeSet<usize> = BTreeSet::new();
-
-        for (i, state) in self.states.iter().enumerate() {
-            if !state.finalizers.is_empty() {
-                final_states.insert(i);
-            } else {
-                non_final_states.insert(i);
-            }
+        if self.states.is_empty() {
+            return;
         }
-        p.push(final_states);
-        p.push(non_final_states);
 
-        // Step 2: Refine the partition
-        let mut queue: Vec<BTreeSet<usize>> = p.clone();
+        // Step 1: Create initial partition based on finalizers and transitions
+        let mut partitions = BTreeMap::<(BTreeSet<GroupID>, BTreeMap<u8, usize>), BTreeSet<usize>>::new();
 
-        while let Some(set) = queue.pop() {
-            if set.is_empty() {
-                continue;
-            }
-            p.retain(|s| !s.is_subset(&set));
-            p.push(set.clone());
-            // For each input symbol, group states based on their transition targets
-            let mut splits: BTreeMap<Vec<usize>, BTreeSet<usize>> = BTreeMap::new();
-            for &state in &set {
-                let mut key: Vec<usize> = Vec::new();
-                for &input in self.input_alphabet().iter() {
-                    let next_state = *self.states[state].transitions.get(input).unwrap_or(&0);
-                    key.push(self.set_to_partition_index(next_state, &p));
+        for (state_idx, state) in self.states.iter().enumerate() {
+            let key = (
+                state.finalizers.clone(),
+                state.transitions.iter().map(|(u8, &next)| (u8, next)).collect()
+            );
+            partitions.entry(key).or_default().insert(state_idx);
+        }
+
+        // Step 2: Refine partitions until no more refinement is possible
+        let mut partition_list: Vec<BTreeSet<usize>> = partitions.into_values().collect();
+        let mut changed = true;
+        while changed {
+            changed = false;
+            let mut new_partitions = Vec::new();
+
+            for partition in &partition_list {
+                let mut refined_partitions = BTreeMap::new();
+
+                for &state in partition {
+                    let mut signature = BTreeMap::new();
+
+                    // For each transition, record which partition it leads to
+                    for (u8, &next_state) in &self.states[state].transitions {
+                        let target_partition = new_partitions.iter()
+                            .chain(partition_list.iter())
+                            .position(|p| p.contains(&next_state))
+                            .unwrap_or(usize::MAX);
+                        signature.insert(u8, target_partition);
+                    }
+
+                    refined_partitions.entry(signature)
+                        .or_insert_with(BTreeSet::new)
+                        .insert(state);
                 }
-                let entry = splits.entry(key).or_insert_with(BTreeSet::new);
-                entry.insert(state);
-            }
-            for subset in splits.values() {
-                if subset.len() < set.len() {
-                    queue.push(subset.clone());
+
+                if refined_partitions.len() > 1 {
+                    changed = true;
+                    new_partitions.extend(refined_partitions.into_values());
+                } else {
+                    new_partitions.push(partition.clone());
                 }
             }
+
+            partition_list = new_partitions;
         }
 
         // Step 3: Build the minimized DFA
-        let mut minimized_states: Vec<DFAState> = Vec::new();
-        let mut state_map: BTreeMap<usize, usize> = BTreeMap::new();
-
-        for (i, set) in p.iter().enumerate() {
-            let mut transitions: TrieMap<usize> = TrieMap::new();
-            for &state in set {
-                for (input, &next_state) in &self.states[state].transitions {
-                    let minimized_next_state = *state_map.get(&next_state).expect("Next state not mapped");
-                    transitions.insert(input, minimized_next_state);
-                }
-            }
-            let finalizers: BTreeSet<GroupID> = set.iter().flat_map(|&s| self.states[s].finalizers.iter().cloned()).collect();
-            let possible_group_ids: BTreeSet<GroupID> = set.iter().flat_map(|&s| self.states[s].possible_group_ids.iter().cloned()).collect();
-            let group_id_to_u8set: BTreeMap<GroupID, U8Set> = {
-                let mut map: BTreeMap<GroupID, U8Set> = BTreeMap::new();
-                for &s in set {
-                    for (&group_id, u8set) in &self.states[s].group_id_to_u8set {
-                        map.entry(group_id).or_insert_with(U8Set::none).extend(u8set.iter().cloned());
-                    }
-                }
-                map
-            };
-            minimized_states.push(DFAState {
-                transitions,
-                finalizers,
-                possible_group_ids,
-                group_id_to_u8set,
-            });
-            for &state in set {
-                state_map.insert(state, i);
+        let mut state_mapping = vec![0; self.states.len()];
+        for (new_state, partition) in partition_list.iter().enumerate() {
+            for &old_state in partition {
+                state_mapping[old_state] = new_state;
             }
         }
 
-        // Update the start state
-        let minimized_start_state = *state_map.get(&self.start_state).expect("Start state not mapped");
-        self.states = minimized_states;
-        self.start_state = minimized_start_state;
-    }
+        let mut new_states = Vec::with_capacity(partition_list.len());
+        for partition in &partition_list {
+            let old_state = partition.iter().next().unwrap();
+            let mut new_state = self.states[*old_state].clone();
 
-    fn set_to_partition_index(&self, state: usize, partition: &Vec<BTreeSet<usize>>) -> usize {
-        for (i, set) in partition.iter().enumerate() {
-            if set.contains(&state) {
-                return i;
-            }
-        }
-        panic!("State not found in partition");
-    }
+            // Update transitions according to the new state mapping
+            new_state.transitions = new_state.transitions
+                .iter()
+                .map(|(u8, &next)| (u8, state_mapping[next]))
+                .collect();
 
-    fn input_alphabet(&self) -> BTreeSet<u8> {
-        let mut alphabet: BTreeSet<u8> = BTreeSet::new();
-        for state in &self.states {
-            for &input in state.transitions.keys() {
-                alphabet.insert(input);
-            }
+            new_states.push(new_state);
         }
-        alphabet
+
+        // Update start state
+        self.start_state = state_mapping[self.start_state];
+        self.states = new_states;
+
+        // Recompute metadata
+        self.compute_possible_group_ids();
+        self.compute_group_id_to_u8set();
     }
 }
 
