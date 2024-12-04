@@ -246,7 +246,7 @@ if __name__ == "__main__":
 
 #     llm_tokens = [x.encode() for x in ['a', ' b', '1']]
     llm_token_to_id = {token.replace("Ġ", " ").encode(): i for token, i in tokenizer.vocab.items()}
-    llm_tokens = list()tokenizer.vocab.keys())
+    llm_tokens = list(tokenizer.vocab.keys())
 
 #     ts = ['Paris', 'London']
 #     llm_tokens = [x.encode() for x in ts]
@@ -266,6 +266,6 @@ if __name__ == "__main__":
 
     print("Generating text...")
 #     input_text = "i^10=i*"
-    input_text = "The capital of France is:"
+    input_text = "10 + 10 ="
     output_text = generate_text(model, tokenizer, grammar_processor, input_text)
     print(output_text)
