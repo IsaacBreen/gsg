@@ -154,7 +154,7 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
 
     # todo: remove this
 #     exprs = [("start", ge.regex(Regex.eat_u8(ord("a"))))]
-    exprs = [("start", dict(tokens)["NAME"])]
+    exprs = [("start", dict(tokens)["NUMBER"])]
 
     return PyGrammar(exprs)
 
@@ -245,10 +245,8 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 #     llm_tokens = [x.encode() for x in ['a', ' b', '1']]
-    llm_token_to_id = {token.replace("Ġ", " "): i for token, i in tokenizer.vocab.items()}
-    llm_tokens = [token.encode() for token in tokenizer.vocab.keys()]
-
-    llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
+    llm_token_to_id = {token.replace("Ġ", " ").encode(): i for token, i in tokenizer.vocab.items()}
+    llm_tokens = list()tokenizer.vocab.keys())
 
 #     ts = ['Paris', 'London']
 #     llm_tokens = [x.encode() for x in ts]
