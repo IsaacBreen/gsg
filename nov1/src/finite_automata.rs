@@ -581,7 +581,7 @@ impl DFA {
         }
     }
 
-    fn minimize(&mut self) {
+        fn minimize(&mut self) {
         if self.states.is_empty() {
             return;
         }
@@ -637,6 +637,18 @@ impl DFA {
 
         // Step 3: Build the minimized DFA
         let mut state_mapping = vec![0; self.states.len()];
+
+        // Find which partition contains the start state
+        let start_partition_idx = partition_list.iter()
+            .position(|p| p.contains(&self.start_state))
+            .unwrap();
+
+        // Ensure the start partition is first in the list
+        if start_partition_idx != 0 {
+            partition_list.swap(0, start_partition_idx);
+        }
+
+        // Build state mapping
         for (new_state, partition) in partition_list.iter().enumerate() {
             for &old_state in partition {
                 state_mapping[old_state] = new_state;
@@ -657,8 +669,8 @@ impl DFA {
             new_states.push(new_state);
         }
 
-        // Update start state
-        self.start_state = state_mapping[self.start_state];
+        // The start state should now be at index 0
+        self.start_state = 0;
         self.states = new_states;
 
         // Recompute metadata
@@ -1555,6 +1567,9 @@ mod group_id_to_u8set_tests {
         // - Group 1: {'c'}
 
         let group_id_to_u8set = &regex.dfa.states[0].group_id_to_u8set;
+        dbg!(&regex);
+        dbg!(&regex.dfa.states[0].possible_group_ids);
+        dbg!(group_id_to_u8set);
         assert_eq!(group_id_to_u8set.len(), 2);
 
         let u8set_group0 = group_id_to_u8set.get(&0).unwrap();
