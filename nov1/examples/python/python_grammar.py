@@ -154,7 +154,7 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
 
     # todo: remove this
 #     exprs = [("start", ge.regex(Regex.eat_u8(ord("a"))))]
-    exprs = [("start", dict(tokens)["NUMBER"])]
+    exprs = [("start", dict(tokens)["NAME"])]
 
     return PyGrammar(exprs)
 
@@ -192,7 +192,8 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
         new_token_ids = current_input_ids[len(self.seen_input_ids):]
 
         for token_id in new_token_ids:
-            debug_print(f"Committing token: {self.llm_tokens[token_id]} (ID: {token_id})")
+#             debug_print(f"Committing token: {self.llm_tokens[token_id]} (ID: {token_id})")
+            debug_print(f"Committing token: {self.llm_tokens[token_id] if token_id < len(self.llm_tokens) else None} (ID: {token_id})")
             timeit(self.grammar_constraint_state.commit)(token_id)
 
         self.seen_input_ids = current_input_ids
@@ -205,7 +206,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
             mask = mask[:scores.shape[-1]]
 
         mask_ids = np.where(mask)[0]
-        mask_id_map = {id: self.llm_tokens[id] for id in mask_ids}
+        mask_id_map = {id: self.llm_tokens[id] if id < len(self.llm_tokens) else None for id in mask_ids}
         debug_print(f"Mask IDs: {mask_id_map}")
         print("")
 
@@ -215,7 +216,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 def initialize_grammar_constraint(grammar, llm_tokens):
     print("Initializing PyGrammarConstraint...")
     grammar_constraint = PyGrammarConstraint(grammar, llm_tokens)
-    grammar_constraint.print()
+#     grammar_constraint.print()
     print("Initializing Grammar Constraint State...")
     grammar_constraint_state = PyGrammarConstraintState(grammar_constraint)
     print("Getting Initial Mask...")
@@ -241,9 +242,14 @@ if __name__ == "__main__":
     model_name = "gpt2"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    llm_tokens = [x.encode() for x in ['a', ' b', '1']]
+#     llm_tokens = [x.encode() for x in ['a', ' b', '1']]
 #     llm_tokens = [tokenizer.convert_ids_to_tokens(i).replace("Ġ", " ").encode() for i in range(tokenizer.vocab_size)]
-    llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
+#     llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
+
+    ts = ['Paris', '__init__']
+    llm_tokens = [x.encode() for x in ts]
+    llm_token_to_id = {token: tokenizer.convert_tokens_to_ids(token) for token in ts}
+
 
     print("Defining grammar...")
     grammar = define_python_grammar()
@@ -258,6 +264,6 @@ if __name__ == "__main__":
 
     print("Generating text...")
 #     input_text = "i^10=i*"
-    input_text = "(i)+((i))+(((i)))+"
+    input_text = "A city in France is:"
     output_text = generate_text(model, tokenizer, grammar_processor, input_text)
     print(output_text)
