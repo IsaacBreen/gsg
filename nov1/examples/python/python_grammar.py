@@ -13,6 +13,7 @@ import pegen.tokenizer
 import torch
 from _sep1 import PyRegexExpr as Regex, PyGrammar, PyGrammarExpr as ge, PyGrammarConstraint, PyGrammarConstraintState
 from transformers import LogitsProcessor, AutoModelForCausalLM, AutoTokenizer
+from tqdm import tqdm
 
 
 def eat_string(s: bytes) -> Regex:
@@ -133,7 +134,7 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
     exprs: list[tuple[str, Any]] = []
 
     # Make sure the start production is first
-    exprs.append(("start", ge.ref("file")))
+#     exprs.append(("start'''", ge.ref("file")))
 
     for rule in grammar.rules.values():
         memo[rule.name] = ge.ref(rule.name)
@@ -239,7 +240,6 @@ if __name__ == "__main__":
 
     print("Defining grammar...")
     grammar = define_python_grammar()
-    # print(grammar)
     grammar.print()
     print("Initializing Grammar Constraint...")
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_token_to_id, tokenizer.eos_token_id, tokenizer.vocab_size)

@@ -8,6 +8,7 @@ use crate::precompute::{precompute, LLMTokenID, Token, Tokenizer};
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::{Debug, Formatter};
+use kdam::tqdm;
 use crate::analyze_grammar::drop_dead;
 use crate::constraint::{precompute_add_eof, GrammarConstraint};
 
@@ -134,6 +135,7 @@ impl Grammar<Regex> {
         while nonterminals.contains(&start_production_name.as_str()) {
             start_production_name.push('\'');
         }
+        crate::dbgprintln2!("start_production_name: {:?}", start_production_name);
         productions.push(Production {
             lhs: NonTerminal(start_production_name.clone()),
             rhs: vec![Symbol::NonTerminal(NonTerminal(exprs[0].0.clone()))],
@@ -265,7 +267,7 @@ impl Grammar<Regex> {
         let mut next_non_terminal_id = 0;
         let mut tokens = BTreeMap::new();
 
-        for (name, expr) in &exprs {
+        for (name, expr) in tqdm!(exprs.iter()) {
             let rhs = convert_expr(
                 expr,
                 &mut productions,
