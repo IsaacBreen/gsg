@@ -1,3 +1,4 @@
+// python/src/lib.rs
 use sep1::finite_automata::{Expr as RegexExpr, ExprGroups as RegexGroups, greedy_group, non_greedy_group, groups as regex_groups, _choice as regex_choice, eat_u8, eat_u8_negation, eat_u8_set, eps, opt, prec, rep, rep1, _seq as regex_seq};
 use sep1::finite_automata::Regex;
 use pyo3::prelude::*;
@@ -190,7 +191,7 @@ impl PyGrammar {
     fn glr_parser(&self) -> PyGLRParser {
         PyGLRParser { inner: self.inner.glr_parser() }
     }
-    
+
     fn print(&self) {
         println!("{:?}", self.inner)
     }
@@ -215,14 +216,20 @@ type LLMToken<'a> = &'a [u8];
 #[pymethods]
 impl PyGrammarConstraint {
     #[new]
-   fn new(py: Python, grammar: PyGrammar, llm_tokens: Vec<Py<PyBytes>>) -> Self {
-       let llm_tokens_vec: Vec<Vec<u8>> = llm_tokens.into_iter()
-           .map(|token| {
-               let bytes = token.extract::<&[u8]>(py).unwrap();
-               bytes.to_vec()
-           })
-           .collect();
-        let inner = GrammarConstraint::from_grammar(grammar.inner, &llm_tokens_vec.iter().map(|token| &token[..]).collect::<Vec<_>>());
+    fn new(py: Python, grammar: PyGrammar, llm_tokens: Vec<Py<PyBytes>>) -> Self {
+        // Convert the Python list of byte arrays into a BiBTreeMap
+        let llm_token_map: BiBTreeMap<Vec<u8>, LLMTokenID> = llm_tokens
+            .into_iter()
+            .enumerate()
+            .map(|(i, token)| {
+                let bytes = token.extract::<&[u8]>(py).unwrap();
+                (bytes.to_vec(), LLMTokenID(i))
+            })
+            .collect();
+
+        let eof_llm_token_id = llm_token_map.len();
+        let max_token_id = 128_000; // Use the constant max value for bitset size
+        let inner = GrammarConstraint::from_grammar(grammar.inner, llm_token_map, eof_llm_token_id, max_token_id);
         Self { inner }
     }
 
