@@ -245,12 +245,12 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 #     llm_tokens = [x.encode() for x in ['a', ' b', '1']]
-#     llm_tokens = [tokenizer.convert_ids_to_tokens(i).replace("Ġ", " ").encode() for i in range(tokenizer.vocab_size)]
-#     llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
+    llm_token_to_id = {i: token for token, i in tokenizer.vocab.items()}
+    llm_tokens = [tokenizer.convert_ids_to_tokens(i).replace("Ġ", " ").encode() for i in range(tokenizer.vocab_size)]
 
-    ts = ['Paris', 'London']
-    llm_tokens = [x.encode() for x in ts]
-    llm_token_to_id = {token.encode(): tokenizer.convert_tokens_to_ids(token) for token in ts}
+#     ts = ['Paris', 'London']
+#     llm_tokens = [x.encode() for x in ts]
+#     llm_token_to_id = {token.encode(): tokenizer.convert_tokens_to_ids(token) for token in ts}
 
 
     print("Defining grammar...")
