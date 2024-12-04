@@ -182,18 +182,18 @@ def timeit(func):
     return wrapper
 
 class GrammarConstrainedLogitsProcessor(LogitsProcessor):
-    def __init__(self, grammar_constraint_state, llm_tokens):
+    def __init__(self, grammar_constraint_state, llm_token_to_id):
         self.grammar_constraint_state = grammar_constraint_state
         self.seen_input_ids = []
-        self.llm_tokens = llm_tokens
+        self.llm_token_to_id = llm_token_to_id
 
     def __call__(self, input_ids, scores):
         current_input_ids = input_ids.view(-1).tolist()
         new_token_ids = current_input_ids[len(self.seen_input_ids):]
 
         for token_id in new_token_ids:
-#             debug_print(f"Committing token: {self.llm_tokens[token_id]} (ID: {token_id})")
-            debug_print(f"Committing token: {self.llm_tokens[token_id] if token_id < len(self.llm_tokens) else None} (ID: {token_id})")
+#             debug_print(f"Committing token: {self.llm_token_to_id[token_id]} (ID: {token_id})")
+            debug_print(f"Committing token: {self.llm_token_to_id[token_id]} (ID: {token_id})")
             timeit(self.grammar_constraint_state.commit)(token_id)
 
         self.seen_input_ids = current_input_ids
@@ -206,7 +206,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
             mask = mask[:scores.shape[-1]]
 
         mask_ids = np.where(mask)[0]
-        mask_id_map = {id: self.llm_tokens[id] if id < len(self.llm_tokens) else None for id in mask_ids}
+        mask_id_map = {id: self.llm_tokens[id] for id in mask_ids}
         debug_print(f"Mask IDs: {mask_id_map}")
         print("")
 
@@ -222,7 +222,7 @@ def initialize_grammar_constraint(grammar, llm_token_to_id, max_token_id):
     print("Getting Initial Mask...")
     initial_mask = grammar_constraint_state.get_mask()
     initial_mask_ids = np.where(initial_mask)[0]
-    initial_mask_id_map = {id: llm_tokens[id] for id in initial_mask_ids}
+    initial_mask_id_map = {id: llm_token_to_id[id] for id in initial_mask_ids}
     print(f"Initial Mask IDs: {initial_mask_id_map}")
     assert len(initial_mask_id_map) > 0, f"Initial mask is empty: {initial_mask}"
     return grammar_constraint_state
@@ -248,7 +248,7 @@ if __name__ == "__main__":
 
     ts = ['Paris', '__init__']
     llm_tokens = [x.encode() for x in ts]
-    llm_token_to_id = {token: tokenizer.convert_tokens_to_ids(token) for token in ts}
+    llm_token_to_id = {token.encode(): tokenizer.convert_tokens_to_ids(token) for token in ts}
 
 
     print("Defining grammar...")
@@ -258,7 +258,7 @@ if __name__ == "__main__":
     print("Initializing Grammar Constraint...")
     grammar_constraint_state = initialize_grammar_constraint(grammar, llm_token_to_id, tokenizer.vocab_size)
     print("Initializing grammar processor...")
-    grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_tokens)
+    grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_token_to_id)
 
     model = AutoModelForCausalLM.from_pretrained(model_name)
 
