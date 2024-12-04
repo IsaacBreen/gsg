@@ -504,6 +504,9 @@ impl NFA {
         dfa.compute_possible_group_ids();
         dfa.compute_group_id_to_u8set();
 
+        // Minimize the DFA
+        dfa.minimize();
+
         dfa
     }
 
@@ -579,6 +582,83 @@ impl DFA {
 
             state.group_id_to_u8set = group_id_to_u8set;
         }
+    }
+
+    pub fn minimize(&mut self) {
+        use std::collections::{BTreeMap, BTreeSet};
+
+        // Step 1: Initialize partitions (accepting and non-accepting states)
+        let mut partitions: Vec<BTreeSet<usize>> = Vec::new();
+        let mut accepting_states = BTreeSet::new();
+        let mut non_accepting_states = BTreeSet::new();
+        for (state_index, state) in self.states.iter().enumerate() {
+            if !state.finalizers.is_empty() {
+                accepting_states.insert(state_index);
+            } else {
+                non_accepting_states.insert(state_index);
+            }
+        }
+        if !accepting_states.is_empty() {
+            partitions.push(accepting_states);
+        }
+        if !non_accepting_states.is_empty() {
+            partitions.push(non_accepting_states);
+        }
+
+        // Step 2: Refinement loop
+        let mut changed = true;
+        while changed {
+            changed = false;
+            let mut new_partitions = Vec::new();
+            for partition in partitions.iter() {
+                let mut blocks: BTreeMap<(BTreeMap<u8, usize>), BTreeSet<usize>> = BTreeMap::new();
+                for &state_index in partition.iter() {
+                    let mut transitions = BTreeMap::new();
+                    for (input_u8, &next_state) in &self.states[state_index].transitions {
+                        // Find the partition index of the target state
+                        let mut target_partition_index = None;
+                        for (i, p) in partitions.iter().enumerate() {
+                            if p.contains(&next_state) {
+                                target_partition_index = Some(i);
+                                break;
+                            }
+                        }
+                        transitions.insert(input_u8, target_partition_index.unwrap_or(usize::MAX));
+                    }
+                    blocks.entry(transitions).or_insert_with(BTreeSet::new).insert(state_index);
+                }
+                if blocks.len() > 1 {
+                    changed = true;
+                }
+                for block in blocks.values() {
+                    new_partitions.push(block.clone());
+                }
+            }
+            partitions = new_partitions;
+        }
+
+        // Step 3: Build the new minimized DFA
+        let mut state_mapping = BTreeMap::new(); // Old state index to new state index
+        for (new_state_index, partition) in partitions.iter().enumerate() {
+            for &old_state_index in partition.iter() {
+                state_mapping.insert(old_state_index, new_state_index);
+            }
+        }
+
+        let mut new_states = Vec::new();
+        for partition in partitions.iter() {
+            let representative = *partition.iter().next().unwrap();
+            let mut new_state = self.states[representative].clone();
+            new_state.transitions = TrieMap::new();
+            for (input_u8, &next_state) in &self.states[representative].transitions {
+                let mapped_next_state = state_mapping[&next_state];
+                new_state.transitions.insert(input_u8, mapped_next_state);
+            }
+            new_states.push(new_state);
+        }
+
+        self.start_state = state_mapping[&self.start_state];
+        self.states = new_states;
     }
 }
 
