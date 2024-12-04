@@ -434,8 +434,8 @@ impl NFA {
         dfa_states.push(DFAState {
             transitions: TrieMap::new(),
             finalizers,
-            possible_group_ids: BTreeSet::new(), // Will be computed later
-            group_id_to_u8set: BTreeMap::new(),  // Will be computed later
+            possible_group_ids: BTreeSet::new(),
+            group_id_to_u8set: BTreeMap::new(),
         });
 
         while let Some(current_set) = worklist.pop() {
@@ -462,8 +462,16 @@ impl NFA {
                 }
                 let frozen_closure = FrozenSet::from_iter(closure.iter().cloned());
 
-                // If this set of states is new, add it as a new DFA state
-                let next_dfa_state = if let Some(&existing_state) = dfa_state_map.get(&frozen_closure) {
+                // Check if there's an existing equivalent state
+                let mut found_equivalent_state = None;
+                for (existing_closure, &existing_state) in &dfa_state_map {
+                    if Self::are_states_equivalent(&self, &frozen_closure, existing_closure) {
+                        found_equivalent_state = Some(existing_state);
+                        break;
+                    }
+                }
+
+                let next_dfa_state = if let Some(existing_state) = found_equivalent_state {
                     existing_state
                 } else {
                     let new_state_index = dfa_states.len();
@@ -481,8 +489,8 @@ impl NFA {
                     dfa_states.push(DFAState {
                         transitions: TrieMap::new(),
                         finalizers: new_finalizers,
-                        possible_group_ids: BTreeSet::new(), // Will be computed later
-                        group_id_to_u8set: BTreeMap::new(),  // Will be computed later
+                        possible_group_ids: BTreeSet::new(),
+                        group_id_to_u8set: BTreeMap::new(),
                     });
 
                     new_state_index
@@ -507,6 +515,40 @@ impl NFA {
         dfa.compute_group_id_to_u8set();
 
         dfa
+    }
+
+    // Helper function to determine if two sets of NFA states are equivalent
+    fn are_states_equivalent(nfa: &NFA, states1: &FrozenSet<usize>, states2: &FrozenSet<usize>) -> bool {
+        // States are equivalent if they have the same finalizers and transitions
+        let mut finalizers1 = BTreeSet::new();
+        let mut finalizers2 = BTreeSet::new();
+        let mut transitions1: BTreeMap<u8, BTreeSet<usize>> = BTreeMap::new();
+        let mut transitions2: BTreeMap<u8, BTreeSet<usize>> = BTreeMap::new();
+
+        // Collect finalizers and transitions for states1
+        for &state in states1.iter() {
+            finalizers1.extend(nfa.states[state].finalizers.iter().cloned());
+            for (input, next_states) in &nfa.states[state].transitions {
+                transitions1
+                    .entry(input)
+                    .or_insert_with(BTreeSet::new)
+                    .extend(next_states.iter().cloned());
+            }
+        }
+
+        // Collect finalizers and transitions for states2
+        for &state in states2.iter() {
+            finalizers2.extend(nfa.states[state].finalizers.iter().cloned());
+            for (input, next_states) in &nfa.states[state].transitions {
+                transitions2
+                    .entry(input)
+                    .or_insert_with(BTreeSet::new)
+                    .extend(next_states.iter().cloned());
+            }
+        }
+
+        // States are equivalent if they have the same finalizers and transitions
+        finalizers1 == finalizers2 && transitions1 == transitions2
     }
 
     fn epsilon_closure(&self, state: usize) -> BTreeSet<usize> {
@@ -648,7 +690,7 @@ impl RegexState<'_> {
         self.position = 0;
         self.done = false;
     }
-
+    
     /// Matches repeatedly, resolving ambiguity in the following way:
     /// 1. If it's still possible to match something, stop. Don't return a result for the final match, since we can't rule out the possibility of a longer match.
     /// 2. Otherwise, if there is more than one match, return the longest match.
