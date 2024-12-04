@@ -62,7 +62,7 @@ pub trait Tokenizer: Sized {
         queue.insert((0, Some(state)), root.clone());
 
         while let Some(((position, maybe_state), node)) = queue.pop_first() {
-            crate::dbgprintln!("Popped from queue: ({}, {:?})", position, maybe_state);
+            crate::dbgprintln2!("Popped from queue: ({}, {:?})", position, maybe_state);
 
             // todo: does it make sense to have this here?
             // if position > text.len() {
@@ -87,13 +87,14 @@ pub trait Tokenizer: Sized {
                         }).set(llm_token_id.0, true);
                     }
                 } else {
-                    crate::dbgprintln!("No state. Clean end");
+                    crate::dbgprintln2!("No state. Clean end");
                     node.lock().unwrap().value.2.get_or_insert_with(|| {
                         let mut bitset = BitVec::new();
                         bitset.resize(max_token_id, false);
                         bitset
                     }).set(llm_token_id.0, true);
                 }
+                continue;
             }
 
             let remaining_text = &text[position..];
@@ -108,24 +109,27 @@ pub trait Tokenizer: Sized {
                 assert!(new_position <= text.len());
                 let new_state = None;
                 if let Some(new_node) = queue.get(&(new_position, new_state)) {
-                    crate::dbgprintln!("Existing node in queue");
+                    // Ensure the new node isn't this node
+                    assert_ne!(Arc::as_ptr(new_node), Arc::as_ptr(&node));
+                    crate::dbgprintln2!("Existing node in queue");
                     let exists = node.lock().unwrap().get(&token.id).is_some();
                     if exists {
                         // do nothing
                     } else {
                         // Add an edge from the current node to the new node
+                        crate::dbgprintln2!("Adding edge from current node to new node");
                         node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
                     }
                 } else {
                     // if let Some(existing) = node.lock().unwrap().get(&token.id) {
                     let exists = node.lock().unwrap().get(&token.id).is_some();
                     if exists {
-                        crate::dbgprintln!("Existing node in trie");
+                        crate::dbgprintln2!("Existing node in trie");
                         let existing = node.lock().unwrap().get(&token.id).unwrap();
                         // Add it to the queue
                         queue.insert((new_position, new_state), existing.clone());
                     } else {
-                        crate::dbgprintln!("Creating new node");
+                        crate::dbgprintln2!("Creating new node");
                         // Create a new node and add it to the queue
                         // let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position, dirty_end_state: None, clean_end: new_position == text.len() })));
                         let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
@@ -133,6 +137,7 @@ pub trait Tokenizer: Sized {
                         queue.insert((new_position, new_state), new_node.clone());
                     }
                 }
+                crate::dbgprintln2!("Done processing token");
             }
 
             // if let Some(new_state) = execute_result.new_state {
@@ -182,7 +187,7 @@ pub fn precompute<'a>(
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
 
         for (llm_token, llm_token_id) in llm_token_map.iter() {
-            crate::dbgprintln!("Precomputing for token {:?}", llm_token_id);
+            crate::dbgprintln2!("Precomputing for token {:?}", llm_token_id);
             tokenizer.execute_all_from_state(
                 llm_token,
                 state_id,
