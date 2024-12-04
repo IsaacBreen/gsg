@@ -214,9 +214,9 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
         scores = np.where(mask, scores, -np.inf)
         return torch.tensor(scores)
 
-def initialize_grammar_constraint(grammar, llm_token_to_id, max_token_id):
+def initialize_grammar_constraint(grammar, llm_token_to_id, eof_llm_token_id, max_token_id):
     print("Initializing PyGrammarConstraint...")
-    grammar_constraint = PyGrammarConstraint(grammar, llm_token_to_id, max_token_id)
+    grammar_constraint = PyGrammarConstraint(grammar, llm_token_to_id, eof_llm_token_id, max_token_id)
 #     grammar_constraint.print()
     print("Initializing Grammar Constraint State...")
     grammar_constraint_state = PyGrammarConstraintState(grammar_constraint)
@@ -258,7 +258,7 @@ if __name__ == "__main__":
     # print(grammar)
     grammar.print()
     print("Initializing Grammar Constraint...")
-    grammar_constraint_state = initialize_grammar_constraint(grammar, llm_token_to_id, tokenizer.vocab_size)
+    grammar_constraint_state = initialize_grammar_constraint(grammar, llm_token_to_id, tokenizer.eos_token_id, tokenizer.vocab_size)
     print("Initializing grammar processor...")
     grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_token_to_id)
 
