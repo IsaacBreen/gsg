@@ -2,7 +2,7 @@
 use crate::glr::parser::{GLRParser, GLRParserState, InsertWith, ParseState, ParseStateKey};
 use crate::glr::table::{StateID, TerminalID};
 use crate::{dbgprintln2, precompute};
-use crate::precompute::{LLMTokenID, Token, Tokenizer, TokenizerStateInfoForLLMToken};
+use crate::precompute::{LLMTokenID, Token, TokenID, Tokenizer, TokenizerStateInfoForLLMToken};
 use bitvec::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -119,7 +119,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                             // dbg!(&bitsets);
                             for (possible_next_grammar_token, bitset) in bitsets {
                                 let mut new_glr_parse_state = glr_parse_state.clone();
-                                let possible_next_grammar_token_id = table::TerminalID(*possible_next_grammar_token);
+                                let possible_next_grammar_token_id = TerminalID(*possible_next_grammar_token);
                                 crate::dbgprintln!("Stepping for possible next grammar token {:?}", possible_next_grammar_token);
                                 new_glr_parse_state.step(possible_next_grammar_token_id);
                                 crate::dbgprintln!("Done stepping for possible next grammar token");
