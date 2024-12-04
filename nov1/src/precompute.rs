@@ -109,7 +109,8 @@ pub trait Tokenizer: Sized {
                 let new_state = None;
                 if let Some(new_node) = queue.get(&(new_position, new_state)) {
                     crate::dbgprintln!("Existing node in queue");
-                    if node.lock().unwrap().get(&token.id).is_some() {
+                    let exists = node.lock().unwrap().get(&token.id).is_some();
+                    if exists {
                         // do nothing
                     } else {
                         // Add an edge from the current node to the new node
@@ -117,7 +118,8 @@ pub trait Tokenizer: Sized {
                     }
                 } else {
                     // if let Some(existing) = node.lock().unwrap().get(&token.id) {
-                    if node.lock().unwrap().get(&token.id).is_some() {
+                    let exists = node.lock().unwrap().get(&token.id).is_some();
+                    if exists {
                         crate::dbgprintln!("Existing node in trie");
                         let existing = node.lock().unwrap().get(&token.id).unwrap();
                         // Add it to the queue
