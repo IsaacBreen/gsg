@@ -126,9 +126,10 @@ pub trait Tokenizer: Sized {
                             if !exists_in_queue {
                                 new_nodes.push(existing.clone());
                             }
+                        } else {
+                            // Add an edge from the current node to any one of the new nodes
+                            node.lock().unwrap().insert(token.id as TokenID, new_nodes.first().unwrap().clone());
                         }
-                        // Add an edge from the current node to any one of the new node
-                        node.lock().unwrap().insert(token.id as TokenID, new_nodes.first().unwrap().clone());
                     } else {
                         // if let Some(existing) = node.lock().unwrap().get(&token.id) {
                         let exists = node.lock().unwrap().get(&token.id).is_some();
