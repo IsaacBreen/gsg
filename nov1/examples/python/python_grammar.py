@@ -85,7 +85,6 @@ def define_tokens() -> list[tuple[str, Any]]:
 
     def regex(expr):
         return ge.regex(seq([ignore, expr]))
-#         return ge.regex(expr)
 
     digit = choice([eat_u8(c) for c in range(ord("0"), ord("9") + 1)])
     alph_lower = choice([eat_u8(c) for c in range(ord("a"), ord("z") + 1)])
@@ -134,27 +133,14 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
     exprs: list[tuple[str, Any]] = []
 
     # Make sure the start production is first
-    # exprs.append(("start", ))
-    # TODO: remove this
-    temp = "NUMBER"
-    # exprs.append(( "start'", ge.ref(temp)))
+    exprs.append(("start", ge.ref("file")))
 
-    # for rule in grammar.rules.values():
-    #     memo[rule.name] = ge.ref(rule.name)
-    #     exprs.append((rule.name, pegen_to_sep1_regex(rule.rhs, memo)))
+    for rule in grammar.rules.values():
+        memo[rule.name] = ge.ref(rule.name)
+        exprs.append((rule.name, pegen_to_sep1_regex(rule.rhs, memo)))
 
     tokens = define_tokens()
     exprs.extend(tokens)
-#     # TODO: remove this
-#     for (name, expr) in tokens:
-#         if name in [temp]:
-#             exprs.append((name, expr))
-#         else:
-#             exprs.append((name, ge.regex(Regex.eps())))
-
-    # todo: remove this
-#     exprs = [("start", ge.regex(Regex.eat_u8(ord("a"))))]
-    exprs = [("start", dict(tokens)["NUMBER"])]
 
     return PyGrammar(exprs)
 
@@ -244,14 +230,12 @@ if __name__ == "__main__":
     model_name = "gpt2"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-#     llm_tokens = [x.encode() for x in ['a', ' b', '1']]
     llm_token_to_id = {token.replace("Ġ", " ").encode(): i for token, i in tokenizer.vocab.items()}
     llm_tokens = list(tokenizer.vocab.keys())
 
 #     ts = ['Paris', 'London']
 #     llm_tokens = [x.encode() for x in ts]
 #     llm_token_to_id = {token.encode(): tokenizer.convert_tokens_to_ids(token) for token in ts}
-
 
     print("Defining grammar...")
     grammar = define_python_grammar()
