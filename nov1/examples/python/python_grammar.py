@@ -245,8 +245,10 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 #     llm_tokens = [x.encode() for x in ['a', ' b', '1']]
-    llm_token_to_id = {i: token for token, i in tokenizer.vocab.items()}
-    llm_tokens = [tokenizer.convert_ids_to_tokens(i).replace("Ġ", " ").encode() for i in range(tokenizer.vocab_size)]
+    llm_token_to_id = {token.replace("Ġ", " "): i for token, i in tokenizer.vocab.items()}
+    llm_tokens = [token.encode() for token in tokenizer.vocab.keys()]
+
+    llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
 
 #     ts = ['Paris', 'London']
 #     llm_tokens = [x.encode() for x in ts]
