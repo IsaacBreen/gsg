@@ -86,7 +86,7 @@ pub trait Tokenizer: Sized {
                         }).set(llm_token_id.0, true);
                     }
                 } else {
-                    println!("No state. Clean end");
+                    crate::dbgprintln!("No state. Clean end");
                     node.lock().unwrap().value.2.get_or_insert_with(|| {
                         let mut bitset = BitVec::new();
                         bitset.resize(num_llm_tokens, false);
@@ -105,7 +105,8 @@ pub trait Tokenizer: Sized {
                 let new_position = position + token.width;
                 assert_ne!(token.width, 0);
                 assert!(new_position <= text.len());
-                if let Some(new_node) = queue.get(&(new_position, execute_result.new_state)) {
+                let new_state = None;
+                if let Some(new_node) = queue.get(&(new_position, new_state)) {
                     crate::dbgprintln!("Existing node in queue");
                     if node.lock().unwrap().get(&token.id).is_some() {
                         // do nothing
@@ -119,14 +120,14 @@ pub trait Tokenizer: Sized {
                         crate::dbgprintln!("Existing node in trie");
                         let existing = node.lock().unwrap().get(&token.id).unwrap();
                         // Add it to the queue
-                        queue.insert((new_position, execute_result.new_state), existing.clone());
+                        queue.insert((new_position, new_state), existing.clone());
                     } else {
                         crate::dbgprintln!("Creating new node");
                         // Create a new node and add it to the queue
                         // let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position, dirty_end_state: None, clean_end: new_position == text.len() })));
                         let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
                         node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
-                        queue.insert((new_position, execute_result.new_state), new_node.clone());
+                        queue.insert((new_position, new_state), new_node.clone());
                     }
                 }
             }
