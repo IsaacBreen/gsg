@@ -268,6 +268,6 @@ if __name__ == "__main__":
 
     print("Generating text...")
 #     input_text = "i^10=i*"
-    input_text = "A city in France is:"
+    input_text = "The capital of France is:"
     output_text = generate_text(model, tokenizer, grammar_processor, input_text)
     print(output_text)
