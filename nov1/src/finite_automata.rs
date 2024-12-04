@@ -581,7 +581,52 @@ impl DFA {
         }
     }
 
-        fn minimize(&mut self) {
+    fn remove_unreachable_states(&mut self) {
+        // Find reachable states using BFS
+        let mut reachable = vec![false; self.states.len()];
+        let mut queue = vec![self.start_state];
+        reachable[self.start_state] = true;
+
+        while let Some(state) = queue.pop() {
+            for &next_state in self.states[state].transitions.values() {
+                if !reachable[next_state] {
+                    reachable[next_state] = true;
+                    queue.push(next_state);
+                }
+            }
+        }
+
+        // Create mapping from old indices to new indices
+        let mut state_mapping = vec![0; self.states.len()];
+        let mut new_index = 0;
+        for (old_index, &is_reachable) in reachable.iter().enumerate() {
+            if is_reachable {
+                state_mapping[old_index] = new_index;
+                new_index += 1;
+            }
+        }
+
+        // Keep only reachable states and update transitions
+        let mut new_states = Vec::new();
+        for (old_index, state) in self.states.iter().enumerate() {
+            if reachable[old_index] {
+                let mut new_state = state.clone();
+                // Update transitions to use new state indices
+                new_state.transitions = new_state.transitions
+                    .iter()
+                    .map(|(u8, &next)| (u8, state_mapping[next]))
+                    .collect();
+                new_states.push(new_state);
+            }
+        }
+
+        // Update the DFA
+        self.states = new_states;
+        // Start state remains at 0 since it's always reachable
+        self.start_state = 0;
+    }
+
+    fn minimize(&mut self) {
         if self.states.is_empty() {
             return;
         }
@@ -672,6 +717,7 @@ impl DFA {
         // The start state should now be at index 0
         self.start_state = 0;
         self.states = new_states;
+        self.remove_unreachable_states();
 
         // Recompute metadata
         self.compute_possible_group_ids();

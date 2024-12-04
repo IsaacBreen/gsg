@@ -174,7 +174,7 @@ pub fn precompute<'a>(
         panic!("Tokenizer should not match on empty string. If it did, there would be infinitely many possible token sequences for any LLM token.");
     }
 
-    crate::dbgprintln!("Precomputing in precompute");
+    crate::dbgprintln2!("Precomputing in precompute");
     for state_id in tqdm!(0..tokenizer.max_state()) {
         crate::dbgprintln!("Precomputing state {}", state_id);
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
