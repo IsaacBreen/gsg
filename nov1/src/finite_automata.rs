@@ -255,6 +255,7 @@ impl ExprGroups {
     }
 
     fn build_nfa(self) -> NFA {
+        println!("build_nfa: start");
         let mut nfa = NFA {
             states: vec![NFAState::new()],
             start_state: 0,
@@ -408,6 +409,7 @@ impl NFA {
     }
 
     pub fn to_dfa(self) -> DFA {
+        println!("to_dfa: start");
         let mut dfa_states: Vec<DFAState> = Vec::new();
         let mut dfa_state_map: BTreeMap<FrozenSet<usize>, usize> = BTreeMap::new();
         let mut worklist: Vec<FrozenSet<usize>> = Vec::new();
