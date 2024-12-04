@@ -154,7 +154,7 @@ def pegen_to_sep1_grammar(grammar: pegen.grammar.Grammar) -> PyGrammar:
 
     # todo: remove this
 #     exprs = [("start", ge.regex(Regex.eat_u8(ord("a"))))]
-    exprs = [("start", dict(tokens)["NAME"])]
+    exprs = [("start", dict(tokens)["NUMBER"])]
 
     return PyGrammar(exprs)
 
@@ -215,7 +215,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 def initialize_grammar_constraint(grammar, llm_tokens):
     print("Initializing PyGrammarConstraint...")
     grammar_constraint = PyGrammarConstraint(grammar, llm_tokens)
-#     grammar_constraint.print()
+    grammar_constraint.print()
     print("Initializing Grammar Constraint State...")
     grammar_constraint_state = PyGrammarConstraintState(grammar_constraint)
     print("Getting Initial Mask...")
@@ -223,7 +223,7 @@ def initialize_grammar_constraint(grammar, llm_tokens):
     initial_mask_ids = np.where(initial_mask)[0]
     initial_mask_id_map = {id: llm_tokens[id] for id in initial_mask_ids}
     print(f"Initial Mask IDs: {initial_mask_id_map}")
-    assert len(initial_mask_id_map) > 0
+    assert len(initial_mask_id_map) > 0, f"Initial mask is empty: {initial_mask}"
     return grammar_constraint_state
 
 def generate_text(model, tokenizer, grammar_processor, input_text, max_new_tokens=50):
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     model_name = "gpt2"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    llm_tokens = [x.encode() for x in ['a', ' b']]
+    llm_tokens = [x.encode() for x in ['a', ' b', '1']]
 #     llm_tokens = [tokenizer.convert_ids_to_tokens(i).replace("Ġ", " ").encode() for i in range(tokenizer.vocab_size)]
     llm_token_to_id = {token: i for i, token in enumerate(llm_tokens)}
 

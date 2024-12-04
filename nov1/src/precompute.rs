@@ -60,7 +60,6 @@ pub trait Tokenizer: Sized {
         // todo: this can be simplified; any queue entries other than the first one should have initial state (i.e. 0)
         queue.insert((0, Some(state)), root.clone());
 
-
         while let Some(((position, maybe_state), node)) = queue.pop_first() {
             crate::dbgprintln!("Popped from queue: ({}, {:?})", position, maybe_state);
 
@@ -87,6 +86,7 @@ pub trait Tokenizer: Sized {
                         }).set(llm_token_id.0, true);
                     }
                 } else {
+                    println!("No state. Clean end");
                     node.lock().unwrap().value.2.get_or_insert_with(|| {
                         let mut bitset = BitVec::new();
                         bitset.resize(num_llm_tokens, false);
