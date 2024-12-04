@@ -52,16 +52,16 @@ pub trait Tokenizer: Sized {
         max_token_id: usize,
     ) {
         // (position, state) -> node
-        let mut queue: BTreeMap<(usize, Option<usize>), _> = BTreeMap::new();
+        let mut queue: BTreeMap<(usize, Option<usize>), Vec<_>> = BTreeMap::new();
 
         // let root: Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>> = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: state, position_in_llm_token: 0, dirty_end_state: None, clean_end: false })));
         let root = state_map_root_arc.clone();
 
         // Initialize the queue with the starting state
         // todo: this can be simplified; any queue entries other than the first one should have initial state (i.e. 0)
-        queue.insert((0, Some(state)), root.clone());
+        queue.insert((0, Some(state)), vec![root.clone()]);
 
-        while let Some(((position, maybe_state), node)) = queue.pop_first() {
+        while let Some(((position, maybe_state), nodes)) = queue.pop_first() {
             crate::dbgprintln2!("Popped from queue: ({}, {:?})", position, maybe_state);
 
             // todo: does it make sense to have this here?
@@ -70,87 +70,87 @@ pub trait Tokenizer: Sized {
             // }
             assert!(position <= text.len());
 
-            if position == text.len() {
-                assert!(!node.lock().unwrap().value.0.contains_key(&llm_token_id));
-                node.lock().unwrap().value.0.insert(llm_token_id, TokenizerStateInfoForLLMToken {
-                    tokenizer_state_id: 99999999999,
-                    position_in_llm_token: position,
-                    dirty_end_state: maybe_state.map(|s| StateID(s)),
-                    clean_end: maybe_state.is_none()
-                });
-                if let Some(state) = maybe_state {
-                    for possible_grammar_token_id in &self.tokens_accessible_from_state(state) {
-                        node.lock().unwrap().value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
+            for node in nodes {
+                if position == text.len() {
+                    assert!(!node.lock().unwrap().value.0.contains_key(&llm_token_id));
+                    node.lock().unwrap().value.0.insert(llm_token_id, TokenizerStateInfoForLLMToken {
+                        tokenizer_state_id: 99999999999,
+                        position_in_llm_token: position,
+                        dirty_end_state: maybe_state.map(|s| StateID(s)),
+                        clean_end: maybe_state.is_none()
+                    });
+                    if let Some(state) = maybe_state {
+                        for possible_grammar_token_id in &self.tokens_accessible_from_state(state) {
+                            node.lock().unwrap().value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
+                                let mut bitset = BitVec::new();
+                                bitset.resize(max_token_id, false);
+                                bitset
+                            }).set(llm_token_id.0, true);
+                        }
+                    } else {
+                        crate::dbgprintln2!("No state. Clean end");
+                        node.lock().unwrap().value.2.get_or_insert_with(|| {
                             let mut bitset = BitVec::new();
                             bitset.resize(max_token_id, false);
                             bitset
                         }).set(llm_token_id.0, true);
                     }
-                } else {
-                    crate::dbgprintln2!("No state. Clean end");
-                    node.lock().unwrap().value.2.get_or_insert_with(|| {
-                        let mut bitset = BitVec::new();
-                        bitset.resize(max_token_id, false);
-                        bitset
-                    }).set(llm_token_id.0, true);
+                    continue;
                 }
-                continue;
-            }
 
-            let remaining_text = &text[position..];
-            let execute_result = self.execute_from_state(remaining_text, maybe_state.unwrap_or(0));
+                let remaining_text = &text[position..];
+                let execute_result = self.execute_from_state(remaining_text, maybe_state.unwrap_or(0));
 
-            // assert_eq!(execute_result.matches.len(), execute_result.matches.iter().map(|m| m.id).collect::<BTreeSet<_>>().len());
+                // assert_eq!(execute_result.matches.len(), execute_result.matches.iter().map(|m| m.id).collect::<BTreeSet<_>>().len());
 
-            // Process all matches
-            for token in &execute_result.matches {
-                let new_position = position + token.width;
-                assert_ne!(token.width, 0);
-                assert!(new_position <= text.len());
-                let new_state = None;
-                if let Some(new_node) = queue.get(&(new_position, new_state)) {
-                    // Ensure the new node isn't this node
-                    assert_ne!(Arc::as_ptr(new_node), Arc::as_ptr(&node));
-                    crate::dbgprintln2!("Existing node in queue");
-                    let exists = node.lock().unwrap().get(&token.id).is_some();
-                    if exists {
-                        // do nothing
+                // Process all matches
+                for token in &execute_result.matches {
+                    let new_position = position + token.width;
+                    assert_ne!(token.width, 0);
+                    assert!(new_position <= text.len());
+                    let new_state = None;
+                    if let Some(new_nodes) = queue.get_mut(&(new_position, new_state)) {
+                        crate::dbgprintln2!("Existing node in queue");
+                        let exists = node.lock().unwrap().get(&token.id).is_some();
+                        if exists {
+                            crate::dbgprintln2!("Existing node in trie");
+                            let existing = node.lock().unwrap().get(&token.id).unwrap();
+                            // Check if the existing node is already in the queue
+                            let mut exists_in_queue = false;
+                            for new_node in new_nodes.iter() {
+                                if Arc::as_ptr(&new_node) == Arc::as_ptr(&existing) {
+                                    exists_in_queue = true;
+                                    break;
+                                }
+                            }
+                            if !exists_in_queue {
+                                new_nodes.push(existing.clone());
+                            }
+                        }
+                        // Add edges from the current node to each new node
+                        for new_node in new_nodes {
+                            assert_ne!(Arc::as_ptr(&new_node), Arc::as_ptr(&node));
+                            node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
+                        }
                     } else {
-                        // Add an edge from the current node to the new node
-                        crate::dbgprintln2!("Adding edge from current node to new node");
-                        node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
+                        // if let Some(existing) = node.lock().unwrap().get(&token.id) {
+                        let exists = node.lock().unwrap().get(&token.id).is_some();
+                        if exists {
+                            crate::dbgprintln2!("Existing node in trie");
+                            let existing = node.lock().unwrap().get(&token.id).unwrap();
+                            queue.insert((new_position, new_state), vec![existing.clone()]);
+                        } else {
+                            crate::dbgprintln2!("Creating new node");
+                            // Create a new node and add it to the queue
+                            // let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position, dirty_end_state: None, clean_end: new_position == text.len() })));
+                            let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
+                            node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
+                            queue.insert((new_position, new_state), vec![new_node.clone()]);
+                        }
                     }
-                } else {
-                    // if let Some(existing) = node.lock().unwrap().get(&token.id) {
-                    let exists = node.lock().unwrap().get(&token.id).is_some();
-                    if exists {
-                        crate::dbgprintln2!("Existing node in trie");
-                        let existing = node.lock().unwrap().get(&token.id).unwrap();
-                        queue.insert((new_position, new_state), existing.clone());
-                    } else {
-                        crate::dbgprintln2!("Creating new node");
-                        // Create a new node and add it to the queue
-                        // let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position, dirty_end_state: None, clean_end: new_position == text.len() })));
-                        let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
-                        node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
-                        queue.insert((new_position, new_state), new_node.clone());
-                    }
+                    crate::dbgprintln2!("Done processing token");
                 }
-                crate::dbgprintln2!("Done processing token");
             }
-
-            // if let Some(new_state) = execute_result.new_state {
-            //     for possible_grammar_token_id in &self.tokens_accessible_from_state(new_state) {
-            //         crate::dbgprintln!("Possible grammar token ID: {}", possible_grammar_token_id);
-            //         node.lock().unwrap().value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
-            //             let mut bitset = BitVec::new();
-            //             bitset.resize(num_llm_tokens, false);
-            //             bitset
-            //         }).insert(llm_token_id.0, true);
-            //     }
-            // } else {
-            //
-            // }
         }
     }
 }
