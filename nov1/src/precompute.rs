@@ -127,11 +127,8 @@ pub trait Tokenizer: Sized {
                                 new_nodes.push(existing.clone());
                             }
                         }
-                        // Add edges from the current node to each new node
-                        for new_node in new_nodes {
-                            assert_ne!(Arc::as_ptr(&new_node), Arc::as_ptr(&node));
-                            node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
-                        }
+                        // Add an edge from the current node to any one of the new node
+                        node.lock().unwrap().insert(token.id as TokenID, new_nodes.first().unwrap().clone());
                     } else {
                         // if let Some(existing) = node.lock().unwrap().get(&token.id) {
                         let exists = node.lock().unwrap().get(&token.id).is_some();
