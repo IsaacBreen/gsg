@@ -25,6 +25,7 @@ pub fn validate(productions: &[Production]) -> Result<(), String> {
 }
 
 pub fn drop_dead(productions: &[Production]) -> Vec<Production> {
+    // todo: this function is broken
     // Ensure all nonterminals have a productions
     let mut nt_reachables: BTreeMap<&NonTerminal, BTreeSet<&NonTerminal>> = BTreeMap::new();
 
