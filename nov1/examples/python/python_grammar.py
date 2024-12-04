@@ -186,6 +186,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
         self.grammar_constraint_state = grammar_constraint_state
         self.seen_input_ids = []
         self.llm_token_to_id = llm_token_to_id
+        self.llm_token_id_to_token = {id: token for token, id in llm_token_to_id.items()}
 
     def __call__(self, input_ids, scores):
         current_input_ids = input_ids.view(-1).tolist()
@@ -193,7 +194,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 
         for token_id in new_token_ids:
 #             debug_print(f"Committing token: {self.llm_token_to_id[token_id]} (ID: {token_id})")
-            debug_print(f"Committing token: {self.llm_token_to_id.get(token_id)} (ID: {token_id})")
+            debug_print(f"Committing token: {self.llm_token_id_to_token.get(token_id)} (ID: {token_id})")
             timeit(self.grammar_constraint_state.commit)(token_id)
 
         self.seen_input_ids = current_input_ids
@@ -206,7 +207,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
             mask = mask[:scores.shape[-1]]
 
         mask_ids = np.where(mask)[0]
-        mask_id_map = {id: self.llm_token_to_id.get(id) for id in mask_ids}
+        mask_id_map = {id: self.llm_token_id_to_token.get(id) for id in mask_ids}
         debug_print(f"Mask IDs: {mask_id_map}")
         print("")
 
@@ -222,7 +223,8 @@ def initialize_grammar_constraint(grammar, llm_token_to_id, max_token_id):
     print("Getting Initial Mask...")
     initial_mask = grammar_constraint_state.get_mask()
     initial_mask_ids = np.where(initial_mask)[0]
-    initial_mask_id_map = {id: llm_token_to_id.get(id) for id in initial_mask_ids}
+    llm_token_id_to_token = {id: token for token, id in llm_token_to_id.items()}
+    initial_mask_id_map = {id: llm_token_id_to_token.get(id) for id in initial_mask_ids}
     print(f"Initial Mask IDs: {initial_mask_id_map}")
     assert len(initial_mask_id_map) > 0, f"Initial mask is empty: {initial_mask}"
     return grammar_constraint_state
