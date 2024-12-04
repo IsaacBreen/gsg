@@ -181,38 +181,7 @@ pub fn precompute<'a>(
         for (llm_token_id, &llm_token) in llm_tokens.iter().enumerate() {
             crate::dbgprintln!("Precomputing for token {}", llm_token_id);
             tokenizer.execute_all_from_state(llm_token, state_id, state_map_root_arc.clone(), LLMTokenID(llm_token_id), llm_tokens.len() + 1);
-            // Merge into the existing state map
-            // TrieNode::merge(
-            //     state_map_root_arc.clone(),
-            //     token_tree,
-            //     |(mut llm_token_id_to_state, mut grammar_token_id_to_bitvec, mut maybe_clean_end_bitvec), info: TokenizerStateInfoForLLMToken| {
-            //         if info.dirty_end_state.is_some() | info.clean_end {
-            //             llm_token_id_to_state.insert(LLMTokenID(llm_token_id), info);
-            //         }
-            //         if let Some(dirty_end_state) = info.dirty_end_state {
-            //             for possible_grammar_token_id in &tokenizer.tokens_accessible_from_state(dirty_end_state.0) {
-            //                 grammar_token_id_to_bitvec.entry(*possible_grammar_token_id).or_insert_with(|| {
-            //                     let mut bitset = BitVec::new();
-            //                     bitset.resize(llm_tokens.len(), false);
-            //                     bitset
-            //                 }).set(llm_token_id, true);
-            //             }
-            //         }
-            //         if info.clean_end {
-            //             maybe_clean_end_bitvec.get_or_insert_with(|| {
-            //                 let mut bitset = BitVec::new();
-            //                 bitset.resize(llm_tokens.len(), false);
-            //                 bitset
-            //             }).set(llm_token_id, true);
-            //         }
-            //         (llm_token_id_to_state, grammar_token_id_to_bitvec, maybe_clean_end_bitvec)
-            //     },
-            //     || { (BTreeMap::new(), BTreeMap::new(), None) },
-            // );
         }
-
-        // println!("Precomputing state {}", state_id);
-        // dump_structure(state_map_root_arc.clone());
 
         let state_map_root = state_map_root_arc.lock().unwrap().clone();
         result.insert(glr::table::StateID(state_id), state_map_root);
