@@ -96,9 +96,9 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                         // todo: this is introducing redundancy... ?
                         let mut glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(current_parse_states.clone());
                         // println!("token_id: {:?}", token_id);
-                        crate::dbgprintln2!("Stepping");
+                        crate::dbgprintln!("Stepping");
                         glr_parse_state.step(TerminalID(*token_id));
-                        crate::dbgprintln2!("Done stepping");
+                        crate::dbgprintln!("Done stepping");
                         glr_parse_state.active_states
                     },
                     |mut parse_states: Vec<Vec<ParseState>>| {
@@ -107,9 +107,9 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                             all_parse_states.append(&mut other_parse_state)
                         }
                         let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(all_parse_states);
-                        crate::dbgprintln2!("Merging active states");
+                        crate::dbgprintln!("Merging active states");
                         new_glr_parse_state.merge_active_states();
-                        crate::dbgprintln2!("Done merging active states");
+                        crate::dbgprintln!("Done merging active states");
                         new_glr_parse_state.active_states
                     },
                     |(_, bitsets, maybe_clean_end_bitset), current_parse_states| {
@@ -119,9 +119,9 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                             for (possible_next_grammar_token, bitset) in bitsets {
                                 let mut new_glr_parse_state = glr_parse_state.clone();
                                 let possible_next_grammar_token_id = table::TerminalID(*possible_next_grammar_token);
-                                crate::dbgprintln2!("Stepping for possible next grammar token {:?}", possible_next_grammar_token);
+                                crate::dbgprintln!("Stepping for possible next grammar token {:?}", possible_next_grammar_token);
                                 new_glr_parse_state.step(possible_next_grammar_token_id);
-                                crate::dbgprintln2!("Done stepping for possible next grammar token");
+                                crate::dbgprintln!("Done stepping for possible next grammar token");
                                 // panic!();
                                 // todo: remove this
                                 println!("possible_next_grammar_token: {:?}", possible_next_grammar_token);

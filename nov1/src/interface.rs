@@ -5,7 +5,7 @@ use crate::glr::parser::{GLRParser, ParseState};
 use crate::glr::table::{assign_non_terminal_ids, generate_glr_parser, generate_glr_parser_with_maps, NonTerminalID, StateID, TerminalID};
 use crate::precompute::{precompute, LLMTokenID, Token, Tokenizer};
 use bimap::BiBTreeMap;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::{Debug, Formatter};
 use crate::analyze_grammar::drop_dead;
 use crate::constraint::{precompute_add_eof, GrammarConstraint};
@@ -126,9 +126,14 @@ impl Grammar<Regex> {
         let mut next_terminal_id = 0;
 
         // Add a start production.
-        // TODO: make sure the start production name is not already taken. Use a unique name generator function.
+        // make sure the start production name is not already taken by adding apostrophes to it until it's unique.
+        let mut start_production_name = "start'".to_string();
+        let nonterminals: HashSet<&str> = exprs.iter().map(|(name, _)| name.as_str()).collect();
+        while nonterminals.contains(&start_production_name.as_str()) {
+            start_production_name.push('\'');
+        }
         productions.push(Production {
-            lhs: NonTerminal("start".to_string()),
+            lhs: NonTerminal(start_production_name.clone()),
             rhs: vec![Symbol::NonTerminal(NonTerminal(exprs[0].0.clone()))],
         });
 
