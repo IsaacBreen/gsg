@@ -286,6 +286,7 @@ impl Grammar<Regex> {
         }
 
         // TODO: this is bad. prob remove this.
+        crate::dbgprintln2!("Dropping dead productions");
         let productions = drop_dead(&productions);
 
         let tokenizer_exprs_vec: Vec<ExprGroup> = tokens
@@ -293,8 +294,10 @@ impl Grammar<Regex> {
             .map(|(_, expr)| greedy_group(expr))
             .collect();
         let tokenizer_expr_groups = groups(tokenizer_exprs_vec);
+        crate::dbgprintln2!("Building tokenizer");
         let tokenizer = tokenizer_expr_groups.clone().build();
 
+        crate::dbgprintln2!("Done defining grammar");
         Self {
             productions,
             start_production_id: 0,

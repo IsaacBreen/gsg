@@ -40,9 +40,9 @@ pub fn drop_dead(productions: &[Production]) -> Vec<Production> {
 
     loop {
         let mut changed = false;
-        for (nt, _) in nt_reachables.clone() {
+        for (nt, reachables) in nt_reachables.clone() {
             let old_len = nt_reachables[nt].len();
-            for reachable in nt_reachables[nt].clone() {
+            for reachable in reachables {
                 if let Some(reachable_reachables) = nt_reachables.get(reachable).cloned() {
                     nt_reachables.get_mut(nt).unwrap().extend(reachable_reachables);
                 }
@@ -77,6 +77,7 @@ pub fn drop_dead(productions: &[Production]) -> Vec<Production> {
             // crate::dbgprintln2!("Removing production {:?}", prod);
         }
     }
+    crate::dbgprintln2!("Dropped {} productions", productions.len() - new_productions.len());
 
     new_productions
 }
