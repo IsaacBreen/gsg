@@ -1,3 +1,4 @@
+// src/interface.rs
 use crate::finite_automata::{greedy_group, groups, non_greedy_group, ExprGroup, ExprGroups};
 use crate::finite_automata::{Expr, Regex};
 use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
@@ -11,6 +12,7 @@ use crate::analyze_grammar::drop_dead;
 use crate::constraint::{precompute_add_eof, GrammarConstraint};
 
 type LLMToken<'a> = &'a [u8];
+type LLMTokenMap = BiBTreeMap<Vec<u8>, LLMTokenID>;
 
 #[derive(Clone)]
 pub struct Grammar<T> {
@@ -156,7 +158,7 @@ impl Grammar<Regex> {
                 GrammarExpr::RegexExpr(regex_expr) => {
                     // TODO: what if this is already in the map (e.g. the user happens to create a rule with name `__regex_0`?
                     //  We need to generate a unique regex name.
-                    if let Some(terminal_id) = terminal_expr_to_group_id.get_by_left(&regex_expr) {
+                    if let Some(terminal_id) = terminal_expr_to_group_id.get_by_left(®ex_expr) {
                         vec![Symbol::Terminal(Terminal(format!("__regex_{}", terminal_id)))]
                     } else {
                         // Create a unique terminal name for this regex expression
@@ -303,7 +305,7 @@ impl Grammar<Regex> {
 }
 
 impl<T: Tokenizer> GrammarConstraint<T> {
-    pub fn from_grammar(grammar: Grammar<T>, llm_tokens: &[LLMToken]) -> Self {
+    pub fn from_grammar(grammar: Grammar<T>, llm_tokens: LLMTokenMap) -> Self {
         crate::dbgprintln2!("GrammarConstraint::from_grammar");
         let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
         let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
@@ -312,7 +314,7 @@ impl<T: Tokenizer> GrammarConstraint<T> {
 
         crate::dbgprintln2!("Precomputing");
         let num_llm_tokens = llm_tokens.len() + 1;
-        let mut precomputed = precompute(&grammar.tokenizer, llm_tokens, LLMTokenID(num_llm_tokens));
+        let precomputed = precompute(&grammar.tokenizer, &llm_tokens, LLMTokenID(num_llm_tokens));
         crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
         precompute_add_eof(&mut precomputed, LLMTokenID(llm_tokens.len()), parser.eof_terminal_id.0, num_llm_tokens);
         crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
@@ -393,16 +395,16 @@ mod tests {
         let parser = grammar.glr_parser();
         dbg!(&parser);
 
-        let llm_tokens = &[b"i".as_slice(), b"+", b"*", b"(", b")", b"(i", b"+i"];
-        let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, &token)| (token.to_vec(), LLMTokenID(i))).collect();
-        let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
+        let llm_tokens: Vec<Vec<u8>> = vec![b"i".to_vec(), b"+".to_vec(), b"*".to_vec(), b"(".to_vec(), b")".to_vec(), b"(i".to_vec(), b"+i".to_vec()];
+        let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
+        let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_token_map);
         let mut grammar_constraint_state = grammar_constraint.init();
 
         macro_rules! llm_token_vec {
             ($($token:expr),* $(,)?) => {
                 vec![
                     $(
-                        llm_token_to_id.get($token.as_slice()).unwrap().0,
+                        *llm_token_map.get_by_left(&$token.to_vec()).unwrap(),
                     )*
                 ]
             }
@@ -471,9 +473,9 @@ mod tests {
         let parser = grammar.glr_parser();
         dbg!(&parser);
 
-        let llm_tokens = &[b"a".as_slice(), b"b"];
-        let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, &token)| (token.to_vec(), LLMTokenID(i))).collect();
-        let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
+        let llm_tokens: Vec<Vec<u8>> = vec![b"a".to_vec(), b"b".to_vec()];
+        let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
+        let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_token_map);
         let mut grammar_constraint_state = grammar_constraint.init();
 
         for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
@@ -491,7 +493,7 @@ mod tests {
             ($($token:expr),* $(,)?) => {
                 vec![
                     $(
-                        llm_token_to_id.get($token.as_slice()).unwrap().0,
+                        *llm_token_map.get_by_left(&$token.to_vec()).unwrap(),
                     )*
                 ]
             }
@@ -527,9 +529,9 @@ mod tests {
         let parser = grammar.glr_parser();
         dbg!(&parser);
 
-        let llm_tokens = &[b"a".as_slice()];
-        let llm_token_to_id: BTreeMap<_, _> = llm_tokens.iter().enumerate().map(|(i, &token)| (token.to_vec(), LLMTokenID(i))).collect();
-        let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_tokens);
+        let llm_tokens: Vec<Vec<u8>> = vec![b"a".to_vec()];
+        let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
+        let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_token_map);
         let mut grammar_constraint_state = grammar_constraint.init();
 
         print_precomputed(&grammar_constraint_state.parent.precomputed);
@@ -549,7 +551,7 @@ mod tests {
             ($($token:expr),* $(,)?) => {
                 vec![
                     $(
-                        llm_token_to_id.get($token.as_slice()).unwrap().0,
+                        *llm_token_map.get_by_left(&$token.to_vec()).unwrap(),
                     )*
                 ]
             }
@@ -607,7 +609,8 @@ mod tests {
         // // Define LLM tokens
         let llm_tokens: Vec<Vec<u8>> = (0..2).map(|i| format!("abcdefghijk{}", i).as_bytes().to_vec()).collect();
         let llm_tokens_slices: Vec<&[u8]> = llm_tokens.iter().map(|token| &token[..]).collect();
-        let precomputed = precompute(&tokenizer, &llm_tokens_slices, LLMTokenID(llm_tokens.len() + 1));
+        let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
+        let precomputed = precompute(&tokenizer, &llm_token_map, LLMTokenID(llm_tokens.len() + 1));
         print_precomputed(&precomputed);
         println!("Done precomputing");
         // print_precomputed(&precomputed);

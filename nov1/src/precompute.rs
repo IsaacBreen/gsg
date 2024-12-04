@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use bitvec::prelude::BitVec;
 use kdam::tqdm;
 use crate::trie::{dump_structure, TrieNode};
+use bimap::BiBTreeMap;
 
 pub type TokenID = usize;
 
@@ -160,7 +161,7 @@ pub struct TokenizerStateInfoForLLMToken {
 /// Precomputes a map from state -> token sequence -> LLM token -> state.
 pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
-    llm_tokens: &[&'a [u8]],
+    llm_token_map: &BiBTreeMap<Vec<u8>, LLMTokenID>,
     eof_llm_token_id: LLMTokenID,
 ) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>> {
     let mut result: BTreeMap<StateID, TrieNode<GroupID, _>> = BTreeMap::new();
@@ -177,10 +178,15 @@ pub fn precompute<'a>(
         crate::dbgprintln!("Precomputing state {}", state_id);
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
 
-        // for (llm_token_id, &llm_token) in tqdm!(llm_tokens.iter().enumerate()) {
-        for (llm_token_id, &llm_token) in llm_tokens.iter().enumerate() {
-            crate::dbgprintln!("Precomputing for token {}", llm_token_id);
-            tokenizer.execute_all_from_state(llm_token, state_id, state_map_root_arc.clone(), LLMTokenID(llm_token_id), llm_tokens.len() + 1);
+        for (llm_token, llm_token_id) in llm_token_map.iter() {
+            crate::dbgprintln!("Precomputing for token {:?}", llm_token_id);
+            tokenizer.execute_all_from_state(
+                llm_token,
+                state_id,
+                state_map_root_arc.clone(),
+                *llm_token_id,
+                128_000, // Use the constant max value for bitset size
+            );
         }
 
         let state_map_root = state_map_root_arc.lock().unwrap().clone();
@@ -241,6 +247,7 @@ mod tests {
     use crate::u8set::U8Set;
     use crate::{groups, seq};
     use std::collections::{BTreeMap, BTreeSet};
+    use bimap::BiBTreeMap;
 
     #[test]
     fn test_precompute() {
@@ -301,9 +308,10 @@ mod tests {
 
         // Define the LLM tokens
         let llm_tokens: &[&[u8]] = &[b"a", b"b", b"c", b"ab", b"bc", b"abc"];
+        let llm_token_map: BiBTreeMap<Vec<u8>, LLMTokenID> = llm_tokens.iter().enumerate().map(|(i, token)| (token.to_vec(), LLMTokenID(i))).collect();
 
         // Run precompute
-        let result = precompute(&tokenizer, llm_tokens, LLMTokenID(llm_tokens.len() + 1));
+        let result = precompute(&tokenizer, &llm_token_map, LLMTokenID(llm_tokens.len() + 1));
 
         // todo: update this for TrieNode
         // // Build the expected output

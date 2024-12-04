@@ -1,16 +1,17 @@
 // src/constraint.rs
 use crate::glr::parser::{GLRParser, GLRParserState, InsertWith, ParseState, ParseStateKey};
-use crate::glr::table;
 use crate::glr::table::{StateID, TerminalID};
 use crate::{dbgprintln2, precompute};
-use crate::precompute::{LLMTokenID, Token, TokenID, Tokenizer, TokenizerStateInfoForLLMToken};
+use crate::precompute::{LLMTokenID, Token, Tokenizer, TokenizerStateInfoForLLMToken};
 use bitvec::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::sync::{Arc, Mutex};
 use crate::trie::TrieNode;
+use bimap::BiBTreeMap;
 
 type LLMToken = Vec<u8>;
+type LLMTokenMap = BiBTreeMap<Vec<u8>, LLMTokenID>;
 
 // TODO: should this *really* derive `Clone`? Users probably shouldn't clone this, should they?
 #[derive(Debug, Clone)]
@@ -28,9 +29,9 @@ pub struct GrammarConstraintState<T: Tokenizer> {
 }
 
 impl<T: Tokenizer> GrammarConstraint<T> {
-    pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: &[LLMToken]) -> Self {
+    pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: LLMTokenMap) -> Self {
         let num_llm_tokens = llm_tokens.len() + 1;
-        let mut precomputed = precompute::precompute(&tokenizer, &llm_tokens.iter().map(|token| &token[..]).collect::<Vec<_>>(), LLMTokenID(num_llm_tokens));
+        let mut precomputed = precompute::precompute(&tokenizer, &llm_tokens, LLMTokenID(num_llm_tokens));
         precompute_add_eof(&mut precomputed, LLMTokenID(llm_tokens.len()), parser.eof_terminal_id.0, num_llm_tokens);
 
         Self {
