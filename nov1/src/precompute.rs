@@ -127,7 +127,8 @@ pub trait Tokenizer: Sized {
                                 new_nodes.push(existing.clone());
                             }
                         } else {
-                            // Add an edge from the current node to any one of the new nodes
+                            // Add an edge from the current node to any one of the new nodes (doesn't matter which)
+                            crate::dbgprintln2!("Adding edge to one of the new nodes");
                             node.lock().unwrap().insert(token.id as TokenID, new_nodes.first().unwrap().clone());
                         }
                     } else {
