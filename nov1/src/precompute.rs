@@ -51,8 +51,10 @@ pub trait Tokenizer: Sized {
         llm_token_id: LLMTokenID,
         max_token_id: usize,
     ) {
-        // (position, state) -> node
+        // (position, state) -> [node]
         let mut queue: BTreeMap<(usize, Option<usize>), Vec<_>> = BTreeMap::new();
+
+        let mut new_nodes: BTreeMap<*const Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>, Vec<Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>>> = BTreeMap::new();
 
         // let root: Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>> = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: state, position_in_llm_token: 0, dirty_end_state: None, clean_end: false })));
         let root = state_map_root_arc.clone();
@@ -110,18 +112,18 @@ pub trait Tokenizer: Sized {
                         if child_exists {
                             // todo: can this ever actually happen?
                             crate::dbgprintln2!("Child exists in trie (1)");
-                            let existing_child = node.lock().unwrap().get(&token.id).unwrap();
+                            let child = node.lock().unwrap().get(&token.id).unwrap();
                             // Check if the existing node is already in the queue
                             let mut child_already_queued = false;
                             for queued_node in queued_nodes.iter() {
-                                if Arc::as_ptr(&queued_node) == Arc::as_ptr(&existing_child) {
+                                if Arc::as_ptr(&queued_node) == Arc::as_ptr(&child) {
                                     child_already_queued = true;
                                     break;
                                 }
                             }
                             if !child_already_queued {
-                                crate::dbgprintln2!("Adding edge to one of the new nodes");
-                                queued_nodes.push(existing_child.clone());
+                                crate::dbgprintln2!("Pushing child to queue");
+                                queued_nodes.push(child.clone());
                             }
                         } else {
                             // NOTE: Careful here. It's easy to cause cycles in the trie.
@@ -129,19 +131,29 @@ pub trait Tokenizer: Sized {
                             // crate::dbgprintln2!("Adding edge to one of the new nodes");
                             // node.lock().unwrap().insert(token.id as TokenID, queued_nodes.first().unwrap().clone());  // Don't do this (can create a cycle)
 
-                            //
-
+                            // Only add an edge if it's a new node
+                            if new_nodes.contains_key(&Arc::as_ptr(&queued_nodes.first().unwrap())) {
+                                crate::dbgprintln2!("Adding edge to one of the new nodes");
+                                node.lock().unwrap().insert(token.id as TokenID, queued_nodes.first().unwrap().clone());
+                            } else {
+                                // Create a new node
+                                crate::dbgprintln2!("Existing child wasn't new. Creating new node");
+                                let new_child = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
+                                new_nodes.insert(Arc::as_ptr(&new_child), queued_nodes.clone());
+                                node.lock().unwrap().insert(token.id as TokenID, new_child.clone());
+                            }
                         }
                     } else {
                         let child_exists = node.lock().unwrap().get(&token.id).is_some();
                         if child_exists {
                             crate::dbgprintln2!("Child exists in trie (2)");
-                            let existing_child = node.lock().unwrap().get(&token.id).unwrap();
-                            queue.insert((new_position, new_state), vec![existing_child.clone()]);
+                            let child = node.lock().unwrap().get(&token.id).unwrap();
+                            queue.insert((new_position, new_state), vec![child.clone()]);
                         } else {
                             crate::dbgprintln2!("Creating new node");
                             // Create a new node and add it to the queue
                             let new_child = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
+                            new_nodes.insert(Arc::as_ptr(&new_child), vec![new_child.clone()]);
                             node.lock().unwrap().insert(token.id as TokenID, new_child.clone());
                             queue.insert((new_position, new_state), vec![new_child.clone()]);
                         }
