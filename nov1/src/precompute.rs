@@ -208,7 +208,7 @@ pub fn precompute<'a>(
         for (llm_token, llm_token_id) in llm_token_map.iter() {
             crate::dbgprintln2!("Precomputing for token {:?} ({:?})", llm_token_id, llm_token);
             // todo: REMOVE THIS
-            if llm_token_id.0 != 764 {
+            if llm_token_id.0 < 764 {
                 continue;
             }
             tokenizer.execute_all_from_state(
