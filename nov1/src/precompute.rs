@@ -148,6 +148,7 @@ pub trait Tokenizer: Sized {
                                 new_nodes.insert(&*new_child.lock().unwrap() as *const TrieNode<_, _>);
                                 node.lock().unwrap().insert(token.id as TokenID, new_child.clone());
                                 queued_nodes.push(new_child.clone());
+                                panic!();
                             }
                         }
                     } else {
@@ -157,7 +158,7 @@ pub trait Tokenizer: Sized {
                             let child = node.lock().unwrap().get(&token.id).unwrap();
                             queue.insert((new_position, new_state), vec![child.clone()]);
                         } else {
-                            crate::dbgprintln2!("Creating new node (1)");
+                            crate::dbgprintln2!("Creating new node (2)");
                             // Create a new node and add it to the queue
                             let new_child = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
                             new_nodes.insert(&*new_child.lock().unwrap() as *const TrieNode<_, _>);
