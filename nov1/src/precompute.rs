@@ -65,9 +65,6 @@ pub trait Tokenizer: Sized {
             crate::dbgprintln2!("Popped from queue: ({}, {:?})", position, maybe_state);
 
             // todo: does it make sense to have this here?
-            // if position > text.len() {
-            //     continue;
-            // }
             assert!(position <= text.len());
 
             for node in nodes {
@@ -101,53 +98,57 @@ pub trait Tokenizer: Sized {
                 let remaining_text = &text[position..];
                 let execute_result = self.execute_from_state(remaining_text, maybe_state.unwrap_or(0));
 
-                // assert_eq!(execute_result.matches.len(), execute_result.matches.iter().map(|m| m.id).collect::<BTreeSet<_>>().len());
-
                 // Process all matches
                 for token in &execute_result.matches {
                     let new_position = position + token.width;
                     assert_ne!(token.width, 0);
                     assert!(new_position <= text.len());
                     let new_state = None;
-                    if let Some(new_nodes) = queue.get_mut(&(new_position, new_state)) {
-                        crate::dbgprintln2!("Existing node in queue");
-                        let exists = node.lock().unwrap().get(&token.id).is_some();
-                        if exists {
-                            crate::dbgprintln2!("Existing node in trie");
-                            let existing = node.lock().unwrap().get(&token.id).unwrap();
+                    if let Some(queued_nodes) = queue.get_mut(&(new_position, new_state)) {
+                        crate::dbgprintln2!("Existing nodes in queue");
+                        let child_exists = node.lock().unwrap().get(&token.id).is_some();
+                        if child_exists {
+                            // todo: can this ever actually happen?
+                            crate::dbgprintln2!("Child exists in trie (1)");
+                            let existing_child = node.lock().unwrap().get(&token.id).unwrap();
                             // Check if the existing node is already in the queue
-                            let mut exists_in_queue = false;
-                            for new_node in new_nodes.iter() {
-                                if Arc::as_ptr(&new_node) == Arc::as_ptr(&existing) {
-                                    exists_in_queue = true;
+                            let mut child_already_queued = false;
+                            for queued_node in queued_nodes.iter() {
+                                if Arc::as_ptr(&queued_node) == Arc::as_ptr(&existing_child) {
+                                    child_already_queued = true;
                                     break;
                                 }
                             }
-                            if !exists_in_queue {
-                                new_nodes.push(existing.clone());
+                            if !child_already_queued {
+                                crate::dbgprintln2!("Adding edge to one of the new nodes");
+                                queued_nodes.push(existing_child.clone());
                             }
                         } else {
+                            // NOTE: Careful here. It's easy to cause cycles in the trie.
                             // Add an edge from the current node to any one of the new nodes (doesn't matter which)
-                            crate::dbgprintln2!("Adding edge to one of the new nodes");
-                            node.lock().unwrap().insert(token.id as TokenID, new_nodes.first().unwrap().clone());
+                            // crate::dbgprintln2!("Adding edge to one of the new nodes");
+                            // node.lock().unwrap().insert(token.id as TokenID, queued_nodes.first().unwrap().clone());  // Don't do this (can create a cycle)
+
+                            //
+
                         }
                     } else {
-                        // if let Some(existing) = node.lock().unwrap().get(&token.id) {
-                        let exists = node.lock().unwrap().get(&token.id).is_some();
-                        if exists {
-                            crate::dbgprintln2!("Existing node in trie");
-                            let existing = node.lock().unwrap().get(&token.id).unwrap();
-                            queue.insert((new_position, new_state), vec![existing.clone()]);
+                        let child_exists = node.lock().unwrap().get(&token.id).is_some();
+                        if child_exists {
+                            crate::dbgprintln2!("Child exists in trie (2)");
+                            let existing_child = node.lock().unwrap().get(&token.id).unwrap();
+                            queue.insert((new_position, new_state), vec![existing_child.clone()]);
                         } else {
                             crate::dbgprintln2!("Creating new node");
                             // Create a new node and add it to the queue
-                            // let new_node = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: new_state, position_in_llm_token: new_position, dirty_end_state: None, clean_end: new_position == text.len() })));
-                            let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
-                            node.lock().unwrap().insert(token.id as TokenID, new_node.clone());
-                            queue.insert((new_position, new_state), vec![new_node.clone()]);
+                            let new_child = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
+                            node.lock().unwrap().insert(token.id as TokenID, new_child.clone());
+                            queue.insert((new_position, new_state), vec![new_child.clone()]);
                         }
                     }
                     crate::dbgprintln2!("Done processing token");
+
+
                 }
             }
         }
