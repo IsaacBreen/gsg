@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use kdam::term::init;
@@ -192,7 +193,7 @@ pub fn special_map<V>(
 
         // At the end, if there are any dormant states left, something went wrong
         if !dormant_states.is_empty() {
-            dump_structure(initial_node);
+            // dump_structure(initial_node);
             for (node_ptr, values) in &dormant_states {
                 println!("dormant state: {:?}", node_ptr)
             }
@@ -293,7 +294,7 @@ pub fn special_map<V>(
 //     }
 // }
 
-pub(crate) fn dump_structure<E, T>(root: Arc<Mutex<TrieNode<E, T>>>) {
+pub(crate) fn dump_structure<E, T>(root: Arc<Mutex<TrieNode<E, T>>>) where E: Debug, T: Debug {
     // TODO: modify this to use letter names "a" "b" "c"... for nodes rather than raw pointers.
     // TODO: make it possible to print edge value and node's internal value if they implement Debug
     let mut queue: VecDeque<Arc<Mutex<TrieNode<E, T>>>> = VecDeque::new();
@@ -307,7 +308,7 @@ pub(crate) fn dump_structure<E, T>(root: Arc<Mutex<TrieNode<E, T>>>) {
         println!("{:?}: num_parents: {}", node_ptr, node.num_parents);
         for (edge, child) in &node.children {
             let child_ptr = &*child.lock().unwrap() as *const TrieNode<E, T>;
-            println!("  - {:?} -> {:?}", "?", child_ptr);
+            println!("  - {:?} -> {:?}", edge, child_ptr);
             if !seen.contains(&child_ptr) {
                 seen.insert(child_ptr);
                 queue.push_back(child.clone());
