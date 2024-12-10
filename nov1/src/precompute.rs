@@ -211,6 +211,7 @@ pub fn precompute<'a>(
             if i < 121 {
                 continue;
             }
+            dump_structure(state_map_root_arc.clone());
             tokenizer.execute_all_from_state(
                 llm_token,
                 state_id,
