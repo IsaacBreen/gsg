@@ -205,10 +205,10 @@ pub fn precompute<'a>(
         crate::dbgprintln2!("Precomputing state {}", state_id);
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
 
-        for (llm_token, llm_token_id) in llm_token_map.iter() {
-            crate::dbgprintln2!("Precomputing for token {:?} ({:?})", llm_token_id, llm_token);
+        for (i, (llm_token, llm_token_id)) in llm_token_map.iter().enumerate() {
+            crate::dbgprintln2!("Precomputing for token {:?} ({:?}) ({})", llm_token_id, llm_token, i);
             // todo: REMOVE THIS
-            if llm_token_id.0 < 763 {
+            if i < 121 {
                 continue;
             }
             tokenizer.execute_all_from_state(
