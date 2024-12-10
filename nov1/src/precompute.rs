@@ -54,7 +54,7 @@ pub trait Tokenizer: Sized {
         // (position, state) -> [node]
         let mut queue: BTreeMap<(usize, Option<usize>), Vec<_>> = BTreeMap::new();
 
-        let mut new_nodes: BTreeMap<*const Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>, Vec<Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>>> = BTreeMap::new();
+        let mut new_nodes: BTreeSet<*const TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>> = BTreeSet::new();
 
         // let root: Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>> = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: state, position_in_llm_token: 0, dirty_end_state: None, clean_end: false })));
         let root = state_map_root_arc.clone();
@@ -132,15 +132,22 @@ pub trait Tokenizer: Sized {
                             // node.lock().unwrap().insert(token.id as TokenID, queued_nodes.first().unwrap().clone());  // Don't do this (can create a cycle)
 
                             // Only add an edge if it's a new node
-                            if new_nodes.contains_key(&Arc::as_ptr(&queued_nodes.first().unwrap())) {
-                                crate::dbgprintln2!("Adding edge to one of the new nodes");
-                                node.lock().unwrap().insert(token.id as TokenID, queued_nodes.first().unwrap().clone());
-                            } else {
+                            let mut added = false;
+                            for queued_node in &mut *queued_nodes {
+                                if new_nodes.contains(&(&*queued_node.lock().unwrap() as *const TrieNode<_, _>)) {
+                                    crate::dbgprintln2!("Adding edge to one of the new nodes");
+                                    node.lock().unwrap().insert(token.id as TokenID, queued_nodes.first().unwrap().clone());
+                                    added = true;
+                                    break;
+                                }
+                            }
+                            if !added {
                                 // Create a new node
-                                crate::dbgprintln2!("Existing child wasn't new. Creating new node");
+                                crate::dbgprintln2!("Creating new node (1)");
                                 let new_child = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
-                                new_nodes.insert(Arc::as_ptr(&new_child), queued_nodes.clone());
+                                new_nodes.insert(&*new_child.lock().unwrap() as *const TrieNode<_, _>);
                                 node.lock().unwrap().insert(token.id as TokenID, new_child.clone());
+                                queued_nodes.push(new_child.clone());
                             }
                         }
                     } else {
@@ -150,20 +157,20 @@ pub trait Tokenizer: Sized {
                             let child = node.lock().unwrap().get(&token.id).unwrap();
                             queue.insert((new_position, new_state), vec![child.clone()]);
                         } else {
-                            crate::dbgprintln2!("Creating new node");
+                            crate::dbgprintln2!("Creating new node (1)");
                             // Create a new node and add it to the queue
                             let new_child = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
-                            new_nodes.insert(Arc::as_ptr(&new_child), vec![new_child.clone()]);
+                            new_nodes.insert(&*new_child.lock().unwrap() as *const TrieNode<_, _>);
                             node.lock().unwrap().insert(token.id as TokenID, new_child.clone());
                             queue.insert((new_position, new_state), vec![new_child.clone()]);
                         }
                     }
-                    crate::dbgprintln2!("Done processing token");
 
 
                 }
             }
         }
+        crate::dbgprintln2!("Done processing token");
     }
 }
 

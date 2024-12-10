@@ -57,6 +57,9 @@ impl<T, E: Ord> TrieNode<E, T> {
         let mut queue: VecDeque<Arc<Mutex<TrieNode<E, T>>>> = VecDeque::new();
         queue.push_back(root);
         while let Some(node) = queue.pop_front() {
+            if node_ptrs_in_order.contains(&(&*node.lock().unwrap() as *const TrieNode<E, T>)) {
+                continue;
+            }
             node_ptrs_in_order.push(&*node.lock().unwrap() as *const TrieNode<E, T>);
             nodes.insert(&*node.lock().unwrap() as *const TrieNode<E, T>, node.clone());
             let node = node.lock().unwrap();

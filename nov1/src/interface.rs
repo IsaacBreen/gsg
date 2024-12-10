@@ -341,7 +341,7 @@ mod tests {
     use crate::finite_automata::eat_u8;
     use crate::glr::table::generate_glr_parser;
     use crate::precompute::{print_precomputed, LLMTokenID};
-    use crate::{choice_fast, seq_fast};
+    use crate::{choice_fast, groups, seq_fast};
     use crate::tokenizer_combinators::{eat_u8_fast, eat_u8_negation_fast, eat_u8_range_fast, repeat0_fast};
     use crate::trie::TrieNode;
 
@@ -626,5 +626,19 @@ mod tests {
         print_precomputed(&precomputed);
         println!("Done precomputing");
         // print_precomputed(&precomputed);
+    }
+
+    #[test]
+    fn test_precompute_explosion() {
+        let tokenizer = groups![eat_u8(b'a'), seq_fast![eat_u8(b'a'), eat_u8(b'a')]].build();
+
+        // Define the LLM token as 32 'a's
+        let llm_tokens: Vec<Vec<u8>> = vec![b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_vec()];
+        let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
+        let eof_llm_token_id = llm_tokens.len() + 1;
+        let max_token_id = llm_tokens.len() + 1;
+        let precomputed = precompute(&tokenizer, &llm_token_map, LLMTokenID(eof_llm_token_id), max_token_id);
+        print_precomputed(&precomputed);
+        println!("Done precomputing");
     }
 }
