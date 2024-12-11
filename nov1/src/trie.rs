@@ -150,6 +150,37 @@ impl<T, E: Ord> TrieNode<E, T> {
             child.lock().unwrap().flatten_recursive(result, new_path, is_terminal);
         }
     }
+
+    fn can_reach(&self, target: *const TrieNode<E, T>) -> bool {
+        let mut visited = HashSet::new();
+        let mut queue = VecDeque::new();
+
+        queue.push_back(self as *const TrieNode<E, T>);
+        visited.insert(self as *const TrieNode<E, T>);
+
+        while let Some(current_ptr) = queue.pop_front() {
+            if current_ptr == target {
+                return true;
+            }
+
+            // Safety: We need to ensure that the pointer is valid.
+            // In this context, it's assumed that the TrieNode instances
+            // are managed such that pointers to them remain valid as long
+            // as they are reachable from the root.
+            unsafe {
+                if let Some(current) = current_ptr.as_ref() {
+                    for child in current.children.values() {
+                        let child_ptr = &*child.lock().unwrap() as *const TrieNode<E, T>;
+                        if visited.insert(child_ptr) {
+                            queue.push_back(child_ptr);
+                        }
+                    }
+                }
+            }
+        }
+
+        false
+    }
 }
 
 impl<T: Clone, E: Ord + Clone> TrieNode<E, T> {
