@@ -155,6 +155,7 @@ impl<T, E: Ord> TrieNode<E, T> {
     }
 
     fn can_reach(&self, target: *const TrieNode<E, T>) -> bool {
+        crate::dbgprintln2!("TrieNode::can_reach: begin");
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
 
