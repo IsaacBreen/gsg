@@ -52,6 +52,19 @@ impl<T, E: Ord> TrieNode<E, T> {
         self.children.is_empty()
     }
 
+    pub fn deep_clone(&self) -> Arc<Mutex<TrieNode<E, T>>> where T: Clone, E: Clone {
+        let mut new_children = BTreeMap::new();
+        for (edge, child) in &self.children {
+            let new_child = child.lock().unwrap().deep_clone();
+            new_children.insert(edge.clone(), new_child);
+        }
+        Arc::new(Mutex::new(TrieNode {
+            value: self.value.clone(),
+            children: new_children,
+            num_parents: 0,
+        }))
+    }
+
     pub fn all_nodes(root: Arc<Mutex<TrieNode<E, T>>>) -> Vec<Arc<Mutex<TrieNode<E, T>>>> {
         let mut node_ptrs_in_order: Vec<*const TrieNode<E, T>> = Vec::new();
         let mut nodes: BTreeMap<*const TrieNode<E, T>, Arc<Mutex<TrieNode<E, T>>>> = BTreeMap::new();

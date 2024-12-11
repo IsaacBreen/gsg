@@ -127,8 +127,13 @@ pub trait Tokenizer: Sized {
                                 crate::dbgprintln2!("...and is already queued");
                             } else {
                                 crate::dbgprintln2!("Pushing child to queue");
-                                assert!(!new_nodes.contains(&(&*child.lock().unwrap() as *const TrieNode<_, _>)));
-                                queued_nodes.push(child.clone());
+                                // Must not be a new node.
+                                if new_nodes.contains(&(&*child.lock().unwrap() as *const TrieNode<_, _>)) {
+                                    let new_child = child.lock().unwrap().deep_clone();
+                                    queued_nodes.push(new_child);
+                                } else {
+                                    queued_nodes.push(child.clone());
+                                }
                             }
                         } else {
                             // NOTE: Careful here. It's easy to cause cycles in the trie.
