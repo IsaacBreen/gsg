@@ -130,6 +130,7 @@ pub trait Tokenizer: Sized {
                                 // Must not be a new node.
                                 if new_nodes.contains(&(&*child.lock().unwrap() as *const TrieNode<_, _>)) {
                                     let new_child = child.lock().unwrap().deep_clone();
+                                    node.lock().unwrap().insert(token.id as TokenID, new_child.clone());
                                     queued_nodes.push(new_child);
                                 } else {
                                     queued_nodes.push(child.clone());

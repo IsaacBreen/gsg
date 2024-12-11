@@ -23,11 +23,9 @@ impl<T, E: Ord> TrieNode<E, T> {
 
     pub fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
         // Get the raw pointer to the current TrieNode
-        assert_ne!(&*child.lock().unwrap() as *const TrieNode<E, T>, self as *const TrieNode<E, T>, "TrieNode::insert: child is the same as self");
+        assert!(!child.lock().unwrap().can_reach(self), "TrieNode::insert: cycle detected");
         child.lock().unwrap().num_parents += 1;
         if let Some(existing_child) = self.children.insert(edge, child) {
-            // todo: remove this warning
-            panic!();
             println!("warning: replacing existing node");
             existing_child.lock().unwrap().num_parents -= 1;
             Some(existing_child)
