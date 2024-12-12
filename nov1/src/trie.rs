@@ -79,10 +79,11 @@ impl<T, E: Ord> TrieNode<E, T> {
         }))
     }
 
-    pub fn replace_child_with_clone(&mut self, edge: &E) where T: Clone, E: Clone {
+    pub fn replace_child_with_clone(&mut self, edge: &E) -> Arc<Mutex<TrieNode<E, T>>> where T: Clone, E: Clone {
         let child = self.children.get(edge).unwrap();
         let new_child = child.try_lock().unwrap().shallow_clone();
-        self.insert(edge.clone(), new_child);
+        self.insert(edge.clone(), new_child.clone());
+        new_child
     }
 
     pub fn all_nodes(root: Arc<Mutex<TrieNode<E, T>>>) -> Vec<Arc<Mutex<TrieNode<E, T>>>> {

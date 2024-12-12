@@ -54,8 +54,9 @@ pub trait Tokenizer: Sized {
         // (position, state) -> [node]
         let mut queue: BTreeMap<(usize, Option<usize>), BTreeMap<_, _>> = BTreeMap::new();
 
-        let mut new_nodes: BTreeSet<*const TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>> = BTreeSet::new();
-        let mut already_queued: BTreeSet<*const TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>> = BTreeSet::new();
+        // let mut new_nodes: BTreeSet<*const TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>> = BTreeSet::new();
+        let mut queue_positions: BTreeMap<*const TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>, (usize, Option<usize>)> = BTreeMap::new();
+        let mut new_nodes_for_positions: BTreeMap<(usize, Option<usize>), Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>> = BTreeMap::new();
 
         // let root: Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>> = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: state, position_in_llm_token: 0, dirty_end_state: None, clean_end: false })));
         let root = state_map_root_arc.clone();
@@ -63,7 +64,7 @@ pub trait Tokenizer: Sized {
         // Initialize the queue with the starting state
         // todo: this can be simplified; any queue entries other than the first one should have initial state (i.e. 0)
         queue.insert((0, Some(state)), BTreeMap::from([(root.as_ptr(), root.clone())]));
-        already_queued.insert(&*root.try_lock().unwrap() as *const TrieNode<_, _>);
+        queue_positions.insert(&*root.try_lock().unwrap() as *const TrieNode<_, _>, (0, Some(state)));
 
         while let Some(((position, maybe_state), nodes)) = queue.pop_first() {
             crate::dbgprintln2!("Popped from queue: ({}, {:?})", position, maybe_state);
@@ -108,12 +109,48 @@ pub trait Tokenizer: Sized {
                     let new_position = position + token.width;
                     assert_ne!(token.width, 0);
                     assert!(new_position <= text.len());
-                    let new_state = None;
+                    let new_state: Option<usize> = None;
                     crate::dbgprintln2!("Processing token {:?}", token);
-                    if let Some(queued_nodes) = queue.get_mut(&(new_position, new_state)) {
-
+                    let child_exists = node.try_lock().unwrap().get(&token.id).is_some();
+                    if child_exists {
+                        let child = node.try_lock().unwrap().get(&token.id).unwrap();
+                        crate::dbgprintln2!("Child exists in trie (1)");
+                        let child_already_queued = queue_positions.contains_key(&(&*child.try_lock().unwrap() as *const TrieNode<_, _>));
+                        if child_already_queued {
+                            let &(child_position, child_state) = queue_positions.get(&(&*child.try_lock().unwrap() as *const TrieNode<_, _>)).unwrap();
+                            if (child_position, child_state) != (new_position, new_state) {
+                                // Child exists and is already queued with different position or state
+                                // Need to replace the child with a clone
+                                let new_child = child.try_lock().unwrap().replace_child_with_clone(&token.id);
+                                queue_positions.insert(&*new_child.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
+                                queue.entry((new_position, new_state)).or_default().insert(&*new_child.try_lock().unwrap() as *const TrieNode<_, _>, new_child.clone());
+                            } else {
+                                // Child exists and is already queued with same position and state
+                                // do nothing
+                            }
+                        } else {
+                            // Child exists but is not already queued
+                            // Need to add it to the queue
+                            queue_positions.insert(&*child.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
+                            queue.entry((new_position, new_state)).or_default().insert(&*child.try_lock().unwrap() as *const TrieNode<_, _>, child.clone());
+                        }
                     } else {
-
+                        let new_node_exists = new_nodes_for_positions.contains_key(&(new_position, new_state));
+                        if new_node_exists {
+                            // A new node already exists for this position and state
+                            // Add an edge from the current node to the new node
+                            let new_node = new_nodes_for_positions.get(&(new_position, new_state)).unwrap();
+                            node.try_lock().unwrap().insert(token.id, new_node.clone());
+                        } else {
+                            // A new node does not exist for this position and state
+                            // Create a new node and add an edge from the current node to the new node
+                            let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
+                            new_nodes_for_positions.insert((new_position, new_state), new_node.clone());
+                            node.try_lock().unwrap().insert(token.id, new_node.clone());
+                            crate::dbgprintln2!("Creating new node (2) and adding edge from {:?} to {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>, &*new_node.try_lock().unwrap() as *const TrieNode<_, _>);
+                            queue_positions.insert(&*new_node.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
+                            queue.entry((new_position, new_state)).or_default().insert(&*new_node.try_lock().unwrap() as *const TrieNode<_, _>, new_node.clone());
+                        }
                     }
                     dump_structure(state_map_root_arc.clone());
                 }
