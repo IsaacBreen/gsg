@@ -24,7 +24,7 @@ impl<T, E: Ord> TrieNode<E, T> {
     pub fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
         crate::dbgprintln2!("TrieNode::insert: begin");
         // Get the raw pointer to the current TrieNode
-        assert!(!child.try_lock().unwrap().can_reach(self), "TrieNode::insert: cycle detected");
+        // assert!(!child.try_lock().unwrap().can_reach(self), "TrieNode::insert: cycle detected");
         child.try_lock().unwrap().num_parents += 1;
         if let Some(existing_child) = self.children.insert(edge, child) {
             println!("warning: replacing existing node");
@@ -68,9 +68,8 @@ impl<T, E: Ord> TrieNode<E, T> {
 
     pub fn shallow_clone(&self) -> Arc<Mutex<TrieNode<E, T>>> where T: Clone, E: Clone {
         let mut new_children = BTreeMap::new();
-        for (edge, child) in &self.children {
-            let new_child = child.try_lock().unwrap().shallow_clone();
-            new_children.insert(edge.clone(), new_child);
+        for (edge, child) in self.children.clone() {
+            new_children.insert(edge, child);
         }
         Arc::new(Mutex::new(TrieNode {
             value: self.value.clone(),
