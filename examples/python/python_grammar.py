@@ -241,7 +241,7 @@ if __name__ == "__main__":
     grammar = define_python_grammar()
     grammar.print()
     print("Initializing Grammar Constraint...")
-    grammar_constraint_state = initialize_grammar_constraint(grammar, llm_token_to_id, tokenizer.eos_token_id, tokenizer.vocab_size)
+    grammar_constraint_state = initialize_grammar_constraint(grammar, llm_token_to_id, tokenizer.eos_token_id, max(llm_token_to_id.values()))
     print("Initializing grammar processor...")
     grammar_processor = GrammarConstrainedLogitsProcessor(grammar_constraint_state, llm_token_to_id)
 
