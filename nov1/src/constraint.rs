@@ -49,10 +49,10 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         // for (tokenizer_state, root) in &self.precomputed {
         //     crate::dbgprintln2!("Tokenizer state: {}", tokenizer_state.0);
         //     for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-        //         crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
-        //         // crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), "node.lock().unwrap().value");
+        //         crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.try_lock().unwrap().value);
+        //         // crate::dbgprintln2!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), "node.try_lock().unwrap().value");
         //         // print edge values and destination addresses
-        //         for (edge, dest) in node.lock().unwrap().children() {
+        //         for (edge, dest) in node.try_lock().unwrap().children() {
         //             crate::dbgprintln2!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
         //         }
         //     }

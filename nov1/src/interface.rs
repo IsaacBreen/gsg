@@ -427,9 +427,9 @@ mod tests {
         for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
             crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.try_lock().unwrap().value);
                 // print edge values and destination addresses
-                for (edge, dest) in node.lock().unwrap().children() {
+                for (edge, dest) in node.try_lock().unwrap().children() {
                     crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
                 }
             }
@@ -497,9 +497,9 @@ mod tests {
         for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
             crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.try_lock().unwrap().value);
                 // print edge values and destination addresses
-                for (edge, dest) in node.lock().unwrap().children() {
+                for (edge, dest) in node.try_lock().unwrap().children() {
                     crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
                 }
             }
@@ -557,9 +557,9 @@ mod tests {
         for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
             crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.lock().unwrap().value);
+                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.try_lock().unwrap().value);
                 // print edge values and destination addresses
-                for (edge, dest) in node.lock().unwrap().children() {
+                for (edge, dest) in node.try_lock().unwrap().children() {
                     crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
                 }
             }

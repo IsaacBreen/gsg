@@ -24,11 +24,11 @@ impl<T, E: Ord> TrieNode<E, T> {
     pub fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
         crate::dbgprintln2!("TrieNode::insert: begin");
         // Get the raw pointer to the current TrieNode
-        assert!(!child.lock().unwrap().can_reach(self), "TrieNode::insert: cycle detected");
-        child.lock().unwrap().num_parents += 1;
+        assert!(!child.try_lock().unwrap().can_reach(self), "TrieNode::insert: cycle detected");
+        child.try_lock().unwrap().num_parents += 1;
         if let Some(existing_child) = self.children.insert(edge, child) {
             println!("warning: replacing existing node");
-            existing_child.lock().unwrap().num_parents -= 1;
+            existing_child.try_lock().unwrap().num_parents -= 1;
             crate::dbgprintln2!("TrieNode::insert: replacing existing node");
             Some(existing_child)
         } else {
@@ -56,7 +56,7 @@ impl<T, E: Ord> TrieNode<E, T> {
     pub fn deep_clone(&self) -> Arc<Mutex<TrieNode<E, T>>> where T: Clone, E: Clone {
         let mut new_children = BTreeMap::new();
         for (edge, child) in &self.children {
-            let new_child = child.lock().unwrap().deep_clone();
+            let new_child = child.try_lock().unwrap().deep_clone();
             new_children.insert(edge.clone(), new_child);
         }
         Arc::new(Mutex::new(TrieNode {
@@ -69,7 +69,7 @@ impl<T, E: Ord> TrieNode<E, T> {
     pub fn shallow_clone(&self) -> Arc<Mutex<TrieNode<E, T>>> where T: Clone, E: Clone {
         let mut new_children = BTreeMap::new();
         for (edge, child) in &self.children {
-            let new_child = child.lock().unwrap().shallow_clone();
+            let new_child = child.try_lock().unwrap().shallow_clone();
             new_children.insert(edge.clone(), new_child);
         }
         Arc::new(Mutex::new(TrieNode {
@@ -81,7 +81,7 @@ impl<T, E: Ord> TrieNode<E, T> {
 
     pub fn replace_child_with_clone(&mut self, edge: &E) where T: Clone, E: Clone {
         let child = self.children.get(edge).unwrap();
-        let new_child = child.lock().unwrap().shallow_clone();
+        let new_child = child.try_lock().unwrap().shallow_clone();
         self.insert(edge.clone(), new_child);
     }
 
@@ -91,12 +91,12 @@ impl<T, E: Ord> TrieNode<E, T> {
         let mut queue: VecDeque<Arc<Mutex<TrieNode<E, T>>>> = VecDeque::new();
         queue.push_back(root);
         while let Some(node) = queue.pop_front() {
-            if node_ptrs_in_order.contains(&(&*node.lock().unwrap() as *const TrieNode<E, T>)) {
+            if node_ptrs_in_order.contains(&(&*node.try_lock().unwrap() as *const TrieNode<E, T>)) {
                 continue;
             }
-            node_ptrs_in_order.push(&*node.lock().unwrap() as *const TrieNode<E, T>);
-            nodes.insert(&*node.lock().unwrap() as *const TrieNode<E, T>, node.clone());
-            let node = node.lock().unwrap();
+            node_ptrs_in_order.push(&*node.try_lock().unwrap() as *const TrieNode<E, T>);
+            nodes.insert(&*node.try_lock().unwrap() as *const TrieNode<E, T>, node.clone());
+            let node = node.try_lock().unwrap();
             for (_, child) in &node.children {
                 queue.push_back(child.clone());
             }
@@ -117,18 +117,18 @@ impl<T, E: Ord> TrieNode<E, T> {
         active_states.push((Arc::new(Mutex::new(self)), root.clone()));
 
         while let Some((node, new_node)) = active_states.pop() {
-            let node = node.lock().unwrap();
+            let node = node.try_lock().unwrap();
             for (edge, child_arc) in &node.children {
-                let child = child_arc.lock().unwrap();
+                let child = child_arc.try_lock().unwrap();
                 if let Some((num_parents_seen, new_child)) = dormant_states.get_mut(&(&*child as *const TrieNode<E, T>)) {
-                    new_node.lock().unwrap().insert(edge.clone(), new_child.clone());
+                    new_node.try_lock().unwrap().insert(edge.clone(), new_child.clone());
                     *num_parents_seen += 1;
                     if *num_parents_seen == child.num_parents {
                         active_states.push((child_arc.clone(), new_child.clone()));
                     }
                 } else {
                     let new_child = Arc::new(Mutex::new(TrieNode::new(f(child.value.clone()))));
-                    new_node.lock().unwrap().insert(edge.clone(), new_child.clone());
+                    new_node.try_lock().unwrap().insert(edge.clone(), new_child.clone());
                     if child.num_parents == 1 {
                         active_states.push((child_arc.clone(), new_child.clone()));
                     } else {
@@ -169,7 +169,7 @@ impl<T, E: Ord> TrieNode<E, T> {
         for (edge, child) in &self.children {
             let mut new_path = path.clone();
             new_path.push(edge.clone());
-            child.lock().unwrap().flatten_recursive(result, new_path, is_terminal);
+            child.try_lock().unwrap().flatten_recursive(result, new_path, is_terminal);
         }
     }
 
@@ -192,7 +192,7 @@ impl<T, E: Ord> TrieNode<E, T> {
             unsafe {
                 if let Some(current) = current_ptr.as_ref() {
                     for child in current.children.values() {
-                        let child_ptr = &*child.lock().unwrap() as *const TrieNode<E, T>;
+                        let child_ptr = &*child.try_lock().unwrap() as *const TrieNode<E, T>;
                         if visited.insert(child_ptr) {
                             queue.push_back(child_ptr);
                         }
@@ -226,14 +226,14 @@ pub fn special_map<V>(
         active_states.push_back((initial_node.clone(), initial_value));
 
         while let Some((node_arc, value)) = active_states.pop_front() {
-            let node = node_arc.lock().unwrap();
+            let node = node_arc.try_lock().unwrap();
 
             // Process
             process(&node.value, &value);
 
             // Traverse each child of the current node
             for (edge, child_arc) in &node.children {
-                let child = child_arc.lock().unwrap();
+                let child = child_arc.try_lock().unwrap();
 
                 // Apply the step function to compute the new value
                 let new_value = step(&value, edge, &child);
@@ -286,9 +286,9 @@ pub fn special_map<V>(
         let mut already_merged_values: HashSet<*const TrieNode<E, T>> = HashSet::new();
 
         // Special case: merge T for the root node
-        let existing_value = node.lock().unwrap().value.clone();
-        let new_value = t_merge(existing_value, other.lock().unwrap().value.clone());
-        node.lock().unwrap().value = new_value;
+        let existing_value = node.try_lock().unwrap().value.clone();
+        let new_value = t_merge(existing_value, other.try_lock().unwrap().value.clone());
+        node.try_lock().unwrap().value = new_value;
 
         TrieNode::special_map(
             other.clone(),
@@ -298,15 +298,15 @@ pub fn special_map<V>(
                 let mut new_nodes = Vec::new();
 
                 for current_self_node in current_nodes {
-                    let mut current_self_node_guard = current_self_node.lock().unwrap();
+                    let mut current_self_node_guard = current_self_node.try_lock().unwrap();
 
                     // Check if the current node has an equivalent edge
                     if let Some(child) = current_self_node_guard.get(edge) {
-                        if !already_merged_values.contains(&(&*child.lock().unwrap() as *const TrieNode<E, T>)) {
+                        if !already_merged_values.contains(&(&*child.try_lock().unwrap() as *const TrieNode<E, T>)) {
                             // Merge the values
-                            let child_value = child.lock().unwrap().value.clone();
+                            let child_value = child.try_lock().unwrap().value.clone();
                             let merged_value = t_merge(child_value, dest_other_node.value.clone());
-                            child.lock().unwrap().value = merged_value;
+                            child.try_lock().unwrap().value = merged_value;
                         }
                         new_nodes.push(child);
                     } else {
@@ -367,17 +367,27 @@ pub(crate) fn dump_structure<E, T>(root: Arc<Mutex<TrieNode<E, T>>>) where E: De
     queue.push_back(root);
 
     while let Some(node) = queue.pop_front() {
-        let node = node.lock().unwrap();
+        let node = node.try_lock().unwrap();
         let node_ptr = &*node as *const TrieNode<E, T>;
         println!("{:?}: num_parents: {}", node_ptr, node.num_parents);
         for (edge, child) in &node.children {
-            let child_ptr = &*child.lock().unwrap() as *const TrieNode<E, T>;
+            let child_ptr = &*child.try_lock().unwrap() as *const TrieNode<E, T>;
             println!("  - {:?} -> {:?}", edge, child_ptr);
             if !seen.contains(&child_ptr) {
                 seen.insert(child_ptr);
                 queue.push_back(child.clone());
             }
         }
+    }
+}
+
+pub trait AsPtr<T> {
+    fn as_ptr(&self) -> *const T;
+}
+
+impl<T, E> AsPtr<TrieNode<E, T>> for Arc<Mutex<TrieNode<E, T>>> where E: Clone, T: Clone {
+    fn as_ptr(&self) -> *const TrieNode<E, T> {
+        &*self.try_lock().unwrap() as *const TrieNode<E, T>
     }
 }
 
