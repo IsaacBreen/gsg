@@ -132,7 +132,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                                 }
                             }
                             if let Some(bitset) = maybe_clean_end_bitset {
-                                dbg!(&maybe_clean_end_bitset);
+                                // dbg!(&maybe_clean_end_bitset);
                                 result |= bitset;
                             }
                         }
