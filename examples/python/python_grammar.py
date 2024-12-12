@@ -180,7 +180,6 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
         new_token_ids = current_input_ids[len(self.seen_input_ids):]
 
         for token_id in new_token_ids:
-#             debug_print(f"Committing token: {self.llm_token_to_id[token_id]} (ID: {token_id})")
             debug_print(f"Committing token: {self.llm_token_id_to_token.get(token_id)} (ID: {token_id})")
             timeit(self.grammar_constraint_state.commit)(token_id)
 
@@ -250,6 +249,6 @@ if __name__ == "__main__":
 
     print("Generating text...")
 #     input_text = "i^10=i*"
-    input_text = "10 + 10 ="
+    input_text = "5*6 + 7*2 = 5+5+5+"
     output_text = generate_text(model, tokenizer, grammar_processor, input_text)
     print(output_text)
