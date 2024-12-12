@@ -66,6 +66,25 @@ impl<T, E: Ord> TrieNode<E, T> {
         }))
     }
 
+    pub fn shallow_clone(&self) -> Arc<Mutex<TrieNode<E, T>>> where T: Clone, E: Clone {
+        let mut new_children = BTreeMap::new();
+        for (edge, child) in &self.children {
+            let new_child = child.lock().unwrap().shallow_clone();
+            new_children.insert(edge.clone(), new_child);
+        }
+        Arc::new(Mutex::new(TrieNode {
+            value: self.value.clone(),
+            children: new_children,
+            num_parents: 0,
+        }))
+    }
+
+    pub fn replace_child_with_clone(&mut self, edge: &E) where T: Clone, E: Clone {
+        let child = self.children.get(edge).unwrap();
+        let new_child = child.lock().unwrap().shallow_clone();
+        self.insert(edge.clone(), new_child);
+    }
+
     pub fn all_nodes(root: Arc<Mutex<TrieNode<E, T>>>) -> Vec<Arc<Mutex<TrieNode<E, T>>>> {
         let mut node_ptrs_in_order: Vec<*const TrieNode<E, T>> = Vec::new();
         let mut nodes: BTreeMap<*const TrieNode<E, T>, Arc<Mutex<TrieNode<E, T>>>> = BTreeMap::new();
@@ -155,7 +174,6 @@ impl<T, E: Ord> TrieNode<E, T> {
     }
 
     fn can_reach(&self, target: *const TrieNode<E, T>) -> bool {
-        crate::dbgprintln2!("TrieNode::can_reach: begin");
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
 
