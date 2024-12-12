@@ -212,7 +212,7 @@ pub struct PyGrammarConstraint {
 #[pymethods]
 impl PyGrammarConstraint {
     #[new]
-    fn new(py: Python, grammar: PyGrammar, token_to_id: &PyDict, eof_llm_token_id: usize, max_token_id: usize) -> PyResult<Self> {
+    fn new(py: Python, grammar: PyGrammar, token_to_id: &PyDict, eof_llm_token_id: usize, max_llm_token_id: usize) -> PyResult<Self> {
         // Convert the Python dictionary into a BiBTreeMap
         let mut llm_token_map: BiBTreeMap<Vec<u8>, LLMTokenID> = BiBTreeMap::new();
         for (key, value) in token_to_id.iter() {
@@ -221,7 +221,7 @@ impl PyGrammarConstraint {
             llm_token_map.insert(token.to_vec(), LLMTokenID(id));
         }
 
-        let inner = GrammarConstraint::from_grammar(grammar.inner, llm_token_map, eof_llm_token_id, max_token_id);
+        let inner = GrammarConstraint::from_grammar(grammar.inner, llm_token_map, eof_llm_token_id, max_llm_token_id);
         Ok(Self { inner })
     }
 

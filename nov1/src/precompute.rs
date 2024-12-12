@@ -49,7 +49,7 @@ pub trait Tokenizer: Sized {
         state: usize,
         state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>,
         llm_token_id: LLMTokenID,
-        max_token_id: usize,
+        max_llm_token_id: usize,
     ) {
         // (position, state) -> [node]
         let mut queue: BTreeMap<(usize, Option<usize>), BTreeMap<_, _>> = BTreeMap::new();
@@ -86,7 +86,7 @@ pub trait Tokenizer: Sized {
                         for possible_grammar_token_id in &self.tokens_accessible_from_state(state) {
                             node.try_lock().unwrap().value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
                                 let mut bitset = BitVec::new();
-                                bitset.resize(max_token_id, false);
+                                bitset.resize(max_llm_token_id + 1, false);
                                 bitset
                             }).set(llm_token_id.0, true);
                         }
@@ -94,7 +94,7 @@ pub trait Tokenizer: Sized {
                         crate::dbgprintln2!("No state. Clean end");
                         node.try_lock().unwrap().value.2.get_or_insert_with(|| {
                             let mut bitset = BitVec::new();
-                            bitset.resize(max_token_id, false);
+                            bitset.resize(max_llm_token_id + 1, false);
                             bitset
                         }).set(llm_token_id.0, true);
                     }
@@ -174,7 +174,7 @@ pub fn precompute<'a>(
     tokenizer: &impl Tokenizer,
     llm_token_map: &BiBTreeMap<Vec<u8>, LLMTokenID>,
     eof_llm_token_id: LLMTokenID,
-    max_token_id: usize,
+    max_llm_token_id: usize,
 ) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>> {
     let mut result: BTreeMap<StateID, TrieNode<GroupID, _>> = BTreeMap::new();
 
@@ -202,7 +202,7 @@ pub fn precompute<'a>(
                 state_id,
                 state_map_root_arc.clone(),
                 *llm_token_id,
-                max_token_id,
+                max_llm_token_id,
             );
         }
 
@@ -329,8 +329,8 @@ mod tests {
         let llm_token_map: BiBTreeMap<Vec<u8>, LLMTokenID> = llm_tokens.iter().enumerate().map(|(i, token)| (token.to_vec(), LLMTokenID(i))).collect();
 
         // Run precompute
-        let max_token_id = llm_tokens.len() + 1;
-        let result = precompute(&tokenizer, &llm_token_map, LLMTokenID(max_token_id), max_token_id);
+        let max_llm_token_id = llm_tokens.len() + 1;
+        let result = precompute(&tokenizer, &llm_token_map, LLMTokenID(max_llm_token_id), max_llm_token_id);
 
         // todo: update this for TrieNode
         // // Build the expected output

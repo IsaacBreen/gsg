@@ -19,7 +19,7 @@ pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
     pub precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
-    pub(crate) max_token_id: usize,
+    pub(crate) max_llm_token_id: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -29,15 +29,15 @@ pub struct GrammarConstraintState<T: Tokenizer> {
 }
 
 impl<T: Tokenizer> GrammarConstraint<T> {
-    pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: LLMTokenMap, eof_llm_token_id: usize, max_token_id: usize) -> Self {
-        let mut precomputed = precompute::precompute(&tokenizer, &llm_tokens, LLMTokenID(eof_llm_token_id), max_token_id);
-        precompute_add_eof(&mut precomputed, LLMTokenID(eof_llm_token_id), parser.eof_terminal_id.0, max_token_id);
+    pub fn new(tokenizer: T, parser: GLRParser, llm_tokens: LLMTokenMap, eof_llm_token_id: usize, max_llm_token_id: usize) -> Self {
+        let mut precomputed = precompute::precompute(&tokenizer, &llm_tokens, LLMTokenID(eof_llm_token_id), max_llm_token_id);
+        precompute_add_eof(&mut precomputed, LLMTokenID(eof_llm_token_id), parser.eof_terminal_id.0, max_llm_token_id);
 
         Self {
             tokenizer,
             parser,
             precomputed,
-            max_token_id,
+            max_llm_token_id,
         }
     }
 
@@ -68,10 +68,10 @@ pub fn precompute_add_eof(
     precomputed: &mut BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
     eof_llm_token_id: LLMTokenID,
     eof_grammar_token_id: TokenID,
-    max_token_id: usize,
+    max_llm_token_id: usize,
 ) {
     let mut bitset = BitVec::new();
-    bitset.resize(max_token_id, false);
+    bitset.resize(max_llm_token_id + 1, false);
     bitset.set(eof_llm_token_id.0, true);
     let node = precomputed.get_mut(&StateID(0)).unwrap();
     assert!(!node.value.1.contains_key(&eof_grammar_token_id));
@@ -81,7 +81,7 @@ pub fn precompute_add_eof(
 impl<'a, T: Tokenizer> GrammarConstraintState<T> {
     pub fn get_mask(&self) -> BitVec {
         let mut result = BitVec::new();
-        result.resize(self.parent.max_token_id, false);
+        result.resize(self.parent.max_llm_token_id + 1, false);
         dbgprintln2!("Getting mask");
         for (parse_state, tokenizer_state_ids) in &self.states {
             dbgprintln2!("Getting mask for parse state {:?}, tokenizer states {:?}", parse_state, tokenizer_state_ids);
