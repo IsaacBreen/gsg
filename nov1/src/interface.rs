@@ -409,8 +409,8 @@ mod tests {
 
         let llm_tokens: Vec<Vec<u8>> = vec![b"i".to_vec(), b"+".to_vec(), b"*".to_vec(), b"(".to_vec(), b")".to_vec(), b"(i".to_vec(), b"+i".to_vec()];
         let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
-        let eof_llm_token_id = llm_tokens.len() + 1;
-        let max_llm_token_id = llm_tokens.len() + 1;
+        let eof_llm_token_id = llm_tokens.len();
+        let max_llm_token_id = llm_tokens.len();
         let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_token_map.clone(), eof_llm_token_id, max_llm_token_id);
         let mut grammar_constraint_state = grammar_constraint.init();
 
@@ -489,8 +489,8 @@ mod tests {
 
         let llm_tokens: Vec<Vec<u8>> = vec![b"a".to_vec(), b"b".to_vec()];
         let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
-        let eof_llm_token_id = llm_tokens.len() + 1;
-        let max_llm_token_id = llm_tokens.len() + 1;
+        let eof_llm_token_id = llm_tokens.len();
+        let max_llm_token_id = llm_tokens.len();
         let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_token_map.clone(), eof_llm_token_id, max_llm_token_id);
         let mut grammar_constraint_state = grammar_constraint.init();
 
@@ -547,8 +547,8 @@ mod tests {
 
         let llm_tokens: Vec<Vec<u8>> = vec![b"a".to_vec()];
         let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
-        let eof_llm_token_id = llm_tokens.len() + 1;
-        let max_llm_token_id = llm_tokens.len() + 1;
+        let eof_llm_token_id = llm_tokens.len();
+        let max_llm_token_id = llm_tokens.len();
         let grammar_constraint = GrammarConstraint::from_grammar(grammar, llm_token_map.clone(), eof_llm_token_id, max_llm_token_id);
         let mut grammar_constraint_state = grammar_constraint.init();
 
@@ -628,8 +628,8 @@ mod tests {
         let llm_tokens: Vec<Vec<u8>> = (0..2).map(|i| format!("abcdefghijk{}", i).as_bytes().to_vec()).collect();
         let llm_tokens_slices: Vec<&[u8]> = llm_tokens.iter().map(|token| &token[..]).collect();
         let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
-        let eof_llm_token_id = llm_tokens.len() + 1;
-        let max_llm_token_id = llm_tokens.len() + 1;
+        let eof_llm_token_id = llm_tokens.len();
+        let max_llm_token_id = llm_tokens.len();
         let precomputed = precompute(&tokenizer, &llm_token_map, LLMTokenID(eof_llm_token_id), max_llm_token_id);
         print_precomputed(&precomputed);
         println!("Done precomputing");
@@ -656,8 +656,8 @@ mod tests {
         // Define the LLM token as 32 'a's
         let llm_tokens: Vec<Vec<u8>> = vec![b"ab".to_vec(), b"aaaaaaaa".to_vec(), b"babababa".to_vec(), b"aabbaabb".to_vec()];
         let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
-        let eof_llm_token_id = llm_tokens.len() + 1;
-        let max_llm_token_id = llm_tokens.len() + 1;
+        let eof_llm_token_id = llm_tokens.len();
+        let max_llm_token_id = llm_tokens.len();
         let precomputed = precompute(&tokenizer, &llm_token_map, LLMTokenID(eof_llm_token_id), max_llm_token_id);
         print_precomputed(&precomputed);
         println!("Done precomputing");
