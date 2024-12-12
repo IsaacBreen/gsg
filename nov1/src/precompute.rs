@@ -51,6 +51,13 @@ pub trait Tokenizer: Sized {
         llm_token_id: LLMTokenID,
         max_llm_token_id: usize,
     ) {
+        macro_rules! dbgprintln2 {
+            ($($t:tt)*) => {
+                // if cfg!(feature = "debug") {
+//                     println!($($t)*);
+                // }
+            }
+        }
         // (position, state) -> [node]
         let mut queue: BTreeMap<(usize, Option<usize>), BTreeMap<_, _>> = BTreeMap::new();
 
@@ -67,13 +74,13 @@ pub trait Tokenizer: Sized {
         queue_positions.insert(&*root.try_lock().unwrap() as *const TrieNode<_, _>, (0, Some(state)));
 
         while let Some(((position, maybe_state), nodes)) = queue.pop_first() {
-            crate::dbgprintln2!("Popped from queue: ({}, {:?})", position, maybe_state);
+            dbgprintln2!("Popped from queue: ({}, {:?})", position, maybe_state);
 
             // todo: does it make sense to have this here?
             assert!(position <= text.len());
 
             for (_, node) in nodes {
-                crate::dbgprintln2!("Processing node {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>);
+                dbgprintln2!("Processing node {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>);
                 if position == text.len() {
                     assert!(!node.try_lock().unwrap().value.0.contains_key(&llm_token_id));
                     node.try_lock().unwrap().value.0.insert(llm_token_id, TokenizerStateInfoForLLMToken {
@@ -91,7 +98,7 @@ pub trait Tokenizer: Sized {
                             }).set(llm_token_id.0, true);
                         }
                     } else {
-                        crate::dbgprintln2!("No state. Clean end");
+                        dbgprintln2!("No state. Clean end");
                         node.try_lock().unwrap().value.2.get_or_insert_with(|| {
                             let mut bitset = BitVec::new();
                             bitset.resize(max_llm_token_id + 1, false);
@@ -110,11 +117,11 @@ pub trait Tokenizer: Sized {
                     assert_ne!(token.width, 0);
                     assert!(new_position <= text.len());
                     let new_state: Option<usize> = None;
-                    crate::dbgprintln2!("Processing token {:?}", token);
+                    dbgprintln2!("Processing token {:?}", token);
                     let child_exists = node.try_lock().unwrap().get(&token.id).is_some();
                     if child_exists {
                         let child = node.try_lock().unwrap().get(&token.id).unwrap();
-                        crate::dbgprintln2!("Child exists in trie (1)");
+                        dbgprintln2!("Child exists in trie (1)");
                         let child_already_queued = queue_positions.contains_key(&(&*child.try_lock().unwrap() as *const TrieNode<_, _>));
                         if child_already_queued {
                             let &(child_position, child_state) = queue_positions.get(&(&*child.try_lock().unwrap() as *const TrieNode<_, _>)).unwrap();
@@ -124,18 +131,18 @@ pub trait Tokenizer: Sized {
                                 let new_child = node.try_lock().unwrap().replace_child_with_clone(&token.id);
                                 queue_positions.insert(&*new_child.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
                                 queue.entry((new_position, new_state)).or_default().insert(&*new_child.try_lock().unwrap() as *const TrieNode<_, _>, new_child.clone());
-                                crate::dbgprintln2!("Child exists and is already queued with different position or state. Replacing child with clone");
+                                dbgprintln2!("Child exists and is already queued with different position or state. Replacing child with clone");
                             } else {
                                 // Child exists and is already queued with same position and state
                                 // do nothing
-                                crate::dbgprintln2!("Child exists and is already queued with same position and state. Doing nothing");
+                                dbgprintln2!("Child exists and is already queued with same position and state. Doing nothing");
                             }
                         } else {
                             // Child exists but is not already queued
                             // Need to add it to the queue
                             queue_positions.insert(&*child.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
                             queue.entry((new_position, new_state)).or_default().insert(&*child.try_lock().unwrap() as *const TrieNode<_, _>, child.clone());
-                            crate::dbgprintln2!("Child exists but is not already queued. Adding to queue");
+                            dbgprintln2!("Child exists but is not already queued. Adding to queue");
                         }
                     } else {
                         let new_node_exists = new_nodes_for_positions.contains_key(&(new_position, new_state));
@@ -144,14 +151,14 @@ pub trait Tokenizer: Sized {
                             // Add an edge from the current node to the new node
                             let new_node = new_nodes_for_positions.get(&(new_position, new_state)).unwrap();
                             node.try_lock().unwrap().insert(token.id, new_node.clone());
-                            crate::dbgprintln2!("A new node already exists for this position and state. Adding edge from {:?} to {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>, &*new_node.try_lock().unwrap() as *const TrieNode<_, _>);
+                            dbgprintln2!("A new node already exists for this position and state. Adding edge from {:?} to {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>, &*new_node.try_lock().unwrap() as *const TrieNode<_, _>);
                         } else {
                             // A new node does not exist for this position and state
                             // Create a new node and add an edge from the current node to the new node
                             let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
                             new_nodes_for_positions.insert((new_position, new_state), new_node.clone());
                             node.try_lock().unwrap().insert(token.id, new_node.clone());
-                            crate::dbgprintln2!("A new node does not exist for this position and state. Creating new node (2) and adding edge from {:?} to {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>, &*new_node.try_lock().unwrap() as *const TrieNode<_, _>);
+                            dbgprintln2!("A new node does not exist for this position and state. Creating new node (2) and adding edge from {:?} to {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>, &*new_node.try_lock().unwrap() as *const TrieNode<_, _>);
                             queue_positions.insert(&*new_node.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
                             queue.entry((new_position, new_state)).or_default().insert(&*new_node.try_lock().unwrap() as *const TrieNode<_, _>, new_node.clone());
                         }
@@ -160,7 +167,7 @@ pub trait Tokenizer: Sized {
                 }
             }
         }
-        crate::dbgprintln2!("Done processing token");
+        dbgprintln2!("Done processing token");
     }
 }
 
@@ -191,7 +198,7 @@ pub fn precompute<'a>(
 
     crate::dbgprintln2!("Precomputing in precompute");
     for state_id in tqdm!(0..tokenizer.max_state()) {
-        crate::dbgprintln2!("Precomputing state {}", state_id);
+        crate::dbgprintln!("Precomputing state {}", state_id);
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
 
         for (i, (llm_token, llm_token_id)) in llm_token_map.iter().enumerate() {
