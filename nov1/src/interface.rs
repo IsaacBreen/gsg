@@ -311,26 +311,26 @@ impl Grammar<Regex> {
 
 impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn from_grammar(grammar: Grammar<T>, llm_tokens: LLMTokenMap, eof_llm_token_id: usize, max_llm_token_id: usize) -> Self {
-        crate::dbgprintln2!("GrammarConstraint::from_grammar");
-        let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
-        let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
-        crate::dbgprintln2!("Generating GLR parser");
-        let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
-
-        crate::dbgprintln2!("Precomputing");
-        let mut precomputed = precompute(&grammar.tokenizer, &llm_tokens, LLMTokenID(eof_llm_token_id), max_llm_token_id);
-        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
-        precompute_add_eof(&mut precomputed, LLMTokenID(eof_llm_token_id), parser.eof_terminal_id.0, max_llm_token_id);
-        // precompute_add_eof(&mut precomputed, LLMTokenID(eof_llm_token_id), llm_tokens.len(), max_llm_token_id);
-        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
-        crate::dbgprintln2!("Done precomputing");
-
-        // // todo: remove this
         // crate::dbgprintln2!("GrammarConstraint::from_grammar");
         // let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
         // let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
         // crate::dbgprintln2!("Generating GLR parser");
         // let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
+
+        crate::dbgprintln2!("Precomputing");
+        let mut precomputed = precompute(&grammar.tokenizer, &llm_tokens, LLMTokenID(eof_llm_token_id), max_llm_token_id);
+        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
+        // precompute_add_eof(&mut precomputed, LLMTokenID(eof_llm_token_id), parser.eof_terminal_id.0, max_llm_token_id);
+        precompute_add_eof(&mut precomputed, LLMTokenID(eof_llm_token_id), llm_tokens.len(), max_llm_token_id);
+        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
+        crate::dbgprintln2!("Done precomputing");
+
+        // todo: remove this
+        crate::dbgprintln2!("GrammarConstraint::from_grammar");
+        let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
+        let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
+        crate::dbgprintln2!("Generating GLR parser");
+        let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
         Self {
             tokenizer: grammar.tokenizer,
