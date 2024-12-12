@@ -121,7 +121,7 @@ pub trait Tokenizer: Sized {
                             if (child_position, child_state) != (new_position, new_state) {
                                 // Child exists and is already queued with different position or state
                                 // Need to replace the child with a clone
-                                let new_child = child.try_lock().unwrap().replace_child_with_clone(&token.id);
+                                let new_child = node.try_lock().unwrap().replace_child_with_clone(&token.id);
                                 queue_positions.insert(&*new_child.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
                                 queue.entry((new_position, new_state)).or_default().insert(&*new_child.try_lock().unwrap() as *const TrieNode<_, _>, new_child.clone());
                                 crate::dbgprintln2!("Child exists and is already queued with different position or state. Replacing child with clone");
