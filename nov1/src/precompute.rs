@@ -156,7 +156,7 @@ pub trait Tokenizer: Sized {
                             queue.entry((new_position, new_state)).or_default().insert(&*new_node.try_lock().unwrap() as *const TrieNode<_, _>, new_node.clone());
                         }
                     }
-                    dump_structure(state_map_root_arc.clone());
+                    // dump_structure(state_map_root_arc.clone());
                 }
             }
         }
@@ -200,7 +200,7 @@ pub fn precompute<'a>(
             // if i < 121 {
             //     continue;
             // }
-            dump_structure(state_map_root_arc.clone());
+            // dump_structure(state_map_root_arc.clone());
             tokenizer.execute_all_from_state(
                 llm_token,
                 state_id,

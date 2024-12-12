@@ -659,7 +659,7 @@ mod tests {
 
         // Define the LLM token as 32 'a's
         // let llm_tokens: Vec<Vec<u8>> = vec![b"ab".to_vec(), b"aaaaaaaa".to_vec(), b"babababa".to_vec(), b"aabbaabb".to_vec()];
-        let llm_tokens: Vec<Vec<u8>> = vec![b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_vec()];
+        let llm_tokens: Vec<Vec<u8>> = vec![b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_vec()];
         let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
         let eof_llm_token_id = llm_tokens.len();
         let max_llm_token_id = llm_tokens.len();
