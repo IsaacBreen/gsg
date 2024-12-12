@@ -1,5 +1,5 @@
 use crate::glr::grammar::{Production, Symbol};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -11,26 +11,23 @@ pub struct Item {
 pub fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BTreeSet<Item> {
     crate::dbgprintln!("Computing closure");
     let mut closure = items.clone();
-    let mut added = true;
-    while added {
-        added = false;
-        let mut new_items = BTreeSet::new();
-        for item in &closure {
-            if let Some(Symbol::NonTerminal(nt)) = item.production.rhs.get(item.dot_position) {
-                for prod in productions.iter().filter(|p| p.lhs == nt.clone()) {
-                    let new_item = Item {
-                        production: prod.clone(),
-                        dot_position: 0,
-                    };
-                    if !closure.contains(&new_item) {
-                        new_items.insert(new_item);
-                        added = true;
-                    }
+    let mut worklist: VecDeque<Item> = items.iter().cloned().collect();
+
+    while let Some(item) = worklist.pop_front() {
+        if let Some(Symbol::NonTerminal(nt)) = item.production.rhs.get(item.dot_position) {
+            for prod in productions.iter().filter(|p| p.lhs == *nt) {
+                let new_item = Item {
+                    production: prod.clone(),
+                    dot_position: 0,
+                };
+                // Directly add the new item without checking for existence
+                if closure.insert(new_item.clone()) {
+                    worklist.push_back(new_item);
                 }
             }
         }
-        closure.extend(new_items);
     }
+
     crate::dbgprintln!("Done computing closure");
     closure
 }
