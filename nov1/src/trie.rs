@@ -22,17 +22,17 @@ impl<T, E: Ord> TrieNode<E, T> {
     }
 
     pub fn insert(&mut self, edge: E, child: Arc<Mutex<TrieNode<E, T>>>) -> Option<Arc<Mutex<TrieNode<E, T>>>> {
-        crate::dbgprintln2!("TrieNode::insert: begin");
+        // crate::dbgprintln2!("TrieNode::insert: begin");
         // Get the raw pointer to the current TrieNode
         // assert!(!child.try_lock().unwrap().can_reach(self), "TrieNode::insert: cycle detected");
         child.try_lock().unwrap().num_parents += 1;
         if let Some(existing_child) = self.children.insert(edge, child) {
-            println!("warning: replacing existing node");
+            // println!("warning: replacing existing node");
             existing_child.try_lock().unwrap().num_parents -= 1;
-            crate::dbgprintln2!("TrieNode::insert: replacing existing node");
+            // crate::dbgprintln2!("TrieNode::insert: replacing existing node");
             Some(existing_child)
         } else {
-            crate::dbgprintln2!("TrieNode::insert: new node");
+            // crate::dbgprintln2!("TrieNode::insert: new node");
             None
         }
     }
