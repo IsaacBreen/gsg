@@ -47,59 +47,38 @@ pub trait Tokenizer: Sized {
         &self,
         text: &[u8],
         state: usize,
-        state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>,
+        state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>,
         llm_token_id: LLMTokenID,
         max_llm_token_id: usize,
     ) {
-        macro_rules! dbgprintln2 {
-            ($($t:tt)*) => {
-                // if cfg!(feature = "debug") {
-//                     println!($($t)*);
-                // }
-            }
-        }
         // (position, state) -> [node]
         let mut queue: BTreeMap<(usize, Option<usize>), BTreeMap<_, _>> = BTreeMap::new();
 
-        // let mut new_nodes: BTreeSet<*const TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>> = BTreeSet::new();
-        let mut queue_positions: BTreeMap<*const TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>, (usize, Option<usize>)> = BTreeMap::new();
-        let mut new_nodes_for_positions: BTreeMap<(usize, Option<usize>), Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>> = BTreeMap::new();
+        let mut queue_positions: BTreeMap<*const TrieNode<GroupID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>, (usize, Option<usize>)> = BTreeMap::new();
+        let mut new_nodes_for_positions: BTreeMap<(usize, Option<usize>), Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>> = BTreeMap::new();
 
-        // let root: Arc<Mutex<TrieNode<TokenID, TokenizerStateInfoForLLMToken>>> = Arc::new(Mutex::new(TrieNode::new(TokenizerStateInfoForLLMToken { tokenizer_state_id: state, position_in_llm_token: 0, dirty_end_state: None, clean_end: false })));
         let root = state_map_root_arc.clone();
 
         // Initialize the queue with the starting state
-        // todo: this can be simplified; any queue entries other than the first one should have initial state (i.e. 0)
         queue.insert((0, Some(state)), BTreeMap::from([(root.as_ptr(), root.clone())]));
-        queue_positions.insert(&*root.try_lock().unwrap() as *const TrieNode<_, _>, (0, Some(state)));
+        queue_positions.insert(root.as_ptr(), (0, Some(state)));
 
         while let Some(((position, maybe_state), nodes)) = queue.pop_first() {
-            dbgprintln2!("Popped from queue: ({}, {:?})", position, maybe_state);
-
-            // todo: does it make sense to have this here?
-            assert!(position <= text.len());
-
             for (_, node) in nodes {
-                dbgprintln2!("Processing node {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>);
                 if position == text.len() {
-                    assert!(!node.try_lock().unwrap().value.0.contains_key(&llm_token_id));
-                    node.try_lock().unwrap().value.0.insert(llm_token_id, TokenizerStateInfoForLLMToken {
-                        tokenizer_state_id: 99999999999,
-                        position_in_llm_token: position,
-                        dirty_end_state: maybe_state.map(|s| StateID(s)),
-                        clean_end: maybe_state.is_none()
-                    });
+                    let mut node_guard = node.try_lock().unwrap();
+                    assert!(!node_guard.value.0.contains_key(&llm_token_id));
+                    node_guard.value.0.insert(llm_token_id, maybe_state.map(StateID));
                     if let Some(state) = maybe_state {
                         for possible_grammar_token_id in &self.tokens_accessible_from_state(state) {
-                            node.try_lock().unwrap().value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
+                            node_guard.value.1.entry(*possible_grammar_token_id).or_insert_with(|| {
                                 let mut bitset = BitVec::new();
                                 bitset.resize(max_llm_token_id + 1, false);
                                 bitset
                             }).set(llm_token_id.0, true);
                         }
                     } else {
-                        dbgprintln2!("No state. Clean end");
-                        node.try_lock().unwrap().value.2.get_or_insert_with(|| {
+                        node_guard.value.2.get_or_insert_with(|| {
                             let mut bitset = BitVec::new();
                             bitset.resize(max_llm_token_id + 1, false);
                             bitset
@@ -117,57 +96,41 @@ pub trait Tokenizer: Sized {
                     assert_ne!(token.width, 0);
                     assert!(new_position <= text.len());
                     let new_state: Option<usize> = None;
-                    dbgprintln2!("Processing token {:?}", token);
-                    let child_exists = node.try_lock().unwrap().get(&token.id).is_some();
-                    if child_exists {
-                        let child = node.try_lock().unwrap().get(&token.id).unwrap();
-                        dbgprintln2!("Child exists in trie (1)");
-                        let child_already_queued = queue_positions.contains_key(&(&*child.try_lock().unwrap() as *const TrieNode<_, _>));
-                        if child_already_queued {
-                            let &(child_position, child_state) = queue_positions.get(&(&*child.try_lock().unwrap() as *const TrieNode<_, _>)).unwrap();
+                    let mut node_guard = node.try_lock().unwrap();
+                    if let Some(child) = node_guard.get(&token.id) {
+                        let child_ptr = child.as_ptr();
+                        if let Some(&(child_position, child_state)) = queue_positions.get(&child_ptr) {
                             if (child_position, child_state) != (new_position, new_state) {
                                 // Child exists and is already queued with different position or state
                                 // Need to replace the child with a clone
-                                let new_child = node.try_lock().unwrap().replace_child_with_clone(&token.id);
-                                queue_positions.insert(&*new_child.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
-                                queue.entry((new_position, new_state)).or_default().insert(&*new_child.try_lock().unwrap() as *const TrieNode<_, _>, new_child.clone());
-                                dbgprintln2!("Child exists and is already queued with different position or state. Replacing child with clone");
-                            } else {
-                                // Child exists and is already queued with same position and state
-                                // do nothing
-                                dbgprintln2!("Child exists and is already queued with same position and state. Doing nothing");
+                                let new_child = node_guard.replace_child_with_clone(&token.id);
+                                queue_positions.insert(new_child.as_ptr(), (new_position, new_state));
+                                queue.entry((new_position, new_state)).or_default().insert(new_child.as_ptr(), new_child.clone());
                             }
                         } else {
                             // Child exists but is not already queued
                             // Need to add it to the queue
-                            queue_positions.insert(&*child.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
-                            queue.entry((new_position, new_state)).or_default().insert(&*child.try_lock().unwrap() as *const TrieNode<_, _>, child.clone());
-                            dbgprintln2!("Child exists but is not already queued. Adding to queue");
+                            queue_positions.insert(child_ptr, (new_position, new_state));
+                            queue.entry((new_position, new_state)).or_default().insert(child_ptr, child.clone());
                         }
                     } else {
-                        let new_node_exists = new_nodes_for_positions.contains_key(&(new_position, new_state));
-                        if new_node_exists {
+                        if let Some(new_node) = new_nodes_for_positions.get(&(new_position, new_state)) {
                             // A new node already exists for this position and state
                             // Add an edge from the current node to the new node
-                            let new_node = new_nodes_for_positions.get(&(new_position, new_state)).unwrap();
-                            node.try_lock().unwrap().insert(token.id, new_node.clone());
-                            dbgprintln2!("A new node already exists for this position and state. Adding edge from {:?} to {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>, &*new_node.try_lock().unwrap() as *const TrieNode<_, _>);
+                            node_guard.insert(token.id, new_node.clone());
                         } else {
                             // A new node does not exist for this position and state
                             // Create a new node and add an edge from the current node to the new node
                             let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
                             new_nodes_for_positions.insert((new_position, new_state), new_node.clone());
-                            node.try_lock().unwrap().insert(token.id, new_node.clone());
-                            dbgprintln2!("A new node does not exist for this position and state. Creating new node (2) and adding edge from {:?} to {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>, &*new_node.try_lock().unwrap() as *const TrieNode<_, _>);
-                            queue_positions.insert(&*new_node.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
-                            queue.entry((new_position, new_state)).or_default().insert(&*new_node.try_lock().unwrap() as *const TrieNode<_, _>, new_node.clone());
+                            node_guard.insert(token.id, new_node.clone());
+                            queue_positions.insert(new_node.as_ptr(), (new_position, new_state));
+                            queue.entry((new_position, new_state)).or_default().insert(new_node.as_ptr(), new_node.clone());
                         }
                     }
-                    // dump_structure(state_map_root_arc.clone());
                 }
             }
         }
-        dbgprintln2!("Done processing token");
     }
 }
 
@@ -186,7 +149,7 @@ pub fn precompute<'a>(
     llm_token_map: &BiBTreeMap<Vec<u8>, LLMTokenID>,
     eof_llm_token_id: LLMTokenID,
     max_llm_token_id: usize,
-) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>> {
+) -> BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>> {
     let mut result: BTreeMap<StateID, TrieNode<GroupID, _>> = BTreeMap::new();
 
     // Ensure the tokenizer doesn't match on empty strings
@@ -199,7 +162,7 @@ pub fn precompute<'a>(
     crate::dbgprintln2!("Precomputing in precompute");
     for state_id in tqdm!(0..tokenizer.max_state()) {
         // crate::dbgprintln!("Precomputing state {}", state_id);
-        let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
+        let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
 
         for (i, (llm_token, llm_token_id)) in llm_token_map.iter().enumerate() {
             crate::dbgprintln!("Precomputing for token {:?} ({:?}) ({})", llm_token_id, llm_token, i);
@@ -254,7 +217,7 @@ impl Tokenizer for Regex {
     }
 }
 
-pub fn print_precomputed(precomputed: &BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>) {
+pub fn print_precomputed(precomputed: &BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>) {
     println!("Precomputed:");
     for (tokenizer_state, root) in precomputed {
         println!("  Tokenizer state: {}", tokenizer_state.0);

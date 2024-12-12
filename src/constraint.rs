@@ -2,7 +2,7 @@
 use crate::glr::parser::{GLRParser, GLRParserState, InsertWith, ParseState, ParseStateKey};
 use crate::glr::table::{StateID, TerminalID};
 use crate::{dbgprintln2, precompute};
-use crate::precompute::{LLMTokenID, Token, TokenID, Tokenizer, TokenizerStateInfoForLLMToken};
+use crate::precompute::{LLMTokenID, Token, TokenID, Tokenizer};
 use bitvec::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -18,7 +18,7 @@ type LLMTokenMap = BiBTreeMap<Vec<u8>, LLMTokenID>;
 pub struct GrammarConstraint<T: Tokenizer> {
     pub(crate) tokenizer: T,
     pub(crate) parser: GLRParser,
-    pub precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
+    pub precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
     pub(crate) max_llm_token_id: usize,
 }
 
@@ -65,7 +65,7 @@ impl<T: Tokenizer> GrammarConstraint<T> {
 }
 
 pub fn precompute_add_eof(
-    precomputed: &mut BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, TokenizerStateInfoForLLMToken>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
+    precomputed: &mut BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
     eof_llm_token_id: LLMTokenID,
     eof_grammar_token_id: TokenID,
     max_llm_token_id: usize,
@@ -174,7 +174,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                         if let Some(info) = llm_token_id_to_state_id.get(&llm_token_id) {
                             for active_parse_state in new_glr_parse_state.active_states {
                                 new_states.insert_with(
-                                    (active_parse_state.key(), BTreeSet::from([info.dirty_end_state.unwrap_or(StateID(0))])),
+                                    (active_parse_state.key(), BTreeSet::from([info.unwrap_or(StateID(0))])),
                                     active_parse_state,
                                     |old, new| {
                                         old.merge(new);
