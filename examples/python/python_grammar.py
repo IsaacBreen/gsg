@@ -194,7 +194,7 @@ class GrammarConstrainedLogitsProcessor(LogitsProcessor):
 
         mask_ids = np.where(mask)[0]
         mask_id_map = {id: self.llm_token_id_to_token.get(id) for id in mask_ids}
-        debug_print(f"Mask IDs: {mask_id_map}")
+#         debug_print(f"Mask IDs: {mask_id_map}")
         print("")
 
         scores = np.where(mask, scores, -np.inf)
@@ -226,8 +226,8 @@ def generate_text(model, tokenizer, grammar_processor, input_text, max_new_token
     return tokenizer.decode(output[0], skip_special_tokens=True)
 
 if __name__ == "__main__":
-#     model_name = "Qwen/Qwen2.5-Coder-0.5B"
-    model_name = "gpt2"
+    model_name = "Qwen/Qwen2.5-Coder-0.5B"
+#     model_name = "gpt2"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     llm_token_to_id = {token.replace("Ġ", " ").encode(): i for token, i in tokenizer.vocab.items()}
