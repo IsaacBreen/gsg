@@ -124,15 +124,18 @@ pub trait Tokenizer: Sized {
                                 let new_child = child.try_lock().unwrap().replace_child_with_clone(&token.id);
                                 queue_positions.insert(&*new_child.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
                                 queue.entry((new_position, new_state)).or_default().insert(&*new_child.try_lock().unwrap() as *const TrieNode<_, _>, new_child.clone());
+                                crate::dbgprintln2!("Child exists and is already queued with different position or state. Replacing child with clone");
                             } else {
                                 // Child exists and is already queued with same position and state
                                 // do nothing
+                                crate::dbgprintln2!("Child exists and is already queued with same position and state. Doing nothing");
                             }
                         } else {
                             // Child exists but is not already queued
                             // Need to add it to the queue
                             queue_positions.insert(&*child.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
                             queue.entry((new_position, new_state)).or_default().insert(&*child.try_lock().unwrap() as *const TrieNode<_, _>, child.clone());
+                            crate::dbgprintln2!("Child exists but is not already queued. Adding to queue");
                         }
                     } else {
                         let new_node_exists = new_nodes_for_positions.contains_key(&(new_position, new_state));
@@ -141,13 +144,14 @@ pub trait Tokenizer: Sized {
                             // Add an edge from the current node to the new node
                             let new_node = new_nodes_for_positions.get(&(new_position, new_state)).unwrap();
                             node.try_lock().unwrap().insert(token.id, new_node.clone());
+                            crate::dbgprintln2!("A new node already exists for this position and state. Adding edge from {:?} to {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>, &*new_node.try_lock().unwrap() as *const TrieNode<_, _>);
                         } else {
                             // A new node does not exist for this position and state
                             // Create a new node and add an edge from the current node to the new node
                             let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
                             new_nodes_for_positions.insert((new_position, new_state), new_node.clone());
                             node.try_lock().unwrap().insert(token.id, new_node.clone());
-                            crate::dbgprintln2!("Creating new node (2) and adding edge from {:?} to {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>, &*new_node.try_lock().unwrap() as *const TrieNode<_, _>);
+                            crate::dbgprintln2!("A new node does not exist for this position and state. Creating new node (2) and adding edge from {:?} to {:?}", &*node.try_lock().unwrap() as *const TrieNode<_, _>, &*new_node.try_lock().unwrap() as *const TrieNode<_, _>);
                             queue_positions.insert(&*new_node.try_lock().unwrap() as *const TrieNode<_, _>, (new_position, new_state));
                             queue.entry((new_position, new_state)).or_default().insert(&*new_node.try_lock().unwrap() as *const TrieNode<_, _>, new_node.clone());
                         }
