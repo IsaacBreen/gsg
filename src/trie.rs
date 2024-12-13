@@ -381,16 +381,6 @@ pub(crate) fn dump_structure<E, T>(root: Arc<Mutex<TrieNode<E, T>>>) where E: De
     }
 }
 
-pub trait AsPtr<T> {
-    fn as_ptr(&self) -> *const T;
-}
-
-impl<T, E> AsPtr<TrieNode<E, T>> for Arc<Mutex<TrieNode<E, T>>> where E: Clone, T: Clone {
-    fn as_ptr(&self) -> *const TrieNode<E, T> {
-        &*self.try_lock().unwrap() as *const TrieNode<E, T>
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};

@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 use bitvec::prelude::BitVec;
 use kdam::tqdm;
-use crate::trie::{dump_structure, AsPtr, TrieNode};
+use crate::trie::{dump_structure, TrieNode};
 use bimap::BiBTreeMap;
 
 pub type TokenID = usize;
@@ -54,14 +54,14 @@ pub trait Tokenizer: Sized {
         // (position, state) -> [node]
         let mut queue: BTreeMap<(usize, Option<usize>), BTreeMap<_, _>> = BTreeMap::new();
 
-        let mut queue_positions: BTreeMap<*const TrieNode<GroupID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>, (usize, Option<usize>)> = BTreeMap::new();
+        let mut queue_positions: BTreeMap<*const Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>, (usize, Option<usize>)> = BTreeMap::new();
         let mut new_nodes_for_positions: BTreeMap<(usize, Option<usize>), Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>>> = BTreeMap::new();
 
         let root = state_map_root_arc.clone();
 
         // Initialize the queue with the starting state
-        queue.insert((0, Some(state)), BTreeMap::from([(root.as_ptr(), root.clone())]));
-        queue_positions.insert(root.as_ptr(), (0, Some(state)));
+        queue.insert((0, Some(state)), BTreeMap::from([(Arc::as_ptr(&root), root.clone())]));
+        queue_positions.insert(Arc::as_ptr(&root), (0, Some(state)));
 
         while let Some(((position, maybe_state), nodes)) = queue.pop_first() {
             for (_, node) in nodes {
@@ -98,14 +98,14 @@ pub trait Tokenizer: Sized {
                     let new_state: Option<usize> = None;
                     let mut node_guard = node.try_lock().unwrap();
                     if let Some(child) = node_guard.get(&token.id) {
-                        let child_ptr = child.as_ptr();
+                        let child_ptr = Arc::as_ptr(&child);
                         if let Some(&(child_position, child_state)) = queue_positions.get(&child_ptr) {
                             if (child_position, child_state) != (new_position, new_state) {
                                 // Child exists and is already queued with different position or state
                                 // Need to replace the child with a clone
                                 let new_child = node_guard.replace_child_with_clone(&token.id);
-                                queue_positions.insert(new_child.as_ptr(), (new_position, new_state));
-                                queue.entry((new_position, new_state)).or_default().insert(new_child.as_ptr(), new_child.clone());
+                                queue_positions.insert(Arc::as_ptr(&new_child), (new_position, new_state));
+                                queue.entry((new_position, new_state)).or_default().insert(Arc::as_ptr(&new_child), new_child.clone());
                             }
                         } else {
                             // Child exists but is not already queued
@@ -124,8 +124,8 @@ pub trait Tokenizer: Sized {
                             let new_node = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
                             new_nodes_for_positions.insert((new_position, new_state), new_node.clone());
                             node_guard.insert(token.id, new_node.clone());
-                            queue_positions.insert(new_node.as_ptr(), (new_position, new_state));
-                            queue.entry((new_position, new_state)).or_default().insert(new_node.as_ptr(), new_node.clone());
+                            queue_positions.insert(Arc::as_ptr(&new_node), (new_position, new_state));
+                            queue.entry((new_position, new_state)).or_default().insert(Arc::as_ptr(&new_node), new_node.clone());
                         }
                     }
                 }
