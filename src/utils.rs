@@ -24,11 +24,11 @@ pub fn set_log_level(level: LogLevel) {
 /// Macro for conditional logging
 #[macro_export]
 macro_rules! log {
-    ($level:expr, $($arg:tt)*) => {{
+    ($level:expr, $($($arg:tt)*)?) => {{
         let current_level = $crate::utils::GLOBAL_LOG_LEVEL.load(std::sync::atomic::Ordering::Relaxed);
         let target_level = $level as usize;
         if current_level >= target_level {
-            println!("[{:?}] {}", $level, format!($($arg)*));
+            println!("[{:?}] {}", $level, format!($($($arg)*)?));
         }
     }};
 }
@@ -44,14 +44,3 @@ macro_rules! log_info  { ($($arg:tt)*) => { log!(LogLevel::Info, $($arg)*) } }
 macro_rules! log_debug { ($($arg:tt)*) => { log!(LogLevel::Debug, $($arg)*) } }
 #[macro_export]
 macro_rules! log_trace { ($($arg:tt)*) => { log!(LogLevel::Trace, $($arg)*) } }
-
-// Backwards compatibility macros
-#[macro_export]
-macro_rules! dbgprintln {
-    ($($arg:tt)*) => { log_debug!($($arg)*) }
-}
-
-#[macro_export]
-macro_rules! dbgprintln2 {
-    ($($arg:tt)*) => { log_trace!($($arg)*) }
-}
