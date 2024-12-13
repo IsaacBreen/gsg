@@ -1,7 +1,7 @@
 // src/constraint.rs
 use crate::glr::parser::{GLRParser, GLRParserState, InsertWith, ParseState, ParseStateKey};
 use crate::glr::table::{StateID, TerminalID};
-use crate::{dbgprintln, dbgprintln2, precompute};
+use crate::{log_debug, log_trace};
 use crate::precompute::{LLMTokenID, Token, TokenID, Tokenizer};
 use bitvec::prelude::*;
 use bimap::BiBTreeMap;
@@ -65,10 +65,10 @@ pub(crate) fn precompute_add_eof(
 impl<'a, T: Tokenizer> GrammarConstraintState<T> {
     pub fn get_mask(&self) -> BitVec {
         let mut result = bitvec![0; self.parent.max_llm_token_id + 1];
-        dbgprintln2!("Getting mask");
+        log_trace!("Getting mask");
 
         for (parse_state, tokenizer_state_ids) in &self.states {
-            dbgprintln2!("Getting mask for parse state {:?}, tokenizer states {:?}", parse_state, tokenizer_state_ids);
+            log_trace!("Getting mask for parse state {:?}, tokenizer states {:?}", parse_state, tokenizer_state_ids);
             for tokenizer_state in tokenizer_state_ids {
                 let token_sequence_map = &self.parent.precomputed[tokenizer_state];
                 TrieNode::special_map(
@@ -79,17 +79,17 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                     |current_parse_states, token_id, _dst_node| {
                         // todo: this is introducing redundancy... ?
                         let mut glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(current_parse_states.clone());
-                        dbgprintln!("Stepping");
+                        log_debug!("Stepping");
                         glr_parse_state.step(TerminalID(*token_id));
-                        dbgprintln!("Done stepping");
+                        log_debug!("Done stepping");
                         glr_parse_state.active_states
                     },
                     |parse_states: Vec<Vec<ParseState>>| {
                         let all_parse_states: Vec<ParseState> = parse_states.into_iter().flatten().collect();
                         let mut new_glr_parse_state = self.parent.parser.init_glr_parser_from_parse_states(all_parse_states);
-                        dbgprintln!("Merging active states");
+                        log_debug!("Merging active states");
                         new_glr_parse_state.merge_active_states();
-                        dbgprintln!("Done merging active states");
+                        log_debug!("Done merging active states");
                         new_glr_parse_state.active_states
                     },
                     |(_, bitsets, maybe_clean_end_bitset), current_parse_states| {
@@ -98,9 +98,9 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                             for (possible_next_grammar_token, bitset) in bitsets {
                                 let mut new_glr_parse_state = glr_parse_state.clone();
                                 let possible_next_grammar_token_id = TerminalID(*possible_next_grammar_token);
-                                dbgprintln!("Stepping for possible next grammar token {:?}", possible_next_grammar_token);
+                                log_debug!("Stepping for possible next grammar token {:?}", possible_next_grammar_token);
                                 new_glr_parse_state.step(possible_next_grammar_token_id);
-                                dbgprintln!("Done stepping for possible next grammar token");
+                                log_debug!("Done stepping for possible next grammar token");
 
                                 if new_glr_parse_state.is_ok() {
                                     result |= bitset;
@@ -112,7 +112,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
                         }
                     },
                 );
-                dbgprintln2!("Done");
+                log_trace!("Done");
             }
         }
         result

@@ -1,5 +1,6 @@
 use crate::glr::grammar::{Production, Symbol};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use crate::{log_debug, log_trace};
 
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -9,7 +10,7 @@ pub struct Item {
 }
 
 pub fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BTreeSet<Item> {
-    crate::dbgprintln!("Computing closure");
+    log_debug!("Computing closure");
     let mut closure = items.clone();
     let mut worklist: VecDeque<Item> = items.iter().cloned().collect();
 
@@ -28,7 +29,7 @@ pub fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BT
         }
     }
 
-    crate::dbgprintln!("Done computing closure");
+    log_debug!("Done computing closure");
     closure
 }
 
