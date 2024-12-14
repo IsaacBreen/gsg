@@ -375,27 +375,27 @@ fn stage_7(stage_6_table: Stage6Table, productions: &[Production], start_product
 }
 
 pub fn generate_glr_parser_with_maps(productions: &[Production], start_production_id: usize, mut terminal_map: BiBTreeMap<Terminal, TerminalID>, non_terminal_map: BiBTreeMap<NonTerminal, NonTerminalID>) -> GLRParser {
-    crate::dbgprintln2!("Validating");
+    crate::debug!(2, "Validating");
     validate(productions).expect("Validation error");
 
     // todo: this is messy
     assign_eof_terminal_id(&mut terminal_map);
 
-    crate::dbgprintln2!("Stage 1");
+    crate::debug!(2, "Stage 1");
     let stage_1_table = stage_1(productions, start_production_id);
-    crate::dbgprintln2!("Stage 2");
+    crate::debug!(2, "Stage 2");
     let stage_2_table = stage_2(stage_1_table, productions);
-    crate::dbgprintln2!("Stage 3");
+    crate::debug!(2, "Stage 3");
     let stage_3_table = stage_3(stage_2_table, productions);
-    crate::dbgprintln2!("Stage 4");
+    crate::debug!(2, "Stage 4");
     let stage_4_table = stage_4(stage_3_table, productions);
-    crate::dbgprintln2!("Stage 5");
+    crate::debug!(2, "Stage 5");
     let stage_5_table = stage_5(stage_4_table, productions);
-    crate::dbgprintln2!("Stage 6");
+    crate::debug!(2, "Stage 6");
     let stage_6_table = stage_6(stage_5_table);
-    crate::dbgprintln2!("Stage 7");
+    crate::debug!(2, "Stage 7");
     let (stage_7_table, item_set_map, start_state_id, eof_terminal_id) = stage_7(stage_6_table, productions, start_production_id, &terminal_map, &non_terminal_map);
-    crate::dbgprintln2!("Stage 8");
+    crate::debug!(2, "Stage 8");
 
     GLRParser::new(stage_7_table, productions.to_vec(), terminal_map, non_terminal_map, item_set_map, start_state_id, eof_terminal_id)
 }

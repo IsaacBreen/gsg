@@ -9,7 +9,7 @@ pub struct Item {
 }
 
 pub fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BTreeSet<Item> {
-    crate::dbgprintln!("Computing closure");
+    crate::debug!("Computing closure");
     let mut closure = items.clone();
     let mut worklist: VecDeque<Item> = items.iter().cloned().collect();
 
@@ -28,7 +28,7 @@ pub fn compute_closure(items: &BTreeSet<Item>, productions: &[Production]) -> BT
         }
     }
 
-    crate::dbgprintln!("Done computing closure");
+    crate::debug!("Done computing closure");
     closure
 }
 

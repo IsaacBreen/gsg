@@ -5,8 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 use bitvec::prelude::BitVec;
 use kdam::tqdm;
-use crate::trie::{dump_structure, TrieNode};
+use crate::trie::{TrieNode};
 use bimap::BiBTreeMap;
+use crate::debug;
 
 pub type TokenID = usize;
 
@@ -153,19 +154,19 @@ pub fn precompute<'a>(
     let mut result: BTreeMap<StateID, TrieNode<GroupID, _>> = BTreeMap::new();
 
     // Ensure the tokenizer doesn't match on empty strings
-    crate::dbgprintln2!("Ensuring tokenizer doesn't match on empty strings");
+    debug!(2, "Ensuring tokenizer doesn't match on empty strings");
     let execute_result = tokenizer.execute_from_state(&[], 0);
     if !execute_result.matches.is_empty() {
         panic!("Tokenizer should not match on empty string. If it did, there would be infinitely many possible token sequences for any LLM token.");
     }
 
-    crate::dbgprintln2!("Precomputing in precompute");
+    debug!(2, "Precomputing in precompute");
     for state_id in tqdm!(0..tokenizer.max_state()) {
-        // crate::dbgprintln!("Precomputing state {}", state_id);
+        // debug!(1, "Precomputing state {}", state_id);
         let mut state_map_root_arc: Arc<Mutex<TrieNode<GroupID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>> = Arc::new(Mutex::new(TrieNode::new((BTreeMap::new(), BTreeMap::new(), None))));
 
         for (i, (llm_token, llm_token_id)) in llm_token_map.iter().enumerate() {
-            crate::dbgprintln!("Precomputing for token {:?} ({:?}) ({})", llm_token_id, llm_token, i);
+            debug!(1, "Precomputing for token {:?} ({:?}) ({})", llm_token_id, llm_token, i);
             // todo: REMOVE THIS
             // if i < 121 {
             //     continue;
@@ -180,7 +181,7 @@ pub fn precompute<'a>(
             );
         }
 
-        // crate::dbgprintln2!("Done precomputing state {}", state_id);
+        // debug!(2, "Done precomputing state {}", state_id);
         let state_map_root = state_map_root_arc.try_lock().unwrap().clone();
         result.insert(glr::table::StateID(state_id), state_map_root);
     }

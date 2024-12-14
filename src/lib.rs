@@ -1,5 +1,7 @@
 extern crate core;
 
+pub const DEBUG_LEVEL: usize = 1;
+
 pub mod frozenset;
 pub mod charmap;
 pub mod precompute;

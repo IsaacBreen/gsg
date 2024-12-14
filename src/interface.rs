@@ -11,6 +11,7 @@ use std::fmt::{Debug, Formatter};
 use kdam::tqdm;
 use crate::analyze_grammar::drop_dead;
 use crate::constraint::{precompute_add_eof, GrammarConstraint};
+use crate::debug;
 
 type LLMToken<'a> = &'a [u8];
 type LLMTokenMap = BiBTreeMap<Vec<u8>, LLMTokenID>;
@@ -135,7 +136,7 @@ impl Grammar<Regex> {
         while nonterminals.contains(&start_production_name.as_str()) {
             start_production_name.push('\'');
         }
-        crate::dbgprintln2!("start_production_name: {:?}", start_production_name);
+        debug!(2, "start_production_name: {:?}", start_production_name);
         productions.push(Production {
             lhs: NonTerminal(start_production_name.clone()),
             rhs: vec![Symbol::NonTerminal(NonTerminal(exprs[0].0.clone()))],
@@ -286,7 +287,7 @@ impl Grammar<Regex> {
         }
 
         // TODO: this is bad. prob remove this.
-        // crate::dbgprintln2!("Dropping dead productions");
+        // crate::debug!(2, "Dropping dead productions");
         // let productions = drop_dead(&productions);
 
         let tokenizer_exprs_vec: Vec<ExprGroup> = tokens
@@ -294,10 +295,10 @@ impl Grammar<Regex> {
             .map(|(_, expr)| greedy_group(expr))
             .collect();
         let tokenizer_expr_groups = groups(tokenizer_exprs_vec);
-        crate::dbgprintln2!("Building tokenizer");
+        debug!(2, "Building tokenizer");
         let tokenizer = tokenizer_expr_groups.clone().build();
 
-        crate::dbgprintln2!("Done defining grammar");
+        debug!(2, "Done defining grammar");
         Self {
             productions,
             start_production_id: 0,
@@ -311,25 +312,25 @@ impl Grammar<Regex> {
 
 impl<T: Tokenizer> GrammarConstraint<T> {
     pub fn from_grammar(grammar: Grammar<T>, llm_tokens: LLMTokenMap, eof_llm_token_id: usize, max_llm_token_id: usize) -> Self {
-        crate::dbgprintln2!("GrammarConstraint::from_grammar");
+        debug!(2, "GrammarConstraint::from_grammar");
         let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
         let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
-        crate::dbgprintln2!("Generating GLR parser");
+        debug!(2, "Generating GLR parser");
         let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
-        crate::dbgprintln2!("Precomputing");
+        debug!(2, "Precomputing");
         let mut precomputed = precompute(&grammar.tokenizer, &llm_tokens, LLMTokenID(eof_llm_token_id), max_llm_token_id);
-        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
+        debug!(2, "precomputed.len(): {}", precomputed.len());
         precompute_add_eof(&mut precomputed, LLMTokenID(eof_llm_token_id), parser.eof_terminal_id.0, max_llm_token_id);
         // precompute_add_eof(&mut precomputed, LLMTokenID(eof_llm_token_id), llm_tokens.len(), max_llm_token_id);
-        crate::dbgprintln2!("precomputed.len(): {}", precomputed.len());
-        crate::dbgprintln2!("Done precomputing");
+        debug!(2, "precomputed.len(): {}", precomputed.len());
+        debug!(2, "Done precomputing");
 
         // // todo: remove this
-        // crate::dbgprintln2!("GrammarConstraint::from_grammar");
+        // debug!(2, "GrammarConstraint::from_grammar");
         // let terminal_map = grammar.terminal_name_to_group_id.iter().map(|(name, group_id)| { (Terminal(name.clone()), TerminalID(*group_id)) }).collect();
         // let non_terminal_map = assign_non_terminal_ids(&grammar.productions);
-        // crate::dbgprintln2!("Generating GLR parser");
+        // debug!(2, "Generating GLR parser");
         // let parser = generate_glr_parser_with_maps(&grammar.productions, grammar.start_production_id, terminal_map, non_terminal_map);
 
         Self {
@@ -402,10 +403,10 @@ mod tests {
         ];
 
         let grammar = Grammar::from_exprs(exprs.clone());
-        dbg!(&grammar);
+        debug!(2, "{:?}", &grammar);
 
         let parser = grammar.glr_parser();
-        dbg!(&parser);
+        debug!(2, "{:?}", &parser);
 
         let llm_tokens: Vec<Vec<u8>> = vec![b"i".to_vec(), b"+".to_vec(), b"*".to_vec(), b"(".to_vec(), b")".to_vec(), b"(i".to_vec(), b"+i".to_vec()];
         let llm_token_map: LLMTokenMap = llm_tokens.iter().enumerate().map(|(i, token)| (token.clone(), LLMTokenID(i))).collect();
@@ -425,12 +426,12 @@ mod tests {
         }
 
         for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
-            crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
+            debug!(3, "Tokenizer state: {}", tokenizer_state.0);
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.try_lock().unwrap().value);
+                debug!(3, "Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.try_lock().unwrap().value);
                 // print edge values and destination addresses
                 for (edge, dest) in node.try_lock().unwrap().children() {
-                    crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+                    debug!(3, "    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
                 }
             }
         }
