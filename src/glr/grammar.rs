@@ -33,7 +33,7 @@ pub fn prod(name: &str, rhs: Vec<Symbol>) -> Production {
 }
 
 pub fn compute_epsilon_nonterminals(productions: &[Production]) -> BTreeSet<NonTerminal> {
-    let mut epsilon_nonterminals: BTreeSet<NonTerminal> = BTreeSet::new();
+    let mut epsilon_nonterminals = BTreeSet::new();
     let mut changed = true;
 
     while changed {
@@ -66,9 +66,7 @@ pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, B
     // Initialize first sets
     for production in productions {
         let lhs = &production.lhs;
-        if !first_sets.contains_key(lhs) {
-            first_sets.insert(lhs.clone(), BTreeSet::new());
-        }
+        first_sets.entry(lhs.clone()).or_default();
         for symbol in &production.rhs {
             match symbol {
                 Symbol::Terminal(t) => {
@@ -98,7 +96,7 @@ pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, B
                 if let Symbol::NonTerminal(nt) = symbol {
                     let first_nt = first_sets[nt].clone();
                     first_sets.get_mut(lhs).unwrap().extend(first_nt);
-                    if !epsilon_nonterminals.contains(nt) {
+                    if !epsilon_non_terminals.contains(nt) {
                         break;
                     }
                 }
@@ -121,8 +119,7 @@ pub fn compute_follow_sets(
 
     // Initialize follow sets
     for production in productions {
-        let lhs = &production.lhs;
-        follow_sets.entry(lhs.clone()).or_default();
+        follow_sets.entry(production.lhs.clone()).or_default();
     }
 
     // Add EOF marker to the start symbol
@@ -162,7 +159,6 @@ pub fn compute_follow_sets(
                                     nullable = false;
                                     break;
                                 }
-                                // else, continue to the next symbol
                             }
                         }
                     }

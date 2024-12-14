@@ -54,7 +54,7 @@ pub fn eat_char_negation_choice_fast(s: &str) -> Expr {
 }
 
 pub fn eat_string_fast(s: &str) -> Expr {
-    Expr::U8Seq(s.bytes().map(|c| c as u8).collect())
+    Expr::U8Seq(s.bytes().collect())
 }
 
 pub fn eat_byte_range_fast(start: u8, end: u8) -> Expr {
@@ -84,11 +84,7 @@ pub fn eat_bytestring_fast(bytes: Vec<u8>) -> Expr {
 }
 
 pub fn eat_string_choice_fast(strings: &[&str]) -> Expr {
-    let mut children = vec![];
-    for s in strings {
-        children.push(eat_string_fast(s));
-    }
-    choice_fast(children)
+    choice_fast(strings.iter().map(|s| eat_string_fast(s)).collect())
 }
 
 pub fn repeat0_fast(parser: Expr) -> Expr {
@@ -107,7 +103,7 @@ pub fn repeatn_fast(n: usize, parser: Expr) -> Expr {
     if n == 0 {
         return seq_fast(vec![]);
     }
-    let mut parsers = Vec::new();
+    let mut parsers = Vec::with_capacity(n);
     for _ in 0..n {
         parsers.push(parser.clone());
     }

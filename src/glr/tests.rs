@@ -16,9 +16,10 @@ fn test_simple_parse_table() {
 
     println!("{}", parser);
 
-    let tokenize = |input: &str, parser: &GLRParser| -> Vec<TerminalID> {
-        input.chars().filter_map(|c| parser.terminal_map.get_by_left(&Terminal(c.to_string()))
-            .copied()).collect()
+    let tokenize = |input: &str, parser: &GLRParser| {
+        input.chars()
+            .filter_map(|c| parser.terminal_map.get_by_left(&Terminal(c.to_string())).copied())
+            .collect()
     };
 
     assert!(parser.parse(&tokenize("b", &parser)).fully_matches());
@@ -52,9 +53,10 @@ fn test_parse_simple_expression() {
 
     println!("{}", parser);
 
-    let tokenize = |input: &str, parser: &GLRParser| -> Vec<TerminalID> {
-        input.chars().filter_map(|c| parser.terminal_map.get_by_left(&Terminal(c.to_string()))
-            .copied()).collect()
+    let tokenize = |input: &str, parser: &GLRParser| {
+        input.chars()
+            .filter_map(|c| parser.terminal_map.get_by_left(&Terminal(c.to_string())).copied())
+            .collect()
     };
 
     assert!(parser.parse(&tokenize("i", &parser)).fully_matches());
