@@ -3,7 +3,6 @@ use crate::glr::grammar::{NonTerminal, Production, Symbol, Terminal};
 use crate::glr::items::Item;
 use crate::glr::table::{NonTerminalID, ProductionID, Stage7ShiftsAndReduces, Stage7Table, StateID, TerminalID};
 use crate::gss::{GSSNode, GSSTrait};
-use crate::{log_debug, log_trace};
 
 use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
@@ -248,7 +247,7 @@ impl<'a> GLRParserState<'a> {
             if let Some(action) = row.shifts_and_reduces.get(&token_id) {
                 match action {
                     Stage7ShiftsAndReduces::Shift(next_state_id) => {
-                        log_debug!("Shifting");
+                        crate::dbgprintln!("Shifting");
                         let new_stack = stack.push(*next_state_id);
                         let new_actions = action_stack.push(Action::Shift(token_id));
                         next_active_states.push(ParseState {
@@ -258,7 +257,7 @@ impl<'a> GLRParserState<'a> {
                         });
                     }
                     Stage7ShiftsAndReduces::Reduce { production_id, nonterminal_id: nonterminal, len } => {
-                        log_debug!("Reducing by production {:?} with len {}", production_id, len);
+                        crate::dbgprintln!("Reducing by production {:?} with len {}", production_id, len);
                         let mut popped_stack_nodes = stack.popn(*len);
                         popped_stack_nodes.bulk_merge();
                         for stack_node in popped_stack_nodes {
@@ -266,7 +265,7 @@ impl<'a> GLRParserState<'a> {
                             let goto_row = self.parser.stage_7_table.get(&revealed_state).unwrap();
 
                             if let Some(&goto_state) = goto_row.gotos.get(nonterminal) {
-                                log_debug!("Going to state {:?}", goto_state);
+                                crate::dbgprintln!("Going to state {:?}", goto_state);
                                 let new_stack = stack_node.push(goto_state);
                                 let new_actions = action_stack.clone().push(Action::Reduce { production_id: *production_id, len: *len, nonterminal_id: *nonterminal });
                                 self.active_states.push(ParseState {
@@ -284,7 +283,7 @@ impl<'a> GLRParserState<'a> {
                         }
                     }
                     Stage7ShiftsAndReduces::Split { shift, reduces } => {
-                        log_debug!("Split");
+                        crate::dbgprintln!("Split");
                         if let Some(shift_state) = shift {
                             let new_stack = stack.push(*shift_state);
                             let new_actions = action_stack.clone().push(Action::Shift(token_id));
