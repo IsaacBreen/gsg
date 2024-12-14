@@ -96,7 +96,7 @@ pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, B
                 if let Symbol::NonTerminal(nt) = symbol {
                     let first_nt = first_sets[nt].clone();
                     first_sets.get_mut(lhs).unwrap().extend(first_nt);
-                    if !epsilon_non_terminals.contains(nt) {
+                    if !epsilon_nonterminals.contains(nt) {
                         break;
                     }
                 }

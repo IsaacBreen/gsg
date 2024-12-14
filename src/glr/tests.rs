@@ -1,6 +1,7 @@
 use crate::glr::grammar::{nt, prod, t, Terminal};
 use crate::glr::parser::GLRParser;
 use crate::glr::table::{generate_glr_parser, TerminalID};
+use std::vec;
 
 #[test]
 fn test_simple_parse_table() {
@@ -16,7 +17,7 @@ fn test_simple_parse_table() {
 
     println!("{}", parser);
 
-    let tokenize = |input: &str, parser: &GLRParser| {
+    let tokenize = |input: &str, parser: &GLRParser| -> Vec<TerminalID> {
         input.chars()
             .filter_map(|c| parser.terminal_map.get_by_left(&Terminal(c.to_string())).copied())
             .collect()
@@ -53,7 +54,7 @@ fn test_parse_simple_expression() {
 
     println!("{}", parser);
 
-    let tokenize = |input: &str, parser: &GLRParser| {
+    let tokenize = |input: &str, parser: &GLRParser| -> Vec<TerminalID> {
         input.chars()
             .filter_map(|c| parser.terminal_map.get_by_left(&Terminal(c.to_string())).copied())
             .collect()
