@@ -8,6 +8,7 @@ use bimap::BiBTreeMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
+use crate::debug;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ParseState {

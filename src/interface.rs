@@ -496,12 +496,12 @@ mod tests {
         let mut grammar_constraint_state = grammar_constraint.init();
 
         for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
-            crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
+            debug!(1, "Tokenizer state: {}", tokenizer_state.0);
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.try_lock().unwrap().value);
+                debug!(1, "Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.try_lock().unwrap().value);
                 // print edge values and destination addresses
                 for (edge, dest) in node.try_lock().unwrap().children() {
-                    crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+                    debug!(1, "    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
                 }
             }
         }
@@ -556,12 +556,12 @@ mod tests {
         print_precomputed(&grammar_constraint_state.parent.precomputed);
 
         for (tokenizer_state, root) in &grammar_constraint_state.parent.precomputed {
-            crate::dbgprintln!("Tokenizer state: {}", tokenizer_state.0);
+            debug!(1, "Tokenizer state: {}", tokenizer_state.0);
             for node in TrieNode::all_nodes(Arc::new(Mutex::new(root.clone()))) {
-                crate::dbgprintln!("Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.try_lock().unwrap().value);
+                debug!(1, "Node address: {:p}, value: {:?}", Arc::as_ptr(&node), node.try_lock().unwrap().value);
                 // print edge values and destination addresses
                 for (edge, dest) in node.try_lock().unwrap().children() {
-                    crate::dbgprintln!("    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
+                    debug!(1, "    Edge value: {:?}, destination address: {:p}", edge, Arc::as_ptr(&dest));
                 }
             }
         }
