@@ -62,20 +62,11 @@ pub fn eat_byte_range_fast(start: u8, end: u8) -> Expr {
 }
 
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> Expr {
-    let mut children = vec![];
-    println!("eat_bytestring_choice_fast: start");
-    for bytes in bytestrings {
-        if bytes.len() > 1 {
-            // TODO: This is a hack to speed things up.
-            println!("WARNING: hack");
-            continue;
-        }
-        if bytes.len() > 4 {
-            println!("very long bytestring: {:?}", bytes);
-        }
-        children.push(eat_bytestring_fast(bytes));
-    }
-    println!("eat_bytestring_choice_fast: done");
+    let children: Vec<Expr> = bytestrings
+        .into_iter()
+        .filter(|bytes| bytes.len() <= 1)
+        .map(eat_bytestring_fast)
+        .collect();
     choice_fast(children)
 }
 
@@ -103,10 +94,7 @@ pub fn repeatn_fast(n: usize, parser: Expr) -> Expr {
     if n == 0 {
         return seq_fast(vec![]);
     }
-    let mut parsers = Vec::with_capacity(n);
-    for _ in 0..n {
-        parsers.push(parser.clone());
-    }
+    let parsers = std::iter::repeat(parser).take(n).collect();
     seq_fast(parsers)
 }
 
