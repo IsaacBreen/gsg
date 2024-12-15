@@ -127,4 +127,143 @@ impl<T> Drop for GSSNode<T> {
     }
 }
 
-// Trait and implementation details remain the same as in the original file
+pub trait GSSTrait<T: Clone> {
+    type Peek<'a> where T: 'a, Self: 'a;
+    fn peek(&self) -> Self::Peek<'_>;
+    fn push(&self, value: T) -> GSSNode<T>;
+    fn pop(&self) -> Vec<Arc<GSSNode<T>>>;
+    fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>>;
+}
+
+impl<T: Clone> GSSTrait<T> for GSSNode<T> {
+    type Peek<'a> = &'a T where T: 'a;
+
+    fn peek(&self) -> Self::Peek<'_> {
+        &self.value
+    }
+
+    fn push(&self, value: T) -> GSSNode<T> {
+        let mut new_node = GSSNode::new(value);
+        new_node.predecessors.push(Arc::new(self.clone()));
+        new_node
+    }
+
+    fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
+        self.predecessors.clone()
+    }
+
+    fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>> {
+        if n == 0 {
+            return vec![Arc::new(self.clone())];
+        }
+        let mut nodes = Vec::new();
+        for popped in self.pop() {
+            nodes.extend(popped.popn(n - 1));
+        }
+        nodes
+    }
+}
+
+impl<T: Clone> GSSTrait<T> for Arc<GSSNode<T>> {
+    type Peek<'a> = &'a T where T: 'a;
+
+    fn peek(&self) -> Self::Peek<'_> {
+        &self.value
+    }
+
+    fn push(&self, value: T) -> GSSNode<T> {
+        let mut new_node = GSSNode::new(value);
+        new_node.predecessors.push(self.clone());
+        new_node
+    }
+
+    fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
+        self.predecessors.clone()
+    }
+
+    fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>> {
+        if n == 0 {
+            return vec![self.clone()];
+        }
+        let mut nodes = Vec::new();
+        for popped in self.pop() {
+            nodes.extend(popped.popn(n - 1));
+        }
+        nodes
+    }
+}
+
+impl<T: Clone> GSSTrait<T> for Option<Arc<GSSNode<T>>> {
+    type Peek<'a> = Option<&'a T> where T: 'a;
+
+    fn peek(&self) -> Self::Peek<'_> {
+        self.as_ref().map(|node| node.peek())
+    }
+
+    fn push(&self, value: T) -> GSSNode<T> {
+        self.clone().map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
+    }
+
+    fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
+        self.as_ref().map(|node| node.pop()).unwrap_or_default()
+    }
+
+    fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>> {
+        self.as_ref().map(|node| node.popn(n)).unwrap_or_default()
+    }
+}
+
+impl<T: Clone> GSSTrait<T> for Option<GSSNode<T>> {
+    type Peek<'a> = Option<&'a T> where T: 'a;
+
+    fn peek(&self) -> Self::Peek<'_> {
+        self.as_ref().map(|node| node.peek())
+    }
+
+    fn push(&self, value: T) -> GSSNode<T> {
+        self.clone().map(|node| node.push(value.clone())).unwrap_or_else(|| GSSNode::new(value))
+    }
+
+    fn pop(&self) -> Vec<Arc<GSSNode<T>>> {
+        self.as_ref().map(|node| node.pop()).unwrap_or_default()
+    }
+
+    fn popn(&self, n: usize) -> Vec<Arc<GSSNode<T>>> {
+        self.as_ref().map(|node| node.popn(n)).unwrap_or_default()
+    }
+}
+
+// todo: weird trait. Maybe this shouldn't be a trait.
+pub trait BulkMerge<T> {
+    fn bulk_merge(&mut self);
+}
+
+impl<T: Clone + Ord> BulkMerge<T> for Vec<Arc<GSSNode<T>>> {
+    fn bulk_merge(&mut self) {
+        // todo: should be possible to avoid cloning T in some cases by using &T in this map,
+        //  but we need to be careful about lifetimes. If we use `node.as_ref().value`, then node
+        //  will go out of bounds while the reference to its value is still inside `groups`.
+        let mut groups: BTreeMap<T, HashMap<_, Arc<GSSNode<T>>>> = BTreeMap::new();
+        for node in self.drain(..) {
+            groups.entry(node.value.clone()).or_default().entry(Arc::as_ptr(&node)).or_insert(node);
+        }
+        for mut group in groups.into_values() {
+            let mut group = group.into_values().collect::<Vec<_>>();
+            let mut first = group.pop().unwrap();
+            if group.is_empty() {
+                self.push(first);
+            } else {
+                // address map
+                let mut predecessors_set: BTreeMap<_, _> = BTreeMap::new();
+                for sibling in group {
+                    for predecessor in &sibling.predecessors {
+                        predecessors_set.insert(Arc::as_ptr(predecessor), predecessor.clone());
+                    }
+                }
+                let first_mut_ref = Arc::make_mut(&mut first);
+                first_mut_ref.predecessors = predecessors_set.into_values().collect();
+                self.push(first);
+            }
+        }
+    }
+}
