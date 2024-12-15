@@ -8,9 +8,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 use crate::trie::TrieNode;
 
+/// Type alias for a token represented as a byte vector
 type LLMToken = Vec<u8>;
+
+/// Type alias for mapping LLM tokens to their unique identifiers
 type LLMTokenMap = BiBTreeMap<Vec<u8>, LLMTokenID>;
 
+/// Represents a constraint on grammar generation
 #[derive(Debug, Clone)]
 pub struct GrammarConstraint<T: Tokenizer> {
     tokenizer: T,
@@ -19,6 +23,7 @@ pub struct GrammarConstraint<T: Tokenizer> {
     max_llm_token_id: usize,
 }
 
+/// Represents the current state of a grammar constraint
 #[derive(Debug, Clone)]
 pub struct GrammarConstraintState<T: Tokenizer> {
     parent: GrammarConstraint<T>,
@@ -26,6 +31,7 @@ pub struct GrammarConstraintState<T: Tokenizer> {
 }
 
 impl<T: Tokenizer> GrammarConstraint<T> {
+    /// Creates a new grammar constraint
     pub fn new(
         tokenizer: T, 
         parser: GLRParser, 
@@ -44,6 +50,7 @@ impl<T: Tokenizer> GrammarConstraint<T> {
         }
     }
 
+    /// Initializes the grammar constraint state
     pub fn init(self) -> GrammarConstraintState<T> {
         let parser_initial_state = self.parser.init_parse_state();
         let tokenizer_initial_state_id = StateID(self.tokenizer.initial_state_id());
@@ -56,6 +63,7 @@ impl<T: Tokenizer> GrammarConstraint<T> {
 }
 
 impl<'a, T: Tokenizer> GrammarConstraintState<T> {
+    /// Generates a mask of valid next tokens
     pub fn get_mask(&self) -> BitVec {
         let mut result = bitvec![0; self.parent.max_llm_token_id + 1];
 
@@ -99,6 +107,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
         result
     }
 
+    /// Commits a token to the current state
     pub fn commit(&mut self, llm_token_id: LLMTokenID) {
         let mut new_states: BTreeMap<(ParseStateKey, BTreeSet<StateID>), ParseState> = BTreeMap::new();
         
@@ -141,6 +150,7 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
         }).collect();
     }
 
+    /// Commits multiple tokens sequentially
     pub fn commit_many(&mut self, llm_token_ids: &[LLMTokenID]) {
         for &llm_token_id in llm_token_ids {
             self.commit(llm_token_id);
