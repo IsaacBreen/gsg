@@ -156,4 +156,9 @@ impl<'a, T: Tokenizer> GrammarConstraintState<T> {
             self.commit(llm_token_id);
         }
     }
+
+    /// Getter for precomputed field
+    pub fn get_precomputed(&self) -> &BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>> {
+        &self.parent.precomputed
+    }
 }

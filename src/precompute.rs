@@ -189,6 +189,32 @@ pub fn precompute<'a>(
     result
 }
 
+/// Adds EOF token to the precomputed map
+pub fn precompute_add_eof(
+    precomputed: &mut BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
+    eof_llm_token_id: LLMTokenID,
+    eof_terminal_id: usize,
+    max_llm_token_id: usize,
+) {
+    for (_, state_map_root) in precomputed.iter_mut() {
+        TrieNode::special_map(
+            Arc::new(Mutex::new(state_map_root.clone())),
+            Vec::new(),
+            |_, _, _| Vec::new(),
+            |_| Vec::new(),
+            |(_, _, maybe_clean_end_bitset), _| {
+                if let Some(mut bitset) = maybe_clean_end_bitset {
+                    bitset.set(eof_llm_token_id.0, true);
+                } else {
+                    let mut bitset = BitVec::new();
+                    bitset.resize(max_llm_token_id + 1, false);
+                    bitset.set(eof_llm_token_id.0, true);
+                }
+            },
+        );
+    }
+}
+
 impl Tokenizer for Regex {
     fn initial_state_id(&self) -> usize {
         0
