@@ -233,7 +233,6 @@ impl<T: Clone> GSSTrait<T> for Option<GSSNode<T>> {
     }
 }
 
-// todo: weird trait. Maybe this shouldn't be a trait.
 pub trait BulkMerge<T> {
     fn bulk_merge(&mut self);
 }
