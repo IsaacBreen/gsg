@@ -17,10 +17,10 @@ type LLMTokenMap = BiBTreeMap<Vec<u8>, LLMTokenID>;
 /// Represents a constraint on grammar generation
 #[derive(Debug, Clone)]
 pub struct GrammarConstraint<T: Tokenizer> {
-    tokenizer: T,
-    parser: GLRParser,
-    precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
-    max_llm_token_id: usize,
+    pub(crate) tokenizer: T,
+    pub(crate) parser: GLRParser,
+    pub precomputed: BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
+    pub(crate) max_llm_token_id: usize,
 }
 
 /// Represents the current state of a grammar constraint

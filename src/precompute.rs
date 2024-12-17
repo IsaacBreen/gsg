@@ -7,6 +7,7 @@ use bitvec::prelude::BitVec;
 use kdam::tqdm;
 use crate::trie::{TrieNode};
 use bimap::BiBTreeMap;
+use bitvec::bitvec;
 use crate::debug;
 
 pub type TokenID = usize;
@@ -190,29 +191,16 @@ pub fn precompute<'a>(
 }
 
 /// Adds EOF token to the precomputed map
-pub fn precompute_add_eof(
+pub(crate) fn precompute_add_eof(
     precomputed: &mut BTreeMap<StateID, TrieNode<TokenID, (BTreeMap<LLMTokenID, Option<StateID>>, BTreeMap<TokenID, BitVec>, Option<BitVec>)>>,
     eof_llm_token_id: LLMTokenID,
-    eof_terminal_id: usize,
+    eof_grammar_token_id: TokenID,
     max_llm_token_id: usize,
 ) {
-    for (_, state_map_root) in precomputed.iter_mut() {
-        TrieNode::special_map(
-            Arc::new(Mutex::new(state_map_root.clone())),
-            Vec::new(),
-            |_, _, _| Vec::new(),
-            |_| Vec::new(),
-            |(_, _, maybe_clean_end_bitset), _| {
-                if let Some(mut bitset) = maybe_clean_end_bitset {
-                    bitset.set(eof_llm_token_id.0, true);
-                } else {
-                    let mut bitset = BitVec::new();
-                    bitset.resize(max_llm_token_id + 1, false);
-                    bitset.set(eof_llm_token_id.0, true);
-                }
-            },
-        );
-    }
+    let mut bitset = bitvec![0; max_llm_token_id + 1];
+    bitset.set(eof_llm_token_id.0, true);
+    let node = precomputed.get_mut(&StateID(0)).expect("State 0 should exist");
+    node.value.1.insert(eof_grammar_token_id, bitset);
 }
 
 impl Tokenizer for Regex {
