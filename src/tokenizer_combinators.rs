@@ -80,7 +80,6 @@ pub fn eat_byte_range_fast(start: u8, end: u8) -> Expr {
 pub fn eat_bytestring_choice_fast(bytestrings: Vec<Vec<u8>>) -> Expr {
     let children: Vec<Expr> = bytestrings
         .into_iter()
-        .filter(|bytes| bytes.len() <= 1)
         .map(eat_bytestring_fast)
         .collect();
     choice_fast(children)

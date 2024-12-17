@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-/// Generalized Suffix Stack (GSS) Node representing a stack-like structure
+/// Graph-Structured Stack (GSS) Node representing a graph-like stack structure
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GSSNode<T> {
     /// The value stored in the current node

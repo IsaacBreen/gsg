@@ -100,17 +100,11 @@ pub fn compute_first_sets(productions: &[Production]) -> BTreeMap<NonTerminal, B
             let old_size = first_sets.get_mut(lhs).unwrap().len();
 
             for symbol in rhs {
-                match symbol {
-                    Symbol::NonTerminal(nt) => {
-                        let first_nt = first_sets[nt].clone();
-                        first_sets.get_mut(lhs).unwrap().extend(first_nt);
-                        
-                        if !epsilon_nonterminals.contains(nt) {
-                            break;
-                        }
-                    }
-                    Symbol::Terminal(t) => {
-                        first_sets.get_mut(lhs).unwrap().insert(t.clone());
+                if let Symbol::NonTerminal(nt) = symbol {
+                    let first_nt = first_sets[nt].clone();
+                    first_sets.get_mut(lhs).unwrap().extend(first_nt);
+
+                    if !epsilon_nonterminals.contains(nt) {
                         break;
                     }
                 }
