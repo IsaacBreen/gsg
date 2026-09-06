@@ -8795,30 +8795,12 @@ impl Constraint {
                     .set_virtual_residuals_mask_projection(mask_tokenizer, projections);
             }
         }
-        let mask_execution_source = self
-            .dynamic_mask_vocab
-            .mask_projection_tokenizer()
-            .unwrap_or(&self.tokenizer);
-        if mask_execution_source.has_epsilon_transitions()
-            && !mask_execution_source.has_any_virtual_runtime()
-        {
-            let source_states = mask_execution_source.num_states();
-            let started_at = profile.then(std::time::Instant::now);
-            let prepared = self
-                .dynamic_mask_vocab
-                .prepare_mask_execution(&self.tokenizer, self.max_token_byte_len());
-            if profile {
-                eprintln!(
-                    "[glrmask/profile][static_runtime_finalize] mask_lexer=deterministic_execution prepared={} source_states={} execution_states={} elapsed_ms={:.3}",
-                    prepared,
-                    source_states,
-                    self.dynamic_mask_vocab
-                        .mask_runtime_tokenizer()
-                        .map_or(0, Tokenizer::num_states),
-                    started_at.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
-                );
-            }
-        }
+        // Ordinary static masking executes through the parser DWA, not the
+        // dynamic/full-walk lexer coordinate. Do not speculatively determinize
+        // every epsilon-NFA start here: the result is derived acceleration data,
+        // is not serialized, and the exact epsilon-NFA path remains available
+        // anywhere a dynamic full walk is explicitly requested. DynamicConstraint
+        // prepares its own execution coordinate in rebuild_dynamic_runtime_caches().
         let guarded_shift_started_at = profile.then(std::time::Instant::now);
         if self.table.guarded_shift_index.len() != self.table.num_states as usize {
             if self.table.num_rules == 0 {
