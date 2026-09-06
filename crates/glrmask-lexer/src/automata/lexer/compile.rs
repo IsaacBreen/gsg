@@ -162,6 +162,35 @@ pub fn build_bounded_code_mask_component_for_vocab(
     )
 }
 
+#[doc(hidden)]
+pub struct PreparedBoundedCodeMaskComponent(
+    super::runtime_residual::PreparedBoundedCodeMaskComponent,
+);
+
+impl PreparedBoundedCodeMaskComponent {
+    pub fn body_dfa(&self) -> &DFA {
+        self.0.body_dfa()
+    }
+
+    pub fn finish_for_vocab(
+        self,
+        vocab: &Vocab,
+        max_token_len: usize,
+        repeat_horizons: &VocabularyRepeatHorizonCache,
+    ) -> Option<(DFA, u32)> {
+        self.0
+            .finish_for_vocab(vocab, max_token_len, repeat_horizons)
+    }
+}
+
+#[doc(hidden)]
+pub fn prepare_bounded_code_mask_component(
+    expr: &Expr,
+) -> Option<PreparedBoundedCodeMaskComponent> {
+    super::runtime_residual::prepare_bounded_code_mask_component(expr)
+        .map(PreparedBoundedCodeMaskComponent)
+}
+
 impl VocabularyRepeatHorizonCache {
     pub fn new() -> Self {
         Self::default()
@@ -199,6 +228,30 @@ impl VocabularyRepeatHorizonCache {
             return None;
         }
         self.horizon_for_dfa(&compile_expr_to_dfa(body), vocab)
+    }
+
+    /// Warm this cache once per distinct repeat-body language before callers
+    /// launch sibling component work. Deduplicating first avoids the deliberate
+    /// duplicate cold-miss policy in `horizon_for_dfa` without ever blocking a
+    /// Rayon worker on another worker's nested vocabulary scan.
+    pub fn prewarm_dfas<'a>(
+        &self,
+        bodies: impl IntoIterator<Item = &'a DFA>,
+        vocab: &Vocab,
+    ) {
+        let mut unique = FxHashMap::<RepeatBodyLanguageKey, &'a DFA>::default();
+        for body in bodies {
+            unique
+                .entry(RepeatBodyLanguageKey::from_dfa(body))
+                .or_insert(body);
+        }
+        unique
+            .into_values()
+            .collect::<Vec<_>>()
+            .into_par_iter()
+            .for_each(|body| {
+                let _ = self.horizon_for_dfa(body, vocab);
+            });
     }
 }
 
@@ -5050,7 +5103,6 @@ pub fn build_partitioned_tokenizer_with_product_trace_terminal_residuals(
     if let Some(shared_duplicates) = &shared_duplicates {
         prewarm_shared_duplicate_nested_group_ops(shared_duplicates);
     }
-
     struct TracedComponent {
         terminal_ids: Vec<usize>,
         dfa: Arc<DFA>,

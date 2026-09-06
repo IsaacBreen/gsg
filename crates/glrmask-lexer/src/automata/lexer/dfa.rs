@@ -747,6 +747,10 @@ impl DFA {
         id
     }
 
+    pub(super) fn reserve_additional_states(&mut self, additional: usize) {
+        self.states.reserve(additional);
+    }
+
     /// Extend the global group metadata without resizing existing state bitsets.
     /// Existing states keep identity group IDs in their current shorter bitsets;
     /// out-of-range membership queries are false. This is exact for immutable
@@ -907,6 +911,14 @@ impl DFA {
             }
             state
         };
+        if component.states.len() < 4096 {
+            // The sequential path does not need an intermediate state vector:
+            // the iterator has an exact size, so `Vec::extend` reserves once
+            // and writes the cloned/rebased states directly into the parent.
+            self.states.reserve(component.states.len());
+            self.states.extend(component.states.iter().map(clone_rebased));
+            return offset;
+        }
         let appended = if component.states.len() >= 4096
             && rayon::current_num_threads() > 1
             && std::env::var_os("GLRMASK_SERIAL_APPEND_REBASE").is_none()

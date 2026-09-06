@@ -1631,6 +1631,15 @@ impl BoundedCodeIntersectionOracle {
         coordinate: BoundedCodeOracleCoordinate,
         byte: u8,
     ) -> Option<BoundedCodeOracleCoordinate> {
+        self.step_coordinate_with_max(coordinate, byte, self.max)
+    }
+
+    fn step_coordinate_with_max(
+        &self,
+        coordinate: BoundedCodeOracleCoordinate,
+        byte: u8,
+        max: usize,
+    ) -> Option<BoundedCodeOracleCoordinate> {
         let pattern_state = self.pattern.step(coordinate.pattern_state, byte)?;
         let envelope = match coordinate.envelope {
             BoundedCodeEnvelopeState::Prefix { next } => {
@@ -1660,7 +1669,7 @@ impl BoundedCodeIntersectionOracle {
                         BoundedCodeEnvelopeState::Suffix { next: 1 }
                     }
                 } else {
-                    if completed >= self.max {
+                    if completed >= max {
                         return None;
                     }
                     let target = self.body.step(body_state, byte)?;
@@ -1753,25 +1762,84 @@ pub(crate) fn build_bounded_code_mask_component_for_vocab(
     max_token_len: usize,
     repeat_horizons: &VocabularyRepeatHorizonCache,
 ) -> Option<(DFA, u32)> {
-    let oracle = BoundedCodeIntersectionOracle::from_expr(expr)?;
-    let crossed_boundaries = repeat_horizons
-        .horizon_for_dfa(oracle.body.as_ref(), vocab)
-        .unwrap_or_else(|| {
-            let minimum_body_width = oracle.body.min_match_byte_len().unwrap_or(1).max(1);
-            max_token_len
-                .div_ceil(minimum_body_width)
-                .saturating_add(1)
-        });
-    if oracle.min > crossed_boundaries.saturating_add(1) {
-        return None;
+    prepare_bounded_code_mask_component(expr)?.finish_for_vocab(
+        vocab,
+        max_token_len,
+        repeat_horizons,
+    )
+}
+
+pub(crate) struct PreparedBoundedCodeMaskComponent {
+    oracle: BoundedCodeIntersectionOracle,
+}
+
+impl PreparedBoundedCodeMaskComponent {
+    pub(crate) fn body_dfa(&self) -> &DFA {
+        self.oracle.body.as_ref()
     }
-    let desired_mask_max = oracle
-        .min
-        .checked_add(crossed_boundaries)?
-        .checked_add(1)?;
-    let mask_max = oracle.max.min(desired_mask_max);
-    let (dfa, root, _dense_to_mask) = oracle.finite_mask_dfa(mask_max)?;
-    Some((dfa, root))
+
+    pub(crate) fn finish_for_vocab(
+        self,
+        vocab: &Vocab,
+        max_token_len: usize,
+        repeat_horizons: &VocabularyRepeatHorizonCache,
+    ) -> Option<(DFA, u32)> {
+        let profile = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
+        let total_started = std::time::Instant::now();
+        let oracle = self.oracle;
+        let horizon_started = std::time::Instant::now();
+        let crossed_boundaries = repeat_horizons
+            .horizon_for_dfa(oracle.body.as_ref(), vocab)
+            .unwrap_or_else(|| {
+                let minimum_body_width = oracle.body.min_match_byte_len().unwrap_or(1).max(1);
+                max_token_len
+                    .div_ceil(minimum_body_width)
+                    .saturating_add(1)
+            });
+        let horizon_ms = horizon_started.elapsed().as_secs_f64() * 1000.0;
+        if oracle.min > crossed_boundaries.saturating_add(1) {
+            return None;
+        }
+        let desired_mask_max = oracle
+            .min
+            .checked_add(crossed_boundaries)?
+            .checked_add(1)?;
+        let mask_max = oracle.max.min(desired_mask_max);
+        let finite_started = std::time::Instant::now();
+        let (dfa, root, _dense_to_mask) = oracle.finite_mask_dfa(mask_max)?;
+        let finite_ms = finite_started.elapsed().as_secs_f64() * 1000.0;
+        if profile {
+            eprintln!(
+                "[glrmask/profile][bounded_code_mask_component] oracle_ms=0.000 horizon_ms={horizon_ms:.3} finite_ms={finite_ms:.3} body_states={} pattern_states={} min={} max={} mask_max={} total_ms={:.3}",
+                oracle.body.num_states(),
+                oracle.pattern.num_states(),
+                oracle.min,
+                oracle.max,
+                mask_max,
+                total_started.elapsed().as_secs_f64() * 1000.0,
+            );
+        }
+        Some((dfa, root))
+    }
+}
+
+pub(crate) fn prepare_bounded_code_mask_component(
+    expr: &Expr,
+) -> Option<PreparedBoundedCodeMaskComponent> {
+    let profile = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
+    let oracle_started = std::time::Instant::now();
+    let oracle = BoundedCodeIntersectionOracle::from_expr(expr)?;
+    let oracle_ms = oracle_started.elapsed().as_secs_f64() * 1000.0;
+    if profile {
+        eprintln!(
+            "[glrmask/profile][bounded_code_mask_prepare] oracle_ms={oracle_ms:.3} body_states={} pattern_states={} min={} max={}",
+            oracle.body.num_states(),
+            oracle.pattern.num_states(),
+            oracle.min,
+            oracle.max,
+        );
+    }
+    Some(PreparedBoundedCodeMaskComponent { oracle })
 }
 
 
@@ -2052,24 +2120,11 @@ impl BoundedCodeIntersectionOracle {
         if dense_state_count == 0 || dense_state_count > MAX_FINITE_MASK_DENSE_STATES {
             return None;
         }
-        let mask_oracle = BoundedCodeIntersectionOracle {
-            pattern: Arc::clone(&self.pattern),
-            body: Arc::clone(&self.body),
-            body_productive: self.body_productive.clone(),
-            prefix: Arc::clone(&self.prefix),
-            suffix: Arc::clone(&self.suffix),
-            min: self.min,
-            max: mask_max,
-            suffix_accepting: self.suffix_accepting.clone(),
-            completion_relations: self.completion_relations.clone(),
-            exact_powers: self.exact_powers.clone(),
-            prefix_sums: self.prefix_sums.clone(),
-        };
         let byte_classes = bounded_code_byte_classes(
-            &mask_oracle.pattern,
-            &mask_oracle.body,
-            &mask_oracle.prefix,
-            &mask_oracle.suffix,
+            &self.pattern,
+            &self.body,
+            &self.prefix,
+            &self.suffix,
         );
 
         // The finite envelope deliberately identifies the huge exact count
@@ -2131,7 +2186,7 @@ impl BoundedCodeIntersectionOracle {
         let mut coordinates = Vec::<BoundedCodeOracleCoordinate>::new();
         let mut seed_count = 0usize;
         let mut add_seed = |coordinate: BoundedCodeOracleCoordinate| -> Option<()> {
-            let dense = mask_oracle.coordinate_local_state(coordinate, mask_max)? as usize;
+            let dense = self.coordinate_local_state(coordinate, mask_max)? as usize;
             if dense_to_sparse[dense] == u32::MAX {
                 dense_to_sparse[dense] = u32::try_from(coordinates.len()).ok()?;
                 coordinates.push(coordinate);
@@ -2139,7 +2194,7 @@ impl BoundedCodeIntersectionOracle {
             }
             Some(())
         };
-        add_seed(mask_oracle.root_coordinate())?;
+        add_seed(self.root_coordinate())?;
         for (mapped_completed, states) in boundary_classes {
             for pattern_state in states.iter_ones() {
                 add_seed(BoundedCodeOracleCoordinate {
@@ -2170,13 +2225,13 @@ impl BoundedCodeIntersectionOracle {
                 .par_iter()
                 .map(|&coordinate| {
                     let accepting = matches!(coordinate.envelope, BoundedCodeEnvelopeState::Done)
-                        && !mask_oracle.pattern.finalizers(coordinate.pattern_state).is_empty();
+                        && !self.pattern.finalizers(coordinate.pattern_state).is_empty();
                     let transitions = byte_classes
                         .iter()
                         .enumerate()
                         .filter_map(|(class, members)| {
-                            let next = mask_oracle.step_coordinate(coordinate, members[0])?;
-                            let dense = mask_oracle.coordinate_local_state(next, mask_max)? as usize;
+                            let next = self.step_coordinate_with_max(coordinate, members[0], mask_max)?;
+                            let dense = self.coordinate_local_state(next, mask_max)? as usize;
                             Some((class as u8, next, dense))
                         })
                         .collect::<Vec<_>>();
@@ -2212,8 +2267,8 @@ impl BoundedCodeIntersectionOracle {
         let expand_ms = expand_started.elapsed().as_secs_f64() * 1000.0;
 
         let sparse_state_count = dfa.num_states();
-        let root_dense = mask_oracle
-            .coordinate_local_state(mask_oracle.root_coordinate(), mask_max)? as usize;
+        let root_dense = self.coordinate_local_state(self.root_coordinate(), mask_max)? as usize;
+
         let root_sparse = dense_to_sparse[root_dense];
         if root_sparse == u32::MAX {
             return None;

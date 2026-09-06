@@ -179,6 +179,27 @@ fn lower_factored_named_grammar(
     Ok(grammar?)
 }
 
+fn lower_json_schema_for_vocab_partition(source: &str) -> crate::Result<GrammarDef> {
+    let lower_started_at = emit_import_phase_start("lower_factored_named_grammar");
+    let parse_named_started_at = emit_import_phase_start("parse_named");
+    let named = parse_json_schema_to_named_dynamic(source)?;
+    emit_import_phase_end("parse_named", parse_named_started_at);
+
+    let factor_started_at = emit_import_phase_start("factor_named_grammar");
+    let mut factored = factor_named_grammar(named);
+    emit_import_phase_end("factor_named_grammar", factor_started_at);
+
+    let transform_started_at = emit_import_phase_start("transform_named_grammar");
+    let resolved_terminal_exprs = json_schema::prepare_named_grammar_for_lowering(&mut factored)?;
+    emit_import_phase_end("transform_named_grammar", transform_started_at);
+
+    let ast_lower_started_at = emit_import_phase_start("ast_lower");
+    let grammar = ast::lower_with_resolved_terminal_exprs(&factored, resolved_terminal_exprs);
+    emit_import_phase_end("ast_lower", ast_lower_started_at);
+    emit_import_phase_end("lower_factored_named_grammar", lower_started_at);
+    Ok(grammar?)
+}
+
 
 pub(crate) fn lower_source_for_vocab_partition(
     source_kind: &str,
@@ -187,12 +208,8 @@ pub(crate) fn lower_source_for_vocab_partition(
     match source_kind {
         "ebnf" => lower_factored_named_grammar(source, parse_ebnf_to_named, None, &[]),
         "lark" => lower_factored_named_grammar(source, parse_lark_to_named, None, &[]),
-        "json_schema" => lower_factored_named_grammar(
-            source,
-            parse_json_schema_to_named_dynamic,
-            Some(prepare_json_schema_named),
-            &[],
-        ),
+        "json_schema" => lower_json_schema_for_vocab_partition(source),
+
         "glrm" => {
             let named = parse_glrm_with_external_terminal_bindings(source, &[])?;
             let factored = factor_named_grammar(named);
@@ -1457,6 +1474,43 @@ mod tests {
     fn accepts_bytes(constraint: &Constraint, bytes: &[u8]) -> bool {
         let mut state = constraint.start();
         state.commit_bytes(bytes).is_ok() && state.is_accepting()
+    }
+
+    #[test]
+    fn vocab_partition_json_seeded_ast_lower_matches_ordinary_lower() {
+        let schemas = [
+            r#"{"type":["null","boolean"]}"#,
+            r#"{
+                "type":"object",
+                "properties":{
+                    "code":{
+                        "type":"string",
+                        "pattern":"^[A-Z0-9]+$",
+                        "minLength":2,
+                        "maxLength":64
+                    }
+                },
+                "required":["code"],
+                "additionalProperties":false
+            }"#,
+        ];
+
+        for schema in schemas {
+            let named = parse_json_schema_to_named_dynamic(schema).unwrap();
+            let mut ordinary = factor_named_grammar(named.clone());
+            prepare_json_schema_named(&mut ordinary).unwrap();
+            let ordinary = ast::lower(&ordinary).unwrap();
+
+            let mut seeded = factor_named_grammar(named);
+            let resolved = json_schema::prepare_named_grammar_for_lowering(&mut seeded).unwrap();
+            let seeded = ast::lower_with_resolved_terminal_exprs(&seeded, resolved).unwrap();
+
+            assert_eq!(
+                bincode::serialize(&ordinary).unwrap(),
+                bincode::serialize(&seeded).unwrap(),
+                "seeded lowering changed GrammarDef for schema {schema}",
+            );
+        }
     }
 
     #[test]
