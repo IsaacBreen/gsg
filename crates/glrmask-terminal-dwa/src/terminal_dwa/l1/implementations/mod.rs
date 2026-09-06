@@ -1,4 +1,4 @@
-﻿//! Swappable L1 builders and exact cross-checking machinery.
+//! Swappable L1 builders and exact cross-checking machinery.
 //!
 //! Controls:
 //! - `GLRMASK_L1_IMPLEMENTATION=projected|quotient|auto|scalar|trie|bulk|dense|frontier`

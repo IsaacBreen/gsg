@@ -7,11 +7,12 @@
 //! one distinguished start state.
 
 use std::collections::{BTreeMap, VecDeque};
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::time::Instant;
 
 use rayon::prelude::*;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHasher};
 
 use super::{BuildInput, LocalIdMapTerminalDwa, common};
 use crate::compiler::stages::equiv_types::ManyToOneIdMap;
@@ -271,6 +272,16 @@ fn build_direct_local_residual(
         }
     }
 
+    let large_dfa = dfa.transition_count() >= 500_000;
+    let row_capacity = if large_dfa && dfa.num_states() != 0 {
+        let average_source_edges = dfa.transition_count().div_ceil(dfa.num_states());
+        average_source_edges
+            .saturating_mul(bytes.len())
+            .div_ceil(256)
+            .max(1)
+    } else {
+        0
+    };
     let mut live_transitions = vec![Vec::<(u8, u32)>::new(); live_count as usize];
     for state in 0..dfa.num_states() as u32 {
         let source = original_to_live[state as usize];
@@ -278,6 +289,9 @@ fn build_direct_local_residual(
             continue;
         }
         let row = &mut live_transitions[source as usize];
+        if row_capacity != 0 {
+            row.reserve(row_capacity);
+        }
         for (byte, target_state) in dfa.transitions(state) {
             let symbol = symbol_for_representative[byte as usize];
             if symbol == u8::MAX {
@@ -490,23 +504,28 @@ fn build_direct_terminal_residual_machine_with_coordinates<'a>(
         let mut configs = Vec::<(u32, ConfigStates)>::new();
         let mut transitions = Vec::<Vec<(u8, u32)>>::new();
         let mut state_maps = vec![None::<Vec<u32>>; input.active_terminals.len()];
-        for (group, (&terminal, local)) in terminals.iter().zip(&locals).enumerate() {
+        for (group, (&terminal, local)) in terminals.iter().zip(locals).enumerate() {
             let base = configs.len() as u32;
-            let map = local
-                .original_to_local
-                .iter()
-                .map(|&state| if state == DEAD { DEAD } else { base + state })
+            let DirectLocalResidual {
+                original_to_local,
+                transitions: mut local_transitions,
+                elapsed_ms: _,
+            } = local;
+            let map = original_to_local
+                .into_iter()
+                .map(|state| if state == DEAD { DEAD } else { base + state })
                 .collect::<Vec<_>>();
             state_maps[terminal as usize] = Some(map);
             configs.extend(
-                (0..local.transitions.len())
+                (0..local_transitions.len())
                     .map(|state| (group as u32, ConfigStates::One(state as u32))),
             );
-            transitions.extend(local.transitions.iter().map(|row| {
-                row.iter()
-                    .map(|&(symbol, target)| (symbol, base + target))
-                    .collect::<Vec<_>>()
-            }));
+            for row in &mut local_transitions {
+                for (_, target) in row {
+                    *target += base;
+                }
+            }
+            transitions.extend(local_transitions);
         }
         (
             configs,
@@ -521,11 +540,15 @@ fn build_direct_terminal_residual_machine_with_coordinates<'a>(
     let singleton_closures = input.tokenizer.all_singleton_epsilon_closures();
     let mut root_closure_states = 0usize;
     let mut root_memberships = 0usize;
-    let mut root_rows = Vec::with_capacity(input.tokenizer.num_states() as usize);
+    let raw_states = input.tokenizer.num_states() as usize;
+    let mut root_offsets = Vec::with_capacity(raw_states + 1);
+    let mut root_entries = Vec::<(u32, u32)>::with_capacity(raw_states);
+    let mut row = Vec::<(u32, u32)>::new();
+    root_offsets.push(0);
     for raw in 0..input.tokenizer.num_states() {
         let closure = &singleton_closures[raw as usize];
         root_closure_states += closure.len();
-        let mut row = Vec::<(u32, u32)>::new();
+        row.clear();
         for &closure_state in closure.iter() {
             for &(terminal, residual_state) in coordinates.row(closure_state)? {
                 let terminal = terminal as usize;
@@ -555,7 +578,8 @@ fn build_direct_terminal_residual_machine_with_coordinates<'a>(
             }
         }
         row.sort_unstable_by_key(|&(group, _)| group);
-        root_rows.push(row);
+        root_entries.extend_from_slice(&row);
+        root_offsets.push(root_entries.len() as u32);
     }
     let roots_ms = roots_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
 
@@ -578,7 +602,10 @@ fn build_direct_terminal_residual_machine_with_coordinates<'a>(
         root_closure_states,
         root_memberships,
     };
-    let roots = SparseRoots::from_rows(root_rows);
+    let roots = SparseRoots {
+        offsets: root_offsets.into_boxed_slice(),
+        entries: root_entries,
+    };
     if profile {
         eprintln!(
             "[glrmask/profile][l1_direct_construct] partition={} terminals={} states={} edges={} root_memberships={} local_minimize={} local_total_work_ms={:.3} local_max_ms={:.3} index_ms={:.3} edges_ms={:.3} roots_ms={:.3} finish_ms={:.3} total_ms={:.3}",
@@ -922,63 +949,161 @@ fn minimize_seeded_symbol_target_csr(
         .max()
         .map_or(0usize, |value| value as usize + 1);
     let mut blocks = vec![Vec::<u32>::new(); block_count.max(usize::from(live != 0))];
+    let mut position_in_block = vec![0u32; live];
     for (state, &block) in class.iter().enumerate() {
+        position_in_block[state] = blocks[block as usize].len() as u32;
         blocks[block as usize].push(state as u32);
     }
 
     let reverse_started = profile.then(Instant::now);
-    let cells = alphabet.len().saturating_mul(live);
-    let mut counts = vec![0u32; cells];
+    let symbols = alphabet.len();
+    debug_assert!(symbols <= 256);
+    let cells = symbols.saturating_mul(live);
+    let target_symbol_words = symbols.div_ceil(64);
+    let mut target_symbol_bits = vec![0u64; live.saturating_mul(target_symbol_words)];
     for row in transitions {
         for &(symbol, target) in row {
-            counts[symbol as usize * live + target as usize] += 1;
+            if target_symbol_words != 0 {
+                let word = symbol as usize / 64;
+                let bit = symbol as usize % 64;
+                target_symbol_bits[target as usize * target_symbol_words + word] |= 1u64 << bit;
+            }
         }
     }
-    let mut offsets = vec![0u32; cells + 1];
-    for cell in 0..cells {
-        offsets[cell + 1] = offsets[cell] + counts[cell];
+    // Keep one compact rank byte per `(symbol, target)` cell, but store counts
+    // and predecessor offsets only for non-empty cells. This preserves O(1)
+    // splitter lookup while avoiding several dense u32 arrays of
+    // `alphabet.len() * live` entries.
+    let mut target_symbol_counts = vec![0u32; live];
+    for target in 0..live {
+        let start = target * target_symbol_words;
+        let end = start + target_symbol_words;
+        target_symbol_counts[target] = target_symbol_bits[start..end]
+            .iter()
+            .map(|word| word.count_ones())
+            .sum();
     }
-    let mut next = offsets[..cells].to_vec();
-    let mut predecessors = vec![0u32; offsets[cells] as usize];
+    let mut target_symbol_offsets = vec![0u32; live + 1];
+    for target in 0..live {
+        target_symbol_offsets[target + 1] =
+            target_symbol_offsets[target] + target_symbol_counts[target];
+    }
+    let mut target_symbols = vec![(0u8, 0u32); target_symbol_offsets[live] as usize];
+    // Rank among the non-empty symbols for this target. With fewer than 256
+    // symbols, rank 255 is free as an absent sentinel, so the refinement hot
+    // loop can avoid a separate presence-bit lookup. A full 256-symbol
+    // alphabet can legitimately use rank 255 and therefore retains the exact
+    // `target_symbol_bits` presence check.
+    let mut pair_rank = vec![u8::MAX; cells];
+    for target in 0..live {
+        let bits_start = target * target_symbol_words;
+        let mut rank = 0usize;
+        for word_index in 0..target_symbol_words {
+            let mut bits = target_symbol_bits[bits_start + word_index];
+            while bits != 0 {
+                let bit = bits.trailing_zeros() as usize;
+                let symbol = word_index * 64 + bit;
+                debug_assert!(symbol < symbols);
+                debug_assert!(rank <= u8::MAX as usize);
+                let pair = target_symbol_offsets[target] as usize + rank;
+                target_symbols[pair].0 = symbol as u8;
+                pair_rank[symbol * live + target] = rank as u8;
+                rank += 1;
+                bits &= bits - 1;
+            }
+        }
+        debug_assert_eq!(rank, target_symbol_counts[target] as usize);
+    }
+    for row in transitions {
+        for &(symbol, target) in row {
+            let rank = pair_rank[symbol as usize * live + target as usize];
+            let pair = target_symbol_offsets[target as usize] as usize + rank as usize;
+            target_symbols[pair].1 += 1;
+        }
+    }
+    let pair_count = target_symbols.len();
+    let mut predecessor_offsets = vec![0u32; pair_count + 1];
+    for (pair, &(_, count)) in target_symbols.iter().enumerate() {
+        predecessor_offsets[pair + 1] = predecessor_offsets[pair] + count;
+    }
+    let mut next = predecessor_offsets[..pair_count].to_vec();
+    let mut predecessors = vec![0u32; predecessor_offsets[pair_count] as usize];
     for (source, row) in transitions.iter().enumerate() {
         for &(symbol, target) in row {
-            let cell = symbol as usize * live + target as usize;
-            let slot = &mut next[cell];
+            let rank = pair_rank[symbol as usize * live + target as usize];
+            let pair = target_symbol_offsets[target as usize] as usize + rank as usize;
+            let slot = &mut next[pair];
             predecessors[*slot as usize] = source as u32;
             *slot += 1;
         }
     }
+    drop(next);
+    drop(target_symbol_counts);
+    let target_symbol_bits = (symbols == 256).then_some(target_symbol_bits);
     let reverse_ms = reverse_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
 
-    let mut block_incoming = vec![vec![0u32; alphabet.len()].into_boxed_slice(); blocks.len()];
+    // There can be at most `live` blocks. Keep their per-symbol incoming counts
+    // contiguous so splits append one zeroed row instead of allocating and
+    // boxing a fresh row ~once per final equivalence class.
+    let mut block_incoming = Vec::<u32>::with_capacity(live.saturating_mul(symbols));
+    block_incoming.resize(blocks.len().saturating_mul(symbols), 0);
     for row in transitions {
         for &(symbol, target) in row {
-            block_incoming[class[target as usize] as usize][symbol as usize] += 1;
+            let block = class[target as usize] as usize;
+            block_incoming[block * symbols + symbol as usize] += 1;
         }
     }
-    let mut queue = VecDeque::<(u32, usize)>::new();
-    let mut queued = vec![vec![0u8; alphabet.len()].into_boxed_slice(); blocks.len()];
+    // A `(u32, usize)` queue entry occupies 16 bytes on 64-bit targets. The
+    // symbol fits in one byte, so pack it into the low byte of a u64 and keep
+    // the block ID in the upper bits. FIFO order and refinement semantics are
+    // unchanged while large worklists move half as many bytes.
+    let mut queue = VecDeque::<u64>::new();
+    // Input symbols are u8-valued, so four words cover every possible symbol.
+    // Inline masks avoid one allocation per block and make queue membership a
+    // compact bit test instead of a pointer-chasing byte lookup.
+    let mut queued = vec![[0u64; 4]; blocks.len()];
     for block in 0..blocks.len() {
-        for symbol in 0..alphabet.len() {
-            if block_incoming[block][symbol] != 0 {
-                queue.push_back((block as u32, symbol));
-                queued[block][symbol] = 1;
+        for symbol in 0..symbols {
+            if block_incoming[block * symbols + symbol] != 0 {
+                queue.push_back(((block as u64) << 8) | symbol as u64);
+                queued[block][symbol / 64] |= 1u64 << (symbol % 64);
             }
         }
     }
-    let mut marked = vec![false; live];
     let mut affected_members = vec![Vec::<u32>::new(); blocks.len()];
     let mut affected_blocks = Vec::<u32>::new();
+    let mut affected_mark = vec![false; live];
     let mut pops = 0usize;
 
     let refine_started = profile.then(Instant::now);
-    while let Some((splitter, symbol)) = queue.pop_front() {
-        queued[splitter as usize][symbol] = 0;
+    while let Some(work) = queue.pop_front() {
+        let splitter = (work >> 8) as u32;
+        let symbol = (work & 0xff) as usize;
+        queued[splitter as usize][symbol / 64] &= !(1u64 << (symbol % 64));
         pops += 1;
         for &target in &blocks[splitter as usize] {
             let cell = symbol * live + target as usize;
-            let start = offsets[cell] as usize;
-            let end = offsets[cell + 1] as usize;
+            let rank = if symbols < 256 {
+                let rank = pair_rank[cell];
+                if rank == u8::MAX {
+                    continue;
+                }
+                rank
+            } else {
+                let word = symbol / 64;
+                let bit = 1u64 << (symbol % 64);
+                if target_symbol_bits.as_ref().expect("full alphabet presence bits")
+                    [target as usize * target_symbol_words + word]
+                    & bit
+                    == 0
+                {
+                    continue;
+                }
+                pair_rank[cell]
+            };
+            let pair = target_symbol_offsets[target as usize] as usize + rank as usize;
+            let start = predecessor_offsets[pair] as usize;
+            let end = predecessor_offsets[pair + 1] as usize;
             for &source in &predecessors[start..end] {
                 let block = class[source as usize];
                 let members = &mut affected_members[block as usize];
@@ -996,52 +1121,97 @@ fn minimize_seeded_symbol_target_csr(
                 affected_members[block_id] = sources;
                 continue;
             }
-            for &source in &sources {
-                marked[source as usize] = true;
-            }
-            let old = std::mem::take(&mut blocks[block_id]);
-            let mut inside = Vec::with_capacity(sources.len());
-            let mut outside = Vec::with_capacity(old.len() - sources.len());
-            for state in old {
-                if marked[state as usize] {
-                    inside.push(state);
-                } else {
-                    outside.push(state);
-                }
-            }
-            for &source in &sources {
-                marked[source as usize] = false;
-            }
-            blocks[block_id] = outside;
             let new_id = blocks.len();
-            for &state in &inside {
-                class[state as usize] = new_id as u32;
+            // For one fixed input symbol a deterministic DFA has at most one
+            // outgoing edge per source, so `sources` contains no duplicates.
+            if sources.len() <= blocks[block_id].len() - sources.len() {
+                // The affected side is the smaller half. Remove just those
+                // states from the old block; this is cheaper than rescanning
+                // the whole block to materialize its complement.
+                let mut inside = Vec::with_capacity(sources.len());
+                for &source in &sources {
+                    let source = source as usize;
+                    let position = position_in_block[source] as usize;
+                    debug_assert_eq!(blocks[block_id][position] as usize, source);
+                    let removed = blocks[block_id].swap_remove(position);
+                    debug_assert_eq!(removed as usize, source);
+                    if position < blocks[block_id].len() {
+                        let moved = blocks[block_id][position] as usize;
+                        position_in_block[moved] = position as u32;
+                    }
+                    position_in_block[source] = inside.len() as u32;
+                    class[source] = new_id as u32;
+                    inside.push(source as u32);
+                }
+                blocks.push(inside);
+                sources.clear();
+                affected_members[block_id] = sources;
+            } else {
+                // The affected side is the larger half. Keep it under the old
+                // block id and move the smaller complement instead. `sources`
+                // already materializes the whole affected side, so replace the
+                // old block with it directly and recycle the old block buffer
+                // as this block's predecessor scratch.
+                for &source in &sources {
+                    affected_mark[source as usize] = true;
+                }
+                let mut old_block = std::mem::take(&mut blocks[block_id]);
+                let mut complement = Vec::with_capacity(old_block.len() - sources.len());
+                for &state in &old_block {
+                    if !affected_mark[state as usize] {
+                        complement.push(state);
+                    }
+                }
+                debug_assert_eq!(complement.len() + sources.len(), old_block.len());
+                for (position, &source) in sources.iter().enumerate() {
+                    let source = source as usize;
+                    debug_assert_eq!(class[source] as usize, block_id);
+                    affected_mark[source] = false;
+                    position_in_block[source] = position as u32;
+                }
+                for (position, &state) in complement.iter().enumerate() {
+                    let state = state as usize;
+                    class[state] = new_id as u32;
+                    position_in_block[state] = position as u32;
+                }
+                blocks[block_id] = sources;
+                blocks.push(complement);
+                old_block.clear();
+                affected_members[block_id] = old_block;
             }
-            blocks.push(inside);
 
-            let mut inside_incoming = vec![0u32; alphabet.len()];
+            block_incoming.resize((new_id + 1).saturating_mul(symbols), 0);
+            let new_base = new_id * symbols;
+            let old_base = block_id * symbols;
+            let mut touched = [0u64; 4];
             for &state in &blocks[new_id] {
-                for symbol in 0..alphabet.len() {
-                    let cell = symbol * live + state as usize;
-                    inside_incoming[symbol] += offsets[cell + 1] - offsets[cell];
+                let start = target_symbol_offsets[state as usize] as usize;
+                let end = target_symbol_offsets[state as usize + 1] as usize;
+                for &(symbol, count) in &target_symbols[start..end] {
+                    let symbol = symbol as usize;
+                    block_incoming[new_base + symbol] += count;
+                    touched[symbol / 64] |= 1u64 << (symbol % 64);
                 }
             }
-            let mut outside_incoming = std::mem::take(&mut block_incoming[block_id]).into_vec();
-            for symbol in 0..alphabet.len() {
-                outside_incoming[symbol] -= inside_incoming[symbol];
+            for (word_index, &word) in touched.iter().enumerate() {
+                let mut bits = word;
+                while bits != 0 {
+                    let bit = bits.trailing_zeros() as usize;
+                    let symbol = word_index * 64 + bit;
+                    block_incoming[old_base + symbol] -= block_incoming[new_base + symbol];
+                    bits &= bits - 1;
+                }
             }
-            block_incoming[block_id] = outside_incoming.into_boxed_slice();
-            block_incoming.push(inside_incoming.into_boxed_slice());
-            sources.clear();
-            affected_members[block_id] = sources;
-            queued.push(vec![0u8; alphabet.len()].into_boxed_slice());
+            queued.push([0u64; 4]);
             affected_members.push(Vec::new());
 
-            for other_symbol in 0..alphabet.len() {
-                if queued[block_id][other_symbol] != 0 {
-                    if block_incoming[new_id][other_symbol] != 0 {
-                        queue.push_back((new_id as u32, other_symbol));
-                        queued[new_id][other_symbol] = 1;
+            for other_symbol in 0..symbols {
+                let word = other_symbol / 64;
+                let bit = 1u64 << (other_symbol % 64);
+                if queued[block_id][word] & bit != 0 {
+                    if block_incoming[new_base + other_symbol] != 0 {
+                        queue.push_back(((new_id as u64) << 8) | other_symbol as u64);
+                        queued[new_id][word] |= bit;
                     }
                 } else {
                     let smaller = if blocks[block_id].len() <= blocks[new_id].len() {
@@ -1049,11 +1219,11 @@ fn minimize_seeded_symbol_target_csr(
                     } else {
                         new_id
                     };
-                    if block_incoming[smaller][other_symbol] != 0
-                        && queued[smaller][other_symbol] == 0
+                    if block_incoming[smaller * symbols + other_symbol] != 0
+                        && queued[smaller][word] & bit == 0
                     {
-                        queue.push_back((smaller as u32, other_symbol));
-                        queued[smaller][other_symbol] = 1;
+                        queue.push_back(((smaller as u64) << 8) | other_symbol as u64);
+                        queued[smaller][word] |= bit;
                     }
                 }
             }
@@ -2019,6 +2189,8 @@ struct ReverseColumn {
     offsets: Box<[u32]>,
     sources: Box<[u32]>,
     live_sources: Box<[u64]>,
+    live_targets: Box<[u64]>,
+    live_target_count: usize,
 }
 
 struct ReverseSubsets<'a> {
@@ -2026,8 +2198,13 @@ struct ReverseSubsets<'a> {
     forward_columns: &'a [Box<[u32]>],
     byte_class: &'a [u8; 256],
     state_count: usize,
-    sets: Vec<Box<[u64]>>,
-    ids: FxHashMap<Vec<u64>, u32>,
+    sets: Vec<Arc<[u64]>>,
+    // The subset itself can be tens of kilobytes. Hash it exactly once, then
+    // key the table by that compact fingerprint. Any fingerprint collision is
+    // resolved by exact slice comparison against `sets`, so this is still a
+    // fully exact interner rather than a probabilistic shortcut.
+    ids: FxHashMap<u64, u32>,
+    id_collisions: FxHashMap<u64, Vec<u32>>,
     cache: Vec<u32>,
     symbol_count: usize,
     computed_transitions: usize,
@@ -2051,17 +2228,21 @@ impl<'a> ReverseSubsets<'a> {
                 *last = (1u64 << remainder) - 1;
             }
         }
-        let reverse_columns: Vec<ReverseColumn> = columns
-            .iter()
-            .map(|column| {
+        let build_column = |column: &Box<[u32]>| {
                 let mut counts = vec![0u32; state_count];
                 let mut live_sources = vec![0u64; words];
+                let mut live_targets = vec![0u64; words];
                 for (source, &target) in column.iter().enumerate() {
                     if target != DEAD {
                         counts[target as usize] += 1;
                         live_sources[source / 64] |= 1u64 << (source % 64);
+                        live_targets[target as usize / 64] |= 1u64 << (target as usize % 64);
                     }
                 }
+                let live_target_count = live_targets
+                    .iter()
+                    .map(|word| word.count_ones() as usize)
+                    .sum();
                 let mut offsets = vec![0u32; state_count + 1];
                 for target in 0..state_count {
                     offsets[target + 1] = offsets[target] + counts[target];
@@ -2079,9 +2260,11 @@ impl<'a> ReverseSubsets<'a> {
                     offsets: offsets.into_boxed_slice(),
                     sources: sources.into_boxed_slice(),
                     live_sources: live_sources.into_boxed_slice(),
+                    live_targets: live_targets.into_boxed_slice(),
+                    live_target_count,
                 }
-            })
-            .collect();
+            };
+        let reverse_columns: Vec<ReverseColumn> = columns.iter().map(build_column).collect();
         let symbol_count = reverse_columns.len();
         let mut result = Self {
             columns: reverse_columns,
@@ -2090,6 +2273,7 @@ impl<'a> ReverseSubsets<'a> {
             state_count,
             sets: Vec::new(),
             ids: FxHashMap::default(),
+            id_collisions: FxHashMap::default(),
             cache: Vec::new(),
             symbol_count,
             computed_transitions: 0,
@@ -2102,13 +2286,39 @@ impl<'a> ReverseSubsets<'a> {
         result
     }
 
+    #[inline]
+    fn subset_hash(set: &[u64]) -> u64 {
+        let mut hasher = FxHasher::default();
+        set.hash(&mut hasher);
+        hasher.finish()
+    }
+
     fn intern(&mut self, set: Vec<u64>) -> u32 {
-        if let Some(&id) = self.ids.get(&set) {
-            return id;
+        let hash = Self::subset_hash(&set);
+        self.intern_hashed(set, hash)
+    }
+
+    fn intern_hashed(&mut self, set: Vec<u64>, hash: u64) -> u32 {
+        if let Some(&id) = self.ids.get(&hash) {
+            if self.sets[id as usize].as_ref() == set.as_slice() {
+                return id;
+            }
+            if let Some(collisions) = self.id_collisions.get(&hash) {
+                for &collision_id in collisions {
+                    if self.sets[collision_id as usize].as_ref() == set.as_slice() {
+                        return collision_id;
+                    }
+                }
+            }
         }
         let id = self.sets.len() as u32;
-        self.ids.insert(set.clone(), id);
-        self.sets.push(set.into_boxed_slice());
+        let set: Arc<[u64]> = Arc::from(set.into_boxed_slice());
+        if self.ids.contains_key(&hash) {
+            self.id_collisions.entry(hash).or_default().push(id);
+        } else {
+            self.ids.insert(hash, id);
+        }
+        self.sets.push(set);
         self.cache
             .resize(self.cache.len() + self.symbol_count, UNKNOWN);
         id
@@ -2170,11 +2380,18 @@ impl<'a> ReverseSubsets<'a> {
             self.cache[cache_index] = target;
             return target;
         }
-        let included_targets = suffix_set.iter().map(|word| word.count_ones() as usize).sum::<usize>();
-        // Choosing by target cardinality avoids a separate degree-summing pass.
-        // In these deterministic columns total predecessor work is linear in
-        // sources, while the target scan was the dominant cost.
-        let use_included = included_targets <= self.state_count - included_targets;
+        // Only targets with at least one predecessor in this symbol column can
+        // affect the preimage. Count the suffix intersection with that sparse
+        // live-target set, then enumerate whichever side of the live targets is
+        // smaller. This preserves the exact preimage while avoiding visits to
+        // dead target rows and avoids choosing the wrong complement based on
+        // unrelated states that have no predecessor for this symbol.
+        let included_targets = suffix_set
+            .iter()
+            .zip(column.live_targets.iter())
+            .map(|(&set, &live)| (set & live).count_ones() as usize)
+            .sum::<usize>();
+        let use_included = included_targets <= column.live_target_count - included_targets;
         let mut predecessor = if use_included {
             vec![0u64; suffix_set.len()]
         } else {
@@ -2182,21 +2399,35 @@ impl<'a> ReverseSubsets<'a> {
         };
         let mut target_visits = 0usize;
         let mut predecessor_visits = 0usize;
-        Self::visit_targets(suffix_set, self.state_count, use_included, |target| {
-            target_visits += 1;
-            let start = column.offsets[target] as usize;
-            let end = column.offsets[target + 1] as usize;
-            predecessor_visits += end - start;
-            for &source in &column.sources[start..end] {
-                let word = &mut predecessor[source as usize / 64];
-                let bit = 1u64 << (source as usize % 64);
-                if use_included {
-                    *word |= bit;
-                } else {
-                    *word &= !bit;
+        for (word_index, (&set_word, &live_word)) in suffix_set
+            .iter()
+            .zip(column.live_targets.iter())
+            .enumerate()
+        {
+            let mut selected = if use_included {
+                set_word & live_word
+            } else {
+                !set_word & live_word
+            };
+            while selected != 0 {
+                let bit_index = selected.trailing_zeros() as usize;
+                let target = word_index * 64 + bit_index;
+                target_visits += 1;
+                let start = column.offsets[target] as usize;
+                let end = column.offsets[target + 1] as usize;
+                predecessor_visits += end - start;
+                for &source in &column.sources[start..end] {
+                    let word = &mut predecessor[source as usize / 64];
+                    let bit = 1u64 << (source as usize % 64);
+                    if use_included {
+                        *word |= bit;
+                    } else {
+                        *word &= !bit;
+                    }
                 }
+                selected &= selected - 1;
             }
-        });
+        }
         self.computed_transitions += 1;
         self.target_visits += target_visits;
         self.predecessor_visits += predecessor_visits;
@@ -2520,11 +2751,31 @@ struct FiniteVocabProjection {
     /// sorted reverse ID maps without per-grammar class sorting.
     original_order: Option<Box<[(u32, u32)]>>,
     tokens: Vec<Arc<[u8]>>,
+    /// Sorted byte alphabet appearing anywhere in `tokens`. This is a pure
+    /// vocabulary property and is reused by the residual kernel on every
+    /// grammar instead of rescanning all token bytes.
+    vocab_bytes: Box<[u8]>,
     trie: FiniteTrie,
     reverse_trie: Option<ReverseVocabTrie>,
 }
 
 impl crate::vocab::VocabDerivedArtifact for FiniteVocabProjection {}
+
+fn collect_vocab_bytes(tokens: &[Arc<[u8]>]) -> Box<[u8]> {
+    let mut relevant = [false; 256];
+    for token in tokens {
+        for &byte in token.iter() {
+            relevant[byte as usize] = true;
+        }
+    }
+    relevant
+        .iter()
+        .enumerate()
+        .filter_map(|(byte, &used)| used.then_some(byte as u8))
+        .collect::<Vec<_>>()
+        .into_boxed_slice()
+}
+
 
 fn small_prepared_vocab_enabled(input: BuildInput<'_>) -> bool {
     let max_tokenizer_states = std::env::var(
@@ -2649,6 +2900,17 @@ fn build_reverse_vocab_trie(tokens: &[Arc<[u8]>]) -> ReverseVocabTrie {
     }
 }
 
+fn reverse_vocab_trie_min_tokens() -> usize {
+    std::env::var("GLRMASK_L1_REVERSE_TRIE_MIN_TOKENS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        // Prepared p1/p4 vocabulary shards are already large enough for their
+        // shared suffixes to amortize the compact reverse trie.  Building the
+        // trie happens during vocabulary preparation, outside per-grammar
+        // compile latency, while the residual kernel reuses it on every build.
+        .unwrap_or(10_000)
+}
+
 fn build_finite_vocab_projection(vocab: &Vocab) -> Arc<FiniteVocabProjection> {
     if let Some(cached) = vocab.vocab_derived_cache_get::<FiniteVocabProjection>() {
         return cached;
@@ -2682,12 +2944,15 @@ fn build_finite_vocab_projection(vocab: &Vocab) -> Arc<FiniteVocabProjection> {
         })
         .collect::<Vec<_>>();
     original_order.sort_unstable_by_key(|&(original, _)| original);
+    let vocab_bytes = collect_vocab_bytes(&tokens);
     let trie = FiniteTrie::build(&tokens);
-    let reverse_trie = (tokens.len() >= 50_000).then(|| build_reverse_vocab_trie(&tokens));
+    let reverse_trie =
+        (tokens.len() >= reverse_vocab_trie_min_tokens()).then(|| build_reverse_vocab_trie(&tokens));
     let projection = Arc::new(FiniteVocabProjection {
         aliases,
         original_order: Some(original_order.into_boxed_slice()),
         tokens,
+        vocab_bytes,
         trie,
         reverse_trie,
     });
@@ -2725,13 +2990,16 @@ fn finite_vocab_projection(input: BuildInput<'_>) -> (Arc<FiniteVocabProjection>
         );
     }
     let (aliases, tokens) = unique_vocab(input);
+    let vocab_bytes = collect_vocab_bytes(&tokens);
     let trie = FiniteTrie::build(&tokens);
-    let reverse_trie = (tokens.len() >= 50_000).then(|| build_reverse_vocab_trie(&tokens));
+    let reverse_trie =
+        (tokens.len() >= reverse_vocab_trie_min_tokens()).then(|| build_reverse_vocab_trie(&tokens));
     (
         Arc::new(FiniteVocabProjection {
             aliases,
             original_order: None,
             tokens,
+            vocab_bytes,
             trie,
             reverse_trie,
         }),
@@ -3147,9 +3415,8 @@ fn finite_compact_runs(
     materialize_compact_rows: bool,
 ) -> (Vec<u32>, Vec<usize>, Vec<Vec<u32>>, usize, usize) {
     let mut rows = Vec::<Vec<ProfileRun>>::with_capacity(class_fingerprints.len());
-    let mut events = Vec::<FiniteRowEvent>::new();
     let mut referenced_runs = 0usize;
-    for (row_index, fingerprint) in class_fingerprints.iter().enumerate() {
+    for fingerprint in class_fingerprints {
         let mut row = Vec::<ProfileRun>::new();
         let mut offset = 0usize;
         if let Some(token) = root_token {
@@ -3163,18 +3430,6 @@ fn finite_compact_runs(
             }
         }
         referenced_runs += row.len();
-        for run in &row {
-            events.push(FiniteRowEvent {
-                position: run.start,
-                row: row_index as u32,
-                signature: run.signature,
-            });
-            events.push(FiniteRowEvent {
-                position: run.end,
-                row: row_index as u32,
-                signature: 0,
-            });
-        }
         rows.push(row);
     }
 
@@ -3204,11 +3459,14 @@ fn finite_compact_runs(
         let mut token_class = vec![0u32; token_count];
         let mut token_reps = Vec::<usize>::new();
         for (token, column) in columns.iter().enumerate() {
-            let next = token_reps.len() as u32;
-            let class = *class_ids.entry(column.clone()).or_insert_with(|| {
+            let class = if let Some(&class) = class_ids.get(column) {
+                class
+            } else {
+                let class = token_reps.len() as u32;
+                class_ids.insert(column.clone(), class);
                 token_reps.push(token);
-                next
-            });
+                class
+            };
             token_class[token] = class;
         }
         let mut compact_rows = Vec::new();
@@ -3225,19 +3483,35 @@ fn finite_compact_runs(
         return (token_class, token_reps, compact_rows, 0, referenced_runs);
     }
 
+    // Only the sweep paths consume boundary events.  Dense compaction above
+    // materializes the small matrix directly, so constructing two events for
+    // every run before knowing which path wins is pure allocation/fill work.
+    let mut events = Vec::<FiniteRowEvent>::with_capacity(referenced_runs.saturating_mul(2));
+    for (row_index, row) in rows.iter().enumerate() {
+        for run in row {
+            events.push(FiniteRowEvent {
+                position: run.start,
+                row: row_index as u32,
+                signature: run.signature,
+            });
+            events.push(FiniteRowEvent {
+                position: run.end,
+                row: row_index as u32,
+                signature: 0,
+            });
+        }
+    }
+
     let use_exact_fingerprint_sweep = std::env::var("GLRMASK_L1_FINITE_EXACT_FINGERPRINT_SWEEP")
         .map(|value| {
             let value = value.trim();
             value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
         })
-        // The full-vector fingerprint sweep is attractive when the caller also
-        // needs the compact state-class x token-class matrix: its verified
-        // class vectors are then reused directly. VocabPartition asks only for
-        // token classes, so retaining thousands of full column vectors becomes
-        // pure memory/copy work; the canonical persistent-tree sweep is faster
-        // for that mode. Preserve the historical default for ordinary Static
-        // callers and switch only the no-row-materialization path.
-        .unwrap_or(materialize_compact_rows);
+        // This is exact: the 128-bit fingerprint is only an index and every
+        // candidate reuse is verified against the complete column vector.
+        // Revalidation on the vocab-only path also makes it faster than the
+        // legacy persistent-tree sweep, so use the same default as Static.
+        .unwrap_or(true);
     if use_exact_fingerprint_sweep {
         // Event positions are vocabulary indices in a compact bounded domain.
         // Counting-sort them in O(events + tokens) instead of comparison-sorting
@@ -3684,11 +3958,14 @@ fn build_finite_projected_impl(
             for id in ids {
                 fingerprint.push(if id == usize::MAX { 0 } else { key_profile[id] });
             }
-            let next = class_fingerprints.len() as u32;
-            let class = *class_ids.entry(fingerprint.clone()).or_insert_with(|| {
+            let class = if let Some(&class) = class_ids.get(&fingerprint) {
+                class
+            } else {
+                let class = class_fingerprints.len() as u32;
+                class_ids.insert(fingerprint.clone(), class);
                 class_fingerprints.push(fingerprint);
-                next
-            });
+                class
+            };
             for raw in raw_states {
                 state_class[raw as usize] = class;
             }
@@ -3768,11 +4045,14 @@ fn build_finite_projected_impl(
                 fingerprint.push(profile);
             }
 
-            let next = class_fingerprints.len() as u32;
-            let class = *class_ids.entry(fingerprint.clone()).or_insert_with(|| {
+            let class = if let Some(&class) = class_ids.get(&fingerprint) {
+                class
+            } else {
+                let class = class_fingerprints.len() as u32;
+                class_ids.insert(fingerprint.clone(), class);
                 class_fingerprints.push(fingerprint);
-                next
-            });
+                class
+            };
             for raw in raw_states {
                 state_class[raw as usize] = class;
             }
@@ -3951,6 +4231,38 @@ fn residual_finite_switch_states(input: BuildInput<'_>) -> usize {
         .unwrap_or(default)
 }
 
+/// Vocab-only equivalence has a materially different residual/finite crossover
+/// from Static because it never materializes the projected transition artifact.
+/// Keep Static's established handoffs above unchanged and apply the larger
+/// residual budget only to the dedicated vocabulary-equivalence calculation.
+fn vocab_only_residual_finite_switch_states(input: BuildInput<'_>) -> usize {
+    let (env_name, default) = if input.subset_parent_order.is_none()
+        && input.partition_label == "p2"
+        && input.vocab.len() >= 50_000
+    {
+        // Revalidated on the canonical seed-7 sweep after the sparse minimizer
+        // and live-target reverse-classifier changes: all observed p2 machines
+        // in the 20k..178k projected-state range are substantially faster as
+        // residual projections. Retain a finite safety handoff above that band.
+        ("GLRMASK_VOCAB_P2_RESIDUAL_FINITE_SWITCH_STATES", 200_000)
+    } else if input.subset_parent_order.is_none()
+        && input.partition_label == "p5"
+        && input.vocab.len() >= 4_000
+    {
+        // Tail-focused revalidation found the same crossover shift for p5:
+        // machines throughout the observed 143k..178k range are neutral or
+        // faster as residual projections, while >200k machines still fall back
+        // to finite. This policy is intentionally vocab-only.
+        ("GLRMASK_VOCAB_P5_RESIDUAL_FINITE_SWITCH_STATES", 200_000)
+    } else {
+        return residual_finite_switch_states(input);
+    };
+    std::env::var(env_name)
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(default)
+}
+
 fn build_binary(input: BuildInput<'_>) -> Option<LocalIdMapTerminalDwa> {
     build_binary_impl(input, true)
 }
@@ -4094,7 +4406,15 @@ fn build_binary_impl(input: BuildInput<'_>, allow_finite_switch: bool) -> Option
             let value = value.trim();
             value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
         })
-        .unwrap_or(false);
+        .unwrap_or(input.id_map_only && input.partition_label == "p1")
+        || std::env::var("GLRMASK_L1_DIRECT_TERMINAL_RESIDUALS_PARTITIONS")
+            .ok()
+            .is_some_and(|scope| {
+                scope
+                    .split(',')
+                    .map(str::trim)
+                    .any(|label| label == input.partition_label)
+            });
     let projected_new_started = Instant::now();
     let direct_machine = direct_terminal_residuals
         .then(|| build_direct_terminal_residual_machine(input, &bytes))
@@ -4615,7 +4935,7 @@ pub fn build_projected_vocab_equivalence(input: BuildInput<'_>) -> Option<L1Voca
     // residual path would switch back to finite for downstream reasons.
     if input.subset_parent_order.is_none()
         && input.partition_label == "p1"
-        && active_terminals <= 64
+        && active_terminals <= 96
         && input.vocab.len() >= 10_000
     {
         return build_binary_vocab_only_forced(input);
@@ -4640,17 +4960,18 @@ pub fn build_projected_vocab_equivalence(input: BuildInput<'_>) -> Option<L1Voca
         }
     }
     if input.subset_parent_order.is_none() && input.partition_label == "p4" {
-        return if active_terminals >= 120 {
-            build_finite_projected_vocab_only(input, false)
-        } else {
-            build_binary_vocab_only_forced(input)
-        };
+        // Vocab-only P4 (Unicode-only alpha) is substantially cheaper through
+        // exact residual projection even for wide terminal families.  The old
+        // active-terminal crossover forced a full finite-vocabulary scan in
+        // precisely the cases where the residual relation often collapses to a
+        // tiny quotient.
+        return build_binary_vocab_only_forced(input);
     }
     // VocabPartition does not need the projected state-transition artifact.
-    // For the medium-sized p5 vocabulary family, the finite exact scan avoids
-    // the residual machine's comparatively expensive state construction while
-    // producing the same token equivalence relation. Keep Static's kernel
-    // policy unchanged; this choice is specific to the vocab-only result.
+    // When exact terminal-residual coordinates are available, start p5 on the
+    // residual kernel and let the vocab-only residual/finite safety ceiling
+    // decide whether the resulting machine is still economical. Static keeps
+    // its separate, lower crossover in `residual_finite_switch_states`.
     let direct_terminal_residuals_available = input
         .tokenizer
         .terminal_residual_coordinates()
@@ -4693,6 +5014,7 @@ fn build_finite_projected_vocab_only(
     if input.vocab.is_empty() {
         return None;
     }
+    let profile = std::env::var_os("GLRMASK_PROFILE_L1_IMPLEMENTATIONS").is_some();
     let total_timer = Instant::now();
     let prep_timer = Instant::now();
     let (finite_vocab, _finite_vocab_cache_hit, _prep_ms) = finite_vocab_projection(input);
@@ -4860,11 +5182,14 @@ fn build_finite_projected_vocab_only(
             for id in ids {
                 fingerprint.push(if id == usize::MAX { 0 } else { key_profile[id] });
             }
-            let next = class_fingerprints.len() as u32;
-            let class = *class_ids.entry(fingerprint.clone()).or_insert_with(|| {
+            let class = if let Some(&class) = class_ids.get(&fingerprint) {
+                class
+            } else {
+                let class = class_fingerprints.len() as u32;
+                class_ids.insert(fingerprint.clone(), class);
                 class_fingerprints.push(fingerprint);
-                next
-            });
+                class
+            };
             for raw in raw_states {
                 state_class[raw as usize] = class;
             }
@@ -4926,11 +5251,14 @@ fn build_finite_projected_vocab_only(
                 fingerprint.push(profile);
             }
 
-            let next = class_fingerprints.len() as u32;
-            let class = *class_ids.entry(fingerprint.clone()).or_insert_with(|| {
+            let class = if let Some(&class) = class_ids.get(&fingerprint) {
+                class
+            } else {
+                let class = class_fingerprints.len() as u32;
+                class_ids.insert(fingerprint.clone(), class);
                 class_fingerprints.push(fingerprint);
-                next
-            });
+                class
+            };
             for raw in raw_states {
                 state_class[raw as usize] = class;
             }
@@ -4984,7 +5312,7 @@ fn build_finite_projected_vocab_only(
 }
 
 fn build_binary_vocab_only(input: BuildInput<'_>) -> Option<L1VocabEquivResult> {
-    build_binary_vocab_only_with_switch(input, residual_finite_switch_states(input))
+    build_binary_vocab_only_with_switch(input, vocab_only_residual_finite_switch_states(input))
 }
 
 fn build_binary_vocab_only_forced(input: BuildInput<'_>) -> Option<L1VocabEquivResult> {
@@ -4998,6 +5326,7 @@ fn build_binary_vocab_only_with_switch(
     if input.vocab.is_empty() {
         return None;
     }
+    let profile = std::env::var_os("GLRMASK_PROFILE_L1_IMPLEMENTATIONS").is_some();
     let total_timer = Instant::now();
     let setup_timer = Instant::now();
     let (prepared_vocab, _, _) =
@@ -5017,18 +5346,12 @@ fn build_binary_vocab_only_with_switch(
         (aliases_storage.as_slice(), tokens_storage.as_slice())
     };
     let byte_setup_started = Instant::now();
-    let vocab_bytes = {
-        let mut relevant = [false; 256];
-        for token in tokens {
-            for &byte in token.iter() {
-                relevant[byte as usize] = true;
-            }
-        }
-        relevant
-            .iter()
-            .enumerate()
-            .filter_map(|(byte, &used)| used.then_some(byte as u8))
-            .collect::<Vec<_>>()
+    let vocab_bytes_storage;
+    let vocab_bytes: &[u8] = if let Some(prepared) = prepared_vocab.as_ref() {
+        prepared.vocab_bytes.as_ref()
+    } else {
+        vocab_bytes_storage = collect_vocab_bytes(tokens);
+        vocab_bytes_storage.as_ref()
     };
     let (bytes, input_byte_representative) = quotient_input_bytes(input, &vocab_bytes);
     let prep_wall_ms = setup_timer.elapsed().as_secs_f64() * 1000.0;
@@ -5045,11 +5368,13 @@ fn build_binary_vocab_only_with_switch(
                 value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
             })
             .unwrap_or(true);
+    let direct_started = profile.then(Instant::now);
     let direct_machine = if direct_terminal_residuals {
         build_direct_terminal_residual_machine(input, &bytes)
     } else {
         None
     };
+    let direct_ms = direct_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
     let direct_selected = direct_machine.is_some();
     let (mut projected, direct_roots) = if let Some((projected, roots)) = direct_machine {
         (projected, Some(roots))
@@ -5102,6 +5427,7 @@ fn build_binary_vocab_only_with_switch(
     if projected_limit_exceeded(input, projected.configs.len(), limit) {
         return build_finite_projected_vocab_only(input, true);
     }
+    let expand_started = profile.then(Instant::now);
     if !direct_selected {
         let mut queue = VecDeque::from_iter(0..projected.configs.len() as u32);
         while let Some(state) = queue.pop_front() {
@@ -5125,6 +5451,7 @@ fn build_binary_vocab_only_with_switch(
             projected.transitions[state as usize] = row;
         }
     }
+    let expand_ms = expand_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
     let groups = projected
         .configs
         .iter()
@@ -5136,6 +5463,7 @@ fn build_binary_vocab_only_with_switch(
             value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
         })
         .unwrap_or(true);
+    let minimize_started = profile.then(Instant::now);
     let (mut minimized, _) = if direct_selected {
         (minimize_direct_residual_union(&projected.transitions, &bytes), None)
     } else if use_grouped_minimize {
@@ -5144,12 +5472,13 @@ fn build_binary_vocab_only_with_switch(
     } else {
         (minimize(&projected.transitions, &bytes), None)
     };
-    for &byte in &vocab_bytes {
+    let minimize_ms = minimize_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+    let reverse_setup_started = profile.then(Instant::now);
+    for &byte in vocab_bytes {
         minimized.byte_class[byte as usize] =
             minimized.byte_class[input_byte_representative[byte as usize] as usize];
     }
     roots.remap_states(&minimized.classes);
-
     let force_source_scan = false;
     let mut reverse = ReverseSubsets::new(&minimized.columns, &minimized.byte_class, minimized.state_count, force_source_scan);
     let mut final_subset_to_class = Vec::<u32>::new();
@@ -5178,7 +5507,9 @@ fn build_binary_vocab_only_with_switch(
     let dense_reverse = dense_reverse_enabled
         .then(|| reverse.try_complete_dense(dense_reverse_max_states))
         .flatten();
-
+    let reverse_setup_ms =
+        reverse_setup_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+    let token_started = profile.then(Instant::now);
     match (dense_reverse.as_ref(), reverse_trie) {
         (Some(dense), Some(trie)) => {
             debug_assert_eq!(trie.parents.len(), trie.bytes.len());
@@ -5228,18 +5559,26 @@ fn build_binary_vocab_only_with_switch(
                 );
             }
         }
-        (None, None) => {
-            for (token_index, token) in tokens.iter().enumerate() {
-                let subset = reverse.token(token);
-                token_class[token_index] = intern_dense_subset_class(
-                    subset,
-                    &mut final_subset_to_class,
-                    &mut class_subsets,
-                );
+            (None, None) => {
+                for (token_index, token) in tokens.iter().enumerate() {
+                    let subset = reverse.token(token);
+                    token_class[token_index] = intern_dense_subset_class(
+                        subset,
+                        &mut final_subset_to_class,
+                        &mut class_subsets,
+                    );
+                }
             }
         }
-    }
+    let token_ms = token_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
     let scan_wall_ms = scan_timer.elapsed().as_secs_f64() * 1000.0;
+    if profile {
+        eprintln!(
+            "[glrmask/profile][l1_residual_projected_scan] partition={} direct_selected={} direct_ms={direct_ms:.3} expand_ms={expand_ms:.3} minimize_ms={minimize_ms:.3} reverse_setup_ms={reverse_setup_ms:.3} token_ms={token_ms:.3} scan_ms={scan_wall_ms:.3}",
+            input.partition_label,
+            direct_selected,
+        );
+    }
     let scan_cpu_ms = 0.0;
 
     let compact_timer = Instant::now();
@@ -5281,6 +5620,80 @@ fn build_binary_vocab_only_with_switch(
 #[cfg(test)]
 mod finite_run_sweep_tests {
     use super::*;
+
+    #[test]
+    fn reverse_subset_interner_resolves_fingerprint_collisions_exactly() {
+        let columns = vec![vec![0u32, 1].into_boxed_slice()];
+        let byte_class = [0u8; 256];
+        let mut reverse = ReverseSubsets::new(&columns, &byte_class, 2, false);
+        let forced_hash = (0u64..)
+            .find(|hash| !reverse.ids.contains_key(hash))
+            .expect("there is always an unused fingerprint");
+
+        let left = reverse.intern_hashed(vec![0b01], forced_hash);
+        let right = reverse.intern_hashed(vec![0b10], forced_hash);
+        assert_ne!(left, right);
+        assert_eq!(reverse.intern_hashed(vec![0b01], forced_hash), left);
+        assert_eq!(reverse.intern_hashed(vec![0b10], forced_hash), right);
+        assert_eq!(reverse.sets[left as usize].as_ref(), &[0b01]);
+        assert_eq!(reverse.sets[right as usize].as_ref(), &[0b10]);
+    }
+
+    #[test]
+    fn sparse_symbol_target_minimizer_handles_all_256_symbol_ranks() {
+        let alphabet = (0u16..=255).map(|byte| byte as u8).collect::<Vec<_>>();
+        let mut transitions = vec![Vec::<(u8, u32)>::new(); 4];
+        // State 0 sends every byte to state 2, so `(255, 2)` occupies rank 255
+        // in the target-major sparse predecessor index. State 1 differs only on
+        // that final byte and must therefore split from state 0.
+        transitions[0] = alphabet.iter().copied().map(|byte| (byte, 2)).collect();
+        transitions[1] = alphabet
+            .iter()
+            .copied()
+            .map(|byte| (byte, if byte == 255 { 3 } else { 2 }))
+            .collect();
+        let initial = [0, 0, 1, 2];
+
+        let generic = minimize_seeded(&transitions, &alphabet, Some(&initial));
+        let sparse = minimize_seeded_symbol_target_csr(&transitions, &alphabet, &initial);
+        assert_eq!(generic.state_count, sparse.state_count);
+        for left in 0..transitions.len() {
+            for right in 0..transitions.len() {
+                assert_eq!(
+                    generic.classes[left] == generic.classes[right],
+                    sparse.classes[left] == sparse.classes[right],
+                    "equivalence mismatch for states {left} and {right}",
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sparse_symbol_target_minimizer_moves_smaller_complement_exactly() {
+        let alphabet = vec![0u8];
+        let mut transitions = vec![Vec::<(u8, u32)>::new(); 5];
+        // States 0..=3 begin in one block. On symbol 0, three of them point
+        // into splitter state 4 while state 3 does not. The affected side is
+        // therefore 3/4 of the block, exercising the complement-moving path.
+        transitions[0].push((0, 4));
+        transitions[1].push((0, 4));
+        transitions[2].push((0, 4));
+        let initial = [0, 0, 0, 0, 1];
+
+        let generic = minimize_seeded(&transitions, &alphabet, Some(&initial));
+        let sparse = minimize_seeded_symbol_target_csr(&transitions, &alphabet, &initial);
+        assert_eq!(generic.state_count, sparse.state_count);
+        for left in 0..transitions.len() {
+            for right in 0..transitions.len() {
+                assert_eq!(
+                    generic.classes[left] == generic.classes[right],
+                    sparse.classes[left] == sparse.classes[right],
+                    "equivalence mismatch for states {left} and {right}",
+                );
+            }
+        }
+    }
+
 
     #[test]
     fn run_sweep_matches_dense_token_vector_equivalence() {

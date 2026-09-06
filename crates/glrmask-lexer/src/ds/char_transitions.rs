@@ -19,6 +19,7 @@ impl<T> CharTransitions<T> {
     }
 
     pub fn from_sorted_entries(entries: Vec<(u8, T)>) -> Self {
+        debug_assert!(entries.windows(2).all(|pair| pair[0].0 < pair[1].0));
         Self { entries }
     }
 

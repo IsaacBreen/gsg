@@ -575,36 +575,54 @@ impl TerminalResidualCoordinates {
         self.terminal_dfas.len()
     }
 
-    fn replace_terminal_with_appended_dfa(
+    fn replace_terminals_with_appended_dfas(
         &self,
-        terminal: TerminalID,
-        dfa: Arc<DFA>,
+        replacements: &[(TerminalID, Arc<DFA>)],
     ) -> Option<Self> {
-        let terminal_index = terminal as usize;
-        if terminal_index >= self.terminal_dfas.len() {
-            return None;
+        if replacements.is_empty() {
+            return Some(self.clone());
         }
 
-        // The caller is replacing a placeholder component for `terminal` with
-        // a newly appended exact one-terminal observation DFA. Drop stale
-        // placeholder coordinates from the existing rows, then append the
-        // identity coordinate for every state of the new standalone DFA.
-        let mut rows = Vec::with_capacity(self.len() + dfa.num_states());
+        let mut replaced = vec![false; self.terminal_dfas.len()];
+        let mut appended_states = 0usize;
+        for (terminal, dfa) in replacements {
+            let terminal_index = *terminal as usize;
+            if terminal_index >= replaced.len() || replaced[terminal_index] {
+                return None;
+            }
+            replaced[terminal_index] = true;
+            appended_states = appended_states.checked_add(dfa.num_states())?;
+        }
+
+        // The caller is replacing placeholder components with newly appended
+        // exact one-terminal observation DFAs. Drop all stale placeholder
+        // coordinates in one pass, then append each standalone DFA's identity
+        // coordinate in the same order that its states were appended to the
+        // tokenizer. Doing this once avoids rebuilding an ever-growing residual
+        // coordinate table for every replacement.
+        let mut rows = Vec::with_capacity(self.len().checked_add(appended_states)?);
         for state in 0..self.len() {
             rows.push(
                 self.row(state as u32)?
                     .iter()
                     .copied()
-                    .filter(|&(candidate, _)| candidate != terminal)
+                    .filter(|&(candidate, _)| {
+                        !replaced.get(candidate as usize).copied().unwrap_or(false)
+                    })
                     .collect::<Vec<_>>(),
             );
         }
-        rows.extend((0..dfa.num_states()).map(|state| vec![(terminal, state as u32)]));
+        for (terminal, dfa) in replacements {
+            rows.extend((0..dfa.num_states()).map(|state| vec![(*terminal, state as u32)]));
+        }
 
         let mut terminal_dfas = self.terminal_dfas.iter().cloned().collect::<Vec<_>>();
-        terminal_dfas[terminal_index] = dfa;
         let mut terminal_groups = self.terminal_groups.iter().copied().collect::<Vec<_>>();
-        terminal_groups[terminal_index] = 0;
+        for (terminal, dfa) in replacements {
+            let terminal_index = *terminal as usize;
+            terminal_dfas[terminal_index] = Arc::clone(dfa);
+            terminal_groups[terminal_index] = 0;
+        }
         Some(Self::from_rows_and_dfa_groups(
             rows,
             terminal_dfas,
@@ -6574,6 +6592,18 @@ impl Tokenizer {
         state_limit: usize,
         transition_limit: usize,
     ) -> Option<(FullTokenizerDeterminization, Vec<u32>)> {
+        // Every singleton epsilon closure is a required legal entry state in
+        // the all-starts coordinate.  When the epsilon graph is acyclic those
+        // closures are necessarily distinct: equal closures for two distinct
+        // raw states would make each state epsilon-reachable from the other,
+        // hence form a cycle.  Therefore an acyclic source with more raw
+        // states than the output state budget provably cannot fit.  Reject it
+        // before paying for subset construction; cyclic graphs deliberately
+        // retain the general path because an SCC can collapse several raw
+        // states to one singleton closure.
+        if self.num_states() as usize > state_limit && self.epsilon_graph_is_acyclic() {
+            return None;
+        }
         let mut built = self.try_full_determinization(state_limit, transition_limit)?;
         let closures = self.all_singleton_epsilon_closures();
         let mut state_by_subset = FxHashMap::<Box<[u32]>, u32>::default();
@@ -7644,6 +7674,58 @@ impl Tokenizer {
             .states()
             .get(state as usize)
             .is_some_and(|state| !state.epsilon_transitions.is_empty())
+    }
+
+    fn for_each_epsilon_target(&self, state: u32, mut visit: impl FnMut(u32)) {
+        if let Some(metadata) = self
+            .packed_runtime_metadata
+            .as_deref()
+            .filter(|metadata| state < metadata.state_count)
+        {
+            for &target in metadata.epsilon_targets(state) {
+                visit(target);
+            }
+            return;
+        }
+        if let Some(segment) = self.packed_runtime_metadata_segment_for_state(state) {
+            for &target in segment.metadata.epsilon_targets(segment.local_state(state)) {
+                visit(segment.state_offset + target);
+            }
+            return;
+        }
+        if let Some(dfa_state) = self.dfa.states().get(state as usize) {
+            for &target in &dfa_state.epsilon_transitions {
+                visit(target);
+            }
+        }
+    }
+
+    fn epsilon_graph_is_acyclic(&self) -> bool {
+        let state_count = self.num_states() as usize;
+        let mut indegree = vec![0u32; state_count];
+        for state in 0..self.num_states() {
+            self.for_each_epsilon_target(state, |target| {
+                indegree[target as usize] += 1;
+            });
+        }
+        let mut queue = VecDeque::<u32>::new();
+        for (state, &degree) in indegree.iter().enumerate() {
+            if degree == 0 {
+                queue.push_back(state as u32);
+            }
+        }
+        let mut visited = 0usize;
+        while let Some(state) = queue.pop_front() {
+            visited += 1;
+            self.for_each_epsilon_target(state, |target| {
+                let degree = &mut indegree[target as usize];
+                *degree -= 1;
+                if *degree == 0 {
+                    queue.push_back(target);
+                }
+            });
+        }
+        visited == state_count
     }
 
     #[inline]
@@ -8982,9 +9064,30 @@ impl Tokenizer {
             return Some(());
         }
         let start = self.start_state();
+        // The VocabPartition caller isolates the dispatch start before appending
+        // components. If that start has no incoming byte or epsilon edge, no
+        // pre-existing state can newly reach an appended component: only the
+        // start state's strict future set changes. Verify that invariant rather
+        // than assuming it so arbitrary/debug tokenizers retain the exact full
+        // recomputation fallback.
+        let start_is_isolated = self.dfa.states().iter().all(|state| {
+            state.transitions.iter().all(|(_, &target)| target != start)
+                && state.epsilon_transitions.iter().all(|&target| target != start)
+        });
+        let mut localized_start_futures = start_is_isolated
+            .then(|| self.dfa.possible_future_group_ids(start).clone());
+        let mut coordinate_replacements = self
+            .terminal_residual_coordinates
+            .as_ref()
+            .map(|_| Vec::with_capacity(components.len()));
         for (component, local_root, terminal) in components {
             if terminal >= self.num_terminals || local_root as usize >= component.num_states() {
                 return None;
+            }
+            if let Some(start_futures) = localized_start_futures.as_mut()
+                && component.possible_future_group_ids(local_root).contains(0)
+            {
+                start_futures.set(terminal as usize);
             }
             let component = Arc::new(component);
             let offset = u32::try_from(self.dfa.num_states()).ok()?;
@@ -8996,13 +9099,22 @@ impl Tokenizer {
             }
             self.dfa
                 .add_epsilon_transition(start, offset.checked_add(local_root)?);
-            if let Some(coordinates) = self.terminal_residual_coordinates.as_ref() {
-                let updated = coordinates
-                    .replace_terminal_with_appended_dfa(terminal, Arc::clone(&component))?;
-                self.terminal_residual_coordinates = Some(Arc::new(updated));
+            if let Some(replacements) = coordinate_replacements.as_mut() {
+                replacements.push((terminal, Arc::clone(&component)));
             }
         }
-        self.dfa.recompute_possible_futures();
+        if let (Some(coordinates), Some(replacements)) = (
+            self.terminal_residual_coordinates.as_ref(),
+            coordinate_replacements.as_deref(),
+        ) {
+            let updated = coordinates.replace_terminals_with_appended_dfas(replacements)?;
+            self.terminal_residual_coordinates = Some(Arc::new(updated));
+        }
+        if let Some(start_futures) = localized_start_futures {
+            self.dfa.set_possible_future_group_ids(start, start_futures);
+        } else {
+            self.dfa.recompute_possible_futures();
+        }
         self.invalidate_derived_caches();
         Some(())
     }
@@ -11171,7 +11283,7 @@ impl Tokenizer {
     /// 3. For each byte:
     ///    - Check if current state's possible futures overlap `remaining`.
     ///      If not, return `(matched, None)`.
-    ///    - Consume byte â†’ next state.
+    ///    - Consume byte -> next state.
     ///    - If no transition, return `(matched, None)`.
     ///    - Get finalizers at next state, intersect with `remaining`.
     ///    - Add intersection to `matched`, remove from `remaining`.
@@ -11370,6 +11482,73 @@ mod tests {
             num_terminals,
             Some(Arc::from(exprs.into_boxed_slice())),
         )
+    }
+
+    fn one_byte_component(byte: u8) -> DFA {
+        let mut dfa = DFA::new(2);
+        dfa.ensure_group_capacity(1);
+        dfa.set_group_u8set(0, U8Set::single(byte));
+        dfa.add_transition(0, byte, 1);
+        let mut finalizers = BitSet::new(1);
+        finalizers.set(0);
+        dfa.overwrite_state_metadata(1, finalizers, BitSet::new(1));
+        dfa.recompute_possible_futures();
+        dfa
+    }
+
+    #[test]
+    fn direct_mask_component_isolated_start_future_update_matches_full_recompute() {
+        let mut host = DFA::new(2);
+        host.ensure_group_capacity(2);
+        host.set_group_u8set(0, U8Set::single(b'a'));
+        host.set_group_u8set(1, U8Set::single(b'b'));
+        host.add_epsilon_transition(0, 1);
+        host.add_transition(1, b'a', 1);
+        let mut finalizers = BitSet::new(2);
+        finalizers.set(0);
+        host.overwrite_state_metadata(1, finalizers, BitSet::new(2));
+        host.recompute_possible_futures();
+        let mut tokenizer = Tokenizer::from_parts(host, 2, None);
+
+        tokenizer
+            .install_direct_mask_components(vec![(one_byte_component(b'b'), 0, 1)])
+            .expect("isolated-start direct component must install");
+
+        let mut reference = tokenizer.dfa.clone();
+        reference.recompute_possible_futures();
+        assert_eq!(tokenizer.dfa.num_states(), reference.num_states());
+        for state in 0..tokenizer.dfa.num_states() as u32 {
+            assert_eq!(
+                tokenizer.dfa.possible_future_group_ids(state),
+                reference.possible_future_group_ids(state),
+                "future mismatch at state {state}",
+            );
+        }
+    }
+
+    #[test]
+    fn direct_mask_component_nonisolated_start_falls_back_to_full_recompute() {
+        let mut host = DFA::new(2);
+        host.ensure_group_capacity(2);
+        host.set_group_u8set(0, U8Set::single(b'a'));
+        host.set_group_u8set(1, U8Set::single(b'b'));
+        host.add_transition(1, b'a', 0);
+        host.recompute_possible_futures();
+        let mut tokenizer = Tokenizer::from_parts(host, 2, None);
+
+        tokenizer
+            .install_direct_mask_components(vec![(one_byte_component(b'b'), 0, 1)])
+            .expect("nonisolated-start direct component must install via fallback");
+
+        let mut reference = tokenizer.dfa.clone();
+        reference.recompute_possible_futures();
+        for state in 0..tokenizer.dfa.num_states() as u32 {
+            assert_eq!(
+                tokenizer.dfa.possible_future_group_ids(state),
+                reference.possible_future_group_ids(state),
+                "future mismatch at state {state}",
+            );
+        }
     }
 
     #[test]
@@ -13896,5 +14075,32 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn all_starts_state_budget_rejects_acyclic_raw_state_lower_bound() {
+        let mut dfa = DFA::new(2);
+        dfa.ensure_group_capacity(1);
+        dfa.add_epsilon_transition(0, 1);
+        let source = Tokenizer::from_parts(dfa, 1, None);
+
+        assert!(source
+            .try_full_determinization_all_starts(1, 256)
+            .is_none());
+    }
+
+    #[test]
+    fn all_starts_state_budget_does_not_reject_epsilon_cycle_collapse() {
+        let mut dfa = DFA::new(2);
+        dfa.ensure_group_capacity(1);
+        dfa.add_epsilon_transition(0, 1);
+        dfa.add_epsilon_transition(1, 0);
+        let source = Tokenizer::from_parts(dfa, 1, None);
+
+        let (built, raw_to_determinized) = source
+            .try_full_determinization_all_starts(1, 256)
+            .expect("one epsilon SCC should fit in one determinized state");
+        assert_eq!(built.tokenizer.num_states(), 1);
+        assert_eq!(raw_to_determinized, vec![0, 0]);
     }
 }

@@ -97,6 +97,8 @@ pub struct VocabPartition {
 impl VocabPartition {
     /// Analyze `grammar` for `vocab` without constructing terminal/parser DWAs.
     pub fn compile(grammar: Grammar<'_>, vocab: &Vocab) -> Result<Self> {
+        let profile = crate::compiler::pipeline::compile_top_profile_enabled();
+        let total_started = profile.then(Instant::now);
         if !grammar.grammar_bindings.is_empty() {
             return Err(Error::Compilation(
                 "vocabulary partition analysis does not yet support bound subgrammars".to_owned(),
@@ -114,10 +116,22 @@ impl VocabPartition {
             | GrammarSource::JsonSchema(source)
             | GrammarSource::Glrm(source) => source,
         };
+        let lower_started = profile.then(Instant::now);
         let grammar_def = crate::import::lower_source_for_vocab_partition(source_kind, source)?;
+        let lower_ms = lower_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        let compile_started = profile.then(Instant::now);
         let map = crate::error::catch_internal_invariant(|| {
             crate::compiler::vocab_partition::compile_vocab_partition_owned(grammar_def, vocab)
         })?;
+        if profile {
+            eprintln!(
+                "[glrmask/profile][vocab_partition_compile] source={} lower_ms={:.3} compile_ms={:.3} total_ms={:.3}",
+                source_kind,
+                lower_ms,
+                compile_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
+                total_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
+            );
+        }
         Ok(Self {
             original_to_class: map.original_to_internal,
             classes: map.internal_to_originals,

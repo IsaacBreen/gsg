@@ -187,12 +187,18 @@ pub(crate) fn lower_source_for_vocab_partition(
     match source_kind {
         "ebnf" => lower_factored_named_grammar(source, parse_ebnf_to_named, None, &[]),
         "lark" => lower_factored_named_grammar(source, parse_lark_to_named, None, &[]),
-        "json_schema" => lower_factored_named_grammar(
-            source,
-            parse_json_schema_to_named_dynamic,
-            Some(prepare_json_schema_named),
-            &[],
-        ),
+        "json_schema" => {
+            // Temporary profiling switch for VocabPartition importer-shape A/B
+            // experiments. Production selection remains the dynamic lowering.
+            let parse_named = match std::env::var("GLRMASK_VOCAB_PARTITION_JSON_IMPORT")
+                .ok()
+                .as_deref()
+            {
+                Some("static") => parse_json_schema_to_named,
+                _ => parse_json_schema_to_named_dynamic,
+            };
+            lower_factored_named_grammar(source, parse_named, Some(prepare_json_schema_named), &[])
+        }
         "glrm" => {
             let named = parse_glrm_with_external_terminal_bindings(source, &[])?;
             let factored = factor_named_grammar(named);

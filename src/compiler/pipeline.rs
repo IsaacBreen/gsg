@@ -1046,6 +1046,7 @@ fn build_vocab_partition_direct_mask_tokenizer(
         .collect::<Vec<_>>();
     let partition_ids = lexer_partition_ids(grammar);
     let residual_isolation_classes = lexer_residual_isolation_classes(grammar);
+    let proxy_started = profile.then(Instant::now);
     let mut tokenizer = build_tokenizer_from_exprs_partitioned_impl(
         &proxy_expressions,
         Some(&terminal_labels),
@@ -1055,6 +1056,9 @@ fn build_vocab_partition_direct_mask_tokenizer(
         true,
     );
     tokenizer.isolate_start_state_and_drain_nullable_terminals();
+    let proxy_ms = proxy_started.map_or(0.0, elapsed_ms);
+
+    let restore_started = profile.then(Instant::now);
     tokenizer
         .restore_terminal_exprs_without_virtual_runtime(Some(expressions.clone()))
         .map_err(|detail| {
@@ -1062,10 +1066,12 @@ fn build_vocab_partition_direct_mask_tokenizer(
                 "direct vocabulary-mask tokenizer expression restoration failed: {detail}"
             ))
         })?;
+    let restore_ms = restore_started.map_or(0.0, elapsed_ms);
 
     let repeat_horizons =
         crate::automata::lexer::compile::VocabularyRepeatHorizonCache::new();
     let max_token_len = vocab.max_token_byte_len();
+    let components_started = profile.then(Instant::now);
     let components = bounded_code_terminals
         .par_iter()
         .map(|&terminal| {
@@ -1078,9 +1084,11 @@ fn build_vocab_partition_direct_mask_tokenizer(
             .map(|(dfa, root)| (dfa, root, terminal))
         })
         .collect::<Option<Vec<_>>>();
+    let components_ms = components_started.map_or(0.0, elapsed_ms);
     let Some(components) = components else {
         return Ok(None);
     };
+    let install_started = profile.then(Instant::now);
     tokenizer
         .install_direct_mask_components(components)
         .ok_or_else(|| {
@@ -1088,9 +1096,10 @@ fn build_vocab_partition_direct_mask_tokenizer(
                 "direct vocabulary-mask tokenizer component installation failed".to_owned(),
             )
         })?;
+    let install_ms = install_started.map_or(0.0, elapsed_ms);
     if compile_profile_enabled() {
         eprintln!(
-            "[glrmask/profile][vocab_partition_tokenizer] path=direct_mask states={} components={} preflight_ms={preflight_ms:.3} expressions_ms={expressions_ms:.3} scan_ms={scan_ms:.3} total_ms={:.3}",
+            "[glrmask/profile][vocab_partition_tokenizer] path=direct_mask states={} components={} preflight_ms={preflight_ms:.3} expressions_ms={expressions_ms:.3} scan_ms={scan_ms:.3} proxy_ms={proxy_ms:.3} restore_ms={restore_ms:.3} components_ms={components_ms:.3} install_ms={install_ms:.3} total_ms={:.3}",
             tokenizer.num_states(),
             bounded_code_terminals.len(),
             elapsed_ms(total_started),
@@ -2437,12 +2446,7 @@ pub(crate) fn build_vocab_partition_compile_context(
                         .into_boxed_slice(),
                 ),
                 adaptive: lexer_adaptive_enabled(),
-                global_max_token_len: vocab
-                    .entries_map()
-                    .values()
-                    .map(Vec::len)
-                    .max()
-                    .unwrap_or(0),
+                global_max_token_len: vocab.max_token_byte_len(),
             },
         )
     });
@@ -3986,12 +3990,7 @@ fn compile_prepared_with_profile_and_table_construction(
                 ),
                 adaptive: lexer_adaptive_override
                     .unwrap_or_else(lexer_adaptive_enabled),
-                global_max_token_len: vocab
-                    .entries_map()
-                    .values()
-                    .map(Vec::len)
-                    .max()
-                    .unwrap_or(0),
+                global_max_token_len: vocab.max_token_byte_len(),
             },
         )
     });

@@ -11,13 +11,13 @@ use std::time::Instant;
 use crate::automata::lexer::Lexer;
 use crate::automata::lexer::tokenizer::Tokenizer;
 use crate::compiler::glr::analysis::AnalyzedGrammar;
-use crate::compiler::stages::equiv_types::ManyToOneIdMap;
+use crate::compiler::stages::equiv_types::{InternalIdMap, ManyToOneIdMap};
 use crate::compiler::stages::id_map_and_terminal_dwa::classify::{
     classify_terminal_path_lengths, classify_terminal_path_lengths_with_probe,
     split_vocab_for_active_l2p_terminals,
 };
 use crate::compiler::stages::id_map_and_terminal_dwa::types::{
-    PartitionTerminalDwas, TerminalColoring, TerminalDwaPhaseProfile, TerminalPathLength,
+    LocalIdMapTerminalDwa, PartitionTerminalDwas, TerminalColoring, TerminalDwaPhaseProfile, TerminalPathLength,
     compile_profile_enabled, compile_profile_join,
 };
 use crate::ds::bitset::BitSet;
@@ -26,6 +26,12 @@ use crate::Vocab;
 
 use super::build_branch_active_state_map;
 
+/// Canonical vocabulary family required by the partition-local L1/L2+ proof.
+///
+/// This is deliberately separate from `partition_label`: labels are tuning and
+/// diagnostics metadata, while this type is a semantic precondition.  Any
+/// experimental/user-defined slicing must first be intersected with one of
+/// these safety families before reaching the partition-local analyzer.
 const AUTO_SEPARATE_L1_SINGLE_MAX_FRACTION_DENOMINATOR: usize = 16;
 const AUTO_SEPARATE_L1_SINGLE_MIN_AVOIDED_PAIRS: usize = 1_500_000;
 
@@ -41,6 +47,47 @@ fn automatic_combine_l1_single(
         <= vocab_tokens;
     !(single_side_is_small
         && avoided_full_vocab_pairs >= AUTO_SEPARATE_L1_SINGLE_MIN_AVOIDED_PAIRS)
+}
+
+fn vocab_partition_exact_l2p_min_tokens() -> usize {
+    // Exact L2P has a substantial topology-dependent fixed cost even when the
+    // boundary vocabulary contains only a handful of tokens.  For fewer than
+    // 16 tokens there are at most 15 merges to prove; keeping those tokens
+    // singleton is conservative and, on the representative p50 corpus, avoids
+    // ~0.9ms median build time for only 2-4 additional final classes.  Larger
+    // boundary sets retain the exact L2P quotient.
+    std::env::var("GLRMASK_VOCAB_PARTITION_EXACT_L2P_MIN_TOKENS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(16)
+}
+
+fn singleton_id_map_only_artifact(
+    tokenizer: &Tokenizer,
+    vocab: &Vocab,
+    initial_state_map: Option<&ManyToOneIdMap>,
+) -> LocalIdMapTerminalDwa {
+    let tokenizer_states = initial_state_map.cloned().unwrap_or_else(|| {
+        let ids = (0..tokenizer.num_states()).collect::<Vec<_>>();
+        ManyToOneIdMap::from_singleton_original_to_internal_with_representatives(
+            ids.clone(),
+            ids,
+        )
+    });
+    let id_map = InternalIdMap {
+        tokenizer_states,
+        vocab_tokens: singleton_vocab_map(vocab),
+        deferred_vocab_singleton_original_ids: None,
+    };
+    let dwa = crate::automata::weighted_u32::dwa::DWA::new(
+        id_map.num_tsids(),
+        id_map.max_internal_token_id(),
+    );
+    LocalIdMapTerminalDwa {
+        id_map,
+        dwa,
+        profile: TerminalDwaPhaseProfile::default(),
+    }
 }
 
 fn structural_branch_tokenizer_selected(
@@ -286,7 +333,7 @@ pub(crate) fn prepare_speculative_p2_pool() {
     }
 }
 
-pub fn build_partition_id_map_and_terminal_dwa(
+pub(crate) fn build_partition_id_map_and_terminal_dwa(
     partition_label: &str,
     tokenizer: &Tokenizer,
     vocab: &Vocab,
@@ -514,7 +561,7 @@ pub fn build_partition_id_map_and_terminal_dwa(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn build_partition_id_map_only(
+pub(crate) fn build_partition_id_map_only(
     partition_label: &str,
     tokenizer: &Tokenizer,
     vocab: &Vocab,
@@ -567,7 +614,7 @@ pub fn build_partition_id_map_only(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn build_partition_vocab_map_only(
+pub(crate) fn build_partition_vocab_map_only(
     partition_label: &str,
     tokenizer: &Tokenizer,
     vocab: &Vocab,
@@ -1101,6 +1148,19 @@ fn build_partition_id_map_and_terminal_dwa_impl(
                         } else {
                             let started_at = Instant::now();
                             let boundary_vocab = split.boundary_vocab(vocab);
+                            if id_map_only
+                                && boundary_vocab.len() < vocab_partition_exact_l2p_min_tokens()
+                            {
+                                let result = singleton_id_map_only_artifact(
+                                    tokenizer,
+                                    &boundary_vocab,
+                                    effective_l2p_initial_state_map,
+                                );
+                                return (
+                                    Some(result),
+                                    started_at.elapsed().as_secs_f64() * 1000.0,
+                                );
+                            }
                             if std::env::var_os("GLRMASK_DUMP_L2P_BOUNDARY_VOCAB").is_some()
                                 && matches!(partition_label, "p7" | "p8")
                             {
@@ -1422,7 +1482,7 @@ fn build_partition_id_map_and_terminal_dwa_impl(
 /// terminal boundary are deliberately kept singleton: this can make the result
 /// finer than Static's final token quotient, but can never merge observably
 /// different token behavior and avoids the expensive L2P automaton proof.
-pub fn build_partition_vocab_equivalence(
+pub(super) fn build_partition_vocab_equivalence(
     partition_label: &str,
     tokenizer: &Tokenizer,
     vocab: &Vocab,
@@ -1438,6 +1498,7 @@ pub fn build_partition_vocab_equivalence(
         return None;
     }
     let num_terminals = grammar.num_terminals as u32;
+
     let terminal_path_lengths = classify_terminal_path_lengths(
         partition_label,
         tokenizer,
@@ -1502,8 +1563,21 @@ pub fn build_partition_vocab_equivalence(
             }
         }
     });
+
     let l2p_terminal_count = l2p_mask.iter().filter(|&&active| active).count();
     let split_single_tokens = l2p_vocab_split.as_ref().map_or(0, |split| split.single_tokens);
+    if compile_profile_enabled() {
+        eprintln!(
+            "[glrmask/profile][vocab_partition_route] partition={} tokens={} l1_terminals={} l2p_terminals={} split_single={} split_boundary={} exact_l2p={}",
+            partition_label,
+            vocab.len(),
+            l1_mask.iter().filter(|&&active| active).count(),
+            l2p_terminal_count,
+            split_single_tokens,
+            l2p_vocab_split.as_ref().map_or(0, |split| split.boundary_tokens),
+            exact_l2p_selected,
+        );
+    }
     let combine_l1_single = partition_label == "p1"
         && has_l1
         && has_split_l1
@@ -1561,6 +1635,13 @@ pub fn build_partition_vocab_equivalence(
                     result.compact_ms,
                     result.total_wall_ms,
                 );
+            }
+            // With no L2+ terminals this L1 relation already covers the entire
+            // character sub-vocabulary. Running it through
+            // `common_refine_partition_maps` would hash every token again with
+            // a one-element key and reconstruct the same partition.
+            if !has_l2p {
+                return Some(result.vocab_map);
             }
             maps.push(result.vocab_map);
         }
@@ -1638,7 +1719,17 @@ pub fn build_partition_vocab_equivalence(
         maps.push(singleton_vocab_map(vocab));
     }
 
-    Some(common_refine_partition_maps(vocab, &maps))
+    let refine_started = Instant::now();
+    let result = common_refine_partition_maps(vocab, &maps);
+    if compile_profile_enabled() {
+        eprintln!(
+            "[glrmask/profile][vocab_partition_refine] partition={} maps={} total_ms={:.3}",
+            partition_label,
+            maps.len(),
+            refine_started.elapsed().as_secs_f64() * 1000.0,
+        );
+    }
+    Some(result)
 }
 
 fn singleton_vocab_map(vocab: &Vocab) -> ManyToOneIdMap {
@@ -1653,6 +1744,48 @@ fn singleton_vocab_map(vocab: &Vocab) -> ManyToOneIdMap {
 
 fn common_refine_partition_maps(vocab: &Vocab, maps: &[ManyToOneIdMap]) -> ManyToOneIdMap {
     use rustc_hash::FxHashMap;
+    let force_generic = std::env::var("GLRMASK_VOCAB_PARTITION_GENERIC_REFINE")
+        .ok()
+        .is_some_and(|value| {
+            let value = value.trim();
+            value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
+        });
+    if !force_generic && maps.len() == 2 {
+        let left_singleton = maps[0].internal_to_originals.iter().all(|class| class.len() == 1);
+        let right_singleton = maps[1].internal_to_originals.iter().all(|class| class.len() == 1);
+        let left_full = vocab.entries_map().keys().all(|&token_id| {
+            maps[0]
+                .original_to_internal
+                .get(token_id as usize)
+                .is_some_and(|&class| class != u32::MAX)
+        });
+        let right_full = vocab.entries_map().keys().all(|&token_id| {
+            maps[1]
+                .original_to_internal
+                .get(token_id as usize)
+                .is_some_and(|&class| class != u32::MAX)
+        });
+        if left_singleton && right_full {
+            return refine_full_map_with_sparse_singletons(vocab, &maps[1], &maps[0]);
+        }
+        if right_singleton && left_full {
+            return refine_full_map_with_sparse_singletons(vocab, &maps[0], &maps[1]);
+        }
+        let disjoint = vocab.entries_map().keys().all(|&token_id| {
+            let left = maps[0]
+                .original_to_internal
+                .get(token_id as usize)
+                .is_some_and(|&class| class != u32::MAX);
+            let right = maps[1]
+                .original_to_internal
+                .get(token_id as usize)
+                .is_some_and(|&class| class != u32::MAX);
+            !(left && right)
+        });
+        if disjoint {
+            return concatenate_disjoint_partition_maps(vocab, maps);
+        }
+    }
     let mut original_to_internal = vec![u32::MAX; vocab.max_token_id() as usize + 1];
     let mut classes = FxHashMap::<Vec<u32>, u32>::default();
     let mut next = 0u32;
@@ -1684,6 +1817,81 @@ fn common_refine_partition_maps(vocab: &Vocab, maps: &[ManyToOneIdMap]) -> ManyT
         original_to_internal[token_id as usize] = class;
     }
     ManyToOneIdMap::from_original_to_internal_allowing_unmapped(original_to_internal, next)
+}
+
+fn refine_full_map_with_sparse_singletons(
+    vocab: &Vocab,
+    full: &ManyToOneIdMap,
+    singleton: &ManyToOneIdMap,
+) -> ManyToOneIdMap {
+    let mut original_to_internal = vec![u32::MAX; vocab.max_token_id() as usize + 1];
+    let mut internal_to_originals = Vec::<Vec<u32>>::new();
+    let mut representative_original_ids = Vec::<u32>::new();
+    for class in &full.internal_to_originals {
+        let mut ordinary = Vec::new();
+        for &token_id in class {
+            let is_singleton = singleton
+                .original_to_internal
+                .get(token_id as usize)
+                .is_some_and(|&mapped| mapped != u32::MAX);
+            if is_singleton {
+                let internal = internal_to_originals.len() as u32;
+                original_to_internal[token_id as usize] = internal;
+                representative_original_ids.push(token_id);
+                internal_to_originals.push(vec![token_id]);
+            } else {
+                ordinary.push(token_id);
+            }
+        }
+        if !ordinary.is_empty() {
+            let internal = internal_to_originals.len() as u32;
+            for &token_id in &ordinary {
+                original_to_internal[token_id as usize] = internal;
+            }
+            representative_original_ids.push(ordinary[0]);
+            internal_to_originals.push(ordinary);
+        }
+    }
+    ManyToOneIdMap {
+        original_to_internal,
+        internal_to_originals,
+        representative_original_ids,
+    }
+}
+
+fn concatenate_disjoint_partition_maps(
+    vocab: &Vocab,
+    maps: &[ManyToOneIdMap],
+) -> ManyToOneIdMap {
+    let mut original_to_internal = vec![u32::MAX; vocab.max_token_id() as usize + 1];
+    let mut internal_to_originals = Vec::<Vec<u32>>::new();
+    let mut representative_original_ids = Vec::<u32>::new();
+    for map in maps {
+        for class in &map.internal_to_originals {
+            let internal = internal_to_originals.len() as u32;
+            for &token_id in class {
+                debug_assert_eq!(original_to_internal[token_id as usize], u32::MAX);
+                original_to_internal[token_id as usize] = internal;
+            }
+            if let Some(&representative) = class.first() {
+                representative_original_ids.push(representative);
+                internal_to_originals.push(class.clone());
+            }
+        }
+    }
+    for &token_id in vocab.entries_map().keys() {
+        if original_to_internal[token_id as usize] == u32::MAX {
+            let internal = internal_to_originals.len() as u32;
+            original_to_internal[token_id as usize] = internal;
+            representative_original_ids.push(token_id);
+            internal_to_originals.push(vec![token_id]);
+        }
+    }
+    ManyToOneIdMap {
+        original_to_internal,
+        internal_to_originals,
+        representative_original_ids,
+    }
 }
 
 #[cfg(test)]

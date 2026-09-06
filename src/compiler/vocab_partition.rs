@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::Vocab;
 use crate::automata::lexer::Lexer;
 use crate::compiler::glr::analysis::AnalyzedGrammar;
-use crate::compiler::grammar::transforms::prepare_grammar_transforms_only;
+use crate::compiler::grammar::transforms::prepare_grammar_for_vocab_partition;
 use crate::compiler::pipeline::{
     build_vocab_partition_compile_context, compute_disallowed_follows, run_with_compile_thread_pool,
 };
@@ -34,7 +34,7 @@ pub(crate) fn compile_vocab_partition_owned(
 
     let profile = crate::compiler::compile::compile_profile_enabled();
     let prepare_started = std::time::Instant::now();
-    let prepared_grammar = prepare_grammar_transforms_only(grammar);
+    let prepared_grammar = prepare_grammar_for_vocab_partition(grammar);
     let grammar_prepare_ms = prepare_started.elapsed().as_secs_f64() * 1000.0;
     run_with_compile_thread_pool(|| {
         // Match Static's compile DAG: grammar analysis is independent of the

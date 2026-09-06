@@ -834,7 +834,7 @@ impl ResidualArena {
 // Exact liveness oracle for the important bounded-code intersection shape
 // emitted by the JSON Schema string importer:
 //
-//     pattern_language ∩ prefix · C^[min,max] · suffix
+//     pattern_language intersect prefix + C^[min,max] + suffix
 //
 // `C` must be a deterministic, non-nullable prefix code and the first suffix
 // byte must not begin a productive C word.  JSON_STRING_CHAR satisfies these
@@ -1323,7 +1323,7 @@ fn bounded_code_byte_classes(
 }
 
 fn expand_exact_byte_classes(dfa: &mut DFA, class_members: &[Vec<u8>]) {
-    for state in dfa.states_mut() {
+    dfa.states_mut().par_iter_mut().for_each(|state| {
         let class_transitions = std::mem::take(&mut state.transitions);
         let capacity = class_transitions
             .iter()
@@ -1338,10 +1338,18 @@ fn expand_exact_byte_classes(dfa: &mut DFA, class_members: &[Vec<u8>]) {
                     .map(|byte| (byte, target)),
             );
         }
-        entries.sort_unstable_by_key(|entry| entry.0);
+        // A single class expands to its already-sorted member bytes. Multiple
+        // classes can interleave, so only those states need sorting.
+        if class_transitions.len() > 1 {
+            entries.sort_unstable_by_key(|entry| entry.0);
+        }
         state.transitions = CharTransitions::from_sorted_entries(entries);
-    }
-    dfa.recompute_possible_futures();
+    });
+    // Expanding a class-labelled edge into one edge per member byte changes
+    // only labels/multiplicity, not the directed state graph or finalizers.
+    // The minimizer has just recomputed strict possible-future groups on this
+    // graph, so recomputing the same fixpoint over the denser byte-expanded
+    // transitions would be redundant.
 }
 
 impl BoundedCodeIntersectionOracle {
@@ -1697,6 +1705,77 @@ impl BoundedCodeIntersectionOracle {
         })
     }
 
+    #[inline]
+    fn step_coordinate_class(
+        &self,
+        coordinate: BoundedCodeOracleCoordinate,
+        byte: u8,
+        class: usize,
+        transitions: &FiniteMaskClassTransitions,
+    ) -> Option<BoundedCodeOracleCoordinate> {
+        let pattern_state = transitions.pattern_step(coordinate.pattern_state, class)?;
+        let envelope = match coordinate.envelope {
+            BoundedCodeEnvelopeState::Prefix { next } => {
+                if self.prefix.get(next).copied()? != byte {
+                    return None;
+                }
+                if next + 1 == self.prefix.len() {
+                    BoundedCodeEnvelopeState::Body {
+                        completed: 0,
+                        body_state: 0,
+                    }
+                } else {
+                    BoundedCodeEnvelopeState::Prefix { next: next + 1 }
+                }
+            }
+            BoundedCodeEnvelopeState::Body {
+                completed,
+                body_state,
+            } => {
+                if body_state == 0 && completed >= self.min && self.suffix[0] == byte {
+                    if self.suffix.len() == 1 {
+                        BoundedCodeEnvelopeState::Done
+                    } else {
+                        BoundedCodeEnvelopeState::Suffix { next: 1 }
+                    }
+                } else {
+                    if completed >= self.max {
+                        return None;
+                    }
+                    let target = transitions.body_step(&self.body, body_state, byte, class)?;
+                    if !self.body.finalizers(target).is_empty() {
+                        BoundedCodeEnvelopeState::Body {
+                            completed: completed.checked_add(1)?,
+                            body_state: 0,
+                        }
+                    } else if self.body_productive[target as usize] {
+                        BoundedCodeEnvelopeState::Body {
+                            completed,
+                            body_state: target,
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+            }
+            BoundedCodeEnvelopeState::Suffix { next } => {
+                if self.suffix.get(next).copied()? != byte {
+                    return None;
+                }
+                if next + 1 == self.suffix.len() {
+                    BoundedCodeEnvelopeState::Done
+                } else {
+                    BoundedCodeEnvelopeState::Suffix { next: next + 1 }
+                }
+            }
+            BoundedCodeEnvelopeState::Done => return None,
+        };
+        Some(BoundedCodeOracleCoordinate {
+            pattern_state,
+            envelope,
+        })
+    }
+
     fn has_future(&mut self, coordinate: BoundedCodeOracleCoordinate) -> bool {
         match coordinate.envelope {
             BoundedCodeEnvelopeState::Done => false,
@@ -1979,79 +2058,180 @@ impl VirtualResidualMaskProjection {
     }
 }
 
-impl BoundedCodeIntersectionOracle {
-    fn finite_mask_dense_state_count(&self, mask_max: usize) -> Option<usize> {
-        if mask_max < self.min || mask_max > self.max {
+#[derive(Debug, Clone, Copy)]
+struct FiniteMaskLayout {
+    pattern_states: usize,
+    body_states: usize,
+    prefix_len: usize,
+    suffix_len: usize,
+    mask_max: usize,
+    prefix_block: usize,
+    body_layer: usize,
+    body_block: usize,
+    suffix_block: usize,
+    dense_state_count: usize,
+}
+
+impl FiniteMaskLayout {
+    fn new(oracle: &BoundedCodeIntersectionOracle, mask_max: usize) -> Option<Self> {
+        if mask_max < oracle.min || mask_max > oracle.max {
             return None;
         }
-        let pattern_states = self.pattern.num_states();
-        let body_states = self.body.num_states();
-        let prefix_states = self.prefix.len().checked_mul(pattern_states)?;
-        let body_states_total = mask_max
-            .checked_add(1)?
-            .checked_mul(body_states)?
-            .checked_mul(pattern_states)?;
-        let suffix_states = self
-            .suffix
-            .len()
-            .saturating_sub(1)
-            .checked_mul(pattern_states)?;
-        prefix_states
-            .checked_add(body_states_total)?
-            .checked_add(suffix_states)?
-            .checked_add(pattern_states)
-    }
-
-    fn coordinate_local_state(
-        &self,
-        coordinate: BoundedCodeOracleCoordinate,
-        mask_max: usize,
-    ) -> Option<u32> {
-        let pattern_states = self.pattern.num_states();
-        let body_states = self.body.num_states();
-        let pattern = coordinate.pattern_state as usize;
-        if pattern >= pattern_states { return None; }
-        let prefix_block = self.prefix.len().checked_mul(pattern_states)?;
+        let pattern_states = oracle.pattern.num_states();
+        let body_states = oracle.body.num_states();
+        let prefix_len = oracle.prefix.len();
+        let suffix_len = oracle.suffix.len();
+        let prefix_block = prefix_len.checked_mul(pattern_states)?;
         let body_layer = body_states.checked_mul(pattern_states)?;
         let body_block = mask_max.checked_add(1)?.checked_mul(body_layer)?;
-        let suffix_slots = self.suffix.len().saturating_sub(1);
-        let suffix_block = suffix_slots.checked_mul(pattern_states)?;
+        let suffix_block = suffix_len
+            .saturating_sub(1)
+            .checked_mul(pattern_states)?;
+        let dense_state_count = prefix_block
+            .checked_add(body_block)?
+            .checked_add(suffix_block)?
+            .checked_add(pattern_states)?;
+        Some(Self {
+            pattern_states,
+            body_states,
+            prefix_len,
+            suffix_len,
+            mask_max,
+            prefix_block,
+            body_layer,
+            body_block,
+            suffix_block,
+            dense_state_count,
+        })
+    }
+
+    #[inline]
+    fn coordinate_local_state(&self, coordinate: BoundedCodeOracleCoordinate) -> Option<u32> {
+        let pattern = coordinate.pattern_state as usize;
+        if pattern >= self.pattern_states {
+            return None;
+        }
+        // The constructor checked every block product and total. The bounds
+        // below keep each offset inside those prechecked blocks, so the hot
+        // transition path can use direct arithmetic without changing overflow
+        // or invalid-coordinate behavior.
         let local = match coordinate.envelope {
             BoundedCodeEnvelopeState::Prefix { next } => {
-                if next >= self.prefix.len() { return None; }
-                next.checked_mul(pattern_states)?.checked_add(pattern)?
+                if next >= self.prefix_len {
+                    return None;
+                }
+                next * self.pattern_states + pattern
             }
-            BoundedCodeEnvelopeState::Body { completed, body_state } => {
+            BoundedCodeEnvelopeState::Body {
+                completed,
+                body_state,
+            } => {
                 let body_state = body_state as usize;
-                if completed > mask_max || body_state >= body_states { return None; }
-                prefix_block
-                    .checked_add(completed.checked_mul(body_layer)?)?
-                    .checked_add(body_state.checked_mul(pattern_states)?)?
-                    .checked_add(pattern)?
+                if completed > self.mask_max || body_state >= self.body_states {
+                    return None;
+                }
+                self.prefix_block
+                    + completed * self.body_layer
+                    + body_state * self.pattern_states
+                    + pattern
             }
             BoundedCodeEnvelopeState::Suffix { next } => {
-                if next == 0 || next >= self.suffix.len() { return None; }
-                prefix_block
-                    .checked_add(body_block)?
-                    .checked_add((next - 1).checked_mul(pattern_states)?)?
-                    .checked_add(pattern)?
+                if next == 0 || next >= self.suffix_len {
+                    return None;
+                }
+                self.prefix_block
+                    + self.body_block
+                    + (next - 1) * self.pattern_states
+                    + pattern
             }
-            BoundedCodeEnvelopeState::Done => prefix_block
-                .checked_add(body_block)?
-                .checked_add(suffix_block)?
-                .checked_add(pattern)?,
+            BoundedCodeEnvelopeState::Done => {
+                self.prefix_block + self.body_block + self.suffix_block + pattern
+            }
         };
         u32::try_from(local).ok()
+    }
+}
+
+struct FiniteMaskClassTransitions {
+    class_count: usize,
+    pattern: Box<[u32]>,
+    body: Option<Box<[u32]>>,
+}
+
+impl FiniteMaskClassTransitions {
+    fn new(oracle: &BoundedCodeIntersectionOracle, byte_classes: &[Vec<u8>]) -> Option<Self> {
+        let class_count = byte_classes.len();
+        if class_count == 0 {
+            return None;
+        }
+        let mut byte_to_class = [0u8; 256];
+        for (class, members) in byte_classes.iter().enumerate() {
+            let class = u8::try_from(class).ok()?;
+            for &byte in members {
+                byte_to_class[byte as usize] = class;
+            }
+        }
+
+        let build_table = |dfa: &DFA| -> Option<Box<[u32]>> {
+            let cells = dfa.num_states().checked_mul(class_count)?;
+            let mut table = vec![u32::MAX; cells];
+            for (state, row) in dfa.states().iter().zip(table.chunks_mut(class_count)) {
+                for (byte, &target) in state.transitions.iter() {
+                    let slot = &mut row[byte_to_class[byte as usize] as usize];
+                    debug_assert!(*slot == u32::MAX || *slot == target);
+                    *slot = target;
+                }
+            }
+            Some(table.into_boxed_slice())
+        };
+
+        // Pattern DFAs are capped at 4096 states by oracle construction, so
+        // their class table is at most 4096 * 256 u32s (4 MiB). A body DFA can
+        // be much wider when the pattern is tiny; cap that optional accelerator
+        // at the existing finite-mask dense-state budget and fall back to the
+        // ordinary sparse transition lookup if it would exceed it.
+        let pattern = build_table(&oracle.pattern)?;
+        let body_cells = oracle.body.num_states().checked_mul(class_count)?;
+        let body = if body_cells <= MAX_FINITE_MASK_DENSE_STATES {
+            build_table(&oracle.body)
+        } else {
+            None
+        };
+        Some(Self {
+            class_count,
+            pattern,
+            body,
+        })
+    }
+
+    #[inline]
+    fn pattern_step(&self, state: u32, class: usize) -> Option<u32> {
+        debug_assert!(class < self.class_count);
+        let target = self.pattern[state as usize * self.class_count + class];
+        (target != u32::MAX).then_some(target)
+    }
+
+    #[inline]
+    fn body_step(&self, dfa: &DFA, state: u32, byte: u8, class: usize) -> Option<u32> {
+        debug_assert!(class < self.class_count);
+        if let Some(table) = &self.body {
+            let target = table[state as usize * self.class_count + class];
+            (target != u32::MAX).then_some(target)
+        } else {
+            dfa.step(state, byte)
+        }
+    }
+}
+
+impl BoundedCodeIntersectionOracle {
+    fn finite_mask_dense_state_count(&self, mask_max: usize) -> Option<usize> {
+        FiniteMaskLayout::new(self, mask_max).map(|layout| layout.dense_state_count)
     }
 
     fn finite_mask_dfa(&self, mask_max: usize) -> Option<(DFA, u32, Vec<u32>)> {
         let profile = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
         let total_started = std::time::Instant::now();
         let pattern_states = self.pattern.num_states();
-        let dense_state_count = self.finite_mask_dense_state_count(mask_max)?;
-        if dense_state_count == 0 || dense_state_count > MAX_FINITE_MASK_DENSE_STATES {
-            return None;
-        }
         let mask_oracle = BoundedCodeIntersectionOracle {
             pattern: Arc::clone(&self.pattern),
             body: Arc::clone(&self.body),
@@ -2065,6 +2245,11 @@ impl BoundedCodeIntersectionOracle {
             exact_powers: self.exact_powers.clone(),
             prefix_sums: self.prefix_sums.clone(),
         };
+        let layout = FiniteMaskLayout::new(&mask_oracle, mask_max)?;
+        let dense_state_count = layout.dense_state_count;
+        if dense_state_count == 0 || dense_state_count > MAX_FINITE_MASK_DENSE_STATES {
+            return None;
+        }
         let byte_classes = bounded_code_byte_classes(
             &mask_oracle.pattern,
             &mask_oracle.body,
@@ -2079,7 +2264,7 @@ impl BoundedCodeIntersectionOracle {
         // DFA can be in a state only reachable after many code words. Seed the
         // finite graph with every *actually possible* projected code-word
         // boundary, then retain the transition closure of those roots. This
-        // avoids the full count × body × pattern Cartesian product while still
+        // avoids the full count x body x pattern Cartesian product while still
         // covering every exact token-boundary state.
         // `mask_max` can equal `min` when the declared interval is fixed
         // (or otherwise narrower than the one-token stencil). In that case
@@ -2131,7 +2316,7 @@ impl BoundedCodeIntersectionOracle {
         let mut coordinates = Vec::<BoundedCodeOracleCoordinate>::new();
         let mut seed_count = 0usize;
         let mut add_seed = |coordinate: BoundedCodeOracleCoordinate| -> Option<()> {
-            let dense = mask_oracle.coordinate_local_state(coordinate, mask_max)? as usize;
+            let dense = layout.coordinate_local_state(coordinate)? as usize;
             if dense_to_sparse[dense] == u32::MAX {
                 dense_to_sparse[dense] = u32::try_from(coordinates.len()).ok()?;
                 coordinates.push(coordinate);
@@ -2155,43 +2340,67 @@ impl BoundedCodeIntersectionOracle {
         let seeds_ms = seeds_started.elapsed().as_secs_f64() * 1000.0;
 
         let expand_started = std::time::Instant::now();
+        let class_transitions = FiniteMaskClassTransitions::new(&mask_oracle, &byte_classes)?;
         let mut dfa = DFA::new(coordinates.len());
         dfa.ensure_group_capacity(1);
         dfa.set_group_u8set(0, crate::ds::u8set::U8Set::all());
         let mut source = 0usize;
         const EXPANSION_BATCH: usize = 1_024;
+        let class_count = byte_classes.len();
+        let slot_width = class_count.max(1);
+        let mut accepting_rows = Vec::<u8>::new();
+        let mut transition_slots =
+            Vec::<Option<(BoundedCodeOracleCoordinate, usize)>>::new();
         while source < coordinates.len() {
             while dfa.num_states() < coordinates.len() {
                 dfa.add_state();
             }
             let batch_end = coordinates.len().min(source.saturating_add(EXPANSION_BATCH));
-            let batch = coordinates[source..batch_end].to_vec();
-            let rows = batch
-                .par_iter()
-                .map(|&coordinate| {
+            let batch_len = batch_end - source;
+            accepting_rows.clear();
+            accepting_rows.resize(batch_len, 0);
+            transition_slots.clear();
+            transition_slots.resize(batch_len.saturating_mul(slot_width), None);
+            transition_slots
+                .par_chunks_mut(slot_width)
+                .zip(accepting_rows.par_iter_mut())
+                .enumerate()
+                .for_each(|(row_offset, (row, accepting_slot))| {
+                    let coordinate = coordinates[source + row_offset];
                     let accepting = matches!(coordinate.envelope, BoundedCodeEnvelopeState::Done)
                         && !mask_oracle.pattern.finalizers(coordinate.pattern_state).is_empty();
-                    let transitions = byte_classes
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(class, members)| {
-                            let next = mask_oracle.step_coordinate(coordinate, members[0])?;
-                            let dense = mask_oracle.coordinate_local_state(next, mask_max)? as usize;
-                            Some((class as u8, next, dense))
-                        })
-                        .collect::<Vec<_>>();
-                    Some((accepting, transitions))
-                })
-                .collect::<Option<Vec<_>>>()?;
+                    *accepting_slot = u8::from(accepting);
+                    for (class, members) in byte_classes.iter().enumerate() {
+                        let Some(next) = mask_oracle.step_coordinate_class(
+                            coordinate,
+                            members[0],
+                            class,
+                            &class_transitions,
+                        ) else {
+                            continue;
+                        };
+                        let Some(dense) = layout.coordinate_local_state(next) else {
+                            continue;
+                        };
+                        row[class] = Some((next, dense as usize));
+                    }
+                });
 
-            for (row_offset, (accepting, transitions)) in rows.into_iter().enumerate() {
+            for row_offset in 0..batch_len {
                 let source_state = (source + row_offset) as u32;
                 let mut finalizers = BitSet::new(1);
-                if accepting {
+                if accepting_rows[row_offset] != 0 {
                     finalizers.set(0);
                 }
                 dfa.overwrite_state_metadata(source_state, finalizers, BitSet::new(1));
-                for (byte, next, dense) in transitions {
+                let row_start = row_offset * slot_width;
+                for (class, slot) in transition_slots[row_start..row_start + class_count]
+                    .iter()
+                    .enumerate()
+                {
+                    let Some((next, dense)) = *slot else {
+                        continue;
+                    };
                     let target = if dense_to_sparse[dense] == u32::MAX {
                         let target = u32::try_from(coordinates.len()).ok()?;
                         dense_to_sparse[dense] = target;
@@ -2203,17 +2412,18 @@ impl BoundedCodeIntersectionOracle {
                     while dfa.num_states() <= target as usize {
                         dfa.add_state();
                     }
-                    dfa.add_transition(source_state, byte, target);
+                    dfa.add_transition(source_state, class as u8, target);
                 }
             }
             source = batch_end;
         }
-        dfa.recompute_possible_futures();
+        // Minimization immediately clears possible-future metadata before
+        // partitioning and recomputes it on the minimized DFA. Computing the
+        // full sparse DFA's futures here would therefore be pure dead work.
         let expand_ms = expand_started.elapsed().as_secs_f64() * 1000.0;
 
         let sparse_state_count = dfa.num_states();
-        let root_dense = mask_oracle
-            .coordinate_local_state(mask_oracle.root_coordinate(), mask_max)? as usize;
+        let root_dense = layout.coordinate_local_state(mask_oracle.root_coordinate())? as usize;
         let root_sparse = dense_to_sparse[root_dense];
         if root_sparse == u32::MAX {
             return None;
@@ -3211,7 +3421,7 @@ impl VirtualResidualRuntime {
         // Even when the declared upper bound already fits inside one model-token
         // stencil, keep using the finite oracle coordinate. The absence of a
         // truncating stencil does not imply that eagerly materializing the
-        // original pattern × length product is cheap.
+        // original pattern x length product is cheap.
         let (dfa, root, local_to_mask_state) = oracle.finite_mask_dfa(mask_max)?;
         let projection = VirtualResidualMaskProjection {
             runtime: Arc::clone(self),
@@ -3239,6 +3449,32 @@ mod tests {
     use super::*;
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
+
+    #[test]
+    fn exact_byte_class_expansion_preserves_possible_futures() {
+        let mut dfa = DFA::new(3);
+        dfa.ensure_group_capacity(1);
+        dfa.add_transition(0, 0, 1);
+        dfa.add_transition(1, 1, 2);
+        let mut finalizers = BitSet::new(1);
+        finalizers.set(0);
+        dfa.overwrite_state_metadata(2, finalizers, BitSet::new(1));
+        dfa.recompute_possible_futures();
+
+        let futures_before = (0..dfa.num_states() as u32)
+            .map(|state| dfa.possible_future_group_ids(state).clone())
+            .collect::<Vec<_>>();
+
+        expand_exact_byte_classes(&mut dfa, &[vec![b'a', b'b'], vec![b'c', b'd']]);
+
+        for (state, expected) in futures_before.iter().enumerate() {
+            assert_eq!(dfa.possible_future_group_ids(state as u32), expected);
+        }
+        assert_eq!(dfa.step(0, b'a'), Some(1));
+        assert_eq!(dfa.step(0, b'b'), Some(1));
+        assert_eq!(dfa.step(1, b'c'), Some(2));
+        assert_eq!(dfa.step(1, b'd'), Some(2));
+    }
 
     fn bytes(value: &[u8]) -> Expr {
         Expr::U8Seq(value.to_vec())
@@ -3609,7 +3845,7 @@ mod tests {
     #[test]
     fn runtime_future_bit_is_conservative_until_exact_boundary_check() {
         // The whole intersection accepts "c", but after consuming 'a' its
-        // residual is exactly b ∩ c: syntactically nonempty, semantically dead.
+        // residual is exactly b intersect c: syntactically nonempty, semantically dead.
         let expr = Expr::Intersect {
             expr: Box::new(Expr::Choice(vec![bytes(b"ab"), bytes(b"c")])),
             intersect: Box::new(Expr::Choice(vec![bytes(b"ac"), bytes(b"c")])),
