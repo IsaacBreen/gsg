@@ -2662,7 +2662,7 @@ pub fn resolve_terminal_subexpressions(
         .filter(|rule| rule.is_terminal)
         .map(|rule| (rule.name.clone(), &rule.expr))
         .collect::<FxHashMap<_, _>>();
-    let mut terminal_expr_cache = FxHashMap::default();
+    let mut terminal_expr_cache: FxHashMap<String, Arc<Expr>> = FxHashMap::default();
 
     exprs
         .iter()
@@ -2689,7 +2689,7 @@ pub fn resolved_named_terminal_exprs(
         .filter(|rule| rule.is_terminal)
         .map(|rule| (rule.name.clone(), &rule.expr))
         .collect::<FxHashMap<_, _>>();
-    let mut terminal_expr_cache = FxHashMap::default();
+    let mut terminal_expr_cache: FxHashMap<String, Arc<Expr>> = FxHashMap::default();
     let mut resolved = BTreeMap::new();
 
     for rule in grammar
@@ -2700,13 +2700,19 @@ pub fn resolved_named_terminal_exprs(
         if matches!(rule.expr, GrammarExpr::SpecialToken(_)) {
             continue;
         }
-        let mut visiting = HashSet::from([rule.name.clone()]);
-        let expr = grammar_expr_to_expr(
-            &rule.expr,
-            &terminal_bodies,
-            &mut terminal_expr_cache,
-            &mut visiting,
-        )?;
+        let expr = if let Some(cached) = terminal_expr_cache.get(&rule.name) {
+            cached.as_ref().clone()
+        } else {
+            let mut visiting = HashSet::from([rule.name.clone()]);
+            let expr = grammar_expr_to_expr(
+                &rule.expr,
+                &terminal_bodies,
+                &mut terminal_expr_cache,
+                &mut visiting,
+            )?;
+            terminal_expr_cache.insert(rule.name.clone(), Arc::new(expr.clone()));
+            expr
+        };
         resolved.insert(rule.name.clone(), expr);
     }
 
@@ -3171,6 +3177,27 @@ fn dedup_rules_preserving_first_occurrence(rules: &mut Vec<Rule>) {
 }
 
 pub fn lower(grammar: &NamedGrammar) -> Result<GrammarDef, GlrMaskError> {
+    lower_with_resolved_terminal_exprs_impl(grammar, None)
+}
+
+/// Lower a named grammar while reusing terminal expressions that were already
+/// resolved by an immediately preceding preparation pass.
+///
+/// Entries are keyed by named terminal rule. Missing entries are resolved by
+/// the ordinary lowering path, so callers may provide only the expressions
+/// they already have without changing language semantics.
+#[doc(hidden)]
+pub fn lower_with_resolved_terminal_exprs(
+    grammar: &NamedGrammar,
+    resolved_terminal_exprs: BTreeMap<String, Expr>,
+) -> Result<GrammarDef, GlrMaskError> {
+    lower_with_resolved_terminal_exprs_impl(grammar, Some(resolved_terminal_exprs))
+}
+
+fn lower_with_resolved_terminal_exprs_impl(
+    grammar: &NamedGrammar,
+    resolved_terminal_exprs: Option<BTreeMap<String, Expr>>,
+) -> Result<GrammarDef, GlrMaskError> {
     let profile_enabled = std::env::var_os("GLRMASK_PROFILE_COMPILE").is_some()
         || std::env::var_os("GLRMASK_PROFILE_COMPILE_SUMMARY").is_some();
     let validate_started_at = profile_enabled.then(std::time::Instant::now);
@@ -3180,6 +3207,13 @@ pub fn lower(grammar: &NamedGrammar) -> Result<GrammarDef, GlrMaskError> {
 
     let setup_started_at = profile_enabled.then(std::time::Instant::now);
     let mut lowerer = Lowerer::new();
+    if let Some(resolved_terminal_exprs) = resolved_terminal_exprs {
+        lowerer.terminal_expr_cache.extend(
+            resolved_terminal_exprs
+                .into_iter()
+                .map(|(name, expr)| (name, Arc::new(expr))),
+        );
+    }
     let setup_detail_profile = std::env::var_os("GLRMASK_PROFILE_AST_LOWER_DETAIL").is_some();
     let named_exprs_started_at = setup_detail_profile.then(std::time::Instant::now);
     lowerer.named_rule_exprs = grammar

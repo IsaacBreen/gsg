@@ -4401,12 +4401,18 @@ fn build_binary_impl(input: BuildInput<'_>, allow_finite_switch: bool) -> Option
     let setup_ms = setup_started.elapsed().as_secs_f64() * 1000.0;
 
     let projected_started = Instant::now();
+    let broad_id_map_p2_direct = input.id_map_only
+        && input.partition_label == "p2"
+        && input.active_terminals.iter().filter(|&&active| active).count() >= 64;
     let direct_terminal_residuals = std::env::var("GLRMASK_L1_DIRECT_TERMINAL_RESIDUALS")
         .map(|value| {
             let value = value.trim();
             value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
         })
-        .unwrap_or(input.id_map_only && input.partition_label == "p1")
+        .unwrap_or(
+            input.id_map_only
+                && (input.partition_label == "p1" || broad_id_map_p2_direct),
+        )
         || std::env::var("GLRMASK_L1_DIRECT_TERMINAL_RESIDUALS_PARTITIONS")
             .ok()
             .is_some_and(|scope| {

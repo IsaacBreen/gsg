@@ -54,7 +54,8 @@ pub mod __private {
 
     pub use crate::json_schema::{
         GLRMASK_JSON_SCHEMA_SPLIT_LITERAL_TERMINALS_ENV, finalize_lexer_partitions,
-        lower_exact_subtractions_enabled, split_literal_terminals_enabled,
+        lower_exact_subtractions_enabled, prepare_named_grammar_for_lowering,
+        split_literal_terminals_enabled,
         swap_split_literal_terminals_test_override,
     };
 

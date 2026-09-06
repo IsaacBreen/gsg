@@ -9,7 +9,6 @@ use rayon::prelude::*;
 
 use crate::Vocab;
 use crate::automata::lexer::compile::{
-    build_bounded_code_mask_component_for_vocab,
     build_partitioned_tokenizer_from_precompiled_terminal_dfas,
     build_partitioned_tokenizer_with_product_trace_terminal_residuals,
     build_exact_partitioned_runtime_tokenizer,
@@ -32,6 +31,7 @@ use crate::automata::lexer::compile::{
     expression_supports_bounded_code_residual_runtime,
     expression_supports_deferred_dense_runtime,
     factor_regex_expr,
+    prepare_bounded_code_mask_component,
     prepare_partitioned_expression_pair_with_structural_map,
     prepare_partitioned_expression_pair_with_vocabulary_token_quotient,
     virtual_binary_bounded_repeat_intersection_descriptor,
@@ -857,7 +857,7 @@ fn build_dynamic_virtual_tokenizer(
         return build_general_residual();
     }
 
-    let mut proxy_expressions = expressions.clone();
+    let mut proxy_expressions = expressions.to_vec();
     for (terminal, _) in &virtual_candidates {
         proxy_expressions[*terminal as usize] = Expr::U8Class(U8Set::empty());
     }
@@ -998,7 +998,9 @@ fn build_vocab_partition_direct_mask_tokenizer(
         .iter()
         .map(terminal_expr)
         .map(factor_regex_expr)
-        .collect::<Vec<_>>();
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    let expressions: Arc<[Expr]> = Arc::from(expressions);
     let expressions_ms = elapsed_ms(expressions_started);
     let scan_started = Instant::now();
     let giant_terminals = expressions
@@ -1034,7 +1036,7 @@ fn build_vocab_partition_direct_mask_tokenizer(
         return Ok(None);
     }
 
-    let mut proxy_expressions = expressions.clone();
+    let mut proxy_expressions = expressions.to_vec();
     for &terminal in &bounded_code_terminals {
         proxy_expressions[terminal as usize] = Expr::U8Class(U8Set::empty());
     }
@@ -1060,7 +1062,7 @@ fn build_vocab_partition_direct_mask_tokenizer(
 
     let restore_started = profile.then(Instant::now);
     tokenizer
-        .restore_terminal_exprs_without_virtual_runtime(Some(expressions.clone()))
+        .restore_terminal_exprs_arc_without_virtual_runtime(Some(Arc::clone(&expressions)))
         .map_err(|detail| {
             crate::Error::Compilation(format!(
                 "direct vocabulary-mask tokenizer expression restoration failed: {detail}"
@@ -1072,34 +1074,99 @@ fn build_vocab_partition_direct_mask_tokenizer(
         crate::automata::lexer::compile::VocabularyRepeatHorizonCache::new();
     let max_token_len = vocab.max_token_byte_len();
     let components_started = profile.then(Instant::now);
-    let components = bounded_code_terminals
+    let mut unique_terminals = Vec::<TerminalID>::with_capacity(bounded_code_terminals.len());
+    let mut component_index_by_terminal = Vec::<usize>::with_capacity(bounded_code_terminals.len());
+    let mut unique_index_by_expr = rustc_hash::FxHashMap::<&Expr, usize>::default();
+    for &terminal in &bounded_code_terminals {
+        let expression = &expressions[terminal as usize];
+        let component_index = if let Some(&index) = unique_index_by_expr.get(expression) {
+            index
+        } else {
+            let index = unique_terminals.len();
+            unique_index_by_expr.insert(expression, index);
+            unique_terminals.push(terminal);
+            index
+        };
+        component_index_by_terminal.push(component_index);
+    }
+    if profile {
+        eprintln!(
+            "[glrmask/profile][bounded_code_expr_dedup] components={} unique_exprs={} duplicate_uses={}",
+            bounded_code_terminals.len(),
+            unique_terminals.len(),
+            bounded_code_terminals.len().saturating_sub(unique_terminals.len()),
+        );
+    }
+    let prepare_started = profile.then(Instant::now);
+    let prepared = unique_terminals
         .par_iter()
         .map(|&terminal| {
-            build_bounded_code_mask_component_for_vocab(
-                &expressions[terminal as usize],
-                vocab,
-                max_token_len,
-                &repeat_horizons,
-            )
-            .map(|(dfa, root)| (dfa, root, terminal))
+            prepare_bounded_code_mask_component(&expressions[terminal as usize])
+                .map(|prepared| prepared)
         })
         .collect::<Option<Vec<_>>>();
+    let prepare_components_ms = prepare_started.map_or(0.0, elapsed_ms);
+    let Some(prepared) = prepared else {
+        return Ok(None);
+    };
+    let horizon_started = profile.then(Instant::now);
+    repeat_horizons.prewarm_dfas(prepared.iter().map(|prepared| prepared.body_dfa()), vocab);
+    let horizon_prewarm_ms = horizon_started.map_or(0.0, elapsed_ms);
+    let finite_started = profile.then(Instant::now);
+    let unique_components = prepared
+        .into_par_iter()
+        .map(|prepared| {
+            prepared
+                .finish_for_vocab(vocab, max_token_len, &repeat_horizons)
+                .map(|(dfa, root)| (Arc::new(dfa), root))
+        })
+        .collect::<Option<Vec<_>>>();
+    let finite_components_ms = finite_started.map_or(0.0, elapsed_ms);
     let components_ms = components_started.map_or(0.0, elapsed_ms);
-    let Some(components) = components else {
+    let Some(unique_components) = unique_components else {
         return Ok(None);
     };
     let install_started = profile.then(Instant::now);
-    tokenizer
-        .install_direct_mask_components(components)
-        .ok_or_else(|| {
-            crate::Error::Compilation(
-                "direct vocabulary-mask tokenizer component installation failed".to_owned(),
-            )
-        })?;
+    let share_physical_aliases = unique_components.len() < bounded_code_terminals.len();
+    let install_result = if share_physical_aliases {
+        let mut aliases = vec![Vec::<TerminalID>::new(); unique_components.len()];
+        for (&terminal, &component_index) in bounded_code_terminals
+            .iter()
+            .zip(component_index_by_terminal.iter())
+        {
+            aliases[component_index].push(terminal);
+        }
+        tokenizer.install_direct_mask_component_alias_groups(
+            unique_components
+                .iter()
+                .zip(aliases)
+                .map(|((component, root), terminals)| {
+                    (Arc::clone(component), *root, terminals)
+                })
+                .collect(),
+        )
+    } else {
+        tokenizer.install_direct_mask_components_shared(
+            bounded_code_terminals
+                .iter()
+                .copied()
+                .zip(component_index_by_terminal.iter().copied())
+                .map(|(terminal, component_index)| {
+                    let (component, root) = &unique_components[component_index];
+                    (Arc::clone(component), *root, terminal)
+                })
+                .collect(),
+        )
+    };
+    install_result.ok_or_else(|| {
+        crate::Error::Compilation(
+            "direct vocabulary-mask tokenizer component installation failed".to_owned(),
+        )
+    })?;
     let install_ms = install_started.map_or(0.0, elapsed_ms);
     if compile_profile_enabled() {
         eprintln!(
-            "[glrmask/profile][vocab_partition_tokenizer] path=direct_mask states={} components={} preflight_ms={preflight_ms:.3} expressions_ms={expressions_ms:.3} scan_ms={scan_ms:.3} proxy_ms={proxy_ms:.3} restore_ms={restore_ms:.3} components_ms={components_ms:.3} install_ms={install_ms:.3} total_ms={:.3}",
+            "[glrmask/profile][vocab_partition_tokenizer] path=direct_mask states={} components={} preflight_ms={preflight_ms:.3} expressions_ms={expressions_ms:.3} scan_ms={scan_ms:.3} proxy_ms={proxy_ms:.3} restore_ms={restore_ms:.3} prepare_components_ms={prepare_components_ms:.3} horizon_prewarm_ms={horizon_prewarm_ms:.3} finite_components_ms={finite_components_ms:.3} components_ms={components_ms:.3} install_ms={install_ms:.3} total_ms={:.3}",
             tokenizer.num_states(),
             bounded_code_terminals.len(),
             elapsed_ms(total_started),
