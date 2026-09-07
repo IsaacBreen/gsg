@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::Vocab;
+use crate::{Vocab, VocabPartitionStrategy};
 use crate::automata::lexer::Lexer;
 use crate::compiler::glr::analysis::AnalyzedGrammar;
 use crate::compiler::grammar::transforms::prepare_grammar_for_vocab_partition;
@@ -26,6 +26,7 @@ use crate::grammar::flat::GrammarDef;
 pub(crate) fn compile_vocab_partition_owned(
     grammar: GrammarDef,
     vocab: &Vocab,
+    strategy: VocabPartitionStrategy,
 ) -> ManyToOneIdMap {
     // Pure vocabulary artifacts are reusable across every grammar using this
     // Vocab. Populate them once so grammar-dependent latency does not repeatedly
@@ -162,13 +163,17 @@ pub(crate) fn compile_vocab_partition_owned(
         const DEDICATED_TOPOLOGY_MIN: usize = 100_000;
         let topology = (tokenizer.num_states() as usize)
             .saturating_mul(analyzed_grammar.num_terminals as usize);
-        let use_dedicated = std::env::var("GLRMASK_VOCAB_PARTITION_DEDICATED")
-            .ok()
-            .map(|value| {
-                let value = value.trim();
-                !value.is_empty() && value != "0" && !value.eq_ignore_ascii_case("false")
-            })
-            .unwrap_or(direct_mask_tokenizer || topology >= DEDICATED_TOPOLOGY_MIN);
+        let use_dedicated = match strategy {
+            VocabPartitionStrategy::Automatic => std::env::var("GLRMASK_VOCAB_PARTITION_DEDICATED")
+                .ok()
+                .map(|value| {
+                    let value = value.trim();
+                    !value.is_empty() && value != "0" && !value.eq_ignore_ascii_case("false")
+                })
+                .unwrap_or(direct_mask_tokenizer || topology >= DEDICATED_TOPOLOGY_MIN),
+            VocabPartitionStrategy::Compact => false,
+            VocabPartitionStrategy::Dedicated => true,
+        };
         let result = if use_dedicated {
             build_vocab_equivalence_partition_with_precomputed_global_max_length(
                 &tokenizer,

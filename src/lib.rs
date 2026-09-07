@@ -92,7 +92,7 @@ pub use dynamic_constraint::{DynamicConstraint, DynamicConstraintState};
 pub use runtime::{BoundaryTriggerDetail, Constraint, ConstraintState};
 pub use glrmask_vocab::Vocab;
 pub use error::{Error, Result};
-pub use public_api::{ConstraintSpec, ConstraintSpecBuilder, Grammar, VocabPartition};
+pub use public_api::{ConstraintSpec, ConstraintSpecBuilder, Grammar, VocabPartition, VocabPartitionStrategy};
 
 #[cfg(test)]
 pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());

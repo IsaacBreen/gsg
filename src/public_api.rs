@@ -81,6 +81,24 @@ impl<'a> Grammar<'a> {
 }
 
 
+/// Strategy used to build a [`VocabPartition`].
+///
+/// All strategies are conservative: they may keep tokens separate when a more
+/// expensive proof could merge them, but they never intentionally merge tokens
+/// whose grammar-visible behavior differs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum VocabPartitionStrategy {
+    /// Choose automatically from the observable lexer topology.
+    #[default]
+    Automatic,
+    /// Prefer the Static-derived quotient, which is usually more compact but may
+    /// spend more time proving multi-token equivalences on small lexers.
+    Compact,
+    /// Use the dedicated vocabulary-only relation. This often compiles faster on
+    /// small lexers but may return a finer partition with more classes.
+    Dedicated,
+}
+
 /// A conservative grammar-specific equivalence partition of model vocabulary tokens.
 ///
 /// Tokens in the same class have been proved interchangeable by the fast
@@ -98,6 +116,15 @@ pub struct VocabPartition {
 impl VocabPartition {
     /// Analyze `grammar` for `vocab` without constructing terminal/parser DWAs.
     pub fn compile(grammar: Grammar<'_>, vocab: &Vocab) -> Result<Self> {
+        Self::compile_with_strategy(grammar, vocab, VocabPartitionStrategy::Automatic)
+    }
+
+    /// Analyze `grammar` for `vocab` using an explicit partition strategy.
+    pub fn compile_with_strategy(
+        grammar: Grammar<'_>,
+        vocab: &Vocab,
+        strategy: VocabPartitionStrategy,
+    ) -> Result<Self> {
         let profile = crate::compiler::pipeline::compile_top_profile_enabled();
         let total_started = profile.then(Instant::now);
         if !grammar.grammar_bindings.is_empty() {
@@ -122,7 +149,7 @@ impl VocabPartition {
         let lower_ms = lower_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
         let compile_started = profile.then(Instant::now);
         let map = crate::error::catch_internal_invariant(|| {
-            crate::compiler::vocab_partition::compile_vocab_partition_owned(grammar_def, vocab)
+            crate::compiler::vocab_partition::compile_vocab_partition_owned(grammar_def, vocab, strategy)
         })?;
         if profile {
             eprintln!(
@@ -1331,6 +1358,39 @@ mod tests {
         assert!(partition.num_classes() <= vocab.len());
     }
 
+    #[test]
+    fn explicit_vocab_partition_strategies_are_conservative() {
+        let vocab = Vocab::new(vec![
+            (0, b"a".to_vec()),
+            (1, b"b".to_vec()),
+            (2, b"ab".to_vec()),
+            (3, b"ba".to_vec()),
+            (4, b"aa".to_vec()),
+            (5, b"bb".to_vec()),
+        ]);
+        let source = r#"start ::= ("a" | "b")+"#;
+        let compact = VocabPartition::compile_with_strategy(
+            Grammar::ebnf(source),
+            &vocab,
+            VocabPartitionStrategy::Compact,
+        )
+        .unwrap();
+        let dedicated = VocabPartition::compile_with_strategy(
+            Grammar::ebnf(source),
+            &vocab,
+            VocabPartitionStrategy::Dedicated,
+        )
+        .unwrap();
+
+        for class in dedicated.classes() {
+            let mut compact_class = None;
+            for &token_id in class {
+                let current = compact.class_of(token_id).unwrap();
+                assert!(compact_class.is_none_or(|expected| expected == current));
+                compact_class = Some(current);
+            }
+        }
+    }
     #[test]
     fn vocab_partition_rejects_bound_subgrammar_instead_of_ignoring_it() {
         let vocab = Vocab::new(vec![(0, b"a".to_vec())]);

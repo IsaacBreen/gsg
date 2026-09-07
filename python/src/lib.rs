@@ -616,6 +616,16 @@ impl PyVocab {
 // PyVocabPartition
 // ---------------------------------------------------------------------------
 
+fn parse_vocab_partition_strategy(value: Option<&str>) -> PyResult<glrmask::VocabPartitionStrategy> {
+    match value.unwrap_or("automatic").trim().to_ascii_lowercase().as_str() {
+        "automatic" | "auto" => Ok(glrmask::VocabPartitionStrategy::Automatic),
+        "compact" => Ok(glrmask::VocabPartitionStrategy::Compact),
+        "dedicated" => Ok(glrmask::VocabPartitionStrategy::Dedicated),
+        value => Err(PyValueError::new_err(format!(
+            "unknown vocab partition strategy {value:?}; expected 'automatic', 'compact', or 'dedicated'"
+        ))),
+    }
+}
 #[pyclass(name = "VocabPartition")]
 #[derive(Clone)]
 pub struct PyVocabPartition {
@@ -633,34 +643,46 @@ impl PyVocabPartition {
 #[pymethods]
 impl PyVocabPartition {
     #[staticmethod]
-    fn from_json_schema(schema: &str, vocab: &PyVocab) -> PyResult<Self> {
-        Self::from_result(glrmask::VocabPartition::compile(
+    #[pyo3(signature = (schema, vocab, strategy=None))]
+    fn from_json_schema(schema: &str, vocab: &PyVocab, strategy: Option<&str>) -> PyResult<Self> {
+        let strategy = parse_vocab_partition_strategy(strategy)?;
+        Self::from_result(glrmask::VocabPartition::compile_with_strategy(
             glrmask::Grammar::json_schema(schema),
             &vocab.inner,
+            strategy,
         ))
     }
 
     #[staticmethod]
-    fn from_ebnf(source: &str, vocab: &PyVocab) -> PyResult<Self> {
-        Self::from_result(glrmask::VocabPartition::compile(
+    #[pyo3(signature = (source, vocab, strategy=None))]
+    fn from_ebnf(source: &str, vocab: &PyVocab, strategy: Option<&str>) -> PyResult<Self> {
+        let strategy = parse_vocab_partition_strategy(strategy)?;
+        Self::from_result(glrmask::VocabPartition::compile_with_strategy(
             glrmask::Grammar::ebnf(source),
             &vocab.inner,
+            strategy,
         ))
     }
 
     #[staticmethod]
-    fn from_lark(source: &str, vocab: &PyVocab) -> PyResult<Self> {
-        Self::from_result(glrmask::VocabPartition::compile(
+    #[pyo3(signature = (source, vocab, strategy=None))]
+    fn from_lark(source: &str, vocab: &PyVocab, strategy: Option<&str>) -> PyResult<Self> {
+        let strategy = parse_vocab_partition_strategy(strategy)?;
+        Self::from_result(glrmask::VocabPartition::compile_with_strategy(
             glrmask::Grammar::lark(source),
             &vocab.inner,
+            strategy,
         ))
     }
 
     #[staticmethod]
-    fn from_glrm(source: &str, vocab: &PyVocab) -> PyResult<Self> {
-        Self::from_result(glrmask::VocabPartition::compile(
+    #[pyo3(signature = (source, vocab, strategy=None))]
+    fn from_glrm(source: &str, vocab: &PyVocab, strategy: Option<&str>) -> PyResult<Self> {
+        let strategy = parse_vocab_partition_strategy(strategy)?;
+        Self::from_result(glrmask::VocabPartition::compile_with_strategy(
             glrmask::Grammar::glrm(source),
             &vocab.inner,
+            strategy,
         ))
     }
 
