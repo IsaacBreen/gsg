@@ -512,6 +512,7 @@ pub struct TerminalResidualCoordinates {
     offsets: Arc<[u32]>,
     entries: Arc<[(u32, u32)]>,
     terminal_dfas: Arc<[Arc<DFA>]>,
+    terminal_groups: Arc<[u32]>,
 }
 
 impl TerminalResidualCoordinates {
@@ -520,6 +521,16 @@ impl TerminalResidualCoordinates {
     }
 
     pub fn from_rows_and_dfas(rows: Vec<Vec<(u32, u32)>>, terminal_dfas: Vec<Arc<DFA>>) -> Self {
+        let terminal_groups = vec![0u32; terminal_dfas.len()];
+        Self::from_rows_and_dfa_groups(rows, terminal_dfas, terminal_groups)
+    }
+
+    pub fn from_rows_and_dfa_groups(
+        rows: Vec<Vec<(u32, u32)>>,
+        terminal_dfas: Vec<Arc<DFA>>,
+        terminal_groups: Vec<u32>,
+    ) -> Self {
+        debug_assert_eq!(terminal_dfas.len(), terminal_groups.len());
         let mut offsets = Vec::with_capacity(rows.len() + 1);
         let mut entries = Vec::with_capacity(rows.iter().map(Vec::len).sum());
         offsets.push(0);
@@ -531,6 +542,7 @@ impl TerminalResidualCoordinates {
             offsets: Arc::from(offsets.into_boxed_slice()),
             entries: Arc::from(entries.into_boxed_slice()),
             terminal_dfas: Arc::from(terminal_dfas.into_boxed_slice()),
+            terminal_groups: Arc::from(terminal_groups.into_boxed_slice()),
         }
     }
 
@@ -553,8 +565,165 @@ impl TerminalResidualCoordinates {
     }
 
     #[inline]
+    pub fn terminal_dfa_and_group(&self, terminal: u32) -> Option<(&DFA, u32)> {
+        Some((
+            self.terminal_dfas.get(terminal as usize)?.as_ref(),
+            *self.terminal_groups.get(terminal as usize)?,
+        ))
+    }
+
+    #[inline]
     pub fn terminal_dfa_count(&self) -> usize {
         self.terminal_dfas.len()
+    }
+
+    fn replace_terminals_with_appended_dfas(
+        &self,
+        replacements: &[(TerminalID, Arc<DFA>)],
+    ) -> Option<Self> {
+        if replacements.is_empty() {
+            return Some(self.clone());
+        }
+
+        // `install_direct_mask_components` appends every component first and
+        // then updates this sidecar. Build the final coordinate table once,
+        // rather than rebuilding all existing rows after every component.
+        // Keep the exact sequential semantics even if a future caller supplies
+        // the same terminal more than once: rows belonging to an earlier
+        // replacement remain present but have that terminal coordinate removed,
+        // while the final replacement owns the terminal's standalone identity
+        // rows and DFA metadata.
+        let terminal_count = self.terminal_dfas.len();
+        let mut last_replacement = vec![usize::MAX; terminal_count];
+        let mut appended_states = 0usize;
+        for (index, (terminal, dfa)) in replacements.iter().enumerate() {
+            let terminal_index = *terminal as usize;
+            if terminal_index >= terminal_count {
+                return None;
+            }
+            last_replacement[terminal_index] = index;
+            appended_states = appended_states.checked_add(dfa.num_states())?;
+        }
+
+        let mut offsets = Vec::with_capacity(
+            self.len()
+                .checked_add(appended_states)?
+                .checked_add(1)?,
+        );
+        let mut entries = Vec::with_capacity(self.entries.len().saturating_add(appended_states));
+        offsets.push(0u32);
+        for state in 0..self.len() {
+            entries.extend(
+                self.row(state as u32)?
+                    .iter()
+                    .copied()
+                    .filter(|&(terminal, _)| {
+                        last_replacement
+                            .get(terminal as usize)
+                            .map_or(true, |&replacement| replacement == usize::MAX)
+                    }),
+            );
+            offsets.push(u32::try_from(entries.len()).ok()?);
+        }
+
+        for (index, (terminal, dfa)) in replacements.iter().enumerate() {
+            let is_final = last_replacement[*terminal as usize] == index;
+            for state in 0..dfa.num_states() {
+                if is_final {
+                    entries.push((*terminal, u32::try_from(state).ok()?));
+                }
+                offsets.push(u32::try_from(entries.len()).ok()?);
+            }
+        }
+        let mut terminal_dfas = self.terminal_dfas.iter().cloned().collect::<Vec<_>>();
+        let mut terminal_groups = self.terminal_groups.iter().copied().collect::<Vec<_>>();
+        for (terminal, dfa) in replacements {
+            let terminal_index = *terminal as usize;
+            terminal_dfas[terminal_index] = Arc::clone(dfa);
+            terminal_groups[terminal_index] = 0;
+        }
+        Some(Self {
+            offsets: Arc::from(offsets.into_boxed_slice()),
+            entries: Arc::from(entries.into_boxed_slice()),
+            terminal_dfas: Arc::from(terminal_dfas.into_boxed_slice()),
+            terminal_groups: Arc::from(terminal_groups.into_boxed_slice()),
+        })
+    }
+
+    fn replace_terminal_alias_groups_with_appended_dfas(
+        &self,
+        replacements: &[(Vec<TerminalID>, Arc<DFA>)],
+    ) -> Option<Self> {
+        if replacements.is_empty() {
+            return Some(self.clone());
+        }
+
+        let terminal_count = self.terminal_dfas.len();
+        let mut replaced = vec![false; terminal_count];
+        let mut appended_states = 0usize;
+        let mut appended_entries = 0usize;
+        for (terminals, dfa) in replacements {
+            if terminals.is_empty() {
+                return None;
+            }
+            appended_states = appended_states.checked_add(dfa.num_states())?;
+            appended_entries = appended_entries.checked_add(
+                dfa.num_states().checked_mul(terminals.len())?,
+            )?;
+            for &terminal in terminals {
+                let terminal_index = terminal as usize;
+                if terminal_index >= terminal_count || replaced[terminal_index] {
+                    return None;
+                }
+                replaced[terminal_index] = true;
+            }
+        }
+
+        let mut offsets = Vec::with_capacity(
+            self.len()
+                .checked_add(appended_states)?
+                .checked_add(1)?,
+        );
+        let mut entries = Vec::with_capacity(self.entries.len().saturating_add(appended_entries));
+        offsets.push(0u32);
+        for state in 0..self.len() {
+            entries.extend(
+                self.row(state as u32)?
+                    .iter()
+                    .copied()
+                    .filter(|&(terminal, _)| {
+                        replaced
+                            .get(terminal as usize)
+                            .is_none_or(|&is_replaced| !is_replaced)
+                    }),
+            );
+            offsets.push(u32::try_from(entries.len()).ok()?);
+        }
+
+        for (terminals, dfa) in replacements {
+            for state in 0..dfa.num_states() {
+                let local_state = u32::try_from(state).ok()?;
+                entries.extend(terminals.iter().map(|&terminal| (terminal, local_state)));
+                offsets.push(u32::try_from(entries.len()).ok()?);
+            }
+        }
+
+        let mut terminal_dfas = self.terminal_dfas.iter().cloned().collect::<Vec<_>>();
+        let mut terminal_groups = self.terminal_groups.iter().copied().collect::<Vec<_>>();
+        for (terminals, dfa) in replacements {
+            for &terminal in terminals {
+                let terminal_index = terminal as usize;
+                terminal_dfas[terminal_index] = Arc::clone(dfa);
+                terminal_groups[terminal_index] = 0;
+            }
+        }
+
+        Some(Self {
+            offsets: Arc::from(offsets.into_boxed_slice()),
+            entries: Arc::from(entries.into_boxed_slice()),
+            terminal_dfas: Arc::from(terminal_dfas.into_boxed_slice()),
+            terminal_groups: Arc::from(terminal_groups.into_boxed_slice()),
+        })
     }
 }
 
@@ -6519,6 +6688,18 @@ impl Tokenizer {
         state_limit: usize,
         transition_limit: usize,
     ) -> Option<(FullTokenizerDeterminization, Vec<u32>)> {
+        // Every singleton epsilon closure is a required legal entry state in
+        // the all-starts coordinate.  When the epsilon graph is acyclic those
+        // closures are necessarily distinct: equal closures for two distinct
+        // raw states would make each state epsilon-reachable from the other,
+        // hence form a cycle.  Therefore an acyclic source with more raw
+        // states than the output state budget provably cannot fit.  Reject it
+        // before paying for subset construction; cyclic graphs deliberately
+        // retain the general path because an SCC can collapse several raw
+        // states to one singleton closure.
+        if self.num_states() as usize > state_limit && self.epsilon_graph_is_acyclic() {
+            return None;
+        }
         let mut built = self.try_full_determinization(state_limit, transition_limit)?;
         let closures = self.all_singleton_epsilon_closures();
         let mut state_by_subset = FxHashMap::<Box<[u32]>, u32>::default();
@@ -7908,6 +8089,58 @@ impl Tokenizer {
             .is_some_and(|state| !state.epsilon_transitions.is_empty())
     }
 
+    fn for_each_epsilon_target(&self, state: u32, mut visit: impl FnMut(u32)) {
+        if let Some(metadata) = self
+            .packed_runtime_metadata
+            .as_deref()
+            .filter(|metadata| state < metadata.state_count)
+        {
+            for &target in metadata.epsilon_targets(state) {
+                visit(target);
+            }
+            return;
+        }
+        if let Some(segment) = self.packed_runtime_metadata_segment_for_state(state) {
+            for &target in segment.metadata.epsilon_targets(segment.local_state(state)) {
+                visit(segment.state_offset + target);
+            }
+            return;
+        }
+        if let Some(dfa_state) = self.dfa.states().get(state as usize) {
+            for &target in &dfa_state.epsilon_transitions {
+                visit(target);
+            }
+        }
+    }
+
+    fn epsilon_graph_is_acyclic(&self) -> bool {
+        let state_count = self.num_states() as usize;
+        let mut indegree = vec![0u32; state_count];
+        for state in 0..self.num_states() {
+            self.for_each_epsilon_target(state, |target| {
+                indegree[target as usize] += 1;
+            });
+        }
+        let mut queue = VecDeque::<u32>::new();
+        for (state, &degree) in indegree.iter().enumerate() {
+            if degree == 0 {
+                queue.push_back(state as u32);
+            }
+        }
+        let mut visited = 0usize;
+        while let Some(state) = queue.pop_front() {
+            visited += 1;
+            self.for_each_epsilon_target(state, |target| {
+                let degree = &mut indegree[target as usize];
+                *degree -= 1;
+                if *degree == 0 {
+                    queue.push_back(target);
+                }
+            });
+        }
+        visited == state_count
+    }
+
     #[inline]
     fn state_finalizers(&self, state: u32) -> &BitSet {
         if let Some(finalizers) = self
@@ -8090,7 +8323,10 @@ impl Tokenizer {
             .collect()
     }
 
-    fn restore_terminal_exprs_only(&mut self, exprs: Option<Vec<Expr>>) -> Result<(), String> {
+    fn restore_terminal_exprs_arc_only(
+        &mut self,
+        exprs: Option<Arc<[Expr]>>,
+    ) -> Result<(), String> {
         let Some(exprs) = exprs else {
             self.exprs = None;
             return Ok(());
@@ -8101,8 +8337,14 @@ impl Tokenizer {
                 exprs.len(), self.num_terminals,
             ));
         }
-        self.exprs = Some(Arc::from(exprs.into_boxed_slice()));
+        self.exprs = Some(exprs);
         Ok(())
+    }
+
+    fn restore_terminal_exprs_only(&mut self, exprs: Option<Vec<Expr>>) -> Result<(), String> {
+        self.restore_terminal_exprs_arc_only(
+            exprs.map(|exprs| Arc::from(exprs.into_boxed_slice())),
+        )
     }
 
     /// Restore terminal expressions carried by a versioned outer artifact.
@@ -8129,6 +8371,14 @@ impl Tokenizer {
         exprs: Option<Vec<Expr>>,
     ) -> Result<(), String> {
         self.restore_terminal_exprs_only(exprs)
+    }
+
+    #[doc(hidden)]
+    pub fn restore_terminal_exprs_arc_without_virtual_runtime(
+        &mut self,
+        exprs: Option<Arc<[Expr]>>,
+    ) -> Result<(), String> {
+        self.restore_terminal_exprs_arc_only(exprs)
     }
 
     /// Restore virtual sidecars from explicit outer-artifact metadata. Unlike
@@ -9022,47 +9272,56 @@ impl Tokenizer {
             .map(|index| existing_physical_state_count.checked_add(u32::try_from(index).ok()?))
             .collect::<Option<Vec<_>>>()?;
         let owners = Arc::new(VirtualRuntimeStateOwners::new(physical_state_count, &roots)?);
-        let mut pending = Vec::with_capacity(components.len());
-        for (index, (expression, terminal)) in components.into_iter().enumerate() {
-            let root_state = roots[index];
-            let byte_support = super::compile::expr_u8set(&expression);
-            let runtime = if preserve_oracle_coordinate {
-                VirtualResidualRuntime::new_preserving_oracle_coordinate(
-                    &expression,
-                    u32::try_from(index).ok()?,
-                    terminal,
-                    self.num_terminals,
-                    physical_state_count,
-                    root_state,
-                    Arc::clone(&allocator),
-                    Arc::clone(&owners),
-                )?
-            } else if suppress_dynamic_liveness_oracle {
-                VirtualResidualRuntime::new_without_liveness_oracle(
-                    &expression,
-                    u32::try_from(index).ok()?,
-                    terminal,
-                    self.num_terminals,
-                    physical_state_count,
-                    root_state,
-                    Arc::clone(&allocator),
-                    Arc::clone(&owners),
-                )?
-            } else {
-                VirtualResidualRuntime::new(
-                    &expression,
-                    u32::try_from(index).ok()?,
-                    terminal,
-                    self.num_terminals,
-                    physical_state_count,
-                    root_state,
-                    Arc::clone(&allocator),
-                    Arc::clone(&owners),
-                )?
-            };
-            let runtime = Arc::new(runtime);
-            pending.push((terminal, root_state, byte_support, runtime));
-        }
+        // General residual components are independent until their proxy roots
+        // are appended below. Building a bounded-code oracle can involve DFA
+        // construction and relation doubling, so doing that serially makes a
+        // multi-string schema pay the sum of all component setup costs even
+        // though the resulting runtime ordering is fixed. Indexed parallel
+        // collection preserves input order and therefore root/runtime IDs.
+        let pending = components
+            .into_par_iter()
+            .enumerate()
+            .map(|(index, (expression, terminal))| {
+                let root_state = roots[index];
+                let byte_support = super::compile::expr_u8set(&expression);
+                let runtime_index = u32::try_from(index).ok()?;
+                let runtime = if preserve_oracle_coordinate {
+                    VirtualResidualRuntime::new_preserving_oracle_coordinate(
+                        &expression,
+                        runtime_index,
+                        terminal,
+                        self.num_terminals,
+                        physical_state_count,
+                        root_state,
+                        Arc::clone(&allocator),
+                        Arc::clone(&owners),
+                    )?
+                } else if suppress_dynamic_liveness_oracle {
+                    VirtualResidualRuntime::new_without_liveness_oracle(
+                        &expression,
+                        runtime_index,
+                        terminal,
+                        self.num_terminals,
+                        physical_state_count,
+                        root_state,
+                        Arc::clone(&allocator),
+                        Arc::clone(&owners),
+                    )?
+                } else {
+                    VirtualResidualRuntime::new(
+                        &expression,
+                        runtime_index,
+                        terminal,
+                        self.num_terminals,
+                        physical_state_count,
+                        root_state,
+                        Arc::clone(&allocator),
+                        Arc::clone(&owners),
+                    )?
+                };
+                Some((terminal, root_state, byte_support, Arc::new(runtime)))
+            })
+            .collect::<Option<Vec<_>>>()?;
 
         self.invalidate_derived_caches();
         self.dfa.ensure_group_capacity(self.num_terminals as usize);
@@ -9377,6 +9636,197 @@ impl Tokenizer {
         Some((mask, projections))
     }
 
+    /// Attach already-finite one-token observation components to an ordinary
+    /// physical tokenizer. This is intentionally projection-free: the caller
+    /// has no exact runtime coordinate to map from.
+    #[doc(hidden)]
+    pub fn install_direct_mask_components(
+        &mut self,
+        components: Vec<(DFA, u32, TerminalID)>,
+    ) -> Option<()> {
+        self.install_direct_mask_components_impl(components, false)
+    }
+
+    /// Shared-component form used when multiple terminals have the exact same
+    /// finite mask language. Each terminal still receives its own rebased copy
+    /// in the physical tokenizer, while the residual sidecar can retain one
+    /// immutable component allocation for all aliases.
+    #[doc(hidden)]
+    pub fn install_direct_mask_components_shared(
+        &mut self,
+        components: Vec<(Arc<DFA>, u32, TerminalID)>,
+    ) -> Option<()> {
+        self.install_direct_mask_component_alias_groups_impl(
+            components
+                .into_iter()
+                .map(|(component, root, terminal)| (component, root, vec![terminal]))
+                .collect(),
+            false,
+        )
+    }
+
+    /// Attach one physical finite component for several terminals with an
+    /// exactly identical language. The shared states finalize every alias and
+    /// retain one residual coordinate per alias/local-state pair.
+    #[doc(hidden)]
+    pub fn install_direct_mask_component_alias_groups(
+        &mut self,
+        components: Vec<(Arc<DFA>, u32, Vec<TerminalID>)>,
+    ) -> Option<()> {
+        self.install_direct_mask_component_alias_groups_impl(components, false)
+    }
+
+    fn install_direct_mask_components_impl(
+        &mut self,
+        components: Vec<(DFA, u32, TerminalID)>,
+        force_full_future_recompute: bool,
+    ) -> Option<()> {
+        self.install_direct_mask_component_alias_groups_impl(
+            components
+                .into_iter()
+                .map(|(component, root, terminal)| {
+                    (Arc::new(component), root, vec![terminal])
+                })
+                .collect(),
+            force_full_future_recompute,
+        )
+    }
+
+    fn install_direct_mask_component_alias_groups_impl(
+        &mut self,
+        components: Vec<(Arc<DFA>, u32, Vec<TerminalID>)>,
+        force_full_future_recompute: bool,
+    ) -> Option<()> {
+        if components.is_empty() {
+            return Some(());
+        }
+        let profile = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
+        let total_started = profile.then(std::time::Instant::now);
+        let physical_component_count = components.len();
+        let component_count = components
+            .iter()
+            .map(|(_, _, terminals)| terminals.len())
+            .sum::<usize>();
+        let appended_state_count = components
+            .iter()
+            .map(|(component, _, _)| component.num_states())
+            .sum::<usize>();
+        self.dfa.reserve_additional_states(appended_state_count);
+        let start = self.start_state();
+        // The VocabPartition caller isolates the dispatch start before appending
+        // components. If that start has no incoming byte or epsilon edge, no
+        // pre-existing state can newly reach an appended component: only the
+        // start state's strict future set changes. Verify that invariant rather
+        // than assuming it so arbitrary/debug tokenizers retain the exact full
+        // recomputation fallback.
+        let incoming_scan_started = profile.then(std::time::Instant::now);
+        let start_has_incoming = self.dfa.states().iter().any(|state| {
+            state
+                .transitions
+                .iter()
+                .any(|(_, &target)| target == start)
+                || state.epsilon_transitions.contains(&start)
+        });
+        let incoming_scan_ms = incoming_scan_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        let incremental_futures = !force_full_future_recompute && !start_has_incoming;
+        let mut start_futures = incremental_futures
+            .then(|| self.dfa.possible_future_group_ids(start).clone());
+        let mut coordinate_replacements = self
+            .terminal_residual_coordinates
+            .as_ref()
+            .map(|_| Vec::with_capacity(components.len()));
+        let append_started = profile.then(std::time::Instant::now);
+        for (component, local_root, terminals) in components {
+            if terminals.is_empty()
+                || terminals.iter().any(|&terminal| terminal >= self.num_terminals)
+                || local_root as usize >= component.num_states()
+            {
+                return None;
+            }
+            let canonical_terminal = terminals[0];
+            let root_has_future = component.possible_future_group_ids(local_root).contains(0);
+            let offset = u32::try_from(self.dfa.num_states()).ok()?;
+            let actual_offset = self
+                .dfa
+                .append_rebased_component_ref(component.as_ref(), &[canonical_terminal as usize]);
+            if actual_offset != offset {
+                return None;
+            }
+            if terminals.len() > 1 {
+                let group_bytes = component.group_id_to_u8set(0).clone();
+                for &terminal in &terminals[1..] {
+                    self.dfa
+                        .set_group_u8set(terminal, group_bytes.clone());
+                }
+                let end = offset as usize + component.num_states();
+                for state in &mut self.dfa.states_mut()[offset as usize..end] {
+                    let finalizes = state.finalizers.contains(canonical_terminal as usize);
+                    let has_future = state
+                        .possible_future_group_ids
+                        .contains(canonical_terminal as usize);
+                    for &terminal in &terminals[1..] {
+                        if finalizes {
+                            state.finalizers.set(terminal as usize);
+                        }
+                        if has_future {
+                            state.possible_future_group_ids.set(terminal as usize);
+                        }
+                    }
+                }
+            }
+            self.dfa
+                .add_epsilon_transition(start, offset.checked_add(local_root)?);
+            if root_has_future && let Some(start_futures) = start_futures.as_mut() {
+                for &terminal in &terminals {
+                    start_futures.set(terminal as usize);
+                }
+            }
+            if let Some(replacements) = coordinate_replacements.as_mut() {
+                replacements.push((terminals, Arc::clone(&component)));
+            }
+        }
+        let append_ms = append_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        let coordinates_started = profile.then(std::time::Instant::now);
+        if let (Some(coordinates), Some(replacements)) = (
+            self.terminal_residual_coordinates.as_ref().map(Arc::clone),
+            coordinate_replacements.as_deref(),
+        ) {
+            self.terminal_residual_coordinates = Some(Arc::new(
+                coordinates.replace_terminal_alias_groups_with_appended_dfas(replacements)?,
+            ));
+        }
+        let coordinates_ms = coordinates_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        let futures_started = profile.then(std::time::Instant::now);
+        let future_mode = if let Some(start_futures) = start_futures {
+            self.dfa.set_possible_future_group_ids(start, start_futures);
+            "incremental"
+        } else {
+            self.dfa.recompute_possible_futures();
+            "full"
+        };
+        let futures_ms = futures_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        self.invalidate_derived_caches();
+        if profile {
+            eprintln!(
+                "[glrmask/profile][direct_mask_install] components={} physical_components={} appended_states={} future_mode={} start_has_incoming={} incoming_scan_ms={:.3} append_ms={:.3} coordinates_ms={:.3} futures_ms={:.3} total_ms={:.3}",
+                component_count,
+                physical_component_count,
+                appended_state_count,
+                future_mode,
+                start_has_incoming,
+                incoming_scan_ms,
+                append_ms,
+                coordinates_ms,
+                futures_ms,
+                total_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
+            );
+        }
+        Some(())
+    }
     pub fn virtual_binary_repeat_intersections_mask_tokenizer(
         &self,
         horizon: usize,
@@ -11551,7 +12001,7 @@ impl Tokenizer {
     /// 3. For each byte:
     ///    - Check if current state's possible futures overlap `remaining`.
     ///      If not, return `(matched, None)`.
-    ///    - Consume byte â†’ next state.
+    ///    - Consume byte -> next state.
     ///    - If no transition, return `(matched, None)`.
     ///    - Get finalizers at next state, intersect with `remaining`.
     ///    - Add intersection to `matched`, remove from `remaining`.
@@ -11750,6 +12200,302 @@ mod tests {
             num_terminals,
             Some(Arc::from(exprs.into_boxed_slice())),
         )
+    }
+
+    fn one_byte_component(byte: u8) -> DFA {
+        let mut dfa = DFA::new(2);
+        dfa.ensure_group_capacity(1);
+        dfa.set_group_u8set(0, U8Set::single(byte));
+        dfa.add_transition(0, byte, 1);
+        let mut finalizers = BitSet::new(1);
+        finalizers.set(0);
+        dfa.overwrite_state_metadata(1, finalizers, BitSet::new(1));
+        dfa.recompute_possible_futures();
+        dfa
+    }
+
+    #[test]
+    fn direct_mask_component_isolated_start_future_update_matches_full_recompute() {
+        let mut host = DFA::new(2);
+        host.ensure_group_capacity(2);
+        host.set_group_u8set(0, U8Set::single(b'a'));
+        host.set_group_u8set(1, U8Set::single(b'b'));
+        host.add_epsilon_transition(0, 1);
+        host.add_transition(1, b'a', 1);
+        let mut finalizers = BitSet::new(2);
+        finalizers.set(0);
+        host.overwrite_state_metadata(1, finalizers, BitSet::new(2));
+        host.recompute_possible_futures();
+        let mut tokenizer = Tokenizer::from_parts(host, 2, None);
+
+        tokenizer
+            .install_direct_mask_components(vec![(one_byte_component(b'b'), 0, 1)])
+            .expect("isolated-start direct component must install");
+
+        let mut reference = tokenizer.dfa.clone();
+        reference.recompute_possible_futures();
+        assert_eq!(tokenizer.dfa.num_states(), reference.num_states());
+        for state in 0..tokenizer.dfa.num_states() as u32 {
+            assert_eq!(
+                tokenizer.dfa.possible_future_group_ids(state),
+                reference.possible_future_group_ids(state),
+                "future mismatch at state {state}",
+            );
+        }
+    }
+
+    #[test]
+    fn direct_mask_component_nonisolated_start_falls_back_to_full_recompute() {
+        let mut host = DFA::new(2);
+        host.ensure_group_capacity(2);
+        host.set_group_u8set(0, U8Set::single(b'a'));
+        host.set_group_u8set(1, U8Set::single(b'b'));
+        host.add_transition(1, b'a', 0);
+        host.recompute_possible_futures();
+        let mut tokenizer = Tokenizer::from_parts(host, 2, None);
+
+        tokenizer
+            .install_direct_mask_components(vec![(one_byte_component(b'b'), 0, 1)])
+            .expect("nonisolated-start direct component must install via fallback");
+
+        let mut reference = tokenizer.dfa.clone();
+        reference.recompute_possible_futures();
+        for state in 0..tokenizer.dfa.num_states() as u32 {
+            assert_eq!(
+                tokenizer.dfa.possible_future_group_ids(state),
+                reference.possible_future_group_ids(state),
+                "future mismatch at state {state}",
+            );
+        }
+    }
+
+    #[test]
+    fn batched_terminal_residual_replacement_preserves_appended_state_order() {
+        let base_dfas = (0..3)
+            .map(|_| Arc::new(DFA::new(2)))
+            .collect::<Vec<_>>();
+        let coordinates = TerminalResidualCoordinates::from_rows_and_dfas(
+            vec![
+                vec![(0, 0), (1, 0), (2, 0)],
+                vec![(0, 1), (1, 1)],
+                vec![(2, 1)],
+            ],
+            base_dfas,
+        );
+        let replacement_one = Arc::new(DFA::new(3));
+        let replacement_two = Arc::new(DFA::new(2));
+        let replaced = coordinates
+            .replace_terminals_with_appended_dfas(&[
+                (1, Arc::clone(&replacement_one)),
+                (2, Arc::clone(&replacement_two)),
+            ])
+            .expect("valid batched replacement");
+
+        let expected = [
+            vec![(0, 0)],
+            vec![(0, 1)],
+            vec![],
+            vec![(1, 0)],
+            vec![(1, 1)],
+            vec![(1, 2)],
+            vec![(2, 0)],
+            vec![(2, 1)],
+        ];
+        assert_eq!(replaced.len(), expected.len());
+        for (state, expected_row) in expected.iter().enumerate() {
+            assert_eq!(replaced.row(state as u32), Some(expected_row.as_slice()));
+        }
+        assert_eq!(replaced.terminal_dfa(1).unwrap().num_states(), 3);
+        assert_eq!(replaced.terminal_dfa(2).unwrap().num_states(), 2);
+    }
+
+    #[test]
+    fn batched_terminal_residual_replacement_matches_sequential_duplicate_semantics() {
+        let coordinates = TerminalResidualCoordinates::from_rows_and_dfas(
+            vec![vec![(0, 0), (1, 7)]],
+            vec![Arc::new(DFA::new(1)), Arc::new(DFA::new(8))],
+        );
+        let replaced = coordinates
+            .replace_terminals_with_appended_dfas(&[
+                (1, Arc::new(DFA::new(2))),
+                (1, Arc::new(DFA::new(3))),
+            ])
+            .expect("duplicate replacements remain well defined");
+
+        let expected = [
+            vec![(0, 0)],
+            vec![],
+            vec![],
+            vec![(1, 0)],
+            vec![(1, 1)],
+            vec![(1, 2)],
+        ];
+        assert_eq!(replaced.len(), expected.len());
+        for (state, expected_row) in expected.iter().enumerate() {
+            assert_eq!(replaced.row(state as u32), Some(expected_row.as_slice()));
+        }
+        assert_eq!(replaced.terminal_dfa(1).unwrap().num_states(), 3);
+    }
+
+    #[test]
+    fn grouped_terminal_residual_replacement_shares_physical_rows() {
+        let base = Arc::new(DFA::new(1));
+        let coordinates = TerminalResidualCoordinates::from_rows_and_dfas(
+            vec![vec![(0, 0), (1, 0), (2, 0)]],
+            vec![Arc::clone(&base), Arc::clone(&base), base],
+        );
+        let shared = Arc::new(DFA::new(2));
+        let replaced = coordinates
+            .replace_terminal_alias_groups_with_appended_dfas(&[(
+                vec![1, 2],
+                Arc::clone(&shared),
+            )])
+            .expect("valid grouped alias replacement");
+
+        assert_eq!(replaced.len(), 3);
+        assert_eq!(replaced.row(0), Some(&[(0, 0)][..]));
+        assert_eq!(replaced.row(1), Some(&[(1, 0), (2, 0)][..]));
+        assert_eq!(replaced.row(2), Some(&[(1, 1), (2, 1)][..]));
+        assert!(Arc::ptr_eq(&replaced.terminal_dfas[1], &shared));
+        assert!(Arc::ptr_eq(&replaced.terminal_dfas[2], &shared));
+    }
+
+    fn direct_mask_future_test_tokenizer(start_has_incoming: bool) -> Tokenizer {
+        let mut dfa = DFA::new(2);
+        dfa.ensure_group_capacity(2);
+        let mut a = U8Set::empty();
+        a.insert(b'a');
+        dfa.set_group_u8set(0, a);
+        let mut x = U8Set::empty();
+        x.insert(b'x');
+        dfa.set_group_u8set(1, x);
+        dfa.add_transition(0, b'a', 1);
+        if start_has_incoming {
+            dfa.add_transition(1, b'b', 0);
+        }
+        let mut finalizers = BitSet::new(2);
+        finalizers.set(0);
+        dfa.overwrite_state_metadata(1, finalizers, BitSet::new(2));
+        dfa.recompute_possible_futures();
+        Tokenizer::from_parts(dfa, 2, None)
+    }
+
+    fn direct_mask_future_test_component() -> (DFA, u32, TerminalID) {
+        let mut dfa = DFA::new(2);
+        dfa.ensure_group_capacity(1);
+        let mut x = U8Set::empty();
+        x.insert(b'x');
+        dfa.set_group_u8set(0, x);
+        dfa.add_transition(0, b'x', 1);
+        let mut finalizers = BitSet::new(1);
+        finalizers.set(0);
+        dfa.overwrite_state_metadata(1, finalizers, BitSet::new(1));
+        dfa.recompute_possible_futures();
+        (dfa, 0, 1)
+    }
+
+    fn assert_same_future_metadata(left: &Tokenizer, right: &Tokenizer) {
+        assert_eq!(left.dfa.num_states(), right.dfa.num_states());
+        for state in 0..left.dfa.num_states() as u32 {
+            assert_eq!(left.dfa.finalizers(state), right.dfa.finalizers(state));
+            assert_eq!(
+                left.dfa.possible_future_group_ids(state),
+                right.dfa.possible_future_group_ids(state),
+                "future metadata differs at state {state}",
+            );
+        }
+    }
+
+    #[test]
+    fn direct_mask_incremental_start_futures_match_full_recompute() {
+        let base = direct_mask_future_test_tokenizer(false);
+        let mut incremental = base.clone();
+        let mut full = base;
+        incremental
+            .install_direct_mask_components_impl(vec![direct_mask_future_test_component()], false)
+            .unwrap();
+        full.install_direct_mask_components_impl(vec![direct_mask_future_test_component()], true)
+            .unwrap();
+        assert_same_future_metadata(&incremental, &full);
+        assert!(incremental.dfa.possible_future_group_ids(0).contains(1));
+    }
+
+    #[test]
+    fn direct_mask_incremental_futures_fall_back_when_start_has_incoming_edge() {
+        let base = direct_mask_future_test_tokenizer(true);
+        let mut guarded = base.clone();
+        let mut full = base;
+        guarded
+            .install_direct_mask_components_impl(vec![direct_mask_future_test_component()], false)
+            .unwrap();
+        full.install_direct_mask_components_impl(vec![direct_mask_future_test_component()], true)
+            .unwrap();
+        assert_same_future_metadata(&guarded, &full);
+        assert!(
+            guarded.dfa.possible_future_group_ids(1).contains(1),
+            "predecessor of start must see the newly installed terminal future",
+        );
+    }
+
+    #[test]
+    fn direct_mask_exact_aliases_share_physical_component_without_changing_terminal_outcomes() {
+        let mut base_dfa = DFA::new(1);
+        base_dfa.ensure_group_capacity(3);
+        let mut base = Tokenizer::from_parts(base_dfa, 3, None);
+        let dummy = Arc::new(DFA::new(1));
+        base.terminal_residual_coordinates = Some(Arc::new(
+            TerminalResidualCoordinates::from_rows_and_dfas(
+                vec![vec![(0, 0), (1, 0), (2, 0)]],
+                vec![Arc::clone(&dummy), Arc::clone(&dummy), dummy],
+            ),
+        ));
+
+        let component = Arc::new(direct_mask_future_test_component().0);
+        let mut separate = base.clone();
+        separate
+            .install_direct_mask_components_shared(vec![
+                (Arc::clone(&component), 0, 1),
+                (Arc::clone(&component), 0, 2),
+            ])
+            .unwrap();
+        let mut grouped = base;
+        grouped
+            .install_direct_mask_component_alias_groups(vec![(
+                Arc::clone(&component),
+                0,
+                vec![1, 2],
+            )])
+            .unwrap();
+
+        assert_eq!(
+            separate.dfa.num_states(),
+            grouped.dfa.num_states() + component.num_states(),
+        );
+        let separate_closure = separate.dfa.epsilon_closure(&[0]);
+        let grouped_closure = grouped.dfa.epsilon_closure(&[0]);
+        let separate_after_x = separate.dfa.step_all(&separate_closure, b'x');
+        let grouped_after_x = grouped.dfa.step_all(&grouped_closure, b'x');
+        let mut separate_finalizers = BitSet::new(3);
+        for state in separate_after_x {
+            separate_finalizers.union_with(separate.dfa.finalizers(state));
+        }
+        let mut grouped_finalizers = BitSet::new(3);
+        for state in grouped_after_x {
+            grouped_finalizers.union_with(grouped.dfa.finalizers(state));
+        }
+        assert_eq!(separate_finalizers, grouped_finalizers);
+        assert!(grouped_finalizers.contains(1));
+        assert!(grouped_finalizers.contains(2));
+        assert!(grouped.dfa.possible_future_group_ids(0).contains(1));
+        assert!(grouped.dfa.possible_future_group_ids(0).contains(2));
+
+        let coordinates = grouped
+            .terminal_residual_coordinates
+            .as_ref()
+            .expect("grouped install retains residual coordinates");
+        assert_eq!(coordinates.len(), grouped.dfa.num_states());
+        assert_eq!(coordinates.row(1), Some(&[(1, 0), (2, 0)][..]));
+        assert_eq!(coordinates.row(2), Some(&[(1, 1), (2, 1)][..]));
     }
 
     #[test]
@@ -13522,9 +14268,14 @@ mod tests {
         exact
             .install_virtual_residual_components_preserving_oracle_coordinates(vec![(expression, 0)])
             .expect("bounded-code residual runtime must install");
+        // The merged bounded-code oracle drops the redundant unbounded copy of
+        // this same envelope from its pattern coordinate. That leaves a
+        // one-state universal pattern coordinate, reducing the dense stencil
+        // work from the old 30 states to 10 without changing the exact
+        // one-token projection checked exhaustively below.
         assert_eq!(
             exact.virtual_residual_mask_projection_dense_state_work(HORIZON),
-            Some(30),
+            Some(10),
         );
         let (mask, projections) = exact
             .virtual_residuals_mask_tokenizer(HORIZON)
@@ -14357,5 +15108,32 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn all_starts_state_budget_rejects_acyclic_raw_state_lower_bound() {
+        let mut dfa = DFA::new(2);
+        dfa.ensure_group_capacity(1);
+        dfa.add_epsilon_transition(0, 1);
+        let source = Tokenizer::from_parts(dfa, 1, None);
+
+        assert!(source
+            .try_full_determinization_all_starts(1, 256)
+            .is_none());
+    }
+
+    #[test]
+    fn all_starts_state_budget_does_not_reject_epsilon_cycle_collapse() {
+        let mut dfa = DFA::new(2);
+        dfa.ensure_group_capacity(1);
+        dfa.add_epsilon_transition(0, 1);
+        dfa.add_epsilon_transition(1, 0);
+        let source = Tokenizer::from_parts(dfa, 1, None);
+
+        let (built, raw_to_determinized) = source
+            .try_full_determinization_all_starts(1, 256)
+            .expect("one epsilon SCC should fit in one determinized state");
+        assert_eq!(built.tokenizer.num_states(), 1);
+        assert_eq!(raw_to_determinized, vec![0, 0]);
     }
 }

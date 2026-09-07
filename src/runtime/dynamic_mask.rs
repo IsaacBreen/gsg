@@ -4469,6 +4469,37 @@ nt start ::= A C | B D;
 
     #[test]
     fn dynamic_partition_slicer_matches_uncertified_bounded_string_mask() {
+        // This test is specifically about the fallback virtual-residual slicer.
+        // The VocabPartition work made the finite bounded-code projection cheap
+        // enough to cover this synthetic vocabulary, so force that independent
+        // acceleration off rather than relying on a projection-work threshold.
+        let _env_lock = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        struct EnvRestore {
+            key: &'static str,
+            previous: Option<std::ffi::OsString>,
+        }
+        impl Drop for EnvRestore {
+            fn drop(&mut self) {
+                unsafe {
+                    if let Some(previous) = self.previous.take() {
+                        std::env::set_var(self.key, previous);
+                    } else {
+                        std::env::remove_var(self.key);
+                    }
+                }
+            }
+        }
+        const PROJECTION_ENV: &str = "GLRMASK_DYNAMIC_VIRTUAL_RESIDUAL_MASK_PROJECTION";
+        let _projection_env = EnvRestore {
+            key: PROJECTION_ENV,
+            previous: std::env::var_os(PROJECTION_ENV),
+        };
+        unsafe {
+            std::env::set_var(PROJECTION_ENV, "0");
+        }
+
         // Keep several distinct structural root classes, including quote/control
         // families which are invalid inside a JSON string. This catches a
         // root-slot/DFS-index mixup as well as the bounded advancing-state proof.

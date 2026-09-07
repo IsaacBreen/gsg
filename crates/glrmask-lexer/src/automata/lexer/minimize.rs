@@ -258,26 +258,125 @@ fn topology_prerefine_partition(dfa: &DFA, partition: &[u32]) -> TopologyPrerefi
     }
 }
 
-fn build_inverse_transitions(dfa: &DFA) -> Vec<Vec<(u8, u32)>> {
-    let mut inverse = vec![Vec::new(); dfa.states().len()];
-    for (src, state) in dfa.states().iter().enumerate() {
-        for (input, &target) in state.transitions.iter() {
-            inverse[target as usize].push((input, src as u32));
-        }
-    }
-    inverse
+enum InverseEdges {
+    // Finite-mask DFAs are capped well below 2^24 states. Packing the source
+    // into 24 bits and the byte label into the high byte halves inverse-edge
+    // storage and reduces memory traffic in Hopcroft's predecessor scans.
+    Packed(Vec<u32>),
+    Wide(Vec<(u8, u32)>),
 }
 
-fn hopcroft_refine_partition(
+struct InverseTransitions {
+    offsets: Vec<u32>,
+    edges: InverseEdges,
+}
+
+impl InverseTransitions {
+    fn build(dfa: &DFA) -> Self {
+        const PACKED_SOURCE_LIMIT: usize = 1 << 24;
+        let num_states = dfa.states().len();
+        let mut counts = vec![0u32; num_states];
+        for state in dfa.states() {
+            for (_, &target) in state.transitions.iter() {
+                counts[target as usize] += 1;
+            }
+        }
+
+        let mut offsets = vec![0u32; num_states + 1];
+        for state in 0..num_states {
+            offsets[state + 1] = offsets[state] + counts[state];
+        }
+
+        let edge_count = offsets[num_states] as usize;
+        let mut cursor = offsets[..num_states].to_vec();
+        // Preserve predecessor order exactly: source states are visited in
+        // ascending order and each state's byte transitions are already ordered.
+        let edges = if num_states < PACKED_SOURCE_LIMIT {
+            let mut edges = vec![0u32; edge_count];
+            for (src, state) in dfa.states().iter().enumerate() {
+                debug_assert!(src < PACKED_SOURCE_LIMIT);
+                for (input, &target) in state.transitions.iter() {
+                    let target = target as usize;
+                    let index = cursor[target] as usize;
+                    edges[index] = ((input as u32) << 24) | src as u32;
+                    cursor[target] += 1;
+                }
+            }
+            InverseEdges::Packed(edges)
+        } else {
+            let mut edges = vec![(0u8, 0u32); edge_count];
+            for (src, state) in dfa.states().iter().enumerate() {
+                for (input, &target) in state.transitions.iter() {
+                    let target = target as usize;
+                    let index = cursor[target] as usize;
+                    edges[index] = (input, src as u32);
+                    cursor[target] += 1;
+                }
+            }
+            InverseEdges::Wide(edges)
+        };
+
+        Self { offsets, edges }
+    }
+
+    #[inline]
+    fn for_each_predecessor(&self, target: usize, mut f: impl FnMut(u8, u32)) {
+        let start = self.offsets[target] as usize;
+        let end = self.offsets[target + 1] as usize;
+        match &self.edges {
+            InverseEdges::Packed(edges) => {
+                for &edge in &edges[start..end] {
+                    f((edge >> 24) as u8, edge & 0x00ff_ffff);
+                }
+            }
+            InverseEdges::Wide(edges) => {
+                for &(input, source) in &edges[start..end] {
+                    f(input, source);
+                }
+            }
+        }
+    }
+
+    #[inline]
+    fn for_each_predecessor_source(&self, target: usize, mut f: impl FnMut(u32)) {
+        let start = self.offsets[target] as usize;
+        let end = self.offsets[target + 1] as usize;
+        match &self.edges {
+            InverseEdges::Packed(edges) => {
+                for &edge in &edges[start..end] {
+                    f(edge & 0x00ff_ffff);
+                }
+            }
+            InverseEdges::Wide(edges) => {
+                for &(_, source) in &edges[start..end] {
+                    f(source);
+                }
+            }
+        }
+    }
+}
+
+fn hopcroft_refine_partition_impl<const CANONICAL_OUTPUT: bool>(
     dfa: &DFA,
     mut partition: Vec<u32>,
     mut blocks: Vec<Vec<u32>>,
+    inverse: &InverseTransitions,
 ) -> Vec<Vec<u32>> {
     let num_states = dfa.states().len();
-    let inverse = build_inverse_transitions(dfa);
 
     let mut worklist: VecDeque<u32> = (0..blocks.len() as u32).collect();
     let mut in_worklist = vec![true; blocks.len()];
+    let mut position_in_block = if CANONICAL_OUTPUT {
+        let mut positions = vec![0u32; num_states];
+        for block in &blocks {
+            for (position, &state) in block.iter().enumerate() {
+                positions[state as usize] = position as u32;
+            }
+        }
+        positions
+    } else {
+        Vec::new()
+    };
 
     let mut source_set = vec![false; num_states];
     let mut sources_to_clear: Vec<u32> = Vec::with_capacity(num_states.min(10_000));
@@ -297,17 +396,15 @@ fn hopcroft_refine_partition(
         if splitter_idx >= blocks.len() || blocks[splitter_idx].is_empty() {
             continue;
         }
-        let splitter_states = blocks[splitter_idx].clone();
-
         touched_inputs.clear();
-        for &target in &splitter_states {
-            for &(input, src) in &inverse[target as usize] {
+        for &target in &blocks[splitter_idx] {
+            inverse.for_each_predecessor(target as usize, |input, src| {
                 let bucket = &mut input_sources[input as usize];
                 if bucket.is_empty() {
                     touched_inputs.push(input);
                 }
                 bucket.push(src);
-            }
+            });
         }
 
         if touched_inputs.is_empty() {
@@ -318,7 +415,19 @@ fn hopcroft_refine_partition(
             sources_to_clear.clear();
             let bucket = &mut input_sources[input as usize];
             for &src in bucket.iter() {
-                if !source_set[src as usize] {
+                if CANONICAL_OUTPUT {
+                    // For a deterministic DFA, a source has at most one
+                    // transition on a fixed input byte, so this bucket has no
+                    // duplicate sources. The canonical fast path only needs
+                    // `source_set` when the predecessor side is the larger
+                    // half and we must scan/materialize its complement.
+                    let block_id = partition[src as usize] as usize;
+                    if block_id < block_touched.len() && !block_touched[block_id] {
+                        block_touched[block_id] = true;
+                        touched_blocks.push(block_id as u32);
+                    }
+                    block_sources[block_id].push(src);
+                } else if !source_set[src as usize] {
                     source_set[src as usize] = true;
                     sources_to_clear.push(src);
 
@@ -349,31 +458,74 @@ fn hopcroft_refine_partition(
 
                 let new_block_idx = blocks.len();
                 let move_sources = source_count <= block_len - source_count;
-                let old_block = std::mem::take(&mut blocks[block_idx]);
-
-                let (remaining, new_block) = if move_sources {
-                    let mut remaining = Vec::with_capacity(block_len - source_count);
-                    for state in old_block {
-                        if !source_set[state as usize] {
-                            remaining.push(state);
+                let new_block = if CANONICAL_OUTPUT && move_sources {
+                    // This variant is used only when all resulting blocks are
+                    // canonicalized before rebuilding. Temporary within-block
+                    // order therefore does not affect representatives or state
+                    // numbering. Remove just the already-materialized smaller
+                    // predecessor side instead of rescanning the entire block.
+                    let moved = std::mem::take(&mut block_sources[block_idx]);
+                    for &state in &moved {
+                        let state_idx = state as usize;
+                        let position = position_in_block[state_idx] as usize;
+                        debug_assert_eq!(blocks[block_idx][position], state);
+                        let removed = blocks[block_idx].swap_remove(position);
+                        debug_assert_eq!(removed, state);
+                        if position < blocks[block_idx].len() {
+                            let swapped = blocks[block_idx][position] as usize;
+                            position_in_block[swapped] = position as u32;
                         }
                     }
-                    (remaining, std::mem::take(&mut block_sources[block_idx]))
+                    moved
                 } else {
-                    let mut new_block = Vec::with_capacity(block_len - source_count);
-                    for state in old_block {
-                        if !source_set[state as usize] {
-                            new_block.push(state);
+                    if CANONICAL_OUTPUT {
+                        for &state in &block_sources[block_idx] {
+                            source_set[state as usize] = true;
                         }
                     }
-                    (std::mem::take(&mut block_sources[block_idx]), new_block)
+                    let old_block = std::mem::take(&mut blocks[block_idx]);
+                    let (remaining, new_block) = if move_sources {
+                        let mut remaining = Vec::with_capacity(block_len - source_count);
+                        for state in old_block {
+                            if !source_set[state as usize] {
+                                remaining.push(state);
+                            }
+                        }
+                        (remaining, std::mem::take(&mut block_sources[block_idx]))
+                    } else {
+                        let mut new_block = Vec::with_capacity(block_len - source_count);
+                        for state in old_block {
+                            if !source_set[state as usize] {
+                                new_block.push(state);
+                            }
+                        }
+                        (std::mem::take(&mut block_sources[block_idx]), new_block)
+                    };
+                    if CANONICAL_OUTPUT {
+                        // On the canonical path this branch is reached only
+                        // when the predecessor side is the larger half, so
+                        // `remaining` is exactly the marked predecessor side
+                        // that was taken out of `block_sources` above.
+                        for &state in &remaining {
+                            source_set[state as usize] = false;
+                        }
+                    }
+                    blocks[block_idx] = remaining;
+                    if CANONICAL_OUTPUT {
+                        for (position, &state) in blocks[block_idx].iter().enumerate() {
+                            position_in_block[state as usize] = position as u32;
+                        }
+                    }
+                    new_block
                 };
 
-                for &state in &new_block {
+                for (position, &state) in new_block.iter().enumerate() {
                     partition[state as usize] = new_block_idx as u32;
+                    if CANONICAL_OUTPUT {
+                        position_in_block[state as usize] = position as u32;
+                    }
                 }
 
-                blocks[block_idx] = remaining;
                 blocks.push(new_block);
 
                 in_worklist.push(false);
@@ -392,8 +544,10 @@ fn hopcroft_refine_partition(
                 }
             }
 
-            for &src in &sources_to_clear {
-                source_set[src as usize] = false;
+            if !CANONICAL_OUTPUT {
+                for &src in &sources_to_clear {
+                    source_set[src as usize] = false;
+                }
             }
 
             for &block_id in &touched_blocks {
@@ -407,6 +561,46 @@ fn hopcroft_refine_partition(
     }
 
     blocks
+}
+
+fn hopcroft_refine_partition(
+    dfa: &DFA,
+    partition: Vec<u32>,
+    blocks: Vec<Vec<u32>>,
+) -> Vec<Vec<u32>> {
+    let inverse = InverseTransitions::build(dfa);
+    hopcroft_refine_partition_impl::<false>(dfa, partition, blocks, &inverse)
+}
+
+fn hopcroft_refine_partition_canonical(
+    dfa: &DFA,
+    partition: Vec<u32>,
+    blocks: Vec<Vec<u32>>,
+) -> Vec<Vec<u32>> {
+    let inverse = InverseTransitions::build(dfa);
+    hopcroft_refine_partition_impl::<true>(dfa, partition, blocks, &inverse)
+}
+
+fn can_reach_accepting_from_inverse(dfa: &DFA, inverse: &InverseTransitions) -> Vec<bool> {
+    let n = dfa.states().len();
+    let mut can_reach_accepting = vec![false; n];
+    let mut queue = VecDeque::new();
+    for state in 0..n {
+        if !dfa.finalizers(state as u32).is_empty() {
+            can_reach_accepting[state] = true;
+            queue.push_back(state as u32);
+        }
+    }
+    while let Some(target) = queue.pop_front() {
+        inverse.for_each_predecessor_source(target as usize, |source| {
+            let source = source as usize;
+            if !can_reach_accepting[source] {
+                can_reach_accepting[source] = true;
+                queue.push_back(source as u32);
+            }
+        });
+    }
+    can_reach_accepting
 }
 
 fn compute_tarjan_scc_ids(adj: &[Vec<usize>]) -> (Vec<u32>, u32) {
@@ -520,11 +714,56 @@ impl DFA {
         self.minimize_impl(true, false)
     }
 
-    pub(super) fn minimize_with_state_mapping_preserve_unreachable(&self) -> (DFA, Vec<u32>) {
+    pub(super) fn minimize_with_state_mapping_preserve_unreachable(mut self) -> (DFA, Vec<u32>) {
+        let orig_n = self.states().len();
+        let profile = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
+        let total_started = std::time::Instant::now();
         if self.has_epsilon_transitions() {
-            return (self.clone(), (0..self.states().len() as u32).collect());
+            return (self, (0..orig_n as u32).collect());
         }
-        self.minimize_impl(false, true)
+        if orig_n == 0 {
+            return (self, Vec::new());
+        }
+
+        // This path is used by the finite vocabulary-mask component builder,
+        // which already owns the sparse DFA. Minimize that allocation in place
+        // rather than cloning every state/transition before refinement.
+        clear_possible_futures_for_minimization(&mut self);
+        if orig_n <= 1 {
+            self.recompute_possible_futures();
+            return (self, (0..orig_n as u32).collect());
+        }
+
+        let partition_started = std::time::Instant::now();
+        let (partition, blocks) = partition_by_finalizers(&self);
+        let partition_ms = partition_started.elapsed().as_secs_f64() * 1000.0;
+
+        let hopcroft_started = std::time::Instant::now();
+        let inverse = InverseTransitions::build(&self);
+        let mut blocks =
+            hopcroft_refine_partition_impl::<true>(&self, partition, blocks, &inverse);
+        let hopcroft_ms = hopcroft_started.elapsed().as_secs_f64() * 1000.0;
+        let canonicalize_started = std::time::Instant::now();
+        canonicalize_partition_blocks(&mut blocks);
+        let canonicalize_ms = canonicalize_started.elapsed().as_secs_f64() * 1000.0;
+        let future_started = std::time::Instant::now();
+        let single_group_reachability =
+            (self.num_groups() == 1).then(|| can_reach_accepting_from_inverse(&self, &inverse));
+        let future_ms = future_started.elapsed().as_secs_f64() * 1000.0;
+        let rebuild_started = std::time::Instant::now();
+        let result = self.rebuild_owned_from_blocks_with_mapping_impl(
+            blocks,
+            single_group_reachability.as_deref(),
+        );
+        let rebuild_ms = rebuild_started.elapsed().as_secs_f64() * 1000.0;
+        if profile {
+            eprintln!(
+                "[glrmask/profile][lexer_minimize_preserve] states={} partition_ms={partition_ms:.3} hopcroft_ms={hopcroft_ms:.3} canonicalize_ms={canonicalize_ms:.3} future_ms={future_ms:.3} rebuild_ms={rebuild_ms:.3} total_ms={:.3}",
+                orig_n,
+                total_started.elapsed().as_secs_f64() * 1000.0,
+            );
+        }
+        result
     }
 
     fn minimize_impl(&self, drop_unreachable: bool, canonicalize_blocks: bool) -> (DFA, Vec<u32>) {
@@ -904,7 +1143,23 @@ impl DFA {
         }
     }
 
-    fn rebuild_owned_from_blocks(mut self, mut partition_blocks: Vec<Vec<u32>>) -> DFA {
+    fn rebuild_owned_from_blocks(self, partition_blocks: Vec<Vec<u32>>) -> DFA {
+        self.rebuild_owned_from_blocks_with_mapping(partition_blocks).0
+    }
+
+    fn rebuild_owned_from_blocks_with_mapping(
+        self,
+        partition_blocks: Vec<Vec<u32>>,
+    ) -> (DFA, Vec<u32>) {
+        self.rebuild_owned_from_blocks_with_mapping_impl(partition_blocks, None)
+    }
+
+    fn rebuild_owned_from_blocks_with_mapping_impl(
+        mut self,
+        mut partition_blocks: Vec<Vec<u32>>,
+        single_group_reachability: Option<&[bool]>,
+    ) -> (DFA, Vec<u32>) {
+        debug_assert!(single_group_reachability.is_none() || self.num_groups() == 1);
         let n = self.states().len();
         partition_blocks.retain(|block| !block.is_empty());
         if let Some(start_part_idx) = partition_blocks
@@ -932,6 +1187,16 @@ impl DFA {
             if new_idx == u32::MAX {
                 continue;
             }
+            if let Some(can_reach_accepting) = single_group_reachability {
+                let has_future = state
+                    .transitions
+                    .iter()
+                    .any(|(_, &target)| can_reach_accepting[target as usize]);
+                state.possible_future_group_ids = BitSet::new(1);
+                if has_future {
+                    state.possible_future_group_ids.set(0);
+                }
+            }
             for (_, target) in state.transitions.iter_mut() {
                 *target = state_mapping[*target as usize];
             }
@@ -944,8 +1209,10 @@ impl DFA {
             .into_iter()
             .map(|state| state.expect("partition representative missing"))
             .collect();
-        self.recompute_possible_futures();
-        self
+        if single_group_reachability.is_none() {
+            self.recompute_possible_futures();
+        }
+        (self, state_mapping)
     }
 
     /// Rebuild DFA from partition blocks.
@@ -1029,4 +1296,77 @@ fn compose_mappings(first: &[u32], second: &[u32]) -> Vec<u32> {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preserve_unreachable_single_group_future_carry_matches_recompute() {
+        let mut dfa = DFA::new(8);
+        dfa.ensure_group_capacity(1);
+        for (source, byte, target) in [
+            (0, b'a', 1),
+            (1, b'b', 2),
+            (2, b'c', 2),
+            (3, b'd', 4),
+            (4, b'e', 5),
+            (6, b'f', 7),
+        ] {
+            dfa.add_transition(source, byte, target);
+        }
+        for accepting in [2u32, 5] {
+            let mut finalizers = BitSet::new(1);
+            finalizers.set(0);
+            dfa.overwrite_state_metadata(accepting, finalizers, BitSet::new(1));
+        }
+
+        let (fast, _) = dfa.minimize_with_state_mapping_preserve_unreachable();
+        let mut recomputed = fast.clone();
+        recomputed.recompute_possible_futures();
+
+        assert_eq!(fast.num_states(), recomputed.num_states());
+        for state in 0..fast.num_states() as u32 {
+            assert_eq!(
+                fast.possible_future_group_ids(state),
+                recomputed.possible_future_group_ids(state),
+                "future mismatch at minimized state {state}",
+            );
+        }
+    }
+
+    #[test]
+    fn canonical_hopcroft_swap_remove_matches_order_preserving_partition() {
+        const STATES: usize = 128;
+        let mut dfa = DFA::new(STATES);
+        dfa.ensure_group_capacity(3);
+        for state in 0..STATES {
+            let mut finalizers = BitSet::new(3);
+            if state % 3 == 0 {
+                finalizers.set(0);
+            }
+            if state % 5 == 0 {
+                finalizers.set(1);
+            }
+            if state % 11 == 0 {
+                finalizers.set(2);
+            }
+            dfa.overwrite_state_metadata(state as u32, finalizers, BitSet::new(3));
+            for input in 0..12u8 {
+                let target = (state * 37 + input as usize * 17 + state / 4 + 3) % STATES;
+                dfa.add_transition(state as u32, input, target as u32);
+            }
+        }
+
+        let (partition, blocks) = partition_by_finalizers(&dfa);
+        let initial_blocks = blocks.len();
+        let mut expected = hopcroft_refine_partition(&dfa, partition.clone(), blocks.clone());
+        let mut actual = hopcroft_refine_partition_canonical(&dfa, partition, blocks);
+        canonicalize_partition_blocks(&mut expected);
+        canonicalize_partition_blocks(&mut actual);
+
+        assert!(actual.len() > initial_blocks, "test DFA must exercise block splitting");
+        assert_eq!(actual, expected);
+    }
 }

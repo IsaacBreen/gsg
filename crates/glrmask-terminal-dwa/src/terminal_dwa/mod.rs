@@ -7,7 +7,8 @@
 use crate::automata::lexer::Lexer;
 use crate::automata::lexer::compile::{
     compile_further_synthesized_tokenizer_with_structural_map,
-    compile_partitioned_expression_pair_with_structural_map, factor_regex_expr,
+    compile_partitioned_expression_pair_with_structural_map,
+    factor_regex_expr,
     precompile_further_synthesis_pairs, PrecompiledFurtherSynthesisPairs,
     VocabularyRepeatHorizonCache,
 };
@@ -20,6 +21,7 @@ pub mod l2p;
 pub mod synthetic_state_map;
 pub use glrmask_dwa_merge::__private::merge;
 pub mod partition;
+mod regular_partition;
 pub mod types;
 
 use std::collections::{BTreeMap, VecDeque};
@@ -40,7 +42,6 @@ use crate::grammar::flat::{
 };
 use crate::Vocab;
 
-use classify::classify_vocab_char_type;
 use finalize_ignore::erase_ignore_after_ti;
 use grammar_helpers::{compute_always_allowed_follows, ignore_transparent_disallowed_follows};
 use l2p::equivalence_analysis::state_equivalence::{
@@ -393,7 +394,7 @@ fn automatic_branch_active_state_map_strategy(
         return AutomaticBranchActiveStateMapStrategy::None;
     }
     let work = source_reps.saturating_mul(vocab_tokens);
-    if active_terminals <= 512
+    if (128..=512).contains(&active_terminals)
         && vocab_tokens >= 50_000
         && source_reps <= 16_384
         && work >= 400_000_000
@@ -407,7 +408,7 @@ fn automatic_branch_active_state_map_strategy(
     let dense_protected_profile = (180..=512).contains(&active_terminals)
         && (2_000..=30_000).contains(&vocab_tokens)
         && work >= 50_000_000
-        && (source_reps >= 40_000 || vocab_tokens <= 8_000);
+        && source_reps >= 40_000;
     if tiny_long_horizon_profile || dense_protected_profile {
         AutomaticBranchActiveStateMapStrategy::DenseRequiresFastProjection
     } else {
@@ -1172,32 +1173,44 @@ fn long_token_overflow_threshold(
     }
 }
 
-fn char_type_partition_index(
-    bytes: &[u8],
-    p0_overflow_threshold: Option<usize>,
-    p1_overflow_threshold: Option<usize>,
-    p2_overflow_threshold: Option<usize>,
-    p4_overflow_threshold: Option<usize>,
-) -> usize {
-    let partition = classify_vocab_char_type(bytes) as usize;
-    if partition == 0
-        && p0_overflow_threshold.is_some_and(|threshold| bytes.len() > threshold)
-    {
-        12
-    } else if partition == 1
-        && p1_overflow_threshold.is_some_and(|threshold| bytes.len() > threshold)
-    {
-        10
-    } else if partition == 2
-        && p2_overflow_threshold.is_some_and(|threshold| bytes.len() > threshold)
-    {
-        9
-    } else if partition == 4
-        && p4_overflow_threshold.is_some_and(|threshold| bytes.len() > threshold)
-    {
-        11
-    } else {
-        partition
+fn char_type_partition_config(
+    automatic_bounded_synthesis_overflow: bool,
+    automatic_p2_overflow_threshold: Option<usize>,
+) -> CharTypeSubVocabKey {
+    let p0_overflow_threshold = long_token_overflow_threshold(
+        "GLRMASK_P0_LONG_TOKEN_OVERFLOW_THRESHOLD",
+        automatic_bounded_synthesis_overflow.then_some(16),
+    );
+    let p1_overflow_threshold = long_token_overflow_threshold(
+        "GLRMASK_P1_LONG_TOKEN_OVERFLOW_THRESHOLD",
+        automatic_bounded_synthesis_overflow.then_some(20),
+    );
+    let p2_overflow_threshold = long_token_overflow_threshold(
+        "GLRMASK_P2_LONG_TOKEN_OVERFLOW_THRESHOLD",
+        automatic_p2_overflow_threshold,
+    );
+    let p4_overflow_threshold = long_token_overflow_threshold(
+        "GLRMASK_P4_LONG_TOKEN_OVERFLOW_THRESHOLD",
+        automatic_bounded_synthesis_overflow.then_some(32),
+    );
+    CharTypeSubVocabKey {
+        p0_overflow_threshold,
+        p1_overflow_threshold,
+        p2_overflow_threshold,
+        p4_overflow_threshold,
+    }
+}
+
+fn char_type_regular_key(
+    key: CharTypeSubVocabKey,
+) -> regular_partition::CharTypeRegularPartitionKey {
+    regular_partition::CharTypeRegularPartitionKey {
+        p0_overflow_threshold: key.p0_overflow_threshold,
+        p1_overflow_threshold: key.p1_overflow_threshold,
+        p2_overflow_threshold: key.p2_overflow_threshold,
+        p4_overflow_threshold: key.p4_overflow_threshold,
+        structural_boundary_enabled:
+            classify::structural_boundary_lexical_partition_enabled(),
     }
 }
 
@@ -1220,28 +1233,14 @@ fn build_char_type_sub_vocabs(
     automatic_bounded_synthesis_overflow: bool,
     automatic_p2_overflow_threshold: Option<usize>,
 ) -> Arc<[Vocab]> {
-    let p0_overflow_threshold = long_token_overflow_threshold(
-        "GLRMASK_P0_LONG_TOKEN_OVERFLOW_THRESHOLD",
-        automatic_bounded_synthesis_overflow.then_some(16),
-    );
-    let p1_overflow_threshold = long_token_overflow_threshold(
-        "GLRMASK_P1_LONG_TOKEN_OVERFLOW_THRESHOLD",
-        automatic_bounded_synthesis_overflow.then_some(20),
-    );
-    let p2_overflow_threshold = long_token_overflow_threshold(
-        "GLRMASK_P2_LONG_TOKEN_OVERFLOW_THRESHOLD",
+    let key = char_type_partition_config(
+        automatic_bounded_synthesis_overflow,
         automatic_p2_overflow_threshold,
     );
-    let p4_overflow_threshold = long_token_overflow_threshold(
-        "GLRMASK_P4_LONG_TOKEN_OVERFLOW_THRESHOLD",
-        automatic_bounded_synthesis_overflow.then_some(32),
-    );
-    let key = CharTypeSubVocabKey {
-        p0_overflow_threshold,
-        p1_overflow_threshold,
-        p2_overflow_threshold,
-        p4_overflow_threshold,
-    };
+    let p0_overflow_threshold = key.p0_overflow_threshold;
+    let p1_overflow_threshold = key.p1_overflow_threshold;
+    let p2_overflow_threshold = key.p2_overflow_threshold;
+    let p4_overflow_threshold = key.p4_overflow_threshold;
     let cache = char_type_sub_vocab_cache(vocab);
     if let Ok(variants) = cache.variants.lock()
         && let Some(cached) = variants.iter().find(|variant| variant.key == key)
@@ -1249,29 +1248,19 @@ fn build_char_type_sub_vocabs(
         return Arc::clone(&cached.sub_vocabs);
     }
 
-    let partition_count = if p0_overflow_threshold.is_some() {
-        13
-    } else if p4_overflow_threshold.is_some() {
-        12
-    } else if p1_overflow_threshold.is_some() {
-        11
-    } else if p2_overflow_threshold.is_some() {
-        10
-    } else {
-        9
-    };
+    let regular_key = char_type_regular_key(key);
+    let partition_count = regular_partition::char_type_partition_count(regular_key);
     let mut partition_entries: Vec<Vec<(u32, Vec<u8>)>> =
         (0..partition_count).map(|_| Vec::new()).collect();
     let mut partition_bytes = vec![U8Set::empty(); partition_count];
     let mut partition_follow_bytes: Vec<[U8Set; 256]> =
         (0..partition_count).map(|_| [U8Set::empty(); 256]).collect();
     for (&token_id, bytes) in vocab.entries_map().iter() {
-        let idx = char_type_partition_index(
-            bytes,
-            p0_overflow_threshold,
-            p1_overflow_threshold,
-            p2_overflow_threshold,
-            p4_overflow_threshold,
+        let base_partition = classify::fast_eval_char_type_regular_partition(bytes) as usize;
+        let idx = regular_partition::char_type_final_partition(
+            base_partition,
+            bytes.len(),
+            regular_key,
         );
         for &byte in bytes {
             partition_bytes[idx].insert(byte);
@@ -1589,7 +1578,217 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length(
         partition_local_synthesis_plan,
         prepared_partition_local_tokenizers,
         None,
+        false,
     )
+}
+
+pub fn build_vocab_partition_from_static_id_maps(
+    tokenizer: &Tokenizer,
+    vocab: &Vocab,
+    terminal_coloring: &TerminalColoring,
+    use_terminal_coloring: bool,
+    ignore_terminal: Option<TerminalID>,
+    grammar: &AnalyzedGrammar,
+    disallowed_follows: &BTreeMap<u32, BitSet>,
+    precomputed_always_allowed_follows: Option<&[Vec<TerminalID>]>,
+    flat_trans: Arc<[u32]>,
+    global_max_length_state_map: &ManyToOneIdMap,
+    external_classify_cache: Option<&classify::SharedClassifyCache>,
+    external_transition_cache: Option<
+        &OnceLock<l2p::equivalence_analysis::compat::FlatTransitionCache>,
+    >,
+    partition_local_synthesis_plan: Option<&PartitionLocalSynthesisPlan>,
+    prepared_partition_local_tokenizers: Option<&PreparedPartitionLocalTokenizers>,
+) -> ManyToOneIdMap {
+    let (families, _) = build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
+        tokenizer,
+        vocab,
+        terminal_coloring,
+        use_terminal_coloring,
+        ignore_terminal,
+        grammar,
+        disallowed_follows,
+        precomputed_always_allowed_follows,
+        flat_trans,
+        global_max_length_state_map,
+        external_classify_cache,
+        external_transition_cache,
+        partition_local_synthesis_plan,
+        prepared_partition_local_tokenizers,
+        None,
+        true,
+    );
+
+    let mut maps = Vec::new();
+    if let Some(family) = families.l1.as_ref() {
+        maps.push(family.id_map().clone());
+    }
+    if let Some(family) = families.l2p.as_ref() {
+        maps.push(family.id_map().clone());
+    }
+    match maps.as_slice() {
+        [] => {
+            let mut original_to_internal = vec![u32::MAX; vocab.max_token_id() as usize + 1];
+            let mut next = 0u32;
+            for &token_id in vocab.entries_map().keys() {
+                original_to_internal[token_id as usize] = next;
+                next += 1;
+            }
+            ManyToOneIdMap::from_original_to_internal_allowing_unmapped(original_to_internal, next)
+        }
+        [only] => only.vocab_tokens.clone(),
+        _ => merge::merge_internal_id_maps_only(
+            &maps.iter().collect::<Vec<_>>(),
+            tokenizer.num_states() as usize,
+            vocab.max_token_id(),
+        )
+        .vocab_tokens,
+    }
+}
+
+
+/// Compute an exact conservative partition of model-vocabulary tokens by their
+/// grammar/lexer behavior, without constructing terminal or parser automata.
+///
+/// The result is intentionally permitted to be finer than Static's final token
+/// quotient. In particular, tokens capable of crossing an L2+ terminal boundary
+/// are kept singleton in the fast path. Every merge performed here is therefore
+/// proved by the same exact L1 relation used by Static; omitted expensive proofs
+/// only lose merging opportunities, never correctness.
+pub fn build_vocab_equivalence_partition_with_precomputed_global_max_length(
+    tokenizer: &Tokenizer,
+    vocab: &Vocab,
+    ignore_terminal: Option<TerminalID>,
+    grammar: &AnalyzedGrammar,
+    disallowed_follows: &BTreeMap<u32, BitSet>,
+    flat_trans: Arc<[u32]>,
+    global_max_length_state_map: &ManyToOneIdMap,
+    partition_local_synthesis_plan: Option<&PartitionLocalSynthesisPlan>,
+) -> ManyToOneIdMap {
+    use rayon::prelude::*;
+
+    let profile = compile_profile_enabled();
+    let setup_started = Instant::now();
+    let terminal_coloring = TerminalColoring::identity(grammar.num_terminals as usize);
+
+    let token_path_disallowed_follows = Arc::new(ignore_transparent_disallowed_follows(
+        disallowed_follows,
+        ignore_terminal,
+    ));
+    let shared_classify_cache = classify::SharedClassifyCache::new();
+    let prewarm_started = Instant::now();
+    classify::prewarm_shared_classify_cache(
+        tokenizer,
+        tokenizer.num_terminals(),
+        &shared_classify_cache,
+    );
+    let prewarm_ms = prewarm_started.elapsed().as_secs_f64() * 1000.0;
+    let sub_vocab_started = Instant::now();
+    let sub_vocabs = build_char_type_sub_vocabs(
+        vocab,
+        partition_local_synthesis_plan.is_some(),
+        automatic_p2_overflow_threshold(tokenizer.num_states()),
+    );
+    let partition_labels = (0..sub_vocabs.len())
+        .map(|idx| format!("p{idx}"))
+        .collect::<Vec<_>>();
+    let sub_vocab_ms = sub_vocab_started.elapsed().as_secs_f64() * 1000.0;
+    let setup_ms = setup_started.elapsed().as_secs_f64() * 1000.0;
+
+    let build_one = |idx: usize, sub_vocab: &Vocab| {
+        if sub_vocab.is_empty() {
+            return None;
+        }
+        let label = &partition_labels[idx];
+        let started = profile.then(Instant::now);
+        let result = partition::build_partition_vocab_equivalence(
+            label,
+            tokenizer,
+            sub_vocab,
+            &terminal_coloring,
+            ignore_terminal,
+            grammar,
+            &token_path_disallowed_follows,
+            &flat_trans,
+            Some(global_max_length_state_map),
+            Some(&shared_classify_cache),
+        );
+        if let Some(started) = started {
+            eprintln!(
+                "[glrmask/profile][vocab_partition_branch] partition={} tokens={} classes={} total_ms={:.3}",
+                label,
+                sub_vocab.len(),
+                result.as_ref().map_or(0, ManyToOneIdMap::num_internal_ids),
+                started.elapsed().as_secs_f64() * 1000.0,
+            );
+        }
+        result
+    };
+
+    let branches_started = Instant::now();
+    let partition_maps: Vec<Option<ManyToOneIdMap>> = if macro_parallelism_disabled() {
+        sub_vocabs
+            .iter()
+            .enumerate()
+            .map(|(idx, sub_vocab)| build_one(idx, sub_vocab))
+            .collect()
+    } else {
+        sub_vocabs
+            .par_iter()
+            .enumerate()
+            .map(|(idx, sub_vocab)| build_one(idx, sub_vocab))
+            .collect()
+    };
+    let branches_ms = branches_started.elapsed().as_secs_f64() * 1000.0;
+
+    // Character-type vocabulary partitions are disjoint by original token ID,
+    // so concatenating their local class domains is already the exact common
+    // refinement. Avoid a global hash join over every token and every branch.
+    let merge_started = Instant::now();
+    let mut original_to_internal = vec![u32::MAX; vocab.max_token_id() as usize + 1];
+    let mut internal_to_originals = Vec::<Vec<u32>>::new();
+    let mut representative_original_ids = Vec::<u32>::new();
+    for map in partition_maps.into_iter().flatten() {
+        let class_offset = internal_to_originals.len() as u32;
+        debug_assert_eq!(
+            map.internal_to_originals.len(),
+            map.representative_original_ids.len(),
+        );
+        for (local_class, originals) in map.internal_to_originals.into_iter().enumerate() {
+            let global_class = class_offset + local_class as u32;
+            for &token_id in &originals {
+                let slot = &mut original_to_internal[token_id as usize];
+                debug_assert_eq!(*slot, u32::MAX, "character sub-vocabularies must be disjoint");
+                *slot = global_class;
+            }
+            internal_to_originals.push(originals);
+        }
+        representative_original_ids.extend(map.representative_original_ids);
+    }
+    // Empty/unusual partition routes should not silently merge tokens. Any
+    // vocabulary token not covered above becomes its own conservative class.
+    for &token_id in vocab.entries_map().keys() {
+        if original_to_internal[token_id as usize] == u32::MAX {
+            let internal = internal_to_originals.len() as u32;
+            original_to_internal[token_id as usize] = internal;
+            internal_to_originals.push(vec![token_id]);
+            representative_original_ids.push(token_id);
+        }
+    }
+    let result = ManyToOneIdMap {
+        original_to_internal,
+        internal_to_originals,
+        representative_original_ids,
+    };
+    let merge_ms = merge_started.elapsed().as_secs_f64() * 1000.0;
+    if profile {
+        eprintln!(
+            "[glrmask/profile][vocab_partition_outer] setup_ms={setup_ms:.3} prewarm_ms={prewarm_ms:.3} sub_vocab_ms={sub_vocab_ms:.3} branches_ms={branches_ms:.3} merge_ms={merge_ms:.3} sub_vocabs={} classes={}",
+            sub_vocabs.len(),
+            result.num_internal_ids(),
+        );
+    }
+    result
 }
 
 pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
@@ -1610,6 +1809,7 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
     partition_local_synthesis_plan: Option<&PartitionLocalSynthesisPlan>,
     prepared_partition_local_tokenizers: Option<&PreparedPartitionLocalTokenizers>,
     terminal_filter: Option<&[bool]>,
+    id_map_only: bool,
 ) -> (TerminalDwaFamilies, TerminalDwaPhaseProfile) {
     let total_started_at = Instant::now();
     let mut profile = TerminalDwaPhaseProfile::default();
@@ -1705,6 +1905,7 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
     let requested_partition_scheme =
         std::env::var("GLRMASK_PARTITION_SCHEME").unwrap_or_else(|_| "char_type".to_string());
     let partition_scheme = requested_partition_scheme.as_str();
+
     let sub_vocabs: Arc<[Vocab]> = match partition_scheme {
         "char_type" => build_char_type_sub_vocabs(
             vocab,
@@ -1868,7 +2069,6 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
     let partition_vocab_ms = partition_vocab_started_at.elapsed().as_secs_f64() * 1000.0;
     profile.id_map_ms += partition_vocab_ms;
     if compile_profile_enabled() { eprintln!("[glrmask/profile][partition_vocab_end] partitions={} ms={:.3}", sub_vocabs.len(), partition_vocab_ms); }
-
     // Lazily-initialized shared compact transition table cache over the one
     // raw lexer DFA used by every L2P partition. Subsequent partitions reuse
     // it, avoiding repeated transpose and byte-class computation.
@@ -1899,6 +2099,95 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
         shared_cache_setup_started_at.elapsed().as_secs_f64() * 1000.0;
     if compile_profile_enabled() { eprintln!("[glrmask/profile][partition_shared_setup_end] ms={:.3}", shared_cache_setup_ms); }
 
+    if id_map_only {
+        use rayon::prelude::*;
+        let started = Instant::now();
+        let build_one = |idx: usize, sub_vocab: &Vocab| {
+            if sub_vocab.is_empty() {
+                return None;
+            }
+            let label = format!("p{idx}");
+            partition::build_partition_vocab_map_only(
+                &label,
+                tokenizer,
+                sub_vocab,
+                terminal_coloring,
+                use_terminal_coloring,
+                ignore_terminal,
+                grammar,
+                always_allowed_follows,
+                disallowed_follows,
+                &token_path_disallowed_follows,
+                &normalized_token_path_disallowed_follows,
+                &flat_trans,
+                Some(global_max_length_state_map),
+                Some(&shared_vocab_dfa_cache),
+                Some(&shared_original_vocab_dfa_cache),
+                Some(&shared_original_vocab_analysis_dfa_cache),
+                Some(shared_transition_cache),
+                Some(&shared_ti_output_cache),
+                Some(shared_classify_cache),
+                terminal_filter,
+            )
+        };
+        let maps: Vec<Option<ManyToOneIdMap>> = if macro_parallelism_disabled() {
+            sub_vocabs
+                .iter()
+                .enumerate()
+                .map(|(idx, sub_vocab)| build_one(idx, sub_vocab))
+                .collect()
+        } else {
+            sub_vocabs
+                .par_iter()
+                .enumerate()
+                .map(|(idx, sub_vocab)| build_one(idx, sub_vocab))
+                .collect()
+        };
+        let mut original_to_internal = vec![u32::MAX; vocab.max_token_id() as usize + 1];
+        let mut class_offset = 0u32;
+        for (sub_vocab, map) in sub_vocabs.iter().zip(&maps) {
+            let Some(map) = map.as_ref() else { continue };
+            for &token_id in sub_vocab.entries_map().keys() {
+                let local = map.original_to_internal[token_id as usize];
+                assert_ne!(local, u32::MAX, "vocab ID-map-only partition left token unmapped");
+                original_to_internal[token_id as usize] = class_offset + local;
+            }
+            class_offset += map.num_internal_ids();
+        }
+        for &token_id in vocab.entries_map().keys() {
+            if original_to_internal[token_id as usize] == u32::MAX {
+                original_to_internal[token_id as usize] = class_offset;
+                class_offset += 1;
+            }
+        }
+        let vocab_tokens = ManyToOneIdMap::from_original_to_internal_allowing_unmapped(
+            original_to_internal,
+            class_offset,
+        );
+        let id_map = InternalIdMap {
+            tokenizer_states: global_max_length_state_map.clone(),
+            vocab_tokens,
+            deferred_vocab_singleton_original_ids: None,
+        };
+        let dwa = DWA::new(id_map.num_tsids(), id_map.max_internal_token_id());
+        if compile_profile_enabled() {
+            eprintln!(
+                "[glrmask/profile][vocab_partition_static_id_map_only] partitions={} classes={} total_ms={:.3}",
+                sub_vocabs.len(),
+                id_map.vocab_tokens.num_internal_ids(),
+                started.elapsed().as_secs_f64() * 1000.0,
+            );
+        }
+        return (
+            TerminalDwaFamilies {
+                l1: Some(MappedArtifact::new(TerminalAutomaton::Dwa(dwa), id_map)),
+                l2p: None,
+                special: None,
+            },
+            profile,
+        );
+    }
+
     use rayon::prelude::*;
     let build_partition = |idx: usize,
                            sub_vocab: &Vocab|
@@ -1928,7 +2217,7 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
                         }
                     })
             });
-        if partition_local_synthesis_selected(&label)
+        if !id_map_only && partition_local_synthesis_selected(&label)
             && let Some(ready) = ready_local
         {
             let local = &ready.local;
@@ -2001,28 +2290,53 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
             }
         }
 
-        let result = partition::build_partition_id_map_and_terminal_dwa(
-            &label,
-            tokenizer,
-            sub_vocab,
-            terminal_coloring,
-            use_terminal_coloring,
-            ignore_terminal,
-            grammar,
-            &always_allowed_follows,
-            disallowed_follows,
-            &token_path_disallowed_follows,
-            &normalized_token_path_disallowed_follows,
-            &flat_trans,
-            Some(global_max_length_state_map),
-            Some(&shared_vocab_dfa_cache),
-            Some(&shared_original_vocab_dfa_cache),
-            Some(&shared_original_vocab_analysis_dfa_cache),
-            Some(shared_transition_cache),
-            Some(&shared_ti_output_cache),
-            Some(&shared_classify_cache),
-            terminal_filter,
-        )
+        let result = if id_map_only {
+            partition::build_partition_id_map_only(
+                &label,
+                tokenizer,
+                sub_vocab,
+                terminal_coloring,
+                use_terminal_coloring,
+                ignore_terminal,
+                grammar,
+                &always_allowed_follows,
+                disallowed_follows,
+                &token_path_disallowed_follows,
+                &normalized_token_path_disallowed_follows,
+                &flat_trans,
+                Some(global_max_length_state_map),
+                Some(&shared_vocab_dfa_cache),
+                Some(&shared_original_vocab_dfa_cache),
+                Some(&shared_original_vocab_analysis_dfa_cache),
+                Some(shared_transition_cache),
+                Some(&shared_ti_output_cache),
+                Some(&shared_classify_cache),
+                terminal_filter,
+            )
+        } else {
+            partition::build_partition_id_map_and_terminal_dwa(
+                &label,
+                tokenizer,
+                sub_vocab,
+                terminal_coloring,
+                use_terminal_coloring,
+                ignore_terminal,
+                grammar,
+                &always_allowed_follows,
+                disallowed_follows,
+                &token_path_disallowed_follows,
+                &normalized_token_path_disallowed_follows,
+                &flat_trans,
+                Some(global_max_length_state_map),
+                Some(&shared_vocab_dfa_cache),
+                Some(&shared_original_vocab_dfa_cache),
+                Some(&shared_original_vocab_analysis_dfa_cache),
+                Some(shared_transition_cache),
+                Some(&shared_ti_output_cache),
+                Some(&shared_classify_cache),
+                terminal_filter,
+            )
+        }
         .map(|pair| (pair, started_at.elapsed().as_secs_f64() * 1000.0));
         (result, idx)
     };
@@ -2155,10 +2469,26 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
 
     let did_global_merge = l1_pairs.len() > 1 || l2p_pairs.len() > 1;
     let family_merge_started_at = Instant::now();
+    let merge_id_maps_only = |pairs: Vec<LocalIdMapTerminalDwa>| {
+        let refs = pairs.iter().map(|pair| &pair.id_map).collect::<Vec<_>>();
+        let id_map = merge::merge_internal_id_maps_only(
+            &refs,
+            num_tokenizer_states,
+            max_token_id,
+        );
+        let dwa = DWA::new(id_map.num_tsids(), id_map.max_internal_token_id());
+        (
+            MappedArtifact::new(TerminalAutomaton::Dwa(dwa), id_map),
+            TerminalDwaPhaseProfile::default(),
+        )
+    };
     let (l1_family, l2p_family) = compile_profile_join(
         "terminal_l1_and_l2p_family_merge",
         || {
             (!l1_pairs.is_empty()).then(|| {
+                if id_map_only {
+                    return merge_id_maps_only(l1_pairs);
+                }
                 let family = if l1_token_domains_proven_disjoint {
                     merge::merge_id_maps_and_terminal_dwas_proven_disjoint(
                         l1_pairs,
@@ -2181,6 +2511,9 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
         },
         || {
             (!l2p_pairs.is_empty()).then(|| {
+                if id_map_only {
+                    return merge_id_maps_only(l2p_pairs);
+                }
                 let token_nwa_merge = if l2p_token_domains_proven_disjoint {
                     merge::try_merge_id_maps_and_token_deterministic_nwa_proven_disjoint(
                         &l2p_pairs,
@@ -2586,7 +2919,7 @@ mod tests {
         );
         assert_eq!(
             automatic_branch_active_state_map_strategy("p5.l1", 4_261, 233, 26_624, 0),
-            DenseRequiresFastProjection,
+            None,
         );
         // Near-global active terminal families make the stable refinement
         // expensive even when the resulting quotient is tiny: exact flat
@@ -2611,6 +2944,10 @@ mod tests {
         assert_eq!(
             automatic_branch_active_state_map_strategy("p2.l1", 82_266, 242, 11_925, 0),
             SmallSourceVeryLargeVocab,
+        );
+        assert_eq!(
+            automatic_branch_active_state_map_strategy("p2.l1", 82_270, 18, 9_323, 0),
+            None,
         );
         assert_eq!(
             automatic_branch_active_state_map_strategy("p2.l1", 82_266, 229, 48_002, 0),

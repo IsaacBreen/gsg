@@ -7,7 +7,7 @@ use crate::automata::regex::Expr;
 use crate::automata::lexer::regex::parse_regex;
 use crate::compiler::glr::analysis::{
     eliminate_right_recursion, has_indirect_left_recursion, merge_identical_nonterminals,
-    normalize_dynamic_glr_grammar, normalize_grammar,
+    inline_null_productions, normalize_dynamic_glr_grammar, normalize_grammar,
 };
 use crate::grammar::flat::{GrammarDef, NonterminalID, Terminal};
 use crate::grammar::flat::{Rule, Symbol, TerminalID};
@@ -61,13 +61,16 @@ fn emit_grammar_transform_profile(
 /// for `T` is assumed to already be drained before this function is called.
 pub(crate) fn expand_nullable_terminals(
     rules: &mut Vec<Rule>,
+    start: NonterminalID,
     nullable_terminals: &BTreeSet<TerminalID>,
 ) {
     if nullable_terminals.is_empty() {
         return;
     }
 
-    // Compute next available nonterminal ID from existing rules.
+    // Compute the next available nonterminal ID from both the rule graph and
+    // the declared start symbol. A sparse GrammarDef may have a start ID above
+    // every nonterminal currently mentioned by a rule.
     let mut next_nt = rules
         .iter()
         .flat_map(|rule| {
@@ -77,8 +80,9 @@ pub(crate) fn expand_nullable_terminals(
             }))
         })
         .max()
-        .map(|id| id + 1)
-        .unwrap_or(0);
+        .unwrap_or(start)
+        .max(start)
+        + 1;
 
     // Map: nullable terminal id → fresh nonterminal id.
     let mut nt_for_terminal = BTreeMap::<TerminalID, NonterminalID>::new();
@@ -154,14 +158,6 @@ fn nullable_terminals_for_grammar(grammar: &GrammarDef) -> BTreeSet<TerminalID> 
         .collect()
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum TerminalIdentity {
-    Literal { bytes: Vec<u8>, is_ignore: bool },
-    Pattern { pattern: String, utf8: bool, is_ignore: bool },
-    Expr { expr: Expr, is_ignore: bool },
-    SpecialToken { token_id: u32, is_ignore: bool },
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum TerminalIdentityRef<'a> {
     Literal {
@@ -196,28 +192,6 @@ fn terminal_identity_ref(terminal: &Terminal, is_ignore: bool) -> TerminalIdenti
         },
         Terminal::Expr { expr, .. } => TerminalIdentityRef::Expr { expr, is_ignore },
         Terminal::SpecialToken { token_id, .. } => TerminalIdentityRef::SpecialToken {
-            token_id: *token_id,
-            is_ignore,
-        },
-    }
-}
-
-fn terminal_identity(terminal: &Terminal, is_ignore: bool) -> TerminalIdentity {
-    match terminal {
-        Terminal::Literal { bytes, .. } => TerminalIdentity::Literal {
-            bytes: bytes.clone(),
-            is_ignore,
-        },
-        Terminal::Pattern { pattern, utf8, .. } => TerminalIdentity::Pattern {
-            pattern: pattern.clone(),
-            utf8: *utf8,
-            is_ignore,
-        },
-        Terminal::Expr { expr, .. } => TerminalIdentity::Expr {
-            expr: expr.clone(),
-            is_ignore,
-        },
-        Terminal::SpecialToken { token_id, .. } => TerminalIdentity::SpecialToken {
             token_id: *token_id,
             is_ignore,
         },
@@ -297,7 +271,7 @@ pub(crate) fn compact_unused_terminals(grammar: &mut GrammarDef) {
         .into_iter()
         .enumerate()
         .filter_map(|(terminal, used)| used.then_some(terminal as TerminalID))
-        .collect::<BTreeSet<_>>();
+        .collect::<Vec<_>>();
 
     for &terminal in &used {
         if terminal as usize >= terminal_count {
@@ -307,27 +281,40 @@ pub(crate) fn compact_unused_terminals(grammar: &mut GrammarDef) {
 
     let mut remap = BTreeMap::<TerminalID, TerminalID>::new();
     let mut compacted = Vec::with_capacity(used.len());
-    let mut canonical_ids =
-        HashMap::<(TerminalIdentity, Option<String>, Option<u32>), TerminalID>::new();
+    {
+        // Keep deduplication identities borrowed from the source grammar. The
+        // previous fallback path cloned every terminal language (including
+        // potentially large Expr trees) solely to own the hash-map key. Source
+        // terminals remain immutable until this pass is complete, so borrowed
+        // identities are sufficient; clone only each genuinely unique terminal
+        // once when constructing the compacted output vector.
+        let mut canonical_ids = HashMap::<
+            (TerminalIdentityRef<'_>, Option<&str>, Option<u32>),
+            TerminalID,
+        >::with_capacity(used.len());
 
-    for old_id in used {
-        let terminal = grammar.terminals.get(old_id as usize).unwrap_or_else(|| {
-            panic!("terminal id {} referenced by a rule but missing from grammar.terminals", old_id)
-        });
-        let is_ignore = grammar.ignore_terminal == Some(old_id);
-        let identity = (
-            terminal_identity(terminal, is_ignore),
-            grammar.lexer_partitions.get(&old_id).cloned(),
-            grammar.residual_isolation_classes.get(&old_id).copied(),
-        );
-        if let Some(&existing_id) = canonical_ids.get(&identity) {
-            remap.insert(old_id, existing_id);
-            continue;
+        for old_id in used {
+            let terminal = grammar.terminals.get(old_id as usize).unwrap_or_else(|| {
+                panic!(
+                    "terminal id {} referenced by a rule but missing from grammar.terminals",
+                    old_id
+                )
+            });
+            let is_ignore = grammar.ignore_terminal == Some(old_id);
+            let identity = (
+                terminal_identity_ref(terminal, is_ignore),
+                grammar.lexer_partitions.get(&old_id).map(String::as_str),
+                grammar.residual_isolation_classes.get(&old_id).copied(),
+            );
+            if let Some(&existing_id) = canonical_ids.get(&identity) {
+                remap.insert(old_id, existing_id);
+                continue;
+            }
+            let new_id = compacted.len() as TerminalID;
+            canonical_ids.insert(identity, new_id);
+            remap.insert(old_id, new_id);
+            compacted.push(remap_terminal_id(terminal, new_id));
         }
-        let new_id = compacted.len() as TerminalID;
-        canonical_ids.insert(identity, new_id);
-        remap.insert(old_id, new_id);
-        compacted.push(remap_terminal_id(terminal, new_id));
     }
 
     for rule in grammar.rules.iter_mut() {
@@ -1014,7 +1001,11 @@ pub(crate) fn prepare_dynamic_glr_transforms_only(grammar: GrammarDef) -> Gramma
     let profiling = compile_profile_enabled();
     let nullable_terminals = nullable_terminals_for_grammar(&grammar);
     let mut normalized = grammar;
-    expand_nullable_terminals(&mut normalized.rules, &nullable_terminals);
+    expand_nullable_terminals(
+        &mut normalized.rules,
+        normalized.start,
+        &nullable_terminals,
+    );
 
     let started = profiling.then(Instant::now);
     let before = normalized.rules.len();
@@ -1045,6 +1036,81 @@ pub(crate) fn prepare_dynamic_glr_transforms_only(grammar: GrammarDef) -> Gramma
     normalized
 }
 
+/// Prepare exactly the grammar structure needed by VocabPartition.
+///
+/// Unlike full static compilation, VocabPartition does not build an LR table
+/// and therefore does not need parser-runtime normal form.  It does need:
+///
+/// * nullable terminals represented explicitly in the CFG before the lexer
+///   drains their zero-byte matches;
+/// * nullable nonterminal productions expanded once so terminal adjacency is
+///   exposed cheaply to FIRST/FOLLOW analysis;
+/// * rules unreachable from the declared start removed, otherwise dead rules
+///   create spurious terminal follows and keep dead terminals alive; and
+/// * the surviving terminal domain compacted/deduplicated before tokenizer and
+///   L1/L2P work.
+///
+/// The heavier recursion/reduction-length transforms in
+/// `prepare_grammar_transforms_only` exist for parser construction and are
+/// deliberately omitted here.
+pub(crate) fn prepare_grammar_for_vocab_partition(grammar: GrammarDef) -> GrammarDef {
+    let nullable_terminals = nullable_terminals_for_grammar(&grammar);
+    let mut prepared = grammar;
+    expand_nullable_terminals(
+        &mut prepared.rules,
+        prepared.start,
+        &nullable_terminals,
+    );
+    let num_nonterminals = prepared.num_nonterminals();
+    prepared.rules = inline_null_productions(&prepared.rules, num_nonterminals);
+    prepared.rules = prune_unreachable_rules(&prepared.rules, prepared.start);
+    compact_unused_terminals(&mut prepared);
+    prepared
+}
+
+fn prune_unreachable_rules(rules: &[Rule], start: NonterminalID) -> Vec<Rule> {
+    let max_nonterminal = rules
+        .iter()
+        .flat_map(|rule| {
+            std::iter::once(rule.lhs).chain(rule.rhs.iter().filter_map(|symbol| match symbol {
+                Symbol::Nonterminal(nonterminal) => Some(*nonterminal),
+                Symbol::Terminal(_) => None,
+            }))
+        })
+        .max()
+        .unwrap_or(start)
+        .max(start) as usize;
+    let mut rules_by_lhs = vec![Vec::<usize>::new(); max_nonterminal + 1];
+    for (index, rule) in rules.iter().enumerate() {
+        rules_by_lhs[rule.lhs as usize].push(index);
+    }
+
+    let mut reachable = vec![false; max_nonterminal + 1];
+    let mut worklist = vec![start];
+    while let Some(nonterminal) = worklist.pop() {
+        let nonterminal = nonterminal as usize;
+        if reachable[nonterminal] {
+            continue;
+        }
+        reachable[nonterminal] = true;
+        for &rule_index in &rules_by_lhs[nonterminal] {
+            for symbol in &rules[rule_index].rhs {
+                if let Symbol::Nonterminal(next) = symbol
+                    && !reachable[*next as usize]
+                {
+                    worklist.push(*next);
+                }
+            }
+        }
+    }
+
+    rules
+        .iter()
+        .filter(|rule| reachable[rule.lhs as usize])
+        .cloned()
+        .collect()
+}
+
 /// The shared grammar transform steps (without tokenizer build).
 fn prepare_grammar_transforms_impl(
     normalized: &mut GrammarDef,
@@ -1053,7 +1119,7 @@ fn prepare_grammar_transforms_impl(
 ) {
     let expand_rules_before = normalized.rules.len();
     let expand_started_at = profiling.then(Instant::now);
-    expand_nullable_terminals(&mut normalized.rules, nullable_terminals);
+    expand_nullable_terminals(&mut normalized.rules, normalized.start, nullable_terminals);
     if let Some(started_at) = expand_started_at {
         emit_grammar_transform_profile(
             "expand_nullable_terminals",
@@ -1243,6 +1309,61 @@ mod tests {
 
     fn t(id: TerminalID) -> Symbol {
         Symbol::Terminal(id)
+    }
+
+    #[test]
+    fn nullable_terminal_expansion_allocates_above_sparse_start_id() {
+        let mut rules = vec![Rule {
+            lhs: 0,
+            rhs: vec![t(0)],
+        }];
+        let nullable = BTreeSet::from([0]);
+
+        expand_nullable_terminals(&mut rules, 10, &nullable);
+
+        let helper_lhs = rules
+            .iter()
+            .filter(|rule| rule.lhs != 0)
+            .map(|rule| rule.lhs)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(helper_lhs, BTreeSet::from([11]));
+        assert_eq!(rules[0].rhs, vec![nt(11)]);
+    }
+
+    #[test]
+    fn vocab_partition_prepare_prunes_dead_rules_before_terminal_compaction() {
+        let grammar = GrammarDef {
+            rules: vec![
+                Rule {
+                    lhs: 0,
+                    rhs: vec![t(0)],
+                },
+                Rule {
+                    lhs: 1,
+                    rhs: vec![t(1)],
+                },
+            ],
+            start: 0,
+            terminals: vec![
+                Terminal::Literal {
+                    id: 0,
+                    bytes: b"live".to_vec(),
+                },
+                Terminal::Literal {
+                    id: 1,
+                    bytes: b"dead".to_vec(),
+                },
+            ],
+            ..GrammarDef::default()
+        };
+
+        let prepared = prepare_grammar_for_vocab_partition(grammar);
+
+        assert_eq!(prepared.rules.len(), 1);
+        assert_eq!(prepared.rules[0].lhs, 0);
+        assert_eq!(prepared.rules[0].rhs, vec![t(0)]);
+        assert_eq!(prepared.terminals.len(), 1);
+        assert_eq!(prepared.terminals[0].id(), 0);
     }
 
     fn remove_cyclic_inline_candidates_reference(

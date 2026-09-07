@@ -13,11 +13,12 @@ pub(crate) mod string;
 
 
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::env;
 
 use serde_json::{Map, Value};
 
+use crate::automata::lexer::ast::Expr;
 use crate::GlrMaskError;
 use crate::grammar::ast::resolved_named_terminal_exprs;
 use crate::grammar::exact_subtraction_lowering::lower_exact_subtractions;
@@ -68,7 +69,7 @@ fn partition_class(partition: Option<&str>) -> lower::JsonTerminalPartitionClass
 fn finalize_lexer_partitions_with_options(
     grammar: &mut NamedGrammar,
     pattern_singletons: bool,
-) -> crate::Result<()> {
+) -> crate::Result<BTreeMap<String, Expr>> {
     let previous_partitions = std::mem::take(&mut grammar.lexer_partitions);
     let resolved_terminals = resolved_named_terminal_exprs(grammar)?;
     let mut pattern_partitions = HashMap::new();
@@ -92,7 +93,7 @@ fn finalize_lexer_partitions_with_options(
             .expect("resolved emitting JSON terminal expression");
         let class = partition_class(previous_partitions.get(&rule.name).map(String::as_str));
         class_by_terminal_expr
-            .entry(terminal_expr.clone())
+            .entry(terminal_expr)
             .and_modify(|existing: &mut lower::JsonTerminalPartitionClass| {
                 *existing = existing.merge(class);
             })
@@ -102,7 +103,7 @@ fn finalize_lexer_partitions_with_options(
             .filter(|partition| is_pattern_family_partition(partition))
         {
             declared_pattern_family_by_terminal_expr
-                .entry(terminal_expr.clone())
+                .entry(terminal_expr)
                 .and_modify(|existing: &mut String| {
                     if partition < existing {
                         *existing = partition.clone();
@@ -121,19 +122,19 @@ fn finalize_lexer_partitions_with_options(
         let terminal_expr = resolved_terminals
             .get(&rule.name)
             .expect("resolved emitting JSON terminal expression");
-        let class = class_by_terminal_expr[terminal_expr];
+        let class = class_by_terminal_expr[&terminal_expr];
         let partition = match class {
             lower::JsonTerminalPartitionClass::Literal => {
                 lower::JSON_LITERAL_LEXER_PARTITION.to_string()
             }
             lower::JsonTerminalPartitionClass::Pattern if pattern_singletons => {
                 if let Some(partition) =
-                    declared_pattern_family_by_terminal_expr.get(terminal_expr)
+                    declared_pattern_family_by_terminal_expr.get(&terminal_expr)
                 {
                     partition.clone()
                 } else {
                     pattern_partitions
-                        .entry(terminal_expr.clone())
+                        .entry(terminal_expr)
                         .or_insert_with(|| format!("json_pattern_{}", rule.name))
                         .clone()
                 }
@@ -149,11 +150,59 @@ fn finalize_lexer_partitions_with_options(
     }
     let literals = grammar.emitted_anonymous_literals();
     grammar.set_literal_lexer_partition(lower::JSON_LITERAL_LEXER_PARTITION, literals);
-    Ok(())
+    drop(pattern_partitions);
+    drop(class_by_terminal_expr);
+    drop(declared_pattern_family_by_terminal_expr);
+    Ok(resolved_terminals)
 }
 
 pub fn finalize_lexer_partitions(grammar: &mut NamedGrammar) -> crate::Result<()> {
-    finalize_lexer_partitions_with_options(grammar, json_pattern_singletons_enabled())
+    finalize_lexer_partitions_with_options(grammar, json_pattern_singletons_enabled()).map(drop)
+}
+
+fn prepare_named_grammar_impl(
+    grammar: &mut NamedGrammar,
+) -> crate::Result<BTreeMap<String, Expr>> {
+    let profile = std::env::var_os("GLRMASK_PROFILE_COMPILE").is_some()
+        || std::env::var_os("GLRMASK_PROFILE_COMPILE_SUMMARY").is_some();
+    let total_started = profile.then(std::time::Instant::now);
+    let mut simplify_ms = 0.0;
+    let mut exact_subtractions_ms = 0.0;
+    let mut promote_literals_ms = 0.0;
+    if simplify_grammar_enabled() {
+        let started = profile.then(std::time::Instant::now);
+        simplify_named_grammar(grammar);
+        simplify_ms = started
+            .map(|started| started.elapsed().as_secs_f64() * 1000.0)
+            .unwrap_or(0.0);
+    }
+    if lower_exact_subtractions_enabled() {
+        let started = profile.then(std::time::Instant::now);
+        lower_exact_subtractions(grammar)?;
+        exact_subtractions_ms = started
+            .map(|started| started.elapsed().as_secs_f64() * 1000.0)
+            .unwrap_or(0.0);
+    }
+    if promote_literal_choices_enabled() {
+        let started = profile.then(std::time::Instant::now);
+        promote_choice_terminals_exact(grammar, false);
+        promote_literals_ms = started
+            .map(|started| started.elapsed().as_secs_f64() * 1000.0)
+            .unwrap_or(0.0);
+    }
+    let finalize_started = profile.then(std::time::Instant::now);
+    let resolved_terminals =
+        finalize_lexer_partitions_with_options(grammar, json_pattern_singletons_enabled())?;
+    let finalize_partitions_ms = finalize_started
+        .map(|started| started.elapsed().as_secs_f64() * 1000.0)
+        .unwrap_or(0.0);
+    if let Some(total_started) = total_started {
+        eprintln!(
+            "[glrmask/profile][json_schema_prepare_named] simplify_ms={simplify_ms:.3} exact_subtractions_ms={exact_subtractions_ms:.3} promote_literals_ms={promote_literals_ms:.3} finalize_partitions_ms={finalize_partitions_ms:.3} total_ms={:.3}",
+            total_started.elapsed().as_secs_f64() * 1000.0,
+        );
+    }
+    Ok(resolved_terminals)
 }
 
 pub fn prepare_named_grammar(grammar: &mut NamedGrammar) -> crate::Result<()> {
@@ -198,10 +247,19 @@ pub fn prepare_named_grammar(grammar: &mut NamedGrammar) -> crate::Result<()> {
         grammar.set_literal_lexer_partition(lower::JSON_LITERAL_LEXER_PARTITION, literals);
         return Ok(());
     }
-    finalize_lexer_partitions(grammar)?;
-    Ok(())
+    prepare_named_grammar_impl(grammar).map(drop)
 }
 
+/// Prepare JSON-schema grammar metadata for an immediate lowering pass and
+/// return the exact terminal expressions already resolved while assigning
+/// lexer partitions. The caller can seed AST lowering with this map instead
+/// of resolving/parsing the same terminal bodies a second time.
+#[doc(hidden)]
+pub fn prepare_named_grammar_for_lowering(
+    grammar: &mut NamedGrammar,
+) -> crate::Result<BTreeMap<String, Expr>> {
+    prepare_named_grammar_impl(grammar)
+}
 pub fn prepare_named_grammar_for_dump(grammar: &mut NamedGrammar) -> crate::Result<()> {
     if simplify_grammar_enabled() {
         simplify_named_grammar(grammar);
