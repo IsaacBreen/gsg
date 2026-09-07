@@ -2,6 +2,46 @@ use super::*;
 use crate::runtime::artifact::DynamicMaskTrieFullWalkOp;
 use rustc_hash::FxHashSet;
 
+#[inline]
+fn physical_sole_live_terminal(tokenizer: &Tokenizer, state: u32) -> Option<TerminalID> {
+    let mut only = None::<TerminalID>;
+    for terminal in tokenizer
+        .matched_terminals_slice(state)
+        .iter()
+        .copied()
+        .chain(
+            tokenizer
+                .possible_future_terminals(state)
+                .iter_ones()
+                .map(|terminal| terminal as TerminalID),
+        )
+    {
+        match only {
+            None => only = Some(terminal),
+            Some(existing) if existing == terminal => {}
+            Some(_) => return None,
+        }
+    }
+    only
+}
+
+#[inline]
+fn bitset_sole_live_terminal(matched: &BitSet, futures: &BitSet) -> Option<TerminalID> {
+    let mut only = None::<TerminalID>;
+    for terminal in matched
+        .iter_ones()
+        .chain(futures.iter_ones())
+        .map(|terminal| terminal as TerminalID)
+    {
+        match only {
+            None => only = Some(terminal),
+            Some(existing) if existing == terminal => {}
+            Some(_) => return None,
+        }
+    }
+    only
+}
+
 trait FullWalkTransitionTable {
     type Cell: Copy;
 
@@ -52,6 +92,15 @@ trait FullWalkTransitionTable {
     #[inline(always)]
     fn future_intersects(&self, tokenizer: &Tokenizer, state: u32, terminals: &BitSet) -> bool {
         !terminals.is_disjoint(tokenizer.possible_future_terminals(state))
+    }
+
+    /// Return the sole matched/future terminal at this exact walk coordinate.
+    /// `None` means either no terminal is live or more than one distinct
+    /// terminal is live.  Synthetic subset/union coordinates override this to
+    /// read their already-materialized exact terminal metadata.
+    #[inline]
+    fn sole_live_terminal(&self, tokenizer: &Tokenizer, state: u32) -> Option<TerminalID> {
+        physical_sole_live_terminal(tokenizer, state)
     }
 
     #[inline]
@@ -458,6 +507,19 @@ impl FullWalkTransitionTable for FullWalkLazyUnion<'_> {
     }
 
     #[inline]
+    fn sole_live_terminal(&self, tokenizer: &Tokenizer, state: u32) -> Option<TerminalID> {
+        if state < self.base_state_count {
+            return physical_sole_live_terminal(tokenizer, state);
+        }
+        self.ensure_virtual_metadata(state);
+        let cache = unsafe { &*self.cache.get() };
+        let metadata = cache.metadata[self.extension_index(state)]
+            .as_ref()
+            .expect("virtual subset metadata missing");
+        bitset_sole_live_terminal(&metadata.matched, &metadata.futures)
+    }
+
+    #[inline]
     fn union_states(&self, states: &[u32]) -> Option<u32> {
         self.intern_states(states)
     }
@@ -717,6 +779,15 @@ impl FullWalkTransitionTable for FullWalkSubset16<'_> {
             !terminals.is_disjoint(&self.futures[self.extension_index(state)])
         }
     }
+
+    #[inline]
+    fn sole_live_terminal(&self, tokenizer: &Tokenizer, state: u32) -> Option<TerminalID> {
+        if state < self.base_state_count {
+            return physical_sole_live_terminal(tokenizer, state);
+        }
+        let index = self.extension_index(state);
+        bitset_sole_live_terminal(&self.matched[index], &self.futures[index])
+    }
 }
 
 
@@ -814,6 +885,18 @@ impl FullWalkTransitionTable for FullWalkCachedSubset16<'_> {
         } else {
             !terminals.is_disjoint(&self.extension.futures[self.extension_index(state)])
         }
+    }
+
+    #[inline]
+    fn sole_live_terminal(&self, tokenizer: &Tokenizer, state: u32) -> Option<TerminalID> {
+        if state < self.extension.base_state_count {
+            return physical_sole_live_terminal(tokenizer, state);
+        }
+        let index = self.extension_index(state);
+        bitset_sole_live_terminal(
+            &self.extension.matched[index],
+            &self.extension.futures[index],
+        )
     }
 }
 
@@ -3972,6 +4055,50 @@ fn try_full_walk_mask_with_table_from_initial<
             }
             singleton && only_terminal.is_some()
         };
+    // The parser row can admit many terminals even when the current lexer
+    // residual can produce only one of them. In that common narrow-mask shape,
+    // requiring parser admission itself to be singleton needlessly forces the
+    // negative-polarity path. Use the exact walk coordinate's sole live
+    // terminal instead, then verify that terminal against parser admission.
+    // This is purely an output-polarity choice: the semantic walk is unchanged.
+    static EFFECTIVE_SINGLETON_POSITIVE_REBUILD_ENABLED: std::sync::OnceLock<bool> =
+        std::sync::OnceLock::new();
+    let effective_singleton_positive_rebuild = *EFFECTIVE_SINGLETON_POSITIVE_REBUILD_ENABLED
+        .get_or_init(|| {
+            std::env::var_os("GLRMASK_DISABLE_EFFECTIVE_SINGLETON_POSITIVE_REBUILD").is_none()
+        })
+        && root_branches
+            .iter()
+            .all(|branch| branch.initial_prune_guard.is_passed())
+        && {
+            let tokenizer = lexer_scan_cache.tokenizer();
+            let mut only_terminal = None::<TerminalID>;
+            let mut singleton = true;
+            for (root_index, root) in root_branches.iter().enumerate() {
+                let lexer_state = root.tokenizer_config;
+                let admitted = parser_cache.admitted(state.constraint, root_parser_nodes[root_index]);
+                let Some(root_terminal) = transitions.sole_live_terminal(tokenizer, lexer_state)
+                else {
+                    singleton = false;
+                    break;
+                };
+                if Some(root_terminal) != state.constraint.ignore_terminal
+                    && !admitted.contains(root_terminal as usize)
+                {
+                    singleton = false;
+                    break;
+                }
+                match only_terminal {
+                    None => only_terminal = Some(root_terminal),
+                    Some(existing) if existing == root_terminal => {}
+                    Some(_) => {
+                        singleton = false;
+                        break;
+                    }
+                }
+            }
+            singleton && only_terminal.is_some()
+        };
     // The pre-collapse Flat16 path can hand us a master certificate directly.
     // Other deterministic one-root paths still have the same exact lexer/parser
     // information. Before running an exact proof, filter admitted terminals by
@@ -4217,6 +4344,7 @@ fn try_full_walk_mask_with_table_from_initial<
     let mut deferred_output = !force_positive_rebuild
         && llg_master_decision.is_none()
         && !singleton_positive_rebuild
+        && !effective_singleton_positive_rebuild
         && state.constraint.ignore_terminal.is_none()
         && root_branches
             .iter()
@@ -4233,7 +4361,10 @@ fn try_full_walk_mask_with_table_from_initial<
             buf[copy_len..].fill(0);
         }
         true
-    } else if singleton_positive_rebuild || force_positive_rebuild {
+    } else if singleton_positive_rebuild
+        || effective_singleton_positive_rebuild
+        || force_positive_rebuild
+    {
         buf.fill(0);
         true
     } else if deferred_output {
