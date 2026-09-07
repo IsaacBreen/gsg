@@ -4358,7 +4358,45 @@ fn try_full_walk_mask_with_table_from_initial<
     let mut guarded_self_loop_bytes = [0u64; 4];
     let mut current_many = FullWalkManyState::Branches(FullWalkBranches::new());
     let mut partition_root_slot = 0usize;
-    let mut remaining_ops = walk_ops.iter();
+    // Exact single-byte root scheduler. For a positive-rebuild
+    // mask, lexically dead root-byte subtrees contribute no output mutations.
+    // When the execution root is one scalar state with exactly one outgoing
+    // byte, enter that vocabulary root range directly instead of probing every
+    // other root byte only to kill its subtree. Keep this deliberately narrow:
+    // it is the common cheap-mask shape where the skipped root probes are a
+    // material fraction of total work, and it adds no multi-range scheduling
+    // machinery to broader states.
+    static SINGLE_BYTE_ROOT_WALK_ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let sparse_root_walk_enabled = *SINGLE_BYTE_ROOT_WALK_ENABLED.get_or_init(|| {
+        std::env::var_os("GLRMASK_DISABLE_SINGLE_BYTE_ROOT_WALK").is_none()
+    });
+    let sparse_root_range = if sparse_root_walk_enabled
+        && positive_rebuild
+        && !deferred_output
+        && llg_master_decision.is_none()
+        && root_branches.len() == 1
+        && stack_lexer[0] < FULL_WALK_LEXER_TWO_DISTINCT
+        && stack_lexer[0] < tokenizer.num_states()
+        && trie.node(0).token_id.is_none()
+        && trie.has_full_walk_root_byte_index()
+    {
+        let root_lexer = stack_lexer[0];
+        let mut transitions = tokenizer.transitions_from(root_lexer);
+        let first = transitions.next();
+        match (first, transitions.next()) {
+            (Some((byte, _)), None) => trie.full_walk_root_byte_range(byte),
+            _ => None,
+        }
+    } else {
+        None
+    };
+    let sparse_root_range_end = sparse_root_range.map_or(0, |range| range.1);
+    let mut remaining_ops = if let Some((start, _, marker_start)) = sparse_root_range {
+        token_marker_index = marker_start;
+        walk_ops[start as usize..].iter()
+    } else {
+        walk_ops.iter()
+    };
     let mut profile_ops = 0usize;
     let mut profile_bytes = 0usize;
     let mut profile_token_endpoints = 0usize;
@@ -4396,7 +4434,16 @@ fn try_full_walk_mask_with_table_from_initial<
         0
     };
     let walk_started = profile_kernel.then(std::time::Instant::now);
-    while let Some(&op) = remaining_ops.next() {
+    loop {
+        if sparse_root_range.is_some() {
+            let current_op = walk_ops.len() - remaining_ops.as_slice().len();
+            if current_op >= sparse_root_range_end as usize {
+                break;
+            }
+        }
+        let Some(&op) = remaining_ops.next() else {
+            break;
+        };
         // A surviving scalar non-finalizing byte is retained only after
         // `physical_token_boundary_allowed()` has proved the exact
         // `(parser_node, target_lexer)` coordinate live.  When that same op is

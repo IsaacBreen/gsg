@@ -1465,6 +1465,11 @@ pub(crate) struct DynamicMaskTrie {
     /// sentinel at the end. Combined with `DynamicMaskTrieWalkEdge::subtree_end`
     /// this gives an O(1) exact jump past a dead child subtree.
     full_walk_edge_op_starts: Vec<u32>,
+    /// For an ordinary, unpartitioned radix root, map each possible first byte
+    /// directly to the first strict-walk op for its root child. `u32::MAX`
+    /// means the vocabulary has no token beginning with that byte. Structural
+    /// zero-byte roots deliberately leave this unavailable.
+    full_walk_root_byte_op_starts: Option<Box<[u32; 256]>>,
     full_walk_token_nodes: Vec<u32>,
     /// Maximum structural radix-edge parent depth encoded by `full_walk_ops`.
     /// This is deliberately distinct from token byte length: one long
@@ -1531,6 +1536,7 @@ impl DynamicMaskTrie {
             full_walk_ops: Vec::new(),
             full_walk_op_edges: Vec::new(),
             full_walk_edge_op_starts: Vec::new(),
+            full_walk_root_byte_op_starts: None,
             full_walk_token_nodes: Vec::new(),
             full_walk_max_parent_depth: 0,
             root_layout_classes: Vec::new(),
@@ -1613,6 +1619,27 @@ impl DynamicMaskTrie {
     #[inline]
     pub(crate) fn full_walk_max_parent_depth(&self) -> u16 {
         self.full_walk_max_parent_depth
+    }
+
+    #[inline(always)]
+    pub(crate) fn has_full_walk_root_byte_index(&self) -> bool {
+        self.full_walk_root_byte_op_starts.is_some()
+    }
+
+    #[inline(always)]
+    pub(crate) fn full_walk_root_byte_range(&self, byte: u8) -> Option<(u32, u32, usize)> {
+        let starts = self.full_walk_root_byte_op_starts.as_ref()?;
+        let start_op = starts[byte as usize];
+        if start_op == u32::MAX {
+            return None;
+        }
+        let (child, end_op) = self.full_walk_dead_subtree(start_op as usize);
+        let root_token_offset = usize::from(self.node(0).token_id.is_some());
+        let marker_start = self
+            .subtree_token_index_range(child)
+            .start
+            .saturating_sub(root_token_offset);
+        Some((start_op, end_op, marker_start))
     }
 
     #[inline]
@@ -1768,6 +1795,7 @@ impl DynamicMaskTrie {
         self.full_walk_ops.clear();
         self.full_walk_op_edges.clear();
         self.full_walk_edge_op_starts.clear();
+        self.full_walk_root_byte_op_starts = None;
         self.full_walk_token_nodes.clear();
         self.full_walk_max_parent_depth = self
             .walk_edges
@@ -1818,6 +1846,33 @@ impl DynamicMaskTrie {
             self.full_walk_edge_op_starts.len(),
             self.walk_edges.len() + 1
         );
+
+        // Ordinary radix tries have one non-empty edge per distinct first byte
+        // below the true root. Index those DFS ranges once so sparse lexer
+        // roots can enter only byte-live vocabulary subtrees. Partitioned
+        // tries have zero-byte structural root edges and intentionally decline
+        // this optimization rather than conflating layout with byte language.
+        let mut root_byte_starts = Box::new([u32::MAX; 256]);
+        let mut root_byte_index_valid = true;
+        for (edge_index, edge) in self.walk_edges.iter().copied().enumerate() {
+            if edge.parent_depth != 0 {
+                continue;
+            }
+            let bytes = self.walk_edge_bytes(&edge);
+            let Some(&first) = bytes.first() else {
+                root_byte_index_valid = false;
+                break;
+            };
+            let slot = &mut root_byte_starts[first as usize];
+            if *slot != u32::MAX {
+                root_byte_index_valid = false;
+                break;
+            }
+            *slot = self.full_walk_edge_op_starts[edge_index];
+        }
+        if root_byte_index_valid {
+            self.full_walk_root_byte_op_starts = Some(root_byte_starts);
+        }
     }
 
     fn flatten_vocab_node(node: &VocabPrefixTreeNode, output: &mut Self) -> u32 {
@@ -1869,6 +1924,7 @@ impl DynamicMaskTrie {
             full_walk_ops: Vec::new(),
             full_walk_op_edges: Vec::new(),
             full_walk_edge_op_starts: Vec::new(),
+            full_walk_root_byte_op_starts: None,
             full_walk_token_nodes: Vec::new(),
             full_walk_max_parent_depth: 0,
             root_layout_classes: Vec::new(),
@@ -1915,6 +1971,7 @@ impl DynamicMaskTrie {
             full_walk_ops: Vec::with_capacity(byte_capacity.max(edge_capacity)),
             full_walk_op_edges: Vec::with_capacity(byte_capacity.max(edge_capacity)),
             full_walk_edge_op_starts: Vec::with_capacity(edge_capacity + 1),
+            full_walk_root_byte_op_starts: None,
             full_walk_token_nodes: Vec::with_capacity(edge_capacity),
             full_walk_max_parent_depth: 0,
             root_layout_classes: Vec::new(),
@@ -5994,6 +6051,7 @@ impl DynamicMaskVocab {
             full_walk_ops: Vec::new(),
             full_walk_op_edges: Vec::new(),
             full_walk_edge_op_starts: Vec::new(),
+            full_walk_root_byte_op_starts: None,
             full_walk_token_nodes: Vec::new(),
             full_walk_max_parent_depth: 0,
             root_layout_classes: Vec::new(),
