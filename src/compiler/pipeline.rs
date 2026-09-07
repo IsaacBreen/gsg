@@ -596,17 +596,70 @@ fn compute_disallowed_follows_from_ever(
     disallowed_by_terminal
 }
 
+// Factoring recursively rebuilds expression trees and can dominate tokenizer construction
+// for importer-generated grammars with very large pre-parsed expression forests.  Count
+// only nodes that already exist here: parsing pattern strings merely to choose a scheduling
+// policy would duplicate the work this gate is intended to avoid.
+fn expression_tree_reaches_budget(expr: &Expr, remaining: &mut usize) -> bool {
+    if *remaining <= 1 {
+        *remaining = 0;
+        return true;
+    }
+    *remaining -= 1;
+    match expr {
+        Expr::Seq(parts) | Expr::Choice(parts) => parts
+            .iter()
+            .any(|part| expression_tree_reaches_budget(part, remaining)),
+        Expr::Repeat { expr, .. } => expression_tree_reaches_budget(expr, remaining),
+        Expr::Exclude { expr, exclude } => {
+            expression_tree_reaches_budget(expr, remaining)
+                || expression_tree_reaches_budget(exclude, remaining)
+        }
+        Expr::Intersect { expr, intersect } => {
+            expression_tree_reaches_budget(expr, remaining)
+                || expression_tree_reaches_budget(intersect, remaining)
+        }
+        Expr::Shared(expr) => expression_tree_reaches_budget(expr, remaining),
+        Expr::U8Seq(_) | Expr::U8Class(_) | Expr::Dfa(_) | Expr::Epsilon => false,
+    }
+}
+
+fn should_parallelize_terminal_factoring(grammar: &GrammarDef) -> bool {
+    // Keep small/ordinary grammars on the serial path.  At this scale the bounded tree
+    // walk and Rayon scheduling are comfortably amortized by the factoring work.
+    const MIN_PREPARSED_EXPR_NODES: usize = 64 * 1024;
+    if rayon::current_num_threads() <= 1 {
+        return false;
+    }
+    let mut remaining = MIN_PREPARSED_EXPR_NODES;
+    grammar.terminals.iter().any(|terminal| match terminal {
+        Terminal::Expr { expr, .. } => expression_tree_reaches_budget(expr, &mut remaining),
+        Terminal::Literal { .. } | Terminal::Pattern { .. } | Terminal::SpecialToken { .. } => {
+            false
+        }
+    })
+}
+
 pub(crate) fn build_tokenizer(grammar: &GrammarDef) -> Tokenizer {
     let profile_timing = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
     let profile_detail = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_DETAIL").is_some()
         || std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TRACE").is_some();
     let factor_started_at = Instant::now();
-    let exprs: Vec<Expr> = grammar
-        .terminals
-        .iter()
-        .map(terminal_expr)
-        .map(factor_regex_expr)
-        .collect();
+    let exprs: Vec<Expr> = if should_parallelize_terminal_factoring(grammar) {
+        grammar
+            .terminals
+            .par_iter()
+            .map(terminal_expr)
+            .map(factor_regex_expr)
+            .collect()
+    } else {
+        grammar
+            .terminals
+            .iter()
+            .map(terminal_expr)
+            .map(factor_regex_expr)
+            .collect()
+    };
     if profile_timing {
         eprintln!(
             "[glrmask/profile][tokenizer] factor_terminals terminals={} elapsed_ms={:.3}",
