@@ -1029,6 +1029,45 @@ pub fn build_l2p_id_map_and_terminal_dwa_mode(
 
     if id_map_only {
         let id_map_ms = id_map_started_at.elapsed().as_secs_f64() * 1000.0;
+        if l2p_timing_profile_enabled()
+            || std::env::var_os("GLRMASK_PROFILE_L2P_ID_MAP_ONLY").is_some()
+        {
+            let attributed_ms = equiv_profile.raw_analysis_base_init_ms
+                + equiv_profile.analysis_view_build_ms
+                + equiv_profile.active_mask_filter_ms
+                + equiv_profile.effective_follows_normalize_ms
+                + equiv_profile.prepare_inputs_ms
+                + equiv_profile.byte_class_setup_ms
+                + equiv_profile.vocab_analysis_dfa_build_ms
+                + equiv_profile.token_dedup_ms
+                + equiv_profile.restricted_observation_state_equiv_ms
+                + equiv_profile.max_length_state_equiv_ms
+                + equiv_profile.vocab_equiv_ms
+                + equiv_profile.exact_state_equiv_ms
+                + equiv_profile.id_map_finalize_ms;
+            eprintln!(
+                "[glrmask/profile][l2p_id_map_only] partition={} analysis_view_build_ms={:.3} active_mask_filter_ms={:.3} effective_follows_normalize_ms={:.3} prepare_inputs_ms={:.3} byte_class_setup_ms={:.3} vocab_analysis_dfa_build_ms={:.3} token_dedup_ms={:.3} restricted_observation_state_equiv_ms={:.3} max_length_state_equiv_ms={:.3} vocab_equiv_ms={:.3} exact_state_equiv_ms={:.3} id_map_finalize_ms={:.3} unattributed_ms={:.3} restricted_observation_reps={} max_length_reps={} exact_reps={} exact_rep_confirmation_used={} id_map_ms={:.3}",
+                partition_label,
+                equiv_profile.analysis_view_build_ms,
+                equiv_profile.active_mask_filter_ms,
+                equiv_profile.effective_follows_normalize_ms,
+                equiv_profile.prepare_inputs_ms,
+                equiv_profile.byte_class_setup_ms,
+                equiv_profile.vocab_analysis_dfa_build_ms,
+                equiv_profile.token_dedup_ms,
+                equiv_profile.restricted_observation_state_equiv_ms,
+                equiv_profile.max_length_state_equiv_ms,
+                equiv_profile.vocab_equiv_ms,
+                equiv_profile.exact_state_equiv_ms,
+                equiv_profile.id_map_finalize_ms,
+                (id_map_ms - attributed_ms).max(0.0),
+                equiv_profile.restricted_observation_reps,
+                equiv_profile.max_length_reps,
+                equiv_profile.exact_reps,
+                equiv_profile.exact_rep_confirmation_used,
+                id_map_ms,
+            );
+        }
         let dwa = crate::automata::weighted_u32::dwa::DWA::new(
             simplified_id_map.num_tsids(),
             simplified_id_map.max_internal_token_id(),
