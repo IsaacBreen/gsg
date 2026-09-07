@@ -92,6 +92,7 @@ pub struct VocabPartition {
     original_to_class: Vec<u32>,
     classes: Vec<Vec<u32>>,
     representatives: Vec<u32>,
+    class_output_masks: Vec<Vec<(u32, u32)>>,
 }
 
 impl VocabPartition {
@@ -132,10 +133,30 @@ impl VocabPartition {
                 total_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
             );
         }
+        let classes = map.internal_to_originals;
+        let class_output_masks = classes
+            .iter()
+            .map(|class| {
+                let mut words = Vec::<(u32, u32)>::new();
+                for &token_id in class {
+                    let word = token_id / 32;
+                    let bit = 1u32 << (token_id % 32);
+                    if let Some((last_word, last_bits)) = words.last_mut()
+                        && *last_word == word
+                    {
+                        *last_bits |= bit;
+                    } else {
+                        words.push((word, bit));
+                    }
+                }
+                words
+            })
+            .collect();
         Ok(Self {
             original_to_class: map.original_to_internal,
-            classes: map.internal_to_originals,
+            classes,
             representatives: map.representative_original_ids,
+            class_output_masks,
         })
     }
 
@@ -163,6 +184,56 @@ impl VocabPartition {
 
     /// Dense original-token-ID to class-ID map. Missing token IDs contain `u32::MAX`.
     pub fn original_to_class(&self) -> &[u32] { &self.original_to_class }
+
+    /// Number of packed `u64` words needed for a class-space mask.
+    pub fn internal_mask_len(&self) -> usize { self.num_classes().div_ceil(64) }
+
+    /// Number of packed `u32` words needed for an original-token-space mask.
+    pub fn original_mask_len(&self) -> usize { self.original_to_class.len().div_ceil(32) }
+
+    /// Expand a packed class-space mask into the original model-token ID space.
+    ///
+    /// Bit `i` in `internal_mask` selects equivalence class `i`. Every original
+    /// token in each selected class is set in the returned packed `u32` mask.
+    /// Bits beyond [`Self::num_classes`] are ignored.
+    pub fn expand_mask(&self, internal_mask: &[u64]) -> Vec<u32> {
+        let mut out = vec![0u32; self.original_mask_len()];
+        self.fill_expanded_mask(internal_mask, &mut out);
+        out
+    }
+
+    /// Expand a packed class-space mask into an existing original-token mask buffer.
+    ///
+    /// `out` must contain at least [`Self::original_mask_len`] `u32` words. The
+    /// entire supplied buffer is cleared before expansion, matching the overwrite
+    /// semantics of [`ConstraintState::fill_mask`](crate::ConstraintState::fill_mask).
+    pub fn fill_expanded_mask(&self, internal_mask: &[u64], out: &mut [u32]) {
+        let required = self.original_mask_len();
+        assert!(
+            out.len() >= required,
+            "expanded mask buffer is smaller than original vocabulary mask"
+        );
+        out.fill(0);
+
+        for (word_index, &word) in internal_mask.iter().enumerate() {
+            let class_base = word_index * 64;
+            if class_base >= self.num_classes() {
+                break;
+            }
+            let mut selected = word;
+            while selected != 0 {
+                let bit = selected.trailing_zeros() as usize;
+                let class_id = class_base + bit;
+                if class_id >= self.num_classes() {
+                    break;
+                }
+                for &(output_word, output_bits) in &self.class_output_masks[class_id] {
+                    out[output_word as usize] |= output_bits;
+                }
+                selected &= selected - 1;
+            }
+        }
+    }
 }
 
 /// A grammar, vocabulary, and complete set of extern bindings.
@@ -1188,22 +1259,58 @@ mod tests {
             (3, b"a".to_vec()),
             (7, b"b".to_vec()),
             (11, b"ab".to_vec()),
+            (67, b"a".to_vec()),
         ]);
         let partition = VocabPartition::compile(Grammar::ebnf(r#"start ::= "a"+"#), &vocab)
             .unwrap();
 
         assert_eq!(partition.class_of(1), None);
-        for token in [0, 3, 7, 11] {
+        for token in [0, 3, 7, 11, 67] {
             assert!(partition.class_of(token).is_some(), "token {token} is unmapped");
         }
         assert_eq!(partition.class_of(0), partition.class_of(3));
+        assert_eq!(partition.class_of(0), partition.class_of(67));
         let mut covered = partition.classes().iter().flatten().copied().collect::<Vec<_>>();
         covered.sort_unstable();
-        assert_eq!(covered, vec![0, 3, 7, 11]);
+        assert_eq!(covered, vec![0, 3, 7, 11, 67]);
         for class in 0..partition.num_classes() as u32 {
             let representative = partition.representative(class).unwrap();
             assert_eq!(partition.class_of(representative), Some(class));
         }
+
+        assert_eq!(partition.internal_mask_len(), partition.num_classes().div_ceil(64));
+        assert_eq!(partition.original_mask_len(), 3);
+
+        let class = partition.class_of(0).unwrap() as usize;
+        let mut internal = vec![0u64; partition.internal_mask_len()];
+        internal[class / 64] |= 1u64 << (class % 64);
+        let expanded = partition.expand_mask(&internal);
+        assert_ne!(expanded[0] & (1u32 << 0), 0);
+        assert_ne!(expanded[0] & (1u32 << 3), 0);
+        assert_eq!(expanded[0] & (1u32 << 1), 0);
+        assert_ne!(expanded[2] & (1u32 << 3), 0);
+
+        let mut reused = vec![u32::MAX; partition.original_mask_len() + 2];
+        partition.fill_expanded_mask(&internal, &mut reused);
+        assert_eq!(&reused[..partition.original_mask_len()], expanded.as_slice());
+        assert_eq!(&reused[partition.original_mask_len()..], &[0, 0]);
+    }
+
+    #[test]
+    fn vocab_partition_expands_multiple_classes_and_ignores_high_internal_bits() {
+        let partition = VocabPartition {
+            original_to_class: vec![0, u32::MAX, 1, 0, u32::MAX, 2, 2, u32::MAX, 1],
+            classes: vec![vec![0, 3], vec![2, 8], vec![5, 6]],
+            representatives: vec![0, 2, 5],
+            class_output_masks: vec![
+                vec![(0, (1u32 << 0) | (1u32 << 3))],
+                vec![(0, (1u32 << 2) | (1u32 << 8))],
+                vec![(0, (1u32 << 5) | (1u32 << 6))],
+            ],
+        };
+
+        let expanded = partition.expand_mask(&[(1u64 << 0) | (1u64 << 2) | (1u64 << 63)]);
+        assert_eq!(expanded, vec![(1u32 << 0) | (1u32 << 3) | (1u32 << 5) | (1u32 << 6)]);
     }
 
     #[test]

@@ -667,6 +667,12 @@ impl PyVocabPartition {
     #[getter]
     fn num_classes(&self) -> usize { self.inner.num_classes() }
 
+    #[getter]
+    fn internal_mask_len(&self) -> usize { self.inner.internal_mask_len() }
+
+    #[getter]
+    fn original_mask_len(&self) -> usize { self.inner.original_mask_len() }
+
     fn class_of(&self, token_id: u32) -> Option<u32> { self.inner.class_of(token_id) }
 
     fn representative(&self, class_id: u32) -> Option<u32> {
@@ -676,6 +682,20 @@ impl PyVocabPartition {
     fn classes(&self) -> Vec<Vec<u32>> { self.inner.classes().to_vec() }
 
     fn original_to_class(&self) -> Vec<u32> { self.inner.original_to_class().to_vec() }
+
+    fn expand_mask(&self, internal_mask: Vec<u64>) -> Vec<u32> {
+        self.inner.expand_mask(&internal_mask)
+    }
+
+    fn fill_expanded_mask(
+        &self,
+        internal_mask: Vec<u64>,
+        mut bitmask: PyReadwriteArray1<i32>,
+    ) -> PyResult<()> {
+        let buf = bitmask_u32_view(&mut bitmask)?;
+        self.inner.fill_expanded_mask(&internal_mask, buf);
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------------------
