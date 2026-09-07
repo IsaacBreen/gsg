@@ -14,7 +14,7 @@ mod common;
 mod dense;
 mod frontier;
 mod projected;
-pub(super) use projected::prepare_finite_vocab_projection;
+pub(crate) use projected::{build_projected_vocab_equivalence, prepare_finite_vocab_projection};
 mod quotient;
 pub mod scalar;
 mod support;
@@ -119,6 +119,7 @@ pub struct BuildInput<'a> {
     pub shared_generic_nfa_topology: Option<&'a TokenBoundedAnalysisTopology>,
     pub shared_generic_nfa_trie: Option<&'a TokenBoundedAnalysisTrie>,
     pub subset_parent_order: Option<&'a L1IdentityVocabOrder>,
+    pub id_map_only: bool,
 }
 
 fn run(implementation: Implementation, input: BuildInput<'_>) -> Option<LocalIdMapTerminalDwa> {

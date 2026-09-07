@@ -155,6 +155,11 @@ pub struct L2pVocabBoundarySplit {
 }
 
 impl L2pVocabBoundarySplit {
+    #[inline]
+    pub fn boundary_token_ids(&self) -> &[u32] {
+        &self.boundary_token_ids
+    }
+
     fn materialize_vocab(vocab: &Vocab, token_ids: &[u32]) -> Vocab {
         let mut entries = Vec::with_capacity(token_ids.len());
         let mut parent_entry_indices = Vec::with_capacity(token_ids.len());
@@ -222,6 +227,11 @@ impl crate::vocab::VocabDerivedArtifact for VocabClassificationFacts {}
 struct VocabAdjacentPairIndex {
     pair_offsets: Box<[u32]>,
     entry_token_ids: Box<[u32]>,
+    /// Vocabulary entry bytes in the same entry order used by `occurrences`.
+    /// Kept flat so hot per-grammar classifiers can address one entry by index
+    /// without rebuilding an 80k-element pointer vector from the ordered map.
+    entry_byte_offsets: Box<[u32]>,
+    entry_bytes: Box<[u8]>,
     /// `(entry_index << 32) | split_after`, grouped by adjacent byte pair.
     /// Entry indices let hot classification loops address a precollected slice
     /// directly instead of performing one ordered-map lookup per occurrence.
@@ -268,6 +278,13 @@ impl VocabAdjacentPairIndex {
         let end = self.pair_offsets[pair + 1] as usize;
         &self.occurrences[start..end]
     }
+
+    #[inline]
+    fn bytes_for_entry(&self, entry_index: usize) -> &[u8] {
+        let start = self.entry_byte_offsets[entry_index] as usize;
+        let end = self.entry_byte_offsets[entry_index + 1] as usize;
+        &self.entry_bytes[start..end]
+    }
 }
 
 fn vocab_adjacent_pair_index(vocab: &Vocab) -> Arc<VocabAdjacentPairIndex> {
@@ -277,15 +294,22 @@ fn vocab_adjacent_pair_index(vocab: &Vocab) -> Arc<VocabAdjacentPairIndex> {
 
     let mut counts = vec![0u32; 1 << 16];
     let mut entry_split_offsets = Vec::with_capacity(vocab.len() + 1);
+    let mut entry_byte_offsets = Vec::with_capacity(vocab.len() + 1);
+    let mut entry_bytes = Vec::<u8>::new();
     let mut total_splits = 0usize;
     entry_split_offsets.push(0);
+    entry_byte_offsets.push(0);
     for bytes in vocab.entries_map().values() {
         assert!(total_splits <= u32::MAX as usize);
+        assert!(entry_bytes.len() <= u32::MAX as usize);
         for pair in bytes.windows(2) {
             counts[((pair[0] as usize) << 8) | pair[1] as usize] += 1;
         }
         total_splits += bytes.len().saturating_sub(1);
         entry_split_offsets.push(total_splits);
+        entry_bytes.extend_from_slice(bytes);
+        assert!(entry_bytes.len() <= u32::MAX as usize);
+        entry_byte_offsets.push(entry_bytes.len() as u32);
     }
 
     let mut pair_offsets = vec![0u32; (1 << 16) + 1];
@@ -307,6 +331,8 @@ fn vocab_adjacent_pair_index(vocab: &Vocab) -> Arc<VocabAdjacentPairIndex> {
     let index = Arc::new(VocabAdjacentPairIndex {
         pair_offsets: pair_offsets.into_boxed_slice(),
         entry_token_ids: vocab.entries_map().keys().copied().collect::<Vec<_>>().into_boxed_slice(),
+        entry_byte_offsets: entry_byte_offsets.into_boxed_slice(),
+        entry_bytes: entry_bytes.into_boxed_slice(),
         occurrences: occurrences.into_boxed_slice(),
         entry_split_offsets: entry_split_offsets.into_boxed_slice(),
         total_splits,
@@ -785,6 +811,203 @@ impl SharedClassifyBytesets {
         }
     }
 }
+
+/// JSON structural characters used to keep tokens in the core non-alnum
+/// partition (P0) rather than splitting them into the auxiliary P5.
+const JSON_STRUCTURAL: &[u8] = b"\":[]{},";
+
+/// `_` belongs with alphabetic bytes for vocabulary partitioning. This is a
+/// routing convention only: it does not change lexer or grammar semantics.
+fn is_partition_ascii_alpha(byte: u8) -> bool {
+    byte.is_ascii_alphabetic() || byte == b'_'
+}
+
+/// Characters whose sole repetition qualifies a non-alnum token for the
+/// auxiliary P5 partition even if the token contains a structural byte.
+const P5_REPEATED_CHARS: &[u8] = b"\n:{ ,";
+
+/// Classifies a token's bytes by character type for vocab partitioning.
+///
+/// Returns:
+/// - 0: non-alnum with JSON structural chars (multi-byte, not single-repeated)
+/// - 1: mixed (contains both alnum and non-alnum)
+/// - 2: ASCII word token with ≥1 alpha or `_`, optionally with leading space
+/// - 3: pure digit, optionally with leading space
+/// - 4: Unicode-only alpha (non-ASCII alphanumeric, e.g. CJK, Cyrillic,
+///       Arabic, Hangul), optionally with leading space
+/// - 5: non-alnum auxiliary short (no JSON structural, or single-char repeated,
+///       or length 1; ≤ 8 bytes)
+/// - 6: non-alnum auxiliary long (same criteria as 5, but > 8 bytes)
+/// - 7: JSON literal-boundary tokens requiring structural treatment (leading-
+///       space collisions, bracketed forms, and the special ` -` token)
+/// - 8: quoted ASCII identifier-start tokens
+///
+/// Uses Unicode-aware classification so that non-Latin scripts are separated
+/// into their own partition (4) instead of being lumped with ASCII punctuation (0)
+/// or bloating the ASCII alpha partition (2).
+///
+/// P0/P5 split: non-alnum tokens containing JSON structural characters
+/// (`":[]{},`) stay in P0 for efficient L2+ terminal processing, while
+/// tokens without structural chars (or trivial single-char tokens) go to P5.
+pub(crate) fn fast_eval_char_type_regular_partition(bytes: &[u8]) -> u8 {
+    if bytes.is_empty() {
+        return 5;
+    }
+    // Bare ASCII word pieces that overlap a JSON literal spelling are ordinary
+    // P2 material. Only their leading-space variants need to stay isolated at
+    // the structural boundary.
+    if !bytes.starts_with(b" ") && is_json_literal_collision(bytes) {
+        return 2;
+    }
+    if is_quoted_identifier_boundary_token(bytes) {
+        return 8;
+    }
+    if is_structural_boundary_lexical_token(bytes) {
+        return 7;
+    }
+    // Strip optional leading ASCII space (GPT-2 BPE decodes Ġ → 0x20 before we see it)
+    let content = if bytes[0] == b' ' {
+        &bytes[1..]
+    } else {
+        bytes
+    };
+    if content.is_empty() {
+        return 5; // Just a space marker → auxiliary non-alnum
+    }
+    if content.len() == 1 && matches!(content[0], b'+' | b'-') {
+        return 1;
+    }
+    // Try to decode as UTF-8 for Unicode-aware classification.
+    if let Ok(s) = std::str::from_utf8(content) {
+        let all_word = s.chars().all(|c| c.is_alphanumeric() || c == '_');
+        if all_word {
+            let has_alpha = s.chars().any(|c| c.is_alphabetic() || c == '_');
+            if has_alpha {
+                let has_ascii_alpha = content.iter().copied().any(is_partition_ascii_alpha);
+                if has_ascii_alpha {
+                    return 2; // ASCII word token (may also contain non-ASCII alpha)
+                }
+                return 4; // Unicode-only alpha (CJK, Cyrillic, Arabic, etc.)
+            }
+            return 3; // Pure digit
+        }
+        // Check non-alphanumeric.
+        if let Ok(full) = std::str::from_utf8(bytes) {
+            if !full
+                .chars()
+                .any(|c| c.is_alphanumeric() || c == '_')
+            {
+                return classify_nonalnum(bytes);
+            }
+        }
+        return 1; // Mixed
+    }
+    // Fallback: byte-level ASCII checks for invalid UTF-8.
+    if content
+        .iter()
+        .copied()
+        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    {
+        if content.iter().copied().any(is_partition_ascii_alpha) {
+            return 2;
+        }
+        return 3;
+    }
+    if bytes
+        .iter()
+        .copied()
+        .all(|byte| !byte.is_ascii_alphanumeric() && byte != b'_')
+    {
+        return classify_nonalnum(bytes);
+    }
+    1 // Mixed
+}
+
+fn is_json_literal_collision(content: &[u8]) -> bool {
+    if content.is_empty() || !content.iter().all(|byte| byte.is_ascii_alphanumeric()) {
+        return false;
+    }
+
+    [b"true".as_slice(), b"false".as_slice(), b"null".as_slice()]
+        .iter()
+        .any(|literal| literal.starts_with(content) || content.starts_with(literal))
+}
+
+fn is_structural_boundary_lexical_token(bytes: &[u8]) -> bool {
+    if !structural_boundary_lexical_partition_enabled() {
+        return false;
+    }
+
+    let content = bytes.strip_prefix(b" ").unwrap_or(bytes);
+    if is_json_literal_collision(content) {
+        return true;
+    }
+    if bytes == b" -" {
+        return true;
+    }
+    if bytes.starts_with(b"[") && is_json_literal_collision(&bytes[1..]) {
+        return true;
+    }
+    false
+}
+
+fn is_quoted_identifier_boundary_token(bytes: &[u8]) -> bool {
+    structural_boundary_lexical_partition_enabled()
+        && bytes
+        .strip_prefix(b"\"")
+        .is_some_and(|suffix| suffix.first().copied().is_some_and(is_partition_ascii_alpha))
+}
+
+pub(crate) fn structural_boundary_lexical_partition_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        std::env::var("GLRMASK_STRUCTURAL_BOUNDARY_LEXICAL_PARTITION")
+            .map(|value| {
+                let trimmed = value.trim();
+                trimmed.is_empty() || trimmed == "1" || trimmed.eq_ignore_ascii_case("true")
+            })
+            .unwrap_or(true)
+    })
+}
+
+/// Classify one token using the canonical regular-language partition by default.
+/// A process-level custom regex partition remains available for experiments.
+pub fn classify_vocab_char_type(bytes: &[u8]) -> u8 {
+    if vocab_partition_is_custom() {
+        let set = vocab_partition_set();
+        classify_with_partition_set(set, bytes).unwrap_or_else(|| {
+            panic!(
+                "regex vocabulary partitions are not exhaustive for token bytes {:?}",
+                bytes
+            )
+        })
+    } else {
+        fast_eval_char_type_regular_partition(bytes)
+    }
+}
+
+
+/// Sub-classify a non-alphanumeric token into P0 (structural), P5 (short auxiliary),
+/// or P6 (long auxiliary).
+///
+/// P5/P6 if: (a) no JSON structural char, (b) single repeated char from
+/// `\n:{ ,`, or (c) length 1. Within that group, tokens > 8 bytes go to P6.
+fn classify_nonalnum(bytes: &[u8]) -> u8 {
+    // Length 1 → P5
+    if bytes.len() <= 1 {
+        return 5;
+    }
+    // Single repeated char from P5_REPEATED_CHARS → P5/P6
+    if bytes.iter().all(|b| *b == bytes[0]) && P5_REPEATED_CHARS.contains(&bytes[0]) {
+        return if bytes.len() > 8 { 6 } else { 5 };
+    }
+    // No JSON structural char → P5/P6
+    if !bytes.iter().any(|b| JSON_STRUCTURAL.contains(b)) {
+        return if bytes.len() > 8 { 6 } else { 5 };
+    }
+    0 // Structural non-alnum → P0
+}
+
 
 /// Environment override for the vocabulary partition languages.
 ///
@@ -1350,21 +1573,6 @@ pub fn vocab_partition_label(index: usize) -> String {
     }
 }
 
-/// Classify token bytes by exact regular-language partition membership.
-///
-/// Unlike the former hand-written classifier, every returned partition has a
-/// first-class regular language available through [`vocab_partition_language`].
-/// This makes language containment a well-defined operation rather than an
-/// approximation reconstructed from the tokens that happened to land there.
-pub fn classify_vocab_char_type(bytes: &[u8]) -> u8 {
-    let set = vocab_partition_set();
-    classify_with_partition_set(set, bytes).unwrap_or_else(|| {
-            panic!(
-                "regex vocabulary partitions are not exhaustive for token bytes {:?}",
-                bytes
-            )
-        })
-}
 
 /// Classifies each terminal by the longest token-path length it can participate in.
 ///
@@ -1399,6 +1607,71 @@ pub fn classify_terminal_path_lengths(
     )
 }
 
+fn heuristic_terminal_path_two_plus(
+    vocab_facts: &VocabClassificationFacts,
+    bytesets: &SharedClassifyBytesets,
+    disallowed_follows: &BTreeMap<u32, BitSet>,
+    num_terminals: u32,
+) -> BitSet {
+    let nt = num_terminals as usize;
+    let vocab_bytes = vocab_facts.bytes;
+    let mut heuristic_two_plus = BitSet::new(nt);
+    for t1 in 0..nt {
+        if bytesets.last_bytes[t1].is_disjoint(&vocab_bytes) {
+            continue;
+        }
+        let mut observed_after_t1 = U8Set::empty();
+        for last_byte in bytesets.last_bytes[t1].iter() {
+            observed_after_t1 = observed_after_t1
+                .union(&vocab_facts.observed_follow_bytes[last_byte as usize]);
+        }
+        if observed_after_t1.is_empty() {
+            continue;
+        }
+        let disallowed = disallowed_follows.get(&(t1 as u32));
+        for t2 in 0..nt {
+            if bytesets.first_bytes[t2].is_disjoint(&observed_after_t1) {
+                continue;
+            }
+            if disallowed.is_some_and(|d| d.contains(t2)) {
+                continue;
+            }
+            heuristic_two_plus.set(t1);
+            heuristic_two_plus.set(t2);
+        }
+    }
+    heuristic_two_plus
+}
+
+/// Cheap sound superset of terminals that may participate in a within-token
+/// terminal boundary. This performs only vocabulary byte-pair filtering; it
+/// deliberately does not run the exact witness classifier.
+pub fn candidate_terminal_path_two_plus(
+    tokenizer: &Tokenizer,
+    vocab: &Vocab,
+    disallowed_follows: &BTreeMap<u32, BitSet>,
+    num_terminals: u32,
+    shared_classify_cache: Option<&SharedClassifyCache>,
+) -> Vec<bool> {
+    let vocab_facts = vocab_classification_facts(vocab);
+    let owned_bytesets: Option<SharedClassifyBytesets>;
+    let bytesets: &SharedClassifyBytesets = if let Some(cache) = shared_classify_cache {
+        cache.get_or_init(|| SharedClassifyBytesets::build(tokenizer, num_terminals))
+    } else {
+        owned_bytesets = Some(SharedClassifyBytesets::build(tokenizer, num_terminals));
+        owned_bytesets.as_ref().unwrap()
+    };
+    let candidates = heuristic_terminal_path_two_plus(
+        &vocab_facts,
+        bytesets,
+        disallowed_follows,
+        num_terminals,
+    );
+    (0..num_terminals as usize)
+        .map(|terminal| candidates.contains(terminal))
+        .collect()
+}
+
 pub(crate) fn classify_terminal_path_lengths_with_probe(
     partition_label: &str,
     tokenizer: &Tokenizer,
@@ -1426,46 +1699,41 @@ pub(crate) fn classify_terminal_path_lengths_with_probe(
     // classify length >= 2 from exact terminal-boundary witnesses. A terminal
     // participates in an L2P path iff it is either side of some allowed
     // terminal pair split inside one vocabulary token.
-    let mut heuristic_two_plus = BitSet::new(nt);
-
     // A real within-token terminal boundary necessarily consumes two adjacent
-    // token bytes: the byte ending t1's matched prefix and the byte starting
-    // t2's suffix.  The former heuristic only required those bytes to occur
-    // somewhere in the vocabulary independently, which admitted many impossible
-    // candidates and forced expensive exact scans.  Record the actually observed
-    // byte-pair relation once, then require a last-byte/first-byte pair to occur.
-    for t1 in 0..nt {
-        if bytesets.last_bytes[t1].is_disjoint(&vocab_bytes) {
-            continue;
-        }
-        let mut observed_after_t1 = U8Set::empty();
-        for last_byte in bytesets.last_bytes[t1].iter() {
-            observed_after_t1 = observed_after_t1
-                .union(&vocab_facts.observed_follow_bytes[last_byte as usize]);
-        }
-        if observed_after_t1.is_empty() {
-            continue;
-        }
-        let disallowed = disallowed_follows.get(&(t1 as u32));
-        for t2 in 0..nt {
-            if bytesets.first_bytes[t2].is_disjoint(&observed_after_t1) {
-                continue;
-            }
-            if let Some(d) = disallowed {
-                if d.contains(t2) {
-                    continue;
-                }
-            }
-            heuristic_two_plus.set(t1);
-            heuristic_two_plus.set(t2);
-        }
-    }
+    // token bytes. Keep the cheap byte-pair relation as a sound candidate set;
+    // exact boundary witnesses below determine the final classification.
+    let heuristic_two_plus = heuristic_terminal_path_two_plus(
+        &vocab_facts,
+        bytesets,
+        disallowed_follows,
+        num_terminals,
+    );
     let exact = exact_terminal_path_two_plus_finite_literals(
         tokenizer,
         vocab,
         disallowed_follows,
         &heuristic_two_plus,
     )
+    .or_else(|| {
+        let enabled = std::env::var("GLRMASK_CLASSIFY_FINITE_FOLLOWER_EMPTY")
+            .map(|value| {
+                let value = value.trim();
+                value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
+            })
+            .unwrap_or(false);
+        (enabled
+            && finite_follower_suffix_empty_certificate(
+                tokenizer,
+                vocab,
+                disallowed_follows,
+                &heuristic_two_plus,
+                bytesets,
+            ) == Some(true))
+        .then(|| ExactTerminalPathTwoPlus {
+            two_plus: BitSet::new(heuristic_two_plus.len()),
+            witnesses: vec![None; heuristic_two_plus.len()],
+        })
+    })
     .unwrap_or_else(|| {
         // This path propagates reset-state continuations after every discovered
         // terminal boundary. The older direct prefix/suffix scanners only saw
@@ -2680,6 +2948,125 @@ fn collect_finite_literal_strings(expr: &Expr) -> Option<Vec<Vec<u8>>> {
     (!values.is_empty() && values.iter().all(|value| !value.is_empty())).then_some(values)
 }
 
+/// Prove that no candidate terminal boundary can have a viable reset-side
+/// follower using only finite literal follower languages.
+///
+/// This is deliberately an emptiness certificate, not a replacement for the
+/// exact boundary classifier.  We over-approximate possible left terminals by
+/// adjacent byte pairs, but require every directionally possible follower to
+/// have a finite literal language.  For a finite literal `L`, a token suffix is
+/// viable from lexer reset iff the suffix and some literal in `L` are
+/// prefix-comparable: either the literal finishes inside the suffix or the
+/// suffix finishes while the literal remains completable.  If no indexed
+/// feasible split has such a follower, no exact within-token boundary exists.
+fn finite_follower_suffix_empty_certificate(
+    tokenizer: &Tokenizer,
+    vocab: &Vocab,
+    disallowed_follows: &BTreeMap<u32, BitSet>,
+    candidates: &BitSet,
+    bytesets: &SharedClassifyBytesets,
+) -> Option<bool> {
+    let started_at = std::time::Instant::now();
+    let candidate_ids = candidates.iter().collect::<Vec<_>>();
+    if candidate_ids.is_empty() || candidate_ids.len() > 64 {
+        return None;
+    }
+
+    let index = vocab_adjacent_pair_index(vocab);
+    let mut follower_masks_by_pair = vec![0u64; 1 << 16];
+    let mut follower_mask = 0u64;
+    for (local_1, &terminal_1) in candidate_ids.iter().enumerate() {
+        let blocked = disallowed_follows.get(&(terminal_1 as u32));
+        for (local_2, &terminal_2) in candidate_ids.iter().enumerate() {
+            if blocked.is_some_and(|blocked| blocked.contains(terminal_2)) {
+                continue;
+            }
+            let follower_bit = 1u64 << local_2;
+            for left in bytesets.last_bytes[terminal_1].iter() {
+                for right in bytesets.first_bytes[terminal_2].iter() {
+                    if index.occurrences_for_pair(left, right).is_empty() {
+                        continue;
+                    }
+                    follower_masks_by_pair[((left as usize) << 8) | right as usize] |= follower_bit;
+                    follower_mask |= follower_bit;
+                }
+            }
+        }
+        let _ = local_1;
+    }
+    if follower_mask == 0 {
+        return Some(true);
+    }
+
+    let mut literals_by_local = vec![None::<Vec<Vec<u8>>>; candidate_ids.len()];
+    let mut pending = follower_mask;
+    while pending != 0 {
+        let local = pending.trailing_zeros() as usize;
+        pending &= pending - 1;
+        let terminal = candidate_ids[local];
+        let literals = collect_finite_literal_strings(tokenizer.terminal_expr(terminal as u32)?)?;
+        literals_by_local[local] = Some(literals);
+    }
+
+    let mut checked_splits = 0usize;
+    let mut checked_literal_pairs = 0usize;
+    for pair in 0..(1 << 16) {
+        let followers = follower_masks_by_pair[pair];
+        if followers == 0 {
+            continue;
+        }
+        let left = (pair >> 8) as u8;
+        let right = pair as u8;
+        for &packed in index.occurrences_for_pair(left, right) {
+            checked_splits += 1;
+            let entry_index = (packed >> 32) as usize;
+            let split_after = packed as u32 as usize;
+            let token_id = index.entry_token_ids[entry_index];
+            let bytes = vocab.get(token_id)?;
+            let suffix = &bytes[split_after + 1..];
+            let mut possible = followers;
+            while possible != 0 {
+                let local = possible.trailing_zeros() as usize;
+                possible &= possible - 1;
+                let literals = literals_by_local[local].as_ref()?;
+                for literal in literals {
+                    checked_literal_pairs += 1;
+                    let viable = if suffix.len() <= literal.len() {
+                        literal.starts_with(suffix)
+                    } else {
+                        suffix.starts_with(literal)
+                    };
+                    if viable {
+                        if super::types::compile_profile_enabled() {
+                            eprintln!(
+                                "[glrmask/profile][terminal_path_finite_follower_empty] candidates={} followers={} checked_splits={} checked_literal_pairs={} certified=false ms={:.3}",
+                                candidate_ids.len(),
+                                follower_mask.count_ones(),
+                                checked_splits,
+                                checked_literal_pairs,
+                                started_at.elapsed().as_secs_f64() * 1000.0,
+                            );
+                        }
+                        return Some(false);
+                    }
+                }
+            }
+        }
+    }
+
+    if super::types::compile_profile_enabled() {
+        eprintln!(
+            "[glrmask/profile][terminal_path_finite_follower_empty] candidates={} followers={} checked_splits={} checked_literal_pairs={} certified=true ms={:.3}",
+            candidate_ids.len(),
+            follower_mask.count_ones(),
+            checked_splits,
+            checked_literal_pairs,
+            started_at.elapsed().as_secs_f64() * 1000.0,
+        );
+    }
+    Some(true)
+}
+
 /// Exact terminal-path classification for a small family of finite literal
 /// languages.  Starting the prefix scanner from every live residual of a
 /// literal means terminal `t` is final at a split exactly when the consumed
@@ -3834,7 +4221,114 @@ fn exact_terminal_path_two_plus_candidate_dfa(
         );
     }
 
-    let mut suffix_viable_masks = vec![0u64; total_splits * words_per_mask];
+    let early_empty_suffix_enabled = std::env::var("GLRMASK_CLASSIFY_EARLY_EMPTY_SUFFIX")
+        .map(|value| {
+            let trimmed = value.trim();
+            trimmed.is_empty() || (trimmed != "0" && !trimmed.eq_ignore_ascii_case("false"))
+        })
+        .unwrap_or(true);
+
+    // For the common text-vocabulary case the adjacent-byte proof leaves only
+    // a tiny fraction of token splits as possible boundaries.  The historical
+    // path nevertheless allocates a dense mask for *every* token split before
+    // discovering that none of those few feasible suffixes can start/continue
+    // a candidate terminal.  Probe the sparse feasible set first.  A miss is an
+    // exact proof of an empty L2+ relation and avoids both the dense allocation
+    // and the subsequent all-split combine pass.  A hit simply falls through to
+    // the existing exact implementation.
+    let sparse_empty_probe = early_empty_suffix_enabled
+        && words_per_mask == 1
+        && uses_original_tokenizer
+        && adjacent_pair_index.is_some()
+        && std::env::var_os("GLRMASK_DISABLE_SPARSE_EMPTY_SUFFIX_PROBE").is_none()
+        && feasible_split_work.saturating_mul(16) < total_splits;
+    if sparse_empty_probe {
+        let sparse_started_at = std::time::Instant::now();
+        let index = adjacent_pair_index.as_ref().expect("checked above");
+        let indexed_entry_bytes = std::env::var("GLRMASK_CLASSIFY_INDEXED_ENTRY_BYTES")
+            .map(|value| {
+                let value = value.trim();
+                value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
+            })
+            // The adjacent-pair index is prepared once per vocabulary. Reuse
+            // its compact entry-byte view instead of rebuilding an indexable
+            // Vec by walking every BTreeMap entry on each grammar compile.
+            .unwrap_or(true);
+        let vocab_entries = (!indexed_entry_bytes)
+            .then(|| vocab.entries_map().values().collect::<Vec<_>>());
+        let mut any_viable = false;
+        'pairs: for left in 0u8..=u8::MAX {
+            for right in feasible_follow_bytes_by_last_byte[left as usize].iter() {
+                for &packed in index.occurrences_for_pair(left, right) {
+                    let entry_index = (packed >> 32) as usize;
+                    let split_after = packed as u32 as usize;
+                    let bytes = if indexed_entry_bytes {
+                        index.bytes_for_entry(entry_index)
+                    } else {
+                        vocab_entries
+                            .as_ref()
+                            .expect("non-indexed sparse probe requires entry view")[entry_index]
+                            .as_slice()
+                    };
+                    let mut state = continuation_reset_state;
+                    let mut matched = 0u64;
+                    let mut consumed_suffix = true;
+                    for &byte in &bytes[split_after + 1..] {
+                        if prefix_scanner.future_mask(state)[0] == 0 {
+                            consumed_suffix = false;
+                            break;
+                        }
+                        state = prefix_scanner.step(state, byte);
+                        if state == PREFIX_DEAD_STATE {
+                            consumed_suffix = false;
+                            break;
+                        }
+                        matched |= prefix_scanner.matched_mask(state)[0];
+                    }
+                    if consumed_suffix {
+                        matched |= prefix_scanner.future_mask(state)[0];
+                    }
+                    if matched != 0 {
+                        any_viable = true;
+                        break 'pairs;
+                    }
+                }
+            }
+        }
+        if !any_viable {
+            if super::types::compile_profile_enabled() {
+                eprintln!(
+                    "[glrmask/profile][terminal_path_sparse_empty_suffix] tokens={} candidates={} total_splits={} feasible_splits={} ms={:.3}",
+                    vocab.len(),
+                    candidate_count,
+                    total_splits,
+                    feasible_split_work,
+                    sparse_started_at.elapsed().as_secs_f64() * 1000.0,
+                );
+            }
+            return ExactTerminalPathTwoPlus {
+                two_plus: BitSet::new(candidates.len()),
+                witnesses: vec![None; candidates.len()],
+            };
+        }
+    }
+
+    let sparse_suffix_direct = words_per_mask == 1
+        && adjacent_pair_index.is_some()
+        && feasible_split_work != 0
+        && feasible_split_work.saturating_mul(32) < total_splits
+        && std::env::var("GLRMASK_CLASSIFY_DIRECT_SPARSE_SUFFIX")
+            .map(|value| {
+                let value = value.trim();
+                value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
+            })
+            .unwrap_or(true);
+    let mut suffix_viable_masks = if sparse_suffix_direct {
+        Vec::new()
+    } else {
+        vec![0u64; total_splits * words_per_mask]
+    };
+    let mut direct_sparse_viable_splits = None::<Vec<(usize, usize, u64)>>;
     let mut candidate_splits = 0usize;
     let mut any_viable_suffix = false;
     let mut internal_reset_completion_splits = 0usize;
@@ -3855,7 +4349,62 @@ fn exact_terminal_path_two_plus_candidate_dfa(
                 value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
             })
             .unwrap_or(true);
-    if use_prepared_suffix_trie {
+    if sparse_suffix_direct {
+        let index = adjacent_pair_index.as_ref().expect("checked above");
+        let vocab_entries = vocab.entries_map().iter().collect::<Vec<_>>();
+        let mut splits = Vec::<(usize, usize, u64)>::with_capacity(feasible_split_work);
+        for left in 0u8..=u8::MAX {
+            for right in feasible_follow_bytes_by_last_byte[left as usize].iter() {
+                for &packed in index.occurrences_for_pair(left, right) {
+                    let entry_index = (packed >> 32) as usize;
+                    let split_after = packed as u32 as usize;
+                    let (&_token_id, bytes) = vocab_entries[entry_index];
+                    candidate_splits += 1;
+                    let mut state = continuation_reset_state;
+                    let mut matched = 0u64;
+                    let mut consumed_suffix = true;
+                    for &byte in &bytes[split_after + 1..] {
+                        if uses_original_tokenizer {
+                            if prefix_scanner.future_mask(state)[0] == 0 {
+                                consumed_suffix = false;
+                                break;
+                            }
+                            state = prefix_scanner.step(state, byte);
+                            if state == PREFIX_DEAD_STATE {
+                                consumed_suffix = false;
+                                break;
+                            }
+                            matched |= prefix_scanner.matched_mask(state)[0];
+                        } else {
+                            if dense_future_masks[state as usize] == 0 {
+                                consumed_suffix = false;
+                                break;
+                            }
+                            state = dense_flat_trans[state as usize * 256 + byte as usize];
+                            if state == u32::MAX {
+                                consumed_suffix = false;
+                                break;
+                            }
+                            matched |= dense_finalizer_masks[state as usize];
+                        }
+                    }
+                    if consumed_suffix {
+                        matched |= if uses_original_tokenizer {
+                            prefix_scanner.future_mask(state)[0]
+                        } else {
+                            dense_future_masks[state as usize]
+                        };
+                    }
+                    if matched != 0 {
+                        any_viable_suffix = true;
+                        splits.push((entry_index, split_after, matched));
+                    }
+                }
+            }
+        }
+        splits.sort_unstable_by_key(|&(entry_index, split_after, _)| (entry_index, split_after));
+        direct_sparse_viable_splits = Some(splits);
+    } else if use_prepared_suffix_trie {
         let index = adjacent_pair_index.as_ref().expect("checked above");
         let trie = prepared_suffix_trie
             .as_ref()
@@ -4151,12 +4700,6 @@ fn exact_terminal_path_two_plus_candidate_dfa(
         }
     }
     let suffix_ms = suffix_started_at.elapsed().as_secs_f64() * 1000.0;
-    let early_empty_suffix_enabled = std::env::var("GLRMASK_CLASSIFY_EARLY_EMPTY_SUFFIX")
-        .map(|value| {
-            let trimmed = value.trim();
-            trimmed.is_empty() || (trimmed != "0" && !trimmed.eq_ignore_ascii_case("false"))
-        })
-        .unwrap_or(true);
     if early_empty_suffix_enabled && !any_viable_suffix {
         if super::types::compile_profile_enabled() {
             eprintln!(
@@ -4241,12 +4784,202 @@ fn exact_terminal_path_two_plus_candidate_dfa(
     let mut split_checks = 0usize;
     let mut allowed_pairs = 0usize;
     if words_per_mask == 1 {
+        // When the adjacent-byte filter leaves only a tiny number of viable
+        // suffixes, do not walk every token merely to rediscover those split
+        // positions. Collect the non-empty feasible suffixes directly from the
+        // pair index, group them by token, then run the ordinary exact prefix /
+        // continuation machine only across those selected tokens. Continuation
+        // state still advances over every byte up to the last selected split,
+        // so multiple boundaries inside one token are represented exactly.
+        let sparse_viable_splits = if let Some(splits) = direct_sparse_viable_splits.take() {
+            Some(splits)
+        } else {
+            adjacent_pair_index.as_ref().and_then(|index| {
+            let enabled = std::env::var("GLRMASK_CLASSIFY_SPARSE_COMBINE")
+                .map(|value| {
+                    let value = value.trim();
+                    value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
+                })
+                .unwrap_or(true);
+            if !enabled || candidate_splits == 0 || candidate_splits.saturating_mul(32) >= total_splits {
+                return None;
+            }
+            let mut splits = Vec::<(usize, usize, u64)>::new();
+            for left in 0u8..=u8::MAX {
+                for right in feasible_follow_bytes_by_last_byte[left as usize].iter() {
+                    for &packed in index.occurrences_for_pair(left, right) {
+                        let entry_index = (packed >> 32) as usize;
+                        let split_after = packed as u32 as usize;
+                        let split_index = index.entry_split_offsets[entry_index] + split_after;
+                        let suffix_word = suffix_viable_masks[split_index];
+                        if suffix_word != 0 {
+                            splits.push((entry_index, split_after, suffix_word));
+                        }
+                    }
+                }
+            }
+            if splits.is_empty() {
+                return None;
+            }
+            splits.sort_unstable_by_key(|&(entry_index, split_after, _)| (entry_index, split_after));
+            Some(splits)
+            })
+        };
         let parallel_combine = !collect_witnesses
             && !uses_original_tokenizer
             && std::env::var_os("GLRMASK_CLASSIFY_PARALLEL_COMBINE").is_some()
             && rayon::current_num_threads() > 1
             && vocab.len() >= 256;
-        if parallel_combine {
+        if let Some(sparse_splits) = sparse_viable_splits.as_ref() {
+            let sparse_started_at = std::time::Instant::now();
+            let token_entries = vocab.entries_map().iter().collect::<Vec<_>>();
+            let mut continuations = Vec::<(u32, u64)>::new();
+            let mut next_continuations = Vec::<(u32, u64)>::new();
+            let mut cursor = 0usize;
+            while cursor < sparse_splits.len() {
+                let entry_index = sparse_splits[cursor].0;
+                let begin = cursor;
+                cursor += 1;
+                while cursor < sparse_splits.len() && sparse_splits[cursor].0 == entry_index {
+                    cursor += 1;
+                }
+                let selected = &sparse_splits[begin..cursor];
+                let (&token_id, bytes) = token_entries[entry_index];
+                let last_split = selected.last().expect("non-empty sparse split group").1;
+                let token_needs_continuations = !per_token_boundary_certificate
+                    || per_token_continuations_needed
+                        .as_ref()
+                        .expect("per-token certificate requires prepared suffix metadata")[entry_index];
+                continuations.clear();
+                next_continuations.clear();
+                let mut prefix_state = prefix_start;
+                let mut selected_cursor = 0usize;
+                for split_after in 0..=last_split {
+                    let byte = bytes[split_after];
+                    prefix_state = if let (Some(trie), Some(states)) =
+                        (prepared_prefix_trie.as_ref(), prepared_prefix_states.as_ref())
+                    {
+                        let split_index = split_offsets[entry_index] + split_after;
+                        states[trie.split_nodes[split_index] as usize]
+                    } else {
+                        prefix_scanner.step(prefix_state, byte)
+                    };
+                    let mut matched = if prefix_state == PREFIX_DEAD_STATE {
+                        0
+                    } else {
+                        prefix_scanner.matched_mask(prefix_state)[0]
+                    };
+                    next_continuations.clear();
+                    if token_needs_continuations {
+                        for &(state, active) in &continuations {
+                            let target = if uses_original_tokenizer {
+                                prefix_scanner.step(state, byte)
+                            } else {
+                                dense_flat_trans[state as usize * 256 + byte as usize]
+                            };
+                            if target == PREFIX_DEAD_STATE || target == u32::MAX {
+                                continue;
+                            }
+                            let (target_matched, target_future) = if uses_original_tokenizer {
+                                (
+                                    prefix_scanner.matched_mask(target)[0],
+                                    prefix_scanner.future_mask(target)[0],
+                                )
+                            } else {
+                                (
+                                    dense_finalizer_masks[target as usize],
+                                    dense_future_masks[target as usize],
+                                )
+                            };
+                            matched |= target_matched & active;
+                            merge_word_continuation(
+                                &mut next_continuations,
+                                target,
+                                target_future & active,
+                            );
+                        }
+                    }
+
+                    let mut followers = 0u64;
+                    if selected_cursor < selected.len() && selected[selected_cursor].1 == split_after {
+                        let suffix_word = selected[selected_cursor].2;
+                        selected_cursor += 1;
+                        if matched != 0 {
+                            split_checks += 1;
+                            if collect_witnesses {
+                                let matched_mask = [matched];
+                                let suffix = [suffix_word];
+                                let mut follower_mask = [0u64; 1];
+                                allowed_pairs += accumulate_terminal_path_boundaries(
+                                    &matched_mask,
+                                    &suffix,
+                                    &allowed_after,
+                                    words_per_mask,
+                                    candidate_count,
+                                    &mut local_two_plus_words,
+                                    &mut follower_mask,
+                                    Some((
+                                        local_witnesses.as_mut_slice(),
+                                        token_id,
+                                        bytes.as_slice(),
+                                        split_after + 1,
+                                    )),
+                                );
+                                followers = follower_mask[0];
+                            } else if let Some((allowed_union, left_with_follow, valid_mask)) =
+                                small_mask_lut.as_ref()
+                            {
+                                let matched_word = matched & *valid_mask;
+                                let suffix_word = suffix_word & *valid_mask;
+                                followers = suffix_word & allowed_union[matched_word as usize];
+                                local_two_plus_words[0] |= followers
+                                    | (matched_word & left_with_follow[suffix_word as usize]);
+                                allowed_pairs += followers.count_ones() as usize;
+                            } else {
+                                let mut pending_matched = matched;
+                                while pending_matched != 0 {
+                                    let terminal_1 = pending_matched.trailing_zeros() as usize;
+                                    pending_matched &= pending_matched - 1;
+                                    if terminal_1 >= candidate_count {
+                                        continue;
+                                    }
+                                    let accepted = suffix_word & allowed_after[terminal_1];
+                                    if accepted == 0 {
+                                        continue;
+                                    }
+                                    allowed_pairs += accepted.count_ones() as usize;
+                                    followers |= accepted;
+                                    local_two_plus_words[0] |= accepted | (1u64 << terminal_1);
+                                }
+                            }
+                        }
+                    }
+                    if token_needs_continuations {
+                        merge_word_continuation(
+                            &mut next_continuations,
+                            continuation_reset_state,
+                            followers,
+                        );
+                        std::mem::swap(&mut continuations, &mut next_continuations);
+                    }
+                }
+            }
+            if super::types::compile_profile_enabled() {
+                let sparse_tokens = sparse_splits
+                    .iter()
+                    .map(|&(entry, _, _)| entry)
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .len();
+                eprintln!(
+                    "[glrmask/profile][terminal_path_sparse_combine] viable_splits={} tokens={} split_checks={} allowed_pairs={} ms={:.3}",
+                    sparse_splits.len(),
+                    sparse_tokens,
+                    split_checks,
+                    allowed_pairs,
+                    sparse_started_at.elapsed().as_secs_f64() * 1000.0,
+                );
+            }
+        } else if parallel_combine {
             let token_entries = vocab.entries_map().values().collect::<Vec<_>>();
 
             // The prefix powerset is the only mutable automaton in this hot
@@ -5752,54 +6485,22 @@ pub fn partition_vocab_char_type_tokens(
         Err(_) => automatic_p2_overflow_threshold,
     };
     let p4_overflow_threshold = threshold("GLRMASK_P4_LONG_TOKEN_OVERFLOW_THRESHOLD", 32);
-    let (p0_overflow_threshold, p1_overflow_threshold, p2_overflow_threshold, p4_overflow_threshold) =
-        if vocab_partition_is_custom() {
-            (None, None, None, None)
-        } else {
-            (
-                p0_overflow_threshold,
-                p1_overflow_threshold,
-                p2_overflow_threshold,
-                p4_overflow_threshold,
-            )
-        };
-    let base_partition_count = vocab_partition_count();
-    let partition_count = if p0_overflow_threshold.is_some() {
-        debug_assert_eq!(base_partition_count, 9);
-        13
-    } else if p4_overflow_threshold.is_some() {
-        debug_assert_eq!(base_partition_count, 9);
-        12
-    } else if p1_overflow_threshold.is_some() {
-        debug_assert_eq!(base_partition_count, 9);
-        11
-    } else if p2_overflow_threshold.is_some() {
-        debug_assert_eq!(base_partition_count, 9);
-        10
-    } else {
-        base_partition_count
-    };
+
+    let spec = super::regular_partition::char_type_regular_partition(
+        super::regular_partition::CharTypeRegularPartitionKey {
+            p0_overflow_threshold,
+            p1_overflow_threshold,
+            p2_overflow_threshold,
+            p4_overflow_threshold,
+            structural_boundary_enabled: structural_boundary_lexical_partition_enabled(),
+        },
+    );
+    let partition_count = spec.cells().len();
+
     let mut partitions: Vec<Vec<u32>> =
         (0..partition_count).map(|_| Vec::new()).collect();
     for (&token_id, bytes) in vocab.entries_map().iter() {
-        let mut idx = classify_vocab_char_type(bytes) as usize;
-        if idx == 0
-            && p0_overflow_threshold.is_some_and(|threshold| bytes.len() > threshold)
-        {
-            idx = 12;
-        } else if idx == 1
-            && p1_overflow_threshold.is_some_and(|threshold| bytes.len() > threshold)
-        {
-            idx = 10;
-        } else if idx == 2
-            && p2_overflow_threshold.is_some_and(|threshold| bytes.len() > threshold)
-        {
-            idx = 9;
-        } else if idx == 4
-            && p4_overflow_threshold.is_some_and(|threshold| bytes.len() > threshold)
-        {
-            idx = 11;
-        }
+        let idx = spec.partition_index(bytes);
         partitions[idx].push(token_id);
     }
     partitions
@@ -6027,8 +6728,10 @@ mod tests {
         vocab_adjacent_pair_index, vocab_suffix_trie,
     };
     use super::{
+
         classify_terminal_path_lengths, classify_vocab_char_type, classify_with_partition_set,
-        compile_vocab_partition_set, custom_vocab_partition_rules,
+        compile_vocab_partition_set, custom_vocab_partition_rules, fast_eval_char_type_regular_partition,
+
         exact_terminal_path_two_plus, exact_terminal_path_two_plus_candidate_dfa,
         exact_terminal_path_two_plus_finite_literals,
         parse_exact_l2p_boundary_filter_mode,
@@ -6038,6 +6741,111 @@ mod tests {
         token_has_active_l2p_boundary_words, token_has_exact_active_l2p_boundary,
         token_l2p_route_hint, tokens_have_exact_active_l2p_boundary,
     };
+
+    #[test]
+    fn regular_char_type_partition_matches_legacy_decision_tree() {
+        let check = |bytes: &[u8]| {
+            assert_eq!(
+                classify_vocab_char_type(bytes),
+                fast_eval_char_type_regular_partition(bytes),
+                "bytes={bytes:?} utf8={:?}",
+                std::str::from_utf8(bytes).ok(),
+            );
+        };
+
+        check(b"");
+        for byte in 0u8..=u8::MAX {
+            check(&[byte]);
+        }
+        for first in 0u8..=u8::MAX {
+            for second in 0u8..=u8::MAX {
+                check(&[first, second]);
+            }
+        }
+
+        for sample in [
+            "hello", " hello", "123", " 123", "_field", "\"_field", " true",
+            "[falsehood", "---", ":::::::::", "你好", " 你好", "١٢٣", "a你9",
+            "🙂", "🙂🙂", "éclair", " éclair", "a-b", " -", " +",
+        ] {
+            check(sample.as_bytes());
+        }
+
+        // Deterministic mixed valid/invalid byte strings exercise longer
+        // paths without introducing a test-only random dependency.
+        let mut state = 0x9e37_79b9u32;
+        for len in 0..=48usize {
+            for _ in 0..256 {
+                let mut bytes = Vec::with_capacity(len);
+                for _ in 0..len {
+                    state ^= state << 13;
+                    state ^= state >> 17;
+                    state ^= state << 5;
+                    bytes.push(state as u8);
+                }
+                check(&bytes);
+            }
+        }
+    }
+
+    #[test]
+    fn regular_char_type_overflow_partition_matches_legacy_routing() {
+        use crate::terminal_dwa::regular_partition::{
+            char_type_final_partition, char_type_regular_partition, CharTypeRegularPartitionKey,
+        };
+
+        let thresholds = [
+            (Some(16), Some(20), Some(8), Some(32)),
+            (None, None, Some(8), None),
+            (Some(3), Some(3), Some(3), Some(3)),
+        ];
+        let mut state = 0x243f_6a88u32;
+        for (p0, p1, p2, p4) in thresholds {
+            let key = CharTypeRegularPartitionKey {
+                p0_overflow_threshold: p0,
+                p1_overflow_threshold: p1,
+                p2_overflow_threshold: p2,
+                p4_overflow_threshold: p4,
+                structural_boundary_enabled: super::structural_boundary_lexical_partition_enabled(),
+            };
+            let spec = char_type_regular_partition(key);
+            let check = |bytes: &[u8]| {
+                let mut expected = fast_eval_char_type_regular_partition(bytes) as usize;
+                if expected == 0 && p0.is_some_and(|threshold| bytes.len() > threshold) {
+                    expected = 12;
+                } else if expected == 1 && p1.is_some_and(|threshold| bytes.len() > threshold) {
+                    expected = 10;
+                } else if expected == 2 && p2.is_some_and(|threshold| bytes.len() > threshold) {
+                    expected = 9;
+                } else if expected == 4 && p4.is_some_and(|threshold| bytes.len() > threshold) {
+                    expected = 11;
+                }
+                assert_eq!(
+                    char_type_final_partition(spec.partition_index(bytes), bytes.len(), key),
+                    expected,
+                    "bytes={bytes:?}",
+                );
+            };
+            for sample in [
+                b"".as_slice(), b"+", b" -", b"hello", b" hello", b"123456789",
+                b":::::::::", b"abcdefghijklmnopq", "你好世界你好世界".as_bytes(),
+            ] {
+                check(sample);
+            }
+            for len in 0..=64usize {
+                for _ in 0..128 {
+                    let mut bytes = Vec::with_capacity(len);
+                    for _ in 0..len {
+                        state ^= state << 13;
+                        state ^= state >> 17;
+                        state ^= state << 5;
+                        bytes.push(state as u8);
+                    }
+                    check(&bytes);
+                }
+            }
+        }
+    }
     use crate::automata::lexer::ast::Expr;
     use crate::automata::lexer::compile::{
         build_regex,

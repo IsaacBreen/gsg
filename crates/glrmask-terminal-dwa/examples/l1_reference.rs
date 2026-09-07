@@ -47,6 +47,7 @@ fn run(tokenizer: &Tokenizer, vocab: &Vocab, active: &[bool], plan: Plan) {
             shared_generic_nfa_topology: None,
             shared_generic_nfa_trie: None,
             subset_parent_order: None,
+            id_map_only: false,
         },
         plan,
     )

@@ -80,6 +80,162 @@ impl<'a> Grammar<'a> {
     }
 }
 
+
+/// A conservative grammar-specific equivalence partition of model vocabulary tokens.
+///
+/// Tokens in the same class have been proved interchangeable by the fast
+/// vocabulary analysis. The partition may be finer than the token partition of
+/// a fully compiled [`Constraint`](crate::Constraint): expensive proof steps may
+/// deliberately be skipped, in which case affected tokens remain separated.
+#[derive(Debug, Clone)]
+pub struct VocabPartition {
+    original_to_class: Vec<u32>,
+    classes: Vec<Vec<u32>>,
+    representatives: Vec<u32>,
+    class_output_masks: Vec<Vec<(u32, u32)>>,
+}
+
+impl VocabPartition {
+    /// Analyze `grammar` for `vocab` without constructing terminal/parser DWAs.
+    pub fn compile(grammar: Grammar<'_>, vocab: &Vocab) -> Result<Self> {
+        let profile = crate::compiler::pipeline::compile_top_profile_enabled();
+        let total_started = profile.then(Instant::now);
+        if !grammar.grammar_bindings.is_empty() {
+            return Err(Error::Compilation(
+                "vocabulary partition analysis does not yet support bound subgrammars".to_owned(),
+            ));
+        }
+        let source_kind = match grammar.source {
+            GrammarSource::Ebnf(_) => "ebnf",
+            GrammarSource::Lark(_) => "lark",
+            GrammarSource::JsonSchema(_) => "json_schema",
+            GrammarSource::Glrm(_) => "glrm",
+        };
+        let source = match grammar.source {
+            GrammarSource::Ebnf(source)
+            | GrammarSource::Lark(source)
+            | GrammarSource::JsonSchema(source)
+            | GrammarSource::Glrm(source) => source,
+        };
+        let lower_started = profile.then(Instant::now);
+        let grammar_def = crate::import::lower_source_for_vocab_partition(source_kind, source)?;
+        let lower_ms = lower_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        let compile_started = profile.then(Instant::now);
+        let map = crate::error::catch_internal_invariant(|| {
+            crate::compiler::vocab_partition::compile_vocab_partition_owned(grammar_def, vocab)
+        })?;
+        if profile {
+            eprintln!(
+                "[glrmask/profile][vocab_partition_compile] source={} lower_ms={:.3} compile_ms={:.3} total_ms={:.3}",
+                source_kind,
+                lower_ms,
+                compile_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
+                total_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
+            );
+        }
+        let classes = map.internal_to_originals;
+        let class_output_masks = classes
+            .iter()
+            .map(|class| {
+                let mut words = Vec::<(u32, u32)>::new();
+                for &token_id in class {
+                    let word = token_id / 32;
+                    let bit = 1u32 << (token_id % 32);
+                    if let Some((last_word, last_bits)) = words.last_mut()
+                        && *last_word == word
+                    {
+                        *last_bits |= bit;
+                    } else {
+                        words.push((word, bit));
+                    }
+                }
+                words
+            })
+            .collect();
+        Ok(Self {
+            original_to_class: map.original_to_internal,
+            classes,
+            representatives: map.representative_original_ids,
+            class_output_masks,
+        })
+    }
+
+    /// Number of equivalence classes.
+    pub fn num_classes(&self) -> usize { self.classes.len() }
+
+    /// Class containing `token_id`, or `None` if that token ID was not in the vocabulary.
+    pub fn class_of(&self, token_id: u32) -> Option<u32> {
+        self.original_to_class
+            .get(token_id as usize)
+            .copied()
+            .filter(|&class| class != u32::MAX)
+    }
+
+    /// Original model token IDs grouped by equivalence class.
+    pub fn classes(&self) -> &[Vec<u32>] { &self.classes }
+
+    /// A stable original-token representative for `class_id`.
+    pub fn representative(&self, class_id: u32) -> Option<u32> {
+        self.representatives
+            .get(class_id as usize)
+            .copied()
+            .filter(|&token| token != u32::MAX)
+    }
+
+    /// Dense original-token-ID to class-ID map. Missing token IDs contain `u32::MAX`.
+    pub fn original_to_class(&self) -> &[u32] { &self.original_to_class }
+
+    /// Number of packed `u64` words needed for a class-space mask.
+    pub fn internal_mask_len(&self) -> usize { self.num_classes().div_ceil(64) }
+
+    /// Number of packed `u32` words needed for an original-token-space mask.
+    pub fn original_mask_len(&self) -> usize { self.original_to_class.len().div_ceil(32) }
+
+    /// Expand a packed class-space mask into the original model-token ID space.
+    ///
+    /// Bit `i` in `internal_mask` selects equivalence class `i`. Every original
+    /// token in each selected class is set in the returned packed `u32` mask.
+    /// Bits beyond [`Self::num_classes`] are ignored.
+    pub fn expand_mask(&self, internal_mask: &[u64]) -> Vec<u32> {
+        let mut out = vec![0u32; self.original_mask_len()];
+        self.fill_expanded_mask(internal_mask, &mut out);
+        out
+    }
+
+    /// Expand a packed class-space mask into an existing original-token mask buffer.
+    ///
+    /// `out` must contain at least [`Self::original_mask_len`] `u32` words. The
+    /// entire supplied buffer is cleared before expansion, matching the overwrite
+    /// semantics of [`ConstraintState::fill_mask`](crate::ConstraintState::fill_mask).
+    pub fn fill_expanded_mask(&self, internal_mask: &[u64], out: &mut [u32]) {
+        let required = self.original_mask_len();
+        assert!(
+            out.len() >= required,
+            "expanded mask buffer is smaller than original vocabulary mask"
+        );
+        out.fill(0);
+
+        for (word_index, &word) in internal_mask.iter().enumerate() {
+            let class_base = word_index * 64;
+            if class_base >= self.num_classes() {
+                break;
+            }
+            let mut selected = word;
+            while selected != 0 {
+                let bit = selected.trailing_zeros() as usize;
+                let class_id = class_base + bit;
+                if class_id >= self.num_classes() {
+                    break;
+                }
+                for &(output_word, output_bits) in &self.class_output_masks[class_id] {
+                    out[output_word as usize] |= output_bits;
+                }
+                selected &= selected - 1;
+            }
+        }
+    }
+}
+
 /// A grammar, vocabulary, and complete set of extern bindings.
 #[derive(Debug, Clone)]
 pub struct ConstraintSpec<'a> {
@@ -1095,6 +1251,97 @@ where
 mod tests {
     use super::*;
     use crate::automata::lexer::tokenizer::Lexer;
+
+    #[test]
+    fn vocab_partition_covers_sparse_vocab_and_merges_identical_tokens() {
+        let vocab = Vocab::new(vec![
+            (0, b"a".to_vec()),
+            (3, b"a".to_vec()),
+            (7, b"b".to_vec()),
+            (11, b"ab".to_vec()),
+            (67, b"a".to_vec()),
+        ]);
+        let partition = VocabPartition::compile(Grammar::ebnf(r#"start ::= "a"+"#), &vocab)
+            .unwrap();
+
+        assert_eq!(partition.class_of(1), None);
+        for token in [0, 3, 7, 11, 67] {
+            assert!(partition.class_of(token).is_some(), "token {token} is unmapped");
+        }
+        assert_eq!(partition.class_of(0), partition.class_of(3));
+        assert_eq!(partition.class_of(0), partition.class_of(67));
+        let mut covered = partition.classes().iter().flatten().copied().collect::<Vec<_>>();
+        covered.sort_unstable();
+        assert_eq!(covered, vec![0, 3, 7, 11, 67]);
+        for class in 0..partition.num_classes() as u32 {
+            let representative = partition.representative(class).unwrap();
+            assert_eq!(partition.class_of(representative), Some(class));
+        }
+
+        assert_eq!(partition.internal_mask_len(), partition.num_classes().div_ceil(64));
+        assert_eq!(partition.original_mask_len(), 3);
+
+        let class = partition.class_of(0).unwrap() as usize;
+        let mut internal = vec![0u64; partition.internal_mask_len()];
+        internal[class / 64] |= 1u64 << (class % 64);
+        let expanded = partition.expand_mask(&internal);
+        assert_ne!(expanded[0] & (1u32 << 0), 0);
+        assert_ne!(expanded[0] & (1u32 << 3), 0);
+        assert_eq!(expanded[0] & (1u32 << 1), 0);
+        assert_ne!(expanded[2] & (1u32 << 3), 0);
+
+        let mut reused = vec![u32::MAX; partition.original_mask_len() + 2];
+        partition.fill_expanded_mask(&internal, &mut reused);
+        assert_eq!(&reused[..partition.original_mask_len()], expanded.as_slice());
+        assert_eq!(&reused[partition.original_mask_len()..], &[0, 0]);
+    }
+
+    #[test]
+    fn vocab_partition_expands_multiple_classes_and_ignores_high_internal_bits() {
+        let partition = VocabPartition {
+            original_to_class: vec![0, u32::MAX, 1, 0, u32::MAX, 2, 2, u32::MAX, 1],
+            classes: vec![vec![0, 3], vec![2, 8], vec![5, 6]],
+            representatives: vec![0, 2, 5],
+            class_output_masks: vec![
+                vec![(0, (1u32 << 0) | (1u32 << 3))],
+                vec![(0, (1u32 << 2) | (1u32 << 8))],
+                vec![(0, (1u32 << 5) | (1u32 << 6))],
+            ],
+        };
+
+        let expanded = partition.expand_mask(&[(1u64 << 0) | (1u64 << 2) | (1u64 << 63)]);
+        assert_eq!(expanded, vec![(1u32 << 0) | (1u32 << 3) | (1u32 << 5) | (1u32 << 6)]);
+    }
+
+    #[test]
+    fn vocab_partition_supports_json_schema_frontend() {
+        let vocab = Vocab::new(vec![
+            (0, b"null".to_vec()),
+            (1, b"true".to_vec()),
+            (2, b"false".to_vec()),
+            (3, b"0".to_vec()),
+            (4, b"x".to_vec()),
+        ]);
+        let partition = VocabPartition::compile(
+            Grammar::json_schema(r#"{"type":["null","boolean"]}"#),
+            &vocab,
+        )
+        .unwrap();
+        assert!(partition.num_classes() > 0);
+        assert!(partition.num_classes() <= vocab.len());
+    }
+
+    #[test]
+    fn vocab_partition_rejects_bound_subgrammar_instead_of_ignoring_it() {
+        let vocab = Vocab::new(vec![(0, b"a".to_vec())]);
+        let grammar = Grammar::glrm(
+            "glrm 1; extern grammar child; start root; nt root = child;",
+        )
+        .bind_grammar("child", Grammar::ebnf(r#"start ::= "a""#))
+        .unwrap();
+        let error = VocabPartition::compile(grammar, &vocab).unwrap_err();
+        assert!(error.to_string().contains("bound subgrammars"));
+    }
 
     #[test]
     fn first_save_priming_threshold_tracks_large_composition_cache() {

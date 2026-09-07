@@ -42,6 +42,20 @@ pub(crate) struct BundleGroupDfaCache {
     multi_terminal_groups: FxHashMap<Vec<TerminalID>, Arc<UnweightedDfa>>,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct BundleGroupDfaCachePlanStats {
+    pub(crate) multi_terminal_group_occurrences: usize,
+    pub(crate) repeated_groups: usize,
+    pub(crate) repeated_group_occurrences: usize,
+    pub(crate) repeated_terminal_occurrences: usize,
+    pub(crate) max_repeated_group_terminals: usize,
+}
+
+pub(crate) struct BundleGroupDfaCachePlan {
+    repeated: Vec<Vec<TerminalID>>,
+    pub(crate) stats: BundleGroupDfaCachePlanStats,
+}
+
 impl BundleGroupDfaCache {
     pub(crate) fn len(&self) -> usize {
         self.multi_terminal_groups.len()
@@ -394,22 +408,51 @@ impl Templates {
         groups
     }
 
-    pub(crate) fn build_bundle_group_dfa_cache(
+    pub(crate) fn plan_bundle_group_dfa_cache(
         &self,
         bundles: &[&BTreeMap<TerminalID, Weight>],
-    ) -> BundleGroupDfaCache {
+    ) -> BundleGroupDfaCachePlan {
         let mut counts = BTreeMap::<Vec<TerminalID>, usize>::new();
+        let mut multi_terminal_group_occurrences = 0usize;
         for bundle in bundles {
             for (_, terminals) in self.group_terminals_by_weight(bundle) {
                 if terminals.len() > 1 {
+                    multi_terminal_group_occurrences += 1;
                     *counts.entry(terminals).or_default() += 1;
                 }
             }
         }
-        let repeated = counts
-            .into_iter()
-            .filter_map(|(terminals, count)| (count > 1).then_some(terminals))
-            .collect::<Vec<_>>();
+        let mut stats = BundleGroupDfaCachePlanStats {
+            multi_terminal_group_occurrences,
+            ..BundleGroupDfaCachePlanStats::default()
+        };
+        let mut repeated = Vec::new();
+        for (terminals, count) in counts {
+            if count <= 1 {
+                continue;
+            }
+            stats.repeated_groups += 1;
+            stats.repeated_group_occurrences += count;
+            stats.repeated_terminal_occurrences += terminals.len() * count;
+            stats.max_repeated_group_terminals =
+                stats.max_repeated_group_terminals.max(terminals.len());
+            repeated.push(terminals);
+        }
+        BundleGroupDfaCachePlan { repeated, stats }
+    }
+
+    pub(crate) fn build_bundle_group_dfa_cache(
+        &self,
+        bundles: &[&BTreeMap<TerminalID, Weight>],
+    ) -> BundleGroupDfaCache {
+        self.build_bundle_group_dfa_cache_from_plan(self.plan_bundle_group_dfa_cache(bundles))
+    }
+
+    pub(crate) fn build_bundle_group_dfa_cache_from_plan(
+        &self,
+        plan: BundleGroupDfaCachePlan,
+    ) -> BundleGroupDfaCache {
+        let repeated = plan.repeated;
         let build_entry = |terminals: Vec<TerminalID>| {
                 let merged = union_unweighted_dfas(
                     terminals

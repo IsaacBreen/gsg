@@ -6010,6 +6010,8 @@ nt start ::= A C | B D;
         assert!(state.is_accepting());
         assert_dynamic_parity(&state);
     }
+
+
     #[test]
     fn dynamic_full_walk_accepts_long_compressed_vocab_edge() {
         let vocab = Vocab::new(vec![
