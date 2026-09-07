@@ -24,7 +24,9 @@ use crate::compiler::glr::parser::{
     stack_may_advance_on_with_provider, stacks_finished_with_provider,
 };
 use crate::compiler::glr::table::{Action, GLRTable, TableAmbiguity, subgrammar_child_return_pop};
-use crate::compiler::stages::id_map_and_terminal_dwa::classify::classify_vocab_char_type;
+use crate::compiler::stages::id_map_and_terminal_dwa::classify::{
+    VocabPartitionDfa, classify_vocab_char_type,
+};
 use crate::ds::bitset::BitSet;
 use crate::ds::u8set::U8Set;
 use crate::ds::weight::{PackedRuntimePoolTokenSetRef, PackedRuntimePoolWeightRef, Weight};
@@ -114,6 +116,15 @@ pub(crate) enum RuntimeTokenSetRef<'a> {
 }
 
 impl<'a> RuntimeTokenSetRef<'a> {
+    #[inline]
+    pub(crate) fn is_empty(self) -> bool {
+        match self {
+            Self::Materialized(tokens) => tokens.is_empty(),
+            Self::PackedDwa(tokens) => tokens.range_count() == 0,
+            Self::PackedPool(tokens) => tokens.is_empty(),
+        }
+    }
+
     #[inline]
     pub(crate) fn materialized_key(self) -> Option<usize> {
         match self {
@@ -1007,6 +1018,8 @@ fn build_dynamic_reset_effect_rows(
     rows.sort_unstable_by_key(|row| row.terminal);
     (post_rows, rows)
 }
+
+
 
 impl Constraint {
     /// Build the parser-state-independent trigger level used by dynamic
@@ -3295,19 +3308,203 @@ impl Constraint {
         super::commit::prime_initial_commits(self, initial_state, buffers, &token_ids);
     }
 
+    /// Attach the derived lexer artifacts used only by exact dynamic masking.
+    ///
+    /// In particular, finite projections of symbolic residual lexers are a
+    /// mask-execution optimization, not part of compilation semantics. They
+    /// can cost several milliseconds to construct for a constraint that may
+    /// never be asked for a mask, so callers should invoke this only for the
+    /// runtime vocabulary selected by `dynamic_mask_vocab_for_runtime` (or for
+    /// an already-serialized projection that merely needs its derived table
+    /// rebuilt after load).
+    pub(crate) fn prepare_dynamic_virtual_residual_mask_projection(
+        &self,
+        vocab: &mut DynamicMaskVocab,
+    ) {
+        let max_token_len = vocab.max_token_byte_len().max(self.max_token_byte_len());
+        if max_token_len > 0
+            && vocab.mask_projection_tokenizer().is_none()
+            && self.tokenizer.has_any_virtual_runtime()
+        {
+            let virtual_residual_mask_projection_enabled = std::env::var(
+                "GLRMASK_DYNAMIC_VIRTUAL_RESIDUAL_MASK_PROJECTION",
+            )
+            .ok()
+            .is_none_or(|value| !matches!(value.trim(), "0" | "false" | "no" | "off"));
+
+            // RESOURCE budget, not a corpus-tuned state threshold. The dense
+            // estimate charges one u32 index per candidate coordinate before
+            // the projection retains only reachable sparse states.
+            const DEFAULT_VIRTUAL_RESIDUAL_PROJECTION_MAX_DENSE_STATES: usize = 1024 * 1024;
+            let max_dense_states = std::env::var(
+                "GLRMASK_DYNAMIC_VIRTUAL_RESIDUAL_MASK_PROJECTION_MAX_DENSE_STATES",
+            )
+            .ok()
+            .and_then(|value| value.trim().parse::<usize>().ok())
+            .unwrap_or(DEFAULT_VIRTUAL_RESIDUAL_PROJECTION_MAX_DENSE_STATES);
+            let projection_work = self
+                .tokenizer
+                .virtual_residual_mask_projection_dense_state_work(max_token_len);
+            let within_budget = projection_work.is_some_and(|work| work <= max_dense_states);
+            if virtual_residual_mask_projection_enabled
+                && within_budget
+                && let Some((mask_tokenizer, projections)) = self
+                    .tokenizer
+                    .virtual_residuals_mask_tokenizer_with_vocab(
+                        max_token_len,
+                        self.late_bind_vocab.get(),
+                    )
+            {
+                vocab.set_virtual_residuals_mask_projection(mask_tokenizer, projections);
+            }
+        }
+    }
+
+    pub(crate) fn prepare_dynamic_mask_runtime_artifacts(&self, vocab: &mut DynamicMaskVocab) {
+        let profile_runtime_mask = std::env::var_os("GLRMASK_PROFILE_DYNAMIC_MASK").is_some();
+        let max_token_started = profile_runtime_mask.then(std::time::Instant::now);
+        let max_token_len = vocab.max_token_byte_len().max(self.max_token_byte_len());
+        if let Some(started) = max_token_started {
+            eprintln!(
+                "[glrmask/profile][dynamic_mask_runtime_prepare] max_token_len_ms={:.3} value={}",
+                started.elapsed().as_secs_f64() * 1e3,
+                max_token_len,
+            );
+        }
+        let projection_started = profile_runtime_mask.then(std::time::Instant::now);
+        self.prepare_dynamic_virtual_residual_mask_projection(vocab);
+        if max_token_len > 0
+            && vocab.mask_projection_tokenizer().is_none()
+            && self.tokenizer.has_any_virtual_runtime()
+        {
+            if let Some((mask_tokenizer, projections)) = self
+                .tokenizer
+                .virtual_binary_repeat_intersections_mask_tokenizer(max_token_len)
+            {
+                vocab.set_virtual_repeat_intersections_mask_projection(mask_tokenizer, projections);
+            } else if let Some((mask_tokenizer, projection)) =
+                self.tokenizer.virtual_unit_repeat_mask_tokenizer(max_token_len)
+            {
+                vocab.set_virtual_unit_repeat_mask_projection(mask_tokenizer, projection);
+            }
+        }
+        if let Some(started) = projection_started {
+            eprintln!(
+                "[glrmask/profile][dynamic_mask_runtime_prepare] virtual_residual_projection_ms={:.3}",
+                started.elapsed().as_secs_f64() * 1e3,
+            );
+        }
+
+        let mask_execution_source = vocab.mask_runtime_tokenizer().unwrap_or(&self.tokenizer);
+        let eager_mask_execution = std::env::var("GLRMASK_DYNAMIC_EAGER_MASK_EXECUTION")
+            .ok()
+            .is_none_or(|value| !matches!(value.trim(), "0" | "false" | "no" | "off"));
+        // A finite projection whose only epsilon structure is its reset
+        // dispatcher executes directly over raw scalar component rows. The
+        // 0x8000 bound is the Flat16 representation boundary.
+        let scalar_started = profile_runtime_mask.then(std::time::Instant::now);
+        let scalar_dispatch = mask_execution_source.has_scalar_deterministic_dispatch();
+        if let Some(started) = scalar_started {
+            eprintln!(
+                "[glrmask/profile][dynamic_mask_runtime_prepare] scalar_dispatch_proof_ms={:.3} result={}",
+                started.elapsed().as_secs_f64() * 1e3,
+                scalar_dispatch,
+            );
+        }
+        if eager_mask_execution
+            && mask_execution_source.has_epsilon_transitions()
+            && !mask_execution_source.has_any_virtual_runtime()
+            && !scalar_dispatch
+        {
+            let _ = vocab.prepare_mask_execution(&self.tokenizer, max_token_len);
+        }
+        let full_walk_started = profile_runtime_mask.then(std::time::Instant::now);
+        vocab.prepare_full_walk_fast_transitions(&self.tokenizer);
+        if let Some(started) = full_walk_started {
+            eprintln!(
+                "[glrmask/profile][dynamic_mask_runtime_prepare] full_walk_fast_ms={:.3}",
+                started.elapsed().as_secs_f64() * 1e3,
+            );
+        }
+        let master_slice_started = profile_runtime_mask.then(std::time::Instant::now);
+        let max_safe_chars = u32::from(vocab.llg_master_max_safe_chars());
+        for &slice_id in &[0u32, 3u32] {
+            if let Some(slice) = vocab.llg_slice_by_cache_id(slice_id) {
+                self.tokenizer.prepare_virtual_residual_master_slice_artifacts(
+                    slice.dfa().start_state(),
+                    slice.dfa().class_count(),
+                    slice.dfa().byte_to_class_map(),
+                    slice.dfa().transition_table(),
+                    slice.dfa().accepting_map(),
+                    slice.dfa().can_reach_accepting_map(),
+                    max_safe_chars,
+                );
+            }
+        }
+        if let Some(started) = master_slice_started {
+            eprintln!(
+                "[glrmask/profile][dynamic_mask_runtime_prepare] master_slice_artifacts_ms={:.3}",
+                started.elapsed().as_secs_f64() * 1e3,
+            );
+        }
+
+        // Projected-terminal containment quotients are proof accelerators, not
+        // prerequisites for exact masking. Build them only once a master-slice
+        // proof survives the cheap runtime eligibility gates.
+    }
+
     /// Return the direct-dynamic vocabulary, materializing it only when a
     /// dynamic mask is actually requested. Static constraints with complete
     /// possible-matches tables never pay this cost; deferred-PM constraints
     /// pay it on their first exact fallback instead of during compile/load.
+    /// Symbolic lexer finite projections are likewise deferred to first mask:
+    /// they are execution accelerators and must not inflate dynamic compile
+    /// latency for constraints that are never sampled.
     pub(crate) fn dynamic_mask_vocab_for_runtime(&self) -> &DynamicMaskVocab {
-        if self.dynamic_mask_vocab.is_initialized() {
+        let needs_runtime_projection = self.tokenizer.has_any_virtual_runtime()
+            && self.dynamic_mask_vocab.mask_projection_tokenizer().is_none();
+        if self.dynamic_mask_vocab.is_initialized() && !needs_runtime_projection {
             return &self.dynamic_mask_vocab;
         }
         self.lazy_dynamic_mask_vocab.get_or_init(|| {
+            let profile_runtime_mask = std::env::var_os("GLRMASK_PROFILE_DYNAMIC_MASK").is_some();
+            let total_started = profile_runtime_mask.then(std::time::Instant::now);
             let mut vocab = self.dynamic_mask_vocab.clone();
+            let materialize_started = profile_runtime_mask.then(std::time::Instant::now);
             let _ = vocab.materialize_pending_source();
             if !vocab.is_initialized() {
                 vocab = self.build_dynamic_mask_vocab();
+            }
+            if let Some(started) = materialize_started {
+                eprintln!(
+                    "[glrmask/profile][dynamic_mask_first_use] vocab_materialize_ms={:.3}",
+                    started.elapsed().as_secs_f64() * 1e3,
+                );
+            }
+            // A loaded/static fallback may have had only the compact vocab
+            // source serialized. Rebuild vocabulary-only slice metadata before
+            // any lazy lexer quotient tries to consume those proof languages.
+            let slice_started = profile_runtime_mask.then(std::time::Instant::now);
+            self.prepare_llg_slice_leftovers(&mut vocab);
+            if let Some(started) = slice_started {
+                eprintln!(
+                    "[glrmask/profile][dynamic_mask_first_use] slice_prepare_ms={:.3}",
+                    started.elapsed().as_secs_f64() * 1e3,
+                );
+            }
+            let runtime_started = profile_runtime_mask.then(std::time::Instant::now);
+            self.prepare_dynamic_mask_runtime_artifacts(&mut vocab);
+            if let Some(started) = runtime_started {
+                eprintln!(
+                    "[glrmask/profile][dynamic_mask_first_use] lexer_runtime_prepare_ms={:.3}",
+                    started.elapsed().as_secs_f64() * 1e3,
+                );
+            }
+            if let Some(started) = total_started {
+                eprintln!(
+                    "[glrmask/profile][dynamic_mask_first_use] total_ms={:.3}",
+                    started.elapsed().as_secs_f64() * 1e3,
+                );
             }
             vocab
         })
@@ -3318,11 +3515,10 @@ impl Constraint {
     /// memoization cache must use this instead of `dynamic_mask_vocab_for_runtime`.
     #[inline]
     fn initialized_dynamic_mask_vocab_for_runtime(&self) -> Option<&DynamicMaskVocab> {
-        if self.dynamic_mask_vocab.is_initialized() {
-            Some(&self.dynamic_mask_vocab)
-        } else {
-            self.lazy_dynamic_mask_vocab.get()
+        if let Some(vocab) = self.lazy_dynamic_mask_vocab.get() {
+            return Some(vocab);
         }
+        self.dynamic_mask_vocab.is_initialized().then_some(&self.dynamic_mask_vocab)
     }
 
     fn build_dynamic_mask_vocab(&self) -> DynamicMaskVocab {
@@ -3418,6 +3614,151 @@ impl Constraint {
             );
         }
         DynamicMaskVocab::from_packed(Arc::new(trie), Arc::new(token_aliases))
+    }
+
+    fn prepare_llg_slice_leftovers(&self, vocab: &mut DynamicMaskVocab) {
+        if vocab.has_llg_slice_leftovers() {
+            return;
+        }
+
+        const SAFE_PLUS_CACHE_ID: u32 = 0;
+        const WHITESPACE_CACHE_ID: u32 = 3;
+        let safe_plus = Arc::new(
+            VocabPartitionDfa::compile_utf8_regex(
+                "llg-safe+",
+                r#"[^"\\\x00-\x1F\x7F]+"#,
+            )
+            .expect("safe-string slice regex must compile"),
+        );
+        let whitespace = Arc::new(
+            VocabPartitionDfa::compile_utf8_regex("llg-whitespace", r"[\x20\x0A\x0D\x09]+")
+                .expect("whitespace slice regex must compile"),
+        );
+        let word_len = vocab.all_original_token_words().len();
+        let mut safe_words = vec![0u32; word_len];
+        let mut whitespace_words = vec![0u32; word_len];
+        let mut safe_token_bytes = U8Set::empty();
+        let mut whitespace_token_bytes = U8Set::empty();
+        let mut safe_max_token_byte_len = 0u32;
+        let mut whitespace_max_token_byte_len = 0u32;
+        let mut entries = Vec::<(u16, usize, &[u8])>::with_capacity(vocab.canonical_token_count());
+        let mut max_safe_chars = 0u16;
+
+        for canonical in 0..vocab.canonical_token_count() as u32 {
+            let Some(originals) = vocab.token_ids(canonical) else { continue; };
+            let Some(&first) = originals.first() else { continue; };
+            let Some(bytes) = self.token_bytes_for_id(first) else { continue; };
+            let is_safe = safe_plus.is_match(bytes);
+            let safe_chars = if is_safe {
+                let chars = std::str::from_utf8(bytes)
+                    .expect("safe-string UTF-8 regex matched invalid UTF-8")
+                    .chars()
+                    .count();
+                u16::try_from(chars).expect("model token exceeds u16 Unicode-scalar count")
+            } else {
+                0
+            };
+            let is_whitespace = whitespace.is_match(bytes);
+            max_safe_chars = max_safe_chars.max(safe_chars);
+            entries.push((
+                crate::runtime::dynamic_mask_llg_master_layout_class(safe_chars, is_whitespace),
+                canonical as usize,
+                bytes,
+            ));
+            if is_safe {
+                safe_max_token_byte_len = safe_max_token_byte_len.max(bytes.len() as u32);
+                for &byte in bytes {
+                    safe_token_bytes.insert(byte);
+                }
+            }
+            if is_whitespace {
+                whitespace_max_token_byte_len = whitespace_max_token_byte_len.max(bytes.len() as u32);
+                for &byte in bytes {
+                    whitespace_token_bytes.insert(byte);
+                }
+            }
+            for &token in originals {
+                let word = token as usize / 32;
+                if word >= word_len {
+                    continue;
+                }
+                let bit = 1u32 << (token % 32);
+                if is_safe {
+                    safe_words[word] |= bit;
+                }
+                if is_whitespace {
+                    whitespace_words[word] |= bit;
+                }
+            }
+        }
+
+        entries.sort_unstable_by(|left, right| {
+            left.2
+                .is_empty()
+                .cmp(&right.2.is_empty())
+                .reverse()
+                .then_with(|| left.0.cmp(&right.0))
+                .then_with(|| left.2.cmp(right.2))
+                .then_with(|| left.1.cmp(&right.1))
+        });
+        let master_trie = DynamicMaskTrie::from_partitioned_token_refs(&entries);
+        let mut exact_safe_words = vec![vec![0u32; word_len]; usize::from(max_safe_chars) + 1];
+        for &(class, canonical, _) in &entries {
+            let safe_chars = crate::runtime::dynamic_mask_llg_master_safe_chars(class);
+            if safe_chars == 0 {
+                continue;
+            }
+            let Some(originals) = vocab.token_ids(canonical as u32) else { continue; };
+            for &token in originals {
+                let word = token as usize / 32;
+                if word < word_len {
+                    exact_safe_words[usize::from(safe_chars)][word] |= 1u32 << (token % 32);
+                }
+            }
+        }
+        let mut admitted_words =
+            Vec::<Vec<u32>>::with_capacity((usize::from(max_safe_chars) + 1) * 2);
+        let mut safe_prefix = vec![0u32; word_len];
+        for radius in 0..=usize::from(max_safe_chars) {
+            if radius != 0 {
+                for (target, &source) in safe_prefix.iter_mut().zip(&exact_safe_words[radius]) {
+                    *target |= source;
+                }
+            }
+            admitted_words.push(safe_prefix.clone());
+            let mut with_whitespace = safe_prefix.clone();
+            for (target, &source) in with_whitespace.iter_mut().zip(&whitespace_words) {
+                *target |= source;
+            }
+            admitted_words.push(with_whitespace);
+        }
+        vocab.set_llg_master_admitted_words(max_safe_chars, admitted_words);
+        vocab.set_llg_slice_leftovers(vec![
+            (
+                SAFE_PLUS_CACHE_ID,
+                Arc::clone(&safe_plus),
+                Arc::new(DynamicMaskTrie::new()),
+                Arc::new(safe_words),
+                safe_token_bytes,
+                safe_max_token_byte_len,
+            ),
+            (
+                WHITESPACE_CACHE_ID,
+                Arc::clone(&whitespace),
+                Arc::new(DynamicMaskTrie::new()),
+                Arc::new(whitespace_words),
+                whitespace_token_bytes,
+                whitespace_max_token_byte_len,
+            ),
+            (
+                crate::runtime::DYNAMIC_MASK_LLG_MASTER_CACHE_ID,
+                safe_plus,
+                Arc::new(master_trie),
+                Arc::new(Vec::new()),
+                U8Set::empty(),
+                0,
+            ),
+        ]);
     }
 
     fn dynamic_self_loop_projection_candidates(
@@ -6661,6 +7002,26 @@ impl Constraint {
             .set_terminal_observation_classes(classes);
     }
 
+    pub(crate) fn prepare_dynamic_virtual_residual_mask_projections_for_artifact(&mut self) {
+        if self
+            .dynamic_mask_vocab
+            .virtual_residual_mask_projection_parts()
+            .is_some()
+            || !self.tokenizer.has_any_virtual_runtime()
+        {
+            return;
+        }
+        if std::env::var("GLRMASK_DYNAMIC_TRANSFER_VIRTUAL_RESIDUAL_PROJECTIONS")
+            .ok()
+            .is_some_and(|value| matches!(value.trim(), "0" | "false" | "no" | "off"))
+        {
+            return;
+        }
+        let mut dynamic_mask_vocab = std::mem::take(&mut self.dynamic_mask_vocab);
+        self.prepare_dynamic_virtual_residual_mask_projection(&mut dynamic_mask_vocab);
+        self.dynamic_mask_vocab = dynamic_mask_vocab;
+    }
+
     /// Preserve the exact projected-terminal proof coordinate for future mask
     /// acceleration work without making it part of ordinary runtime
     /// finalization. This used to be eagerly prepared for the retired general
@@ -6784,132 +7145,85 @@ impl Constraint {
         dynamic_mask_vocab.set_direct_regular_terminal_support(
             direct_regular_terminal_support,
         );
-        // The strict vocabulary walker now executes epsilon-NFA configurations
-        // directly. Do not second-guess the lexer's adaptive determinization
-        // policy by fully determinizing the runtime tokenizer again for masks.
-        let virtual_residual_mask_projection_enabled = std::env::var(
-            "GLRMASK_DYNAMIC_VIRTUAL_RESIDUAL_MASK_PROJECTION",
-        )
-        .ok()
-        .is_none_or(|value| !matches!(value.trim(), "0" | "false" | "no" | "off"));
-        // This is a conservative work estimate, not the size of the resulting
-        // mask projection. Real bounded-code schemas can substantially
-        // overestimate here (for example, ~160K estimated states can collapse
-        // to ~11K projected states), and falling back to the generic virtual
-        // residual walker is much more expensive on every mask miss. Keep a
-        // hard build-work guard, but bias the default toward runtime latency.
-        const DEFAULT_VIRTUAL_RESIDUAL_PROJECTION_MAX_DENSE_STATES: usize = 160 * 1024;
-        let virtual_residual_projection_max_dense_states = std::env::var(
-            "GLRMASK_DYNAMIC_VIRTUAL_RESIDUAL_MASK_PROJECTION_MAX_DENSE_STATES",
-        )
-        .ok()
-        .and_then(|value| value.trim().parse::<usize>().ok())
-        .unwrap_or(DEFAULT_VIRTUAL_RESIDUAL_PROJECTION_MAX_DENSE_STATES);
-        if dynamic_mask_vocab.mask_projection_tokenizer().is_none()
-            && self.tokenizer.has_any_virtual_runtime()
-        {
-            let max_token_len = self.max_token_byte_len();
-            let virtual_residual_projection_dense_work = self
-                .tokenizer
-                .virtual_residual_mask_projection_dense_state_work(max_token_len);
-            let virtual_residual_projection_within_budget =
-                virtual_residual_projection_dense_work.is_some_and(|work| {
-                    work <= virtual_residual_projection_max_dense_states
-                });
-            if profile
-                && virtual_residual_mask_projection_enabled
-                && self.tokenizer.has_virtual_residual_runtime()
-                && !virtual_residual_projection_within_budget
-            {
-                eprintln!(
-                    "[glrmask/profile][dynamic_runtime_finalize] mask_lexer=virtual_residual skipped=projection_dense_state_budget estimated_dense_states={:?} max_dense_states={} horizon={}",
-                    virtual_residual_projection_dense_work,
-                    virtual_residual_projection_max_dense_states,
-                    max_token_len,
-                );
-            }
-            if virtual_residual_mask_projection_enabled
-                && virtual_residual_projection_within_budget
-                && let Some((mask_tokenizer, projections)) = self
+        let slice_leftovers_started_at = profile.then(std::time::Instant::now);
+        self.prepare_llg_slice_leftovers(&mut dynamic_mask_vocab);
+        let slice_leftovers_ms = slice_leftovers_started_at
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        let eager_containment_quotients =
+            std::env::var_os("GLRMASK_EXPERIMENT_EAGER_CONTAINMENT_QUOTIENTS").is_some();
+        if eager_containment_quotients {
+            let started = std::time::Instant::now();
+            if std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_PARTITION_PROVERS").is_some() {
+                let candidates = (0..self.tokenizer.num_terminals()).collect::<Vec<_>>();
+                let quotients = self
                     .tokenizer
-                    .virtual_residuals_mask_tokenizer(max_token_len)
-            {
-                if profile {
-                    eprintln!(
-                        "[glrmask/profile][dynamic_runtime_finalize] mask_lexer=virtual_residual components={} mask_states={} horizon={}",
-                        projections.len(),
-                        mask_tokenizer.num_states(),
-                        max_token_len,
-                    );
-                }
-                dynamic_mask_vocab
-                    .set_virtual_residuals_mask_projection(mask_tokenizer, projections);
-            } else if let Some((mask_tokenizer, projection)) = self
-                .tokenizer
-                .virtual_binary_repeat_intersections_mask_tokenizer(max_token_len)
-            {
-                if profile {
-                    eprintln!(
-                        "[glrmask/profile][dynamic_runtime_finalize] mask_lexer=virtual_repeat_intersection exact_states=lazy components={} mask_states={} horizon={}",
-                        projection.len(),
-                        mask_tokenizer.num_states(),
-                        max_token_len,
-                    );
-                }
-                dynamic_mask_vocab.set_virtual_repeat_intersections_mask_projection(
-                    mask_tokenizer,
-                    projection,
+                    .build_terminal_projected_quotients_for_containment_candidates(&candidates);
+                dynamic_mask_vocab.set_projected_terminal_quotients(quotients);
+            } else {
+                let safe_plus = dynamic_mask_vocab
+                    .llg_slice_by_cache_id(0)
+                    .expect("safe+ slice prepared before eager quotient experiment");
+                dynamic_mask_vocab.prepare_runtime_projected_terminal_quotients(
+                    &self.tokenizer,
+                    &safe_plus.slice_token_bytes(),
                 );
-            } else if let Some((mask_tokenizer, projection)) = self
-                .tokenizer
-                .virtual_unit_repeat_mask_tokenizer(max_token_len)
-            {
-                if profile {
-                    eprintln!(
-                        "[glrmask/profile][dynamic_runtime_finalize] mask_lexer=virtual_unit_repeat full_states=arithmetic mask_states={} horizon={}",
-                        mask_tokenizer.num_states(),
-                        max_token_len,
-                    );
-                }
-                dynamic_mask_vocab
-                    .set_virtual_unit_repeat_mask_projection(mask_tokenizer, projection);
             }
-        }
-        let mask_execution_source = dynamic_mask_vocab
-            .mask_projection_tokenizer()
-            .unwrap_or(&self.tokenizer);
-        let eager_mask_execution = std::env::var("GLRMASK_DYNAMIC_EAGER_MASK_EXECUTION")
-            .ok()
-            .is_none_or(|value| !matches!(value.trim(), "0" | "false" | "no" | "off"));
-        if eager_mask_execution
-            && mask_execution_source.has_epsilon_transitions()
-            && !mask_execution_source.has_any_virtual_runtime()
-        {
-            let source_states = mask_execution_source.num_states();
-            let started_at = profile.then(std::time::Instant::now);
-            let prepared = dynamic_mask_vocab.prepare_mask_execution(&self.tokenizer, self.max_token_byte_len());
-            if profile {
+            eprintln!(
+                "[glrmask/profile][eager_containment_quotients] prepared={} elapsed_ms={:.3}",
+                dynamic_mask_vocab.has_projected_terminal_quotients(),
+                started.elapsed().as_secs_f64() * 1e3,
+            );
+            if std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_MASTER_PROVERS").is_some() {
+                let proof_started = std::time::Instant::now();
+                let include_safe_radii =
+                    std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_SAFE_RADII").is_some();
+                let (entries, product_pairs) = dynamic_mask_vocab
+                    .prepare_master_provers_all_sources(
+                        &self.tokenizer,
+                        self.tokenizer.num_states() as usize,
+                        include_safe_radii,
+                    );
                 eprintln!(
-                    "[glrmask/profile][dynamic_runtime_finalize] mask_lexer=deterministic_execution prepared={} source_states={} execution_states={} elapsed_ms={:.3}",
-                    prepared,
-                    source_states,
-                    dynamic_mask_vocab
-                        .mask_runtime_tokenizer()
-                        .map_or(0, Tokenizer::num_states),
-                    started_at.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
+                    "[glrmask/profile][prepared_master_provers] entries={} product_pairs={} elapsed_ms={:.3}",
+                    entries,
+                    product_pairs,
+                    proof_started.elapsed().as_secs_f64() * 1e3,
                 );
+                let max_safe_chars = u32::from(dynamic_mask_vocab.llg_master_max_safe_chars());
+                for &slice_id in &[0u32, 3u32] {
+                    if let Some(slice) = dynamic_mask_vocab.llg_slice_by_cache_id(slice_id) {
+                        self.tokenizer.prepare_virtual_residual_master_slice_artifacts(
+                            slice.dfa().start_state(),
+                            slice.dfa().class_count(),
+                            slice.dfa().byte_to_class_map(),
+                            slice.dfa().transition_table(),
+                            slice.dfa().accepting_map(),
+                            slice.dfa().can_reach_accepting_map(),
+                            max_safe_chars,
+                        );
+                    }
+                }
             }
         }
-        // The strict full-vocabulary walker owns a separate dense transition
-        // representation from the general tokenizer runtime. Build it for the
-        // exact mask-time coordinate selected above (or the source tokenizer
-        // when no projection was needed).
-        dynamic_mask_vocab.prepare_full_walk_fast_transitions(&self.tokenizer);
+        // Finite projections of symbolic residual lexers are pure mask-runtime
+        // accelerators. Do not charge them to dynamic compilation: the first
+        // exact mask request materializes them into `lazy_dynamic_mask_vocab`.
+        // Non-virtual lexers (and loaded constraints that already carry a
+        // serialized projection) can prepare their cheap derived tables now.
+        let eager_mask_runtime_artifacts =
+            std::env::var_os("GLRMASK_EXPERIMENT_EAGER_MASK_RUNTIME_ARTIFACTS").is_some();
+        if eager_mask_runtime_artifacts
+            || !self.tokenizer.has_any_virtual_runtime()
+            || dynamic_mask_vocab.mask_projection_tokenizer().is_some()
+        {
+            self.prepare_dynamic_mask_runtime_artifacts(&mut dynamic_mask_vocab);
+        }
         let has_dense_mask_projection =
             dynamic_mask_vocab.has_dense_mask_tokenizer_projection();
         let terminal_observation_enabled = std::env::var("GLRMASK_DYNAMIC_TERMINAL_OBSERVATION_CLASSES")
             .ok()
             .is_none_or(|value| !matches!(value.trim(), "0" | "false" | "no" | "off"));
+        let terminal_observation_started_at = profile.then(std::time::Instant::now);
         let terminal_observation_classes = if !terminal_observation_enabled {
             Vec::new()
         } else if has_dense_mask_projection {
@@ -6920,6 +7234,8 @@ impl Constraint {
             self.build_dynamic_terminal_observation_classes()
         };
         dynamic_mask_vocab.set_terminal_observation_classes(terminal_observation_classes);
+        let terminal_observation_ms = terminal_observation_started_at
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
         let hot_frontier_started_at = profile.then(std::time::Instant::now);
         self.direct_regular_dynamic_hot_frontiers = self
             .compute_direct_regular_dynamic_hot_frontiers(
@@ -6932,11 +7248,13 @@ impl Constraint {
         self.tokenizer_fast_transitions = tokenizer_fast_transitions;
         if let Some(total_started_at) = total_started_at {
             eprintln!(
-                "[glrmask/profile][dynamic_runtime_finalize] guarded_shift_ms={:.3} dynamic_vocab_ms={:.3} tokenizer_fast_ms={:.3} direct_regular_support_ms={:.3} hot_frontier_ms={:.3} hot_frontiers={} total_ms={:.3}",
+                "[glrmask/profile][dynamic_runtime_finalize] guarded_shift_ms={:.3} dynamic_vocab_ms={:.3} tokenizer_fast_ms={:.3} direct_regular_support_ms={:.3} slice_leftovers_ms={:.3} terminal_observation_ms={:.3} hot_frontier_ms={:.3} hot_frontiers={} total_ms={:.3}",
                 guarded_shift_ms,
                 dynamic_vocab_ms,
                 tokenizer_fast_ms,
                 support_ms,
+                slice_leftovers_ms,
+                terminal_observation_ms,
                 hot_frontier_ms,
                 hot_frontier_count,
                 total_started_at.elapsed().as_secs_f64() * 1000.0,

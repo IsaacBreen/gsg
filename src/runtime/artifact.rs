@@ -1,9 +1,11 @@
 use glrmask_artifact::CommitTemplateDfas;
-use std::collections::{BTreeMap, VecDeque};
+use std::cmp::Reverse;
+use std::collections::{BTreeMap, BinaryHeap, VecDeque};
+use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex, OnceLock};
 use rayon::prelude::*;
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::SmallVec;
 
 use crate::automata::lexer::{
@@ -21,7 +23,9 @@ use crate::compiler::glr::parser::{
     ParserComponentTableSource, ParserGSS, ScopedSubgrammarLink,
 };
 use crate::compiler::glr::table::GLRTable;
-use crate::compiler::stages::id_map_and_terminal_dwa::classify::classify_vocab_char_type;
+use crate::compiler::stages::id_map_and_terminal_dwa::classify::{
+    VocabPartitionDfa, classify_vocab_char_type,
+};
 use crate::compiler::stages::templates::characterize::TerminalCharacterization;
 use crate::ds::vocab_prefix_tree::{VocabPrefixTree, VocabPrefixTreeNode};
 use crate::ds::weight::Weight;
@@ -1467,9 +1471,8 @@ pub(crate) struct DynamicMaskTrie {
     /// compressed edge consumes many bytes without requiring additional DFS
     /// stack slots in the strict full walker.
     full_walk_max_parent_depth: u16,
-    /// Vocabulary-only layout class for each zero-byte structural child of the
-    /// true root. This metadata is an accelerator only; an empty table simply
-    /// disables root-class certificates.
+    /// Declared regular-language partition id for each zero-byte structural
+    /// child of the true root. An empty table disables partition certificates.
     root_layout_classes: Vec<u16>,
     /// True iff every complete token in the corresponding structural root
     /// class is valid UTF-8. Logical-scalar subtree proofs require this exact
@@ -1477,45 +1480,44 @@ pub(crate) struct DynamicMaskTrie {
     root_layout_all_valid_utf8: Vec<bool>,
 }
 
-/// Vocab-only layout refinement used by the dynamic-mask radix trie.
+/// Stable structural class used by the dynamic-mask radix trie.
 ///
-/// `base_partition` is the existing p0/p1/... character-type class.  The
-/// extra bits deliberately describe only coarse byte shape, not grammar
-/// semantics. They keep lexer-sensitive byte families in separate structural
-/// roots and let exact runtime certificates cheaply decide which coarse roots
-/// are worth proving; the class itself is never an admissibility proof.
-pub(crate) fn dynamic_mask_vocab_layout_class(base_partition: u8, bytes: &[u8]) -> u16 {
-    #[inline]
-    fn first_kind(byte: Option<u8>) -> u16 {
-        match byte {
-            None => 0,
-            Some(b' ') => 1,
-            Some(b'a'..=b'z' | b'A'..=b'Z' | b'_') => 2,
-            Some(b'0'..=b'9') => 3,
-            Some(b'"' | b'\\' | b'\'') => 4,
-            Some(0..=31 | 127) => 5,
-            Some(128..=255) => 6,
-            Some(_) => 7,
-        }
-    }
+/// This is deliberately *only* the declared regular-language partition id.
+/// Older revisions refined it with arbitrary first-byte/character flags; that
+/// made one structural root cease to correspond to a first-class language and
+/// therefore prevented exact language-containment proofs. Any further runtime
+/// acceleration must be represented as an explicit regular language instead.
+pub(crate) fn dynamic_mask_vocab_layout_class(base_partition: u8, _bytes: &[u8]) -> u16 {
+    u16::from(base_partition)
+}
 
-    let mut flags = 0u16;
-    for &byte in bytes {
-        flags |= match byte {
-            b'"' => 1 << 0,
-            b'\\' => 1 << 1,
-            b'\'' => 1 << 2,
-            0..=31 | 127 => 1 << 3,
-            b' ' => 1 << 4,
-            b'{' | b'}' | b'[' | b']' | b'(' | b')' | b',' | b':' | b';' => 1 << 5,
-            b'.' | b'+' | b'-' | b'*' | b'/' | b'%' | b'=' | b'<' | b'>' | b'!'
-            | b'?' | b'&' | b'|' | b'^' | b'~' | b'@' | b'#' | b'$' | b'`' => 1 << 6,
-            128..=255 => 1 << 7,
-            _ => 0,
-        };
-    }
+pub(crate) const DYNAMIC_MASK_LLG_MASTER_CACHE_ID: u32 = 0x200;
+const DYNAMIC_MASK_LLG_MASTER_WHITESPACE_BIT: u16 = 1 << 15;
+const DYNAMIC_MASK_LLG_MASTER_SAFE_LEN_MASK: u16 = DYNAMIC_MASK_LLG_MASTER_WHITESPACE_BIT - 1;
 
-    (u16::from(base_partition) << 11) | (first_kind(bytes.first().copied()) << 8) | flags
+/// Structural class for the dynamic-radius LLG vocabulary trie. The low bits
+/// are the exact number of Unicode scalar values in a whole token matching the
+/// regex-defined safe-string language (`0` means not in that language); the high
+/// bit records whole-token whitespace-regex membership. These are language
+/// properties only. The trie deliberately does not mark them as compiler
+/// partition languages, so generic partition certificates cannot reinterpret
+/// the encoding.
+pub(crate) fn dynamic_mask_llg_master_layout_class(
+    safe_chars: u16,
+    whitespace: bool,
+) -> u16 {
+    debug_assert!(safe_chars <= DYNAMIC_MASK_LLG_MASTER_SAFE_LEN_MASK);
+    safe_chars | if whitespace { DYNAMIC_MASK_LLG_MASTER_WHITESPACE_BIT } else { 0 }
+}
+
+#[inline(always)]
+pub(crate) fn dynamic_mask_llg_master_safe_chars(class: u16) -> u16 {
+    class & DYNAMIC_MASK_LLG_MASTER_SAFE_LEN_MASK
+}
+
+#[inline(always)]
+pub(crate) fn dynamic_mask_llg_master_is_whitespace(class: u16) -> bool {
+    class & DYNAMIC_MASK_LLG_MASTER_WHITESPACE_BIT != 0
 }
 
 impl DynamicMaskTrie {
@@ -1536,6 +1538,7 @@ impl DynamicMaskTrie {
         }
     }
 
+
     #[inline]
     pub(crate) fn root_layout_class(&self, root_slot: usize) -> Option<u16> {
         self.root_layout_classes.get(root_slot).copied()
@@ -1548,7 +1551,6 @@ impl DynamicMaskTrie {
             .copied()
             .unwrap_or(false)
     }
-
     #[inline]
     pub(crate) fn node(&self, node: u32) -> &DynamicMaskTrieNode {
         &self.nodes[node as usize]
@@ -2070,8 +2072,35 @@ pub(crate) enum DynamicMaskAliasStore {
 
 #[derive(Debug)]
 struct DynamicMaskCacheEntry {
+    hash: u64,
     state: DynamicMaskStateKey,
-    mask: Arc<[u32]>,
+    mask: DynamicMaskCachePayload,
+}
+
+#[derive(Debug)]
+enum DynamicMaskCachePayload {
+    /// Exact key observed once, but no mask payload stored yet. A second miss
+    /// for the same key upgrades this entry to a real payload. This avoids
+    /// paying mask-storage cost for cheap one-off states while preserving
+    /// reuse for cheap states that actually recur.
+    Probation,
+    Dense(Arc<[u32]>),
+    SparseZero(Box<[(u32, u32)]>),
+    SparseAllOriginal(Box<[(u32, u32)]>),
+}
+
+#[derive(Debug, Default)]
+struct DynamicMaskCache {
+    entries: Vec<Option<DynamicMaskCacheEntry>>,
+    by_hash: FxHashMap<u64, SmallVec<[usize; 1]>>,
+    next_slot: usize,
+}
+
+#[inline]
+pub(crate) fn dynamic_mask_state_key_hash(state: &DynamicMaskStateKey) -> u64 {
+    let mut hasher = FxHasher::default();
+    state.hash(&mut hasher);
+    hasher.finish()
 }
 
 
@@ -2507,9 +2536,15 @@ pub(crate) struct DirectRegularDynamicFrontierCacheEntry {
 /// deliberately removes representation-only Arc identities and accumulator
 /// node organization, so equivalent residuals reached after different token
 /// commits share one exact cached mask.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum DynamicMaskLexerStateKey {
     Exact(u32),
+    /// Exact lexer coordinate consumed by dynamic mask execution. Distinct
+    /// source/runtime lexer states may map here when their complete one-model-
+    /// token continuation languages are identical. Preserve whether the source
+    /// state is the true lexer initial state because reset semantics can make
+    /// that distinction observable outside the projected coordinate itself.
+    MaskProjection { state: u32, initial: bool },
     TerminalObservation { terminal: TerminalID, class: u32, initial: bool },
 }
 
@@ -2819,12 +2854,12 @@ pub(crate) struct DynamicMaskVocabArtifact {
     full_to_mask_state: Vec<u32>,
 }
 
-/// Runtime-only lazily determinized subset-state cache for Flat16 mask execution.
+/// Runtime-only lazily determinized subset-state cache for scalar-dispatch mask execution.
 /// Canonical subset states are shared across mask calls within one constraint runtime; this
 /// is derived acceleration state, never serialized, and reset by
 /// `fresh_runtime_instance`.
 #[derive(Debug)]
-pub(crate) struct DynamicLazyUnion16Metadata {
+pub(crate) struct DynamicLazyUnionMetadata {
     pub(crate) finalizer_code: u32,
     pub(crate) single_finalizer_continues: u8,
     pub(crate) matched: BitSet,
@@ -2832,12 +2867,18 @@ pub(crate) struct DynamicLazyUnion16Metadata {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct DynamicLazyUnion16Cache {
+pub(crate) struct DynamicLazyUnionCache {
     pub(crate) base_state_count: u32,
+    /// Physical scalar-dispatch rows materialized on demand for mask
+    /// projections. Cells use the same u32 target/finalizer encoding as the
+    /// lazy subset rows so tokenizers beyond the Flat16 state boundary do not
+    /// require eager whole-product determinization. These rows are derived
+    /// runtime cache only.
+    pub(crate) base_rows: Vec<Option<Box<[u32; 256]>>>,
     pub(crate) state_by_subset: FxHashMap<SmallVec<[u32; 8]>, u32>,
     pub(crate) subsets: Vec<SmallVec<[u32; 8]>>,
     pub(crate) rows: Vec<[u32; 256]>,
-    pub(crate) metadata: Vec<Option<DynamicLazyUnion16Metadata>>,
+    pub(crate) metadata: Vec<Option<DynamicLazyUnionMetadata>>,
 }
 
 /// Runtime-only exact deterministic extension for a parser-filtered union of
@@ -2856,6 +2897,70 @@ pub(crate) struct DynamicDenseSubset16 {
     pub(crate) subsets: Vec<SmallVec<[u32; 8]>>,
 }
 
+/// One overlapping runtime slice language and the residual vocabulary trie
+/// to walk after that language has been proved contained. The slice language
+/// itself is not a compiler partition and may overlap/nest with other slices.
+#[derive(Debug, Clone)]
+pub(crate) struct DynamicMaskSliceTrie {
+    cache_id: u32,
+    dfa: Arc<VocabPartitionDfa>,
+    trie: Arc<DynamicMaskTrie>,
+    full_walk_token_markers: Arc<Vec<u64>>,
+    subtree_original_token_offsets: Arc<Vec<u32>>,
+    subtree_original_tokens: Arc<Vec<u32>>,
+    slice_original_token_words: Arc<Vec<u32>>,
+    /// Conservative byte family containing every byte of every current-vocab
+    /// token in this slice. Proving this whole family parser-transparent through
+    /// `slice_max_token_byte_len` is sufficient to skip every slice token.
+    slice_token_bytes: U8Set,
+    slice_max_token_byte_len: u32,
+}
+
+impl DynamicMaskSliceTrie {
+    #[inline(always)]
+    pub(crate) fn cache_id(&self) -> u32 {
+        self.cache_id
+    }
+
+    #[inline(always)]
+    pub(crate) fn dfa(&self) -> &VocabPartitionDfa {
+        self.dfa.as_ref()
+    }
+
+    #[inline(always)]
+    pub(crate) fn trie(&self) -> &DynamicMaskTrie {
+        self.trie.as_ref()
+    }
+
+    #[inline(always)]
+    fn full_walk_token_markers(&self) -> &[u64] {
+        self.full_walk_token_markers.as_ref()
+    }
+
+    #[inline(always)]
+    fn subtree_original_tokens(&self, node: u32) -> &[u32] {
+        let canonical_range = self.trie.subtree_token_index_range(node);
+        let start = self.subtree_original_token_offsets[canonical_range.start] as usize;
+        let end = self.subtree_original_token_offsets[canonical_range.end] as usize;
+        &self.subtree_original_tokens[start..end]
+    }
+
+    #[inline(always)]
+    pub(crate) fn slice_original_token_words(&self) -> &[u32] {
+        self.slice_original_token_words.as_ref()
+    }
+
+    #[inline(always)]
+    pub(crate) fn slice_token_bytes(&self) -> U8Set {
+        self.slice_token_bytes
+    }
+
+    #[inline(always)]
+    pub(crate) fn slice_max_token_byte_len(&self) -> u32 {
+        self.slice_max_token_byte_len
+    }
+}
+
 /// Runtime-only vocabulary data for direct dynamic mask generation.
 #[derive(Debug, Clone)]
 pub(crate) struct DynamicMaskVocab {
@@ -2872,11 +2977,34 @@ pub(crate) struct DynamicMaskVocab {
     subtree_original_token_offsets: Arc<Vec<u32>>,
     subtree_original_tokens: Arc<Vec<u32>>,
     all_original_token_words: Arc<Vec<u32>>,
+    llg_slice_leftovers: Arc<Vec<Arc<DynamicMaskSliceTrie>>>,
+    /// Cumulative admitted-token bitsets for the dynamic-radius master trie.
+    /// Index = `safe_radius * 2 + whitespace_proved`; each row contains exactly
+    /// the whole tokens that can be accepted without walking the trie. Shared by
+    /// every constraint using the same model vocabulary.
+    llg_master_admitted_words: Arc<Vec<Vec<u32>>>,
+    llg_master_max_safe_chars: u16,
+    /// Positive-only parser-independent proof rows for the two overlapping
+    /// master slice languages. Row = `source_tsid * 2 + slice_slot`, where
+    /// slot 0 is safe+ and slot 1 is whitespace. Offsets index the flattened
+    /// terminal list. A terminal in a row certifies that the entire slice
+    /// language remains inside that terminal's exact projected residual from
+    /// the source TSID. Missing rows/terminals simply fall back to runtime
+    /// proof; they never imply rejection or admission.
+    prepared_master_prover_offsets: Arc<[u32]>,
+    prepared_master_prover_terminals: Arc<[TerminalID]>,
+    /// Exact positive bounded safe-slice rows. Row = exact source TSID; entries
+    /// are `(terminal, max safe Unicode-scalar radius)` for every prepared
+    /// projected terminal residual. Radius is capped at the largest safe-token
+    /// scalar count in this model vocabulary, because larger values are
+    /// observationally identical for one-token masking.
+    prepared_safe_radius_offsets: Arc<[u32]>,
+    prepared_safe_radius_entries: Arc<[(TerminalID, u16)]>,
     pending_source: Option<DynamicMaskVocabSource>,
     initialized: bool,
-    mask_cache: Arc<Mutex<Vec<DynamicMaskCacheEntry>>>,
+    mask_cache: Arc<Mutex<DynamicMaskCache>>,
     dense_subset16_cache: Arc<Mutex<FxHashMap<Vec<u32>, Arc<DynamicDenseSubset16>>>>,
-    lazy_union16_cache: Arc<Mutex<DynamicLazyUnion16Cache>>,
+    lazy_union_cache: Arc<Mutex<DynamicLazyUnionCache>>,
     direct_regular_frontier_cache:
         Arc<Mutex<FxHashMap<usize, DirectRegularDynamicFrontierCacheEntry>>>,
     direct_regular_wide_frontier_index_cache: Arc<Mutex<FxHashMap<usize, usize>>>,
@@ -2888,6 +3016,12 @@ pub(crate) struct DynamicMaskVocab {
     bounded_observation_sets: Arc<DynamicBoundedObservationSets>,
     terminal_observation_classes: Arc<[(TerminalID, Arc<[u32]>)]>,
     projected_terminal_quotients: Arc<[(TerminalID, Arc<TerminalProjectedQuotient>)]>,
+    /// Runtime-only lazy quotient analysis. Dynamic compilation keeps quotient
+    /// construction off the build/first-mask path until a master-slice proof
+    /// actually needs it. The persisted/prepared sidecar above still takes
+    /// precedence when present.
+    runtime_projected_terminal_quotients:
+        Arc<OnceLock<Arc<[(TerminalID, Arc<TerminalProjectedQuotient>)]>>>,
     /// True once the exact projected-terminal analysis has run, including
     /// when it proved that no quotient is worth retaining.  This distinguishes
     /// a legitimate empty result from an unprepared legacy/runtime value.
@@ -2898,6 +3032,22 @@ pub(crate) struct DynamicMaskVocab {
     /// decides whether a proof is queried; the proof result itself depends
     /// solely on immutable lexer/vocabulary data.
     projected_terminal_text_cache: Arc<Mutex<FxHashMap<(TerminalID, u32, U8Set, bool), bool>>>,
+    /// Exact regular-language containment results for named proof slices.
+    /// High key bits distinguish projected, symbolic-residual, and finite-direct
+    /// proof namespaces over the same immutable terminal/source coordinates.
+    projected_terminal_partition_cache:
+        Arc<Mutex<FxHashMap<(TerminalID, u32, u32), bool>>>,
+    /// Exact bounded repetition radii for regular-language proof slices. The
+    /// extra key component is the caller's maximum relevant repetition count;
+    /// for model-token masking this is the largest safe-token scalar length.
+    projected_terminal_radius_cache:
+        Arc<Mutex<FxHashMap<(TerminalID, u32, u32, u32), u32>>>,
+    /// Exact original-token masks rejected by a token-start maximal-munch
+    /// guard. Keys are the canonical sorted `(mask lexer state, terminal)`
+    /// memories carried by `InitialPruneGuard`. The result depends only on the
+    /// immutable lexer/vocabulary coordinate, so sequences may safely share it.
+    pending_guard_blocked_mask_cache:
+        Arc<Mutex<FxHashMap<Vec<(u32, TerminalID)>, Arc<Vec<u32>>>>>,
     /// Optional mask-only finite-token quotient. Commit continues to use the
     /// exact tokenizer stored on `Constraint`; dynamic mask projections may be
     /// built in this smaller coordinate and indexed from exact runtime states
@@ -2928,9 +3078,26 @@ pub(crate) struct DynamicMaskVocab {
 
 impl DynamicMaskVocab {
     const FULL_WALK_DENSE_TRANSITION_BYTES: usize = 64 * 1024 * 1024;
+    const PREPARED_PROOF_SLOT_COUNT: usize = 2;
+    const PREPARED_SAFE_PLUS_SLOT: usize = 0;
+    const PREPARED_WHITESPACE_SLOT: usize = 1;
+
+    #[inline]
+    pub(crate) fn max_token_byte_len(&self) -> usize {
+        self.trie
+            .nodes
+            .first()
+            .map_or(0, |root| root.subtree_max_byte_len as usize)
+    }
 
     fn build_full_walk_fast_transitions(tokenizer: &Tokenizer) -> Option<FastTokenizerTransitions> {
-        if tokenizer.has_epsilon_transitions() || tokenizer.has_any_virtual_runtime() {
+        // Scalar-dispatch projections deliberately execute through the lazy
+        // physical-row/subset cache. A complete Flat16 slab is pure derived
+        // acceleration and is too expensive to materialize before the first
+        // mask; the lazy executor builds only rows actually reached by vocab
+        // traversal. Ordinary deterministic tokenizers still use the dense
+        // table below.
+        if tokenizer.has_any_virtual_runtime() || tokenizer.has_epsilon_transitions() {
             return None;
         }
         FastTokenizerTransitions::full_walk_dense_for(
@@ -2944,6 +3111,14 @@ impl DynamicMaskVocab {
     /// coordinate masking advances; otherwise use the source runtime tokenizer.
     /// These tables are derived runtime data and are deliberately not serialized.
     pub(crate) fn prepare_full_walk_fast_transitions(&mut self, source: &Tokenizer) {
+        // Every operation that changes the active mask tokenizer either builds
+        // this derived table for the new coordinate or explicitly clears it.
+        // Dynamic finalization calls this preparation step again after choosing
+        // the final coordinate, so rebuilding an already-present table here is
+        // duplicate work (and is material for large finite residual projections).
+        if self.mask_tokenizer_fast_transitions.is_some() {
+            return;
+        }
         let tokenizer = self
             .mask_determinized_tokenizer
             .as_deref()
@@ -3069,11 +3244,18 @@ impl DynamicMaskVocab {
             subtree_original_token_offsets,
             subtree_original_tokens,
             all_original_token_words,
+            llg_slice_leftovers: Arc::new(Vec::new()),
+            llg_master_admitted_words: Arc::new(Vec::new()),
+            llg_master_max_safe_chars: 0,
+            prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
+            prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_safe_radius_offsets: Arc::from(Vec::<u32>::new()),
+            prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: true,
-            mask_cache: Arc::new(Mutex::new(Vec::new())),
+            mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
-            lazy_union16_cache: Arc::new(Mutex::new(DynamicLazyUnion16Cache::default())),
+            lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
             direct_regular_frontier_cache: Arc::new(Mutex::new(FxHashMap::default())),
             direct_regular_wide_frontier_index_cache: Arc::new(Mutex::new(FxHashMap::default())),
             direct_regular_terminal_support: Arc::new(DirectRegularTerminalSupport::default()),
@@ -3084,8 +3266,12 @@ impl DynamicMaskVocab {
             bounded_observation_sets: Arc::new(DynamicBoundedObservationSets::default()),
             terminal_observation_classes: Arc::from(Vec::<(TerminalID, Arc<[u32]>)>::new()),
             projected_terminal_quotients: Arc::from(Vec::<(TerminalID, Arc<TerminalProjectedQuotient>)>::new()),
+            runtime_projected_terminal_quotients: Arc::new(OnceLock::new()),
             projected_terminal_quotients_prepared: false,
             projected_terminal_text_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            projected_terminal_partition_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            projected_terminal_radius_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            pending_guard_blocked_mask_cache: Arc::new(Mutex::new(FxHashMap::default())),
             mask_tokenizer: None,
             mask_determinized_tokenizer: None,
             mask_projection_to_determinized: Arc::from(Vec::<u32>::new()),
@@ -3123,11 +3309,18 @@ impl DynamicMaskVocab {
             ),
             subtree_original_tokens: Arc::clone(&self.subtree_original_tokens),
             all_original_token_words: Arc::clone(&self.all_original_token_words),
+            llg_slice_leftovers: Arc::clone(&self.llg_slice_leftovers),
+            llg_master_admitted_words: Arc::clone(&self.llg_master_admitted_words),
+            llg_master_max_safe_chars: self.llg_master_max_safe_chars,
+            prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
+            prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_safe_radius_offsets: Arc::from(Vec::<u32>::new()),
+            prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: true,
-            mask_cache: Arc::new(Mutex::new(Vec::new())),
+            mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
-            lazy_union16_cache: Arc::new(Mutex::new(DynamicLazyUnion16Cache::default())),
+            lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
             direct_regular_frontier_cache: Arc::new(Mutex::new(FxHashMap::default())),
             direct_regular_wide_frontier_index_cache: Arc::new(Mutex::new(
                 FxHashMap::default(),
@@ -3142,8 +3335,12 @@ impl DynamicMaskVocab {
             bounded_observation_sets: Arc::new(DynamicBoundedObservationSets::default()),
             terminal_observation_classes: Arc::from(Vec::<(TerminalID, Arc<[u32]>)>::new()),
             projected_terminal_quotients: Arc::from(Vec::<(TerminalID, Arc<TerminalProjectedQuotient>)>::new()),
+            runtime_projected_terminal_quotients: Arc::new(OnceLock::new()),
             projected_terminal_quotients_prepared: false,
             projected_terminal_text_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            projected_terminal_partition_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            projected_terminal_radius_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            pending_guard_blocked_mask_cache: Arc::new(Mutex::new(FxHashMap::default())),
             mask_tokenizer: None,
             mask_determinized_tokenizer: None,
             mask_projection_to_determinized: Arc::from(Vec::<u32>::new()),
@@ -3168,11 +3365,18 @@ impl DynamicMaskVocab {
             subtree_original_token_offsets: Arc::new(vec![0]),
             subtree_original_tokens: Arc::new(Vec::new()),
             all_original_token_words: Arc::new(Vec::new()),
+            llg_slice_leftovers: Arc::new(Vec::new()),
+            llg_master_admitted_words: Arc::new(Vec::new()),
+            llg_master_max_safe_chars: 0,
+            prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
+            prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_safe_radius_offsets: Arc::from(Vec::<u32>::new()),
+            prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: Some(source),
             initialized: false,
-            mask_cache: Arc::new(Mutex::new(Vec::new())),
+            mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
-            lazy_union16_cache: Arc::new(Mutex::new(DynamicLazyUnion16Cache::default())),
+            lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
             direct_regular_frontier_cache: Arc::new(Mutex::new(FxHashMap::default())),
             direct_regular_wide_frontier_index_cache: Arc::new(Mutex::new(FxHashMap::default())),
             direct_regular_terminal_support: Arc::new(DirectRegularTerminalSupport::default()),
@@ -3183,8 +3387,12 @@ impl DynamicMaskVocab {
             bounded_observation_sets: Arc::new(DynamicBoundedObservationSets::default()),
             terminal_observation_classes: Arc::from(Vec::<(TerminalID, Arc<[u32]>)>::new()),
             projected_terminal_quotients: Arc::from(Vec::<(TerminalID, Arc<TerminalProjectedQuotient>)>::new()),
+            runtime_projected_terminal_quotients: Arc::new(OnceLock::new()),
             projected_terminal_quotients_prepared: false,
             projected_terminal_text_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            projected_terminal_partition_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            projected_terminal_radius_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            pending_guard_blocked_mask_cache: Arc::new(Mutex::new(FxHashMap::default())),
             mask_tokenizer: None,
             mask_determinized_tokenizer: None,
             mask_projection_to_determinized: Arc::from(Vec::<u32>::new()),
@@ -3230,11 +3438,18 @@ impl DynamicMaskVocab {
             subtree_original_token_offsets,
             subtree_original_tokens,
             all_original_token_words,
+            llg_slice_leftovers: Arc::new(Vec::new()),
+            llg_master_admitted_words: Arc::new(Vec::new()),
+            llg_master_max_safe_chars: 0,
+            prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
+            prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_safe_radius_offsets: Arc::from(Vec::<u32>::new()),
+            prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: true,
-            mask_cache: Arc::new(Mutex::new(Vec::new())),
+            mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
-            lazy_union16_cache: Arc::new(Mutex::new(DynamicLazyUnion16Cache::default())),
+            lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
             direct_regular_frontier_cache: Arc::new(Mutex::new(FxHashMap::default())),
             direct_regular_wide_frontier_index_cache: Arc::new(Mutex::new(FxHashMap::default())),
             direct_regular_terminal_support: Arc::new(DirectRegularTerminalSupport::default()),
@@ -3245,8 +3460,12 @@ impl DynamicMaskVocab {
             bounded_observation_sets: Arc::new(DynamicBoundedObservationSets::default()),
             terminal_observation_classes: Arc::from(Vec::<(TerminalID, Arc<[u32]>)>::new()),
             projected_terminal_quotients: Arc::from(Vec::<(TerminalID, Arc<TerminalProjectedQuotient>)>::new()),
+            runtime_projected_terminal_quotients: Arc::new(OnceLock::new()),
             projected_terminal_quotients_prepared: false,
             projected_terminal_text_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            projected_terminal_partition_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            projected_terminal_radius_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            pending_guard_blocked_mask_cache: Arc::new(Mutex::new(FxHashMap::default())),
             mask_tokenizer: None,
             mask_determinized_tokenizer: None,
             mask_projection_to_determinized: Arc::from(Vec::<u32>::new()),
@@ -3341,6 +3560,740 @@ impl DynamicMaskVocab {
     pub(crate) fn all_original_token_words(&self) -> &[u32] {
         self.all_original_token_words.as_ref()
     }
+
+    pub(crate) fn set_llg_slice_leftovers(
+        &mut self,
+        slices: Vec<(
+            u32,
+            Arc<VocabPartitionDfa>,
+            Arc<DynamicMaskTrie>,
+            Arc<Vec<u32>>,
+            U8Set,
+            u32,
+        )>,
+    ) {
+        let mut built = Vec::with_capacity(slices.len());
+        for (
+            cache_id,
+            dfa,
+            trie,
+            slice_original_token_words,
+            slice_token_bytes,
+            slice_max_token_byte_len,
+        ) in slices
+        {
+            let slice_node_token_markers = Self::build_node_token_markers(
+                trie.as_ref(),
+                &self.canonical_original_token_offsets,
+                &self.canonical_original_tokens,
+            );
+            let full_walk_token_markers =
+                Self::build_full_walk_token_markers(trie.as_ref(), &slice_node_token_markers);
+            let (subtree_original_token_offsets, subtree_original_tokens) =
+                Self::flatten_subtree_original_tokens(
+                    trie.as_ref(),
+                    &self.canonical_original_token_offsets,
+                    &self.canonical_original_tokens,
+                );
+            built.push(Arc::new(DynamicMaskSliceTrie {
+                cache_id,
+                dfa,
+                trie,
+                full_walk_token_markers,
+                subtree_original_token_offsets,
+                subtree_original_tokens,
+                slice_original_token_words,
+                slice_token_bytes,
+                slice_max_token_byte_len,
+            }));
+        }
+        self.llg_slice_leftovers = Arc::new(built);
+    }
+
+    pub(crate) fn set_llg_master_admitted_words(
+        &mut self,
+        max_safe_chars: u16,
+        admitted_words: Vec<Vec<u32>>,
+    ) {
+        debug_assert_eq!(admitted_words.len(), (usize::from(max_safe_chars) + 1) * 2);
+        self.llg_master_max_safe_chars = max_safe_chars;
+        self.llg_master_admitted_words = Arc::new(admitted_words);
+    }
+
+    #[inline(always)]
+    pub(crate) fn llg_master_admitted_words(
+        &self,
+        safe_radius: u16,
+        whitespace: bool,
+    ) -> Option<&[u32]> {
+        if self.llg_master_admitted_words.is_empty() {
+            return None;
+        }
+        let radius = safe_radius.min(self.llg_master_max_safe_chars) as usize;
+        self.llg_master_admitted_words
+            .get(radius * 2 + usize::from(whitespace))
+            .map(Vec::as_slice)
+    }
+
+    #[inline(always)]
+    pub(crate) fn llg_master_max_safe_chars(&self) -> u16 {
+        self.llg_master_max_safe_chars
+    }
+
+    #[inline(always)]
+    pub(crate) fn prepared_master_provers(
+        &self,
+        source: u32,
+        slice_slot: usize,
+    ) -> &[TerminalID] {
+        if slice_slot >= Self::PREPARED_PROOF_SLOT_COUNT {
+            return &[];
+        }
+        let row = source as usize * Self::PREPARED_PROOF_SLOT_COUNT + slice_slot;
+        let Some((&start, &end)) = self
+            .prepared_master_prover_offsets
+            .get(row)
+            .zip(self.prepared_master_prover_offsets.get(row + 1))
+        else {
+            return &[];
+        };
+        self.prepared_master_prover_terminals
+            .get(start as usize..end as usize)
+            .unwrap_or(&[])
+    }
+
+    /// Whether build/runtime preparation installed exact master-prover rows for
+    /// this tokenizer source. An empty positive-terminal row is still a valid
+    /// prepared row, so checking `prepared_master_provers()` itself is not
+    /// sufficient.
+    #[inline(always)]
+    pub(crate) fn has_prepared_master_prover_row(&self, source: u32) -> bool {
+        let row = source as usize * Self::PREPARED_PROOF_SLOT_COUNT;
+        self.prepared_master_prover_offsets
+            .get(row + Self::PREPARED_PROOF_SLOT_COUNT)
+            .is_some()
+    }
+
+    /// Exact build-time master-slice answer when this `(terminal, source)` is
+    /// represented by an exact projected terminal quotient.
+    ///
+    /// `prepare_master_provers_all_sources` solves the complete
+    /// quotient×slice product for every retained quotient residual. Therefore
+    /// once the compact row table is present, absence from a row is an exact
+    /// negative result for a terminal whose quotient contains `source`.
+    /// Missing rows or missing quotients remain `None` and must use the normal
+    /// runtime proof path.
+    #[inline]
+    pub(crate) fn prepared_master_proof_result(
+        &self,
+        source: u32,
+        slice_slot: usize,
+        terminal: TerminalID,
+    ) -> Option<bool> {
+        if slice_slot >= Self::PREPARED_PROOF_SLOT_COUNT
+            || self.prepared_master_prover_offsets.is_empty()
+            || self.projected_terminal_quotient(terminal, source).is_none()
+        {
+            return None;
+        }
+        let row = source as usize * Self::PREPARED_PROOF_SLOT_COUNT + slice_slot;
+        self.prepared_master_prover_offsets.get(row + 1)?;
+        Some(
+            self.prepared_master_provers(source, slice_slot)
+                .binary_search(&terminal)
+                .is_ok(),
+        )
+    }
+
+    #[inline(always)]
+    pub(crate) fn prepared_safe_radii(&self, source: u32) -> &[(TerminalID, u16)] {
+        let row = source as usize;
+        let Some((&start, &end)) = self
+            .prepared_safe_radius_offsets
+            .get(row)
+            .zip(self.prepared_safe_radius_offsets.get(row + 1))
+        else {
+            return &[];
+        };
+        self.prepared_safe_radius_entries
+            .get(start as usize..end as usize)
+            .unwrap_or(&[])
+    }
+
+    /// Build positive-only parser-independent master-slice certificates for
+    /// every exact source TSID represented by the currently prepared terminal
+    /// quotients. One `(terminal quotient, slice)` product graph is solved once
+    /// for all quotient residual states; source TSIDs are then fanned out
+    /// through the quotient's exact source->residual mapping.
+    pub(crate) fn prepare_master_provers_all_sources(
+        &mut self,
+        tokenizer: &Tokenizer,
+        source_state_count: usize,
+        include_safe_radii: bool,
+    ) -> (usize, usize) {
+        let Some(safe_plus) = self
+            .llg_slice_leftovers
+            .iter()
+            .find(|slice| slice.cache_id() == 0)
+            .cloned()
+        else {
+            return (0, 0);
+        };
+        let Some(whitespace) = self
+            .llg_slice_leftovers
+            .iter()
+            .find(|slice| slice.cache_id() == 3)
+            .cloned()
+        else {
+            return (0, 0);
+        };
+        let mut proof_languages = Vec::<(usize, Arc<VocabPartitionDfa>, U8Set)>::new();
+        let required_bytes = |dfa: &VocabPartitionDfa| {
+            let mut bytes = U8Set::empty();
+            for raw in 0u16..=255 {
+                let byte = raw as u8;
+                let used = (0..dfa.state_count() as u32).any(|state| {
+                    dfa.can_reach_accepting(state)
+                        && dfa.can_reach_accepting(dfa.step(state, byte))
+                });
+                if used {
+                    bytes.insert(byte);
+                }
+            }
+            bytes
+        };
+        proof_languages.push((
+            Self::PREPARED_SAFE_PLUS_SLOT,
+            Arc::clone(&safe_plus.dfa),
+            required_bytes(safe_plus.dfa()),
+        ));
+        proof_languages.push((
+            Self::PREPARED_WHITESPACE_SLOT,
+            Arc::clone(&whitespace.dfa),
+            required_bytes(whitespace.dfa()),
+        ));
+        let quotients = self.active_projected_terminal_quotients();
+        if quotients.is_empty() || source_state_count == 0 {
+            self.prepared_master_prover_offsets = Arc::from(Vec::<u32>::new());
+            self.prepared_master_prover_terminals = Arc::from(Vec::<TerminalID>::new());
+            return (0, 0);
+        }
+
+        struct PreparedPair {
+            terminal: TerminalID,
+            slice_slot: usize,
+            certified_sources: Vec<u32>,
+            product_pairs: usize,
+            elapsed_ns: u64,
+            verified: usize,
+            mismatches: usize,
+            unknown: usize,
+        }
+        let verify = std::env::var_os("GLRMASK_VERIFY_PREPARED_MASTER_PROVERS").is_some();
+        let jobs = quotients
+            .par_iter()
+            .flat_map_iter(|(terminal, quotient)| {
+                proof_languages
+                    .iter()
+                    .filter_map(move |(slot, slice, required)| {
+                        tokenizer
+                            .terminal_byte_support(*terminal)
+                            .is_some_and(|support| required.is_subset(&support))
+                            .then_some((*terminal, Arc::clone(quotient), *slot, Arc::clone(slice)))
+                    })
+            })
+            .map(|(terminal, quotient, slice_slot, slice)| {
+                let started = std::time::Instant::now();
+                let (transparent, product_pairs) =
+                    Self::terminal_partition_all_transparent_states(quotient.as_ref(), slice.as_ref());
+                let mut verified = 0usize;
+                let mut mismatches = 0usize;
+                let mut unknown = 0usize;
+                if verify {
+                    for (&source, &projected) in quotient
+                        .projected_source_states()
+                        .iter()
+                        .zip(quotient.projected_states_for_sources())
+                    {
+                        let batch = transparent.get(projected as usize).copied().unwrap_or(false);
+                        match Self::terminal_partition_product_is_transparent(
+                            quotient.as_ref(),
+                            slice.as_ref(),
+                            source,
+                            200_000,
+                        ) {
+                            Some(reference) => {
+                                verified += 1;
+                                mismatches += usize::from(reference != batch);
+                            }
+                            None => unknown += 1,
+                        }
+                    }
+                }
+                let certified_sources = quotient
+                    .projected_source_states()
+                    .iter()
+                    .copied()
+                    .zip(quotient.projected_states_for_sources().iter().copied())
+                    .filter_map(|(source, projected)| {
+                        ((source as usize) < source_state_count
+                            && transparent.get(projected as usize).copied().unwrap_or(false))
+                        .then_some(source)
+                    })
+                    .collect::<Vec<_>>();
+                PreparedPair {
+                    terminal,
+                    slice_slot,
+                    certified_sources,
+                    product_pairs,
+                    elapsed_ns: started.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64,
+                    verified,
+                    mismatches,
+                    unknown,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let mut rows = vec![
+            SmallVec::<[TerminalID; 4]>::new();
+            source_state_count * Self::PREPARED_PROOF_SLOT_COUNT
+        ];
+        let mut product_pairs = 0usize;
+        let mut pair_work_ns = 0u64;
+        let mut max_pair_ns = 0u64;
+        let mut verified = 0usize;
+        let mut mismatches = 0usize;
+        let mut unknown = 0usize;
+        for job in jobs {
+            product_pairs = product_pairs.saturating_add(job.product_pairs);
+            pair_work_ns = pair_work_ns.saturating_add(job.elapsed_ns);
+            max_pair_ns = max_pair_ns.max(job.elapsed_ns);
+            verified += job.verified;
+            mismatches += job.mismatches;
+            unknown += job.unknown;
+            for source in job.certified_sources {
+                rows[source as usize * Self::PREPARED_PROOF_SLOT_COUNT + job.slice_slot]
+                    .push(job.terminal);
+            }
+        }
+        if std::env::var_os("GLRMASK_PROFILE_PREPARED_MASTER_PROVERS").is_some() {
+            eprintln!(
+                "[glrmask/profile][prepared_master_pair_work] jobs={} work_ms={:.3} max_pair_ms={:.3}",
+                quotients.len() * 2,
+                pair_work_ns as f64 / 1e6,
+                max_pair_ns as f64 / 1e6,
+            );
+        }
+        if verify {
+            eprintln!(
+                "[glrmask/profile][prepared_master_verify] verified={} mismatches={} unknown={}",
+                verified, mismatches, unknown,
+            );
+            assert_eq!(mismatches, 0, "batched master proof disagrees with per-source exact proof");
+        }
+
+        let entry_count = rows.iter().map(SmallVec::len).sum::<usize>();
+        let mut offsets = Vec::<u32>::with_capacity(rows.len() + 1);
+        let mut terminals = Vec::<TerminalID>::with_capacity(entry_count);
+        offsets.push(0);
+        for mut row in rows {
+            row.sort_unstable();
+            row.dedup();
+            terminals.extend(row);
+            offsets.push(terminals.len() as u32);
+        }
+        if include_safe_radii {
+            let max_radius = self.llg_master_max_safe_chars;
+            let radius_jobs = quotients
+                .par_iter()
+                .map(|(terminal, quotient)| {
+                    let radii = Self::terminal_partition_all_repeat_radii(
+                        quotient.as_ref(),
+                        safe_plus.dfa(),
+                        u32::from(max_radius),
+                    );
+                    (*terminal, Arc::clone(quotient), radii)
+                })
+                .collect::<Vec<_>>();
+            let mut radius_rows =
+                vec![SmallVec::<[(TerminalID, u16); 4]>::new(); source_state_count];
+            for (terminal, quotient, radii) in radius_jobs {
+                for (&source, &projected) in quotient
+                    .projected_source_states()
+                    .iter()
+                    .zip(quotient.projected_states_for_sources())
+                {
+                    if source as usize >= source_state_count {
+                        continue;
+                    }
+                    let radius = radii
+                        .get(projected as usize)
+                        .copied()
+                        .unwrap_or(0)
+                        .min(u32::from(max_radius)) as u16;
+                    if radius != 0 {
+                        radius_rows[source as usize].push((terminal, radius));
+                    }
+                }
+            }
+            let radius_entry_count = radius_rows.iter().map(SmallVec::len).sum::<usize>();
+            let mut radius_offsets = Vec::<u32>::with_capacity(source_state_count + 1);
+            let mut radius_entries = Vec::<(TerminalID, u16)>::with_capacity(radius_entry_count);
+            radius_offsets.push(0);
+            for mut row in radius_rows {
+                row.sort_unstable_by_key(|&(terminal, _)| terminal);
+                row.dedup_by_key(|entry| entry.0);
+                radius_entries.extend(row);
+                radius_offsets.push(radius_entries.len() as u32);
+            }
+            self.prepared_safe_radius_offsets = Arc::from(radius_offsets);
+            self.prepared_safe_radius_entries = Arc::from(radius_entries);
+        } else {
+            self.prepared_safe_radius_offsets = Arc::from(Vec::<u32>::new());
+            self.prepared_safe_radius_entries = Arc::from(Vec::<(TerminalID, u16)>::new());
+        }
+        // Keep the borrow of the active quotient sidecar alive through the
+        // optional radius analysis above, then publish the compact prepared
+        // rows only after all quotient reads are complete.
+        self.prepared_master_prover_offsets = Arc::from(offsets);
+        self.prepared_master_prover_terminals = Arc::from(terminals);
+        (entry_count, product_pairs)
+    }
+
+    /// Exact all-start-state analogue of `projected_terminal_slice_repeat_radius`.
+    /// `distance[p,q]` is the minimum number of additional completed slice
+    /// atoms in a completed slice word whose prefix first leaves the live
+    /// terminal residual. Solving this reverse shortest-path problem once gives
+    /// the bounded radius for every quotient residual state simultaneously.
+    fn terminal_partition_all_repeat_radii(
+        quotient: &TerminalProjectedQuotient,
+        slice: &VocabPartitionDfa,
+        max_repetitions: u32,
+    ) -> Vec<u32> {
+        let q_count = quotient.projected_state_count();
+        let p_count = slice.state_count();
+        if q_count == 0 || p_count == 0 || max_repetitions == 0 {
+            return vec![0; q_count];
+        }
+
+        let mut representatives = SmallVec::<[(u8, u8, u8); 32]>::new();
+        for raw in 0u16..=255 {
+            let byte = raw as u8;
+            let p_class = slice.byte_class(byte);
+            let q_class = quotient.projected_byte_class(byte);
+            if !representatives
+                .iter()
+                .any(|&(p, q, _)| p == p_class && q == q_class)
+            {
+                representatives.push((p_class, q_class, byte));
+            }
+        }
+
+        // Minimum completed-atom cost from each slice state to some accepting
+        // state. Edge cost is one exactly when the target state completes an
+        // atom; UTF-8 continuation transitions therefore cost zero.
+        let mut slice_reverse = vec![SmallVec::<[(u32, u8); 8]>::new(); p_count];
+        for p in 0..p_count as u32 {
+            let mut seen = SmallVec::<[u32; 16]>::new();
+            for &(_, _, byte) in &representatives {
+                let target = slice.step(p, byte);
+                if target as usize >= p_count || seen.contains(&target) {
+                    continue;
+                }
+                seen.push(target);
+                slice_reverse[target as usize]
+                    .push((p, u8::from(slice.is_accepting(target))));
+            }
+        }
+        let mut min_to_accept = vec![u32::MAX; p_count];
+        let mut zero_one = VecDeque::<u32>::new();
+        for p in 0..p_count as u32 {
+            if slice.is_accepting(p) {
+                min_to_accept[p as usize] = 0;
+                zero_one.push_back(p);
+            }
+        }
+        while let Some(target) = zero_one.pop_front() {
+            let base = min_to_accept[target as usize];
+            for &(source, cost) in &slice_reverse[target as usize] {
+                let candidate = base.saturating_add(u32::from(cost));
+                if candidate < min_to_accept[source as usize] {
+                    min_to_accept[source as usize] = candidate;
+                    if cost == 0 {
+                        zero_one.push_front(source);
+                    } else {
+                        zero_one.push_back(source);
+                    }
+                }
+            }
+        }
+
+        let pair_count = p_count * q_count;
+        let index = |p: u32, q: u32| p as usize * q_count + q as usize;
+        let mut reverse = vec![SmallVec::<[(u32, u8); 8]>::new(); pair_count];
+        let mut distance = vec![u32::MAX; pair_count];
+        let mut heap = BinaryHeap::<(Reverse<u32>, u32)>::new();
+
+        for p in 0..p_count as u32 {
+            if !slice.can_reach_accepting(p) {
+                continue;
+            }
+            for q in 0..q_count as u32 {
+                let current = index(p, q);
+                let q_live = quotient.projected_state_is_accepting(q)
+                    || quotient.projected_state_has_future(q);
+                if !q_live {
+                    distance[current] = 0;
+                    heap.push((Reverse(0), current as u32));
+                    continue;
+                }
+                for &(_, q_class, byte) in &representatives {
+                    let p_target = slice.step(p, byte);
+                    if !slice.can_reach_accepting(p_target) {
+                        continue;
+                    }
+                    let enter_cost = u32::from(slice.is_accepting(p_target));
+                    let q_target = quotient.projected_step_class(q, q_class);
+                    let target_live = q_target.is_some_and(|target| {
+                        quotient.projected_state_is_accepting(target)
+                            || quotient.projected_state_has_future(target)
+                    });
+                    if !target_live {
+                        let completion = min_to_accept[p_target as usize];
+                        if completion != u32::MAX {
+                            let candidate = enter_cost.saturating_add(completion);
+                            if candidate < distance[current] {
+                                distance[current] = candidate;
+                                heap.push((Reverse(candidate), current as u32));
+                            }
+                        }
+                        continue;
+                    }
+                    let target = index(p_target, q_target.expect("live target exists"));
+                    reverse[target].push((current as u32, enter_cost as u8));
+                }
+            }
+        }
+
+        while let Some((Reverse(dist), target)) = heap.pop() {
+            if distance[target as usize] != dist {
+                continue;
+            }
+            for &(pred, cost) in &reverse[target as usize] {
+                let candidate = dist.saturating_add(u32::from(cost));
+                if candidate < distance[pred as usize] {
+                    distance[pred as usize] = candidate;
+                    heap.push((Reverse(candidate), pred));
+                }
+            }
+        }
+
+        let start = slice.start_state();
+        (0..q_count as u32)
+            .map(|q| {
+                if !quotient.projected_state_is_accepting(q)
+                    && !quotient.projected_state_has_future(q)
+                {
+                    0
+                } else {
+                    match distance[index(start, q)] {
+                        u32::MAX => max_repetitions,
+                        first_counterexample => first_counterexample
+                            .saturating_sub(1)
+                            .min(max_repetitions),
+                    }
+                }
+            })
+            .collect()
+    }
+
+    /// Exact all-start-state version of `terminal_partition_product_is_transparent`.
+    /// A product pair `(p,q)` is bad when some byte that keeps `P` on an
+    /// accepting-prefix path either has no live `Q` successor or reaches a bad
+    /// product pair. This computes the least backwards closure of those bad
+    /// pairs once, yielding the answer for every quotient state simultaneously.
+    fn terminal_partition_all_transparent_states(
+        quotient: &TerminalProjectedQuotient,
+        partition: &VocabPartitionDfa,
+    ) -> (Vec<bool>, usize) {
+        let q_count = quotient.projected_state_count();
+        let p_count = partition.state_count();
+        if q_count == 0 || p_count == 0 {
+            return (vec![false; q_count], 0);
+        }
+
+        // Refine the two exact byte partitions once. One representative is
+        // sufficient for each `(P class, Q class)` pair because both automata
+        // transition identically for every byte in that pair.
+        let mut representatives = SmallVec::<[(u8, u8, u8); 32]>::new();
+        for raw in 0u16..=255 {
+            let byte = raw as u8;
+            let p_class = partition.byte_class(byte);
+            let q_class = quotient.projected_byte_class(byte);
+            if !representatives
+                .iter()
+                .any(|&(p, q, _)| p == p_class && q == q_class)
+            {
+                representatives.push((p_class, q_class, byte));
+            }
+        }
+
+        let pair_count = p_count.saturating_mul(q_count);
+        let pair_index = |p: u32, q: u32| p as usize * q_count + q as usize;
+        let mut predecessors = vec![SmallVec::<[u32; 8]>::new(); pair_count];
+        let mut bad = vec![false; pair_count];
+        let mut queue = VecDeque::<u32>::new();
+
+        for p in 0..p_count as u32 {
+            if !partition.can_reach_accepting(p) {
+                continue;
+            }
+            for q in 0..q_count as u32 {
+                let current = pair_index(p, q);
+                if !quotient.projected_state_is_accepting(q)
+                    && !quotient.projected_state_has_future(q)
+                {
+                    bad[current] = true;
+                    queue.push_back(current as u32);
+                    continue;
+                }
+
+                let mut immediate_bad = false;
+                for &(_, q_class, byte) in &representatives {
+                    let p_target = partition.step(p, byte);
+                    if !partition.can_reach_accepting(p_target) {
+                        continue;
+                    }
+                    let Some(q_target) = quotient.projected_step_class(q, q_class) else {
+                        immediate_bad = true;
+                        break;
+                    };
+                    if !quotient.projected_state_is_accepting(q_target)
+                        && !quotient.projected_state_has_future(q_target)
+                    {
+                        immediate_bad = true;
+                        break;
+                    }
+                    let target = pair_index(p_target, q_target);
+                    predecessors[target].push(current as u32);
+                }
+                if immediate_bad {
+                    bad[current] = true;
+                    queue.push_back(current as u32);
+                }
+            }
+        }
+
+        while let Some(target) = queue.pop_front() {
+            for &pred in &predecessors[target as usize] {
+                if !bad[pred as usize] {
+                    bad[pred as usize] = true;
+                    queue.push_back(pred);
+                }
+            }
+        }
+
+        let start = partition.start_state();
+        let mut transparent = vec![false; q_count];
+        if partition.can_reach_accepting(start) {
+            for q in 0..q_count as u32 {
+                transparent[q as usize] = !bad[pair_index(start, q)];
+            }
+        } else {
+            for q in 0..q_count as u32 {
+                transparent[q as usize] = quotient.projected_state_is_accepting(q)
+                    || quotient.projected_state_has_future(q);
+            }
+        }
+        (transparent, pair_count)
+    }
+
+    #[inline]
+    fn active_projected_terminal_quotients(
+        &self,
+    ) -> &[(TerminalID, Arc<TerminalProjectedQuotient>)] {
+        if self.projected_terminal_quotients_prepared {
+            self.projected_terminal_quotients.as_ref()
+        } else {
+            self.runtime_projected_terminal_quotients
+                .get()
+                .map(Arc::as_ref)
+                .unwrap_or(&[])
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn llg_master_trie(&self) -> Option<&DynamicMaskSliceTrie> {
+        self.llg_slice_by_cache_id(DYNAMIC_MASK_LLG_MASTER_CACHE_ID)
+    }
+
+    #[inline(always)]
+    pub(crate) fn llg_slice_leftovers(&self) -> &[Arc<DynamicMaskSliceTrie>] {
+        self.llg_slice_leftovers.as_ref()
+    }
+
+    #[inline(always)]
+    pub(crate) fn has_llg_slice_leftovers(&self) -> bool {
+        !self.llg_slice_leftovers.is_empty()
+    }
+
+    #[inline(always)]
+    pub(crate) fn llg_slice_by_cache_id(&self, cache_id: u32) -> Option<&DynamicMaskSliceTrie> {
+        self.llg_slice_leftovers
+            .iter()
+            .find(|slice| slice.cache_id() == cache_id)
+            .map(Arc::as_ref)
+    }
+
+    #[inline(always)]
+    pub(crate) fn residual_original_token_words_for(
+        &self,
+        trie: &DynamicMaskTrie,
+    ) -> Option<&[u32]> {
+        self.llg_slice_leftovers
+            .iter()
+            .find(|slice| {
+                slice.cache_id() & 0x100 != 0 && std::ptr::eq(trie, slice.trie())
+            })
+            .map(|slice| slice.slice_original_token_words())
+    }
+
+    #[inline(always)]
+    pub(crate) fn full_walk_token_markers_for(&self, trie: &DynamicMaskTrie) -> &[u64] {
+        if std::ptr::eq(trie, self.trie.as_ref()) {
+            return self.full_walk_token_markers();
+        }
+        if let Some(slice) = self
+            .llg_slice_leftovers
+            .iter()
+            .find(|slice| std::ptr::eq(trie, slice.trie()))
+        {
+            return slice.full_walk_token_markers();
+        }
+        debug_assert!(false, "unknown dynamic-mask walk trie");
+        &[]
+    }
+
+    #[inline(always)]
+    pub(crate) fn subtree_original_tokens_for(
+        &self,
+        trie: &DynamicMaskTrie,
+        node: u32,
+    ) -> &[u32] {
+        if std::ptr::eq(trie, self.trie.as_ref()) {
+            return self.subtree_original_tokens(node);
+        }
+        if let Some(slice) = self
+            .llg_slice_leftovers
+            .iter()
+            .find(|slice| std::ptr::eq(trie, slice.trie()))
+        {
+            return slice.subtree_original_tokens(node);
+        }
+        debug_assert!(false, "unknown dynamic-mask walk trie");
+        &[]
+    }
+
 
     fn flatten_subtree_original_tokens(
         trie: &DynamicMaskTrie,
@@ -3752,6 +4705,8 @@ impl DynamicMaskVocab {
         self.mask_source_subset_to_state = Arc::clone(&source.mask_source_subset_to_state);
         self.terminal_observation_classes = Arc::clone(&source.terminal_observation_classes);
         self.projected_terminal_quotients = Arc::clone(&source.projected_terminal_quotients);
+        self.runtime_projected_terminal_quotients =
+            Arc::clone(&source.runtime_projected_terminal_quotients);
         self.projected_terminal_quotients_prepared =
             source.projected_terminal_quotients_prepared;
         self.virtual_unit_repeat_projection = source.virtual_unit_repeat_projection;
@@ -4050,8 +5005,17 @@ impl DynamicMaskVocab {
                 .map(|(terminal, quotient)| (terminal, Arc::new(quotient)))
                 .collect::<Vec<_>>(),
         );
+        self.runtime_projected_terminal_quotients = Arc::new(OnceLock::new());
         self.projected_terminal_quotients_prepared = true;
         self.projected_terminal_text_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clear();
+        self.projected_terminal_partition_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clear();
+        self.projected_terminal_radius_cache
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clear();
@@ -4072,17 +5036,54 @@ impl DynamicMaskVocab {
         terminal: TerminalID,
         source: u32,
     ) -> Option<&TerminalProjectedQuotient> {
-        let index = self
-            .projected_terminal_quotients
+        let quotients = self.active_projected_terminal_quotients();
+        let index = quotients
             .binary_search_by_key(&terminal, |(candidate, _)| *candidate)
             .ok()?;
-        let quotient = self.projected_terminal_quotients[index].1.as_ref();
+        let quotient = quotients[index].1.as_ref();
         quotient.contains_source(source).then_some(quotient)
+    }
+
+    pub(crate) fn prepare_runtime_projected_terminal_quotients(
+        &self,
+        source: &Tokenizer,
+        safe_slice_bytes: &U8Set,
+    ) {
+        if self.projected_terminal_quotients_prepared
+            || self.runtime_projected_terminal_quotients.get().is_some()
+        {
+            return;
+        }
+        let _ = self.runtime_projected_terminal_quotients.get_or_init(|| {
+            let candidates = (0..source.num_terminals())
+                .filter(|&terminal| {
+                    source
+                        .terminal_byte_support(terminal)
+                        .is_some_and(|support| safe_slice_bytes.is_subset(&support))
+                })
+                .collect::<Vec<_>>();
+            let mut quotients = source
+                .build_terminal_projected_quotients_for_containment_candidates(&candidates);
+            quotients.sort_unstable_by_key(|(terminal, _)| *terminal);
+            quotients.dedup_by_key(|(terminal, _)| *terminal);
+            Arc::from(
+                quotients
+                    .into_iter()
+                    .map(|(terminal, quotient)| (terminal, Arc::new(quotient)))
+                    .collect::<Vec<_>>(),
+            )
+        });
     }
 
     #[inline]
     pub(crate) fn has_projected_terminal_quotients(&self) -> bool {
-        !self.projected_terminal_quotients.is_empty()
+        if self.projected_terminal_quotients_prepared {
+            !self.projected_terminal_quotients.is_empty()
+        } else {
+            self.runtime_projected_terminal_quotients
+                .get()
+                .is_some_and(|quotients| !quotients.is_empty())
+        }
     }
 
     #[inline]
@@ -4122,6 +5123,357 @@ impl DynamicMaskVocab {
             .insert(key, certified);
         Some(certified)
     }
+    pub(crate) fn projected_terminal_slice_contained(
+        &self,
+        terminal: TerminalID,
+        source: u32,
+        slice_cache_id: u32,
+        slice_dfa: &VocabPartitionDfa,
+    ) -> Option<bool> {
+        let key = (terminal, source, 0x8000_0000u32 | slice_cache_id);
+        if let Some(&cached) = self
+            .projected_terminal_partition_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(&key)
+        {
+            return Some(cached);
+        }
+        let quotient = self.projected_terminal_quotient(terminal, source)?;
+        let certified = Self::terminal_partition_product_is_transparent(
+            quotient, slice_dfa, source, 200_000,
+        )
+        .unwrap_or(false);
+        self.projected_terminal_partition_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(key, certified);
+        Some(certified)
+    }
+
+    /// Return the largest completed-atom count `r <= max_repetitions` such
+    /// that every word in the regular `slice+` language with at most `r`
+    /// completed atoms remains a live prefix of this exact projected terminal.
+    ///
+    /// The slice DFA must mark completion of one atom by entering an accepting
+    /// state (the safe+ UTF-8 DFA has exactly this property). This is the finite
+    /// quotient analogue of the symbolic residual repeat-radius proof: find the
+    /// shortest slice word that reaches a dead/missing quotient transition, and
+    /// admit every strictly shorter completed-atom layer.
+    pub(crate) fn projected_terminal_slice_repeat_radius(
+        &self,
+        terminal: TerminalID,
+        source: u32,
+        slice_cache_id: u32,
+        slice: &VocabPartitionDfa,
+        max_repetitions: u32,
+        work_limit: usize,
+    ) -> Option<u32> {
+        if max_repetitions == 0 || slice.accepting_map().get(slice.start_state() as usize).copied()? {
+            return None;
+        }
+        let key = (terminal, source, slice_cache_id, max_repetitions);
+        if let Some(&cached) = self
+            .projected_terminal_radius_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(&key)
+        {
+            return Some(cached);
+        }
+        let quotient = self.projected_terminal_quotient(terminal, source)?;
+        let quotient_start = quotient.projected_state_for_source(source)?;
+        if !quotient.projected_state_is_accepting(quotient_start)
+            && !quotient.projected_state_has_future(quotient_start)
+        {
+            return Some(0);
+        }
+
+        let slice_state_count = slice.accepting_map().len();
+        if slice_state_count == 0 {
+            return None;
+        }
+
+        // Exact representatives for the common refinement of the slice and
+        // quotient byte partitions.
+        let mut representatives = Vec::<u8>::new();
+        let mut seen_classes = FxHashSet::<(u8, u8)>::default();
+        for byte in 0u16..=255 {
+            let byte = byte as u8;
+            let pair = (slice.byte_class(byte), quotient.projected_byte_class(byte));
+            if seen_classes.insert(pair) {
+                representatives.push(byte);
+            }
+        }
+
+        // Minimum additional completed atoms needed to reach slice acceptance
+        // from every slice state. Entering an accepting state completes one
+        // atom; UTF-8 continuation states therefore have zero-cost edges.
+        let mut reverse = vec![Vec::<(u32, u8)>::new(); slice_state_count];
+        for source_state in 0..slice_state_count as u32 {
+            let mut seen_targets = FxHashSet::<u32>::default();
+            for &byte in &representatives {
+                let target = slice.step(source_state, byte);
+                if target as usize >= slice_state_count || !seen_targets.insert(target) {
+                    continue;
+                }
+                reverse[target as usize].push((
+                    source_state,
+                    u8::from(slice.accepting_map()[target as usize]),
+                ));
+            }
+        }
+        let mut min_to_accept = vec![u32::MAX; slice_state_count];
+        let mut distance_queue = VecDeque::<u32>::new();
+        for (state, &accepting) in slice.accepting_map().iter().enumerate() {
+            if accepting {
+                min_to_accept[state] = 0;
+                distance_queue.push_back(state as u32);
+            }
+        }
+        while let Some(target) = distance_queue.pop_front() {
+            let target_distance = min_to_accept[target as usize];
+            for &(source_state, cost) in &reverse[target as usize] {
+                let candidate = target_distance.saturating_add(u32::from(cost));
+                if candidate < min_to_accept[source_state as usize] {
+                    min_to_accept[source_state as usize] = candidate;
+                    if cost == 0 {
+                        distance_queue.push_front(source_state);
+                    } else {
+                        distance_queue.push_back(source_state);
+                    }
+                }
+            }
+        }
+
+        let mut best = FxHashMap::<(u32, u32), u32>::default();
+        let mut queue = VecDeque::<(u32, u32, u32)>::new();
+        let slice_start = slice.start_state();
+        best.insert((slice_start, quotient_start), 0);
+        queue.push_back((slice_start, quotient_start, 0));
+        let mut work = 0usize;
+        let mut first_counterexample = max_repetitions.saturating_add(1);
+
+        while let Some((slice_state, quotient_state, completed)) = queue.pop_front() {
+            if best.get(&(slice_state, quotient_state)).copied() != Some(completed)
+                || completed >= first_counterexample
+                || completed > max_repetitions
+            {
+                continue;
+            }
+            for &byte in &representatives {
+                let slice_target = slice.step(slice_state, byte);
+                if slice_target as usize >= slice_state_count
+                    || !slice.can_reach_accepting(slice_target)
+                {
+                    continue;
+                }
+                let completed_target = completed.saturating_add(u32::from(
+                    slice.accepting_map()[slice_target as usize],
+                ));
+                let completion_cost = min_to_accept[slice_target as usize];
+                if completion_cost == u32::MAX {
+                    continue;
+                }
+                let shortest_complete_word = completed_target.saturating_add(completion_cost);
+                if shortest_complete_word > max_repetitions {
+                    continue;
+                }
+                work = work.saturating_add(1);
+                if work > work_limit {
+                    return None;
+                }
+                let quotient_class = quotient.projected_byte_class(byte);
+                let quotient_target = quotient.projected_step_class(quotient_state, quotient_class);
+                let target_live = quotient_target.is_some_and(|target| {
+                    quotient.projected_state_is_accepting(target)
+                        || quotient.projected_state_has_future(target)
+                });
+                if !target_live {
+                    first_counterexample = first_counterexample.min(shortest_complete_word);
+                    continue;
+                }
+                let quotient_target = quotient_target.expect("live quotient target must exist");
+                if completed_target >= first_counterexample
+                    || completed_target > max_repetitions
+                {
+                    continue;
+                }
+                let state_key = (slice_target, quotient_target);
+                if completed_target < best.get(&state_key).copied().unwrap_or(u32::MAX) {
+                    best.insert(state_key, completed_target);
+                    if slice.accepting_map()[slice_target as usize] {
+                        queue.push_back((slice_target, quotient_target, completed_target));
+                    } else {
+                        queue.push_front((slice_target, quotient_target, completed_target));
+                    }
+                }
+            }
+        }
+
+        let radius = first_counterexample.saturating_sub(1).min(max_repetitions);
+        self.projected_terminal_radius_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(key, radius);
+        Some(radius)
+    }
+
+    pub(crate) fn cached_pending_guard_blocked_mask(
+        &self,
+        memories: &[(u32, TerminalID)],
+    ) -> Option<Arc<Vec<u32>>> {
+        self.pending_guard_blocked_mask_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(memories)
+            .cloned()
+    }
+
+    pub(crate) fn cache_pending_guard_blocked_mask(
+        &self,
+        memories: &[(u32, TerminalID)],
+        mask: Vec<u32>,
+    ) -> Arc<Vec<u32>> {
+        // Bound retained derived data independently of corpus behavior. A
+        // Llama-sized mask is about 16 KiB, so 256 entries cap this cache at
+        // roughly 4 MiB plus map/key overhead.
+        const MAX_PENDING_GUARD_MASK_CACHE_ENTRIES: usize = 256;
+        let mut cache = self
+            .pending_guard_blocked_mask_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(existing) = cache.get(memories) {
+            return Arc::clone(existing);
+        }
+        if cache.len() >= MAX_PENDING_GUARD_MASK_CACHE_ENTRIES {
+            cache.clear();
+        }
+        let mask = Arc::new(mask);
+        cache.insert(memories.to_vec(), Arc::clone(&mask));
+        mask
+    }
+
+    pub(crate) fn cached_residual_slice_contained(
+        &self,
+        terminal: TerminalID,
+        source: u32,
+        slice_cache_id: u32,
+    ) -> Option<bool> {
+        let key = (terminal, source, 0xA000_0000u32 | slice_cache_id);
+        self.projected_terminal_partition_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(&key)
+            .copied()
+    }
+
+    pub(crate) fn cache_residual_slice_contained(
+        &self,
+        terminal: TerminalID,
+        source: u32,
+        slice_cache_id: u32,
+        contained: bool,
+    ) {
+        let key = (terminal, source, 0xA000_0000u32 | slice_cache_id);
+        self.projected_terminal_partition_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(key, contained);
+    }
+
+    pub(crate) fn cached_direct_slice_contained(
+        &self,
+        terminal: TerminalID,
+        mask_state: u32,
+        slice_cache_id: u32,
+    ) -> Option<bool> {
+        let key = (terminal, mask_state, 0xC000_0000u32 | slice_cache_id);
+        self.projected_terminal_partition_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(&key)
+            .copied()
+    }
+
+    pub(crate) fn cache_direct_slice_contained(
+        &self,
+        terminal: TerminalID,
+        mask_state: u32,
+        slice_cache_id: u32,
+        contained: bool,
+    ) {
+        let key = (terminal, mask_state, 0xC000_0000u32 | slice_cache_id);
+        self.projected_terminal_partition_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(key, contained);
+    }
+
+    fn terminal_partition_product_is_transparent(
+        quotient: &TerminalProjectedQuotient,
+        partition: &VocabPartitionDfa,
+        source: u32,
+        work_limit: usize,
+    ) -> Option<bool> {
+        let quotient_start = quotient.projected_state_for_source(source)?;
+        if !quotient.projected_state_is_accepting(quotient_start)
+            && !quotient.projected_state_has_future(quotient_start)
+        {
+            return Some(false);
+        }
+        let partition_start = partition.start_state();
+        if !partition.can_reach_accepting(partition_start) {
+            return Some(true);
+        }
+
+        // Refine the two exact global byte partitions. A byte representative is
+        // interchangeable only when both automata put it in the same class.
+        let mut representatives = Vec::<(u8, u8, u8)>::new();
+        for byte in 0u16..=255 {
+            let byte = byte as u8;
+            let partition_class = partition.byte_class(byte);
+            let quotient_class = quotient.projected_byte_class(byte);
+            if !representatives.iter().any(|&(p, q, _)| {
+                p == partition_class && q == quotient_class
+            }) {
+                representatives.push((partition_class, quotient_class, byte));
+            }
+        }
+
+        let mut seen = FxHashSet::<(u32, u32)>::default();
+        let mut queue = VecDeque::from([(partition_start, quotient_start)]);
+        let mut work = 0usize;
+        while let Some((partition_state, quotient_state)) = queue.pop_front() {
+            if !seen.insert((partition_state, quotient_state)) {
+                continue;
+            }
+            for &(_, quotient_class, byte) in &representatives {
+                work = work.saturating_add(1);
+                if work > work_limit {
+                    return None;
+                }
+                let partition_target = partition.step(partition_state, byte);
+                if !partition.can_reach_accepting(partition_target) {
+                    continue;
+                }
+                let Some(quotient_target) =
+                    quotient.projected_step_class(quotient_state, quotient_class)
+                else {
+                    return Some(false);
+                };
+                if !quotient.projected_state_is_accepting(quotient_target)
+                    && !quotient.projected_state_has_future(quotient_target)
+                {
+                    return Some(false);
+                }
+                if !seen.contains(&(partition_target, quotient_target)) {
+                    queue.push_back((partition_target, quotient_target));
+                }
+            }
+        }
+        Some(true)
+    }
 
     pub(crate) fn cached_direct_regular_frontier(
         &self,
@@ -4157,18 +5509,18 @@ impl DynamicMaskVocab {
         entry
     }
 
-    pub(crate) fn lock_lazy_union16_cache(
+    pub(crate) fn lock_lazy_union_cache(
         &self,
-    ) -> std::sync::MutexGuard<'_, DynamicLazyUnion16Cache> {
-        self.lazy_union16_cache
+    ) -> std::sync::MutexGuard<'_, DynamicLazyUnionCache> {
+        self.lazy_union_cache
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
-    pub(crate) fn try_lock_lazy_union16_cache(
+    pub(crate) fn try_lock_lazy_union_cache(
         &self,
-    ) -> Option<std::sync::MutexGuard<'_, DynamicLazyUnion16Cache>> {
-        match self.lazy_union16_cache.try_lock() {
+    ) -> Option<std::sync::MutexGuard<'_, DynamicLazyUnionCache>> {
+        match self.lazy_union_cache.try_lock() {
             Ok(cache) => Some(cache),
             Err(std::sync::TryLockError::Poisoned(poisoned)) => Some(poisoned.into_inner()),
             Err(std::sync::TryLockError::WouldBlock) => None,
@@ -4223,23 +5575,121 @@ impl DynamicMaskVocab {
     pub(crate) fn copy_cached_mask(
         &self,
         state: &DynamicMaskStateKey,
+        hash: u64,
+        buf: &mut [u32],
+    ) -> bool {
+        self.copy_cached_mask_with_predicate(hash, |candidate| candidate == state, buf)
+    }
+
+    pub(crate) fn copy_cached_mask_with_predicate<F: Fn(&DynamicMaskStateKey) -> bool>(
+        &self,
+        hash: u64,
+        matches: F,
         buf: &mut [u32],
     ) -> bool {
         let cache = self
             .mask_cache
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let Some(entry) = cache.iter().rev().find(|entry| entry.state == *state) else {
+        let Some(slots) = cache.by_hash.get(&hash) else {
             return false;
         };
-        if entry.mask.len() != buf.len() {
+        let Some(entry) = slots.iter().rev().find_map(|&slot| {
+            cache
+                .entries
+                .get(slot)
+                .and_then(Option::as_ref)
+                .filter(|entry| matches(&entry.state))
+        }) else {
             return false;
+        };
+        Self::copy_dynamic_mask_cache_payload(self.all_original_token_words(), &entry.mask, buf)
+    }
+
+    fn copy_dynamic_mask_cache_payload(
+        baseline: &[u32],
+        payload: &DynamicMaskCachePayload,
+        buf: &mut [u32],
+    ) -> bool {
+        match payload {
+            DynamicMaskCachePayload::Probation => return false,
+            DynamicMaskCachePayload::Dense(mask) => {
+                if mask.len() != buf.len() {
+                    return false;
+                }
+                buf.copy_from_slice(mask);
+            }
+            DynamicMaskCachePayload::SparseZero(words) => {
+                buf.fill(0);
+                for &(word, value) in words.iter() {
+                    let Some(dst) = buf.get_mut(word as usize) else {
+                        return false;
+                    };
+                    *dst = value;
+                }
+            }
+            DynamicMaskCachePayload::SparseAllOriginal(words) => {
+                let copy_len = buf.len().min(baseline.len());
+                buf[..copy_len].copy_from_slice(&baseline[..copy_len]);
+                if copy_len < buf.len() {
+                    buf[copy_len..].fill(0);
+                }
+                for &(word, value) in words.iter() {
+                    let Some(dst) = buf.get_mut(word as usize) else {
+                        return false;
+                    };
+                    *dst = value;
+                }
+            }
         }
-        buf.copy_from_slice(&entry.mask);
         true
     }
 
-    pub(crate) fn cache_mask(&self, state: DynamicMaskStateKey, mask: &[u32]) {
+    fn dynamic_mask_cache_payload(&self, mask: &[u32]) -> DynamicMaskCachePayload {
+        let baseline = self.all_original_token_words();
+        let nonzero_count = mask.iter().filter(|&&word| word != 0).count();
+        let baseline_diff_count = mask
+            .iter()
+            .enumerate()
+            .filter(|&(index, &word)| word != baseline.get(index).copied().unwrap_or(0))
+            .count();
+        let dense_bytes = mask.len().saturating_mul(std::mem::size_of::<u32>());
+        let sparse_zero_bytes = nonzero_count.saturating_mul(std::mem::size_of::<(u32, u32)>());
+        let sparse_baseline_bytes =
+            baseline_diff_count.saturating_mul(std::mem::size_of::<(u32, u32)>());
+        if sparse_zero_bytes < dense_bytes && sparse_zero_bytes <= sparse_baseline_bytes {
+            DynamicMaskCachePayload::SparseZero(
+                mask.iter()
+                    .enumerate()
+                    .filter_map(|(index, &word)| {
+                        (word != 0).then_some((index as u32, word))
+                    })
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice(),
+            )
+        } else if sparse_baseline_bytes < dense_bytes {
+            DynamicMaskCachePayload::SparseAllOriginal(
+                mask.iter()
+                    .enumerate()
+                    .filter_map(|(index, &word)| {
+                        (word != baseline.get(index).copied().unwrap_or(0))
+                            .then_some((index as u32, word))
+                    })
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice(),
+            )
+        } else {
+            DynamicMaskCachePayload::Dense(Arc::from(mask))
+        }
+    }
+
+    pub(crate) fn cache_mask(
+        &self,
+        state: DynamicMaskStateKey,
+        hash: u64,
+        mask: &[u32],
+        probation_if_absent: bool,
+    ) {
         // Keep enough exact states to cover an ordinary generated sequence.
         // A fixed 64-entry limit caused long source-specialized sequences to
         // evict their expensive early masks during the warmup pass, so every
@@ -4256,16 +5706,65 @@ impl DynamicMaskVocab {
             .mask_cache
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        if cache.iter().any(|entry| entry.state == state) {
-            return;
+        if let Some(slots) = cache.by_hash.get(&hash).cloned() {
+            for slot in slots {
+                let matches = cache
+                    .entries
+                    .get(slot)
+                    .and_then(Option::as_ref)
+                    .is_some_and(|entry| entry.state == state);
+                if !matches {
+                    continue;
+                }
+                let needs_upgrade = cache.entries[slot]
+                    .as_ref()
+                    .is_some_and(|entry| matches!(entry.mask, DynamicMaskCachePayload::Probation));
+                if needs_upgrade {
+                    let payload = self.dynamic_mask_cache_payload(mask);
+                    cache.entries[slot]
+                        .as_mut()
+                        .expect("probation cache slot disappeared")
+                        .mask = payload;
+                }
+                return;
+            }
         }
-        if cache.len() >= max_entries {
-            cache.remove(0);
-        }
-        cache.push(DynamicMaskCacheEntry {
+        let payload = if probation_if_absent {
+            DynamicMaskCachePayload::Probation
+        } else {
+            self.dynamic_mask_cache_payload(mask)
+        };
+        let entry = DynamicMaskCacheEntry {
+            hash,
             state,
-            mask: Arc::from(mask),
-        });
+            mask: payload,
+        };
+        let slot = if cache.entries.len() < max_entries {
+            let slot = cache.entries.len();
+            cache.entries.push(Some(entry));
+            slot
+        } else {
+            let slot = cache.next_slot % max_entries;
+            cache.next_slot = (slot + 1) % max_entries;
+            if let Some(previous) = cache.entries[slot].take() {
+                let mut remove_hash = false;
+                if let Some(slots) = cache.by_hash.get_mut(&previous.hash) {
+                    if let Some(index) = slots.iter().position(|&candidate| candidate == slot) {
+                        slots.swap_remove(index);
+                    }
+                    remove_hash = slots.is_empty();
+                }
+                if remove_hash {
+                    cache.by_hash.remove(&previous.hash);
+                }
+            }
+            cache.entries[slot] = Some(entry);
+            slot
+        };
+        cache.by_hash.entry(hash).or_default().push(slot);
+        if cache.entries.len() == max_entries && cache.next_slot >= max_entries {
+            cache.next_slot = 0;
+        }
     }
 }
 
@@ -4689,11 +6188,18 @@ impl Default for DynamicMaskVocab {
             subtree_original_token_offsets: Arc::new(vec![0]),
             subtree_original_tokens: Arc::new(Vec::new()),
             all_original_token_words: Arc::new(Vec::new()),
+            llg_slice_leftovers: Arc::new(Vec::new()),
+            llg_master_admitted_words: Arc::new(Vec::new()),
+            llg_master_max_safe_chars: 0,
+            prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
+            prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_safe_radius_offsets: Arc::from(Vec::<u32>::new()),
+            prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: false,
-            mask_cache: Arc::new(Mutex::new(Vec::new())),
+            mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
-            lazy_union16_cache: Arc::new(Mutex::new(DynamicLazyUnion16Cache::default())),
+            lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
             direct_regular_frontier_cache: Arc::new(Mutex::new(FxHashMap::default())),
             direct_regular_wide_frontier_index_cache: Arc::new(Mutex::new(FxHashMap::default())),
             direct_regular_terminal_support: Arc::new(DirectRegularTerminalSupport::default()),
@@ -4704,8 +6210,12 @@ impl Default for DynamicMaskVocab {
             bounded_observation_sets: Arc::new(DynamicBoundedObservationSets::default()),
             terminal_observation_classes: Arc::from(Vec::<(TerminalID, Arc<[u32]>)>::new()),
             projected_terminal_quotients: Arc::from(Vec::<(TerminalID, Arc<TerminalProjectedQuotient>)>::new()),
+            runtime_projected_terminal_quotients: Arc::new(OnceLock::new()),
             projected_terminal_quotients_prepared: false,
             projected_terminal_text_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            projected_terminal_partition_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            projected_terminal_radius_cache: Arc::new(Mutex::new(FxHashMap::default())),
+            pending_guard_blocked_mask_cache: Arc::new(Mutex::new(FxHashMap::default())),
             mask_tokenizer: None,
             mask_determinized_tokenizer: None,
             mask_projection_to_determinized: Arc::from(Vec::<u32>::new()),
@@ -7353,8 +8863,8 @@ mod dynamic_mask_vocab_cache_boundary_tests {
             Arc::new(DynamicMaskTrie::new()),
             Arc::new(Vec::new()),
         );
-        let _owner = vocab.lock_lazy_union16_cache();
-        assert!(vocab.try_lock_lazy_union16_cache().is_none());
+        let _owner = vocab.lock_lazy_union_cache();
+        assert!(vocab.try_lock_lazy_union_cache().is_none());
     }
 
     #[test]

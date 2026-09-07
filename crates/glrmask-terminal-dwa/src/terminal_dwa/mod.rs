@@ -1015,7 +1015,7 @@ pub fn prepare_partition_local_tokenizers(
         .par_iter()
         .enumerate()
         .map(|(partition, sub_vocab)| {
-            let label = format!("p{partition}");
+            let label = classify::vocab_partition_label(partition);
             let selected = std::env::var("GLRMASK_PREBUILD_PARTITION_LOCAL_SYNTHESIS_FILTER")
                 .map(|filter| {
                     filter
@@ -1024,7 +1024,9 @@ pub fn prepare_partition_local_tokenizers(
                         .filter(|item| !item.is_empty())
                         .any(|item| item == label)
                 })
-                .unwrap_or_else(|_| matches!(partition, 0 | 1 | 2 | 4));
+                .unwrap_or_else(|_| {
+                    !classify::vocab_partition_is_custom() && matches!(partition, 0 | 1 | 2 | 4)
+                });
             Mutex::new(
                 selected
                     .then(|| prepare_partition_local_tokenizer(sub_vocab, plan))
@@ -1180,6 +1182,9 @@ fn char_type_partition_index(
     p4_overflow_threshold: Option<usize>,
 ) -> usize {
     let partition = classify_vocab_char_type(bytes) as usize;
+    if classify::vocab_partition_is_custom() {
+        return partition;
+    }
     if partition == 0
         && p0_overflow_threshold.is_some_and(|threshold| bytes.len() > threshold)
     {
@@ -1236,6 +1241,17 @@ fn build_char_type_sub_vocabs(
         "GLRMASK_P4_LONG_TOKEN_OVERFLOW_THRESHOLD",
         automatic_bounded_synthesis_overflow.then_some(32),
     );
+    let (p0_overflow_threshold, p1_overflow_threshold, p2_overflow_threshold, p4_overflow_threshold) =
+        if classify::vocab_partition_is_custom() {
+            (None, None, None, None)
+        } else {
+            (
+                p0_overflow_threshold,
+                p1_overflow_threshold,
+                p2_overflow_threshold,
+                p4_overflow_threshold,
+            )
+        };
     let key = CharTypeSubVocabKey {
         p0_overflow_threshold,
         p1_overflow_threshold,
@@ -1249,16 +1265,21 @@ fn build_char_type_sub_vocabs(
         return Arc::clone(&cached.sub_vocabs);
     }
 
+    let base_partition_count = classify::vocab_partition_count();
     let partition_count = if p0_overflow_threshold.is_some() {
+        debug_assert_eq!(base_partition_count, 9);
         13
     } else if p4_overflow_threshold.is_some() {
+        debug_assert_eq!(base_partition_count, 9);
         12
     } else if p1_overflow_threshold.is_some() {
+        debug_assert_eq!(base_partition_count, 9);
         11
     } else if p2_overflow_threshold.is_some() {
+        debug_assert_eq!(base_partition_count, 9);
         10
     } else {
-        9
+        base_partition_count
     };
     let mut partition_entries: Vec<Vec<(u32, Vec<u8>)>> =
         (0..partition_count).map(|_| Vec::new()).collect();
@@ -1904,7 +1925,7 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
                            sub_vocab: &Vocab|
      -> (Option<(types::PartitionTerminalDwas, f64)>, usize) {
         let started_at = Instant::now();
-        let label = format!("p{}", idx);
+        let label = classify::vocab_partition_label(idx);
         if compile_profile_enabled() { eprintln!("[glrmask/profile][partition_build_entry] label={} tokens={}", label, sub_vocab.len()); }
 
         let ready_local = prepared_partition_local_tokenizers

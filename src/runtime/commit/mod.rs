@@ -8017,7 +8017,10 @@ impl<'a> ConstraintState<'a> {
         let Some(previous_state) = previous_state else {
             return;
         };
-        if previous_state != self.state {
+        let mask_state_unchanged = previous_state == self.state
+            || (self.constraint.uses_dynamic_runtime()
+                && self.dynamic_mask_projection_state_eq(&previous_state, &self.state));
+        if !mask_state_unchanged {
             return;
         }
 
@@ -8027,6 +8030,61 @@ impl<'a> ConstraintState<'a> {
         {
             cache_data.generation = self.generation;
         }
+    }
+
+    /// Exact equality in the lexer coordinate actually consumed by dynamic
+    /// mask generation. A commit may advance the source/runtime lexer through
+    /// states that are distinct only outside the model-vocabulary horizon; if
+    /// every correlated parser GSS is unchanged and those source states map to
+    /// the same mask-execution state, the next-token mask is identical and the
+    /// already-cached mask can survive the generation bump.
+    ///
+    /// This is deliberately stricter than general semantic cache lookup: it
+    /// does not merge parser alternatives or rely on observation classes. It
+    /// only replaces the exact tokenizer-state coordinate with the exact
+    /// finite mask coordinate selected by the constraint.
+    fn dynamic_mask_projection_state_eq(
+        &self,
+        previous: &ParserStateMap,
+        current: &ParserStateMap,
+    ) -> bool {
+        if previous.len() != current.len() {
+            return false;
+        }
+        let vocab = self.constraint.dynamic_mask_vocab_for_runtime();
+        let exact_initial = self.constraint.tokenizer.initial_state();
+
+        // The common case is one correlated lexer/parser branch. Keep that
+        // path allocation-free and constant-time.
+        if let ([(previous_state, previous_gss)], [(current_state, current_gss)]) =
+            (previous.entries.as_slice(), current.entries.as_slice())
+        {
+            return previous_gss == current_gss
+                && (*previous_state == exact_initial) == (*current_state == exact_initial)
+                && vocab.mask_runtime_state(*previous_state)
+                    == vocab.mask_runtime_state(*current_state);
+        }
+
+        // Flat GLR frontiers can contain duplicate exact tokenizer keys. Match
+        // correlated branches as a multiset in mask-coordinate space rather
+        // than assuming source-state ordering survives quotienting.
+        let mut matched = vec![false; current.len()];
+        'previous: for (previous_state, previous_gss) in &previous.entries {
+            let projected = vocab.mask_runtime_state(*previous_state);
+            let initial = *previous_state == exact_initial;
+            for (index, (current_state, current_gss)) in current.entries.iter().enumerate() {
+                if !matched[index]
+                    && initial == (*current_state == exact_initial)
+                    && projected == vocab.mask_runtime_state(*current_state)
+                    && previous_gss == current_gss
+                {
+                    matched[index] = true;
+                    continue 'previous;
+                }
+            }
+            return false;
+        }
+        true
     }
 
     /// Commit a sampled token, advancing the constraint state.
@@ -8121,8 +8179,11 @@ impl<'a> ConstraintState<'a> {
         let mask_state_before_commit = self.snapshot_current_mask_state();
         let start = Instant::now();
         let result = commit_token_impl(constraint, &mut self.state, &mut self.buffers, token_id);
-        let total_ns = start.elapsed().as_nanos() as u64;
         self.finish_commit_generation(mask_state_before_commit, result.is_ok());
+        // Cache-preservation proofs are part of commit's runtime cost. Keep
+        // them inside the timed interval so TBM/commit reporting cannot make a
+        // mask optimization look free merely by shifting work after the timer.
+        let total_ns = start.elapsed().as_nanos() as u64;
         assert_commit_oracles(
             constraint,
             token_id,
@@ -8287,7 +8348,7 @@ impl<'a> ConstraintState<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Constraint as Constraint, Grammar, Vocab};
+    use crate::{Constraint as Constraint, DynamicConstraint, Grammar, Vocab};
     use std::collections::BTreeSet;
 
     type CanonicalCommitState =
@@ -8344,6 +8405,46 @@ mod tests {
             let cache = state.mask_cache.lock().unwrap();
             assert_ne!(cache.as_ref().unwrap().generation, state.generation);
         }
+    }
+
+    #[test]
+    fn unchanged_dynamic_mask_projection_preserves_fill_mask_cache() {
+        let vocab = Vocab::new(vec![
+            (0, b"\"".to_vec()),
+            (1, b"a".to_vec()),
+            (2, b"aa".to_vec()),
+            (3, b"b".to_vec()),
+        ]);
+        let dynamic = DynamicConstraint::from_json_schema(
+            r#"{"type":"string","maxLength":1000000000}"#,
+            &vocab,
+        )
+        .unwrap();
+        let mut state = dynamic.inner.start();
+
+        // Enter the quoted lazy bounded-string residual, consume one interior
+        // byte, then cache its mask. Far from the upper bound, another interior
+        // byte changes the exact symbolic residual coordinate while the parser
+        // has not seen a terminal boundary and the finite vocabulary-horizon
+        // mask coordinate remains unchanged.
+        state.commit_token(0).unwrap(); // opening quote
+        state.commit_token(1).unwrap(); // first interior 'a'
+        let cached_mask = state.mask();
+        let before_generation = state.generation;
+        let before_state = state.state.clone();
+
+        state.commit_token(1).unwrap(); // second interior 'a'
+        assert_ne!(before_state, state.state, "test must exercise a changed exact lexer state");
+        assert!(
+            state.dynamic_mask_projection_state_eq(&before_state, &state.state),
+            "changed exact state should remain equal in the mask-only coordinate",
+        );
+        {
+            let cache = state.mask_cache.lock().unwrap();
+            assert_eq!(cache.as_ref().unwrap().generation, before_generation + 1);
+            assert_eq!(cache.as_ref().unwrap().mask, cached_mask);
+        }
+        assert_eq!(state.mask(), cached_mask);
     }
 
     #[test]

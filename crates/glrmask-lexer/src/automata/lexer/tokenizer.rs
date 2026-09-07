@@ -118,43 +118,279 @@ pub struct TerminalProjectedQuotient {
 }
 
 impl TerminalProjectedQuotient {
-    fn exact_byte_classes(dfa: &DFA) -> (Box<[u8]>, Box<[u8]>, Box<[u32]>) {
-        let state_count = dfa.num_states();
-        let mut signature_to_class = FxHashMap::<Vec<u32>, u8>::default();
-        let mut byte_to_class = vec![0u8; 256];
-        let mut class_representatives = Vec::<u8>::new();
+    #[inline]
+    fn projected_state_live(dfa: &DFA, state: u32) -> bool {
+        dfa.finalizers(state).contains(0) || dfa.possible_future_group_ids(state).contains(0)
+    }
 
+    #[inline]
+    fn projected_step(dfa: &DFA, state: u32, byte: u8) -> Option<u32> {
+        dfa.step(state, byte)
+            .filter(|&target| Self::projected_state_live(dfa, target))
+    }
+
+    fn canonicalize_byte_class_map(classes: &[u8; 256]) -> ([u8; 256], Vec<u8>) {
+        let mut remap = [u16::MAX; 256];
+        let mut canonical = [0u8; 256];
+        let mut representatives = Vec::<u8>::new();
         for byte in 0u16..=255 {
             let byte = byte as u8;
-            let signature = (0..state_count as u32)
-                .map(|state| dfa.step(state, byte).unwrap_or(u32::MAX))
-                .collect::<Vec<_>>();
-            let class = if let Some(&class) = signature_to_class.get(&signature) {
-                class
+            let old = classes[byte as usize] as usize;
+            let new = if remap[old] == u16::MAX {
+                let new = representatives.len() as u16;
+                remap[old] = new;
+                representatives.push(byte);
+                new
             } else {
-                let class_index = class_representatives.len();
-                debug_assert!(class_index <= u8::MAX as usize);
-                let class = class_index as u8;
-                class_representatives.push(byte);
-                signature_to_class.insert(signature, class);
-                class
+                remap[old]
             };
-            byte_to_class[byte as usize] = class;
+            canonical[byte as usize] = new as u8;
         }
+        (canonical, representatives)
+    }
 
-        let class_count = class_representatives.len();
-        let mut class_targets = Vec::with_capacity(state_count.saturating_mul(class_count));
-        for state in 0..state_count as u32 {
-            for &representative in &class_representatives {
-                class_targets.push(dfa.step(state, representative).unwrap_or(u32::MAX));
+    fn class_targets_for(
+        dfa: &DFA,
+        representatives: &[u8],
+    ) -> Box<[u32]> {
+        let mut targets = Vec::with_capacity(dfa.num_states().saturating_mul(representatives.len()));
+        for state in 0..dfa.num_states() as u32 {
+            for &representative in representatives {
+                targets.push(Self::projected_step(dfa, state, representative).unwrap_or(u32::MAX));
+            }
+        }
+        targets.into_boxed_slice()
+    }
+
+    fn exact_byte_classes_from_base(
+        dfa: &DFA,
+        base_byte_to_class: &[u8; 256],
+    ) -> (Box<[u8]>, Box<[u8]>, Box<[u32]>) {
+        let base_count = base_byte_to_class
+            .iter()
+            .copied()
+            .max()
+            .map_or(0usize, |class| class as usize + 1);
+        if base_count == 0 {
+            return Self::exact_byte_classes(dfa);
+        }
+        let mut base_representatives = vec![u8::MAX; base_count];
+        for byte in 0u16..=255 {
+            let byte = byte as u8;
+            let base = base_byte_to_class[byte as usize] as usize;
+            if base_representatives[base] == u8::MAX {
+                base_representatives[base] = byte;
             }
         }
 
+        let mut symbol_classes = vec![0u8; base_count];
+        let mut keyed = Vec::<(u64, usize)>::with_capacity(base_count);
+        let mut refined = vec![0u8; base_count];
+        for state in 0..dfa.num_states() as u32 {
+            keyed.clear();
+            for (symbol, &representative) in base_representatives.iter().enumerate() {
+                let target_code =
+                    Self::projected_step(dfa, state, representative).unwrap_or(u32::MAX) as u64
+                        + 1;
+                let key = ((symbol_classes[symbol] as u64) << 33) | target_code;
+                keyed.push((key, symbol));
+            }
+            keyed.sort_unstable_by_key(|&(key, _)| key);
+            let mut previous = None::<u64>;
+            let mut next_class = 0usize;
+            for &(key, symbol) in &keyed {
+                if previous != Some(key) {
+                    previous = Some(key);
+                    next_class += 1;
+                }
+                refined[symbol] = (next_class - 1) as u8;
+            }
+            std::mem::swap(&mut symbol_classes, &mut refined);
+        }
+
+        let mut byte_classes = [0u8; 256];
+        for byte in 0u16..=255 {
+            let byte = byte as u8;
+            byte_classes[byte as usize] =
+                symbol_classes[base_byte_to_class[byte as usize] as usize];
+        }
+        let (byte_classes, representatives) = Self::canonicalize_byte_class_map(&byte_classes);
+        let class_targets = Self::class_targets_for(dfa, &representatives);
         (
-            byte_to_class.into_boxed_slice(),
-            class_representatives.into_boxed_slice(),
-            class_targets.into_boxed_slice(),
+            byte_classes.to_vec().into_boxed_slice(),
+            representatives.into_boxed_slice(),
+            class_targets,
         )
+    }
+
+    fn exact_byte_classes(dfa: &DFA) -> (Box<[u8]>, Box<[u8]>, Box<[u32]>) {
+        // Refine the byte partition incrementally by DFA row instead of
+        // constructing one long state-target signature Vec for every byte.
+        // `classes[a] == classes[b]` after row N iff bytes a and b have had the
+        // same target from every state through N, so the final partition is the
+        // exact global byte-equivalence relation.
+        let mut classes = [0u8; 256];
+        let mut class_count = 1usize;
+        let mut targets = [u32::MAX; 256];
+        let state_count = dfa.num_states();
+        let target_stride = state_count + 1;
+        let mut marks = vec![0u32; 256 * target_stride];
+        let mut assigned = vec![0u8; 256 * target_stride];
+        let mut generation = 0u32;
+        let mut refined = [0u8; 256];
+
+        for state in 0..state_count as u32 {
+            if class_count == 256 {
+                break;
+            }
+            generation = generation.wrapping_add(1);
+            targets.fill(u32::MAX);
+            for (byte, target) in dfa.transitions(state) {
+                if Self::projected_state_live(dfa, target) {
+                    targets[byte as usize] = target;
+                }
+            }
+            let mut next_class = 0usize;
+            for byte in 0u16..=255 {
+                let byte = byte as u8;
+                let old_class = classes[byte as usize] as usize;
+                let target = targets[byte as usize];
+                let target_index = if target == u32::MAX {
+                    state_count
+                } else {
+                    target as usize
+                };
+                let key = old_class * target_stride + target_index;
+                if marks[key] != generation {
+                    marks[key] = generation;
+                    assigned[key] = next_class as u8;
+                    next_class += 1;
+                }
+                refined[byte as usize] = assigned[key];
+            }
+            classes = refined;
+            class_count = next_class;
+        }
+
+        let (classes, class_representatives) = Self::canonicalize_byte_class_map(&classes);
+        let class_targets = Self::class_targets_for(dfa, &class_representatives);
+        (
+            classes.to_vec().into_boxed_slice(),
+            class_representatives.into_boxed_slice(),
+            class_targets,
+        )
+    }
+
+    fn from_source_terminal_subautomaton(
+        tokenizer: &Tokenizer,
+        terminal: TerminalID,
+        component_states: &[u32],
+    ) -> Option<Self> {
+        let full_states = component_states
+            .iter()
+            .copied()
+            .filter(|&state| tokenizer.state_live_for_terminal(state, terminal))
+            .collect::<Vec<_>>();
+        if full_states.is_empty() {
+            return None;
+        }
+        let mut full_to_projected = vec![u32::MAX; tokenizer.num_states() as usize];
+        for (projected, &full) in full_states.iter().enumerate() {
+            full_to_projected[full as usize] = projected as u32;
+        }
+
+        // Exact byte equivalence over the terminal-live subgraph, refined row
+        // by row without materializing a second transition-bearing DFA.
+        let mut classes = [0u8; 256];
+        let mut class_count = 1usize;
+        let mut targets = [u32::MAX; 256];
+        let state_count_for_classes = full_states.len();
+        let target_stride = state_count_for_classes + 1;
+        let mut marks = vec![0u32; 256 * target_stride];
+        let mut assigned = vec![0u8; 256 * target_stride];
+        let mut generation = 0u32;
+        let mut refined = [0u8; 256];
+        for &full_state in &full_states {
+            if class_count == 256 {
+                break;
+            }
+            generation = generation.wrapping_add(1);
+            targets.fill(u32::MAX);
+            for (byte, full_target) in tokenizer.transitions_from(full_state) {
+                let projected = full_to_projected[full_target as usize];
+                if projected != u32::MAX {
+                    targets[byte as usize] = projected;
+                }
+            }
+            let mut next_class = 0usize;
+            for byte in 0u16..=255 {
+                let byte = byte as u8;
+                let old_class = classes[byte as usize] as usize;
+                let target = targets[byte as usize];
+                let target_index = if target == u32::MAX {
+                    state_count_for_classes
+                } else {
+                    target as usize
+                };
+                let key = old_class * target_stride + target_index;
+                if marks[key] != generation {
+                    marks[key] = generation;
+                    assigned[key] = next_class as u8;
+                    next_class += 1;
+                }
+                refined[byte as usize] = assigned[key];
+            }
+            classes = refined;
+            class_count = next_class;
+        }
+        let (classes, representatives) = Self::canonicalize_byte_class_map(&classes);
+
+        let state_count = full_states.len();
+        let mut dfa = DFA::new(state_count);
+        dfa.ensure_group_capacity(1);
+        if let Some(support) = tokenizer.terminal_byte_support(terminal) {
+            dfa.set_group_u8set(0, support);
+        }
+        for (projected, &full_state) in full_states.iter().enumerate() {
+            let mut finalizers = BitSet::new(1);
+            if tokenizer
+                .matched_terminal_bitset(full_state)
+                .contains(terminal as usize)
+            {
+                finalizers.set(0);
+            }
+            let mut future = BitSet::new(1);
+            if tokenizer
+                .possible_future_terminals(full_state)
+                .contains(terminal as usize)
+            {
+                future.set(0);
+            }
+            dfa.overwrite_state_metadata(projected as u32, finalizers, future);
+        }
+
+        let mut class_targets = Vec::with_capacity(state_count * representatives.len());
+        for &full_state in &full_states {
+            for &byte in &representatives {
+                let projected = tokenizer
+                    .step(full_state, byte)
+                    .and_then(|full_target| {
+                        let projected = full_to_projected[full_target as usize];
+                        (projected != u32::MAX).then_some(projected)
+                    })
+                    .unwrap_or(u32::MAX);
+                class_targets.push(projected);
+            }
+        }
+        let projected_states = (0..state_count as u32).collect::<Vec<_>>();
+        Some(Self {
+            dfa,
+            full_states: full_states.into_boxed_slice(),
+            projected_states: projected_states.into_boxed_slice(),
+            byte_to_class: classes.to_vec().into_boxed_slice(),
+            class_representatives: representatives.into_boxed_slice(),
+            class_targets: class_targets.into_boxed_slice(),
+        })
     }
 
     fn from_dense_mapping(
@@ -176,6 +412,37 @@ impl TerminalProjectedQuotient {
         }
         debug_assert_eq!(full_states.len(), projected_states.len());
         let (byte_to_class, class_representatives, class_targets) = Self::exact_byte_classes(&dfa);
+        Self {
+            dfa,
+            full_states: full_states.into_boxed_slice(),
+            projected_states: projected_states.into_boxed_slice(),
+            byte_to_class,
+            class_representatives,
+            class_targets,
+        }
+    }
+
+    fn from_dense_mapping_with_base_classes(
+        dfa: DFA,
+        full_to_projected: Vec<u32>,
+        base_byte_to_class: &[u8; 256],
+    ) -> Self {
+        let mapped = full_to_projected
+            .iter()
+            .filter(|&&projected_state| projected_state != u32::MAX)
+            .count();
+        let mut full_states = Vec::with_capacity(mapped);
+        let mut projected_states = Vec::with_capacity(mapped);
+        for (full_state, projected_state) in full_to_projected.into_iter().enumerate() {
+            if projected_state == u32::MAX {
+                continue;
+            }
+            full_states.push(full_state as u32);
+            projected_states.push(projected_state);
+        }
+        debug_assert_eq!(full_states.len(), projected_states.len());
+        let (byte_to_class, class_representatives, class_targets) =
+            Self::exact_byte_classes_from_base(&dfa, base_byte_to_class);
         Self {
             dfa,
             full_states: full_states.into_boxed_slice(),
@@ -226,6 +493,54 @@ impl TerminalProjectedQuotient {
         self.projected_state(source).is_some()
     }
 
+    #[doc(hidden)]
+    #[inline]
+    pub fn projected_state_for_source(&self, source: u32) -> Option<u32> {
+        self.projected_state(source)
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn projected_byte_class(&self, byte: u8) -> u8 {
+        self.byte_to_class[byte as usize]
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn projected_step_class(&self, state: u32, class: u8) -> Option<u32> {
+        self.class_target(state, class)
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn projected_state_is_accepting(&self, state: u32) -> bool {
+        self.dfa.finalizers(state).contains(0)
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn projected_state_has_future(&self, state: u32) -> bool {
+        self.dfa.possible_future_group_ids(state).contains(0)
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn projected_state_count(&self) -> usize {
+        self.dfa.num_states()
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn projected_source_states(&self) -> &[u32] {
+        &self.full_states
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn projected_states_for_sources(&self) -> &[u32] {
+        &self.projected_states
+    }
+
     fn state_counts(&self) -> (usize, usize) {
         (self.full_states.len(), self.dfa.num_states())
     }
@@ -252,12 +567,6 @@ impl TerminalProjectedQuotient {
                 tokenizer.num_terminals(),
             ));
         }
-        if tokenizer.has_any_virtual_runtime() {
-            return Err(
-                "projected-terminal quotients are invalid for tokenizers with virtual runtimes"
-                    .to_owned(),
-            );
-        }
         if self.dfa.has_epsilon_transitions() {
             return Err("projected-terminal quotient DFA has epsilon transitions".to_owned());
         }
@@ -279,21 +588,46 @@ impl TerminalProjectedQuotient {
                 self.byte_to_class.len(),
             ));
         }
-        let (expected_byte_to_class, expected_representatives, expected_targets) =
-            Self::exact_byte_classes(&self.dfa);
-        if self.byte_to_class != expected_byte_to_class
-            || self.class_representatives != expected_representatives
-            || self.class_targets != expected_targets
+        let class_count = self.class_representatives.len();
+        if class_count == 0 || class_count > 256 {
+            return Err(format!(
+                "projected-terminal quotient has invalid byte-class count {class_count}"
+            ));
+        }
+        if self
+            .byte_to_class
+            .iter()
+            .any(|&class| class as usize >= class_count)
         {
-            return Err(
-                "projected-terminal quotient byte classes do not match its DFA".to_owned(),
-            );
+            return Err("projected-terminal quotient byte-class map is out of bounds".to_owned());
+        }
+        for (class, &representative) in self.class_representatives.iter().enumerate() {
+            if self.byte_to_class[representative as usize] as usize != class {
+                return Err(
+                    "projected-terminal quotient class representative does not map to its class"
+                        .to_owned(),
+                );
+            }
+        }
+        let expected_target_len = self
+            .dfa
+            .num_states()
+            .checked_mul(class_count)
+            .ok_or_else(|| "projected-terminal quotient class-target size overflow".to_owned())?;
+        if self.class_targets.len() != expected_target_len {
+            return Err(format!(
+                "projected-terminal quotient has {} class targets, expected {expected_target_len}",
+                self.class_targets.len(),
+            ));
+        }
+        if self
+            .class_targets
+            .iter()
+            .any(|&target| target != u32::MAX && target >= self.dfa.num_states() as u32)
+        {
+            return Err("projected-terminal quotient class target is out of bounds".to_owned());
         }
 
-        let projected_live = |state: u32| {
-            self.dfa.finalizers(state).contains(0)
-                || self.dfa.possible_future_group_ids(state).contains(0)
-        };
         for state in 0..self.dfa.num_states() as u32 {
             if self.dfa.finalizers(state).iter().any(|group| group != 0)
                 || self
@@ -350,10 +684,8 @@ impl TerminalProjectedQuotient {
                 let byte = byte as u8;
                 let full_target =
                     tokenizer.terminal_projected_scalar_step(full_state, terminal, byte);
-                let projected_target = self
-                    .dfa
-                    .step(projected_state, byte)
-                    .filter(|&target| projected_live(target));
+                let class = self.byte_to_class[byte as usize];
+                let projected_target = self.class_target(projected_state, class);
                 match (full_target, projected_target) {
                     (None, None) => {}
                     (Some(full_target), Some(projected_target))
@@ -2268,6 +2600,8 @@ pub mod artifact_serde {
 
 
     const HUGE_WIRE_MAGIC: &[u8; 4] = b"TKS3";
+    const HUGE_WIRE_FLAG_SCALAR_DETERMINISTIC_DISPATCH: u8 = 1 << 0;
+    const HUGE_WIRE_KNOWN_FLAGS: u8 = HUGE_WIRE_FLAG_SCALAR_DETERMINISTIC_DISPATCH;
     const HUGE_WIRE_HEADER_LEN: usize = 52;
 
     struct PackedSegmentBuild {
@@ -2481,6 +2815,49 @@ pub mod artifact_serde {
                 let id = u32::try_from(future_rows.len()).ok()?;
                 future_rows.push(future_key);
                 future_map.insert(future_key, id);
+                id
+            };
+            future_ids.push(future_id);
+        }
+        Some((final_rows, final_ids, future_rows, future_ids))
+    }
+
+    /// General metadata-row interning for the compact TKS3 wire. The older
+    /// in-memory compaction path intentionally stays on its <=128-terminal
+    /// two-word specialization, but a freshly built compressed tokenizer may
+    /// have an arbitrary terminal domain. TKS3 itself already stores/read the
+    /// exact dynamic word count, so only the builder-side row key needed to be
+    /// widened.
+    fn metadata_rows_wide(
+        tokenizer: &Tokenizer,
+    ) -> Option<(Vec<Box<[u64]>>, Vec<u32>, Vec<Box<[u64]>>, Vec<u32>)> {
+        let mut final_map = FxHashMap::<Box<[u64]>, u32>::default();
+        let mut final_rows = Vec::<Box<[u64]>>::new();
+        let mut final_ids = Vec::<u32>::with_capacity(tokenizer.dfa.num_states());
+        let mut future_map = FxHashMap::<Box<[u64]>, u32>::default();
+        let mut future_rows = Vec::<Box<[u64]>>::new();
+        let mut future_ids = Vec::<u32>::with_capacity(tokenizer.dfa.num_states());
+        for state in tokenizer.dfa.states() {
+            let final_words = state.finalizers.words();
+            let final_id = if let Some(&id) = final_map.get(final_words) {
+                id
+            } else {
+                let final_key = final_words.to_vec().into_boxed_slice();
+                let id = u32::try_from(final_rows.len()).ok()?;
+                final_map.insert(final_key.clone(), id);
+                final_rows.push(final_key);
+                id
+            };
+            final_ids.push(final_id);
+
+            let future_words = state.possible_future_group_ids.words();
+            let future_id = if let Some(&id) = future_map.get(future_words) {
+                id
+            } else {
+                let future_key = future_words.to_vec().into_boxed_slice();
+                let id = u32::try_from(future_rows.len()).ok()?;
+                future_map.insert(future_key.clone(), id);
+                future_rows.push(future_key);
                 id
             };
             future_ids.push(future_id);
@@ -2793,14 +3170,16 @@ pub mod artifact_serde {
         let metadata = tokenizer.packed_runtime_metadata.as_deref()?;
         let segments = tokenizer.packed_compressed_transition_segments.as_ref();
         if segments.is_empty()
-            || tokenizer.num_terminals > 128
-            || tokenizer.packed_runtime_transitions.is_some()
             || !tokenizer.packed_runtime_transition_segments.is_empty()
             || !tokenizer.packed_runtime_metadata_segments.is_empty()
         {
             return None;
         }
-        let state_count = tokenizer.dfa.num_states();
+        // A decoded TKS3 tokenizer owns only its prefix DFA states; the
+        // compressed suffix lives in backed packed segments. Use the runtime
+        // state count here rather than the owned-DFA count so re-encoding a
+        // loaded artifact validates against the full metadata coordinate.
+        let state_count = tokenizer.num_states() as usize;
         if metadata.state_count as usize != state_count
             || metadata.finalizer_row_ids.len() != state_count
             || metadata.future_row_ids.len() != state_count
@@ -2820,10 +3199,22 @@ pub mod artifact_serde {
         }
 
         let prefix_states = &tokenizer.dfa.states()[..prefix_state_count];
-        let residual_transition_count = prefix_states
-            .iter()
-            .map(|state| state.transitions.len())
-            .sum::<usize>();
+        let packed_prefix = tokenizer.packed_runtime_transitions.as_deref();
+        if packed_prefix.is_some_and(|prefix| prefix.state_count() != prefix_state_count) {
+            return None;
+        }
+        let residual_transition_count = if let Some(prefix) = packed_prefix {
+            (0..prefix_state_count)
+                .map(|state| prefix.row(state as u32).map(|row| row.0.len()))
+                .collect::<Option<Vec<_>>>()?
+                .into_iter()
+                .sum::<usize>()
+        } else {
+            prefix_states
+                .iter()
+                .map(|state| state.transitions.len())
+                .sum::<usize>()
+        };
         let expanded_transition_count = residual_transition_count
             + segments
                 .iter()
@@ -2879,7 +3270,12 @@ pub mod artifact_serde {
         ] {
             out.extend_from_slice(&value.to_le_bytes());
         }
-        out.extend_from_slice(&[final_width as u8, future_width as u8, 0, 0]);
+        let flags = if tokenizer.scalar_deterministic_dispatch_cache.get() == Some(&true) {
+            HUGE_WIRE_FLAG_SCALAR_DETERMINISTIC_DISPATCH
+        } else {
+            0
+        };
+        out.extend_from_slice(&[final_width as u8, future_width as u8, flags, 0]);
         debug_assert_eq!(out.len(), HUGE_WIRE_HEADER_LEN);
         for terminal in 0..tokenizer.num_terminals {
             for word in tokenizer.dfa.group_id_to_u8set(terminal).to_words() {
@@ -2888,16 +3284,34 @@ pub mod artifact_serde {
         }
         let mut end = 0u32;
         out.extend_from_slice(&end.to_le_bytes());
-        for state in prefix_states {
-            end += state.transitions.len() as u32;
-            out.extend_from_slice(&end.to_le_bytes());
-        }
-        for state in prefix_states {
-            out.extend(state.transitions.iter().map(|(byte, _)| byte));
-        }
-        for state in prefix_states {
-            for &target in state.transitions.values() {
-                out.extend_from_slice(&target.to_le_bytes());
+        if let Some(prefix) = packed_prefix {
+            for state in 0..prefix_state_count as u32 {
+                let (bytes, _) = prefix.row(state)?;
+                end = end.checked_add(u32::try_from(bytes.len()).ok()?)?;
+                out.extend_from_slice(&end.to_le_bytes());
+            }
+            for state in 0..prefix_state_count as u32 {
+                let (bytes, _) = prefix.row(state)?;
+                out.extend_from_slice(bytes);
+            }
+            for state in 0..prefix_state_count as u32 {
+                let (_, targets) = prefix.row(state)?;
+                for index in 0..targets.len() {
+                    out.extend_from_slice(&targets.get(index)?.to_le_bytes());
+                }
+            }
+        } else {
+            for state in prefix_states {
+                end = end.checked_add(u32::try_from(state.transitions.len()).ok()?)?;
+                out.extend_from_slice(&end.to_le_bytes());
+            }
+            for state in prefix_states {
+                out.extend(state.transitions.iter().map(|(byte, _)| byte));
+            }
+            for state in prefix_states {
+                for &target in state.transitions.values() {
+                    out.extend_from_slice(&target.to_le_bytes());
+                }
             }
         }
         for row in metadata.finalizer_rows.iter() {
@@ -2966,7 +3380,7 @@ pub mod artifact_serde {
             return build_huge_bytes_from_packed_runtime(tokenizer);
         }
         let segments = tokenizer.compressed_transition_segments.as_ref();
-        if segments.is_empty() || tokenizer.num_terminals > 128 {
+        if segments.is_empty() {
             return None;
         }
         let state_count = tokenizer.dfa.num_states();
@@ -2985,7 +3399,7 @@ pub mod artifact_serde {
             .iter()
             .map(packed_segment_build)
             .collect::<Option<Vec<_>>>()?;
-        let (final_rows, final_ids, future_rows, future_ids) = metadata_rows(tokenizer)?;
+        let (final_rows, final_ids, future_rows, future_ids) = metadata_rows_wide(tokenizer)?;
         let final_width = packed_row_id_width(final_rows.len());
         let future_width = packed_row_id_width(future_rows.len());
 
@@ -3031,7 +3445,12 @@ pub mod artifact_serde {
         ] {
             out.extend_from_slice(&value.to_le_bytes());
         }
-        out.extend_from_slice(&[final_width as u8, future_width as u8, 0, 0]);
+        let flags = if tokenizer.scalar_deterministic_dispatch_cache.get() == Some(&true) {
+            HUGE_WIRE_FLAG_SCALAR_DETERMINISTIC_DISPATCH
+        } else {
+            0
+        };
+        out.extend_from_slice(&[final_width as u8, future_width as u8, flags, 0]);
         debug_assert_eq!(out.len(), HUGE_WIRE_HEADER_LEN);
         for terminal in 0..tokenizer.num_terminals {
             for word in tokenizer.dfa.group_id_to_u8set(terminal).to_words() {
@@ -3145,11 +3564,17 @@ pub mod artifact_serde {
         let epsilon_target_count = take_u32(input, &mut pos)? as usize;
         let final_width = *input.get(pos).ok_or_else(|| "truncated giant tokenizer widths".to_owned())? as usize;
         let future_width = *input.get(pos + 1).ok_or_else(|| "truncated giant tokenizer widths".to_owned())? as usize;
-        if input.get(pos + 2..pos + 4) != Some(&[0, 0]) || !matches!(final_width, 1 | 2 | 4) || !matches!(future_width, 1 | 2 | 4) {
+        let flags = *input.get(pos + 2).ok_or_else(|| "truncated giant tokenizer flags".to_owned())?;
+        let reserved = *input.get(pos + 3).ok_or_else(|| "truncated giant tokenizer flags".to_owned())?;
+        if flags & !HUGE_WIRE_KNOWN_FLAGS != 0
+            || reserved != 0
+            || !matches!(final_width, 1 | 2 | 4)
+            || !matches!(future_width, 1 | 2 | 4)
+        {
             return Err("invalid giant tokenizer row-id widths".to_owned());
         }
         pos += 4;
-        if pos != HUGE_WIRE_HEADER_LEN || state_count == 0 || prefix_state_count > state_count || num_terminals > 128 {
+        if pos != HUGE_WIRE_HEADER_LEN || state_count == 0 || prefix_state_count > state_count {
             return Err("invalid giant tokenizer dimensions".to_owned());
         }
         let terminal_count = num_terminals as usize;
@@ -3565,6 +3990,10 @@ pub mod artifact_serde {
         };
         let transition_count_cache = OnceLock::new();
         let _ = transition_count_cache.set(expanded_transition_count);
+        let scalar_deterministic_dispatch_cache = OnceLock::new();
+        if flags & HUGE_WIRE_FLAG_SCALAR_DETERMINISTIC_DISPATCH != 0 {
+            let _ = scalar_deterministic_dispatch_cache.set(true);
+        }
         let tokenizer = Tokenizer {
             dfa,
             num_terminals,
@@ -3585,7 +4014,7 @@ pub mod artifact_serde {
             all_self_loop_bytes_cache: OnceLock::new(),
             transition_count_cache,
             forced_minimized_state_count_cache: OnceLock::new(),
-            scalar_deterministic_dispatch_cache: OnceLock::new(),
+            scalar_deterministic_dispatch_cache,
         };
         if let Some(started) = huge_started {
             eprintln!("[glrmask/profile][tks3] total_ms={:.3}", started.elapsed().as_secs_f64() * 1000.0);
@@ -5439,7 +5868,6 @@ impl Tokenizer {
     ///
     /// `None` is a conservative resource-limit decline.  It is not evidence
     /// of inequivalence.
-    #[cfg(test)]
     pub fn state_sets_observation_equivalent_exact(
         &self,
         left: &[u32],
@@ -5447,13 +5875,143 @@ impl Tokenizer {
         terminals: &BitSet,
         pair_limit: usize,
     ) -> Option<bool> {
-        self.state_sets_observation_equivalence_exact_witness(
-            left,
-            right,
-            terminals,
-            pair_limit,
-        )
-        .map(|result| result.is_ok())
+        if left.is_empty()
+            || right.is_empty()
+            || pair_limit == 0
+            || terminals.len() != self.num_terminals as usize
+            || left.iter().any(|&state| state >= self.num_states())
+            || right.iter().any(|&state| state >= self.num_states())
+        {
+            return None;
+        }
+
+        let observation_equal = |left: &[u32], right: &[u32]| {
+            terminals.iter().all(|terminal| {
+                let left_matched = left
+                    .iter()
+                    .any(|&state| self.matched_terminal_bitset(state).contains(terminal));
+                let right_matched = right
+                    .iter()
+                    .any(|&state| self.matched_terminal_bitset(state).contains(terminal));
+                if left_matched != right_matched {
+                    return false;
+                }
+                let left_future = left
+                    .iter()
+                    .any(|&state| self.possible_future_terminals(state).contains(terminal));
+                let right_future = right
+                    .iter()
+                    .any(|&state| self.possible_future_terminals(state).contains(terminal));
+                left_future == right_future
+            })
+        };
+        let observation_live = |states: &[u32]| {
+            terminals.iter().any(|terminal| {
+                states.iter().any(|&state| {
+                    self.matched_terminal_bitset(state).contains(terminal)
+                        || self.possible_future_terminals(state).contains(terminal)
+                })
+            })
+        };
+
+        // The ordinary dynamic JSON tokenizer is deterministic and epsilon
+        // free. Keep that commit-time cache-preservation proof allocation-light:
+        // the exact product is just pairs of raw states.
+        if !self.has_any_virtual_runtime()
+            && !self.has_epsilon_transitions()
+            && let ([left], [right]) = (left, right)
+        {
+            if !observation_equal(&[*left], &[*right]) {
+                return Some(false);
+            }
+            let mut seen = FxHashSet::<(u32, u32)>::default();
+            seen.insert((*left, *right));
+            let mut frontier = vec![(*left, *right)];
+            while let Some((left, right)) = frontier.pop() {
+                for byte in 0u16..=255 {
+                    let left_target = self.step(left, byte as u8);
+                    let right_target = self.step(right, byte as u8);
+                    let left_live = left_target.is_some_and(|state| observation_live(&[state]));
+                    let right_live = right_target.is_some_and(|state| observation_live(&[state]));
+                    if left_live != right_live {
+                        return Some(false);
+                    }
+                    if !left_live {
+                        continue;
+                    }
+                    let (Some(left_target), Some(right_target)) = (left_target, right_target) else {
+                        return Some(false);
+                    };
+                    if !observation_equal(&[left_target], &[right_target]) {
+                        return Some(false);
+                    }
+                    if left_target == right_target {
+                        continue;
+                    }
+                    if seen.insert((left_target, right_target)) {
+                        if seen.len() > pair_limit {
+                            return None;
+                        }
+                        frontier.push((left_target, right_target));
+                    }
+                }
+            }
+            return Some(true);
+        }
+
+        let normalize = |states: &[u32]| -> TokenizerStateSet {
+            let mut closure = TokenizerStateSet::new();
+            for &state in states {
+                closure.extend(self.epsilon_closure_states(&[state]));
+            }
+            closure.sort_unstable();
+            closure.dedup();
+            closure
+        };
+        let left = normalize(left);
+        let right = normalize(right);
+        if !observation_equal(&left, &right) {
+            return Some(false);
+        }
+
+        type ConfigPair = (Box<[u32]>, Box<[u32]>);
+        let to_pair = |left: &TokenizerStateSet, right: &TokenizerStateSet| -> ConfigPair {
+            (
+                left.iter().copied().collect::<Vec<_>>().into_boxed_slice(),
+                right.iter().copied().collect::<Vec<_>>().into_boxed_slice(),
+            )
+        };
+        let mut seen = FxHashSet::<ConfigPair>::default();
+        seen.insert(to_pair(&left, &right));
+        let mut frontier = vec![(left, right)];
+        while let Some((left, right)) = frontier.pop() {
+            for byte in 0u16..=255 {
+                let left_target = self.step_all(left.as_slice(), byte as u8);
+                let right_target = self.step_all(right.as_slice(), byte as u8);
+                let left_live = !left_target.is_empty() && observation_live(&left_target);
+                let right_live = !right_target.is_empty() && observation_live(&right_target);
+                if left_live != right_live {
+                    return Some(false);
+                }
+                if !left_live {
+                    continue;
+                }
+                if !observation_equal(&left_target, &right_target) {
+                    return Some(false);
+                }
+                if left_target == right_target {
+                    continue;
+                }
+                let pair = to_pair(&left_target, &right_target);
+                if seen.insert(pair) {
+                    if seen.len() > pair_limit {
+                        return None;
+                    }
+                    frontier.push((left_target, right_target));
+                }
+            }
+        }
+        Some(true)
     }
 
     /// Diagnostic form of [`Self::state_sets_observation_equivalent_exact`].
@@ -6331,12 +6889,13 @@ impl Tokenizer {
     /// dead `step()` calls. Reuse one 256-bucket scratch table instead: visit
     /// only real source transitions, union their precomputed singleton epsilon
     /// closures, then emit the non-empty byte rows in byte order.
-    fn determinization_subset_successors(
+    fn for_each_determinization_subset_successor(
         &self,
         subset: &[u32],
         closures: &SingletonEpsilonClosures,
         byte_targets: &mut [SmallVec<[u32; 8]>; 256],
-    ) -> Vec<(u8, Box<[u32]>)> {
+        mut visit: impl FnMut(u8, &[u32]) -> bool,
+    ) -> bool {
         for &source_state in subset {
             for (byte, target) in self.transitions_from(source_state) {
                 byte_targets[byte as usize]
@@ -6344,17 +6903,150 @@ impl Tokenizer {
             }
         }
 
-        let mut successors = Vec::new();
+        // Keep normalized successor sets in the reusable scratch buckets and
+        // expose them by slice. Most derivatives already exist in the subset
+        // interner, so allocating an owned box before the lookup is pure waste.
+        // Callers clone only the genuinely new subsets they need to retain.
         for (byte, targets) in byte_targets.iter_mut().enumerate() {
+            if targets.is_empty() {
+                continue;
+            }
+            if !targets.as_slice().is_sorted() {
+                targets.sort_unstable();
+            }
+            targets.dedup();
+            let keep_going = visit(byte as u8, targets.as_slice());
+            targets.clear();
+            if !keep_going {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// The same exact successor construction over a fully materialized source
+    /// DFA. Finite-horizon mask determinization already pays to materialize the
+    /// tokenizer before expansion; using those rows avoids repeatedly decoding
+    /// packed/compressed transition segments for every subset member.
+    fn for_each_materialized_determinization_subset_successor(
+        source_dfa: &DFA,
+        subset: &[u32],
+        closures: &SingletonEpsilonClosures,
+        byte_targets: &mut [SmallVec<[u32; 8]>; 256],
+        mut visit: impl FnMut(u8, &[u32]) -> bool,
+    ) -> bool {
+        for &source_state in subset {
+            for (byte, target) in source_dfa.transitions(source_state) {
+                byte_targets[byte as usize]
+                    .extend_from_slice(&closures[target as usize]);
+            }
+        }
+
+        for (byte, targets) in byte_targets.iter_mut().enumerate() {
+            if targets.is_empty() {
+                continue;
+            }
+            if !targets.as_slice().is_sorted() {
+                targets.sort_unstable();
+            }
+            targets.dedup();
+            let keep_going = visit(byte as u8, targets.as_slice());
+            targets.clear();
+            if !keep_going {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Pre-group one materialized DFA row by its exact singleton epsilon-
+    /// closed target. When every byte edge in the source lands in a singleton
+    /// closure, subset determinization can refine the fixed byte alphabet with
+    /// `U8Set` intersections instead of replaying every literal byte edge for
+    /// every product state.
+    fn singleton_closed_transition_groups(
+        source_dfa: &DFA,
+        closures: &SingletonEpsilonClosures,
+    ) -> Option<Vec<(SmallVec<[(u32, U8Set); 8]>, U8Set)>> {
+        let mut rows = Vec::with_capacity(source_dfa.num_states());
+        for state in 0..source_dfa.num_states() as u32 {
+            let mut groups = SmallVec::<[(u32, U8Set); 8]>::new();
+            let mut support = U8Set::empty();
+            for (byte, target) in source_dfa.transitions(state) {
+                let closure = closures.get(target as usize)?;
+                if closure.len() != 1 {
+                    return None;
+                }
+                let closed_target = closure[0];
+                support.insert(byte);
+                if let Some((_, bytes)) = groups
+                    .iter_mut()
+                    .find(|(seen_target, _)| *seen_target == closed_target)
+                {
+                    bytes.insert(byte);
+                } else {
+                    groups.push((closed_target, U8Set::from_byte(byte)));
+                }
+            }
+            rows.push((groups, support));
+        }
+        Some(rows)
+    }
+
+    /// Exact subset successors for the singleton-closure source above.
+    /// `classes` remains a disjoint partition of the 256-byte alphabet, so the
+    /// result is exactly the same per-byte successor relation as the generic
+    /// closure-union path.
+    fn for_each_singleton_closed_subset_successor(
+        subset: &[u32],
+        grouped_rows: &[(SmallVec<[(u32, U8Set); 8]>, U8Set)],
+        mut visit: impl FnMut(U8Set, &[u32]) -> bool,
+    ) -> bool {
+        let mut classes = Vec::<(U8Set, SmallVec<[u32; 16]>)>::with_capacity(16);
+        classes.push((U8Set::all(), SmallVec::new()));
+
+        for &source_state in subset {
+            let Some((groups, support)) = grouped_rows.get(source_state as usize) else {
+                return false;
+            };
+            let mut refined = Vec::<(U8Set, SmallVec<[u32; 16]>)>::with_capacity(
+                classes.len().saturating_mul(groups.len().saturating_add(1)).min(256),
+            );
+            for (bytes, targets) in classes.drain(..) {
+                let dead = bytes.difference(support);
+                if !dead.is_empty() {
+                    refined.push((dead, targets.clone()));
+                }
+                for &(target, target_bytes) in groups {
+                    let overlap = bytes.intersection(&target_bytes);
+                    if overlap.is_empty() {
+                        continue;
+                    }
+                    let mut next_targets = targets.clone();
+                    next_targets.push(target);
+                    refined.push((overlap, next_targets));
+                }
+            }
+            classes = refined;
+        }
+
+        let mut merged = FxHashMap::<SmallVec<[u32; 16]>, U8Set>::default();
+        for (bytes, mut targets) in classes {
             if targets.is_empty() {
                 continue;
             }
             targets.sort_unstable();
             targets.dedup();
-            successors.push((byte as u8, targets.to_vec().into_boxed_slice()));
-            targets.clear();
+            *merged.entry(targets).or_insert_with(U8Set::empty) |= bytes;
         }
-        successors
+        let mut merged = merged.into_iter().collect::<Vec<_>>();
+        merged.sort_unstable_by_key(|(_, bytes)| bytes.iter().next().unwrap_or(u8::MAX));
+        for (targets, bytes) in merged {
+            if !visit(bytes, targets.as_slice()) {
+                return false;
+            }
+        }
+        true
     }
 
     /// Fully determinize the current runtime tokenizer by exact subset
@@ -6426,35 +7118,40 @@ impl Tokenizer {
         let mut transitions_built = 0usize;
         let mut byte_targets: [SmallVec<[u32; 8]>; 256] =
             std::array::from_fn(|_| SmallVec::new());
-
         while let Some(determinized_state) = worklist.pop_front() {
             let subset = source_subsets[determinized_state as usize].clone();
             let mut transitions = Vec::<(u8, u32)>::new();
-            for (byte, closed) in self.determinization_subset_successors(
+            let completed = self.for_each_determinization_subset_successor(
                 &subset,
                 closures.as_ref(),
                 &mut byte_targets,
-            ) {
-                transitions_built = transitions_built.saturating_add(1);
-                if transitions_built > transition_limit {
-                    return None;
-                }
-                let target = if let Some(&existing) = state_by_subset.get(&closed) {
-                    existing
-                } else {
-                    if source_subsets.len() >= state_limit {
-                        return None;
+                |byte, closed| {
+                    transitions_built = transitions_built.saturating_add(1);
+                    if transitions_built > transition_limit {
+                        return false;
                     }
-                    let new_state = dfa.add_state();
-                    debug_assert_eq!(new_state as usize, source_subsets.len());
-                    let (finalizers, futures) = metadata(&closed);
-                    dfa.overwrite_state_metadata(new_state, finalizers, futures);
-                    state_by_subset.insert(closed.clone(), new_state);
-                    source_subsets.push(closed);
-                    worklist.push_back(new_state);
-                    new_state
-                };
-                transitions.push((byte, target));
+                    let target = if let Some(&existing) = state_by_subset.get(closed) {
+                        existing
+                    } else {
+                        if source_subsets.len() >= state_limit {
+                            return false;
+                        }
+                        let new_state = dfa.add_state();
+                        debug_assert_eq!(new_state as usize, source_subsets.len());
+                        let (finalizers, futures) = metadata(closed);
+                        dfa.overwrite_state_metadata(new_state, finalizers, futures);
+                        let closed = closed.to_vec().into_boxed_slice();
+                        state_by_subset.insert(closed.clone(), new_state);
+                        source_subsets.push(closed);
+                        worklist.push_back(new_state);
+                        new_state
+                    };
+                    transitions.push((byte, target));
+                    true
+                },
+            );
+            if !completed {
+                return None;
             }
             dfa.set_transitions_from_sorted_entries(determinized_state, transitions);
         }
@@ -6574,35 +7271,41 @@ impl Tokenizer {
         while let Some(determinized_state) = worklist.pop_front() {
             let subset = built.source_subsets[determinized_state as usize].clone();
             let mut transitions = Vec::<(u8, u32)>::new();
-            for (byte, closed) in self.determinization_subset_successors(
+            let completed = self.for_each_determinization_subset_successor(
                 &subset,
                 closures.as_ref(),
                 &mut byte_targets,
-            ) {
-                transitions_built = transitions_built.saturating_add(1);
-                if transitions_built > transition_limit {
-                    return None;
-                }
-                let target = if let Some(&existing) = state_by_subset.get(closed.as_ref()) {
-                    existing
-                } else {
-                    if built.source_subsets.len() >= state_limit {
-                        return None;
+                |byte, closed| {
+                    transitions_built = transitions_built.saturating_add(1);
+                    if transitions_built > transition_limit {
+                        return false;
                     }
-                    let new_state = built.tokenizer.dfa.add_state();
-                    debug_assert_eq!(new_state as usize, built.source_subsets.len());
-                    let (finalizers, futures) = metadata(&closed);
-                    built
-                        .tokenizer
-                        .dfa
-                        .overwrite_state_metadata(new_state, finalizers, futures);
-                    state_by_subset.insert(closed.clone(), new_state);
-                    built.source_subsets.push(closed);
-                    built.exact_source_states.push(u32::MAX);
-                    worklist.push_back(new_state);
-                    new_state
-                };
-                transitions.push((byte, target));
+                    let target = if let Some(&existing) = state_by_subset.get(closed) {
+                        existing
+                    } else {
+                        if built.source_subsets.len() >= state_limit {
+                            return false;
+                        }
+                        let new_state = built.tokenizer.dfa.add_state();
+                        debug_assert_eq!(new_state as usize, built.source_subsets.len());
+                        let (finalizers, futures) = metadata(closed);
+                        built
+                            .tokenizer
+                            .dfa
+                            .overwrite_state_metadata(new_state, finalizers, futures);
+                        let closed = closed.to_vec().into_boxed_slice();
+                        state_by_subset.insert(closed.clone(), new_state);
+                        built.source_subsets.push(closed);
+                        built.exact_source_states.push(u32::MAX);
+                        worklist.push_back(new_state);
+                        new_state
+                    };
+                    transitions.push((byte, target));
+                    true
+                },
+            );
+            if !completed {
+                return None;
             }
             built
                 .tokenizer
@@ -6713,41 +7416,92 @@ impl Tokenizer {
         let mut transitions_built = 0usize;
         let mut byte_targets: [SmallVec<[u32; 8]>; 256] =
             std::array::from_fn(|_| SmallVec::new());
+        let singleton_closed_rows =
+            Self::singleton_closed_transition_groups(&dfa, closures.as_ref());
+        // Raw states with non-singleton epsilon closures must receive rewritten
+        // deterministic rows, but those same raw rows remain the immutable
+        // source semantics for every later subset expansion. Delay only those
+        // row writes until construction is complete; appended deterministic
+        // states can be populated immediately.
+        let mut raw_transition_overrides = Vec::<(u32, Vec<(u8, u32)>)>::new();
         while let Some((determinized_state, depth)) = worklist.pop_front() {
             if depth >= horizon {
                 continue;
             }
             let subset = source_subsets[determinized_state as usize].clone();
+
             let mut transitions = Vec::<(u8, u32)>::new();
-            for (byte, closed) in self.determinization_subset_successors(
-                &subset,
-                closures.as_ref(),
-                &mut byte_targets,
-            ) {
-                transitions_built = transitions_built.saturating_add(1);
-                if transitions_built > transition_limit {
+            let mut pending_states = Vec::new();
+            let mut intern_closed = |closed: &[u32]| -> Option<u32> {
+                if let Some(&existing) = state_by_subset.get(closed) {
+                    return Some(existing);
+                }
+                if source_subsets.len() >= state_limit {
                     return None;
                 }
-                let target = if let Some(&existing) = state_by_subset.get(closed.as_ref()) {
-                    existing
-                } else {
-                    if source_subsets.len() >= state_limit {
-                        return None;
-                    }
-                    let new_state = dfa.add_state();
-                    debug_assert_eq!(new_state as usize, source_subsets.len());
-                    let (finalizers, futures) = metadata(&closed);
-                    dfa.overwrite_state_metadata(new_state, finalizers, futures);
-                    state_by_subset.insert(closed.clone(), new_state);
-                    source_subsets.push(closed);
-                    exact_source_states.push(u32::MAX);
-                    worklist.push_back((new_state, depth + 1));
-                    new_state
-                };
-                transitions.push((byte, target));
+                let new_state = source_subsets.len() as u32;
+                let (finalizers, futures) = metadata(closed);
+                let closed = closed.to_vec().into_boxed_slice();
+                state_by_subset.insert(closed.clone(), new_state);
+                source_subsets.push(closed);
+                exact_source_states.push(u32::MAX);
+                worklist.push_back((new_state, depth + 1));
+                pending_states.push((new_state, finalizers, futures));
+                Some(new_state)
+            };
+            let completed = if let Some(grouped_rows) = singleton_closed_rows.as_deref() {
+                Self::for_each_singleton_closed_subset_successor(
+                    &subset,
+                    grouped_rows,
+                    |bytes, closed| {
+                        transitions_built = transitions_built.saturating_add(bytes.len());
+                        if transitions_built > transition_limit {
+                            return false;
+                        }
+                        let Some(target) = intern_closed(closed) else {
+                            return false;
+                        };
+                        transitions.extend(bytes.iter().map(|byte| (byte, target)));
+                        true
+                    },
+                )
+            } else {
+                Self::for_each_materialized_determinization_subset_successor(
+                    &dfa,
+                    &subset,
+                    closures.as_ref(),
+                    &mut byte_targets,
+                    |byte, closed| {
+                        transitions_built = transitions_built.saturating_add(1);
+                        if transitions_built > transition_limit {
+                            return false;
+                        }
+                        let Some(target) = intern_closed(closed) else {
+                            return false;
+                        };
+                        transitions.push((byte, target));
+                        true
+                    },
+                )
+            };
+            if !completed {
+                return None;
             }
-            dfa.set_transitions_from_sorted_entries(determinized_state, transitions);
+            for (new_state, finalizers, futures) in pending_states {
+                let actual = dfa.add_state();
+                debug_assert_eq!(actual, new_state);
+                dfa.overwrite_state_metadata(new_state, finalizers, futures);
+            }
+            if determinized_state < raw_state_count as u32 {
+                raw_transition_overrides.push((determinized_state, transitions));
+            } else {
+                dfa.set_transitions_from_sorted_entries(determinized_state, transitions);
+            }
         }
+        for (state, transitions) in raw_transition_overrides {
+            dfa.set_transitions_from_sorted_entries(state, transitions);
+        }
+
 
         // Existing scalar rows remain valid because a byte target raw ID now
         // denotes that target's exact epsilon closure at the same ID. Newly
@@ -6868,32 +7622,38 @@ impl Tokenizer {
             }
             let subset = source_subsets[determinized_state as usize].clone();
             let mut transitions = Vec::<(u8, u32)>::new();
-            for (byte, closed) in self.determinization_subset_successors(
+            let completed = self.for_each_determinization_subset_successor(
                 &subset,
                 closures.as_ref(),
                 &mut byte_targets,
-            ) {
-                transitions_built = transitions_built.saturating_add(1);
-                if transitions_built > transition_limit {
-                    return None;
-                }
-                let target = if let Some(&existing) = state_by_subset.get(closed.as_ref()) {
-                    existing
-                } else {
-                    if source_subsets.len() >= state_limit {
-                        return None;
+                |byte, closed| {
+                    transitions_built = transitions_built.saturating_add(1);
+                    if transitions_built > transition_limit {
+                        return false;
                     }
-                    let new_state = dfa.add_state();
-                    debug_assert_eq!(new_state as usize, source_subsets.len());
-                    let (finalizers, futures) = metadata(&closed);
-                    dfa.overwrite_state_metadata(new_state, finalizers, futures);
-                    state_by_subset.insert(closed.clone(), new_state);
-                    source_subsets.push(closed);
-                    exact_source_states.push(u32::MAX);
-                    worklist.push_back((new_state, depth + 1));
-                    new_state
-                };
-                transitions.push((byte, target));
+                    let target = if let Some(&existing) = state_by_subset.get(closed) {
+                        existing
+                    } else {
+                        if source_subsets.len() >= state_limit {
+                            return false;
+                        }
+                        let new_state = dfa.add_state();
+                        debug_assert_eq!(new_state as usize, source_subsets.len());
+                        let (finalizers, futures) = metadata(closed);
+                        dfa.overwrite_state_metadata(new_state, finalizers, futures);
+                        let closed = closed.to_vec().into_boxed_slice();
+                        state_by_subset.insert(closed.clone(), new_state);
+                        source_subsets.push(closed);
+                        exact_source_states.push(u32::MAX);
+                        worklist.push_back((new_state, depth + 1));
+                        new_state
+                    };
+                    transitions.push((byte, target));
+                    true
+                },
+            );
+            if !completed {
+                return None;
             }
             dfa.set_transitions_from_sorted_entries(determinized_state, transitions);
         }
@@ -7875,6 +8635,17 @@ impl Tokenizer {
     }
 
     #[inline]
+    #[doc(hidden)]
+    pub fn state_is_virtual_runtime(&self, state: u32) -> bool {
+        self.virtual_residual_runtime_for_state(state).is_some()
+            || self.virtual_repeat_runtime_for_state(state).is_some()
+            || self
+                .virtual_unit_repeat
+                .as_deref()
+                .is_some_and(|runtime| runtime.is_virtual_state(state))
+    }
+
+    #[inline]
     pub fn state_has_epsilon_transitions(&self, state: u32) -> bool {
         if self.virtual_residual_runtime_for_state(state).is_some() {
             return false;
@@ -8162,11 +8933,29 @@ impl Tokenizer {
         residual_oracles: &[(TerminalID, Vec<u8>)],
         allow_legacy_exact_dead_residual_roots: bool,
     ) -> Result<(), String> {
+        self.restore_terminal_exprs_with_virtual_runtime_metadata_and_oracles_preserving_coordinates(
+            exprs,
+            metadata,
+            residual_oracles,
+            allow_legacy_exact_dead_residual_roots,
+            false,
+        )
+    }
+
+    #[doc(hidden)]
+    pub fn restore_terminal_exprs_with_virtual_runtime_metadata_and_oracles_preserving_coordinates(
+        &mut self,
+        exprs: Option<Vec<Expr>>,
+        metadata: &[VirtualTokenizerRuntimeMetadata],
+        residual_oracles: &[(TerminalID, Vec<u8>)],
+        allow_legacy_exact_dead_residual_roots: bool,
+        preserve_oracle_coordinate: bool,
+    ) -> Result<(), String> {
         self.restore_terminal_exprs_with_virtual_runtime_metadata_impl(
             exprs,
             metadata,
             allow_legacy_exact_dead_residual_roots,
-            false,
+            preserve_oracle_coordinate,
             None,
             Some(residual_oracles),
         )
@@ -9107,6 +9896,12 @@ impl Tokenizer {
     }
 
     #[doc(hidden)]
+    pub fn has_compressed_transition_segments(&self) -> bool {
+        !self.compressed_transition_segments.is_empty()
+            || !self.packed_compressed_transition_segments.is_empty()
+    }
+
+    #[doc(hidden)]
     pub fn has_virtual_residual_runtime(&self) -> bool {
         !self.virtual_residuals.is_empty()
     }
@@ -9172,6 +9967,91 @@ impl Tokenizer {
     ) -> Option<bool> {
         self.virtual_residual_runtime_for_state(state)?
             .parser_transparent_byte_family(state, bytes, max_horizon)
+    }
+
+    #[doc(hidden)]
+    pub fn virtual_residual_parser_transparent_byte_dfa(
+        &self,
+        state: u32,
+        slice_start: u32,
+        slice_class_count: usize,
+        slice_byte_to_class: &[u8; 256],
+        slice_transitions: &[u32],
+        slice_can_reach_accepting: &[bool],
+        slice_language_finite: bool,
+        work_limit: usize,
+    ) -> Option<bool> {
+        self.virtual_residual_runtime_for_state(state)?
+            .parser_transparent_byte_dfa(
+                state,
+                slice_start,
+                slice_class_count,
+                slice_byte_to_class,
+                slice_transitions,
+                slice_can_reach_accepting,
+                slice_language_finite,
+                work_limit,
+            )
+    }
+
+    #[doc(hidden)]
+    pub fn virtual_residual_parser_transparent_byte_dfa_repeat_radius(
+        &self,
+        state: u32,
+        slice_start: u32,
+        slice_class_count: usize,
+        slice_byte_to_class: &[u8; 256],
+        slice_transitions: &[u32],
+        slice_accepting: &[bool],
+        slice_can_reach_accepting: &[bool],
+        max_repetitions: u32,
+        work_limit: usize,
+    ) -> Option<u32> {
+        self.virtual_residual_runtime_for_state(state)?
+            .parser_transparent_byte_dfa_repeat_radius(
+                state,
+                slice_start,
+                slice_class_count,
+                slice_byte_to_class,
+                slice_transitions,
+                slice_accepting,
+                slice_can_reach_accepting,
+                max_repetitions,
+                work_limit,
+            )
+    }
+
+    #[doc(hidden)]
+    pub fn prepare_virtual_residual_master_slice_artifacts(
+        &self,
+        slice_start: u32,
+        slice_class_count: usize,
+        slice_byte_to_class: &[u8; 256],
+        slice_transitions: &[u32],
+        slice_accepting: &[bool],
+        slice_can_reach_accepting: &[bool],
+        max_repetitions: u32,
+    ) {
+        for runtime in &self.virtual_residuals {
+            runtime.prepare_master_slice_artifacts(
+                slice_start,
+                slice_class_count,
+                slice_byte_to_class,
+                slice_transitions,
+                slice_accepting,
+                slice_can_reach_accepting,
+                max_repetitions,
+            );
+        }
+    }
+
+    /// Owning terminal for an exact virtual-residual state. This is runtime
+    /// provenance only: callers still need to establish parser admission before
+    /// using a residual-language certificate as a mask shortcut.
+    #[doc(hidden)]
+    pub fn virtual_residual_terminal_for_state(&self, state: u32) -> Option<TerminalID> {
+        self.virtual_residual_runtime_for_state(state)
+            .map(VirtualResidualRuntime::terminal)
     }
 
     #[doc(hidden)]
@@ -9315,7 +10195,11 @@ impl Tokenizer {
                 estimates,
             );
         }
+        let profile_projection = std::env::var_os("GLRMASK_PROFILE_DYNAMIC_VIRTUAL_RESIDUAL_PROJECTION").is_some();
+        let projection_total_started = std::time::Instant::now();
+        let clone_started = std::time::Instant::now();
         let mut mask = self.clone();
+        let clone_ms = clone_started.elapsed().as_secs_f64() * 1000.0;
         mask.virtual_unit_repeat = None;
         mask.virtual_repeat_intersections.clear();
         mask.virtual_residuals.clear();
@@ -9328,44 +10212,144 @@ impl Tokenizer {
         let start = mask.start_state();
         let repeat_horizons = super::compile::VocabularyRepeatHorizonCache::new();
 
-        // Residual components are independent symbolic languages. Build their
-        // finite one-token observation DFAs concurrently; append/rebase them
-        // deterministically afterward so state numbering remains stable.
-        let built = self
-            .virtual_residuals
+        // Disconnect every symbolic residual proxy before appending the finite
+        // replacements. This lets us certify the retained physical graph while
+        // it is still small; appended finite projection components are ordinary
+        // epsilon-free DFAs by construction. The combined certificate is the
+        // same invariant checked by `has_scalar_deterministic_dispatch()`, but
+        // avoids walking every appended state again on first mask use.
+        {
+            let root_eps = &mut mask.dfa.states_mut()[start as usize].epsilon_transitions;
+            for runtime in &self.virtual_residuals {
+                let proxy_root = runtime.root_state();
+                let before = root_eps.len();
+                root_eps.retain(|&state| state != proxy_root);
+                if root_eps.len() == before {
+                    return None;
+                }
+            }
+        }
+        let retained_roots = mask.dfa.states()[start as usize].epsilon_transitions.clone();
+        let mut retained_scalar = mask.transitions_from(start).next().is_none();
+        if retained_scalar {
+            let mut seen = vec![false; mask.num_states() as usize];
+            let mut pending = retained_roots;
+            while let Some(state) = pending.pop() {
+                let Some(slot) = seen.get_mut(state as usize) else {
+                    retained_scalar = false;
+                    break;
+                };
+                if *slot {
+                    continue;
+                }
+                *slot = true;
+                if mask.state_has_epsilon_transitions(state) {
+                    retained_scalar = false;
+                    break;
+                }
+                pending.extend(mask.transitions_from(state).map(|(_, target)| target));
+            }
+        }
+
+        // Residual components are independent symbolic languages, but JSON
+        // schemas commonly contain many distinct terminals with exactly the
+        // same bounded-code residual language.  Terminal identity must remain
+        // distinct at runtime, so we cannot collapse their logical lexer state
+        // ranges; however the expensive finite DFA construction is identical.
+        // Build one exact template per semantic language key, then clone/rebase
+        // that template with terminal-local metadata for every runtime.
+        let build_started = std::time::Instant::now();
+        let mut grouped = Vec::<Vec<(usize, Arc<VirtualResidualRuntime>, Option<usize>)>>::new();
+        let mut group_by_key = FxHashMap::default();
+        for (index, runtime) in self.virtual_residuals.iter().enumerate() {
+            let key = runtime.finite_mask_projection_language_key()?;
+            let crossed_boundaries = vocab.and_then(|vocab| {
+                runtime.vocabulary_repeat_boundary_horizon(vocab, &repeat_horizons)
+            });
+            let group = if let Some(&group) = group_by_key.get(&key) {
+                group
+            } else {
+                let group = grouped.len();
+                group_by_key.insert(key, group);
+                grouped.push(Vec::new());
+                group
+            };
+            grouped[group].push((index, Arc::clone(runtime), crossed_boundaries));
+        }
+        let built = grouped
             .par_iter()
-            .map(|runtime| {
-                let built = if let Some(crossed_boundaries) = vocab
-                    .and_then(|vocab| runtime.vocabulary_repeat_boundary_horizon(vocab, &repeat_horizons))
-                {
-                    runtime.build_finite_mask_projection_for_crossed_boundaries(crossed_boundaries, 0)
+            .map(|members| {
+                let (_, runtime, crossed_boundaries) = members.first()?;
+                debug_assert!(members
+                    .iter()
+                    .all(|(_, _, other)| other == crossed_boundaries));
+                let (component, segment, local_root, projection) = if let Some(crossed_boundaries) = crossed_boundaries {
+                    runtime.build_finite_mask_projection_for_crossed_boundaries(*crossed_boundaries, 0)?
                 } else {
-                    runtime.build_finite_mask_projection(horizon, 0)
-                }?;
-                let (component, local_root, projection) = built;
-                Some((Arc::clone(runtime), component, local_root, projection))
+                    runtime.build_finite_mask_projection(horizon, 0)?
+                };
+                Some((component, segment, local_root, projection))
             })
             .collect::<Option<Vec<_>>>()?;
-
-        let mut projections = Vec::with_capacity(built.len());
-        for (runtime, component, local_root, mut projection) in built {
-            let offset = u32::try_from(mask.dfa.num_states()).ok()?;
-            let proxy_root = runtime.root_state();
-            let root_eps = &mut mask.dfa.states_mut()[start as usize].epsilon_transitions;
-            let before = root_eps.len();
-            root_eps.retain(|&state| state != proxy_root);
-            if root_eps.len() == before {
-                return None;
+        let build_ms = build_started.elapsed().as_secs_f64() * 1000.0;
+        if profile_projection {
+            for (group, (component, _, local_root, _)) in built.iter().enumerate() {
+                let terminals = grouped[group]
+                    .iter()
+                    .map(|(_, runtime, _)| runtime.terminal())
+                    .collect::<Vec<_>>();
+                eprintln!(
+                    "[glrmask/profile][virtual_residual_projection_component] group={} terminals={:?} states={} local_root={}",
+                    group,
+                    terminals,
+                    component.num_states(),
+                    local_root,
+                );
             }
-            let terminal = runtime.terminal() as usize;
-            let actual_offset = mask.dfa.append_rebased_component(component, &[terminal]);
-            if actual_offset != offset {
-                return None;
-            }
-            mask.dfa.add_epsilon_transition(start, offset.checked_add(local_root)?);
-            projection.set_state_offset(offset);
-            projections.push(projection);
         }
+
+        let append_started = std::time::Instant::now();
+        let mut projections = vec![None; self.virtual_residuals.len()];
+        let mut appended_components_scalar = true;
+        for (component, _, _, _) in &built {
+            appended_components_scalar &= component
+                .states()
+                .iter()
+                .all(|state| state.epsilon_transitions.is_empty());
+        }
+        let mut member_to_group = vec![0usize; self.virtual_residuals.len()];
+        for (group, members) in grouped.iter().enumerate() {
+            for (member_index, _, _) in members {
+                member_to_group[*member_index] = group;
+            }
+        }
+        let mut append_components = Vec::<(&DFA, usize)>::with_capacity(self.virtual_residuals.len());
+        for (member_index, runtime) in self.virtual_residuals.iter().enumerate() {
+            let group = member_to_group[member_index];
+            append_components.push((&built[group].0, runtime.terminal() as usize));
+        }
+        let offsets = mask
+            .dfa
+            .append_rebased_single_group_component_refs_batch(&append_components)?;
+        let mut compressed_segments = mask.compressed_transition_segments.to_vec();
+        for ((member_index, runtime), offset) in
+            self.virtual_residuals.iter().enumerate().zip(offsets)
+        {
+            let group = member_to_group[member_index];
+            let mut segment = built[group].1.clone();
+            segment.state_offset = offset;
+            compressed_segments.push(segment);
+            let local_root = built[group].2;
+            mask.dfa.add_epsilon_transition(start, offset.checked_add(local_root)?);
+            let mut projection = built[group]
+                .3
+                .clone_for_equivalent_runtime(Arc::clone(runtime))?;
+            projection.set_state_offset(offset);
+            projections[member_index] = Some(projection);
+        }
+        mask.compressed_transition_segments = Arc::from(compressed_segments.into_boxed_slice());
+        let projections = projections.into_iter().collect::<Option<Vec<_>>>()?;
+        let append_ms = append_started.elapsed().as_secs_f64() * 1000.0;
         // Do not globally recompute futures here. `mask` may retain packed
         // byte-transition rows for the ordinary physical states; the raw DFA
         // intentionally does not contain those rows, so a DFA-only fixpoint
@@ -9373,7 +10357,25 @@ impl Tokenizer {
         // physical metadata is already exact, each appended finite component
         // carries exact remapped metadata, and replacing a residual proxy root
         // with the finite root preserves the same terminal future at `start`.
+        let futures_ms = 0.0;
         mask.invalidate_derived_caches();
+        if retained_scalar
+            && appended_components_scalar
+            && mask.dfa.states()[start as usize].epsilon_transitions.len() >= 2
+        {
+            let _ = mask.scalar_deterministic_dispatch_cache.set(true);
+        }
+        if profile_projection {
+            eprintln!(
+                "[glrmask/profile][virtual_residual_projection_phases] clone_ms={:.3} build_ms={:.3} append_ms={:.3} futures_ms={:.3} total_ms={:.3} states={}",
+                clone_ms,
+                build_ms,
+                append_ms,
+                futures_ms,
+                projection_total_started.elapsed().as_secs_f64() * 1000.0,
+                mask.num_states(),
+            );
+        }
         Some((mask, projections))
     }
 
@@ -9707,19 +10709,18 @@ impl Tokenizer {
     /// terminal, when the tokenizer's structural certificate proves such a
     /// branch exists. This avoids powerset construction for the common
     /// partitioned-lexer representation.
-    fn terminal_scalar_dispatch_root(&self, terminal: TerminalID) -> Option<u32> {
+    fn terminal_dispatch_root_candidate(&self, terminal: TerminalID) -> Option<u32> {
         let start = self.start_state();
         if self.state_finalizers(start).contains(terminal as usize) {
-            // A nullable terminal can accept before entering a dispatch root;
-            // keep it on the general epsilon-NFA proof path.
             return None;
         }
         if !self.has_epsilon_transitions() {
             return Some(start);
         }
-        if !self.has_scalar_deterministic_dispatch() {
-            return None;
-        }
+        // Use the runtime representation of the reset dispatcher. Fast
+        // transfer loads may keep epsilon metadata in packed tables rather
+        // than in `dfa.states()[start]`; quotient construction must see the
+        // same roots as ordinary scanner execution.
         let mut live_roots = self
             .deterministic_dispatch_roots()?
             .iter()
@@ -9727,6 +10728,198 @@ impl Tokenizer {
             .filter(|&root| self.state_live_for_terminal(root, terminal));
         let root = live_roots.next()?;
         live_roots.next().is_none().then_some(root)
+    }
+
+    fn terminal_scalar_dispatch_root(&self, terminal: TerminalID) -> Option<u32> {
+        let root = self.terminal_dispatch_root_candidate(terminal)?;
+        self.scalar_physical_component_root(root).then_some(root)
+    }
+
+    fn terminal_scalar_dispatch_root_with_states(
+        &self,
+        terminal: TerminalID,
+    ) -> Option<(u32, Vec<u32>)> {
+        let root = self.terminal_dispatch_root_candidate(terminal)?;
+        let states = self.scalar_physical_component_states(root)?;
+        Some((root, states))
+    }
+
+    /// Certify scalar execution only for one selected reset component. This is
+    /// deliberately local: unrelated virtual/epsilon components under the same
+    /// global reset dispatcher must not disable exact single-terminal quotient
+    /// construction for an ordinary deterministic component.
+    fn scalar_physical_component_root(&self, root: u32) -> bool {
+        self.scalar_physical_component_states(root).is_some()
+    }
+
+    fn scalar_physical_component_states(&self, root: u32) -> Option<Vec<u32>> {
+        let mut seen = FxHashSet::<u32>::default();
+        let mut pending = vec![root];
+        while let Some(state) = pending.pop() {
+            if !seen.insert(state) {
+                continue;
+            }
+            if state >= self.num_states()
+                || self.virtual_residual_runtime_for_state(state).is_some()
+                || self.virtual_repeat_runtime_for_state(state).is_some()
+                || self
+                    .virtual_unit_repeat
+                    .as_deref()
+                    .is_some_and(|runtime| runtime.handles_state(state))
+                || self.state_has_epsilon_transitions(state)
+            {
+                return None;
+            }
+            pending.extend(self.transitions_from(state).map(|(_, target)| target));
+        }
+        let mut states = seen.into_iter().collect::<Vec<_>>();
+        states.sort_unstable();
+        Some(states)
+    }
+
+
+    /// Exact source-state certificate for containment of `bytes+` in one
+    /// scalar physical terminal residual. The result covers every state in the
+    /// terminal's physical component; `true` means every nonempty byte string
+    /// over `bytes` remains terminal-live from that source.
+    #[doc(hidden)]
+    pub fn terminal_byte_plus_containment_rows(
+        &self,
+        terminal: TerminalID,
+        bytes: U8Set,
+    ) -> Option<Vec<(u32, bool)>> {
+        if bytes.is_empty() {
+            return None;
+        }
+        let root = self.terminal_scalar_dispatch_root(terminal)?;
+        let states = self.scalar_physical_component_states(root)?;
+        let mut index = vec![u32::MAX; self.num_states() as usize];
+        for (local, &state) in states.iter().enumerate() {
+            index[state as usize] = local as u32;
+        }
+
+        let mut bad = vec![false; states.len()];
+        let mut reverse = (0..states.len()).map(|_| Vec::<u32>::new()).collect::<Vec<_>>();
+        for (local, &state) in states.iter().enumerate() {
+            if !self.state_live_for_terminal(state, terminal) {
+                bad[local] = true;
+                continue;
+            }
+            let mut required_seen = 0usize;
+            for (byte, target) in self.transitions_from(state) {
+                if !bytes.contains(byte) {
+                    continue;
+                }
+                required_seen += 1;
+                if !self.state_live_for_terminal(target, terminal) {
+                    bad[local] = true;
+                    continue;
+                }
+                let target_local = *index.get(target as usize)?;
+                if target_local == u32::MAX {
+                    return None;
+                }
+                reverse[target_local as usize].push(local as u32);
+            }
+            if required_seen != bytes.len() {
+                bad[local] = true;
+            }
+        }
+
+        let mut queue = VecDeque::<u32>::new();
+        for (local, &is_bad) in bad.iter().enumerate() {
+            if is_bad {
+                queue.push_back(local as u32);
+            }
+        }
+        while let Some(target) = queue.pop_front() {
+            for &predecessor in &reverse[target as usize] {
+                let predecessor = predecessor as usize;
+                if !bad[predecessor] {
+                    bad[predecessor] = true;
+                    queue.push_back(predecessor as u32);
+                }
+            }
+        }
+
+        Some(
+            states
+                .into_iter()
+                .zip(bad.into_iter().map(|is_bad| !is_bad))
+                .collect(),
+        )
+    }
+
+    /// Necessary-condition test for regex-slice containment: does any exact
+    /// physical source state of `terminal` keep the terminal live after every
+    /// byte in `bytes`? If false, a slice accepting all of those one-byte
+    /// strings cannot be contained at any source in this terminal component.
+    #[doc(hidden)]
+    pub fn terminal_has_source_covering_bytes(
+        &self,
+        terminal: TerminalID,
+        bytes: U8Set,
+    ) -> bool {
+        if bytes.is_empty() {
+            return true;
+        }
+        let Some(states) = self.scalar_physical_component_states_for_terminal(terminal) else {
+            return false;
+        };
+        states.into_iter().any(|state| {
+            self.state_live_for_terminal(state, terminal)
+                && bytes.iter().all(|byte| {
+                    self.step(state, byte)
+                        .is_some_and(|target| self.state_live_for_terminal(target, terminal))
+                })
+        })
+    }
+
+    #[doc(hidden)]
+    pub fn scalar_physical_component_states_for_terminal(
+        &self,
+        terminal: TerminalID,
+    ) -> Option<Vec<u32>> {
+        let root = self.terminal_scalar_dispatch_root(terminal)?;
+        self.scalar_physical_component_states(root)
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn terminal_state_is_live(&self, state: u32, terminal: TerminalID) -> bool {
+        self.state_live_for_terminal(state, terminal)
+    }
+
+    /// Cheap exact necessary condition for language containment at one
+    /// *physical* residual state. `Some(false)` proves that a candidate
+    /// language containing every byte in `bytes` as a possible first byte
+    /// cannot be contained in this terminal residual. Virtual/epsilon states
+    /// return `None` so callers conservatively fall back to the full proof.
+    #[doc(hidden)]
+    pub fn physical_terminal_residual_covers_first_bytes(
+        &self,
+        state: u32,
+        terminal: TerminalID,
+        bytes: U8Set,
+    ) -> Option<bool> {
+        if state >= self.num_states()
+            || terminal >= self.num_terminals
+            || self.state_is_virtual_runtime(state)
+            || self.state_has_epsilon_transitions(state)
+            || !self.state_live_for_terminal(state, terminal)
+        {
+            return None;
+        }
+        let mut missing = bytes;
+        for (byte, target) in self.transitions_from(state) {
+            if missing.contains(byte) && self.state_live_for_terminal(target, terminal) {
+                missing.remove(byte);
+                if missing.is_empty() {
+                    return Some(true);
+                }
+            }
+        }
+        Some(missing.is_empty())
     }
 
     #[inline]
@@ -9809,10 +11002,9 @@ impl Tokenizer {
         &self,
         source: u32,
         terminal: TerminalID,
-        full_byte_classes: Option<&[u8; 256]>,
+        _full_byte_classes: Option<&[u8; 256]>,
     ) -> Option<TerminalProjectedQuotient> {
-        if self.has_any_virtual_runtime()
-            || source >= self.num_states()
+        if source >= self.num_states()
             || terminal >= self.num_terminals
             || self.state_has_epsilon_transitions(source)
         {
@@ -9824,32 +11016,12 @@ impl Tokenizer {
             return None;
         }
 
-        // When the caller has already proved an exact byte partition for the
-        // full deterministic component, intersect it with the standalone
-        // terminal DFA's exact byte partition. One representative from each
-        // intersection class is sufficient for the homomorphism proof: every
-        // byte in that class has the same full target from every component
-        // state and the same projected target from every projected state.
-        let proof_bytes = if let Some(full_byte_classes) = full_byte_classes {
-            let (projected_byte_classes, _, _) =
-                TerminalProjectedQuotient::exact_byte_classes(&projected.dfa);
-            let mut seen = FxHashSet::<(u8, u8)>::default();
-            let mut representatives = Vec::<u8>::new();
-            for byte in 0u16..=255 {
-                let byte = byte as u8;
-                let key = (
-                    full_byte_classes[byte as usize],
-                    projected_byte_classes[byte as usize],
-                );
-                if seen.insert(key) {
-                    representatives.push(byte);
-                }
-            }
-            representatives
-        } else {
-            (0u16..=255).map(|byte| byte as u8).collect::<Vec<_>>()
-        };
-
+        // Exact sparse homomorphism proof. The selected full component and the
+        // standalone terminal DFA are deterministic and epsilon-free. Their
+        // terminal languages agree at a state pair iff accepting/future
+        // observations agree and the complete sets of *live* outgoing
+        // byte-labelled edges agree. Comparing sparse rows therefore proves all
+        // 256 byte observations at once without probing dead bytes individually.
         let full_root = self.terminal_scalar_dispatch_root(terminal)?;
         let projected_root = projected.initial_state();
         let mut full_to_projected = vec![u32::MAX; self.num_states() as usize];
@@ -9871,25 +11043,31 @@ impl Tokenizer {
                 return None;
             }
 
-            for &byte in &proof_bytes {
-                let full_target = self.terminal_projected_scalar_step(full_state, terminal, byte);
-                let projected_target = projected
-                    .step(projected_state, byte)
-                    .filter(|&target| projected.state_live_for_terminal(target, 0));
-                match (full_target, projected_target) {
-                    (None, None) => {}
-                    (Some(full_target), Some(projected_target)) => {
-                        let slot = &mut full_to_projected[full_target as usize];
-                        if *slot == u32::MAX {
-                            *slot = projected_target;
-                            queue.push_back((full_target, projected_target));
-                        } else if *slot != projected_target {
-                            return None;
-                        }
-                    }
-                    _ => {
-                        return None;
-                    }
+            let mut full_edges = self
+                .transitions_from(full_state)
+                .filter(|&(_, target)| self.state_live_for_terminal(target, terminal))
+                .collect::<Vec<_>>();
+            let mut projected_edges = projected
+                .transitions_from(projected_state)
+                .filter(|&(_, target)| projected.state_live_for_terminal(target, 0))
+                .collect::<Vec<_>>();
+            full_edges.sort_unstable_by_key(|&(byte, _)| byte);
+            projected_edges.sort_unstable_by_key(|&(byte, _)| byte);
+            if full_edges.len() != projected_edges.len() {
+                return None;
+            }
+            for ((full_byte, full_target), (projected_byte, projected_target)) in
+                full_edges.into_iter().zip(projected_edges)
+            {
+                if full_byte != projected_byte {
+                    return None;
+                }
+                let slot = &mut full_to_projected[full_target as usize];
+                if *slot == u32::MAX {
+                    *slot = projected_target;
+                    queue.push_back((full_target, projected_target));
+                } else if *slot != projected_target {
+                    return None;
                 }
             }
         }
@@ -9897,34 +11075,75 @@ impl Tokenizer {
         if full_to_projected[source as usize] == u32::MAX {
             return None;
         }
-        Some(TerminalProjectedQuotient::from_dense_mapping(
+        let quotient = TerminalProjectedQuotient::from_dense_mapping(
             projected.dfa,
             full_to_projected,
-        ))
+        );
+        Some(quotient)
     }
 
     fn deterministic_component_byte_classes(&self, states: &[u32]) -> [u8; 256] {
         let mut classes = [0u8; 256];
-        let mut by_signature = FxHashMap::<Vec<u32>, u8>::default();
-        let mut next_class = 0usize;
-        for byte in 0u16..=255 {
-            let byte = byte as u8;
-            let signature = states
-                .iter()
-                .map(|&state| self.step(state, byte).unwrap_or(u32::MAX))
-                .collect::<Vec<_>>();
-            let class = if let Some(&class) = by_signature.get(&signature) {
-                class
-            } else {
-                debug_assert!(next_class <= u8::MAX as usize);
-                let class = next_class as u8;
-                next_class += 1;
-                by_signature.insert(signature, class);
-                class
-            };
-            classes[byte as usize] = class;
+        let mut class_count = 1usize;
+        let mut targets = [u32::MAX; 256];
+        let mut keyed = Vec::<(u64, u8)>::with_capacity(256);
+        let mut refined = [0u8; 256];
+        for &state in states {
+            if class_count == 256 {
+                break;
+            }
+            targets.fill(u32::MAX);
+            for (byte, target) in self.transitions_from(state) {
+                targets[byte as usize] = target;
+            }
+            keyed.clear();
+            for byte in 0u16..=255 {
+                let byte = byte as u8;
+                let target_code = targets[byte as usize] as u64 + 1;
+                let key = ((classes[byte as usize] as u64) << 33) | target_code;
+                keyed.push((key, byte));
+            }
+            keyed.sort_unstable_by_key(|&(key, _)| key);
+            let mut previous = None::<u64>;
+            let mut next_class = 0usize;
+            for &(key, byte) in &keyed {
+                if previous != Some(key) {
+                    previous = Some(key);
+                    next_class += 1;
+                }
+                refined[byte as usize] = (next_class - 1) as u8;
+            }
+            classes = refined;
+            class_count = next_class;
         }
-        classes
+        TerminalProjectedQuotient::canonicalize_byte_class_map(&classes).0
+    }
+
+    /// Extract the exact effective single-terminal residual automaton directly
+    /// from one certified scalar physical tokenizer component. This preserves
+    /// lexer priority/exclusion semantics by construction and avoids rebuilding
+    /// the retained source expression plus a separate homomorphism proof.
+    fn terminal_live_subautomaton_quotient_from_component(
+        &self,
+        terminal: TerminalID,
+        component_states: &[u32],
+    ) -> Option<TerminalProjectedQuotient> {
+        let quotient = TerminalProjectedQuotient::from_source_terminal_subautomaton(
+            self,
+            terminal,
+            component_states,
+        )?;
+        Some(quotient)
+    }
+
+    fn terminal_live_subautomaton_quotient(
+        &self,
+        terminal: TerminalID,
+        _base_byte_classes: Option<&[u8; 256]>,
+    ) -> Option<TerminalProjectedQuotient> {
+        let (_root, component_states) =
+            self.terminal_scalar_dispatch_root_with_states(terminal)?;
+        self.terminal_live_subautomaton_quotient_from_component(terminal, &component_states)
     }
 
     /// Build the exact expression-projected quotient from this terminal's
@@ -9934,8 +11153,55 @@ impl Tokenizer {
         &self,
         terminal: TerminalID,
     ) -> Option<TerminalProjectedQuotient> {
+        if let Some(quotient) = self.terminal_live_subautomaton_quotient(terminal, None) {
+            return Some(quotient);
+        }
+        if let Some(quotient) = self.terminal_projected_quotient_from_retained_coordinates(terminal)
+        {
+            return Some(quotient);
+        }
         let source = self.terminal_scalar_dispatch_root(terminal)?;
         self.terminal_expr_projected_quotient(source, terminal)
+    }
+
+    /// Reuse the exact product coordinates retained by the partitioned lexer
+    /// builder instead of reconstructing and re-proving the same terminal
+    /// homomorphism. Each row records `(terminal, standalone_terminal_state)`
+    /// for one combined tokenizer state. States appended later for unrelated
+    /// virtual runtimes simply remain unmapped and conservatively fall back.
+    fn terminal_projected_quotient_from_retained_coordinates(
+        &self,
+        terminal: TerminalID,
+    ) -> Option<TerminalProjectedQuotient> {
+        let coordinates = self.terminal_residual_coordinates.as_deref()?;
+        let terminal_dfa = coordinates.terminal_dfa(terminal)?.clone();
+        if terminal_dfa.has_epsilon_transitions() {
+            return None;
+        }
+
+        let mut full_to_projected = vec![u32::MAX; self.num_states() as usize];
+        let mut mapped = 0usize;
+        let physical_rows = coordinates.len().min(full_to_projected.len());
+        for state in 0..physical_rows {
+            let row = coordinates.row(state as u32)?;
+            let Ok(index) = row.binary_search_by_key(&terminal, |&(candidate, _)| candidate)
+            else {
+                continue;
+            };
+            let projected = row[index].1;
+            if projected >= terminal_dfa.num_states() as u32 {
+                return None;
+            }
+            let live = terminal_dfa.finalizers(projected).contains(0)
+                || terminal_dfa.possible_future_group_ids(projected).contains(0);
+            if live {
+                full_to_projected[state] = projected;
+                mapped += 1;
+            }
+        }
+        (mapped != 0).then(|| {
+            TerminalProjectedQuotient::from_dense_mapping(terminal_dfa, full_to_projected)
+        })
     }
 
     /// Build exact single-terminal residual coordinates only for terminals in
@@ -9948,7 +11214,7 @@ impl Tokenizer {
         &self,
         min_component_states: usize,
     ) -> Vec<(TerminalID, TerminalProjectedQuotient)> {
-        if min_component_states == 0 || !self.has_scalar_deterministic_dispatch() {
+        if min_component_states == 0 {
             return Vec::new();
         }
         let Some(roots) = self.deterministic_dispatch_roots() else {
@@ -10009,6 +11275,100 @@ impl Tokenizer {
         if profile {
             eprintln!(
                 "[glrmask/profile][dynamic_projected_quotient_build_summary] retained={}",
+                results.len(),
+            );
+        }
+        results
+    }
+
+    /// Build every exact scalar single-terminal quotient needed by runtime
+    /// regular-language containment. Unlike the older projection optimization,
+    /// this deliberately retains quotients even when they do not reduce the
+    /// underlying component state count: containment needs an exact residual
+    /// coordinate, not compression.
+    pub fn build_terminal_projected_quotients_for_containment(
+        &self,
+    ) -> Vec<(TerminalID, TerminalProjectedQuotient)> {
+        let terminals = (0..self.num_terminals).collect::<Vec<_>>();
+        self.build_terminal_projected_quotients_for_containment_candidates(&terminals)
+    }
+
+    /// Build exact single-terminal quotients only for caller-selected
+    /// containment candidates. Candidate selection is allowed to be incomplete
+    /// only in the conservative direction: omitted terminals simply lose the
+    /// acceleration and fall back to the exact vocabulary walk.
+    pub fn build_terminal_projected_quotients_for_containment_candidates(
+        &self,
+        terminals: &[TerminalID],
+    ) -> Vec<(TerminalID, TerminalProjectedQuotient)> {
+        let profile =
+            std::env::var_os("GLRMASK_PROFILE_DYNAMIC_PROJECTED_QUOTIENT_BUILD").is_some();
+        let mut candidates = terminals
+            .iter()
+            .copied()
+            .filter(|&terminal| terminal < self.num_terminals)
+            .collect::<Vec<_>>();
+        candidates.sort_unstable();
+        candidates.dedup();
+
+        let mut by_root = BTreeMap::<u32, Vec<TerminalID>>::new();
+        let mut fallback = Vec::<TerminalID>::new();
+        for terminal in candidates {
+            if let Some(root) = self.terminal_dispatch_root_candidate(terminal) {
+                by_root.entry(root).or_default().push(terminal);
+            } else {
+                fallback.push(terminal);
+            }
+        }
+
+        // Certify each shared physical component once. Unlike the rejected
+        // shared-byte-alphabet experiment, this only reuses the state list; each
+        // terminal still derives its own exact byte partition independently.
+        let component_jobs = by_root
+            .into_par_iter()
+            .filter_map(|(root, terminals)| {
+                self.scalar_physical_component_states(root)
+                    .map(|states| (terminals, Arc::new(states)))
+            })
+            .collect::<Vec<_>>();
+        let mut jobs = Vec::<(TerminalID, Arc<Vec<u32>>)>::new();
+        for (terminals, states) in component_jobs {
+            jobs.extend(
+                terminals
+                    .into_iter()
+                    .map(|terminal| (terminal, Arc::clone(&states))),
+            );
+        }
+
+        let mut results = jobs
+            .into_par_iter()
+            .filter_map(|(terminal, states)| {
+                let quotient = self
+                    .terminal_live_subautomaton_quotient_from_component(terminal, states.as_ref())?;
+                if profile {
+                    let (mapped, projected) = quotient.state_counts();
+                    eprintln!(
+                        "[glrmask/profile][containment_quotient_build] terminal={} mapped={} projected={}",
+                        terminal, mapped, projected,
+                    );
+                }
+                Some((terminal, quotient))
+            })
+            .collect::<Vec<_>>();
+
+        results.extend(
+            fallback
+                .into_par_iter()
+                .filter_map(|terminal| {
+                    let quotient = self.terminal_expr_projected_quotient_from_root(terminal)?;
+                    Some((terminal, quotient))
+                })
+                .collect::<Vec<_>>(),
+        );
+        results.sort_unstable_by_key(|(terminal, _)| *terminal);
+        if profile {
+            eprintln!(
+                "[glrmask/profile][containment_quotient_build_summary] retained={}",
                 results.len(),
             );
         }
@@ -10321,20 +11681,38 @@ impl Tokenizer {
     /// leave an unreachable cloned dispatch state elsewhere in the DFA, so the
     /// predicate is based on the live reset shape rather than a whole-DFA scan.
     pub fn deterministic_dispatch_roots(&self) -> Option<&[u32]> {
-        let start = self.dfa.states().get(self.start_state() as usize)?;
-        if start.epsilon_transitions.len() < 2
-            || self.transitions_from(self.start_state()).next().is_some()
+        let start_state = self.start_state();
+        // Fast artifact decoding can move epsilon metadata out of the owned
+        // DFA states into the packed runtime table. Structural runtime queries
+        // must therefore consult the same representation used by scanning,
+        // rather than assuming `dfa.states()[start].epsilon_transitions` is
+        // populated after load.
+        let roots = if let Some(metadata) = self
+            .packed_runtime_metadata
+            .as_deref()
+            .filter(|metadata| start_state < metadata.state_count)
         {
+            metadata.epsilon_targets(start_state)
+        } else if let Some(segment) = self.packed_runtime_metadata_segment_for_state(start_state) {
+            // The global reset belongs to the zero-offset segment when packed
+            // metadata is segmented; local and global target IDs then coincide.
+            if segment.state_offset != 0 {
+                return None;
+            }
+            segment.metadata.epsilon_targets(segment.local_state(start_state))
+        } else {
+            &self.dfa.states().get(start_state as usize)?.epsilon_transitions
+        };
+        if roots.len() < 2 || self.transitions_from(start_state).next().is_some() {
             return None;
         }
-        if start
-            .epsilon_transitions
+        if roots
             .iter()
             .any(|&root| self.state_has_epsilon_transitions(root))
         {
             return None;
         }
-        Some(&start.epsilon_transitions)
+        Some(roots)
     }
 
     #[inline]
@@ -10357,8 +11735,7 @@ impl Tokenizer {
             let Some(roots) = self.deterministic_dispatch_roots() else {
                 return false;
             };
-            let states = self.dfa.states();
-            let mut seen = vec![false; states.len()];
+            let mut seen = vec![false; self.num_states() as usize];
             let mut pending = roots.to_vec();
             while let Some(state) = pending.pop() {
                 let Some(slot) = seen.get_mut(state as usize) else {
@@ -10368,13 +11745,10 @@ impl Tokenizer {
                     continue;
                 }
                 *slot = true;
-                let Some(dfa_state) = states.get(state as usize) else {
-                    return false;
-                };
-                if !dfa_state.epsilon_transitions.is_empty() {
+                if self.state_has_epsilon_transitions(state) {
                     return false;
                 }
-                pending.extend(dfa_state.transitions.iter().map(|(_, &target)| target));
+                pending.extend(self.transitions_from(state).map(|(_, target)| target));
             }
             true
         })
@@ -11873,6 +13247,90 @@ mod tests {
                 );
             }
         });
+
+    }
+
+    #[test]
+    fn huge_wire_roundtrips_compressed_transitions_with_wide_terminal_metadata() {
+        const TERMINALS: usize = 300;
+        const WIDE_TERMINAL: usize = 299;
+
+        let mut dfa = DFA::new(4);
+        dfa.ensure_group_capacity(TERMINALS);
+        let mut group = U8Set::empty();
+        group.insert(b'a');
+        group.insert(b'b');
+        dfa.set_group_u8set(WIDE_TERMINAL as u32, group);
+        dfa.add_epsilon_transition(0, 1);
+
+        for state in 0..4u32 {
+            let mut futures = BitSet::new(TERMINALS);
+            if state != 3 {
+                futures.set(WIDE_TERMINAL);
+            }
+            let mut finalizers = BitSet::new(TERMINALS);
+            if state == 3 {
+                finalizers.set(WIDE_TERMINAL);
+            }
+            dfa.overwrite_state_metadata(state, finalizers, futures);
+        }
+
+        let mut byte_to_class = vec![u8::MAX; 256];
+        byte_to_class[b'a' as usize] = 0;
+        byte_to_class[b'b' as usize] = 1;
+        let segment = CompressedTransitionSegment {
+            state_offset: 1,
+            state_count: 3,
+            byte_to_class: Arc::from(byte_to_class.into_boxed_slice()),
+            class_members: Arc::from(
+                vec![vec![b'a'].into_boxed_slice(), vec![b'b'].into_boxed_slice()]
+                    .into_boxed_slice(),
+            ),
+            row_offsets: Arc::from(vec![0u32, 1, 2, 2].into_boxed_slice()),
+            entries: CompressedTransitionEntries::from_parts(vec![0, 1], vec![1, 2]),
+            expanded_transition_count: 2,
+        };
+        let original = Tokenizer::from_parts_with_compressed_transitions(
+            dfa,
+            TERMINALS as u32,
+            None,
+            vec![segment],
+        );
+
+        let wire = artifact_serde::build_huge_bytes(&original).expect("wide TKS3 fixture");
+        assert!(wire.starts_with(b"TKS3"));
+        let backing = Arc::new(wire);
+        let loaded = artifact_serde::from_fast_bytes_backed(
+            backing.as_slice(),
+            Arc::clone(&backing),
+            0,
+        )
+        .expect("wide backed TKS3 roundtrip");
+
+        assert_eq!(loaded.num_terminals(), TERMINALS as u32);
+        assert_eq!(loaded.num_states(), original.num_states());
+        assert!(loaded.has_packed_runtime_metadata());
+        assert!(loaded.has_compressed_transition_segments());
+        assert!(loaded.matched_terminal_bitset(3).contains(WIDE_TERMINAL));
+        assert!(loaded.possible_future_terminals(1).contains(WIDE_TERMINAL));
+        enumerate_bytes(b"abx", 3, |input| {
+            for state in 0..original.num_states() {
+                assert_eq!(
+                    normalized_exec(&loaded, input, state),
+                    normalized_exec(&original, input, state),
+                    "wide TKS3 mismatch from state {state} on {input:?}",
+                );
+            }
+        });
+
+        let reencoded = artifact_serde::build_huge_bytes(&loaded)
+            .expect("loaded wide TKS3 tokenizer must remain compactly serializable");
+        assert!(reencoded.starts_with(b"TKS3"));
+        let reloaded = artifact_serde::from_fast_bytes(&reencoded)
+            .expect("re-encoded wide TKS3 roundtrip");
+        assert_eq!(reloaded.num_terminals(), TERMINALS as u32);
+        assert!(reloaded.matched_terminal_bitset(3).contains(WIDE_TERMINAL));
+        assert!(reloaded.possible_future_terminals(1).contains(WIDE_TERMINAL));
     }
 
     #[test]
@@ -13675,6 +15133,82 @@ mod tests {
 
         let x = tokenizer.execute_from_state_end_only(b"x", tokenizer.initial_state_id());
         assert_eq!(x.as_slice(), &[3]);
+    }
+
+    #[test]
+    fn huge_wire_preserves_preproven_scalar_dispatch_for_compressed_suffix() {
+        let mut tokenizer = dispatch_prefix_tokenizer(false);
+        let mut byte_to_class = vec![u8::MAX; 256];
+        byte_to_class[b'a' as usize] = 0;
+        byte_to_class[b'x' as usize] = 1;
+        tokenizer.compressed_transition_segments = Arc::from([CompressedTransitionSegment {
+            state_offset: 1,
+            state_count: 3,
+            byte_to_class: Arc::from(byte_to_class.into_boxed_slice()),
+            class_members: Arc::from(
+                vec![vec![b'a'].into_boxed_slice(), vec![b'x'].into_boxed_slice()]
+                    .into_boxed_slice(),
+            ),
+            row_offsets: Arc::from([0u32, 1, 2, 3]),
+            entries: CompressedTransitionEntries::from_parts(
+                vec![0, 0, 1],
+                vec![1, 1, 2],
+            ),
+            expanded_transition_count: 3,
+        }]);
+        for state in &mut tokenizer.dfa.states_mut()[1..] {
+            state.transitions.clear();
+        }
+        tokenizer.invalidate_derived_caches();
+        assert!(tokenizer.has_scalar_deterministic_dispatch());
+        assert_eq!(tokenizer.scalar_deterministic_dispatch_cache.get(), Some(&true));
+
+        let wire = artifact_serde::build_huge_bytes(&tokenizer).expect("scalar TKS3 fixture");
+        let loaded = artifact_serde::from_fast_bytes(&wire).expect("scalar TKS3 roundtrip");
+        assert_eq!(
+            loaded.scalar_deterministic_dispatch_cache.get(),
+            Some(&true),
+            "TKS3 must restore the worker-side scalar-dispatch proof without rescanning",
+        );
+        assert!(loaded.has_scalar_deterministic_dispatch());
+        enumerate_bytes(b"ax", 3, |input| {
+            assert_eq!(
+                normalized_exec(&loaded, input, loaded.initial_state_id()),
+                normalized_exec(&tokenizer, input, tokenizer.initial_state_id()),
+                "scalar TKS3 execution mismatch on {input:?}",
+            );
+        });
+
+        let reencoded = artifact_serde::build_huge_bytes(&loaded)
+            .expect("loaded scalar TKS3 tokenizer must remain compactly serializable");
+        let reloaded = artifact_serde::from_fast_bytes(&reencoded)
+            .expect("re-encoded scalar TKS3 roundtrip");
+        assert_eq!(
+            reloaded.scalar_deterministic_dispatch_cache.get(),
+            Some(&true),
+            "TKS3 re-encoding must preserve the preproven scalar-dispatch bit",
+        );
+    }
+
+    #[test]
+    fn fast_roundtrip_preserves_scalar_deterministic_dispatch() {
+        let tokenizer = dispatch_prefix_tokenizer(false);
+        assert!(tokenizer.has_scalar_deterministic_dispatch());
+        assert_eq!(tokenizer.terminal_dispatch_root_candidate(0), Some(1));
+
+        let wire = artifact_serde::to_fast_bytes_with_packed_metadata(&tokenizer);
+        let loaded = artifact_serde::from_fast_bytes(&wire).expect("fast tokenizer roundtrip");
+
+        assert_eq!(loaded.deterministic_dispatch_roots(), Some(&[1, 3][..]));
+        assert!(
+            loaded.has_scalar_deterministic_dispatch(),
+            "packed runtime storage must not change the reset-dispatch topology proof",
+        );
+        assert_eq!(
+            loaded.terminal_dispatch_root_candidate(0),
+            Some(1),
+            "packed runtime storage must preserve terminal-specific dispatch-root discovery",
+        );
     }
 
     #[test]

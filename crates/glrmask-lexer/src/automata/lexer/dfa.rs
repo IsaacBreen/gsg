@@ -851,6 +851,65 @@ impl DFA {
         offset
     }
 
+    /// Append an independently compiled single-group component while mapping
+    /// its one lexical language to several globally distinct terminal groups.
+    /// This is exact language sharing: byte transitions remain one DFA, while
+    /// accepting/future metadata carries every terminal whose residual language
+    /// is identical.
+    pub(super) fn append_rebased_shared_single_group_component(
+        &mut self,
+        mut component: DFA,
+        global_group_ids: &[usize],
+    ) -> u32 {
+        self.invalidate_structural_caches();
+        assert_eq!(component.group_id_to_u8set.len(), 1);
+        assert!(!global_group_ids.is_empty());
+        for &global_group in global_group_ids {
+            assert!(global_group < self.group_id_to_u8set.len());
+            self.group_id_to_u8set[global_group] = component.group_id_to_u8set[0];
+        }
+        let offset = u32::try_from(self.states.len()).expect("lexer DFA state ID overflow");
+        let total_groups = self.group_id_to_u8set.len();
+        let rebase_state = |state: &mut DFAState| {
+            for (_, target) in state.transitions.iter_mut() {
+                *target = target
+                    .checked_add(offset)
+                    .expect("lexer DFA transition target overflow");
+            }
+            for target in &mut state.epsilon_transitions {
+                *target = target
+                    .checked_add(offset)
+                    .expect("lexer DFA epsilon target overflow");
+            }
+            let local_final = state.finalizers.contains(0);
+            let local_future = state.possible_future_group_ids.contains(0);
+            let mut finalizers = BitSet::new(total_groups);
+            let mut futures = BitSet::new(total_groups);
+            if local_final {
+                for &global_group in global_group_ids {
+                    finalizers.set(global_group);
+                }
+            }
+            if local_future {
+                for &global_group in global_group_ids {
+                    futures.set(global_group);
+                }
+            }
+            state.finalizers = finalizers;
+            state.possible_future_group_ids = futures;
+        };
+        if component.states.len() >= 4096
+            && rayon::current_num_threads() > 1
+            && std::env::var_os("GLRMASK_SERIAL_APPEND_REBASE").is_none()
+        {
+            component.states.par_iter_mut().for_each(rebase_state);
+        } else {
+            component.states.iter_mut().for_each(rebase_state);
+        }
+        self.states.append(&mut component.states);
+        offset
+    }
+
     /// Clone a borrowed independently compiled component directly into this
     /// DFA while rebasing it. This avoids the owned helper's clone-then-rewrite
     /// double pass, which is material for composition of large cached lexers.
@@ -917,6 +976,72 @@ impl DFA {
         };
         self.states.extend(appended);
         offset
+    }
+
+    /// Append several independent single-group component templates in one
+    /// deterministic batch.  Each logical component keeps its own terminal
+    /// identity/state range; only the clone+rebase work is parallelized across
+    /// components.  This is useful when many residual terminals share a finite
+    /// DFA template but cannot share logical lexer states because their labels
+    /// must remain correlated with parser branches.
+    pub(super) fn append_rebased_single_group_component_refs_batch(
+        &mut self,
+        components: &[(&DFA, usize)],
+    ) -> Option<Vec<u32>> {
+        if components.is_empty() {
+            return Some(Vec::new());
+        }
+        self.invalidate_structural_caches();
+        let total_groups = self.group_id_to_u8set.len();
+        let mut next_offset = u32::try_from(self.states.len()).ok()?;
+        let mut offsets = Vec::with_capacity(components.len());
+        for &(component, global_group) in components {
+            if component.group_id_to_u8set.len() != 1 || global_group >= total_groups {
+                return None;
+            }
+            offsets.push(next_offset);
+            next_offset = next_offset.checked_add(u32::try_from(component.states.len()).ok()?)?;
+            self.group_id_to_u8set[global_group] = component.group_id_to_u8set[0];
+        }
+
+        let appended = components
+            .par_iter()
+            .zip(offsets.par_iter().copied())
+            .map(|(&(component, global_group), offset)| {
+                component
+                    .states
+                    .iter()
+                    .map(|source| {
+                        let mut state = source.clone();
+                        for (_, target) in state.transitions.iter_mut() {
+                            *target = target
+                                .checked_add(offset)
+                                .expect("lexer DFA transition target overflow");
+                        }
+                        for target in &mut state.epsilon_transitions {
+                            *target = target
+                                .checked_add(offset)
+                                .expect("lexer DFA epsilon target overflow");
+                        }
+                        let mut finalizers = BitSet::new(total_groups);
+                        if source.finalizers.contains(0) {
+                            finalizers.set(global_group);
+                        }
+                        let mut futures = BitSet::new(total_groups);
+                        if source.possible_future_group_ids.contains(0) {
+                            futures.set(global_group);
+                        }
+                        state.finalizers = finalizers;
+                        state.possible_future_group_ids = futures;
+                        state
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        for mut states in appended {
+            self.states.append(&mut states);
+        }
+        Some(offsets)
     }
 
     pub fn has_epsilon_transitions(&self) -> bool {

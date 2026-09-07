@@ -55,6 +55,7 @@ use pyo3::types::{PyAny, PyBytes, PyDict};
 use self_cell::self_cell;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::time::Instant;
 use glrmask::__private::{
     ConstraintExt as _, ConstraintStateExt as _, DynamicConstraintExt as _, VocabExt as _,
 };
@@ -932,6 +933,17 @@ impl PyDynamicConstraintState {
             .with_dependent(|_owner, state| state.fill_mask(buf));
         Ok(())
     }
+
+    #[doc(hidden)]
+    fn fill_mask_timed_ns(&self, mut bitmask: PyReadwriteArray1<i32>) -> PyResult<u64> {
+        let buf = bitmask_u32_view(&mut bitmask)?;
+        Ok(self.inner.with_dependent(|_owner, state| {
+            let start = Instant::now();
+            state.fill_mask(buf);
+            start.elapsed().as_nanos() as u64
+        }))
+    }
+
 
     fn forced(&self) -> Vec<u32> {
         self.inner.with_dependent(|_owner, state| state.forced())

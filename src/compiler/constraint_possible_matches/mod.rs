@@ -21,7 +21,9 @@ use crate::compiler::stages::equiv_types::{InternalIdMap, ManyToOneIdMap, Mapped
 use crate::compiler::stages::id_map_and_terminal_dwa::l2p::equivalence_analysis::compat::{
     FlatDfa, FlatDfaState, TokenizerView,
 };
-use crate::compiler::stages::id_map_and_terminal_dwa::classify::classify_vocab_char_type;
+use crate::compiler::stages::id_map_and_terminal_dwa::classify::{
+    classify_vocab_char_type, VocabPartitionDfa,
+};
 use crate::compiler::stages::id_map_and_terminal_dwa::types::TerminalDwaFamilies;
 use crate::compiler::stages::id_map_and_terminal_dwa::l2p::equivalence_analysis::vocab::fast as vocab_equivalence_analysis;
 use crate::ds::bitset::BitSet;
@@ -30,6 +32,10 @@ use crate::ds::vocab_prefix_tree::{VocabPrefixTree, VocabPrefixTreeNode};
 use crate::ds::weight::{shared_rangeset, Weight};
 use crate::grammar::flat::TerminalID;
 use crate::runtime::{dynamic_mask_vocab_layout_class, DynamicMaskTrie, DynamicMaskVocab};
+use crate::runtime::{
+    dynamic_mask_llg_master_layout_class,
+    dynamic_mask_llg_master_safe_chars, DYNAMIC_MASK_LLG_MASTER_CACHE_ID,
+};
 use crate::vocab::VocabDerivedArtifact;
 use crate::Vocab;
 
@@ -143,6 +149,10 @@ struct OrderedVocabTrieArtifacts {
     /// Fully materialized vocabulary-only dynamic-mask template. Constraint
     /// builds clone its immutable indexes into fresh runtime-local caches.
     runtime_dynamic_vocab: Arc<OnceLock<Arc<DynamicMaskVocab>>>,
+    /// Same vocabulary-only template with the llguidance slice residual tries
+    /// materialized. Kept separate so non-slicer users never pay this one-time
+    /// preparation cost, while every slicer-enabled constraint Arc-shares it.
+    runtime_dynamic_vocab_llg: Arc<OnceLock<Arc<DynamicMaskVocab>>>,
 }
 
 impl VocabDerivedArtifact for OrderedVocabTrieArtifacts {}
@@ -153,6 +163,7 @@ impl OrderedVocabTrieArtifacts {
             ordered_vocab,
             trie,
             runtime_dynamic_vocab: Arc::new(OnceLock::new()),
+            runtime_dynamic_vocab_llg: Arc::new(OnceLock::new()),
         }
     }
 }
@@ -3133,6 +3144,19 @@ fn prepared_runtime_dynamic_vocab(
     artifacts: &OrderedVocabTrieArtifacts,
 ) -> &Arc<DynamicMaskVocab> {
     artifacts.runtime_dynamic_vocab.get_or_init(|| {
+        // The global ordered-vocabulary trie is the production runtime layout.
+        // It avoids artificial root partitions that make the full vocabulary
+        // walk revisit equivalent prefix structure. Keep the older partitioned
+        // layout only as a diagnostic escape hatch for regression comparison.
+        if std::env::var_os("GLRMASK_LEGACY_PARTITIONED_DYNAMIC_MASK_TRIE").is_none() {
+            let runtime_trie = Arc::new(DynamicMaskTrie::from_vocab_prefix_tree(
+                artifacts.trie.as_ref(),
+            ));
+            return Arc::new(DynamicMaskVocab::from_materialized_ordered(
+                runtime_trie,
+                Arc::clone(&artifacts.ordered_vocab.ordered_to_originals),
+            ));
+        }
         // Runtime trie layout refines the compiler's broad character-type
         // classes by the two properties that most often contaminate a large
         // otherwise-uniform continuation subtree: an optional leading ASCII
@@ -3155,7 +3179,8 @@ fn prepared_runtime_dynamic_vocab(
                 .then_with(|| left.2.cmp(right.2))
                 .then_with(|| left.1.cmp(&right.1))
         });
-        let runtime_trie = Arc::new(DynamicMaskTrie::from_partitioned_token_refs(&entries));
+        let runtime_trie = DynamicMaskTrie::from_partitioned_token_refs(&entries);
+        let runtime_trie = Arc::new(runtime_trie);
         Arc::new(DynamicMaskVocab::from_materialized_ordered(
             runtime_trie,
             Arc::clone(&artifacts.ordered_vocab.ordered_to_originals),
@@ -3163,11 +3188,184 @@ fn prepared_runtime_dynamic_vocab(
     })
 }
 
+fn prepare_llg_slice_leftovers_for_ordered_vocab(
+    ordered_vocab: &OrderedVocab,
+    vocab: &mut DynamicMaskVocab,
+) {
+    if vocab.has_llg_slice_leftovers() {
+        return;
+    }
+
+    // These are language definitions, not benchmark buckets. The runtime
+    // derives exact bounded safe-string radii from the current residual
+    // language; vocabulary structure is partitioned by exact Unicode-scalar
+    // length below.
+    const SAFE_PLUS_CACHE_ID: u32 = 0;
+    const WHITESPACE_CACHE_ID: u32 = 3;
+    let safe_plus = Arc::new(
+        VocabPartitionDfa::compile_utf8_regex(
+            "llg-safe+",
+            r#"[^"\\\x00-\x1F\x7F]+"#,
+        )
+        .expect("safe-string slice regex must compile"),
+    );
+    let whitespace = Arc::new(
+        VocabPartitionDfa::compile_utf8_regex("llg-whitespace", r"[\x20\x0A\x0D\x09]+")
+            .expect("whitespace slice regex must compile"),
+    );
+
+    let word_len = vocab.all_original_token_words().len();
+    let mut safe_words = vec![0u32; word_len];
+    let mut whitespace_words = vec![0u32; word_len];
+    let mut safe_token_bytes = U8Set::empty();
+    let mut whitespace_token_bytes = U8Set::empty();
+    let mut safe_max_token_byte_len = 0u32;
+    let mut whitespace_max_token_byte_len = 0u32;
+    let mut entries = Vec::<(u16, usize, &[u8])>::with_capacity(ordered_vocab.ordered_token_bytes.len());
+    let mut max_safe_chars = 0u16;
+
+    for (canonical, bytes) in ordered_vocab.ordered_token_bytes.iter().enumerate() {
+        let bytes = bytes.as_slice();
+        let is_safe = safe_plus.is_match(bytes);
+        let safe_chars = if is_safe {
+            let chars = std::str::from_utf8(bytes)
+                .expect("safe-string UTF-8 regex matched invalid UTF-8")
+                .chars()
+                .count();
+            u16::try_from(chars).expect("model token exceeds u16 Unicode-scalar count")
+        } else {
+            0
+        };
+        let is_whitespace = whitespace.is_match(bytes);
+        max_safe_chars = max_safe_chars.max(safe_chars);
+        entries.push((
+            dynamic_mask_llg_master_layout_class(safe_chars, is_whitespace),
+            canonical,
+            bytes,
+        ));
+
+        let Some(originals) = ordered_vocab.ordered_to_originals.get(canonical) else {
+            continue;
+        };
+        if is_safe {
+            safe_max_token_byte_len = safe_max_token_byte_len.max(bytes.len() as u32);
+            for &byte in bytes {
+                safe_token_bytes.insert(byte);
+            }
+        }
+        if is_whitespace {
+            whitespace_max_token_byte_len = whitespace_max_token_byte_len.max(bytes.len() as u32);
+            for &byte in bytes {
+                whitespace_token_bytes.insert(byte);
+            }
+        }
+        for &token in originals {
+            let word = token as usize / 32;
+            if word >= word_len {
+                continue;
+            }
+            let bit = 1u32 << (token % 32);
+            if is_safe {
+                safe_words[word] |= bit;
+            }
+            if is_whitespace {
+                whitespace_words[word] |= bit;
+            }
+        }
+    }
+
+    entries.sort_unstable_by(|left, right| {
+        left.2
+            .is_empty()
+            .cmp(&right.2.is_empty())
+            .reverse()
+            .then_with(|| left.0.cmp(&right.0))
+            .then_with(|| left.2.cmp(right.2))
+            .then_with(|| left.1.cmp(&right.1))
+    });
+    let master_trie = DynamicMaskTrie::from_partitioned_token_refs(&entries);
+
+    // Build cumulative exact-safe-length masks once per model vocabulary. A
+    // runtime radius r then initializes all safe tokens of lengths <= r in one
+    // dense copy; no fixed length thresholds are encoded here.
+    let mut exact_safe_words = vec![vec![0u32; word_len]; usize::from(max_safe_chars) + 1];
+    for &(class, canonical, _) in &entries {
+        let safe_chars = dynamic_mask_llg_master_safe_chars(class);
+        if safe_chars == 0 {
+            continue;
+        }
+        let Some(originals) = ordered_vocab.ordered_to_originals.get(canonical) else {
+            continue;
+        };
+        for &token in originals {
+            let word = token as usize / 32;
+            if word < word_len {
+                exact_safe_words[usize::from(safe_chars)][word] |= 1u32 << (token % 32);
+            }
+        }
+    }
+    let mut admitted_words = Vec::<Vec<u32>>::with_capacity((usize::from(max_safe_chars) + 1) * 2);
+    let mut safe_prefix = vec![0u32; word_len];
+    for radius in 0..=usize::from(max_safe_chars) {
+        if radius != 0 {
+            for (target, &source) in safe_prefix.iter_mut().zip(&exact_safe_words[radius]) {
+                *target |= source;
+            }
+        }
+        admitted_words.push(safe_prefix.clone());
+        let mut with_whitespace = safe_prefix.clone();
+        for (target, &source) in with_whitespace.iter_mut().zip(&whitespace_words) {
+            *target |= source;
+        }
+        admitted_words.push(with_whitespace);
+    }
+    vocab.set_llg_master_admitted_words(max_safe_chars, admitted_words);
+
+    let slices = vec![
+        (
+            SAFE_PLUS_CACHE_ID,
+            Arc::clone(&safe_plus),
+            Arc::new(DynamicMaskTrie::new()),
+            Arc::new(safe_words),
+            safe_token_bytes,
+            safe_max_token_byte_len,
+        ),
+        (
+            WHITESPACE_CACHE_ID,
+            Arc::clone(&whitespace),
+            Arc::new(DynamicMaskTrie::new()),
+            Arc::new(whitespace_words),
+            whitespace_token_bytes,
+            whitespace_max_token_byte_len,
+        ),
+        (
+            DYNAMIC_MASK_LLG_MASTER_CACHE_ID,
+            safe_plus,
+            Arc::new(master_trie),
+            Arc::new(Vec::new()),
+            U8Set::empty(),
+            0,
+        ),
+    ];
+    vocab.set_llg_slice_leftovers(slices);
+}
+
+fn prepared_runtime_dynamic_vocab_with_llg(
+    artifacts: &OrderedVocabTrieArtifacts,
+) -> &Arc<DynamicMaskVocab> {
+    artifacts.runtime_dynamic_vocab_llg.get_or_init(|| {
+        let mut vocab = prepared_runtime_dynamic_vocab(artifacts).fresh_runtime_instance();
+        prepare_llg_slice_leftovers_for_ordered_vocab(artifacts.ordered_vocab.as_ref(), &mut vocab);
+        Arc::new(vocab)
+    })
+}
+
 fn runtime_dynamic_vocab_artifacts(
     artifacts: &OrderedVocabTrieArtifacts,
 ) -> RuntimeDynamicMaskVocabArtifacts {
+    let template = prepared_runtime_dynamic_vocab_with_llg(artifacts);
     RuntimeDynamicMaskVocabArtifacts {
-        vocab: prepared_runtime_dynamic_vocab(artifacts).fresh_runtime_instance(),
+        vocab: template.fresh_runtime_instance(),
     }
 }
 
@@ -3178,7 +3376,7 @@ pub(crate) fn runtime_dynamic_vocab_for_vocab(vocab: &Vocab) -> DynamicMaskVocab
 
 pub(crate) fn prepare_vocab_for_dynamic_mask(vocab: &Vocab) {
     let artifacts = get_ordered_vocab_trie_artifacts_for_vocab(vocab).0;
-    let _ = prepared_runtime_dynamic_vocab(&artifacts);
+    let _ = prepared_runtime_dynamic_vocab_with_llg(&artifacts);
 }
 
 /// Neutral PM artifact for the deferred mode. All dimensions are deliberately

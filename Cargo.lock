@@ -589,6 +589,7 @@ version = "0.1.1"
 dependencies = [
  "ahash",
  "blake3",
+ "derivre",
  "glrmask-artifact",
  "glrmask-dwa-merge",
  "glrmask-finite-automata",
@@ -604,6 +605,7 @@ dependencies = [
  "range-set-blaze",
  "rayon",
  "rustc-hash 1.1.0",
+ "serde_json",
  "smallvec",
  "thiserror",
 ]

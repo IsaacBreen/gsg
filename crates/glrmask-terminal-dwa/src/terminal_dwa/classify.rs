@@ -786,184 +786,584 @@ impl SharedClassifyBytesets {
     }
 }
 
-/// JSON structural characters used to keep tokens in the core non-alnum
-/// partition (P0) rather than splitting them into the auxiliary P5.
-const JSON_STRUCTURAL: &[u8] = b"\":[]{},";
-
-/// `_` belongs with alphabetic bytes for vocabulary partitioning. This is a
-/// routing convention only: it does not change lexer or grammar semantics.
-fn is_partition_ascii_alpha(byte: u8) -> bool {
-    byte.is_ascii_alphabetic() || byte == b'_'
-}
-
-/// Characters whose sole repetition qualifies a non-alnum token for the
-/// auxiliary P5 partition even if the token contains a structural byte.
-const P5_REPEATED_CHARS: &[u8] = b"\n:{ ,";
-
-/// Classifies a token's bytes by character type for vocab partitioning.
+/// Environment override for the vocabulary partition languages.
 ///
-/// Returns:
-/// - 0: non-alnum with JSON structural chars (multi-byte, not single-repeated)
-/// - 1: mixed (contains both alnum and non-alnum)
-/// - 2: ASCII word token with ≥1 alpha or `_`, optionally with leading space
-/// - 3: pure digit, optionally with leading space
-/// - 4: Unicode-only alpha (non-ASCII alphanumeric, e.g. CJK, Cyrillic,
-///       Arabic, Hangul), optionally with leading space
-/// - 5: non-alnum auxiliary short (no JSON structural, or single-char repeated,
-///       or length 1; ≤ 8 bytes)
-/// - 6: non-alnum auxiliary long (same criteria as 5, but > 8 bytes)
-/// - 7: JSON literal-boundary tokens requiring structural treatment (leading-
-///       space collisions, bracketed forms, and the special ` -` token)
-/// - 8: quoted ASCII identifier-start tokens
-///
-/// Uses Unicode-aware classification so that non-Latin scripts are separated
-/// into their own partition (4) instead of being lumped with ASCII punctuation (0)
-/// or bloating the ASCII alpha partition (2).
-///
-/// P0/P5 split: non-alnum tokens containing JSON structural characters
-/// (`":[]{},`) stay in P0 for efficient L2+ terminal processing, while
-/// tokens without structural chars (or trivial single-char tokens) go to P5.
-pub fn classify_vocab_char_type(bytes: &[u8]) -> u8 {
-    if bytes.is_empty() {
-        return 5;
-    }
-    // Bare ASCII word pieces that overlap a JSON literal spelling are ordinary
-    // P2 material. Only their leading-space variants need to stay isolated at
-    // the structural boundary.
-    if !bytes.starts_with(b" ") && is_json_literal_collision(bytes) {
-        return 2;
-    }
-    if is_quoted_identifier_boundary_token(bytes) {
-        return 8;
-    }
-    if is_structural_boundary_lexical_token(bytes) {
-        return 7;
-    }
-    // Strip optional leading ASCII space (GPT-2 BPE decodes Ġ → 0x20 before we see it)
-    let content = if bytes[0] == b' ' {
-        &bytes[1..]
-    } else {
-        bytes
-    };
-    if content.is_empty() {
-        return 5; // Just a space marker → auxiliary non-alnum
-    }
-    if content.len() == 1 && matches!(content[0], b'+' | b'-') {
-        return 1;
-    }
-    // Try to decode as UTF-8 for Unicode-aware classification.
-    if let Ok(s) = std::str::from_utf8(content) {
-        let all_word = s.chars().all(|c| c.is_alphanumeric() || c == '_');
-        if all_word {
-            let has_alpha = s.chars().any(|c| c.is_alphabetic() || c == '_');
-            if has_alpha {
-                let has_ascii_alpha = content.iter().copied().any(is_partition_ascii_alpha);
-                if has_ascii_alpha {
-                    return 2; // ASCII word token (may also contain non-ASCII alpha)
-                }
-                return 4; // Unicode-only alpha (CJK, Cyrillic, Arabic, etc.)
-            }
-            return 3; // Pure digit
+/// The value may be either a JSON array or a newline-separated list. JSON
+/// entries may be strings or `{ "name": "...", "regex": "..." }` objects.
+/// Rules are ordered: if they overlap, partition i denotes its regex minus the
+/// union of every earlier regex. An implicit final `rest` partition is added
+/// for custom configurations, so the resulting languages are exhaustive.
+pub const VOCAB_PARTITION_REGEX_ENV: &str = "GLRMASK_VOCAB_PARTITION_REGEXES";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VocabPartitionLanguage {
+    pub name: String,
+    pub include_regex: String,
+    pub excluded_regexes: Vec<String>,
+}
+
+impl VocabPartitionLanguage {
+    /// Exact effective language of this ordered partition.
+    ///
+    /// `include_regex` alone is not necessarily the partition language when
+    /// earlier rules overlap it. The effective language is
+    /// `include & !(excluded_0 | ... | excluded_n)`.
+    pub fn effective_ast(&self) -> derivre::RegexAst {
+        use derivre::RegexAst;
+        let include = RegexAst::Regex(self.include_regex.clone());
+        if self.excluded_regexes.is_empty() {
+            include
+        } else {
+            RegexAst::And(vec![
+                include,
+                RegexAst::Not(Box::new(RegexAst::Or(
+                    self.excluded_regexes
+                        .iter()
+                        .cloned()
+                        .map(RegexAst::Regex)
+                        .collect(),
+                ))),
+            ])
         }
-        // Check non-alphanumeric.
-        if let Ok(full) = std::str::from_utf8(bytes) {
-            if !full
-                .chars()
-                .any(|c| c.is_alphanumeric() || c == '_')
-            {
-                return classify_nonalnum(bytes);
-            }
+    }
+
+    pub fn compile_effective_regex(&self) -> Result<derivre::Regex, String> {
+        let mut builder = derivre::RegexBuilder::new();
+        builder.unicode(false).utf8(false);
+        let expr = builder
+            .mk(&self.effective_ast())
+            .map_err(|error| format!("invalid partition regex {}: {error}", self.name))?;
+        builder
+            .into_regex_limited(expr, 1_000_000)
+            .map_err(|error| format!("failed to compile partition regex {}: {error}", self.name))
+    }
+
+    pub fn compile_effective_dfa(&self) -> Result<VocabPartitionDfa, String> {
+        VocabPartitionDfa::compile_regex(&self.name, self.compile_effective_regex()?)
+    }
+}
+
+#[derive(Debug)]
+pub struct VocabPartitionDfa {
+    byte_to_class: [u8; 256],
+    class_count: usize,
+    transitions: Vec<u32>,
+    accepting: Vec<bool>,
+    can_reach_accepting: Vec<bool>,
+}
+
+impl VocabPartitionDfa {
+    #[inline]
+    pub fn state_count(&self) -> usize {
+        self.accepting.len()
+    }
+
+    pub fn compile_byte_regex(name: &str, pattern: &str) -> Result<Self, String> {
+        let mut builder = derivre::RegexBuilder::new();
+        builder.unicode(false).utf8(false);
+        let expr = builder
+            .mk_regex(pattern)
+            .map_err(|error| format!("invalid partition regex {name}: {error}"))?;
+        let regex = builder
+            .into_regex_limited(expr, 1_000_000)
+            .map_err(|error| format!("failed to compile partition regex {name}: {error}"))?;
+        Self::compile_regex(name, regex)
+    }
+
+    /// Compile a Unicode/UTF-8 regex to the same immutable byte-DFA form.
+    /// This is used by llguidance-compatible overlapping slicer languages,
+    /// whose character classes are defined over Unicode scalar values even
+    /// though execution ultimately consumes tokenizer bytes.
+    pub fn compile_utf8_regex(name: &str, pattern: &str) -> Result<Self, String> {
+        let regex = derivre::Regex::new(pattern)
+            .map_err(|error| format!("invalid UTF-8 slice regex {name}: {error}"))?;
+        Self::compile_regex(name, regex)
+    }
+
+    fn compile_regex(name: &str, mut regex: derivre::Regex) -> Result<Self, String> {
+        use derivre::StateID;
+        // `derivre` already computes an exact byte-equivalence alphabet while
+        // parsing the regex. Build only one transition per equivalence class,
+        // rather than expanding every state back to all 256 raw bytes.
+        let class_count = regex.alpha().len();
+        if class_count == 0 || class_count > 256 {
+            return Err(format!(
+                "partition regex {name} has invalid alphabet size {class_count}"
+            ));
         }
-        return 1; // Mixed
-    }
-    // Fallback: byte-level ASCII checks for invalid UTF-8.
-    if content
-        .iter()
-        .copied()
-        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
-    {
-        if content.iter().copied().any(is_partition_ascii_alpha) {
-            return 2;
+        let mut byte_to_class = [0u8; 256];
+        let mut representatives = vec![None; class_count];
+        for byte in 0u16..=255 {
+            let byte = byte as u8;
+            let class = regex.alpha().map(byte);
+            byte_to_class[byte as usize] = class as u8;
+            representatives[class].get_or_insert(byte);
         }
-        return 3;
-    }
-    if bytes
-        .iter()
-        .copied()
-        .all(|byte| !byte.is_ascii_alphanumeric() && byte != b'_')
-    {
-        return classify_nonalnum(bytes);
-    }
-    1 // Mixed
-}
-
-fn is_json_literal_collision(content: &[u8]) -> bool {
-    if content.is_empty() || !content.iter().all(|byte| byte.is_ascii_alphanumeric()) {
-        return false;
-    }
-
-    [b"true".as_slice(), b"false".as_slice(), b"null".as_slice()]
-        .iter()
-        .any(|literal| literal.starts_with(content) || content.starts_with(literal))
-}
-
-fn is_structural_boundary_lexical_token(bytes: &[u8]) -> bool {
-    if !structural_boundary_lexical_partition_enabled() {
-        return false;
-    }
-
-    let content = bytes.strip_prefix(b" ").unwrap_or(bytes);
-    if is_json_literal_collision(content) {
-        return true;
-    }
-    if bytes == b" -" {
-        return true;
-    }
-    if bytes.starts_with(b"[") && is_json_literal_collision(&bytes[1..]) {
-        return true;
-    }
-    false
-}
-
-fn is_quoted_identifier_boundary_token(bytes: &[u8]) -> bool {
-    structural_boundary_lexical_partition_enabled()
-        && bytes
-        .strip_prefix(b"\"")
-        .is_some_and(|suffix| suffix.first().copied().is_some_and(is_partition_ascii_alpha))
-}
-
-fn structural_boundary_lexical_partition_enabled() -> bool {
-    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ENABLED.get_or_init(|| {
-        std::env::var("GLRMASK_STRUCTURAL_BOUNDARY_LEXICAL_PARTITION")
-            .map(|value| {
-                let trimmed = value.trim();
-                trimmed.is_empty() || trimmed == "1" || trimmed.eq_ignore_ascii_case("true")
+        let representatives = representatives
+            .into_iter()
+            .enumerate()
+            .map(|(class, representative)| {
+                representative.ok_or_else(|| {
+                    format!("partition regex {name} has empty byte class {class}")
+                })
             })
-            .unwrap_or(true)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let start = regex.initial_state();
+        let mut state_to_index = FxHashMap::<StateID, u32>::default();
+        let mut states = Vec::<StateID>::new();
+        state_to_index.insert(start, 0);
+        states.push(start);
+        let mut transitions = Vec::<u32>::new();
+        let mut accepting = Vec::<bool>::new();
+        let mut cursor = 0usize;
+        while cursor < states.len() {
+            let state = states[cursor];
+            accepting.push(regex.is_accepting(state));
+            let row_start = transitions.len();
+            transitions.resize(row_start + class_count, 0);
+            for (class, &byte) in representatives.iter().enumerate() {
+                let target = regex.transition(state, byte);
+                let target_index = if let Some(&index) = state_to_index.get(&target) {
+                    index
+                } else {
+                    let index = states.len() as u32;
+                    state_to_index.insert(target, index);
+                    states.push(target);
+                    index
+                };
+                transitions[row_start + class] = target_index;
+            }
+            cursor += 1;
+            if states.len() > 65_536 {
+                return Err(format!(
+                    "partition regex {name} expanded beyond 65536 DFA states"
+                ));
+            }
+        }
+        let mut reverse = vec![Vec::<u32>::new(); accepting.len()];
+        for (source, row) in transitions.chunks_exact(class_count).enumerate() {
+            for &target in row {
+                let target = target as usize;
+                if target < reverse.len() {
+                    reverse[target].push(source as u32);
+                }
+            }
+        }
+        let mut can_reach_accepting = accepting.clone();
+        let mut queue = std::collections::VecDeque::<u32>::new();
+        for (state, &is_accepting) in accepting.iter().enumerate() {
+            if is_accepting {
+                queue.push_back(state as u32);
+            }
+        }
+        while let Some(target) = queue.pop_front() {
+            for &source in &reverse[target as usize] {
+                if !can_reach_accepting[source as usize] {
+                    can_reach_accepting[source as usize] = true;
+                    queue.push_back(source);
+                }
+            }
+        }
+        Ok(Self {
+            byte_to_class,
+            class_count,
+            transitions,
+            accepting,
+            can_reach_accepting,
+        })
+    }
+
+    #[inline]
+    pub fn is_match(&self, bytes: &[u8]) -> bool {
+        let mut state = 0usize;
+        for &byte in bytes {
+            state = self.step(state as u32, byte) as usize;
+        }
+        self.is_accepting(state as u32)
+    }
+
+    #[inline]
+    pub fn start_state(&self) -> u32 {
+        0
+    }
+
+    #[inline]
+    pub fn byte_class(&self, byte: u8) -> u8 {
+        self.byte_to_class[byte as usize]
+    }
+
+    #[inline]
+    pub fn class_count(&self) -> usize {
+        self.class_count
+    }
+
+    #[inline]
+    pub fn byte_to_class_map(&self) -> &[u8; 256] {
+        &self.byte_to_class
+    }
+
+    #[inline]
+    pub fn transition_table(&self) -> &[u32] {
+        &self.transitions
+    }
+
+    #[inline]
+    pub fn can_reach_accepting_map(&self) -> &[bool] {
+        &self.can_reach_accepting
+    }
+
+    #[inline]
+    pub fn accepting_map(&self) -> &[bool] {
+        &self.accepting
+    }
+
+    #[inline]
+    pub fn step(&self, state: u32, byte: u8) -> u32 {
+        let class = self.byte_class(byte) as usize;
+        self.transitions[state as usize * self.class_count + class]
+    }
+
+    #[inline]
+    pub fn is_accepting(&self, state: u32) -> bool {
+        self.accepting.get(state as usize).copied().unwrap_or(false)
+    }
+
+    #[inline]
+    pub fn can_reach_accepting(&self, state: u32) -> bool {
+        self.can_reach_accepting
+            .get(state as usize)
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// A regular language is infinite iff the reachable subgraph that can
+    /// still reach acceptance contains a cycle.
+    pub fn has_finite_language(&self) -> bool {
+        let n = self.state_count();
+        if n == 0 || !self.can_reach_accepting(0) {
+            return true;
+        }
+        let mut reachable = vec![false; n];
+        let mut stack = vec![0u32];
+        reachable[0] = true;
+        while let Some(state) = stack.pop() {
+            let row = state as usize * self.class_count;
+            for class in 0..self.class_count {
+                let target = self.transitions[row + class];
+                if self.can_reach_accepting(target) && !reachable[target as usize] {
+                    reachable[target as usize] = true;
+                    stack.push(target);
+                }
+            }
+        }
+        let mut indegree = vec![0u32; n];
+        let mut live_count = 0usize;
+        for state in 0..n as u32 {
+            if !reachable[state as usize] {
+                continue;
+            }
+            live_count += 1;
+            let row = state as usize * self.class_count;
+            for class in 0..self.class_count {
+                let target = self.transitions[row + class];
+                if reachable[target as usize] {
+                    indegree[target as usize] = indegree[target as usize].saturating_add(1);
+                }
+            }
+        }
+        let mut queue = std::collections::VecDeque::new();
+        for state in 0..n as u32 {
+            if reachable[state as usize] && indegree[state as usize] == 0 {
+                queue.push_back(state);
+            }
+        }
+        let mut removed = 0usize;
+        while let Some(state) = queue.pop_front() {
+            removed += 1;
+            let row = state as usize * self.class_count;
+            for class in 0..self.class_count {
+                let target = self.transitions[row + class];
+                if !reachable[target as usize] {
+                    continue;
+                }
+                indegree[target as usize] -= 1;
+                if indegree[target as usize] == 0 {
+                    queue.push_back(target);
+                }
+            }
+        }
+        removed == live_count
+    }
+}
+
+
+#[derive(Debug)]
+struct VocabPartitionSet {
+    /// Exact effective languages indexed by stable partition id.
+    languages: Vec<VocabPartitionLanguage>,
+    /// Matchers in priority order. The u8 is the stable partition id returned
+    /// by `classify_vocab_char_type`.
+    matchers: Vec<(u8, VocabPartitionDfa)>,
+    effective_dfas: Vec<std::sync::OnceLock<Arc<VocabPartitionDfa>>>,
+    custom: bool,
+}
+
+#[derive(Debug, Clone)]
+struct VocabPartitionRule {
+    partition: u8,
+    name: String,
+    regex: String,
+}
+
+fn default_vocab_partition_rules() -> Vec<VocabPartitionRule> {
+    // Byte-regex equivalents of the historical broad partition shapes. The
+    // language is defined entirely by these expressions; no semantic callback
+    // participates in membership. High bytes are kept together as a separate
+    // word-like family so arbitrary byte vocabularies remain supported.
+    let collision = r"(?:t|tr|tru|true[A-Za-z0-9]*|f|fa|fal|fals|false[A-Za-z0-9]*|n|nu|nul|null[A-Za-z0-9]*)";
+    vec![
+        VocabPartitionRule {
+            partition: 8,
+            name: "p8".into(),
+            regex: r#"\"[A-Za-z_][\x00-\xFF]*"#.into(),
+        },
+        VocabPartitionRule {
+            partition: 7,
+            name: "p7".into(),
+            regex: format!(r"(?: {collision}|\[{collision}| -)"),
+        },
+        VocabPartitionRule {
+            partition: 2,
+            name: "p2".into(),
+            regex: r" ?[A-Za-z0-9_\x80-\xFF]*[A-Za-z_][A-Za-z0-9_\x80-\xFF]*".into(),
+        },
+        VocabPartitionRule {
+            partition: 3,
+            name: "p3".into(),
+            regex: r" ?[0-9]+".into(),
+        },
+        VocabPartitionRule {
+            partition: 4,
+            name: "p4".into(),
+            regex: r" ?[0-9\x80-\xFF]+".into(),
+        },
+        VocabPartitionRule {
+            partition: 6,
+            name: "p6".into(),
+            regex: r#"(?:[^\"\:\[\]\{\},A-Za-z0-9_\x80-\xFF]{9,}|\n{9,}|:{9,}|\{{9,}| {9,}|,{9,}|\+{9,}|-{9,})"#.into(),
+        },
+        VocabPartitionRule {
+            partition: 5,
+            name: "p5".into(),
+            regex: r#"(?:|[^\"\:\[\]\{\},A-Za-z0-9_\x80-\xFF]{1,8}|\n{1,8}|:{1,8}|\{{1,8}| {1,8}|,{1,8}|\+{2,8}|-{2,8}|[^A-Za-z0-9_+\-\x80-\xFF])"#.into(),
+        },
+        VocabPartitionRule {
+            partition: 0,
+            name: "p0".into(),
+            regex: r"[^A-Za-z0-9_+\-\x80-\xFF]+".into(),
+        },
+        VocabPartitionRule {
+            partition: 1,
+            name: "p1".into(),
+            regex: r"[\x00-\xFF]*".into(),
+        },
+    ]
+}
+
+fn custom_vocab_partition_rules(value: &str) -> Result<Vec<VocabPartitionRule>, String> {
+    let trimmed = value.trim();
+    let after_open_bracket = trimmed
+        .strip_prefix('[')
+        .map(str::trim_start)
+        .unwrap_or_default();
+    let looks_like_json_array = trimmed.starts_with('[')
+        && matches!(after_open_bracket.as_bytes().first(), Some(b'"' | b'{' | b']'));
+    let mut rules = if looks_like_json_array {
+        let parsed: serde_json::Value = serde_json::from_str(trimmed)
+            .map_err(|error| format!("invalid {VOCAB_PARTITION_REGEX_ENV} JSON: {error}"))?;
+        let items = parsed
+            .as_array()
+            .ok_or_else(|| format!("{VOCAB_PARTITION_REGEX_ENV} must be a JSON array"))?;
+        let mut rules = Vec::with_capacity(items.len() + 1);
+        for (index, item) in items.iter().enumerate() {
+            match item {
+                serde_json::Value::String(regex) => {
+                    rules.push(VocabPartitionRule { partition: index as u8, name: format!("r{index}"), regex: regex.clone() });
+                }
+                serde_json::Value::Object(object) => {
+                    let regex = object
+                        .get("regex")
+                        .and_then(serde_json::Value::as_str)
+                        .ok_or_else(|| {
+                            format!(
+                                "{VOCAB_PARTITION_REGEX_ENV}[{index}] object requires string field `regex`"
+                            )
+                        })?;
+                    let name = object
+                        .get("name")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned)
+                        .unwrap_or_else(|| format!("r{index}"));
+                    rules.push(VocabPartitionRule { partition: index as u8, name, regex: regex.to_owned() });
+                }
+                _ => {
+                    return Err(format!(
+                        "{VOCAB_PARTITION_REGEX_ENV}[{index}] must be a string or object"
+                    ));
+                }
+            }
+        }
+        rules
+    } else {
+        trimmed
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .enumerate()
+            .map(|(index, regex)| VocabPartitionRule { partition: index as u8, name: format!("r{index}"), regex: regex.to_owned() })
+            .collect::<Vec<_>>()
+    };
+    if rules.len() >= 32 {
+        return Err(format!(
+            "{VOCAB_PARTITION_REGEX_ENV} supports at most 31 explicit rules; one slot is reserved for the implicit rest partition"
+        ));
+    }
+    rules.push(VocabPartitionRule { partition: rules.len() as u8, name: "rest".into(), regex: r"(?s:.)*".into() });
+    Ok(rules)
+}
+
+fn compile_vocab_partition_set(
+    raw_rules: Vec<VocabPartitionRule>,
+    custom: bool,
+) -> Result<VocabPartitionSet, String> {
+    if raw_rules.is_empty() || raw_rules.len() > 32 {
+        return Err(format!(
+            "vocabulary partition rule count must be in 1..=32, got {}",
+            raw_rules.len()
+        ));
+    }
+
+    let partition_count = raw_rules
+        .iter()
+        .map(|rule| rule.partition as usize)
+        .max()
+        .map_or(0, |max| max + 1);
+    if partition_count != raw_rules.len() {
+        return Err("vocabulary partition ids must be dense from zero".to_owned());
+    }
+    let mut languages = vec![None; partition_count];
+    let mut matchers = Vec::with_capacity(raw_rules.len());
+    let mut earlier = Vec::<String>::new();
+    for rule in raw_rules {
+        let language = VocabPartitionLanguage {
+            name: rule.name,
+            include_regex: rule.regex.clone(),
+            excluded_regexes: earlier.clone(),
+        };
+        let dfa = VocabPartitionDfa::compile_byte_regex(&language.name, &language.include_regex)?;
+        earlier.push(rule.regex);
+        if languages[rule.partition as usize].replace(language).is_some() {
+            return Err(format!("duplicate vocabulary partition id {}", rule.partition));
+        }
+        matchers.push((rule.partition, dfa));
+    }
+    let languages = languages
+        .into_iter()
+        .enumerate()
+        .map(|(index, language)| language.ok_or_else(|| format!("missing vocabulary partition id {index}")))
+        .collect::<Result<Vec<_>, _>>()?;
+    let effective_dfas = (0..languages.len())
+        .map(|_| std::sync::OnceLock::new())
+        .collect();
+    Ok(VocabPartitionSet {
+        languages,
+        matchers,
+        effective_dfas,
+        custom,
     })
 }
 
+fn build_vocab_partition_set() -> Result<VocabPartitionSet, String> {
+    let custom_value = std::env::var(VOCAB_PARTITION_REGEX_ENV).ok();
+    let custom = custom_value.is_some();
+    let raw_rules = match custom_value {
+        Some(value) => custom_vocab_partition_rules(&value)?,
+        None => default_vocab_partition_rules(),
+    };
+    compile_vocab_partition_set(raw_rules, custom)
+}
 
-/// Sub-classify a non-alphanumeric token into P0 (structural), P5 (short auxiliary),
-/// or P6 (long auxiliary).
+#[inline]
+fn classify_with_partition_set(set: &VocabPartitionSet, bytes: &[u8]) -> Option<u8> {
+    set.matchers
+        .iter()
+        .find_map(|(partition, dfa)| dfa.is_match(bytes).then_some(*partition))
+}
+
+fn vocab_partition_set() -> &'static VocabPartitionSet {
+    static SET: std::sync::OnceLock<VocabPartitionSet> = std::sync::OnceLock::new();
+    SET.get_or_init(|| {
+        build_vocab_partition_set().unwrap_or_else(|error| {
+            panic!("failed to initialize regex vocabulary partitions: {error}")
+        })
+    })
+}
+
+pub fn vocab_partition_count() -> usize {
+    vocab_partition_set().languages.len()
+}
+
+pub fn vocab_partition_is_custom() -> bool {
+    vocab_partition_set().custom
+}
+
+pub fn vocab_partition_language(index: usize) -> Option<VocabPartitionLanguage> {
+    vocab_partition_set().languages.get(index).cloned()
+}
+
+pub fn vocab_partition_effective_dfa(index: usize) -> Option<Arc<VocabPartitionDfa>> {
+    let set = vocab_partition_set();
+    let language = set.languages.get(index)?;
+    let cell = set.effective_dfas.get(index)?;
+    Some(Arc::clone(cell.get_or_init(|| {
+        Arc::new(language.compile_effective_dfa().unwrap_or_else(|error| {
+            panic!("failed to compile effective vocabulary partition {}: {error}", language.name)
+        }))
+    })))
+}
+
+pub fn vocab_partition_label(index: usize) -> String {
+    let set = vocab_partition_set();
+    if set.custom {
+        let name = set
+            .languages
+            .get(index)
+            .map(|language| language.name.as_str())
+            .unwrap_or("unknown");
+        format!("rx{index}:{name}")
+    } else {
+        set.languages
+            .get(index)
+            .map(|language| language.name.clone())
+            .unwrap_or_else(|| format!("p{index}"))
+    }
+}
+
+/// Classify token bytes by exact regular-language partition membership.
 ///
-/// P5/P6 if: (a) no JSON structural char, (b) single repeated char from
-/// `\n:{ ,`, or (c) length 1. Within that group, tokens > 8 bytes go to P6.
-fn classify_nonalnum(bytes: &[u8]) -> u8 {
-    // Length 1 → P5
-    if bytes.len() <= 1 {
-        return 5;
-    }
-    // Single repeated char from P5_REPEATED_CHARS → P5/P6
-    if bytes.iter().all(|b| *b == bytes[0]) && P5_REPEATED_CHARS.contains(&bytes[0]) {
-        return if bytes.len() > 8 { 6 } else { 5 };
-    }
-    // No JSON structural char → P5/P6
-    if !bytes.iter().any(|b| JSON_STRUCTURAL.contains(b)) {
-        return if bytes.len() > 8 { 6 } else { 5 };
-    }
-    0 // Structural non-alnum → P0
+/// Unlike the former hand-written classifier, every returned partition has a
+/// first-class regular language available through [`vocab_partition_language`].
+/// This makes language containment a well-defined operation rather than an
+/// approximation reconstructed from the tokens that happened to land there.
+pub fn classify_vocab_char_type(bytes: &[u8]) -> u8 {
+    let set = vocab_partition_set();
+    classify_with_partition_set(set, bytes).unwrap_or_else(|| {
+            panic!(
+                "regex vocabulary partitions are not exhaustive for token bytes {:?}",
+                bytes
+            )
+        })
 }
 
 /// Classifies each terminal by the longest token-path length it can participate in.
@@ -5352,16 +5752,32 @@ pub fn partition_vocab_char_type_tokens(
         Err(_) => automatic_p2_overflow_threshold,
     };
     let p4_overflow_threshold = threshold("GLRMASK_P4_LONG_TOKEN_OVERFLOW_THRESHOLD", 32);
+    let (p0_overflow_threshold, p1_overflow_threshold, p2_overflow_threshold, p4_overflow_threshold) =
+        if vocab_partition_is_custom() {
+            (None, None, None, None)
+        } else {
+            (
+                p0_overflow_threshold,
+                p1_overflow_threshold,
+                p2_overflow_threshold,
+                p4_overflow_threshold,
+            )
+        };
+    let base_partition_count = vocab_partition_count();
     let partition_count = if p0_overflow_threshold.is_some() {
+        debug_assert_eq!(base_partition_count, 9);
         13
     } else if p4_overflow_threshold.is_some() {
+        debug_assert_eq!(base_partition_count, 9);
         12
     } else if p1_overflow_threshold.is_some() {
+        debug_assert_eq!(base_partition_count, 9);
         11
     } else if p2_overflow_threshold.is_some() {
+        debug_assert_eq!(base_partition_count, 9);
         10
     } else {
-        9
+        base_partition_count
     };
     let mut partitions: Vec<Vec<u32>> =
         (0..partition_count).map(|_| Vec::new()).collect();
@@ -5611,7 +6027,8 @@ mod tests {
         vocab_adjacent_pair_index, vocab_suffix_trie,
     };
     use super::{
-        classify_terminal_path_lengths, classify_vocab_char_type,
+        classify_terminal_path_lengths, classify_vocab_char_type, classify_with_partition_set,
+        compile_vocab_partition_set, custom_vocab_partition_rules,
         exact_terminal_path_two_plus, exact_terminal_path_two_plus_candidate_dfa,
         exact_terminal_path_two_plus_finite_literals,
         parse_exact_l2p_boundary_filter_mode,
@@ -6146,6 +6563,44 @@ mod tests {
         );
 
         assert_eq!(optimized.two_plus, reference.two_plus);
+    }
+
+    #[test]
+    fn ordered_custom_regex_partitions_have_exact_effective_languages() {
+        let rules = custom_vocab_partition_rules(
+            r#"[
+                {"name":"short","regex":"[a-z]{1,2}"},
+                {"name":"medium","regex":"[a-z]{1,4}"}
+            ]"#,
+        )
+        .unwrap();
+        let set = compile_vocab_partition_set(rules, true).unwrap();
+        assert_eq!(set.languages.len(), 3);
+        assert_eq!(set.languages[0].name, "short");
+        assert_eq!(set.languages[1].name, "medium");
+        assert_eq!(set.languages[2].name, "rest");
+        assert_eq!(classify_with_partition_set(&set, b"a"), Some(0));
+        assert_eq!(classify_with_partition_set(&set, b"ab"), Some(0));
+        assert_eq!(classify_with_partition_set(&set, b"abc"), Some(1));
+        assert_eq!(classify_with_partition_set(&set, b"abcd"), Some(1));
+        assert_eq!(classify_with_partition_set(&set, b"abcde"), Some(2));
+        assert_eq!(classify_with_partition_set(&set, b"\""), Some(2));
+
+        let mut medium = set.languages[1].compile_effective_regex().unwrap();
+        assert!(!medium.is_match_bytes(b"a"));
+        assert!(!medium.is_match_bytes(b"ab"));
+        assert!(medium.is_match_bytes(b"abc"));
+        assert!(medium.is_match_bytes(b"abcd"));
+        assert!(!medium.is_match_bytes(b"abcde"));
+    }
+
+    #[test]
+    fn newline_custom_regex_partition_syntax_is_supported() {
+        let rules = custom_vocab_partition_rules("[0-9]+\n[A-Za-z_]+\n").unwrap();
+        let set = compile_vocab_partition_set(rules, true).unwrap();
+        assert_eq!(classify_with_partition_set(&set, b"123"), Some(0));
+        assert_eq!(classify_with_partition_set(&set, b"abc"), Some(1));
+        assert_eq!(classify_with_partition_set(&set, b"!"), Some(2));
     }
 
     #[test]

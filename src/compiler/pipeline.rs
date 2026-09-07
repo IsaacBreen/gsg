@@ -39,7 +39,7 @@ use crate::automata::lexer::compile::{
     DeferredPartitionedRegex,
 };
 use crate::automata::lexer::regex::parse_regex;
-use crate::automata::lexer::tokenizer::Tokenizer;
+use crate::automata::lexer::tokenizer::{Tokenizer, VirtualResidualMaskProjection};
 use crate::automata::regex::Expr;
 use crate::automata::weighted::dwa::DWA;
 use crate::automata::weighted::terminal_automaton::TerminalAutomaton;
@@ -5275,7 +5275,11 @@ fn compile_dynamic_owned_impl(
 
         let (tokenizer_result, ((table, table_ms), (dynamic_mask_vocab, dynamic_vocab_ms))) = macro_join(
             "dynamic_tokenizer_and_table_vocab",
-            || -> crate::Result<((Tokenizer, Option<(Tokenizer, Vec<u32>)>), f64)> {
+            || -> crate::Result<((
+                Tokenizer,
+                Option<(Tokenizer, Vec<u32>)>,
+                Option<(Tokenizer, Vec<VirtualResidualMaskProjection>)>,
+            ), f64)> {
                 let started_at = Instant::now();
                 let quotient_enabled = std::env::var_os("GLRMASK_DYNAMIC_MASK_TOKEN_QUOTIENT")
                     .is_some()
@@ -5319,6 +5323,37 @@ fn compile_dynamic_owned_impl(
                 // mis-handle) the arithmetic residual component. Keep the
                 // symbolic runtime authoritative and determinize only fully
                 // materialized tokenizers.
+                let prebuilt_virtual_residual_projection = if !finalize_runtime
+                    && has_virtual_runtime
+                    && std::env::var("GLRMASK_DYNAMIC_TRANSFER_VIRTUAL_RESIDUAL_PROJECTIONS")
+                        .ok()
+                        .is_none_or(|value| !matches!(value.trim(), "0" | "false" | "no" | "off"))
+                    && std::env::var("GLRMASK_DYNAMIC_VIRTUAL_RESIDUAL_MASK_PROJECTION")
+                        .ok()
+                        .is_none_or(|value| !matches!(value.trim(), "0" | "false" | "no" | "off"))
+                {
+                    const DEFAULT_MAX_DENSE_STATES: usize = 1024 * 1024;
+                    let max_dense_states = std::env::var(
+                        "GLRMASK_DYNAMIC_VIRTUAL_RESIDUAL_MASK_PROJECTION_MAX_DENSE_STATES",
+                    )
+                    .ok()
+                    .and_then(|value| value.trim().parse::<usize>().ok())
+                    .unwrap_or(DEFAULT_MAX_DENSE_STATES);
+                    let max_token_len = vocab.max_token_byte_len();
+                    (max_token_len > 0
+                        && tokenizer
+                            .virtual_residual_mask_projection_dense_state_work(max_token_len)
+                            .is_some_and(|work| work <= max_dense_states))
+                    .then(|| {
+                        tokenizer.virtual_residuals_mask_tokenizer_with_vocab(
+                            max_token_len,
+                            None,
+                        )
+                    })
+                    .flatten()
+                } else {
+                    None
+                };
                 if !has_virtual_runtime && tokenizer.has_epsilon_transitions() {
                     let source_states = tokenizer.num_states();
                     let source_transitions = tokenizer.transition_count();
@@ -5354,7 +5389,11 @@ fn compile_dynamic_owned_impl(
                         );
                     }
                 }
-                Ok(((tokenizer, mask_tokenizer_quotient), elapsed_ms(started_at)))
+                Ok(((
+                    tokenizer,
+                    mask_tokenizer_quotient,
+                    prebuilt_virtual_residual_projection,
+                ), elapsed_ms(started_at)))
             },
             || macro_join(
                 "dynamic_table_and_vocab",
@@ -5384,7 +5423,8 @@ fn compile_dynamic_owned_impl(
                 },
             ),
         );
-        let ((tokenizer, mask_tokenizer_quotient), tokenizer_ms) = tokenizer_result?;
+        let ((tokenizer, mask_tokenizer_quotient, prebuilt_virtual_residual_projection), tokenizer_ms) =
+            tokenizer_result?;
 
         let finalize_started_at = profile.then(Instant::now);
         // Build unfinalized so a mask-only finite-token quotient can be
@@ -5405,6 +5445,12 @@ fn compile_dynamic_owned_impl(
                 .inner
                 .dynamic_mask_vocab
                 .set_mask_tokenizer_quotient(mask_tokenizer, full_to_mask_state);
+        }
+        if let Some((mask_tokenizer, projections)) = prebuilt_virtual_residual_projection {
+            constraint
+                .inner
+                .dynamic_mask_vocab
+                .set_virtual_residuals_mask_projection(mask_tokenizer, projections);
         }
         if finalize_runtime {
             constraint.inner.rebuild_dynamic_runtime_caches();

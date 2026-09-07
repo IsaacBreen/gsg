@@ -487,7 +487,9 @@ fn factor_choice_common_suffix(options: &[Expr]) -> Option<Expr> {
 /// Factor one repeated leading atom even when it is shared by only a subset
 /// of the choice arms. This is the exact identity
 ///
-///     A B | A C | D  ==  A (B | C) | D
+/// ```text
+/// A B | A C | D  ==  A (B | C) | D
+/// ```
 ///
 /// and is particularly important for mixed anchored/unanchored JSON-schema
 /// string patterns: the unanchored arms often share a `JSON_STRING_CHAR*`
@@ -546,7 +548,9 @@ fn factor_choice_repeated_prefix_subset(options: &[Expr]) -> Option<Expr> {
 
 /// Suffix counterpart of `factor_choice_repeated_prefix_subset`:
 ///
-///     B A | C A | D  ==  (B | C) A | D
+/// ```text
+/// B A | C A | D  ==  (B | C) A | D
+/// ```
 fn factor_choice_repeated_suffix_subset(options: &[Expr]) -> Option<Expr> {
     let mut groups = FxHashMap::<&Expr, Vec<usize>>::default();
     for (index, option) in options.iter().enumerate() {
@@ -594,7 +598,9 @@ fn factor_choice_repeated_suffix_subset(options: &[Expr]) -> Option<Expr> {
 
 /// Factor sibling exclusions that subtract the same language:
 ///
-///     (A \\ B) | (C \\ B) | D  ==  ((A | C) \\ B) | D
+/// ```text
+/// (A \\ B) | (C \\ B) | D  ==  ((A | C) \\ B) | D
+/// ```
 ///
 /// This is ordinary set algebra on languages. Keeping the subtraction outside
 /// the union matters for schema-generated key languages: otherwise every arm

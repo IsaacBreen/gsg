@@ -266,6 +266,174 @@ impl Constraint {
 		true
 	}
 
+	/// Return `Some(true)` when the exact possible-match relation proves that
+	/// no public/original vocabulary token can complete `terminal` from
+	/// `tokenizer_state`. This deliberately accounts for internal token classes
+	/// whose original-token group is empty (for example linker-only placeholder
+	/// classes), so callers can skip an otherwise expensive full expansion.
+	/// Legacy artifacts without complete possible matches return `None`.
+	pub(crate) fn possible_match_original_tokens_definitely_empty(
+		&self,
+		tokenizer_state: u32,
+		terminal: TerminalID,
+	) -> Option<bool> {
+		// Dynamic transfer intentionally omits the heavyweight possible-match
+		// table. Before falling back to a vocabulary scan, prove the stronger
+		// vocabulary-independent fact that this terminal cannot match after any
+		// byte string whose length fits in one model token. This exact BFS only
+		// handles ordinary scalar lexer states; epsilon/virtual paths conservatively
+		// decline and retain the existing fallback.
+		let ordinary_impossible = self.ordinary_terminal_match_impossible_within(
+			tokenizer_state,
+			terminal,
+			self.max_token_byte_len(),
+		);
+		if std::env::var_os("GLRMASK_PROFILE_DYNAMIC_MASK").is_some() {
+			eprintln!(
+				"[glrmask/profile][pending_guard_bounded_reachability] state={} terminal={} impossible={:?} epsilon={} virtual={} max_token_len={}",
+				tokenizer_state,
+				terminal,
+				ordinary_impossible,
+				self.tokenizer.state_has_epsilon_transitions(tokenizer_state),
+				self.tokenizer.state_is_virtual_runtime(tokenizer_state),
+				self.max_token_byte_len(),
+			);
+		}
+		if let Some(impossible) = ordinary_impossible {
+			if impossible {
+				return Some(true);
+			}
+		}
+		if !self.possible_matches_complete {
+			return None;
+		}
+		let Some(weight) = self.runtime_possible_match_weight(terminal) else {
+			return Some(true);
+		};
+		let internal_count = self.internal_token_count();
+		let flat_ready = self.internal_token_buf_offsets.len() == internal_count.saturating_add(1)
+			&& self
+				.internal_token_buf_offsets
+				.last()
+				.is_some_and(|&end| end as usize == self.internal_token_buf_flat_len());
+		let materialized_ready = self.internal_token_buf_masks.len() == internal_count;
+		if std::env::var_os("GLRMASK_PROFILE_DYNAMIC_MASK").is_some() {
+			eprintln!(
+				"[glrmask/profile][possible_match_public_empty] internal_count={} offsets={} flat_len={} materialized={} flat_ready={} materialized_ready={}",
+				internal_count,
+				self.internal_token_buf_offsets.len(),
+				self.internal_token_buf_flat_len(),
+				self.internal_token_buf_masks.len(),
+				flat_ready,
+				materialized_ready,
+			);
+		}
+		if !flat_ready && !materialized_ready {
+			return None;
+		}
+		for &internal_tsid in self.internal_tsids_for_state(tokenizer_state) {
+			let Some(tokens) = weight.token_set_for_tsid(internal_tsid) else {
+				continue;
+			};
+			if tokens.is_empty() {
+				continue;
+			}
+			let mut has_public = false;
+			tokens.for_each_range(|start, end| {
+				if has_public {
+					return;
+				}
+				let start = start as usize;
+				let end = (end as usize).min(internal_count.saturating_sub(1));
+				if start > end {
+					return;
+				}
+				if flat_ready {
+					for internal in start..=end {
+						if self.internal_token_buf_offsets[internal]
+							!= self.internal_token_buf_offsets[internal + 1]
+						{
+							has_public = true;
+							break;
+						}
+					}
+				} else {
+					for internal in start..=end {
+						if !self.internal_token_buf_masks[internal].is_empty() {
+							has_public = true;
+							break;
+						}
+					}
+				}
+			});
+			if has_public {
+				return Some(false);
+			}
+		}
+		Some(true)
+	}
+
+	fn ordinary_terminal_match_impossible_within(
+		&self,
+		start: u32,
+		terminal: TerminalID,
+		horizon: usize,
+	) -> Option<bool> {
+		let tokenizer = &self.tokenizer;
+		if horizon == 0 || start >= tokenizer.num_states() {
+			return Some(true);
+		}
+		if tokenizer.state_has_epsilon_transitions(start)
+			|| tokenizer.state_is_virtual_runtime(start)
+		{
+			return None;
+		}
+		if !tokenizer
+			.possible_future_terminals(start)
+			.contains(terminal as usize)
+		{
+			return Some(true);
+		}
+
+		let mut distance = vec![usize::MAX; tokenizer.num_states() as usize];
+		let mut queue = std::collections::VecDeque::new();
+		distance[start as usize] = 0;
+		queue.push_back(start);
+		let mut ambiguous = false;
+		while let Some(state) = queue.pop_front() {
+			let depth = distance[state as usize];
+			if depth >= horizon {
+				continue;
+			}
+			for (_, target) in tokenizer.transitions_from(state) {
+				if tokenizer
+					.matched_terminal_bitset(target)
+					.contains(terminal as usize)
+				{
+					return Some(false);
+				}
+				if !tokenizer
+					.possible_future_terminals(target)
+					.contains(terminal as usize)
+				{
+					continue;
+				}
+				if tokenizer.state_has_epsilon_transitions(target)
+					|| tokenizer.state_is_virtual_runtime(target)
+				{
+					ambiguous = true;
+					continue;
+				}
+				let next_depth = depth + 1;
+				if next_depth < distance[target as usize] {
+					distance[target as usize] = next_depth;
+					queue.push_back(target);
+				}
+			}
+		}
+		if ambiguous { None } else { Some(true) }
+	}
+
 	pub(crate) fn internal_token_universe(&self) -> RangeSetBlaze<u32> {
 		if !self.has_original_token_map() && self.internal_token_to_tokens.is_empty() {
 			let Some(max_token_id) = self.max_original_token_id() else {

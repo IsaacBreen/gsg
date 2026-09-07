@@ -6758,11 +6758,51 @@ impl<'a> ConstraintState<'a> {
             return;
         }
         if self.constraint.uses_dynamic_runtime() {
-            if !self.try_fill_mask_from_cache(mask) {
+            // Diagnostic escape hatch used by dynamic-mask performance tests:
+            // bypass both the state-local last-mask cache and the lower-level
+            // dynamic memo so repeated calls expose recomputation cost.
+            let disable_dynamic_mask_cache = !super::dynamic_mask::dynamic_mask_cache_enabled();
+            let profile_dynamic_cache = std::env::var("GLRMASK_PROFILE_DYNAMIC_STATE_CACHE_GENERATION")
+                .ok()
+                .and_then(|value| value.parse::<u64>().ok())
+                == Some(self.generation);
+            let local_started = profile_dynamic_cache.then(Instant::now);
+            let local_hit = !disable_dynamic_mask_cache && self.try_fill_mask_from_cache(mask);
+            let local_us = local_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1e6);
+            if !local_hit {
+                let dynamic_started = profile_dynamic_cache.then(Instant::now);
                 self.fill_mask_dynamic(mask);
-                self.store_mask_cache_reuse_dense(mask);
+                let dynamic_us = dynamic_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1e6);
+                let store_started = profile_dynamic_cache.then(Instant::now);
+                if !disable_dynamic_mask_cache {
+                    self.store_mask_cache_reuse_dense(mask);
+                }
+                let store_us = store_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1e6);
+                if profile_dynamic_cache {
+                    eprintln!(
+                        "[glrmask/profile][dynamic_state_cache] generation={} local_hit=false local_us={:.1} dynamic_us={:.1} store_us={:.1}",
+                        self.generation,
+                        local_us,
+                        dynamic_us,
+                        store_us,
+                    );
+                }
+            } else if profile_dynamic_cache {
+                eprintln!(
+                    "[glrmask/profile][dynamic_state_cache] generation={} local_hit=true local_us={:.1}",
+                    self.generation,
+                    local_us,
+                );
             }
+            let clear_started = profile_dynamic_cache.then(Instant::now);
             self.clear_late_grammar_placeholder_mask(mask);
+            if let Some(clear_started) = clear_started {
+                eprintln!(
+                    "[glrmask/profile][dynamic_state_cache] generation={} clear_us={:.1}",
+                    self.generation,
+                    clear_started.elapsed().as_secs_f64() * 1e6,
+                );
+            }
             return;
         }
         if std::env::var_os("GLRMASK_EXPERIMENT_SEGMENTED_PARSER_MASK").is_some()

@@ -518,6 +518,7 @@ fn compile_dynamic_serialized_from_source_profiled(
             default_table_construction,
         )?;
         constraint.inner.prepare_dynamic_terminal_observation_classes_for_artifact();
+        constraint.inner.prepare_dynamic_virtual_residual_mask_projections_for_artifact();
         compiled.push(constraint);
     }
     let compile_ms = compile_started

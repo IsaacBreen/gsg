@@ -4302,6 +4302,12 @@ impl<'a> PackedRuntimePoolTokenSetRef<'a> {
     #[inline]
     pub fn id(self) -> u32 { self.id }
 
+    #[inline]
+    pub fn is_empty(self) -> bool {
+        let mut pos = 0usize;
+        pooled_take_var_u32(self.body, &mut pos).map_or(true, |count| count == 0)
+    }
+
     pub fn for_each_range(self, mut visit: impl FnMut(u32, u32)) {
         let mut pos = 0usize;
         let Ok(range_count) = pooled_take_var_u32(self.body, &mut pos) else {

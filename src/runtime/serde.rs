@@ -2545,15 +2545,16 @@ struct StaticVirtualResidualMaskArtifactRef<'a> {
     >,
 }
 
-#[derive(Deserialize)]
-struct StaticVirtualResidualMaskArtifact {
+#[derive(Debug, Deserialize)]
+pub(crate) struct StaticVirtualResidualMaskArtifact {
     mask_tokenizer_bytes: Vec<u8>,
     projections: Vec<
         crate::automata::lexer::tokenizer::VirtualResidualMaskProjectionArtifact,
     >,
 }
 
-enum DecodedStaticVirtualResidualMask {
+#[derive(Debug)]
+pub(crate) enum DecodedStaticVirtualResidualMask {
     Owned(StaticVirtualResidualMaskArtifact),
     Backed {
         backing: Arc<Vec<u8>>,
@@ -2564,23 +2565,109 @@ enum DecodedStaticVirtualResidualMask {
 }
 
 impl DecodedStaticVirtualResidualMask {
-    fn projections(&self) -> &[crate::automata::lexer::tokenizer::VirtualResidualMaskProjectionArtifact] {
+    pub(crate) fn projections(&self) -> &[crate::automata::lexer::tokenizer::VirtualResidualMaskProjectionArtifact] {
         match self {
             Self::Owned(artifact) => &artifact.projections,
             Self::Backed { projections, .. } => projections,
         }
     }
+
+    pub(crate) fn restore_projections(
+        self,
+        constraint: &mut super::Constraint,
+    ) -> crate::Result<()> {
+        let (mask_tokenizer, projections, compiled_stencil) = match self {
+            Self::Owned(StaticVirtualResidualMaskArtifact {
+                mask_tokenizer_bytes,
+                projections,
+            }) => {
+                let tokenizer = crate::automata::lexer::tokenizer::artifact_serde::from_fast_bytes(
+                    &mask_tokenizer_bytes,
+                )
+                .map_err(crate::GlrMaskError::Serialization)?;
+                (tokenizer, projections, false)
+            }
+            Self::Backed {
+                backing,
+                tokenizer_start,
+                tokenizer_len,
+                projections,
+            } => {
+                let end = tokenizer_start.checked_add(tokenizer_len).ok_or_else(|| {
+                    crate::GlrMaskError::Serialization(
+                        "static residual tokenizer range overflow".to_owned(),
+                    )
+                })?;
+                let bytes = backing.get(tokenizer_start..end).ok_or_else(|| {
+                    crate::GlrMaskError::Serialization(
+                        "static residual tokenizer is outside artifact backing".to_owned(),
+                    )
+                })?;
+                let tokenizer =
+                    crate::automata::lexer::tokenizer::artifact_serde::from_fast_bytes_backed(
+                        bytes,
+                        std::sync::Arc::clone(&backing),
+                        tokenizer_start,
+                    )
+                    .map_err(crate::GlrMaskError::Serialization)?;
+                (tokenizer, projections, true)
+            }
+        };
+        let restored = if compiled_stencil {
+            constraint
+                .tokenizer
+                .restore_compiled_virtual_residual_mask_projections(
+                    &mask_tokenizer,
+                    projections,
+                )
+        } else {
+            constraint
+                .tokenizer
+                .restore_virtual_residual_mask_projections(
+                    constraint.max_token_byte_len(),
+                    &mask_tokenizer,
+                    projections,
+                )
+        }
+        .map_err(crate::GlrMaskError::Serialization)?;
+        constraint
+            .dynamic_mask_vocab
+            .set_virtual_residuals_mask_projection(mask_tokenizer, restored);
+        Ok(())
+    }
 }
 
-fn encode_static_virtual_residual_mask_wire(
+pub(crate) fn encode_static_virtual_residual_mask_wire(
     source_tokenizer: &crate::automata::lexer::tokenizer::Tokenizer,
     mask_tokenizer: &crate::automata::lexer::tokenizer::Tokenizer,
     projections: &[crate::automata::lexer::tokenizer::VirtualResidualMaskProjection],
 ) -> Vec<u8> {
-    let tokenizer_bytes = crate::automata::lexer::tokenizer::artifact_serde::to_fast_bytes_with_packed_metadata(mask_tokenizer);
+    encode_static_virtual_residual_mask_wire_with_fallback(
+        source_tokenizer,
+        None,
+        mask_tokenizer,
+        projections,
+    )
+}
+
+pub(crate) fn encode_static_virtual_residual_mask_wire_with_fallback(
+    source_tokenizer: &crate::automata::lexer::tokenizer::Tokenizer,
+    fallback_exprs: Option<&[crate::automata::lexer::ast::Expr]>,
+    mask_tokenizer: &crate::automata::lexer::tokenizer::Tokenizer,
+    projections: &[crate::automata::lexer::tokenizer::VirtualResidualMaskProjection],
+) -> Vec<u8> {
+    let tokenizer_bytes = if mask_tokenizer.has_compressed_transition_segments() {
+        crate::automata::lexer::tokenizer::artifact_serde::build_huge_bytes(mask_tokenizer)
+            .unwrap_or_else(|| {
+                crate::automata::lexer::tokenizer::artifact_serde::to_segment_bytes(mask_tokenizer)
+            })
+    } else {
+        crate::automata::lexer::tokenizer::artifact_serde::to_fast_bytes_with_packed_metadata(mask_tokenizer)
+    };
     let source_exprs = source_tokenizer
         .terminal_exprs()
-        .expect("fresh Static residual constraint retains terminal expressions");
+        .or(fallback_exprs)
+        .expect("residual constraint retains terminal expressions for wire encoding");
     let parts = projections
         .iter()
         .map(|projection| {
@@ -2631,7 +2718,7 @@ fn encode_static_virtual_residual_mask_wire(
     out
 }
 
-fn decode_static_virtual_residual_mask_wire(
+pub(crate) fn decode_static_virtual_residual_mask_wire(
     section: &[u8],
     backing: Arc<Vec<u8>>,
 ) -> Result<DecodedStaticVirtualResidualMask, String> {
@@ -2674,9 +2761,12 @@ fn decode_static_virtual_residual_mask_wire(
     let mask_state_count = if sparse {
         let tokenizer_wire = &section[tokenizer_local_start..tokenizer_local_end];
         if tokenizer_wire.len() < 12
-            || !(tokenizer_wire.starts_with(b"TKF2") || tokenizer_wire.starts_with(b"TKF3"))
+            || !(tokenizer_wire.starts_with(b"TKF2")
+                || tokenizer_wire.starts_with(b"TKF3")
+                || tokenizer_wire.starts_with(b"TKS2")
+                || tokenizer_wire.starts_with(b"TKS3"))
         {
-            return Err("SRM3 requires fast mask tokenizer wire".to_owned());
+            return Err("SRM3 requires a supported mask tokenizer wire".to_owned());
         }
         u32::from_le_bytes(tokenizer_wire[8..12].try_into().unwrap())
     } else {
@@ -7616,31 +7706,7 @@ impl Constraint {
                 restore_result.map_err(crate::GlrMaskError::Serialization)?;
             }
             if let Some(static_mask) = static_virtual_residual_mask {
-                let (mask_tokenizer, projections, compiled_stencil) = match static_mask {
-                    DecodedStaticVirtualResidualMask::Owned(StaticVirtualResidualMaskArtifact { mask_tokenizer_bytes, projections }) => {
-                        let tokenizer = crate::automata::lexer::tokenizer::artifact_serde::from_fast_bytes(&mask_tokenizer_bytes)
-                            .map_err(crate::GlrMaskError::Serialization)?;
-                        (tokenizer, projections, false)
-                    }
-                    DecodedStaticVirtualResidualMask::Backed { backing, tokenizer_start, tokenizer_len, projections } => {
-                        let end = tokenizer_start.checked_add(tokenizer_len).ok_or_else(|| crate::GlrMaskError::Serialization("static residual tokenizer range overflow".to_owned()))?;
-                        let bytes = backing.get(tokenizer_start..end).ok_or_else(|| crate::GlrMaskError::Serialization("static residual tokenizer is outside artifact backing".to_owned()))?;
-                        let tokenizer = crate::automata::lexer::tokenizer::artifact_serde::from_fast_bytes_backed(
-                            bytes, std::sync::Arc::clone(&backing), tokenizer_start,
-                        ).map_err(crate::GlrMaskError::Serialization)?;
-                        (tokenizer, projections, true)
-                    }
-                };
-                let restored = if compiled_stencil {
-                    constraint.tokenizer.restore_compiled_virtual_residual_mask_projections(
-                        &mask_tokenizer, projections,
-                    )
-                } else {
-                    constraint.tokenizer.restore_virtual_residual_mask_projections(
-                        constraint.max_token_byte_len(), &mask_tokenizer, projections,
-                    )
-                }.map_err(crate::GlrMaskError::Serialization)?;
-                constraint.dynamic_mask_vocab.set_virtual_residuals_mask_projection(mask_tokenizer, restored);
+                static_mask.restore_projections(&mut constraint)?;
             }
             let restore_exprs_ms = restore_exprs_started
                 .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
@@ -8110,7 +8176,7 @@ mod tests {
 
         let saved = constraint.save();
         assert!(saved.windows(4).any(|window| window == STATIC_RESIDUAL_MASK_MAGIC));
-        assert!(saved.windows(4).any(|window| window == b"TKF3"));
+        assert!(saved.windows(4).any(|window| window == b"TKS3"));
         assert!(saved.windows(4).any(|window| window == b"BCO2"));
         let loaded = Constraint::load(saved.clone())
             .expect("Static residual artifact should round-trip");

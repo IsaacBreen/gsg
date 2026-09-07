@@ -2,10 +2,11 @@ mod artifact;
 mod commit;
 mod constraint;
 mod dynamic_mask;
+pub(crate) use dynamic_mask::dynamic_mask_profile_enabled;
 mod finalize;
 mod mask;
 pub(crate) mod mask_mapping;
-mod serde;
+pub(crate) mod serde;
 pub(crate) use serde::compact_large_non_dwa_weight_runtime;
 mod state;
 mod token_space;
@@ -20,7 +21,10 @@ pub(crate) use artifact::{
     SegmentedBoundaryParser, SegmentedBoundaryShard, SegmentedBoundaryShardBackend,
     SegmentedBoundaryTerminalTrie, SegmentedParserComponent, SegmentedParserComponentTables,
     SegmentedParserLink, SpecialTokenTerminal, StaticDynamicOverlayMetadata,
-};
+    dynamic_mask_llg_master_is_whitespace,
+    dynamic_mask_llg_master_layout_class,
+    dynamic_mask_llg_master_safe_chars,
+    DYNAMIC_MASK_LLG_MASTER_CACHE_ID,};
 pub(crate) use artifact::token_bytes_artifact_serde::PackedTokenBytes;
 #[allow(unused_imports)]
 pub use crate::compiler::glr::parser::{AdvanceTrace, AdvanceTraceStep};

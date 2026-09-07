@@ -1749,7 +1749,9 @@ fn merge_all_of_finite_string_literals(branches: &[Schema]) -> ImportResult<Opti
 
 /// Fast exact case for the common intersection
 ///
-///     ("a" | "b" | ... | "z") ∩ /^k$/
+/// ```text
+/// ("a" | "b" | ... | "z") ∩ /^k$/
+/// ```
 ///
 /// where the finite side may be represented as a pure `anyOf` of singleton
 /// const/enum schemas. The generic finite merge below materializes every value;
