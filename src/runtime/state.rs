@@ -341,6 +341,19 @@ pub(crate) struct ParserAdmissionCacheEntry {
     pub(crate) boolean_queries: SmallVec<[(BitSet, bool); 8]>,
 }
 
+/// Proven equality of the next-token vocabulary observation for two exact
+/// lexer states under one parser-admitted terminal set. The proof itself is
+/// parser-stack independent once the admitted set is fixed: before the first
+/// finalization only these terminals are observable, and after an equal
+/// admitted finalization both sides advance the same current GSS and reset to
+/// the same lexer state.
+#[derive(Debug, Clone)]
+pub(crate) struct ParserRelativeMaskEqCacheEntry {
+    pub(crate) left: u32,
+    pub(crate) right: u32,
+    pub(crate) admitted: BitSet,
+}
+
 /// Reusable scratch buffers for `commit_bytes_impl`, retained between calls
 /// to avoid repeated heap allocation.
 #[derive(Debug)]
@@ -348,6 +361,7 @@ pub(crate) struct CommitBuffers {
     pub advance_result_cache: FxHashMap<(usize, u32), (ParserGSS, ParserGSS)>,
     pub semantic_frontier_keys: GssSemanticKeyInterner<u32, TerminalsDisallowed>,
     pub admission_cache: SmallVec<[ParserAdmissionCacheEntry; 8]>,
+    pub parser_relative_mask_eq_cache: SmallVec<[ParserRelativeMaskEqCacheEntry; 8]>,
     pub pending_state: FxHashMap<u32, ParserGSS>,
     pub seen_matches: FxHashSet<(usize, u32)>,
     pub terminal_result_cache: FxHashMap<u32, ParserGSS>,
@@ -371,6 +385,7 @@ impl Default for CommitBuffers {
             advance_result_cache: FxHashMap::default(),
             semantic_frontier_keys: GssSemanticKeyInterner::with_capacity(256),
             admission_cache: SmallVec::new(),
+            parser_relative_mask_eq_cache: SmallVec::new(),
             pending_state: FxHashMap::default(),
             seen_matches: FxHashSet::default(),
             terminal_result_cache: FxHashMap::default(),
@@ -427,6 +442,7 @@ impl CommitBuffers {
     pub(crate) fn reset_all(&mut self) {
         self.clear_all();
         self.admission_cache.clear();
+        self.parser_relative_mask_eq_cache.clear();
         self.template_advance_runtime.reset_all();
     }
 }

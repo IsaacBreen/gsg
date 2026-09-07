@@ -5606,6 +5606,30 @@ impl DynamicMaskVocab {
         Self::copy_dynamic_mask_cache_payload(self.all_original_token_words(), &entry.mask, buf)
     }
 
+    pub(crate) fn has_cached_mask_with_predicate<F: Fn(&DynamicMaskStateKey) -> bool>(
+        &self,
+        hash: u64,
+        matches: F,
+    ) -> bool {
+        let cache = self
+            .mask_cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(slots) = cache.by_hash.get(&hash) else {
+            return false;
+        };
+        slots.iter().rev().any(|&slot| {
+            cache
+                .entries
+                .get(slot)
+                .and_then(Option::as_ref)
+                .is_some_and(|entry| {
+                    matches(&entry.state)
+                        && !matches!(entry.mask, DynamicMaskCachePayload::Probation)
+                })
+        })
+    }
+
     fn copy_dynamic_mask_cache_payload(
         baseline: &[u32],
         payload: &DynamicMaskCachePayload,

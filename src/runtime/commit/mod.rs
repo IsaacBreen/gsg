@@ -33,7 +33,7 @@ use crate::compiler::glr::table::row::ActionRow;
 use crate::runtime::constraint::Constraint;
 use crate::runtime::state::{
     CommitBuffers, ConstraintState, INLINE_PARSER_STATE_CAPACITY, LINEAR_STACK_RESERVE,
-    ParserAdmissionCacheEntry, ParserStateMap,
+    ParserAdmissionCacheEntry, ParserRelativeMaskEqCacheEntry, ParserStateMap,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
@@ -8019,7 +8019,12 @@ impl<'a> ConstraintState<'a> {
         };
         let mask_state_unchanged = previous_state == self.state
             || (self.constraint.uses_dynamic_runtime()
-                && self.dynamic_mask_projection_state_eq(&previous_state, &self.state));
+                && (self.dynamic_mask_projection_state_eq(&previous_state, &self.state)
+                    || (std::env::var_os(
+                        "GLRMASK_DISABLE_DYNAMIC_MASK_PARSER_RELATIVE_COMMIT_REUSE",
+                    )
+                    .is_none()
+                        && self.dynamic_parser_relative_vocab_mask_eq(&previous_state))));
         if !mask_state_unchanged {
             return;
         }
@@ -8084,6 +8089,372 @@ impl<'a> ConstraintState<'a> {
             }
             return false;
         }
+        true
+    }
+
+    /// Prove equality of the next-token mask for the common singleton parser
+    /// frontier even when the exact lexer residual changed.
+    ///
+    /// This proof is deliberately vocabulary- and parser-relative. Two lexer
+    /// states may differ because one still carries futures for terminals the
+    /// unchanged parser frontier cannot consume. Those differences do not
+    /// affect the next model-token mask. We walk the model vocabulary trie in
+    /// lockstep and compare only matched/future observations for terminals
+    /// admitted by this parser GSS. Once the lexer states converge, or both
+    /// no-finalization branches become parser-dead, the complete suffix
+    /// subtree is equal and no further work is needed.
+    ///
+    /// Equal admitted finalizers also need no recursive parser simulation:
+    /// both sides advance the same GSS on the same terminal and reset to the
+    /// same lexer initial state, so every post-finalization suffix branch is
+    /// identical by construction.
+    fn dynamic_parser_relative_vocab_mask_eq(
+        &mut self,
+        previous: &ParserStateMap,
+    ) -> bool {
+        let current = &self.state;
+        if self.constraint.static_dynamic_overlay.is_some()
+            || self.constraint.uses_compact_segmented_parser_runtime()
+            || self.constraint.tokenizer.has_any_virtual_runtime()
+        {
+            return false;
+        }
+        let (left_source, left_gss, right_source, right_gss) =
+            if let ([(left_source, left_gss)], [(right_source, right_gss)]) =
+                (previous.entries.as_slice(), current.entries.as_slice())
+            {
+                (left_source, left_gss, right_source, right_gss)
+            } else {
+                // Conservative multi-branch extension: first pair off every
+                // branch whose exact correlated lexer/GSS state is unchanged.
+                // Only if exactly one branch remains on each side do we apply
+                // the parser-relative lexer proof below.  This covers the
+                // common GLR shape where one guarded/reset branch is stable
+                // and one ordinary lexer residual advances, without needing a
+                // general assignment search over unrelated alternatives.
+                if previous.len() != current.len() {
+                    return false;
+                }
+                let mut matched = vec![false; current.len()];
+                let mut unmatched_previous = None::<(&u32, &ParserGSS)>;
+                for (previous_state, previous_gss) in &previous.entries {
+                    let exact = current
+                        .entries
+                        .iter()
+                        .enumerate()
+                        .find(|(index, (current_state, current_gss))| {
+                            !matched[*index]
+                                && previous_state == current_state
+                                && previous_gss == current_gss
+                        })
+                        .map(|(index, _)| index);
+                    if let Some(index) = exact {
+                        matched[index] = true;
+                        continue;
+                    }
+                    if unmatched_previous
+                        .replace((previous_state, previous_gss))
+                        .is_some()
+                    {
+                        return false;
+                    }
+                }
+                let Some((left_source, left_gss)) = unmatched_previous else {
+                    return false;
+                };
+                let mut unmatched_current = current
+                    .entries
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| !matched[*index])
+                    .map(|(_, pair)| pair);
+                let Some((right_source, right_gss)) = unmatched_current.next() else {
+                    return false;
+                };
+                if unmatched_current.next().is_some() {
+                    return false;
+                }
+                (left_source, left_gss, right_source, right_gss)
+            };
+        if left_gss != right_gss
+            || !left_gss.all_accs_satisfy(|acc: &TerminalsDisallowed| acc.is_empty())
+        {
+            return false;
+        }
+
+        let tokenizer = &self.constraint.tokenizer;
+        let initial = tokenizer.initial_state();
+        if (*left_source == initial) != (*right_source == initial)
+            || tokenizer.state_has_epsilon_transitions(*left_source)
+            || tokenizer.state_has_epsilon_transitions(*right_source)
+        {
+            return false;
+        }
+
+        let (cache_left, cache_right) = if left_source <= right_source {
+            (*left_source, *right_source)
+        } else {
+            (*right_source, *left_source)
+        };
+        let candidates = crate::ds::bitset::BitSet::all(
+            self.constraint.table.num_terminals as usize,
+        );
+        let mut admitted = exact_admitted_terminals_for_candidates(
+            self.constraint,
+            left_gss,
+            &candidates,
+        );
+        // IGNORE is parser-transparent but still lexer-observable: a live
+        // ignore future permits a token boundary, and an ignore match resets
+        // the lexer while leaving the current GSS unchanged.  Treat it as an
+        // always-observed terminal in this equivalence proof. Equal ignore
+        // events therefore converge exactly just like equal parser-admitted
+        // finalizers, except without a parser advance.
+        if let Some(ignore) = self.constraint.ignore_terminal {
+            admitted.set(ignore as usize);
+        }
+        if admitted.count_ones() == 0 {
+            return true;
+        }
+
+        if self
+            .buffers
+            .parser_relative_mask_eq_cache
+            .iter()
+            .any(|entry| {
+                entry.left == cache_left
+                    && entry.right == cache_right
+                    && entry.admitted == admitted
+            })
+        {
+            if std::env::var_os("GLRMASK_PROFILE_DYNAMIC_MASK_COMMIT_REUSE").is_some() {
+                eprintln!(
+                    "[glrmask/profile][parser_relative_commit_reuse] generation={} result=cache_hit left={} right={} admitted={}",
+                    self.generation,
+                    left_source,
+                    right_source,
+                    admitted.count_ones(),
+                );
+            }
+            return true;
+        }
+        // A new relation certificate can cost tens of microseconds. If the
+        // destination state already has a materialized global dynamic-mask
+        // cache entry, proving equality with the previous state cannot beat
+        // simply letting the next fill copy that existing result. Keep this
+        // lookup below all cheap structural/relation-cache gates so ordinary
+        // commits never pay dynamic-mask key construction merely to decline.
+        if super::dynamic_mask::dynamic_mask_state_has_cached_result(self) {
+            return false;
+        }
+
+        #[inline(always)]
+        fn equal_under_mask(
+            left: &crate::ds::bitset::BitSet,
+            right: &crate::ds::bitset::BitSet,
+            mask: &crate::ds::bitset::BitSet,
+        ) -> bool {
+            left.words()
+                .iter()
+                .zip(right.words())
+                .zip(mask.words())
+                .all(|((&left, &right), &mask)| ((left ^ right) & mask) == 0)
+        }
+
+        #[inline(always)]
+        fn any_under_mask(
+            value: &crate::ds::bitset::BitSet,
+            mask: &crate::ds::bitset::BitSet,
+        ) -> bool {
+            value
+                .words()
+                .iter()
+                .zip(mask.words())
+                .any(|(&value, &mask)| value & mask != 0)
+        }
+
+        let compare = |left: u32, right: u32| -> Option<(bool, bool)> {
+            const DEAD: u32 = u32::MAX;
+            if left == DEAD || right == DEAD {
+                let live = |state: u32| {
+                    state != DEAD
+                        && (state == initial
+                            || any_under_mask(
+                                tokenizer.matched_terminal_bitset(state),
+                                &admitted,
+                            )
+                            || any_under_mask(
+                                tokenizer.possible_future_terminals(state),
+                                &admitted,
+                            ))
+                };
+                let left_live = live(left);
+                let right_live = live(right);
+                return Some((left_live == right_live, left_live && right_live));
+            }
+            if tokenizer.state_has_epsilon_transitions(left)
+                || tokenizer.state_has_epsilon_transitions(right)
+                || (left == initial) != (right == initial)
+            {
+                return None;
+            }
+            let matched_equal = equal_under_mask(
+                tokenizer.matched_terminal_bitset(left),
+                tokenizer.matched_terminal_bitset(right),
+                &admitted,
+            );
+            let futures_equal = equal_under_mask(
+                tokenizer.possible_future_terminals(left),
+                tokenizer.possible_future_terminals(right),
+                &admitted,
+            );
+            if !matched_equal || !futures_equal {
+                return Some((false, true));
+            }
+            let live = left == initial
+                || any_under_mask(tokenizer.matched_terminal_bitset(left), &admitted)
+                || any_under_mask(tokenizer.possible_future_terminals(left), &admitted);
+            Some((true, live))
+        };
+
+        let Some((root_equal, root_live)) = compare(*left_source, *right_source) else {
+            return false;
+        };
+        if !root_equal {
+            return false;
+        }
+        if !root_live || left_source == right_source {
+            return true;
+        }
+
+        let vocab = self.constraint.dynamic_mask_vocab_for_runtime();
+        let trie = vocab.trie.as_ref();
+        let max_byte_steps = std::env::var(
+            "GLRMASK_DYNAMIC_MASK_PARSER_RELATIVE_COMMIT_REUSE_MAX_STEPS",
+        )
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        // Speculative commit-time proof work must stay well below the cost of
+        // an ordinary full vocabulary mask. Successful broad-interior
+        // equivalences converge rapidly because most first-byte branches either
+        // die under the parser observation or enter the same lexer state. A
+        // fixed transition-work budget keeps adversarial/non-equivalent pairs
+        // from degenerating into a second full vocabulary traversal.
+        .unwrap_or(2_048);
+        let started = std::env::var_os("GLRMASK_PROFILE_DYNAMIC_MASK_COMMIT_REUSE")
+            .is_some()
+            .then(std::time::Instant::now);
+        let mut stack = vec![(0u32, *left_source, *right_source)];
+        let mut visited_nodes = 0usize;
+        let mut byte_steps = 0usize;
+        let mut converged_subtrees = 0usize;
+        let mut dead_subtrees = 0usize;
+
+        while let Some((node, left_state, right_state)) = stack.pop() {
+            visited_nodes += 1;
+            for edge in trie.children(node) {
+                let mut left = left_state;
+                let mut right = right_state;
+                let mut subtree_done = false;
+                for &byte in trie.edge_bytes(edge) {
+                    if left == right {
+                        converged_subtrees += 1;
+                        subtree_done = true;
+                        break;
+                    }
+                    byte_steps += 1;
+                    if byte_steps > max_byte_steps
+                        || tokenizer.state_has_epsilon_transitions(left)
+                        || tokenizer.state_has_epsilon_transitions(right)
+                    {
+                        if let Some(started) = started {
+                            eprintln!(
+                                "[glrmask/profile][parser_relative_commit_reuse] generation={} result=decline reason={} nodes={} bytes={} converged={} dead={} elapsed_us={:.1}",
+                                self.generation,
+                                if byte_steps > max_byte_steps { "budget" } else { "epsilon" },
+                                visited_nodes,
+                                byte_steps,
+                                converged_subtrees,
+                                dead_subtrees,
+                                started.elapsed().as_secs_f64() * 1e6,
+                            );
+                        }
+                        return false;
+                    }
+                    let left_next = tokenizer.get_transition(left, byte);
+                    let right_next = tokenizer.get_transition(right, byte);
+                    let Some((equal, live)) = compare(left_next, right_next) else {
+                        if let Some(started) = started {
+                            eprintln!(
+                                "[glrmask/profile][parser_relative_commit_reuse] generation={} result=decline reason=epsilon_target nodes={} bytes={} converged={} dead={} elapsed_us={:.1}",
+                                self.generation,
+                                visited_nodes,
+                                byte_steps,
+                                converged_subtrees,
+                                dead_subtrees,
+                                started.elapsed().as_secs_f64() * 1e6,
+                            );
+                        }
+                        return false;
+                    };
+                    if !equal {
+                        if let Some(started) = started {
+                            eprintln!(
+                                "[glrmask/profile][parser_relative_commit_reuse] generation={} result=different nodes={} bytes={} converged={} dead={} elapsed_us={:.1}",
+                                self.generation,
+                                visited_nodes,
+                                byte_steps,
+                                converged_subtrees,
+                                dead_subtrees,
+                                started.elapsed().as_secs_f64() * 1e6,
+                            );
+                        }
+                        return false;
+                    }
+                    if !live {
+                        dead_subtrees += 1;
+                        subtree_done = true;
+                        break;
+                    }
+                    left = left_next;
+                    right = right_next;
+                }
+                if subtree_done {
+                    continue;
+                }
+                if left == right {
+                    converged_subtrees += 1;
+                    continue;
+                }
+                stack.push((edge.child, left, right));
+            }
+        }
+
+        if let Some(started) = started {
+            eprintln!(
+                "[glrmask/profile][parser_relative_commit_reuse] generation={} result=equal left={} right={} admitted={} nodes={} bytes={} converged={} dead={} elapsed_us={:.1}",
+                self.generation,
+                left_source,
+                right_source,
+                admitted.count_ones(),
+                visited_nodes,
+                byte_steps,
+                converged_subtrees,
+                dead_subtrees,
+                started.elapsed().as_secs_f64() * 1e6,
+            );
+        }
+        const CACHE_CAPACITY: usize = 8;
+        if self.buffers.parser_relative_mask_eq_cache.len() == CACHE_CAPACITY {
+            self.buffers.parser_relative_mask_eq_cache.remove(0);
+        }
+        self.buffers
+            .parser_relative_mask_eq_cache
+            .push(ParserRelativeMaskEqCacheEntry {
+                left: cache_left,
+                right: cache_right,
+                admitted,
+            });
         true
     }
 

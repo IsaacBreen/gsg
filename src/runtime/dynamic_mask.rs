@@ -4591,6 +4591,19 @@ fn dynamic_mask_state_key(state: &ConstraintState<'_>) -> Option<DynamicMaskStat
     dynamic_mask_lookup_query(state).map(|(_, scratch)| scratch.to_owned_state_key())
 }
 
+pub(crate) fn dynamic_mask_state_has_cached_result(state: &ConstraintState<'_>) -> bool {
+    if !dynamic_mask_cache_enabled() {
+        return false;
+    }
+    let Some((hash, query)) = dynamic_mask_lookup_query(state) else {
+        return false;
+    };
+    state
+        .constraint
+        .dynamic_mask_vocab_for_runtime()
+        .has_cached_mask_with_predicate(hash, |candidate| query.matches_state(candidate))
+}
+
 
 pub(crate) fn fill_mask_dynamic(state: &ConstraintState<'_>, buf: &mut [u32]) {
     assert!(
