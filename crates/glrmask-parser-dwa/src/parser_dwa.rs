@@ -7345,18 +7345,44 @@ fn build_parser_nwa_from_terminal_dwa_for_terminal_count(
     let mut repeated_group_cache_ms = 0.0f64;
     if !compose_detail_enabled && !preserve_bundle_nondeterminism {
         let repeated_group_cache_started_at = Instant::now();
-        let repeated_group_cache = {
-            let used_bundles = summaries
-                .unique_bundles
-                .iter()
-                .enumerate()
-                .filter_map(|(bundle_id, bundle)| {
-                    (used_multi_bundle[bundle_id] && built_bundle_cache[bundle_id].is_none())
-                        .then_some(bundle)
-                })
-                .collect::<Vec<_>>();
-            templates.build_bundle_group_dfa_cache(&used_bundles)
-        };
+        let used_bundles = summaries
+            .unique_bundles
+            .iter()
+            .enumerate()
+            .filter_map(|(bundle_id, bundle)| {
+                (used_multi_bundle[bundle_id] && built_bundle_cache[bundle_id].is_none())
+                    .then_some(bundle)
+            })
+            .collect::<Vec<_>>();
+        let cache_plan = templates.plan_bundle_group_dfa_cache(&used_bundles);
+        let cache_plan_stats = cache_plan.stats;
+        const LOW_REUSE_LARGE_GROUP_TERMINALS: usize = 256;
+        let parallel_bundle_prebuild = allow_parallel
+            && !crate::templates::macro_parallelism_disabled()
+            && rayon::current_num_threads() > 1;
+        // A single very large group used by only two bundles is cheaper to
+        // construct independently inside the parallel bundle prebuild than to
+        // serialize both bundles behind one eagerly materialized shared union.
+        // Keep the cache for smaller groups and for serial compilation, where
+        // duplicate construction cannot overlap.
+        let skip_low_reuse_large_group_cache = parallel_bundle_prebuild
+            && cache_plan_stats.repeated_groups == 1
+            && cache_plan_stats.repeated_group_occurrences == 2
+            && cache_plan_stats.max_repeated_group_terminals >= LOW_REUSE_LARGE_GROUP_TERMINALS;
+        if compile_profile_enabled() {
+            eprintln!(
+                "[glrmask/profile][parser_repeated_group_cache_plan] bundles={} multi_group_occurrences={} repeated_groups={} repeated_occurrences={} repeated_terminal_occurrences={} max_repeated_group_terminals={} skip_low_reuse_large={}",
+                used_bundles.len(),
+                cache_plan_stats.multi_terminal_group_occurrences,
+                cache_plan_stats.repeated_groups,
+                cache_plan_stats.repeated_group_occurrences,
+                cache_plan_stats.repeated_terminal_occurrences,
+                cache_plan_stats.max_repeated_group_terminals,
+                skip_low_reuse_large_group_cache,
+            );
+        }
+        let repeated_group_cache = (!skip_low_reuse_large_group_cache)
+            .then(|| templates.build_bundle_group_dfa_cache_from_plan(cache_plan));
         repeated_group_cache_ms = elapsed_ms(repeated_group_cache_started_at);
         let coarse_parallel_bundle = if std::env::var_os(
             "GLRMASK_EXPERIMENT_PARALLEL_BUNDLE_DETERMINIZE",
@@ -7374,7 +7400,10 @@ fn build_parser_nwa_from_terminal_dwa_for_terminal_count(
                 .max_by_key(|(_, bundle)| bundle.len())
                 .map(|(bundle_id, bundle)| {
                     let started = Instant::now();
-                    let built = Arc::new(templates.build_bundle_cached(bundle, &repeated_group_cache));
+                    let built = Arc::new(match repeated_group_cache.as_ref() {
+                        Some(cache) => templates.build_bundle_cached(bundle, cache),
+                        None => templates.build_bundle(bundle),
+                    });
                     if compile_profile_enabled() {
                         eprintln!(
                             "[glrmask/profile][parser_bundle_coarse_parallel] bundle_id={} terminals={} states={} transitions={} total_ms={:.3}",
@@ -7401,7 +7430,10 @@ fn build_parser_nwa_from_terminal_dwa_for_terminal_count(
                 return (None, 0.0f64);
             }
             let started = Instant::now();
-            let built = Arc::new(templates.build_bundle_cached(bundle, &repeated_group_cache));
+            let built = Arc::new(match repeated_group_cache.as_ref() {
+                Some(cache) => templates.build_bundle_cached(bundle, cache),
+                None => templates.build_bundle(bundle),
+            });
             let ms = elapsed_ms(started);
             (Some(built), ms)
         };
