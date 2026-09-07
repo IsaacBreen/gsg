@@ -45,6 +45,11 @@ const VOCAB_LARGE_WORK_BATCH_MATCH_POSITION_BYTES: usize = 768 * 1024;
 // token×state work, running it directly avoids nested Rayon scheduling while
 // retaining full lexical-prefix sharing. Larger analyses remain chunk-parallel.
 const VOCAB_SEQUENTIAL_TRIE_WORK_MAX_DEFAULT: usize = 10_000_000;
+// Once the compile pool is genuinely wide, coarse 128-token trie chunks stop
+// competing for scarce macro-parallel workers. Let moderate one-batch analyses
+// use that path while retaining the historical conservative cutoff on smaller pools.
+const VOCAB_SEQUENTIAL_TRIE_WORK_MAX_LARGE_POOL: usize = 40_000;
+const VOCAB_SEQUENTIAL_TRIE_LARGE_POOL_THREADS: usize = 32;
 const SELF_LOOP_ACTIVE_LEN_LIMIT: usize = 512;
 
 #[inline]
@@ -798,11 +803,22 @@ fn vocab_parallel_state_batch_size(num_states: usize, num_tokens: usize) -> Opti
         .filter(|&batch_size| batch_size > 0)
 }
 
+fn vocab_sequential_trie_work_max_for_threads(threads: usize) -> usize {
+    if threads >= VOCAB_SEQUENTIAL_TRIE_LARGE_POOL_THREADS {
+        VOCAB_SEQUENTIAL_TRIE_WORK_MAX_LARGE_POOL
+    } else {
+        VOCAB_SEQUENTIAL_TRIE_WORK_MAX_DEFAULT
+    }
+}
+
 fn vocab_sequential_trie_work_max() -> usize {
-    std::env::var("GLRMASK_VOCAB_SEQUENTIAL_TRIE_WORK_MAX")
+    if let Some(value) = std::env::var("GLRMASK_VOCAB_SEQUENTIAL_TRIE_WORK_MAX")
         .ok()
         .and_then(|value| value.trim().parse::<usize>().ok())
-        .unwrap_or(VOCAB_SEQUENTIAL_TRIE_WORK_MAX_DEFAULT)
+    {
+        return value;
+    }
+    vocab_sequential_trie_work_max_for_threads(rayon::current_num_threads())
 }
 
 fn first_transition_factor_enabled() -> bool {
@@ -5811,6 +5827,26 @@ mod shared_base_tests {
         FlatDfa, FlatDfaState, TokenizerView,
     };
     use std::sync::Arc;
+
+    #[test]
+    fn sequential_trie_work_limit_relaxes_only_for_wide_pools() {
+        assert_eq!(
+            vocab_sequential_trie_work_max_for_threads(1),
+            VOCAB_SEQUENTIAL_TRIE_WORK_MAX_DEFAULT
+        );
+        assert_eq!(
+            vocab_sequential_trie_work_max_for_threads(31),
+            VOCAB_SEQUENTIAL_TRIE_WORK_MAX_DEFAULT
+        );
+        assert_eq!(
+            vocab_sequential_trie_work_max_for_threads(32),
+            VOCAB_SEQUENTIAL_TRIE_WORK_MAX_LARGE_POOL
+        );
+        assert_eq!(
+            vocab_sequential_trie_work_max_for_threads(96),
+            VOCAB_SEQUENTIAL_TRIE_WORK_MAX_LARGE_POOL
+        );
+    }
 
     #[test]
     fn first_transition_factor_bucket_policy_tracks_pool_and_state_domain() {
