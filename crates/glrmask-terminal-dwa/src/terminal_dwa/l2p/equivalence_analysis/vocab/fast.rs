@@ -833,6 +833,16 @@ fn first_transition_literal_row_quotient_enabled() -> bool {
     !env_flag_enabled("GLRMASK_DISABLE_VOCAB_FIRST_TRANSITION_LITERAL_ROW_QUOTIENT")
 }
 
+fn first_transition_literal_row_quotient_max_work() -> usize {
+    // The quotient scans every DFA state across every active suffix-byte class.
+    // Keep that dense preprocessing bounded so it cannot dominate a factor pass
+    // that already removed most token×state coordinates.
+    std::env::var("GLRMASK_VOCAB_LITERAL_ROW_QUOTIENT_MAX_WORK")
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(8_000_000)
+}
+
 fn literal_row_quotient_coarsening_rounds() -> usize {
     std::env::var("GLRMASK_VOCAB_LITERAL_ROW_COARSENING_ROUNDS")
         .ok()
@@ -4144,9 +4154,15 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
                 active_suffix_classes[dfa.byte_to_class[byte as usize] as usize] = true;
             }
         }
-        if let Some((behavior_classes, representatives)) =
+        let active_suffix_class_count = active_suffix_classes.iter().filter(|&&active| active).count();
+        let quotient_row_work = dfa.num_states.saturating_mul(active_suffix_class_count);
+        let quotient_max_work = first_transition_literal_row_quotient_max_work();
+        let quotient = if quotient_row_work <= quotient_max_work {
             exact_literal_state_row_quotient(dfa, &active_suffix_classes, profiling)
-        {
+        } else {
+            None
+        };
+        if let Some((behavior_classes, representatives)) = quotient {
             let bucket_states_before = buckets
                 .iter()
                 .map(|bucket| bucket.initial_outcomes.len())
@@ -4216,6 +4232,14 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
                     quotient_started_at.elapsed().as_secs_f64() * 1000.0,
                 );
             }
+        } else if profiling && quotient_row_work > quotient_max_work {
+            eprintln!(
+                "[glrmask/profile][vocab_first_transition_literal_row_quotient_skip] dfa_states={} active_byte_classes={} row_work={} max_work={}",
+                dfa.num_states,
+                active_suffix_class_count,
+                quotient_row_work,
+                quotient_max_work,
+            );
         }
     }
 
