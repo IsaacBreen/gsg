@@ -4327,7 +4327,15 @@ pub enum JsonStringContext {
 }
 
 fn llguidance_compat_enabled_from_env() -> bool {
-    std::env::var_os(GLRMASK_LLGUIDANCE_COMPAT_ENV).is_some_and(|value| {
+    // Canonical llguidance-compatible JSON is the production default. Besides
+    // matching the serialization language used by llguidance, this avoids
+    // eagerly materializing every semantically equivalent JSON string spelling
+    // (for example arbitrary `\uXXXX` escapes), which can multiply tokenizer
+    // automata by orders of magnitude on bounded patterned strings.
+    //
+    // Set GLRMASK_LLGUIDANCE_COMPAT=0 to opt into the historical full JSON
+    // lexical language when alternate spellings are required.
+    std::env::var_os(GLRMASK_LLGUIDANCE_COMPAT_ENV).map_or(true, |value| {
         let value = value.to_string_lossy();
         !value.is_empty() && value != "0"
     })
