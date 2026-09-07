@@ -3614,6 +3614,9 @@ fn finish_token_signature_sparse_dirty(
 }
 
 fn token_indices_in_lexical_order<S: AsRef<[u8]>>(strings: &[S]) -> Vec<usize> {
+    if strings.windows(2).all(|pair| pair[0].as_ref() <= pair[1].as_ref()) {
+        return (0..strings.len()).collect();
+    }
     let mut order = (0..strings.len()).collect::<Vec<_>>();
     order.sort_unstable_by(|&left, &right| {
         strings[left]

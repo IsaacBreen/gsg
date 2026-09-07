@@ -187,7 +187,9 @@ impl L2pVocabBoundarySplit {
     }
 
     pub fn boundary_vocab(&self, vocab: &Vocab) -> Vocab {
-        Self::materialize_vocab(vocab, &self.boundary_token_ids)
+        let child = Self::materialize_vocab(vocab, &self.boundary_token_ids);
+        super::l1::inherit_l2p_lexical_entry_order(vocab, &child, &self.boundary_token_ids);
+        child
     }
 
     pub fn single_vocab(&self, vocab: &Vocab) -> Vocab {

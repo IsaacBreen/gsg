@@ -313,6 +313,27 @@ pub fn prepared_l1_identity_vocab_order(vocab: &Vocab) -> Arc<L1IdentityVocabOrd
     l1_identity_vocab_order(vocab)
 }
 
+/// Reuse the parent L1 byte order for an L2P boundary subset when it is already cached.
+pub(crate) fn inherit_l2p_lexical_entry_order(
+    parent_vocab: &Vocab,
+    child_vocab: &Vocab,
+    child_token_ids_in_entry_order: &[u32],
+) {
+    let Some(parent_order) = parent_vocab.vocab_derived_cache_get::<L1IdentityVocabOrder>() else {
+        return;
+    };
+    debug_assert_eq!(child_token_ids_in_entry_order.len(), child_vocab.len());
+    let mut entry_indices = (0..child_token_ids_in_entry_order.len() as u32).collect::<Vec<_>>();
+    entry_indices.sort_unstable_by_key(|&entry_index| {
+        let token_id = child_token_ids_in_entry_order[entry_index as usize] as usize;
+        parent_order.original_to_internal[token_id]
+    });
+    child_vocab.vocab_derived_cache_set(Arc::new(
+        super::l2p::equivalence_analysis::shared::VocabLexicalEntryOrder {
+            entry_indices: entry_indices.into(),
+        },
+    ));
+}
 pub fn prepare_l1_finite_vocab_projection(vocab: &Vocab) {
     implementations::prepare_finite_vocab_projection(vocab);
 }

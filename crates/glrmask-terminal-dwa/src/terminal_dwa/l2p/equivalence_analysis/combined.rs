@@ -1,6 +1,6 @@
 use crate::automata::lexer::Lexer;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use rayon::prelude::*;
@@ -28,7 +28,7 @@ use crate::ds::bitset::BitSet;
 use super::compat::TokenizerView;
 use super::disallowed_follows::normalize_disallowed_follows;
 use super::shared::{
-    TokenDedup,
+    TokenDedup, VocabLexicalEntryOrder,
     expand_vocab_classes,
     hash_byte_class_seq,
     representative_tokens_for_vocab_classes,
@@ -299,6 +299,7 @@ fn first_byte_factored_vocab_classes(
 fn deduplicate_tokens_by_byte_class<'a, S: AsRef<[u8]>>(
     tokens: &'a [S],
     byte_to_class: &[u8; 256],
+    lexical_entry_order: Option<&[u32]>,
 ) -> TokenDedup<'a> {
     #[inline]
     fn same_projected_bytes(left: &[u8], right: &[u8], byte_to_class: &[u8; 256]) -> bool {
@@ -355,6 +356,35 @@ fn deduplicate_tokens_by_byte_class<'a, S: AsRef<[u8]>>(
             idx
         };
         original_to_repr.push(repr_idx);
+    }
+
+    if let Some(lexical_entry_order) = lexical_entry_order {
+        debug_assert_eq!(lexical_entry_order.len(), tokens.len());
+        let mut repr_at_original = vec![usize::MAX; tokens.len()];
+        for (repr, &original) in representative_original_indices.iter().enumerate() {
+            repr_at_original[original] = repr;
+        }
+        let lexical_reprs = lexical_entry_order
+            .iter()
+            .filter_map(|&original| {
+                let repr = repr_at_original[original as usize];
+                (repr != usize::MAX).then_some(repr)
+            })
+            .collect::<Vec<_>>();
+        debug_assert_eq!(lexical_reprs.len(), representative_token_bytes.len());
+        let mut old_to_new = vec![usize::MAX; representative_token_bytes.len()];
+        let old_bytes = representative_token_bytes;
+        let old_originals = representative_original_indices;
+        representative_token_bytes = Vec::with_capacity(old_bytes.len());
+        representative_original_indices = Vec::with_capacity(old_originals.len());
+        for (new_repr, old_repr) in lexical_reprs.into_iter().enumerate() {
+            old_to_new[old_repr] = new_repr;
+            representative_token_bytes.push(old_bytes[old_repr]);
+            representative_original_indices.push(old_originals[old_repr]);
+        }
+        for repr in &mut original_to_repr {
+            *repr = old_to_new[*repr];
+        }
     }
 
     TokenDedup {
@@ -555,6 +585,14 @@ struct PreparedEquivalenceInputs<'a> {
     token_ids: Vec<u32>,
     token_bytes: Vec<&'a [u8]>,
     initial_states: Vec<usize>,
+    lexical_entry_order: Option<Arc<VocabLexicalEntryOrder>>,
+}
+
+impl PreparedEquivalenceInputs<'_> {
+    #[inline]
+    fn lexical_entry_indices(&self) -> Option<&[u32]> {
+        self.lexical_entry_order.as_deref().map(|order| order.entry_indices.as_ref())
+    }
 }
 
 fn prepare_equivalence_inputs<'a>(
@@ -580,6 +618,7 @@ fn prepare_equivalence_inputs<'a>(
         token_ids,
         token_bytes,
         initial_states,
+        lexical_entry_order: vocab.vocab_derived_cache_get::<VocabLexicalEntryOrder>(),
     }
 }
 
@@ -1108,7 +1147,7 @@ fn try_analyze_equivalences_with_token_position_partition(
         .unwrap_or_else(|| super::compat::compute_byte_classes(tokenizer_view.dfa()));
     let byte_class_setup_ms = byte_class_started_at.elapsed().as_secs_f64() * 1000.0;
     let token_dedup_started_at = Instant::now();
-    let dedup = deduplicate_tokens_by_byte_class(&prepared.token_bytes, &byte_to_class);
+    let dedup = deduplicate_tokens_by_byte_class(&prepared.token_bytes, &byte_to_class, prepared.lexical_entry_indices());
     let token_dedup_ms = token_dedup_started_at.elapsed().as_secs_f64() * 1000.0;
 
     let seed_analysis_states = if let Some(bounded) = bounded_analysis.as_ref() {
@@ -1656,7 +1695,7 @@ fn try_analyze_equivalences_with_raw_quotient(
     let byte_class_setup_ms = byte_class_setup_started_at.elapsed().as_secs_f64() * 1000.0;
 
     let token_dedup_started_at = Instant::now();
-    let dedup = deduplicate_tokens_by_byte_class(&prepared.token_bytes, &byte_to_class);
+    let dedup = deduplicate_tokens_by_byte_class(&prepared.token_bytes, &byte_to_class, prepared.lexical_entry_indices());
     let token_dedup_ms = token_dedup_started_at.elapsed().as_secs_f64() * 1000.0;
 
     // In strict-reference mode the primary build retains the old cloned dense
@@ -2319,10 +2358,10 @@ fn analyze_equivalences_impl(
         // active congruence exists, one projected dedup pass therefore replaces
         // the old identity-dedup + projected-dedup pair exactly.
         let dedup = if let Some(byte_to_class) = active_language_byte_classes.as_ref() {
-            deduplicate_tokens_by_byte_class(&prepared.token_bytes, byte_to_class)
+            deduplicate_tokens_by_byte_class(&prepared.token_bytes, byte_to_class, prepared.lexical_entry_indices())
         } else {
             let identity_byte_class: [u8; 256] = std::array::from_fn(|byte| byte as u8);
-            deduplicate_tokens_by_byte_class(&prepared.token_bytes, &identity_byte_class)
+            deduplicate_tokens_by_byte_class(&prepared.token_bytes, &identity_byte_class, prepared.lexical_entry_indices())
         };
         let token_dedup_ms = token_dedup_started_at.elapsed().as_secs_f64() * 1000.0
             - active_mask_filter_ms;
@@ -3256,7 +3295,7 @@ fn analyze_equivalences_impl(
     let byte_class_setup_ms = byte_class_setup_started_at.elapsed().as_secs_f64() * 1000.0;
 
     let token_dedup_started_at = Instant::now();
-    let dedup = deduplicate_tokens_by_byte_class(&prepared.token_bytes, &byte_to_class);
+    let dedup = deduplicate_tokens_by_byte_class(&prepared.token_bytes, &byte_to_class, prepared.lexical_entry_indices());
     let token_dedup_ms = token_dedup_started_at.elapsed().as_secs_f64() * 1000.0;
     let max_token_len = dedup
         .representative_token_bytes
@@ -3927,6 +3966,36 @@ mod prepass_selection_tests {
         assert_eq!(exact_analysis_view_representatives(&[20, 20]), vec![20]);
     }
 
+    #[test]
+    fn lexical_dedup_reordering_preserves_representatives_and_remaps_inputs() {
+        let tokens: Vec<&[u8]> = vec![b"z", b"ab", b"aa", b"ac"];
+        let mut byte_to_class: [u8; 256] = std::array::from_fn(|byte| byte as u8);
+        byte_to_class[b'c' as usize] = b'b';
+
+        let ordinary = deduplicate_tokens_by_byte_class(&tokens, &byte_to_class, None);
+        assert_eq!(ordinary.representative_original_indices, vec![0, 1, 2]);
+        assert_eq!(ordinary.original_to_repr, vec![0, 1, 2, 1]);
+
+        // Raw lexical order is aa, ab, ac, z. `ac` is projected-equivalent to
+        // `ab`, so only the already-chosen representative for that class moves.
+        let lexical = deduplicate_tokens_by_byte_class(
+            &tokens,
+            &byte_to_class,
+            Some(&[2, 1, 3, 0]),
+        );
+        assert_eq!(lexical.representative_token_bytes, vec![b"aa".as_slice(), b"ab".as_slice(), b"z".as_slice()]);
+        assert_eq!(lexical.representative_original_indices, vec![2, 1, 0]);
+        assert_eq!(lexical.original_to_repr, vec![2, 1, 0, 1]);
+        for left in 0..tokens.len() {
+            for right in 0..tokens.len() {
+                assert_eq!(
+                    ordinary.original_to_repr[left] == ordinary.original_to_repr[right],
+                    lexical.original_to_repr[left] == lexical.original_to_repr[right],
+                    "dedup relation changed for ({left}, {right})",
+                );
+            }
+        }
+    }
     #[test]
     fn selects_direct_refinement_when_byte_bounded_prepass_cannot_amortize() {
         // Small vocabulary with many relevant bytes: direct token walks are
