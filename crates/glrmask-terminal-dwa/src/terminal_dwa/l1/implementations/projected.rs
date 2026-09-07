@@ -4637,11 +4637,12 @@ fn build_binary_impl(input: BuildInput<'_>, allow_finite_switch: bool) -> Option
     let dense_reverse_max_states = std::env::var("GLRMASK_L1_RESIDUAL_DENSE_REVERSE_MAX_STATES")
         .ok()
         .and_then(|value| value.parse().ok())
-        // Dense completion is only a speculative acceleration for the lazy exact
-        // reverse walk. If the subset machine has not closed almost immediately,
-        // continuing to hundreds/thousands of states just duplicates work that the
-        // trie-guided lazy walk must do anyway.
-        .unwrap_or(64usize);
+        // Dense completion is a speculative acceleration for the lazy exact reverse
+        // walk. Compact p2 residuals routinely close in the low hundreds of states;
+        // completing those machines removes mutable subset interning from the much
+        // larger vocabulary traversal. Stop at 192 so larger machines still fall
+        // back before speculative completion grows materially.
+        .unwrap_or(192usize);
     let reverse_complete_started = Instant::now();
     let dense_reverse = dense_reverse_enabled
         .then(|| reverse.try_complete_dense(dense_reverse_max_states))
@@ -5509,7 +5510,7 @@ fn build_binary_vocab_only_with_switch(
     let dense_reverse_max_states = std::env::var("GLRMASK_L1_RESIDUAL_DENSE_REVERSE_MAX_STATES")
         .ok()
         .and_then(|value| value.parse().ok())
-        .unwrap_or(64usize);
+        .unwrap_or(192usize);
     let dense_reverse = dense_reverse_enabled
         .then(|| reverse.try_complete_dense(dense_reverse_max_states))
         .flatten();
