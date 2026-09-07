@@ -62,6 +62,41 @@ fn vocab_partition_exact_l2p_min_tokens() -> usize {
         .unwrap_or(16)
 }
 
+fn parse_vocab_partition_exact_l2p_override(value: &str, partition_label: &str) -> bool {
+    let normalized = value.trim();
+    if normalized.eq_ignore_ascii_case("1")
+        || normalized.eq_ignore_ascii_case("true")
+        || normalized.eq_ignore_ascii_case("on")
+    {
+        return true;
+    }
+    if normalized.is_empty()
+        || normalized.eq_ignore_ascii_case("0")
+        || normalized.eq_ignore_ascii_case("false")
+        || normalized.eq_ignore_ascii_case("off")
+    {
+        return false;
+    }
+    normalized
+        .split(',')
+        .any(|label| label.trim() == partition_label)
+}
+
+fn vocab_partition_exact_l2p_selected(
+    partition_label: &str,
+    boundary_tokens: usize,
+    default_min_tokens: usize,
+) -> bool {
+    if let Ok(value) = std::env::var("GLRMASK_VOCAB_PARTITION_EXACT_L2P") {
+        return parse_vocab_partition_exact_l2p_override(&value, partition_label);
+    }
+    let min_tokens = std::env::var("GLRMASK_VOCAB_PARTITION_EXACT_L2P_MIN_TOKENS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(default_min_tokens);
+    boundary_tokens >= min_tokens
+}
+
 fn singleton_id_map_only_artifact(
     tokenizer: &Tokenizer,
     vocab: &Vocab,
@@ -1149,7 +1184,11 @@ fn build_partition_id_map_and_terminal_dwa_impl(
                             let started_at = Instant::now();
                             let boundary_vocab = split.boundary_vocab(vocab);
                             if id_map_only
-                                && boundary_vocab.len() < vocab_partition_exact_l2p_min_tokens()
+                                && !vocab_partition_exact_l2p_selected(
+                                    partition_label,
+                                    boundary_vocab.len(),
+                                    vocab_partition_exact_l2p_min_tokens(),
+                                )
                             {
                                 let result = singleton_id_map_only_artifact(
                                     tokenizer,
@@ -1544,24 +1583,12 @@ pub(super) fn build_partition_vocab_equivalence(
         .as_ref()
         .is_some_and(|split| split.single_tokens != 0);
     let exact_l2p_selected = l2p_vocab_split.as_ref().is_some_and(|split| {
-        if split.boundary_tokens == 0 {
-            return false;
-        }
-        match std::env::var("GLRMASK_VOCAB_PARTITION_EXACT_L2P") {
-            Ok(value) => {
-                let value = value.trim();
-                value == "1" || value == partition_label
-            }
-            Err(_) => {
-                let min_tokens = std::env::var(
-                    "GLRMASK_VOCAB_PARTITION_EXACT_L2P_MIN_TOKENS",
-                )
-                .ok()
-                .and_then(|value| value.parse::<usize>().ok())
-                    .unwrap_or(1_024);
-                split.boundary_tokens >= min_tokens
-            }
-        }
+        split.boundary_tokens != 0
+            && vocab_partition_exact_l2p_selected(
+                partition_label,
+                split.boundary_tokens,
+                1_024,
+            )
     });
 
     let l2p_terminal_count = l2p_mask.iter().filter(|&&active| active).count();
@@ -1896,7 +1923,22 @@ fn concatenate_disjoint_partition_maps(
 
 #[cfg(test)]
 mod tests {
-    use super::{automatic_combine_l1_single, automatic_structural_branch_tokenizer_selected};
+    use super::{
+        automatic_combine_l1_single, automatic_structural_branch_tokenizer_selected,
+        parse_vocab_partition_exact_l2p_override,
+    };
+
+    #[test]
+    fn exact_l2p_override_accepts_global_and_partition_selectors() {
+        assert!(parse_vocab_partition_exact_l2p_override("1", "p0"));
+        assert!(parse_vocab_partition_exact_l2p_override("true", "p0"));
+        assert!(!parse_vocab_partition_exact_l2p_override("0", "p0"));
+        assert!(!parse_vocab_partition_exact_l2p_override("off", "p0"));
+        assert!(parse_vocab_partition_exact_l2p_override("p0", "p0"));
+        assert!(!parse_vocab_partition_exact_l2p_override("p0", "p7"));
+        assert!(parse_vocab_partition_exact_l2p_override("p0, p7", "p7"));
+        assert!(!parse_vocab_partition_exact_l2p_override("p1,p8", "p0"));
+    }
 
     #[test]
     fn combines_large_split_single_vocab_and_separates_high_avoided_work() {
