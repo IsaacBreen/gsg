@@ -207,8 +207,14 @@ pub(crate) struct FlatFrontierScratch {
 
 impl Default for FlatFrontierScratch {
     fn default() -> Self {
+        Self::with_preallocated_gss(FLAT_FRONTIER_PREALLOCATED_GSS)
+    }
+}
+
+impl FlatFrontierScratch {
+    pub(crate) fn with_preallocated_gss(preallocated_gss: usize) -> Self {
         let mut gss_pool = SmallVec::new();
-        for _ in 0..FLAT_FRONTIER_PREALLOCATED_GSS {
+        for _ in 0..preallocated_gss.min(FLAT_FRONTIER_GSS_POOL_CAPACITY) {
             let mut gss = ParserGSS::from_single_stack(
                 vec![0],
                 TerminalsDisallowed::new(),
@@ -230,9 +236,7 @@ impl Default for FlatFrontierScratch {
             retired_gss: SmallVec::new(),
         }
     }
-}
 
-impl FlatFrontierScratch {
     pub(crate) fn clear(&mut self) {
         self.len = 0;
         self.action.clear();

@@ -3317,11 +3317,27 @@ impl Constraint {
     /// runtime vocabulary selected by `dynamic_mask_vocab_for_runtime` (or for
     /// an already-serialized projection that merely needs its derived table
     /// rebuilt after load).
+    #[inline]
+    fn dynamic_runtime_max_token_byte_len(&self, vocab: &DynamicMaskVocab) -> usize {
+        // A materialized DynamicMaskVocab is built from the exact runtime token
+        // vocabulary and stores the maximum token length in its trie root. Use
+        // that O(1) metadata instead of rescanning every model token through
+        // Constraint::max_token_byte_len(). The fallback is needed only for
+        // unmaterialized transfer/compiler values.
+        if vocab.is_initialized() {
+            return vocab.max_token_byte_len();
+        }
+        if let Some(bound_vocab) = self.late_bind_vocab.get() {
+            return bound_vocab.max_token_byte_len();
+        }
+        self.max_token_byte_len()
+    }
+
     pub(crate) fn prepare_dynamic_virtual_residual_mask_projection(
         &self,
         vocab: &mut DynamicMaskVocab,
     ) {
-        let max_token_len = vocab.max_token_byte_len().max(self.max_token_byte_len());
+        let max_token_len = self.dynamic_runtime_max_token_byte_len(vocab);
         if max_token_len > 0
             && vocab.mask_projection_tokenizer().is_none()
             && self.tokenizer.has_any_virtual_runtime()
@@ -3363,7 +3379,7 @@ impl Constraint {
     pub(crate) fn prepare_dynamic_mask_runtime_artifacts(&self, vocab: &mut DynamicMaskVocab) {
         let profile_runtime_mask = std::env::var_os("GLRMASK_PROFILE_DYNAMIC_MASK").is_some();
         let max_token_started = profile_runtime_mask.then(std::time::Instant::now);
-        let max_token_len = vocab.max_token_byte_len().max(self.max_token_byte_len());
+        let max_token_len = self.dynamic_runtime_max_token_byte_len(vocab);
         if let Some(started) = max_token_started {
             eprintln!(
                 "[glrmask/profile][dynamic_mask_runtime_prepare] max_token_len_ms={:.3} value={}",
@@ -7095,6 +7111,10 @@ impl Constraint {
         let guarded_shift_ms = started_at
             .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
         let mut dynamic_mask_vocab = std::mem::take(&mut self.dynamic_mask_vocab);
+        let small_ready_runtime = dynamic_mask_vocab.is_initialized()
+            && self.tokenizer.num_states() <= 64
+            && self.table.num_states <= 32
+            && !self.uses_sparse_direct_regular_runtime();
         let build_vocab = || {
             let started_at = profile.then(std::time::Instant::now);
             if !dynamic_mask_vocab.is_initialized() {
@@ -7137,7 +7157,7 @@ impl Constraint {
         let (
             ((mut dynamic_mask_vocab, dynamic_vocab_ms), (tokenizer_fast_transitions, tokenizer_fast_ms)),
             (direct_regular_terminal_support, support_ms),
-        ) = if rayon::current_num_threads() == 1 {
+        ) = if rayon::current_num_threads() == 1 || small_ready_runtime {
             ((build_vocab(), build_fast()), build_support())
         } else {
             rayon::join(|| rayon::join(build_vocab, build_fast), build_support)
@@ -11623,7 +11643,7 @@ impl Constraint {
         let mut state = ConstraintState {
             constraint: self,
             state: self.initial_state_map(),
-            buffers: Default::default(),
+            buffers: crate::runtime::state::CommitBuffers::for_constraint(self),
             generation: 0,
             mask_cache: Mutex::new(None),
             mask_scratch: Arc::new(Mutex::new(crate::runtime::state::MaskScratch::for_constraint(self))),

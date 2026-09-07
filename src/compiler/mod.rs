@@ -56,7 +56,8 @@ pub(crate) fn report_macro_item_timings(label: &str, timings_ms: &[f64]) {
     );
 }
 
-pub(crate) fn macro_join<A, B, Left, Right>(
+pub(crate) fn macro_join_if<A, B, Left, Right>(
+    parallel: bool,
     label: &'static str,
     left: Left,
     right: Right,
@@ -67,7 +68,7 @@ where
     Left: FnOnce() -> A + Send,
     Right: FnOnce() -> B + Send,
 {
-    if macro_parallelism_disabled() {
+    if !parallel || macro_parallelism_disabled() {
         let left_started = std::time::Instant::now();
         let left = left();
         let left_ms = left_started.elapsed().as_secs_f64() * 1000.0;
@@ -79,6 +80,20 @@ where
     } else {
         rayon::join(left, right)
     }
+}
+
+pub(crate) fn macro_join<A, B, Left, Right>(
+    label: &'static str,
+    left: Left,
+    right: Right,
+) -> (A, B)
+where
+    A: Send,
+    B: Send,
+    Left: FnOnce() -> A + Send,
+    Right: FnOnce() -> B + Send,
+{
+    macro_join_if(true, label, left, right)
 }
 
 /// Exact bounded-terminal synthesis is enabled by default. Runtime always keeps
