@@ -905,6 +905,20 @@ fn first_transition_factor_parallel_buckets_override() -> Option<bool> {
     env_flag_override("GLRMASK_VOCAB_FIRST_TRANSITION_FACTOR_PARALLEL_BUCKETS")
 }
 
+fn first_transition_factor_token_chunk_size() -> usize {
+    std::env::var("GLRMASK_VOCAB_FIRST_TRANSITION_FACTOR_TOKEN_CHUNK_SIZE")
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(1_024)
+}
+
+fn first_transition_factor_token_chunk_min_work() -> usize {
+    std::env::var("GLRMASK_VOCAB_FIRST_TRANSITION_FACTOR_TOKEN_CHUNK_MIN_WORK")
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(8_000_000)
+}
+
 fn first_transition_factor_final_single_batch_enabled() -> bool {
     env_flag_enabled("GLRMASK_VOCAB_FIRST_TRANSITION_FACTOR_FINAL_SINGLE_BATCH")
 }
@@ -4258,7 +4272,7 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
     }
     let setup_ms = setup_started_at.elapsed().as_secs_f64() * 1000.0;
 
-    let process_bucket = |bucket: &FirstTransitionBucket| {
+    let process_token_chunk = |bucket: &FirstTransitionBucket, token_indices: &[usize]| {
         let signature_started_at = Instant::now();
         let mut lease = scratch_pool.checkout(bucket.initial_outcomes.len(), dfa.num_groups);
         let worker = lease.worker_mut();
@@ -4266,7 +4280,7 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
         let (active_sigs, trie_walk) = trie_walk_chunk_signatures_from_prefix(
             dfa,
             strings,
-            &bucket.token_indices,
+            token_indices,
             &bucket.initial_outcomes,
             state_group_size,
             1,
@@ -4274,8 +4288,14 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
             &mut worker.trie_state,
             profiling,
         );
-        let signature_ms = signature_started_at.elapsed().as_secs_f64() * 1000.0;
+        (
+            active_sigs,
+            trie_walk,
+            signature_started_at.elapsed().as_secs_f64() * 1000.0,
+        )
+    };
 
+    let group_active_sigs = |active_sigs: Vec<(usize, u64)>| {
         let grouping_started_at = Instant::now();
         // Equal outcome vectors may share one suffix trie walk, but retain the
         // original semantic leading-byte domain in the preliminary partition.
@@ -4294,8 +4314,16 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
             class.sort_unstable();
         }
         classes.sort_unstable_by_key(|class| class[0]);
-        let grouping_ms = grouping_started_at.elapsed().as_secs_f64() * 1000.0;
+        (
+            classes,
+            grouping_started_at.elapsed().as_secs_f64() * 1000.0,
+        )
+    };
 
+    let process_bucket = |bucket: &FirstTransitionBucket| {
+        let (active_sigs, trie_walk, signature_ms) =
+            process_token_chunk(bucket, &bucket.token_indices);
+        let (classes, grouping_ms) = group_active_sigs(active_sigs);
         FirstTransitionBucketResult {
             classes,
             signature_ms,
@@ -4318,12 +4346,89 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
                     initial_states.len(),
                 )
         });
-    let bucket_results = if parallel_buckets {
+
+    // A first-byte bucket can still dominate the factor critical path after the
+    // source-coordinate reduction. Split only very large bucket work into a flat
+    // Rayon task queue. This preserves the existing bucket partition and final
+    // signature grouping while avoiding nested parallelism and retaining suffix
+    // trie sharing within each token chunk. A zero chunk size disables the split
+    // for controlled A/B diagnostics.
+    let token_chunk_size = first_transition_factor_token_chunk_size();
+    let token_chunk_min_work = first_transition_factor_token_chunk_min_work();
+    let split_active = parallel_buckets
+        && token_chunk_size > 0
+        && buckets.iter().any(|bucket| {
+            bucket.token_indices.len() > token_chunk_size
+                && bucket
+                    .token_indices
+                    .len()
+                    .saturating_mul(bucket.initial_outcomes.len())
+                    >= token_chunk_min_work
+        });
+
+    let bucket_results = if split_active {
+        let mut tasks = Vec::<(usize, usize, usize)>::new();
+        let mut split_bucket_count = 0usize;
+        for (bucket_idx, bucket) in buckets.iter().enumerate() {
+            let len = bucket.token_indices.len();
+            let bucket_work = len.saturating_mul(bucket.initial_outcomes.len());
+            if len > token_chunk_size && bucket_work >= token_chunk_min_work {
+                split_bucket_count += 1;
+                for start in (0..len).step_by(token_chunk_size) {
+                    tasks.push((bucket_idx, start, (start + token_chunk_size).min(len)));
+                }
+            } else {
+                tasks.push((bucket_idx, 0, len));
+            }
+        }
+        if profiling || env_flag_enabled("GLRMASK_PROFILE_VOCAB_FACTOR_TOKEN_SPLIT") {
+            eprintln!(
+                "[glrmask/profile][vocab_first_transition_factor_token_split] buckets={} split_buckets={} tasks={} chunk_size={} min_work={}",
+                buckets.len(),
+                split_bucket_count,
+                tasks.len(),
+                token_chunk_size,
+                token_chunk_min_work,
+            );
+        }
+
+        let task_results = tasks
+            .par_iter()
+            .map(|&(bucket_idx, start, end)| {
+                let bucket = &buckets[bucket_idx];
+                let (active_sigs, trie_walk, signature_ms) =
+                    process_token_chunk(bucket, &bucket.token_indices[start..end]);
+                (bucket_idx, active_sigs, trie_walk, signature_ms)
+            })
+            .collect::<Vec<_>>();
+        let mut bucket_sigs = (0..buckets.len())
+            .map(|_| Vec::<(usize, u64)>::new())
+            .collect::<Vec<_>>();
+        let mut bucket_walk = vec![TrieWalkChunkStats::default(); buckets.len()];
+        let mut bucket_signature_ms = vec![0.0f64; buckets.len()];
+        for (bucket_idx, task_sigs, task_walk, task_signature_ms) in task_results {
+            bucket_sigs[bucket_idx].extend(task_sigs);
+            bucket_walk[bucket_idx].add_assign(task_walk);
+            bucket_signature_ms[bucket_idx] += task_signature_ms;
+        }
+        bucket_sigs
+            .into_iter()
+            .enumerate()
+            .map(|(bucket_idx, active_sigs)| {
+                let (classes, grouping_ms) = group_active_sigs(active_sigs);
+                FirstTransitionBucketResult {
+                    classes,
+                    signature_ms: bucket_signature_ms[bucket_idx],
+                    grouping_ms,
+                    trie_walk: bucket_walk[bucket_idx],
+                }
+            })
+            .collect::<Vec<_>>()
+    } else if parallel_buckets {
         buckets.par_iter().map(process_bucket).collect::<Vec<_>>()
     } else {
         buckets.iter().map(process_bucket).collect::<Vec<_>>()
     };
-
     let mut stats = FirstTransitionFactorStats {
         semantic_buckets,
         factored_buckets: buckets.len(),
