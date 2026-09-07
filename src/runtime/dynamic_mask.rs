@@ -3234,7 +3234,6 @@ impl<'a> DynamicNfaScanCache<'a> {
 
     fn config_for_raw_start(&mut self, state: u32) -> Result<u32, String> {
         if self.deterministic {
-            self.raw_start_config.entry(state).or_insert(state);
             return Ok(state);
         }
         if !self.tokenizer.state_has_epsilon_transitions(state) {
@@ -4692,7 +4691,13 @@ fn fill_mask_dynamic_impl(
         std::env::var("GLRMASK_EXPERIMENT_DYNAMIC_MASK_CACHE_MIN_STORE_US")
             .ok()
             .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(0)
+            // Materializing a Llama-sized cache payload is itself several
+            // microseconds. Cheap first-use masks are better left on probation:
+            // a second occurrence upgrades the exact state to a real cache
+            // entry, while one-off narrow masks avoid paying more to cache the
+            // result than they saved by computing it. Set the env var to 0 to
+            // restore eager first-use storage.
+            .unwrap_or(20)
     });
 
     let cache_enabled = !additive_static_baseline && dynamic_mask_cache_enabled();
@@ -5363,7 +5368,7 @@ mod tests {
     }
 
     #[test]
-    fn dynamic_nfa_cache_only_indexes_touched_raw_states() {
+    fn deterministic_dynamic_scan_does_not_index_identity_configs() {
         let vocab = Vocab::new(vec![
             (0, b"a".to_vec()),
             (1, b"b".to_vec()),
@@ -5381,9 +5386,10 @@ nt start ::= A B | A;
 
         let initial = constraint.tokenizer.initial_state();
         let config = cache.config_for_raw_start(initial).unwrap();
-        assert_eq!(cache.raw_start_config.len(), 1);
+        assert_eq!(config, initial);
+        assert!(cache.raw_start_config.is_empty());
         let _ = cache.step_config(config, b'a').unwrap();
-        assert!(cache.raw_start_config.len() < constraint.tokenizer.num_states() as usize);
+        assert!(cache.raw_start_config.is_empty());
     }
 
     #[test]
