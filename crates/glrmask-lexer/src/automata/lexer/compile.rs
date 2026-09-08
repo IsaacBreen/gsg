@@ -6952,55 +6952,16 @@ fn compile_terminal_partitions(
     }
 
     let combine_started_at = Instant::now();
-    let total_states = 1usize
-        + components
-            .iter()
-            .map(|component| component.dfa.num_states())
-            .sum::<usize>();
-    let mut combined = DFA::new(total_states);
+    let mut combined = DFA::new(1);
     combined.ensure_group_capacity(exprs.len());
     let mut root_futures = BitSet::new(exprs.len());
 
-    let mut offset = 1u32;
-    for batch in &components {
-        let terminal_ids = &batch.terminal_ids;
-        let component = &batch.dfa;
-        debug_assert_eq!(component.num_groups(), terminal_ids.len());
+    for batch in components {
+        for local_group in batch.dfa.possible_future_group_ids(0).iter() {
+            root_futures.set(batch.terminal_ids[local_group]);
+        }
+        let offset = combined.append_rebased_component(batch.dfa, &batch.terminal_ids);
         combined.add_epsilon_transition(0, offset);
-
-        for (local_group, &terminal_id) in terminal_ids.iter().enumerate() {
-            combined.set_group_u8set(
-                terminal_id as u32,
-                *component.group_id_to_u8set(local_group as u32),
-            );
-        }
-        for local_group in component.possible_future_group_ids(0).iter() {
-            root_futures.set(terminal_ids[local_group]);
-        }
-
-        for (state_index, state) in component.states().iter().enumerate() {
-            let mapped_state = offset + state_index as u32;
-            let transitions = state
-                .transitions
-                .iter()
-                .map(|(byte, &target)| (byte, offset + target))
-                .collect();
-            combined.set_transitions_from_sorted_entries(mapped_state, transitions);
-            for &target in &state.epsilon_transitions {
-                combined.add_epsilon_transition(mapped_state, offset + target);
-            }
-
-            let mut finalizers = BitSet::new(exprs.len());
-            let mut futures = BitSet::new(exprs.len());
-            for local_group in state.finalizers.iter() {
-                finalizers.set(terminal_ids[local_group]);
-            }
-            for local_group in component.possible_future_group_ids(state_index as u32).iter() {
-                futures.set(terminal_ids[local_group]);
-            }
-            combined.overwrite_state_metadata(mapped_state, finalizers, futures);
-        }
-        offset += component.num_states() as u32;
     }
     let combine_ms = combine_started_at.elapsed().as_secs_f64() * 1000.0;
 
