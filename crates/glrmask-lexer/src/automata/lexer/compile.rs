@@ -5566,18 +5566,14 @@ pub fn build_partitioned_tokenizer_with_product_trace_terminal_residuals(
                     raw.overwrite_state_metadata(raw_state as u32, finalizers, BitSet::new(1));
                 }
                 raw.recompute_possible_futures();
-                let (source, raw_to_source) = raw.minimize_with_state_mapping();
-                let mapping = partition_to_raw
-                    .into_iter()
-                    .map(|raw_state| {
-                        if raw_state == u32::MAX {
-                            u32::MAX
-                        } else {
-                            raw_to_source[raw_state as usize]
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                let source = Arc::new(source);
+                // The projection is already an exact deterministic residual DFA.
+                // Minimizing it here is unnecessary for the proof sidecar and, on
+                // the large exclusion families that dominate the dynamic-build
+                // tail, does not remove any states. Keep the exact projection and
+                // its direct partition-state mapping instead of paying another
+                // Hopcroft pass for every exceptional terminal.
+                let source = Arc::new(raw);
+                let mapping = partition_to_raw;
                 let source_compile_ms = source_compile_started.elapsed().as_secs_f64() * 1000.0;
                 if source.has_epsilon_transitions() {
                     return None;
