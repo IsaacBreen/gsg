@@ -3027,6 +3027,8 @@ pub(crate) struct DynamicMaskVocab {
     token_aliases: DynamicMaskAliasStore,
     canonical_original_token_offsets: Arc<Vec<u32>>,
     canonical_original_tokens: Arc<Vec<u32>>,
+    canonical_original_word_offsets: Arc<Vec<u32>>,
+    canonical_original_word_masks: Arc<Vec<(u32, u32)>>,
     node_token_markers: Arc<Vec<u64>>,
     /// Token markers in the exact order token endpoints are encountered by
     /// `full_walk_ops`. This removes an extra node-id indirection from the
@@ -3281,6 +3283,11 @@ impl DynamicMaskVocab {
         let token_aliases = DynamicMaskAliasStore::Ordered(token_aliases);
         let (canonical_original_token_offsets, canonical_original_tokens) =
             Self::flatten_canonical_original_tokens(&token_aliases);
+        let (canonical_original_word_offsets, canonical_original_word_masks) =
+            Self::build_canonical_original_word_masks(
+                &canonical_original_token_offsets,
+                &canonical_original_tokens,
+            );
         let node_token_markers = Self::build_node_token_markers(
             trie.as_ref(),
             &canonical_original_token_offsets,
@@ -3301,6 +3308,8 @@ impl DynamicMaskVocab {
             token_aliases,
             canonical_original_token_offsets,
             canonical_original_tokens,
+            canonical_original_word_offsets,
+            canonical_original_word_masks,
             node_token_markers,
             full_walk_token_markers,
             subtree_original_token_offsets,
@@ -3365,6 +3374,8 @@ impl DynamicMaskVocab {
                 &self.canonical_original_token_offsets,
             ),
             canonical_original_tokens: Arc::clone(&self.canonical_original_tokens),
+            canonical_original_word_offsets: Arc::clone(&self.canonical_original_word_offsets),
+            canonical_original_word_masks: Arc::clone(&self.canonical_original_word_masks),
             node_token_markers: Arc::clone(&self.node_token_markers),
             full_walk_token_markers: Arc::clone(&self.full_walk_token_markers),
             subtree_original_token_offsets: Arc::clone(
@@ -3424,6 +3435,8 @@ impl DynamicMaskVocab {
             token_aliases: DynamicMaskAliasStore::Packed(Arc::new(Vec::new())),
             canonical_original_token_offsets: Arc::new(vec![0]),
             canonical_original_tokens: Arc::new(Vec::new()),
+            canonical_original_word_offsets: Arc::new(vec![0]),
+            canonical_original_word_masks: Arc::new(Vec::new()),
             node_token_markers: Arc::new(vec![0]),
             full_walk_token_markers: Arc::new(Vec::new()),
             subtree_original_token_offsets: Arc::new(vec![0]),
@@ -3486,6 +3499,11 @@ impl DynamicMaskVocab {
         let token_aliases = DynamicMaskAliasStore::Packed(token_aliases);
         let (canonical_original_token_offsets, canonical_original_tokens) =
             Self::flatten_canonical_original_tokens(&token_aliases);
+        let (canonical_original_word_offsets, canonical_original_word_masks) =
+            Self::build_canonical_original_word_masks(
+                &canonical_original_token_offsets,
+                &canonical_original_tokens,
+            );
         let node_token_markers = Self::build_node_token_markers(
             trie.as_ref(),
             &canonical_original_token_offsets,
@@ -3506,6 +3524,8 @@ impl DynamicMaskVocab {
             token_aliases,
             canonical_original_token_offsets,
             canonical_original_tokens,
+            canonical_original_word_offsets,
+            canonical_original_word_masks,
             node_token_markers,
             full_walk_token_markers,
             subtree_original_token_offsets,
@@ -3565,6 +3585,11 @@ impl DynamicMaskVocab {
         self.token_aliases = DynamicMaskAliasStore::Ordered(source.token_aliases);
         (self.canonical_original_token_offsets, self.canonical_original_tokens) =
             Self::flatten_canonical_original_tokens(&self.token_aliases);
+        (self.canonical_original_word_offsets, self.canonical_original_word_masks) =
+            Self::build_canonical_original_word_masks(
+                &self.canonical_original_token_offsets,
+                &self.canonical_original_tokens,
+            );
         self.node_token_markers = Self::build_node_token_markers(
             self.trie.as_ref(),
             &self.canonical_original_token_offsets,
@@ -3615,6 +3640,43 @@ impl DynamicMaskVocab {
             offsets.push(originals.len() as u32);
         }
         (Arc::new(offsets), Arc::new(originals))
+    }
+
+    fn build_canonical_original_word_masks(
+        canonical_offsets: &[u32],
+        canonical_original_tokens: &[u32],
+    ) -> (Arc<Vec<u32>>, Arc<Vec<(u32, u32)>>) {
+        let canonical_count = canonical_offsets.len().saturating_sub(1);
+        let word_len = canonical_original_tokens
+            .iter()
+            .copied()
+            .max()
+            .map_or(0, |token| token as usize / 32 + 1);
+        let mut scratch = vec![0u32; word_len];
+        let mut touched = Vec::<u32>::new();
+        let mut offsets = Vec::<u32>::with_capacity(canonical_count + 1);
+        let mut masks = Vec::<(u32, u32)>::new();
+        offsets.push(0);
+        for canonical in 0..canonical_count {
+            let start = canonical_offsets[canonical] as usize;
+            let end = canonical_offsets[canonical + 1] as usize;
+            for &token_id in &canonical_original_tokens[start..end] {
+                let word = token_id / 32;
+                let slot = unsafe { scratch.get_unchecked_mut(word as usize) };
+                if *slot == 0 {
+                    touched.push(word);
+                }
+                *slot |= 1u32 << (token_id % 32);
+            }
+            for word in touched.drain(..) {
+                let bits = unsafe { *scratch.get_unchecked(word as usize) };
+                debug_assert_ne!(bits, 0);
+                masks.push((word, bits));
+                unsafe { *scratch.get_unchecked_mut(word as usize) = 0; }
+            }
+            offsets.push(masks.len() as u32);
+        }
+        (Arc::new(offsets), Arc::new(masks))
     }
 
     fn build_all_original_token_words(originals: &[u32]) -> Arc<Vec<u32>> {
@@ -4467,6 +4529,14 @@ impl DynamicMaskVocab {
         (start != end).then(|| {
             &self.canonical_original_tokens[start as usize..end as usize]
         })
+    }
+
+    #[inline(always)]
+    pub(crate) fn token_word_masks(&self, canonical_token_id: u32) -> &[(u32, u32)] {
+        let index = canonical_token_id as usize;
+        let start = unsafe { *self.canonical_original_word_offsets.get_unchecked(index) } as usize;
+        let end = unsafe { *self.canonical_original_word_offsets.get_unchecked(index + 1) } as usize;
+        unsafe { self.canonical_original_word_masks.get_unchecked(start..end) }
     }
 
     #[inline(always)]
@@ -6357,6 +6427,8 @@ impl Default for DynamicMaskVocab {
             token_aliases: DynamicMaskAliasStore::Packed(Arc::new(Vec::new())),
             canonical_original_token_offsets: Arc::new(vec![0]),
             canonical_original_tokens: Arc::new(Vec::new()),
+            canonical_original_word_offsets: Arc::new(vec![0]),
+            canonical_original_word_masks: Arc::new(Vec::new()),
             node_token_markers: Arc::new(vec![0]),
             full_walk_token_markers: Arc::new(Vec::new()),
             subtree_original_token_offsets: Arc::new(vec![0]),

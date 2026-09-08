@@ -2993,11 +2993,9 @@ fn mark_dynamic_token_marker(vocab: &DynamicMaskVocab, marker: u64, buf: &mut [u
     }
 
     let canonical_token = ((marker & !DYNAMIC_TOKEN_MARKER_FALLBACK) - 1) as u32;
-    let token_ids = vocab
-        .token_ids(canonical_token)
-        .expect("dynamic vocabulary trie node lacks token ids");
-    for &token_id in token_ids {
-        set_mask_bit_known_in_range(buf, token_id);
+    for &(word, bits) in vocab.token_word_masks(canonical_token) {
+        debug_assert!((word as usize) < buf.len());
+        unsafe { *buf.get_unchecked_mut(word as usize) |= bits; }
     }
 }
 
@@ -3013,8 +3011,10 @@ fn clear_dynamic_token_marker(vocab: &DynamicMaskVocab, marker: u64, buf: &mut [
         return;
     }
     let canonical_token = ((marker & !DYNAMIC_TOKEN_MARKER_FALLBACK) - 1) as u32;
-    let token_ids = vocab.token_ids(canonical_token).expect("dynamic vocabulary trie node lacks token ids");
-    for &token_id in token_ids { clear_mask_bit_known_in_range(buf, token_id); }
+    for &(word, bits) in vocab.token_word_masks(canonical_token) {
+        debug_assert!((word as usize) < buf.len());
+        unsafe { *buf.get_unchecked_mut(word as usize) &= !bits; }
+    }
 }
 
 
