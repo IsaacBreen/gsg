@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
-use crate::automata::lexer::tokenizer::{TokenizerExecResult, TokenizerMatch, TokenizerStateSet};
+use crate::automata::lexer::tokenizer::{Tokenizer, TokenizerExecResult, TokenizerMatch, TokenizerStateSet};
 use crate::compiler::glr::accumulator::TerminalsDisallowed;
 use crate::compiler::glr::parser::{
     ParserGSS,
@@ -30,6 +30,7 @@ use crate::compiler::glr::parser::{
 };
 use crate::compiler::glr::table::{Action, AdmissionPolicy, GLRTable};
 use crate::compiler::glr::table::row::ActionRow;
+use crate::runtime::artifact::DynamicMaskVocab;
 use crate::runtime::constraint::Constraint;
 use crate::runtime::state::{
     CommitBuffers, ConstraintState, INLINE_PARSER_STATE_CAPACITY, LINEAR_STACK_RESERVE,
@@ -60,6 +61,62 @@ const LANGUAGE_QUEUE_MAX_INPUT_STACK_DEPTH: u32 = 512;
 const LANGUAGE_QUEUE_MIN_TOP_VALUES: usize = 3;
 const LANGUAGE_QUEUE_MIN_PATHS: usize = 32;
 const LANGUAGE_QUEUE_MIN_NODES: usize = 48;
+
+#[cold]
+#[inline(never)]
+fn try_terminal_observation_quotient_commit_reuse(
+    buffers: &mut CommitBuffers,
+    generation: u64,
+    vocab: &DynamicMaskVocab,
+    tokenizer: &Tokenizer,
+    left_source: u32,
+    right_source: u32,
+    admitted: &crate::ds::bitset::BitSet,
+    cache_left: u32,
+    cache_right: u32,
+    visited_nodes: usize,
+    byte_steps: usize,
+    started: Option<std::time::Instant>,
+) -> bool {
+    let Some(quotient_relevant) = vocab.terminal_observation_equivalent_for_live_admitted(
+        left_source,
+        right_source,
+        admitted,
+        tokenizer.matched_terminal_bitset(left_source),
+        tokenizer.possible_future_terminals(left_source),
+        tokenizer.matched_terminal_bitset(right_source),
+        tokenizer.possible_future_terminals(right_source),
+    ) else {
+        return false;
+    };
+
+    if let Some(started) = started {
+        eprintln!(
+            "[glrmask/profile][parser_relative_commit_reuse] generation={} result=terminal_observation_quotient left={} right={} admitted={} relevant={} nodes={} bytes={} elapsed_us={:.1}",
+            generation,
+            left_source,
+            right_source,
+            admitted.count_ones(),
+            quotient_relevant,
+            visited_nodes,
+            byte_steps,
+            started.elapsed().as_secs_f64() * 1e6,
+        );
+    }
+
+    const CACHE_CAPACITY: usize = 8;
+    if buffers.parser_relative_mask_eq_cache.len() == CACHE_CAPACITY {
+        buffers.parser_relative_mask_eq_cache.remove(0);
+    }
+    buffers
+        .parser_relative_mask_eq_cache
+        .push(ParserRelativeMaskEqCacheEntry {
+            left: cache_left,
+            right: cache_right,
+            admitted: admitted.clone(),
+        });
+    true
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct SmallLanguageParserState {
@@ -8353,6 +8410,19 @@ impl<'a> ConstraintState<'a> {
         let mut byte_steps = 0usize;
         let mut converged_subtrees = 0usize;
         let mut dead_subtrees = 0usize;
+        // Reuse the existing byte-budget branch as the one-shot checkpoint for
+        // the stronger terminal-observation quotient. Grammars without a
+        // prepared quotient retain the historical 2,048-step budget exactly.
+        // With a prepared quotient, pause once at 256 steps; if the quotient
+        // cannot certify equality, restore the historical budget and continue.
+        const TERMINAL_OBSERVATION_QUOTIENT_CHECKPOINT: usize = 256;
+        let mut byte_step_budget = if max_byte_steps > TERMINAL_OBSERVATION_QUOTIENT_CHECKPOINT
+            && vocab.shares_terminal_observation_class(*left_source, *right_source)
+        {
+            TERMINAL_OBSERVATION_QUOTIENT_CHECKPOINT
+        } else {
+            max_byte_steps
+        };
 
         while let Some((node, left_state, right_state)) = stack.pop() {
             visited_nodes += 1;
@@ -8367,23 +8437,47 @@ impl<'a> ConstraintState<'a> {
                         break;
                     }
                     byte_steps += 1;
-                    if byte_steps > max_byte_steps
+                    if byte_steps > byte_step_budget
                         || tokenizer.state_has_epsilon_transitions(left)
                         || tokenizer.state_has_epsilon_transitions(right)
                     {
-                        if let Some(started) = started {
-                            eprintln!(
-                                "[glrmask/profile][parser_relative_commit_reuse] generation={} result=decline reason={} nodes={} bytes={} converged={} dead={} elapsed_us={:.1}",
+                        if byte_steps > byte_step_budget && byte_step_budget < max_byte_steps {
+                            byte_step_budget = max_byte_steps;
+                            if try_terminal_observation_quotient_commit_reuse(
+                                &mut self.buffers,
                                 self.generation,
-                                if byte_steps > max_byte_steps { "budget" } else { "epsilon" },
+                                vocab,
+                                tokenizer,
+                                *left_source,
+                                *right_source,
+                                &admitted,
+                                cache_left,
+                                cache_right,
                                 visited_nodes,
                                 byte_steps,
-                                converged_subtrees,
-                                dead_subtrees,
-                                started.elapsed().as_secs_f64() * 1e6,
-                            );
+                                started,
+                            ) {
+                                return true;
+                            }
                         }
-                        return false;
+                        if byte_steps > byte_step_budget
+                            || tokenizer.state_has_epsilon_transitions(left)
+                            || tokenizer.state_has_epsilon_transitions(right)
+                        {
+                            if let Some(started) = started {
+                                eprintln!(
+                                    "[glrmask/profile][parser_relative_commit_reuse] generation={} result=decline reason={} nodes={} bytes={} converged={} dead={} elapsed_us={:.1}",
+                                    self.generation,
+                                    if byte_steps > byte_step_budget { "budget" } else { "epsilon" },
+                                    visited_nodes,
+                                    byte_steps,
+                                    converged_subtrees,
+                                    dead_subtrees,
+                                    started.elapsed().as_secs_f64() * 1e6,
+                                );
+                            }
+                            return false;
+                        }
                     }
                     let left_next = tokenizer.get_transition(left, byte);
                     let right_next = tokenizer.get_transition(right, byte);

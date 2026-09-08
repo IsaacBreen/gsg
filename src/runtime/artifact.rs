@@ -5032,6 +5032,87 @@ impl DynamicMaskVocab {
         !self.terminal_observation_classes.is_empty()
     }
 
+    /// Cheap necessary condition for the exact parser-relative observation
+    /// certificate: at least one prepared terminal quotient places both lexer
+    /// source states in the same nonzero class. This is not sufficient for
+    /// parser-relative equivalence, but it cheaply avoids arming the expensive
+    /// checkpoint for unrelated source pairs.
+    #[inline]
+    pub(crate) fn shares_terminal_observation_class(
+        &self,
+        left_state: u32,
+        right_state: u32,
+    ) -> bool {
+        let left = left_state as usize;
+        let right = right_state as usize;
+        self.terminal_observation_classes.iter().any(|(_, classes)| {
+            let Some(&left_class) = classes.get(left) else {
+                return false;
+            };
+            left_class != 0 && classes.get(right).copied() == Some(left_class)
+        })
+    }
+
+    /// Prove equality of every parser-admitted terminal observation that is
+    /// live at either lexer source, using only the selectively prepared exact
+    /// per-terminal quotient rows. Returns the number of relevant live
+    /// terminals on success; missing quotient coverage is a conservative
+    /// decline.
+    ///
+    /// Iterate the tiny prepared-class sidecar (normally one or two terminals)
+    /// rather than all parser-admitted terminals. The live-count pass is word
+    /// based, so the common <=64-terminal grammar costs a handful of integer
+    /// operations instead of repeated bitset probes and binary searches.
+    #[inline]
+    pub(crate) fn terminal_observation_equivalent_for_live_admitted(
+        &self,
+        left_state: u32,
+        right_state: u32,
+        admitted: &BitSet,
+        left_matched: &BitSet,
+        left_future: &BitSet,
+        right_matched: &BitSet,
+        right_future: &BitSet,
+    ) -> Option<usize> {
+        if self.terminal_observation_classes.is_empty() {
+            return None;
+        }
+
+        let mut live_count = 0usize;
+        for (word_index, &admitted_word) in admitted.words().iter().enumerate() {
+            let word = |set: &BitSet| set.words().get(word_index).copied().unwrap_or(0);
+            let live = admitted_word
+                & (word(left_matched)
+                    | word(left_future)
+                    | word(right_matched)
+                    | word(right_future));
+            live_count += live.count_ones() as usize;
+        }
+        if live_count == 0 {
+            return None;
+        }
+
+        let mut covered = 0usize;
+        for (terminal, classes) in self.terminal_observation_classes.iter() {
+            let terminal = *terminal as usize;
+            if !admitted.contains(terminal)
+                || !(left_matched.contains(terminal)
+                    || left_future.contains(terminal)
+                    || right_matched.contains(terminal)
+                    || right_future.contains(terminal))
+            {
+                continue;
+            }
+            covered += 1;
+            let left = classes.get(left_state as usize).copied().unwrap_or(0);
+            let right = classes.get(right_state as usize).copied().unwrap_or(0);
+            if left == 0 || left != right {
+                return None;
+            }
+        }
+        (covered == live_count).then_some(live_count)
+    }
+
     pub(crate) fn terminal_observation_classes_cloned(
         &self,
     ) -> Vec<(TerminalID, Arc<[u32]>)> {

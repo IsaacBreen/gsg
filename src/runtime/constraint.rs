@@ -6883,25 +6883,14 @@ impl Constraint {
         if self.tokenizer.has_any_virtual_runtime() {
             // Virtual runtimes leave the finite physical DFA domain after
             // their physical proxy/root. An observation quotient over only raw DFA
-            // states cannot certify those lazily-created virtual states,
-            // and attempting to traverse them as raw-state indices would make
-            // the finite quotient construction invalid. Dynamic masking keeps
-            // virtual residual state identity exact instead.
+            // states cannot certify those lazily-created virtual states.
             return Vec::new();
         }
 
-        // This quotient exists to split a parser-visible terminal back out of
-        // a broad lexer residual that also carries unrelated futures. Restrict
-        // construction to exactly that structural shape using only immutable
-        // tokenizer/table data so serialized dynamic compilation can build the
-        // certificate without running the full runtime-cache finalizer.
-        // Whole-mask reuse below is enabled only when the unchanged parser
-        // frontier admits one terminal.  Requiring at least one singleton LR
-        // row is a cheap conservative prefilter.  Within one mixed broad lexer
-        // residual, build only the terminal most often singleton-admitted: the
-        // quotient is an accelerator for that parser-visible component, while
-        // paying once for every unrelated co-residual would defeat the build
-        // time saved by the dynamic architecture.
+        // Preserve the historical selector exactly on its successful path:
+        // broad literal-self-loop residuals whose futures contain a terminal
+        // admitted by at least one singleton LR row. This sidecar was already
+        // paid for by production before parser-relative commit reuse consumed it.
         let mut singleton_rows = vec![0usize; self.table.num_terminals as usize];
         for row in &self.table.advance {
             let mut terminals = row.iter();
@@ -6968,6 +6957,83 @@ impl Constraint {
             }
         }
 
+        // Only when the historical selector found nothing, look for the second
+        // proven shape: a high-degree mixed residual signature repeated across
+        // many raw states, with one of its terminals participating in a small
+        // parser row. This captures bounded/string-prefix chains such as o9818
+        // without adding any selection work to the existing sidecar population.
+        let mut fallback_candidate = None;
+        if candidates.is_empty() {
+            const SMALL_PARSER_ROW_LIMIT: usize = 8;
+            const REPEATED_MIXED_FAMILY_MIN_STATES: usize = 8;
+            let mut small_rows = vec![0usize; self.table.num_terminals as usize];
+            for row in &self.table.advance {
+                let row_len = row.iter().count();
+                if (1..=SMALL_PARSER_ROW_LIMIT).contains(&row_len) {
+                    for terminal in row.iter() {
+                        if let Some(count) = small_rows.get_mut(terminal) {
+                            *count += 1;
+                        }
+                    }
+                }
+            }
+            let mut repeated_mixed =
+                BTreeMap::<Vec<TerminalID>, (usize, usize, u32)>::new();
+            for state in 0..self.tokenizer.num_states() {
+                let transitions = self.tokenizer.transitions_from(state).count();
+                if transitions < 100 {
+                    continue;
+                }
+                let futures = self
+                    .tokenizer
+                    .possible_future_terminals_iter(state)
+                    .collect::<Vec<_>>();
+                if !(2..=8).contains(&futures.len())
+                    || !futures.iter().any(|&terminal| {
+                        small_rows.get(terminal as usize).copied().unwrap_or(0) != 0
+                    })
+                {
+                    continue;
+                }
+                let entry = repeated_mixed
+                    .entry(futures)
+                    .or_insert((0, transitions, state));
+                entry.0 += 1;
+                if (transitions, std::cmp::Reverse(state))
+                    > (entry.1, std::cmp::Reverse(entry.2))
+                {
+                    entry.1 = transitions;
+                    entry.2 = state;
+                }
+            }
+            let fallback = repeated_mixed
+                .into_iter()
+                .filter(|(_, (count, _, _))| *count >= REPEATED_MIXED_FAMILY_MIN_STATES)
+                .max_by(|left, right| {
+                    let (_, (left_count, left_transitions, left_state)) = left;
+                    let (_, (right_count, right_transitions, right_state)) = right;
+                    (*left_count, *left_transitions, std::cmp::Reverse(*left_state))
+                        .cmp(&(*right_count, *right_transitions, std::cmp::Reverse(*right_state)))
+                });
+            if let Some((futures, _)) = fallback {
+                fallback_candidate = futures
+                    .iter()
+                    .copied()
+                    .filter_map(|terminal| {
+                        let count = small_rows
+                            .get(terminal as usize)
+                            .copied()
+                            .unwrap_or(0);
+                        (count != 0).then_some((count, std::cmp::Reverse(terminal)))
+                    })
+                    .max()
+                    .map(|(_, std::cmp::Reverse(terminal))| terminal);
+                if let Some(terminal) = fallback_candidate {
+                    candidates.insert(terminal);
+                }
+            }
+        }
+
         let profile = std::env::var_os("GLRMASK_PROFILE_COMPILE").is_some()
             || std::env::var_os("GLRMASK_PROFILE_DYNAMIC_TERMINAL_OBSERVATION_CACHE").is_some();
         candidates
@@ -6978,9 +7044,6 @@ impl Constraint {
                     .tokenizer
                     .exact_terminal_observation_partition(terminal, 100_000, 20_000_000)?;
 
-                // Retain only genuinely quotienting maps.  A class shared by
-                // at least two live raw states is enough to make O(1) runtime
-                // recurrence checks possible; otherwise the table cannot hit.
                 let mut seen = BTreeSet::<u32>::new();
                 let useful = classes
                     .iter()
@@ -6989,9 +7052,10 @@ impl Constraint {
                     .any(|class| !seen.insert(class));
                 if profile {
                     eprintln!(
-                        "[glrmask/profile][dynamic_terminal_observation_cache_build] terminal={} singleton_rows={} configs={} rounds={} useful={} elapsed_ms={:.3}",
+                        "[glrmask/profile][dynamic_terminal_observation_cache_build] terminal={} singleton_rows={} fallback={} configs={} rounds={} useful={} elapsed_ms={:.3}",
                         terminal,
                         singleton_rows.get(terminal as usize).copied().unwrap_or(0),
+                        fallback_candidate == Some(terminal),
                         configs,
                         rounds,
                         useful,
