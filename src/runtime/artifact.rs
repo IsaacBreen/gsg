@@ -4225,25 +4225,24 @@ impl DynamicMaskVocab {
         Some((transparent, pair_count, edge_count))
     }
 
-    /// Exact bounded safe-slice radius for every residual state of one retained
-    /// terminal DFA. This is the direct-residual analogue of
-    /// `terminal_partition_all_repeat_radii`, but it uses the terminal DFA's
-    /// native states and the slice byte classes rather than a materialized
-    /// projected-terminal quotient.
-    fn terminal_dfa_partition_all_repeat_radii(
+    /// Exact safe-slice transparency and bounded radius for every residual state
+    /// of one retained terminal DFA. Both answers are determined by the same
+    /// shortest-counterexample product graph, so compute that graph once instead
+    /// of separately solving containment and radius.
+    fn terminal_dfa_partition_all_transparency_and_repeat_radii(
         dfa: &LexerDfa,
         group: u32,
         slice: &VocabPartitionDfa,
         max_repetitions: u32,
-    ) -> Option<Vec<u32>> {
+    ) -> Option<(Vec<bool>, Vec<u32>, usize, usize)> {
         if dfa.has_epsilon_transitions() {
             return None;
         }
         let q_count = dfa.num_states();
         let p_count = slice.state_count();
         let class_count = slice.class_count();
-        if q_count == 0 || p_count == 0 || class_count == 0 || max_repetitions == 0 {
-            return Some(vec![0; q_count]);
+        if q_count == 0 || p_count == 0 || class_count == 0 {
+            return Some((vec![false; q_count], vec![0; q_count], 0, 0));
         }
 
         let state_live = |state: u32| {
@@ -4351,6 +4350,7 @@ impl DynamicMaskVocab {
         let mut reverse = vec![SmallVec::<[(u32, u8); 8]>::new(); pair_count];
         let mut distance = vec![u32::MAX; pair_count];
         let mut heap = BinaryHeap::<(Reverse<u32>, u32)>::new();
+        let mut edge_count = 0usize;
 
         for p in 0..p_count as u32 {
             if !slice.can_reach_accepting(p) {
@@ -4377,6 +4377,7 @@ impl DynamicMaskVocab {
                     for &q_target in &targets_by_q[q as usize][class] {
                         let target = index(p_target, q_target);
                         reverse[target].push((current as u32, enter_cost));
+                        edge_count = edge_count.saturating_add(1);
                     }
                 }
             }
@@ -4396,22 +4397,31 @@ impl DynamicMaskVocab {
         }
 
         let start = slice.start_state();
-        Some(
-            (0..q_count as u32)
-                .map(|q| {
-                    if !state_live(q) {
-                        0
-                    } else {
-                        match distance[index(start, q)] {
-                            u32::MAX => max_repetitions,
-                            first_counterexample => first_counterexample
-                                .saturating_sub(1)
-                                .min(max_repetitions),
-                        }
+        let start_can_accept = slice.can_reach_accepting(start);
+        let transparent = (0..q_count as u32)
+            .map(|q| {
+                if start_can_accept {
+                    state_live(q) && distance[index(start, q)] == u32::MAX
+                } else {
+                    state_live(q)
+                }
+            })
+            .collect::<Vec<_>>();
+        let radii = (0..q_count as u32)
+            .map(|q| {
+                if !state_live(q) {
+                    0
+                } else {
+                    match distance[index(start, q)] {
+                        u32::MAX => max_repetitions,
+                        first_counterexample => first_counterexample
+                            .saturating_sub(1)
+                            .min(max_repetitions),
                     }
-                })
-                .collect(),
-        )
+                }
+            })
+            .collect::<Vec<_>>();
+        Some((transparent, radii, pair_count, edge_count))
     }
 
     /// Build exact compact master-slice and bounded-radius certificates from
@@ -4445,23 +4455,21 @@ impl DynamicMaskVocab {
             }
             bytes
         };
-        let proof_languages = [
-            (
-                Self::PREPARED_SAFE_PLUS_SLOT,
-                safe_plus,
-                required_bytes(safe_plus),
-            ),
-            (
-                Self::PREPARED_WHITESPACE_SLOT,
-                whitespace,
-                required_bytes(whitespace),
-            ),
-        ];
+        let safe_plus_required = required_bytes(safe_plus);
+        let whitespace_required = required_bytes(whitespace);
 
         struct DirectPreparedPair {
             terminal: TerminalID,
             slice_slot: usize,
             transparent: Vec<bool>,
+            product_pairs: usize,
+            edges: usize,
+        }
+
+        struct DirectSafePreparedPair {
+            terminal: TerminalID,
+            transparent: Option<Vec<bool>>,
+            radii: Option<Vec<u32>>,
             product_pairs: usize,
             edges: usize,
         }
@@ -4474,49 +4482,80 @@ impl DynamicMaskVocab {
                     && coordinates.terminal_dfa_and_group(terminal).is_some()
             })
             .collect::<Vec<_>>();
-        let proofs = candidates
-            .par_iter()
-            .copied()
-            .flat_map_iter(|terminal| {
-                proof_languages.iter().filter_map(move |&(slot, slice, required)| {
+        let verify_combined =
+            std::env::var_os("GLRMASK_VERIFY_DIRECT_RESIDUAL_MASTER_PROVERS").is_some();
+        let build_whitespace = || {
+            candidates
+                .par_iter()
+                .copied()
+                .filter(|&terminal| {
                     tokenizer
                         .terminal_byte_support(terminal)
-                        .is_some_and(|support| required.is_subset(&support))
-                        .then_some((terminal, slot, slice))
+                        .is_some_and(|support| whitespace_required.is_subset(&support))
                 })
-            })
-            .filter_map(|(terminal, slice_slot, slice)| {
-                let (dfa, group) = coordinates.terminal_dfa_and_group(terminal)?;
-                let (transparent, product_pairs, edges) =
-                    Self::terminal_dfa_partition_all_transparent_states(dfa, group, slice)?;
-                Some(DirectPreparedPair {
-                    terminal,
-                    slice_slot,
-                    transparent,
-                    product_pairs,
-                    edges,
+                .filter_map(|terminal| {
+                    let (dfa, group) = coordinates.terminal_dfa_and_group(terminal)?;
+                    let (transparent, product_pairs, edges) =
+                        Self::terminal_dfa_partition_all_transparent_states(dfa, group, whitespace)?;
+                    Some(DirectPreparedPair {
+                        terminal,
+                        slice_slot: Self::PREPARED_WHITESPACE_SLOT,
+                        transparent,
+                        product_pairs,
+                        edges,
+                    })
                 })
-            })
-            .collect::<Vec<_>>();
-
-        let radius_jobs = if max_safe_chars == 0 {
-            Vec::new()
-        } else {
+                .collect::<Vec<_>>()
+        };
+        let build_safe = || {
             candidates
                 .par_iter()
                 .copied()
                 .filter_map(|terminal| {
                     let (dfa, group) = coordinates.terminal_dfa_and_group(terminal)?;
-                    let radii = Self::terminal_dfa_partition_all_repeat_radii(
-                        dfa,
-                        group,
-                        safe_plus,
-                        u32::from(max_safe_chars),
-                    )?;
-                    Some((terminal, radii))
+                    let safe_supported = tokenizer
+                        .terminal_byte_support(terminal)
+                        .is_some_and(|support| safe_plus_required.is_subset(&support));
+                    if max_safe_chars == 0 {
+                        let (transparent, product_pairs, edges) =
+                            Self::terminal_dfa_partition_all_transparent_states(
+                                dfa, group, safe_plus,
+                            )?;
+                        return Some(DirectSafePreparedPair {
+                            terminal,
+                            transparent: safe_supported.then_some(transparent),
+                            radii: None,
+                            product_pairs,
+                            edges,
+                        });
+                    }
+                    let (transparent, radii, product_pairs, edges) =
+                        Self::terminal_dfa_partition_all_transparency_and_repeat_radii(
+                            dfa,
+                            group,
+                            safe_plus,
+                            u32::from(max_safe_chars),
+                        )?;
+                    if verify_combined && safe_supported {
+                        let (reference, _, _) = Self::terminal_dfa_partition_all_transparent_states(
+                            dfa, group, safe_plus,
+                        )?;
+                        assert_eq!(
+                            transparent, reference,
+                            "combined direct residual safe+ solver disagrees for terminal {terminal}"
+                        );
+                    }
+                    Some(DirectSafePreparedPair {
+                        terminal,
+                        transparent: safe_supported.then_some(transparent),
+                        radii: Some(radii),
+                        product_pairs,
+                        edges,
+                    })
                 })
                 .collect::<Vec<_>>()
         };
+        let (proofs, safe_jobs) = rayon::join(build_whitespace, build_safe);
 
         let mut by_terminal_slot = FxHashMap::<(TerminalID, usize), Vec<bool>>::default();
         let mut product_pairs = 0usize;
@@ -4526,7 +4565,20 @@ impl DynamicMaskVocab {
             edges = edges.saturating_add(proof.edges);
             by_terminal_slot.insert((proof.terminal, proof.slice_slot), proof.transparent);
         }
-        let radius_by_terminal = radius_jobs.into_iter().collect::<FxHashMap<_, _>>();
+        let mut radius_by_terminal = FxHashMap::<TerminalID, Vec<u32>>::default();
+        for proof in safe_jobs {
+            product_pairs = product_pairs.saturating_add(proof.product_pairs);
+            edges = edges.saturating_add(proof.edges);
+            if let Some(transparent) = proof.transparent {
+                by_terminal_slot.insert(
+                    (proof.terminal, Self::PREPARED_SAFE_PLUS_SLOT),
+                    transparent,
+                );
+            }
+            if let Some(radii) = proof.radii {
+                radius_by_terminal.insert(proof.terminal, radii);
+            }
+        }
         let mut safe_plus_complete_terminals = candidates
             .iter()
             .copied()
