@@ -2829,8 +2829,10 @@ pub(crate) struct DynamicMaskVocabSource {
 /// exact residual product, so covered-but-not-positive is an exact false.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct PreparedMasterProofArtifact {
+    pub(crate) positive_row_ids: Vec<u32>,
     pub(crate) positive_offsets: Vec<u32>,
     pub(crate) positive_terminals: Vec<TerminalID>,
+    pub(crate) coverage_row_ids: Vec<u32>,
     pub(crate) coverage_offsets: Vec<u32>,
     pub(crate) coverage_terminals: Vec<TerminalID>,
     /// Safe+ terminals for which the direct residual solver is complete over
@@ -2838,6 +2840,7 @@ pub(crate) struct PreparedMasterProofArtifact {
     /// row means that terminal has no residual coordinate at that source and is
     /// therefore an exact negative rather than an unknown requiring a quotient.
     pub(crate) safe_plus_complete_terminals: Vec<TerminalID>,
+    pub(crate) safe_radius_row_ids: Vec<u32>,
     pub(crate) safe_radius_offsets: Vec<u32>,
     pub(crate) safe_radius_entries: Vec<(TerminalID, u16)>,
 }
@@ -2845,11 +2848,84 @@ pub(crate) struct PreparedMasterProofArtifact {
 impl PreparedMasterProofArtifact {
     #[inline]
     pub(crate) fn is_empty(&self) -> bool {
-        self.positive_offsets.is_empty()
-            && self.coverage_offsets.is_empty()
+        self.positive_row_ids.is_empty()
+            && self.coverage_row_ids.is_empty()
             && self.safe_plus_complete_terminals.is_empty()
-            && self.safe_radius_offsets.is_empty()
+            && self.safe_radius_row_ids.is_empty()
     }
+}
+
+#[inline]
+fn interned_terminal_row<'a>(
+    row_ids: &[u32],
+    offsets: &[u32],
+    entries: &'a [TerminalID],
+    row: usize,
+) -> &'a [TerminalID] {
+    let row_id = row_ids[row] as usize;
+    &entries[offsets[row_id] as usize..offsets[row_id + 1] as usize]
+}
+
+fn intern_terminal_rows(
+    mut rows: Vec<SmallVec<[TerminalID; 4]>>,
+) -> (Vec<u32>, Vec<u32>, Vec<TerminalID>) {
+    let mut intern = FxHashMap::<Vec<TerminalID>, u32>::default();
+    let mut unique_rows = Vec::<Vec<TerminalID>>::new();
+    let mut row_ids = Vec::<u32>::with_capacity(rows.len());
+    for row in &mut rows {
+        row.sort_unstable();
+        row.dedup();
+        let slice = row.as_slice();
+        let id = if let Some(&id) = intern.get(slice) {
+            id
+        } else {
+            let owned = slice.to_vec();
+            let id = unique_rows.len() as u32;
+            intern.insert(owned.clone(), id);
+            unique_rows.push(owned);
+            id
+        };
+        row_ids.push(id);
+    }
+    let mut offsets = Vec::<u32>::with_capacity(unique_rows.len() + 1);
+    let mut entries = Vec::<TerminalID>::new();
+    offsets.push(0);
+    for row in unique_rows {
+        entries.extend(row);
+        offsets.push(entries.len() as u32);
+    }
+    (row_ids, offsets, entries)
+}
+
+fn intern_radius_rows(
+    mut rows: Vec<SmallVec<[(TerminalID, u16); 4]>>,
+) -> (Vec<u32>, Vec<u32>, Vec<(TerminalID, u16)>) {
+    let mut intern = FxHashMap::<Vec<(TerminalID, u16)>, u32>::default();
+    let mut unique_rows = Vec::<Vec<(TerminalID, u16)>>::new();
+    let mut row_ids = Vec::<u32>::with_capacity(rows.len());
+    for row in &mut rows {
+        row.sort_unstable_by_key(|&(terminal, _)| terminal);
+        row.dedup_by_key(|entry| entry.0);
+        let slice = row.as_slice();
+        let id = if let Some(&id) = intern.get(slice) {
+            id
+        } else {
+            let owned = slice.to_vec();
+            let id = unique_rows.len() as u32;
+            intern.insert(owned.clone(), id);
+            unique_rows.push(owned);
+            id
+        };
+        row_ids.push(id);
+    }
+    let mut offsets = Vec::<u32>::with_capacity(unique_rows.len() + 1);
+    let mut entries = Vec::<(TerminalID, u16)>::new();
+    offsets.push(0);
+    for row in unique_rows {
+        entries.extend(row);
+        offsets.push(entries.len() as u32);
+    }
+    (row_ids, offsets, entries)
 }
 
 #[derive(Debug, Clone, Default)]
@@ -3081,6 +3157,7 @@ pub(crate) struct DynamicMaskVocab {
     /// language remains inside that terminal's exact projected residual from
     /// the source TSID. Missing rows/terminals simply fall back to runtime
     /// proof; they never imply rejection or admission.
+    prepared_master_prover_row_ids: Arc<[u32]>,
     prepared_master_prover_offsets: Arc<[u32]>,
     prepared_master_prover_terminals: Arc<[TerminalID]>,
     /// Exact coverage rows corresponding to `prepared_master_prover_*`.
@@ -3089,6 +3166,7 @@ pub(crate) struct DynamicMaskVocab {
     /// positive row is therefore `true`; coverage without positive membership
     /// is an exact `false`. This lets compact direct-residual proofs retain
     /// exact negative answers without carrying a projected-terminal quotient.
+    prepared_master_coverage_row_ids: Arc<[u32]>,
     prepared_master_coverage_offsets: Arc<[u32]>,
     prepared_master_coverage_terminals: Arc<[TerminalID]>,
     /// Global safe+ terminal completeness marker for direct residual proofs.
@@ -3099,6 +3177,7 @@ pub(crate) struct DynamicMaskVocab {
     /// projected terminal residual. Radius is capped at the largest safe-token
     /// scalar count in this model vocabulary, because larger values are
     /// observationally identical for one-token masking.
+    prepared_safe_radius_row_ids: Arc<[u32]>,
     prepared_safe_radius_offsets: Arc<[u32]>,
     prepared_safe_radius_entries: Arc<[(TerminalID, u16)]>,
     pending_source: Option<DynamicMaskVocabSource>,
@@ -3358,11 +3437,14 @@ impl DynamicMaskVocab {
             llg_slice_leftovers: Arc::new(Vec::new()),
             llg_master_admitted_words: Arc::new(Vec::new()),
             llg_master_max_safe_chars: 0,
+            prepared_master_prover_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_master_coverage_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_coverage_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_coverage_terminals: Arc::from(Vec::<TerminalID>::new()),
             prepared_safe_plus_complete_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_safe_radius_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_safe_radius_offsets: Arc::from(Vec::<u32>::new()),
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
@@ -3429,11 +3511,14 @@ impl DynamicMaskVocab {
             llg_slice_leftovers: Arc::clone(&self.llg_slice_leftovers),
             llg_master_admitted_words: Arc::clone(&self.llg_master_admitted_words),
             llg_master_max_safe_chars: self.llg_master_max_safe_chars,
+            prepared_master_prover_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_master_coverage_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_coverage_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_coverage_terminals: Arc::from(Vec::<TerminalID>::new()),
             prepared_safe_plus_complete_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_safe_radius_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_safe_radius_offsets: Arc::from(Vec::<u32>::new()),
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
@@ -3491,11 +3576,14 @@ impl DynamicMaskVocab {
             llg_slice_leftovers: Arc::new(Vec::new()),
             llg_master_admitted_words: Arc::new(Vec::new()),
             llg_master_max_safe_chars: 0,
+            prepared_master_prover_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_master_coverage_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_coverage_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_coverage_terminals: Arc::from(Vec::<TerminalID>::new()),
             prepared_safe_plus_complete_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_safe_radius_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_safe_radius_offsets: Arc::from(Vec::<u32>::new()),
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: Some(source),
@@ -3583,11 +3671,14 @@ impl DynamicMaskVocab {
             llg_slice_leftovers: Arc::new(Vec::new()),
             llg_master_admitted_words: Arc::new(Vec::new()),
             llg_master_max_safe_chars: 0,
+            prepared_master_prover_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_master_coverage_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_coverage_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_coverage_terminals: Arc::from(Vec::<TerminalID>::new()),
             prepared_safe_plus_complete_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_safe_radius_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_safe_radius_offsets: Arc::from(Vec::<u32>::new()),
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
@@ -3838,10 +3929,14 @@ impl DynamicMaskVocab {
             return &[];
         }
         let row = source as usize * Self::PREPARED_PROOF_SLOT_COUNT + slice_slot;
+        let Some(&row_id) = self.prepared_master_prover_row_ids.get(row) else {
+            return &[];
+        };
+        let row_id = row_id as usize;
         let Some((&start, &end)) = self
             .prepared_master_prover_offsets
-            .get(row)
-            .zip(self.prepared_master_prover_offsets.get(row + 1))
+            .get(row_id)
+            .zip(self.prepared_master_prover_offsets.get(row_id + 1))
         else {
             return &[];
         };
@@ -3852,14 +3947,17 @@ impl DynamicMaskVocab {
 
     pub(crate) fn prepared_master_proof_artifact(&self) -> PreparedMasterProofArtifact {
         PreparedMasterProofArtifact {
+            positive_row_ids: self.prepared_master_prover_row_ids.as_ref().to_vec(),
             positive_offsets: self.prepared_master_prover_offsets.as_ref().to_vec(),
             positive_terminals: self.prepared_master_prover_terminals.as_ref().to_vec(),
+            coverage_row_ids: self.prepared_master_coverage_row_ids.as_ref().to_vec(),
             coverage_offsets: self.prepared_master_coverage_offsets.as_ref().to_vec(),
             coverage_terminals: self.prepared_master_coverage_terminals.as_ref().to_vec(),
             safe_plus_complete_terminals: self
                 .prepared_safe_plus_complete_terminals
                 .as_ref()
                 .to_vec(),
+            safe_radius_row_ids: self.prepared_safe_radius_row_ids.as_ref().to_vec(),
             safe_radius_offsets: self.prepared_safe_radius_offsets.as_ref().to_vec(),
             safe_radius_entries: self.prepared_safe_radius_entries.as_ref().to_vec(),
         }
@@ -3873,53 +3971,69 @@ impl DynamicMaskVocab {
         let expected_rows = source_state_count
             .checked_mul(Self::PREPARED_PROOF_SLOT_COUNT)
             .ok_or_else(|| "prepared master proof row count overflow".to_owned())?;
-        let validate_csr = |label: &str, offsets: &[u32], terminals: &[TerminalID]| {
-            if offsets.is_empty() {
-                return if terminals.is_empty() {
-                    Ok(())
-                } else {
-                    Err(format!("{label} has entries without offsets"))
-                };
-            }
-            if offsets.len() != expected_rows + 1
-                || offsets.first().copied() != Some(0)
-                || offsets.windows(2).any(|pair| pair[0] > pair[1])
-                || offsets.last().copied().map(|value| value as usize) != Some(terminals.len())
-            {
-                return Err(format!("{label} has invalid CSR offsets"));
-            }
-            for row in 0..expected_rows {
-                let start = offsets[row] as usize;
-                let end = offsets[row + 1] as usize;
-                if terminals[start..end].windows(2).any(|pair| pair[0] >= pair[1]) {
-                    return Err(format!("{label} row {row} is not sorted and unique"));
+        let validate_interned =
+            |label: &str, row_ids: &[u32], offsets: &[u32], terminals: &[TerminalID], rows: usize| {
+                if row_ids.is_empty() {
+                    return if offsets.is_empty() && terminals.is_empty() {
+                        Ok(())
+                    } else {
+                        Err(format!("{label} has table data without row ids"))
+                    };
                 }
-            }
-            Ok(())
-        };
-        validate_csr(
+                if row_ids.len() != rows
+                    || offsets.is_empty()
+                    || offsets.first().copied() != Some(0)
+                    || offsets.windows(2).any(|pair| pair[0] > pair[1])
+                    || offsets.last().copied().map(|value| value as usize) != Some(terminals.len())
+                {
+                    return Err(format!("{label} has invalid interned row framing"));
+                }
+                let unique_rows = offsets.len() - 1;
+                if row_ids.iter().any(|&row| row as usize >= unique_rows) {
+                    return Err(format!("{label} has an out-of-range row id"));
+                }
+                for row in 0..unique_rows {
+                    let start = offsets[row] as usize;
+                    let end = offsets[row + 1] as usize;
+                    if terminals[start..end].windows(2).any(|pair| pair[0] >= pair[1]) {
+                        return Err(format!("{label} unique row {row} is not sorted and unique"));
+                    }
+                }
+                Ok(())
+            };
+        validate_interned(
             "prepared master positive rows",
+            &artifact.positive_row_ids,
             &artifact.positive_offsets,
             &artifact.positive_terminals,
+            expected_rows,
         )?;
-        validate_csr(
+        validate_interned(
             "prepared master coverage rows",
+            &artifact.coverage_row_ids,
             &artifact.coverage_offsets,
             &artifact.coverage_terminals,
+            expected_rows,
         )?;
-        if !artifact.coverage_offsets.is_empty() {
-            if artifact.positive_offsets.is_empty() {
+        if !artifact.coverage_row_ids.is_empty() {
+            if artifact.positive_row_ids.is_empty() {
                 return Err("prepared master coverage exists without positive row framing".to_owned());
             }
             for row in 0..expected_rows {
-                let p0 = artifact.positive_offsets[row] as usize;
-                let p1 = artifact.positive_offsets[row + 1] as usize;
-                let c0 = artifact.coverage_offsets[row] as usize;
-                let c1 = artifact.coverage_offsets[row + 1] as usize;
-                let coverage = &artifact.coverage_terminals[c0..c1];
-                if artifact.positive_terminals[p0..p1]
-                    .iter()
-                    .any(|terminal| coverage.binary_search(terminal).is_err())
+                let coverage = interned_terminal_row(
+                    &artifact.coverage_row_ids,
+                    &artifact.coverage_offsets,
+                    &artifact.coverage_terminals,
+                    row,
+                );
+                if interned_terminal_row(
+                    &artifact.positive_row_ids,
+                    &artifact.positive_offsets,
+                    &artifact.positive_terminals,
+                    row,
+                )
+                .iter()
+                .any(|terminal| coverage.binary_search(terminal).is_err())
                 {
                     return Err(format!(
                         "prepared master positive row {row} is not a subset of coverage"
@@ -3936,23 +4050,25 @@ impl DynamicMaskVocab {
                 "prepared safe+ complete terminal list is not sorted and unique".to_owned(),
             );
         }
-        if !artifact.safe_radius_offsets.is_empty() {
-            if artifact.safe_radius_offsets.len() != source_state_count + 1
+        if !artifact.safe_radius_row_ids.is_empty() {
+            if artifact.safe_radius_row_ids.len() != source_state_count
+                || artifact.safe_radius_offsets.is_empty()
                 || artifact.safe_radius_offsets.first().copied() != Some(0)
-                || artifact
-                    .safe_radius_offsets
-                    .windows(2)
-                    .any(|pair| pair[0] > pair[1])
-                || artifact
-                    .safe_radius_offsets
-                    .last()
-                    .copied()
-                    .map(|value| value as usize)
+                || artifact.safe_radius_offsets.windows(2).any(|pair| pair[0] > pair[1])
+                || artifact.safe_radius_offsets.last().copied().map(|value| value as usize)
                     != Some(artifact.safe_radius_entries.len())
             {
-                return Err("prepared safe-radius rows have invalid CSR offsets".to_owned());
+                return Err("prepared safe-radius rows have invalid interned framing".to_owned());
             }
-            for row in 0..source_state_count {
+            let unique_rows = artifact.safe_radius_offsets.len() - 1;
+            if artifact
+                .safe_radius_row_ids
+                .iter()
+                .any(|&row| row as usize >= unique_rows)
+            {
+                return Err("prepared safe-radius rows have an out-of-range row id".to_owned());
+            }
+            for row in 0..unique_rows {
                 let start = artifact.safe_radius_offsets[row] as usize;
                 let end = artifact.safe_radius_offsets[row + 1] as usize;
                 if artifact.safe_radius_entries[start..end]
@@ -3960,17 +4076,23 @@ impl DynamicMaskVocab {
                     .any(|pair| pair[0].0 >= pair[1].0)
                 {
                     return Err(format!(
-                        "prepared safe-radius row {row} is not sorted and unique"
+                        "prepared safe-radius unique row {row} is not sorted and unique"
                     ));
                 }
             }
+        } else if !artifact.safe_radius_offsets.is_empty() || !artifact.safe_radius_entries.is_empty()
+        {
+            return Err("prepared safe-radius table exists without row ids".to_owned());
         }
+        self.prepared_master_prover_row_ids = Arc::from(artifact.positive_row_ids);
         self.prepared_master_prover_offsets = Arc::from(artifact.positive_offsets);
         self.prepared_master_prover_terminals = Arc::from(artifact.positive_terminals);
+        self.prepared_master_coverage_row_ids = Arc::from(artifact.coverage_row_ids);
         self.prepared_master_coverage_offsets = Arc::from(artifact.coverage_offsets);
         self.prepared_master_coverage_terminals = Arc::from(artifact.coverage_terminals);
         self.prepared_safe_plus_complete_terminals =
             Arc::from(artifact.safe_plus_complete_terminals);
+        self.prepared_safe_radius_row_ids = Arc::from(artifact.safe_radius_row_ids);
         self.prepared_safe_radius_offsets = Arc::from(artifact.safe_radius_offsets);
         self.prepared_safe_radius_entries = Arc::from(artifact.safe_radius_entries);
         Ok(())
@@ -3983,8 +4105,8 @@ impl DynamicMaskVocab {
     #[inline(always)]
     pub(crate) fn has_prepared_master_prover_row(&self, source: u32) -> bool {
         let row = source as usize * Self::PREPARED_PROOF_SLOT_COUNT;
-        self.prepared_master_prover_offsets
-            .get(row + Self::PREPARED_PROOF_SLOT_COUNT)
+        self.prepared_master_prover_row_ids
+            .get(row + Self::PREPARED_PROOF_SLOT_COUNT - 1)
             .is_some()
     }
 
@@ -3992,7 +4114,7 @@ impl DynamicMaskVocab {
     /// represented by an exact projected terminal quotient.
     ///
     /// `prepare_master_provers_all_sources` solves the complete
-    /// quotient×slice product for every retained quotient residual. Therefore
+    /// quotientA-slice product for every retained quotient residual. Therefore
     /// once the compact row table is present, absence from a row is an exact
     /// negative result for a terminal whose quotient contains `source`.
     /// Missing rows or missing quotients remain `None` and must use the normal
@@ -4005,17 +4127,18 @@ impl DynamicMaskVocab {
         terminal: TerminalID,
     ) -> Option<bool> {
         if slice_slot >= Self::PREPARED_PROOF_SLOT_COUNT
-            || self.prepared_master_prover_offsets.is_empty()
+            || self.prepared_master_prover_row_ids.is_empty()
         {
             return None;
         }
         let row = source as usize * Self::PREPARED_PROOF_SLOT_COUNT + slice_slot;
-        self.prepared_master_prover_offsets.get(row + 1)?;
-        if !self.prepared_master_coverage_offsets.is_empty() {
+        self.prepared_master_prover_row_ids.get(row)?;
+        if !self.prepared_master_coverage_row_ids.is_empty() {
+            let coverage_id = *self.prepared_master_coverage_row_ids.get(row)? as usize;
             let (&start, &end) = self
                 .prepared_master_coverage_offsets
-                .get(row)
-                .zip(self.prepared_master_coverage_offsets.get(row + 1))?;
+                .get(coverage_id)
+                .zip(self.prepared_master_coverage_offsets.get(coverage_id + 1))?;
             if self.prepared_master_coverage_terminals[start as usize..end as usize]
                 .binary_search(&terminal)
                 .is_err()
@@ -4031,9 +4154,6 @@ impl DynamicMaskVocab {
                 return None;
             }
         } else if self.projected_terminal_quotient(terminal, source).is_none() {
-            // Legacy quotient-backed prepared rows encoded exact negatives by
-            // the presence of the quotient itself rather than an explicit
-            // coverage CSR.
             return None;
         }
         Some(
@@ -4045,11 +4165,14 @@ impl DynamicMaskVocab {
 
     #[inline(always)]
     pub(crate) fn prepared_safe_radii(&self, source: u32) -> &[(TerminalID, u16)] {
-        let row = source as usize;
+        let Some(&row_id) = self.prepared_safe_radius_row_ids.get(source as usize) else {
+            return &[];
+        };
+        let row_id = row_id as usize;
         let Some((&start, &end)) = self
             .prepared_safe_radius_offsets
-            .get(row)
-            .zip(self.prepared_safe_radius_offsets.get(row + 1))
+            .get(row_id)
+            .zip(self.prepared_safe_radius_offsets.get(row_id + 1))
         else {
             return &[];
         };
@@ -4057,6 +4180,9 @@ impl DynamicMaskVocab {
             .get(start as usize..end as usize)
             .unwrap_or(&[])
     }
+
+
+
 
     #[inline]
     pub(crate) fn prepared_safe_radius(
@@ -4623,43 +4749,20 @@ impl DynamicMaskVocab {
         }
 
         let positive_entry_count = positive_rows.iter().map(SmallVec::len).sum::<usize>();
-        let mut positive_offsets = Vec::<u32>::with_capacity(row_count + 1);
-        let mut positive_terminals = Vec::<TerminalID>::with_capacity(positive_entry_count);
-        positive_offsets.push(0);
-        for mut row in positive_rows {
-            row.sort_unstable();
-            row.dedup();
-            positive_terminals.extend(row);
-            positive_offsets.push(positive_terminals.len() as u32);
-        }
+        let (positive_row_ids, positive_offsets, positive_terminals) =
+            intern_terminal_rows(positive_rows);
+        let (coverage_row_ids, coverage_offsets, coverage_terminals) =
+            intern_terminal_rows(coverage_rows);
+        let (radius_row_ids, radius_offsets, radius_entries) = intern_radius_rows(radius_rows);
 
-        let coverage_entry_count = coverage_rows.iter().map(SmallVec::len).sum::<usize>();
-        let mut coverage_offsets = Vec::<u32>::with_capacity(row_count + 1);
-        let mut coverage_terminals = Vec::<TerminalID>::with_capacity(coverage_entry_count);
-        coverage_offsets.push(0);
-        for mut row in coverage_rows {
-            row.sort_unstable();
-            row.dedup();
-            coverage_terminals.extend(row);
-            coverage_offsets.push(coverage_terminals.len() as u32);
-        }
-
-        let radius_entry_count = radius_rows.iter().map(SmallVec::len).sum::<usize>();
-        let mut radius_offsets = Vec::<u32>::with_capacity(source_state_count + 1);
-        let mut radius_entries = Vec::<(TerminalID, u16)>::with_capacity(radius_entry_count);
-        radius_offsets.push(0);
-        for mut row in radius_rows {
-            row.sort_unstable_by_key(|&(terminal, _)| terminal);
-            row.dedup_by_key(|entry| entry.0);
-            radius_entries.extend(row);
-            radius_offsets.push(radius_entries.len() as u32);
-        }
-
+        self.prepared_master_prover_row_ids = Arc::from(positive_row_ids);
         self.prepared_master_prover_offsets = Arc::from(positive_offsets);
         self.prepared_master_prover_terminals = Arc::from(positive_terminals);
+        self.prepared_master_coverage_row_ids = Arc::from(coverage_row_ids);
         self.prepared_master_coverage_offsets = Arc::from(coverage_offsets);
         self.prepared_master_coverage_terminals = Arc::from(coverage_terminals);
         self.prepared_safe_plus_complete_terminals = Arc::from(safe_plus_complete_terminals);
+        self.prepared_safe_radius_row_ids = Arc::from(radius_row_ids);
         self.prepared_safe_radius_offsets = Arc::from(radius_offsets);
         self.prepared_safe_radius_entries = Arc::from(radius_entries);
         Some((positive_entry_count, product_pairs, edges))
@@ -4719,9 +4822,16 @@ impl DynamicMaskVocab {
         ));
         let quotients = self.active_projected_terminal_quotients();
         if quotients.is_empty() || source_state_count == 0 {
+            self.prepared_master_prover_row_ids = Arc::from(Vec::<u32>::new());
             self.prepared_master_prover_offsets = Arc::from(Vec::<u32>::new());
             self.prepared_master_prover_terminals = Arc::from(Vec::<TerminalID>::new());
+            self.prepared_master_coverage_row_ids = Arc::from(Vec::<u32>::new());
+            self.prepared_master_coverage_offsets = Arc::from(Vec::<u32>::new());
+            self.prepared_master_coverage_terminals = Arc::from(Vec::<TerminalID>::new());
             self.prepared_safe_plus_complete_terminals = Arc::from(Vec::<TerminalID>::new());
+            self.prepared_safe_radius_row_ids = Arc::from(Vec::<u32>::new());
+            self.prepared_safe_radius_offsets = Arc::from(Vec::<u32>::new());
+            self.prepared_safe_radius_entries = Arc::from(Vec::<(TerminalID, u16)>::new());
             return (0, 0);
         }
 
@@ -4839,15 +4949,7 @@ impl DynamicMaskVocab {
         }
 
         let entry_count = rows.iter().map(SmallVec::len).sum::<usize>();
-        let mut offsets = Vec::<u32>::with_capacity(rows.len() + 1);
-        let mut terminals = Vec::<TerminalID>::with_capacity(entry_count);
-        offsets.push(0);
-        for mut row in rows {
-            row.sort_unstable();
-            row.dedup();
-            terminals.extend(row);
-            offsets.push(terminals.len() as u32);
-        }
+        let (row_ids, offsets, terminals) = intern_terminal_rows(rows);
         if include_safe_radii {
             let max_radius = self.llg_master_max_safe_chars;
             let radius_jobs = quotients
@@ -4882,27 +4984,24 @@ impl DynamicMaskVocab {
                     }
                 }
             }
-            let radius_entry_count = radius_rows.iter().map(SmallVec::len).sum::<usize>();
-            let mut radius_offsets = Vec::<u32>::with_capacity(source_state_count + 1);
-            let mut radius_entries = Vec::<(TerminalID, u16)>::with_capacity(radius_entry_count);
-            radius_offsets.push(0);
-            for mut row in radius_rows {
-                row.sort_unstable_by_key(|&(terminal, _)| terminal);
-                row.dedup_by_key(|entry| entry.0);
-                radius_entries.extend(row);
-                radius_offsets.push(radius_entries.len() as u32);
-            }
+            let (radius_row_ids, radius_offsets, radius_entries) = intern_radius_rows(radius_rows);
+            self.prepared_safe_radius_row_ids = Arc::from(radius_row_ids);
             self.prepared_safe_radius_offsets = Arc::from(radius_offsets);
             self.prepared_safe_radius_entries = Arc::from(radius_entries);
         } else {
+            self.prepared_safe_radius_row_ids = Arc::from(Vec::<u32>::new());
             self.prepared_safe_radius_offsets = Arc::from(Vec::<u32>::new());
             self.prepared_safe_radius_entries = Arc::from(Vec::<(TerminalID, u16)>::new());
         }
         // Keep the borrow of the active quotient sidecar alive through the
         // optional radius analysis above, then publish the compact prepared
         // rows only after all quotient reads are complete.
+        self.prepared_master_prover_row_ids = Arc::from(row_ids);
         self.prepared_master_prover_offsets = Arc::from(offsets);
         self.prepared_master_prover_terminals = Arc::from(terminals);
+        self.prepared_master_coverage_row_ids = Arc::from(Vec::<u32>::new());
+        self.prepared_master_coverage_offsets = Arc::from(Vec::<u32>::new());
+        self.prepared_master_coverage_terminals = Arc::from(Vec::<TerminalID>::new());
         self.prepared_safe_plus_complete_terminals = Arc::from(Vec::<TerminalID>::new());
         (entry_count, product_pairs)
     }
@@ -5664,16 +5763,22 @@ impl DynamicMaskVocab {
             Arc::clone(&source.runtime_projected_terminal_quotients);
         self.projected_terminal_quotients_prepared =
             source.projected_terminal_quotients_prepared;
+        self.prepared_master_prover_row_ids =
+            Arc::clone(&source.prepared_master_prover_row_ids);
         self.prepared_master_prover_offsets =
             Arc::clone(&source.prepared_master_prover_offsets);
         self.prepared_master_prover_terminals =
             Arc::clone(&source.prepared_master_prover_terminals);
+        self.prepared_master_coverage_row_ids =
+            Arc::clone(&source.prepared_master_coverage_row_ids);
         self.prepared_master_coverage_offsets =
             Arc::clone(&source.prepared_master_coverage_offsets);
         self.prepared_master_coverage_terminals =
             Arc::clone(&source.prepared_master_coverage_terminals);
         self.prepared_safe_plus_complete_terminals =
             Arc::clone(&source.prepared_safe_plus_complete_terminals);
+        self.prepared_safe_radius_row_ids =
+            Arc::clone(&source.prepared_safe_radius_row_ids);
         self.prepared_safe_radius_offsets =
             Arc::clone(&source.prepared_safe_radius_offsets);
         self.prepared_safe_radius_entries =
@@ -7343,11 +7448,14 @@ impl Default for DynamicMaskVocab {
             llg_slice_leftovers: Arc::new(Vec::new()),
             llg_master_admitted_words: Arc::new(Vec::new()),
             llg_master_max_safe_chars: 0,
+            prepared_master_prover_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_master_coverage_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_coverage_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_coverage_terminals: Arc::from(Vec::<TerminalID>::new()),
             prepared_safe_plus_complete_terminals: Arc::from(Vec::<TerminalID>::new()),
+            prepared_safe_radius_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_safe_radius_offsets: Arc::from(Vec::<u32>::new()),
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
