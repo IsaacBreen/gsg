@@ -48,7 +48,9 @@ use crate::automata::weighted::terminal_automaton::TerminalAutomaton;
 use crate::compiler::constraint_possible_matches as cpm;
 use crate::compiler::glr::analysis::AnalyzedGrammar;
 use crate::compiler::glr::table::{GLRTable, GlrTableConstruction};
-use crate::compiler::grammar::transforms::{prepare_dynamic_grammar_transforms_only, prepare_grammar_transforms_only};
+use crate::compiler::grammar::transforms::{
+    prepare_dynamic_glr_transforms_only, prepare_grammar_transforms_only,
+};
 use crate::compiler::stages::id_map_and_terminal_dwa::classify::{
     SharedClassifyCache,
     prewarm_shared_classify_cache,
@@ -5653,7 +5655,7 @@ fn compile_dynamic_owned_impl(
         if force_cfg_runtime {
             grammar.direct_regular_automaton = None;
         }
-        prepare_dynamic_grammar_transforms_only(grammar)
+        prepare_dynamic_glr_transforms_only(grammar)
     };
     let prepare_ms = prepare_started_at.map_or(0.0, elapsed_ms);
     let prepared_has_giant_repeat = prepared_grammar
@@ -5769,7 +5771,7 @@ fn compile_dynamic_owned_impl(
         let direct_regular_automaton = prepared_grammar.direct_regular_automaton.take();
         let analyzed_grammar = if direct_regular_automaton.is_none() {
             let analyzed = AnalyzedGrammar::from_grammar_def(&prepared_grammar);
-            if let Err(message) = analyzed.check_table_build_normal_form() {
+            if let Err(message) = analyzed.check_dynamic_table_build_normal_form() {
                 panic!("[glrmask] grammar precondition violations:\n{}", message);
             }
             Some(analyzed)
