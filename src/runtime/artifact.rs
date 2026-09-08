@@ -2909,6 +2909,8 @@ pub(crate) struct DynamicMaskVocabArtifact {
     aliases: Vec<u32>,
     mask_tokenizer: Option<Tokenizer>,
     full_to_mask_state: Vec<u32>,
+    #[serde(default)]
+    grammar_quotiented: bool,
 }
 
 /// Runtime-only lazily determinized subset-state cache for scalar-dispatch mask execution.
@@ -3059,6 +3061,9 @@ pub(crate) struct DynamicMaskVocab {
     prepared_safe_radius_entries: Arc<[(TerminalID, u16)]>,
     pending_source: Option<DynamicMaskVocabSource>,
     initialized: bool,
+    /// True only when trie endpoints represent grammar-proven vocabulary
+    /// equivalence classes rather than byte-identical token aliases.
+    grammar_quotiented: bool,
     mask_cache: Arc<Mutex<DynamicMaskCache>>,
     dense_subset16_cache: Arc<Mutex<FxHashMap<Vec<u32>, Arc<DynamicDenseSubset16>>>>,
     lazy_union_cache: Arc<Mutex<DynamicLazyUnionCache>>,
@@ -3310,6 +3315,7 @@ impl DynamicMaskVocab {
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: true,
+            grammar_quotiented: false,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3375,6 +3381,7 @@ impl DynamicMaskVocab {
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: true,
+            grammar_quotiented: self.grammar_quotiented,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3431,6 +3438,7 @@ impl DynamicMaskVocab {
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: Some(source),
             initialized: false,
+            grammar_quotiented: false,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3461,6 +3469,14 @@ impl DynamicMaskVocab {
             virtual_repeat_intersection_projections: Vec::new(),
             virtual_residual_projections: Vec::new(),
         }
+    }
+
+    pub(crate) fn mark_grammar_quotiented(&mut self) {
+        self.grammar_quotiented = true;
+    }
+
+    pub(crate) fn is_grammar_quotiented(&self) -> bool {
+        self.grammar_quotiented
     }
 
     pub(crate) fn from_packed(
@@ -3504,6 +3520,7 @@ impl DynamicMaskVocab {
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: true,
+            grammar_quotiented: false,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -5914,6 +5931,7 @@ impl DynamicMaskVocab {
             full_to_mask_state: mask_quotient
                 .map(|(_, full_to_mask_state)| full_to_mask_state)
                 .unwrap_or_default(),
+            grammar_quotiented: self.grammar_quotiented,
         })
     }
 
@@ -6072,6 +6090,7 @@ impl DynamicMaskVocab {
             });
         }
         let mut result = DynamicMaskVocab::from_packed(Arc::new(trie), Arc::new(packed_aliases));
+        result.grammar_quotiented = artifact.grammar_quotiented;
         match artifact.mask_tokenizer {
             Some(tokenizer) => {
                 if artifact.full_to_mask_state.is_empty()
@@ -6159,15 +6178,15 @@ impl DynamicMaskVocab {
     /// self-contained dynamic artifact: the persisted trie is an accelerator,
     /// never an independent source of vocabulary semantics.
     pub(crate) fn matches_token_bytes_exact(&self, token_bytes: &BTreeMap<u32, Vec<u8>>) -> bool {
+        if self.grammar_quotiented {
+            return self.matches_grammar_quotiented_token_bytes(token_bytes);
+        }
         if self.canonical_original_tokens.len() != token_bytes.len() {
             return false;
         }
 
-        // Canonical token ids are assigned before trie partitioning by sorting
-        // original vocabulary entries first by bytes and then by original id.
-        // Reconstruct just that ordering (not the trie), validate every alias
-        // group exactly, and retain one borrowed byte slice per canonical token
-        // for the topology walk below.
+        // Ordinary dynamic vocabularies canonicalize only byte-identical model
+        // tokens. Keep the historical strong validation for those artifacts.
         let mut sorted_tokens = token_bytes
             .iter()
             .map(|(&token_id, bytes)| (token_id, bytes.as_slice()))
@@ -6256,6 +6275,79 @@ impl DynamicMaskVocab {
 
         canonical_seen.into_iter().all(|seen| seen)
     }
+
+    fn matches_grammar_quotiented_token_bytes(
+        &self,
+        token_bytes: &BTreeMap<u32, Vec<u8>>,
+    ) -> bool {
+        if self.canonical_original_tokens.len() != token_bytes.len() {
+            return false;
+        }
+        let mut covered = FxHashSet::<u32>::default();
+        for &token_id in self.canonical_original_tokens.iter() {
+            if !token_bytes.contains_key(&token_id) || !covered.insert(token_id) {
+                return false;
+            }
+        }
+        if covered.len() != token_bytes.len() {
+            return false;
+        }
+
+        struct Frame {
+            node: u32,
+            next_child: usize,
+            prefix_len: usize,
+        }
+        let mut canonical_seen = vec![false; self.canonical_token_count()];
+        let mut prefix = Vec::<u8>::new();
+        let mut frames = vec![Frame {
+            node: 0,
+            next_child: 0,
+            prefix_len: 0,
+        }];
+        while !frames.is_empty() {
+            let frame_index = frames.len() - 1;
+            let node_id = frames[frame_index].node;
+            if frames[frame_index].next_child == 0 {
+                if let Some(canonical) = self.trie.node(node_id).token_id {
+                    let canonical = canonical as usize;
+                    if canonical >= canonical_seen.len() || canonical_seen[canonical] {
+                        return false;
+                    }
+                    let Some(originals) = self.token_ids(canonical as u32) else {
+                        return false;
+                    };
+                    let Some(representative) = originals.first() else {
+                        return false;
+                    };
+                    if token_bytes
+                        .get(representative)
+                        .is_none_or(|bytes| bytes.as_slice() != prefix.as_slice())
+                    {
+                        return false;
+                    }
+                    canonical_seen[canonical] = true;
+                }
+            }
+            let children = self.trie.children(node_id);
+            if frames[frame_index].next_child < children.len() {
+                let edge = children[frames[frame_index].next_child].clone();
+                frames[frame_index].next_child += 1;
+                let prefix_len = prefix.len();
+                prefix.extend_from_slice(self.trie.edge_bytes(&edge));
+                frames.push(Frame {
+                    node: edge.child,
+                    next_child: 0,
+                    prefix_len,
+                });
+            } else {
+                let prefix_len = frames[frame_index].prefix_len;
+                frames.pop();
+                prefix.truncate(prefix_len);
+            }
+        }
+        canonical_seen.into_iter().all(|seen| seen)
+    }
 }
 
 impl Default for DynamicMaskVocab {
@@ -6279,6 +6371,7 @@ impl Default for DynamicMaskVocab {
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: false,
+            grammar_quotiented: false,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),

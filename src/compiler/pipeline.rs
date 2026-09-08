@@ -5615,6 +5615,42 @@ pub(crate) fn compile_dynamic_owned_with_table_construction(
     compile_dynamic_owned_impl(grammar, vocab, default_table_construction, true)
 }
 
+/// Compile the ordinary low-latency dynamic runtime, then replace only its
+/// mask-walk vocabulary with a grammar-equivalence quotient. The complete
+/// original vocabulary retained by `Constraint` remains authoritative for
+/// commit, composition compatibility, and boundary-trigger construction.
+pub(crate) fn compile_dynamic_owned_with_vocab_partition_with_table_construction(
+    grammar: GrammarDef,
+    vocab: &Vocab,
+    default_table_construction: GlrTableConstruction,
+) -> crate::Result<DynamicConstraint> {
+    let partition_grammar = grammar.clone();
+    let mut constraint =
+        compile_dynamic_owned_impl(grammar, vocab, default_table_construction, true)?;
+    let partition = crate::compiler::vocab_partition::compile_vocab_partition_owned(
+        partition_grammar,
+        vocab,
+        crate::VocabPartitionStrategy::Automatic,
+    );
+    let mut quotient =
+        crate::compiler::constraint_possible_matches::runtime_dynamic_vocab_for_partition(
+            vocab,
+            &partition,
+        )
+        .map_err(crate::GlrMaskError::Compilation)?;
+
+    // Lexer-side mask projections are independent of the vocabulary trie. Reuse
+    // them when possible, then let the quotient prepare any runtime artifacts
+    // whose shape does depend on its smaller representative vocabulary.
+    quotient.inherit_dynamic_lexer_metadata_from(&constraint.inner.dynamic_mask_vocab);
+    constraint
+        .inner
+        .prepare_dynamic_mask_runtime_artifacts(&mut quotient);
+    constraint.inner.dynamic_mask_vocab = quotient;
+    constraint.inner.lazy_dynamic_mask_vocab = std::sync::OnceLock::new();
+    Ok(constraint)
+}
+
 pub(crate) fn compile_dynamic_owned_unfinalized_with_table_construction(
     grammar: GrammarDef,
     vocab: &Vocab,

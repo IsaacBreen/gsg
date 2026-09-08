@@ -560,6 +560,11 @@ struct DynamicConstraintTransferMetadataV11 {
     /// lazily on first mask request.
     projected_terminal_quotients_prepared: bool,
     boundary_trigger: DynamicBoundaryTriggerWire,
+    /// Present only for the opt-in grammar-equivalence dynamic vocabulary.
+    /// Ordinary transfer artifacts continue to reconstruct the pure model-vocab
+    /// trie from the caller-supplied Vocab.
+    #[serde(default)]
+    grammar_quotient_vocab: Option<crate::runtime::DynamicMaskVocabArtifact>,
 }
 
 struct DynamicConstraintTransferSectionsV11 {
@@ -1399,6 +1404,11 @@ impl DynamicConstraint {
             projected_terminal_quotients,
             projected_terminal_quotients_prepared,
             boundary_trigger,
+            grammar_quotient_vocab: constraint
+                .dynamic_mask_vocab
+                .is_grammar_quotiented()
+                .then(|| constraint.dynamic_mask_vocab.to_vocab_artifact())
+                .flatten(),
         };
         DynamicConstraintTransferSectionsV11 {
             table,
@@ -1484,6 +1494,11 @@ impl DynamicConstraint {
             projected_terminal_quotients,
             projected_terminal_quotients_prepared,
             boundary_trigger,
+            grammar_quotient_vocab: constraint
+                .dynamic_mask_vocab
+                .is_grammar_quotiented()
+                .then(|| constraint.dynamic_mask_vocab.to_vocab_artifact())
+                .flatten(),
         };
 
         let base_ms = base_started
@@ -1856,6 +1871,10 @@ impl DynamicConstraint {
             }
 
             let assemble_started = profile.then(std::time::Instant::now);
+            let dynamic_mask_vocab = Self::dynamic_vocab_from_transfer_artifact(
+                metadata.grammar_quotient_vocab.clone(),
+                vocab,
+            )?;
             let mut inner = Self::constraint_from_payload_v2_with_dynamic_vocab(
                 DynamicConstraintPayloadV2 {
                     v1: DynamicConstraintPayloadV1 {
@@ -1870,7 +1889,7 @@ impl DynamicConstraint {
                     },
                     special_token_terminals: metadata.special_token_terminals,
                 },
-                crate::compiler::constraint_possible_matches::runtime_dynamic_vocab_for_vocab(vocab),
+                dynamic_mask_vocab,
             );
             if let Some(mask_tokenizer) = metadata.mask_tokenizer {
                 inner.dynamic_mask_vocab.set_mask_tokenizer_quotient(
@@ -2168,6 +2187,10 @@ impl DynamicConstraint {
             }
 
             let assemble_started = profile.then(std::time::Instant::now);
+            let dynamic_mask_vocab = Self::dynamic_vocab_from_transfer_artifact(
+                metadata.grammar_quotient_vocab.clone(),
+                vocab,
+            )?;
             let mut inner = Self::constraint_from_payload_v2_with_dynamic_vocab(
                 DynamicConstraintPayloadV2 {
                     v1: DynamicConstraintPayloadV1 {
@@ -2182,7 +2205,7 @@ impl DynamicConstraint {
                     },
                     special_token_terminals: metadata.special_token_terminals,
                 },
-                crate::compiler::constraint_possible_matches::runtime_dynamic_vocab_for_vocab(vocab),
+                dynamic_mask_vocab,
             );
             if let Some(mask_tokenizer) = metadata.mask_tokenizer {
                 inner.dynamic_mask_vocab.set_mask_tokenizer_quotient(
@@ -2685,7 +2708,18 @@ impl DynamicConstraint {
                 .skip(1)
                 .all(|constraint| constraint.token_bytes == first.token_bytes)
         });
-        let dynamic_mask_vocab = share_vocab
+        // The self-contained wire has one shared dynamic-vocabulary slot.
+        // Ordinary alternatives can share the model-vocabulary trie, but
+        // grammar-quotiented alternatives may have different partitions. In
+        // that case omit the shared accelerator and let load lazily rebuild the
+        // full vocabulary per alternative; semantics stay exact, while the
+        // external-vocab transfer format below can retain each quotient
+        // independently.
+        let has_per_alternative_quotient = constraints.len() > 1
+            && constraints
+                .iter()
+                .any(|constraint| constraint.dynamic_mask_vocab.is_grammar_quotiented());
+        let dynamic_mask_vocab = (share_vocab && !has_per_alternative_quotient)
             .then(|| {
                 if constraints.len() == 1 {
                     constraints[0].dynamic_mask_vocab.to_artifact()
@@ -2711,6 +2745,27 @@ impl DynamicConstraint {
         bytes.extend_from_slice(&(payload.len() as u64).to_le_bytes());
         bytes.extend_from_slice(&payload);
         bytes
+    }
+
+    fn dynamic_vocab_from_transfer_artifact(
+        artifact: Option<crate::runtime::DynamicMaskVocabArtifact>,
+        vocab: &Vocab,
+    ) -> crate::Result<DynamicMaskVocab> {
+        let Some(artifact) = artifact else {
+            return Ok(
+                crate::compiler::constraint_possible_matches::runtime_dynamic_vocab_for_vocab(vocab),
+            );
+        };
+        let mut quotient = DynamicMaskVocab::from_artifact(artifact)
+            .map_err(crate::GlrMaskError::Serialization)?;
+        if !quotient.matches_token_bytes_exact(vocab.entries_map()) {
+            return Err(crate::GlrMaskError::Serialization(
+                "dynamic transfer grammar-quotient vocabulary does not match supplied token bytes"
+                    .to_owned(),
+            ));
+        }
+        quotient.restore_root_layout_metadata_from_token_bytes(vocab.entries_map());
+        Ok(quotient)
     }
 
     /// Load either a self-contained artifact or a transfer artifact whose
