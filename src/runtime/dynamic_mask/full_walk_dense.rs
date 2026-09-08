@@ -4356,10 +4356,17 @@ fn try_full_walk_mask_with_table_from_initial<
             .iter()
             .all(|branch| branch.initial_prune_guard.is_passed())
         && vocab.residual_original_token_words_for(trie).is_none();
+    // Grammar-quotiented O2 masks can be extremely dense even when the parser
+    // admits only one terminal: one quotient terminal may represent nearly the
+    // whole model vocabulary.  Do not let parser singleton-ness force a sparse
+    // positive rebuild in that case.  Record the exact walk result and choose
+    // the cheaper output polarity after the walk instead.  O1 retains the
+    // existing singleton-positive policy.
+    let quotient_adaptive_polarity = vocab.is_grammar_quotiented();
     let mut deferred_output = !force_positive_rebuild
         && llg_master_decision.is_none()
-        && !singleton_positive_rebuild
-        && !effective_singleton_positive_rebuild
+        && (quotient_adaptive_polarity
+            || (!singleton_positive_rebuild && !effective_singleton_positive_rebuild))
         && state.constraint.ignore_terminal.is_none()
         && root_branches
             .iter()
@@ -4376,9 +4383,10 @@ fn try_full_walk_mask_with_table_from_initial<
             buf[copy_len..].fill(0);
         }
         true
-    } else if singleton_positive_rebuild
-        || effective_singleton_positive_rebuild
-        || force_positive_rebuild
+    } else if !deferred_output
+        && (singleton_positive_rebuild
+            || effective_singleton_positive_rebuild
+            || force_positive_rebuild)
     {
         buf.fill(0);
         true
