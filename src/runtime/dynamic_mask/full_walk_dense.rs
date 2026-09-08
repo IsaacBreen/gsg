@@ -1203,6 +1203,14 @@ fn precollapse_master_decision(
             }
 
             for &terminal in &eligible {
+                if prepared_slice_slot
+                    .and_then(|slot| {
+                        vocab.prepared_master_proof_result(source, slot, terminal)
+                    })
+                    == Some(false)
+                {
+                    continue;
+                }
                 let proof_started = profile_proof.then(std::time::Instant::now);
                 let virtual_proof = virtual_residual_slice_prefix_contained(
                     &state.constraint.tokenizer,
@@ -1233,7 +1241,14 @@ fn precollapse_master_decision(
                 }
             }
 
-            if !eligible.is_empty() {
+            let needs_quotient = eligible.iter().copied().any(|terminal| {
+                prepared_slice_slot
+                    .and_then(|slot| {
+                        vocab.prepared_master_proof_result(source, slot, terminal)
+                    })
+                    .is_none()
+            });
+            if needs_quotient {
                 vocab.prepare_runtime_projected_terminal_quotients(
                     &state.constraint.tokenizer,
                     &safe_plus_slice.slice_token_bytes(),
@@ -1241,6 +1256,14 @@ fn precollapse_master_decision(
             }
 
             for &terminal in &eligible {
+                if prepared_slice_slot
+                    .and_then(|slot| {
+                        vocab.prepared_master_proof_result(source, slot, terminal)
+                    })
+                    .is_some()
+                {
+                    continue;
+                }
                 let proof_started = profile_proof.then(std::time::Instant::now);
                 let quotient_proof = vocab.projected_terminal_slice_contained(
                     terminal,
@@ -1278,14 +1301,19 @@ fn precollapse_master_decision(
         for (source, terminals) in &safe_radius_candidates {
                 for &terminal in terminals {
                     let projected_started = profile_proof.then(std::time::Instant::now);
-                    let projected_radius = vocab.projected_terminal_slice_repeat_radius(
-                        terminal,
-                        *source,
-                        safe_plus_slice.cache_id(),
-                        safe_plus_slice.dfa(),
-                        max_vocab_safe_chars,
-                        16 * 1024,
-                    );
+                    let projected_radius = vocab
+                        .prepared_safe_radius(*source, terminal)
+                        .map(u32::from)
+                        .or_else(|| {
+                            vocab.projected_terminal_slice_repeat_radius(
+                                terminal,
+                                *source,
+                                safe_plus_slice.cache_id(),
+                                safe_plus_slice.dfa(),
+                                max_vocab_safe_chars,
+                                16 * 1024,
+                            )
+                        });
                     if let Some(started) = projected_started {
                         eprintln!(
                             "[glrmask/profile][proof_phase] kind=projected_radius terminal={} source={} result={:?} ms={:.3}",
@@ -4274,14 +4302,19 @@ fn try_full_walk_mask_with_table_from_initial<
                 .iter()
                 .copied()
                 .filter_map(|terminal| {
-                    let projected = vocab.projected_terminal_slice_repeat_radius(
-                        terminal,
-                        source,
-                        safe_plus.cache_id(),
-                        safe_plus.dfa(),
-                        max_vocab_safe_chars,
-                        16 * 1024,
-                    );
+                    let projected = vocab
+                        .prepared_safe_radius(source, terminal)
+                        .map(u32::from)
+                        .or_else(|| {
+                            vocab.projected_terminal_slice_repeat_radius(
+                                terminal,
+                                source,
+                                safe_plus.cache_id(),
+                                safe_plus.dfa(),
+                                max_vocab_safe_chars,
+                                16 * 1024,
+                            )
+                        });
                     let symbolic = virtual_residual_safe_repeat_radius(
                         &state.constraint.tokenizer,
                         source,

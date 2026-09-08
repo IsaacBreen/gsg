@@ -2051,6 +2051,18 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
                          candidates: &[TerminalID]| -> bool {
                 let cache_id = slice.cache_id() | 0x0001_0000;
                 candidates.iter().copied().any(|terminal| {
+                    let prepared_slot = if slice.cache_id() == 0 {
+                        Some(0usize)
+                    } else if slice.cache_id() == 3 {
+                        Some(1usize)
+                    } else {
+                        None
+                    };
+                    if let Some(prepared) = prepared_slot.and_then(|slot| {
+                        vocab.prepared_master_proof_result(source, slot, terminal)
+                    }) {
+                        return prepared;
+                    }
                     if !transitions.future_contains(lexer_state, terminal)
                         && !transitions.matched_terminals(lexer_state).contains(&terminal)
                     {
@@ -2129,14 +2141,19 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
                     .iter()
                     .copied()
                     .filter_map(|terminal| {
-                        let projected = vocab.projected_terminal_slice_repeat_radius(
-                            terminal,
-                            source,
-                            safe_plus.cache_id(),
-                            safe_plus.dfa(),
-                            max_vocab_safe_chars,
-                            16 * 1024,
-                        );
+                        let projected = vocab
+                            .prepared_safe_radius(source, terminal)
+                            .map(u32::from)
+                            .or_else(|| {
+                                vocab.projected_terminal_slice_repeat_radius(
+                                    terminal,
+                                    source,
+                                    safe_plus.cache_id(),
+                                    safe_plus.dfa(),
+                                    max_vocab_safe_chars,
+                                    16 * 1024,
+                                )
+                            });
                         let symbolic_started = std::env::var_os(
                             "GLRMASK_PROFILE_DYNAMIC_PROOF_PHASES",
                         )

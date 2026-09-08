@@ -1318,7 +1318,46 @@ fn static_virtual_residual_candidate(
         })
 }
 
-fn build_dynamic_tokenizer(grammar: &GrammarDef, expressions: &[Expr]) -> crate::Result<Tokenizer> {
+fn dynamic_direct_residual_master_prover_candidate_count(
+    expressions: &[Expr],
+    safe_slice_bytes: U8Set,
+) -> usize {
+    fn support(expr: &Expr) -> U8Set {
+        match expr {
+            Expr::U8Seq(bytes) => U8Set::from_bytes(bytes),
+            Expr::U8Class(set) => *set,
+            Expr::Dfa(dfa) => {
+                let mut set = U8Set::empty();
+                for state in 0..dfa.num_states() as u32 {
+                    for (byte, _) in dfa.transitions(state) {
+                        set.insert(byte);
+                    }
+                }
+                set
+            }
+            Expr::Seq(parts) | Expr::Choice(parts) => parts
+                .iter()
+                .fold(U8Set::empty(), |acc, part| acc | support(part)),
+            Expr::Intersect { expr, intersect } => {
+                support(expr).intersection(&support(intersect))
+            }
+            Expr::Exclude { expr, .. } | Expr::Repeat { expr, .. } => support(expr),
+            Expr::Shared(inner) => support(inner),
+            Expr::Epsilon => U8Set::empty(),
+        }
+    }
+
+    expressions
+        .iter()
+        .filter(|expression| safe_slice_bytes.is_subset(&support(expression)))
+        .count()
+}
+
+fn build_dynamic_tokenizer(
+    grammar: &GrammarDef,
+    expressions: &[Expr],
+    vocab: &Vocab,
+) -> crate::Result<Tokenizer> {
     const LARGE_DYNAMIC_LEXER_TERMINALS: usize = 96;
 
     let explicit_policy = std::env::var_os("GLRMASK_LEXER_SINGLETONS").is_some()
@@ -1378,6 +1417,35 @@ fn build_dynamic_tokenizer(grammar: &GrammarDef, expressions: &[Expr]) -> crate:
         // combined product tokenizer instead: it preserves terminal identities
         // while sharing prefix states and gives the runtime a deterministic
         // transition structure.
+        const DEFAULT_DIRECT_PROVER_MIN_CANDIDATES: usize = 32;
+        let force_direct = env_flag_enabled("GLRMASK_EXPERIMENT_DIRECT_RESIDUAL_MASTER_PROVERS");
+        let auto_direct = env_flag_enabled_by_default("GLRMASK_DYNAMIC_DIRECT_RESIDUAL_MASTER_PROVERS");
+        let min_candidates = std::env::var(
+            "GLRMASK_DYNAMIC_DIRECT_RESIDUAL_MASTER_PROVER_MIN_CANDIDATES",
+        )
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(DEFAULT_DIRECT_PROVER_MIN_CANDIDATES);
+        let safe_slice_bytes = cpm::llg_safe_slice_token_bytes_for_vocab(vocab);
+        let direct_candidates = dynamic_direct_residual_master_prover_candidate_count(
+            expressions,
+            safe_slice_bytes,
+        );
+        let use_direct = force_direct || (auto_direct && direct_candidates >= min_candidates);
+        if compile_profile_enabled()
+            || std::env::var_os("GLRMASK_PROFILE_DIRECT_RESIDUAL_MASTER_PROVERS").is_some()
+        {
+            eprintln!(
+                "[glrmask/profile][direct_residual_master_gate] terminals={} candidates={} min_candidates={} force={} auto={} selected={}",
+                grammar.terminals.len(),
+                direct_candidates,
+                min_candidates,
+                force_direct,
+                auto_direct,
+                use_direct,
+            );
+        }
+
         let labels = grammar
             .terminals
             .iter()
@@ -1392,7 +1460,7 @@ fn build_dynamic_tokenizer(grammar: &GrammarDef, expressions: &[Expr]) -> crate:
             &partition_ids,
             Some(&residual_isolation_classes),
             Some(false),
-            false,
+            use_direct,
         ))
     } else {
         let labels = grammar
@@ -5887,7 +5955,11 @@ fn compile_dynamic_owned_impl(
                 } else {
                     let mut tokenizer = match virtual_tokenizer {
                         Some(tokenizer) => tokenizer,
-                        None => build_dynamic_tokenizer(&prepared_grammar, &prepared_expressions)?,
+                        None => build_dynamic_tokenizer(
+                            &prepared_grammar,
+                            &prepared_expressions,
+                            vocab,
+                        )?,
                     };
                     tokenizer.isolate_start_state_and_drain_nullable_terminals();
                     (tokenizer, None)

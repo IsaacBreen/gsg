@@ -5,6 +5,7 @@ pub(crate) use glrmask_grammar::__private::import::lark;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::automata::lexer::Lexer;
 use crate::compiler::compile::{
     compile_owned_profiled_with_table_construction,
     compile_owned_with_table_construction,
@@ -558,6 +559,79 @@ fn compile_dynamic_serialized_from_source_profiled(
             vocab,
             default_table_construction,
         )?;
+        let direct_residual_master_provers_enabled = std::env::var(
+            "GLRMASK_DYNAMIC_DIRECT_RESIDUAL_MASTER_PROVERS",
+        )
+        .ok()
+        .map(|value| {
+            !matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "" | "0" | "false" | "no" | "off"
+            )
+        })
+        .unwrap_or(true)
+            || std::env::var("GLRMASK_EXPERIMENT_DIRECT_RESIDUAL_MASTER_PROVERS")
+                .ok()
+                .is_some_and(|value| {
+                    !matches!(
+                        value.trim().to_ascii_lowercase().as_str(),
+                        "" | "0" | "false" | "no" | "off"
+                    )
+                });
+        if direct_residual_master_provers_enabled
+            && constraint
+                .inner
+                .tokenizer
+                .terminal_residual_coordinates()
+                .is_some()
+        {
+            use crate::compiler::stages::id_map_and_terminal_dwa::classify::VocabPartitionDfa;
+            let safe_plus = VocabPartitionDfa::compile_utf8_regex(
+                "llg-safe+",
+                r#"[^"\\\x00-\x1F\x7F]+"#,
+            )
+            .expect("safe-string slice regex must compile");
+            let whitespace = VocabPartitionDfa::compile_utf8_regex(
+                "llg-whitespace",
+                r"[\x20\x0A\x0D\x09]+",
+            )
+            .expect("whitespace slice regex must compile");
+            let safe_slice_bytes =
+                crate::compiler::constraint_possible_matches::llg_safe_slice_token_bytes_for_vocab(vocab);
+            let max_safe_chars =
+                crate::compiler::constraint_possible_matches::llg_master_max_safe_chars_for_vocab(vocab);
+            let started = std::time::Instant::now();
+            let result = constraint
+                .inner
+                .dynamic_mask_vocab
+                .prepare_master_provers_from_residual_coordinates(
+                    &constraint.inner.tokenizer,
+                    constraint.inner.tokenizer.num_states() as usize,
+                    &safe_plus,
+                    &whitespace,
+                    safe_slice_bytes,
+                    max_safe_chars,
+                );
+            if profile
+                || std::env::var_os("GLRMASK_PROFILE_DIRECT_RESIDUAL_MASTER_PROVERS").is_some()
+            {
+                if let Some((entries, product_pairs, edges)) = result {
+                    eprintln!(
+                        "[glrmask/profile][direct_residual_master_provers] entries={} product_pairs={} edges={} max_safe_chars={} elapsed_ms={:.3}",
+                        entries,
+                        product_pairs,
+                        edges,
+                        max_safe_chars,
+                        started.elapsed().as_secs_f64() * 1e3,
+                    );
+                } else {
+                    eprintln!(
+                        "[glrmask/profile][direct_residual_master_provers] unavailable elapsed_ms={:.3}",
+                        started.elapsed().as_secs_f64() * 1e3,
+                    );
+                }
+            }
+        }
         constraint.inner.prepare_dynamic_terminal_observation_classes_for_artifact();
         constraint.inner.prepare_dynamic_virtual_residual_mask_projections_for_artifact();
         compiled.push(constraint);

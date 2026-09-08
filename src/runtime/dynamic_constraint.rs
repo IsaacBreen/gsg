@@ -77,7 +77,11 @@ const DYNAMIC_TRANSFER_V11_ALT_DESCRIPTOR_LEN: usize = 5 * 8;
 // v12 carries the compiled SRM3 virtual-residual mask projection wire format as
 // a dedicated 6th payload section. On load, the projection is restored directly
 // onto the dynamic mask vocabulary, eliminating projection reconstruction on first mask.
-const DYNAMIC_TRANSFER_VERSION: u16 = 12;
+const LEGACY_DYNAMIC_TRANSFER_VERSION_V12: u16 = 12;
+// v13 keeps the same six-section framing and wraps the v12 metadata with exact
+// compact master-slice proof/coverage/radius rows. This replaces giant
+// projected-terminal quotient payloads for the dynamic master proof fast path.
+const DYNAMIC_TRANSFER_VERSION: u16 = 13;
 const DYNAMIC_TRANSFER_V12_PAYLOAD_HEADER_LEN: usize = 8;
 const DYNAMIC_TRANSFER_V12_ALT_DESCRIPTOR_LEN: usize = 6 * 8;
 
@@ -560,6 +564,12 @@ struct DynamicConstraintTransferMetadataV11 {
     /// lazily on first mask request.
     projected_terminal_quotients_prepared: bool,
     boundary_trigger: DynamicBoundaryTriggerWire,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct DynamicConstraintTransferMetadataV13 {
+    base: DynamicConstraintTransferMetadataV11,
+    prepared_master_proofs: crate::runtime::PreparedMasterProofArtifact,
 }
 
 struct DynamicConstraintTransferSectionsV11 {
@@ -1468,7 +1478,7 @@ impl DynamicConstraint {
             .uses_compact_segmented_parser_runtime()
             .then(|| constraint.save())
             .unwrap_or_default();
-        let metadata = DynamicConstraintTransferMetadataV11 {
+        let metadata_base = DynamicConstraintTransferMetadataV11 {
             terminal_display_names: constraint.terminal_display_names.clone(),
             ignore_terminal: constraint.ignore_terminal,
             direct_regular_automaton: constraint.direct_regular_automaton.clone(),
@@ -1484,6 +1494,12 @@ impl DynamicConstraint {
             projected_terminal_quotients,
             projected_terminal_quotients_prepared,
             boundary_trigger,
+        };
+        let metadata = DynamicConstraintTransferMetadataV13 {
+            base: metadata_base,
+            prepared_master_proofs: constraint
+                .dynamic_mask_vocab
+                .prepared_master_proof_artifact(),
         };
 
         let base_ms = base_started
@@ -1937,6 +1953,7 @@ impl DynamicConstraint {
     fn load_transfer_v12(bytes: &[u8], vocab: &Vocab) -> crate::Result<Self> {
         let profile = std::env::var_os("GLRMASK_PROFILE_DYNAMIC_LOAD").is_some();
         let total_started = profile.then(std::time::Instant::now);
+        let version = u16::from_le_bytes([bytes[8], bytes[9]]);
 
         let backing_started = profile.then(std::time::Instant::now);
         let backing = Arc::new(bytes.to_vec());
@@ -2050,17 +2067,33 @@ impl DynamicConstraint {
             let virtual_residual_range = section(&mut cursor, lengths[5]);
 
             let metadata_started = profile.then(std::time::Instant::now);
-            let metadata: DynamicConstraintTransferMetadataV11 =
-                bincode::deserialize(&backing[metadata_range]).map_err(|err| {
-                    crate::GlrMaskError::Serialization(format!(
-                        "invalid dynamic v12 transfer metadata: {err}"
-                    ))
-                })?;
+            let (metadata, prepared_master_proofs) = if version == DYNAMIC_TRANSFER_VERSION {
+                let wire: DynamicConstraintTransferMetadataV13 =
+                    bincode::deserialize(&backing[metadata_range]).map_err(|err| {
+                        crate::GlrMaskError::Serialization(format!(
+                            "invalid dynamic v13 transfer metadata: {err}"
+                        ))
+                    })?;
+                (wire.base, wire.prepared_master_proofs)
+            } else {
+                let metadata: DynamicConstraintTransferMetadataV11 =
+                    bincode::deserialize(&backing[metadata_range]).map_err(|err| {
+                        crate::GlrMaskError::Serialization(format!(
+                            "invalid dynamic v12 transfer metadata: {err}"
+                        ))
+                    })?;
+                (
+                    metadata,
+                    crate::runtime::PreparedMasterProofArtifact::default(),
+                )
+            };
             if profile {
                 eprintln!(
-                    "[glrmask/profile][dynamic_transfer_v12_metadata] projected_terminal_quotients_prepared={} projected_terminal_quotients={}",
+                    "[glrmask/profile][dynamic_transfer_v12_metadata] version={} projected_terminal_quotients_prepared={} projected_terminal_quotients={} prepared_master_proofs={}",
+                    version,
                     metadata.projected_terminal_quotients_prepared,
                     metadata.projected_terminal_quotients.len(),
+                    !prepared_master_proofs.is_empty(),
                 );
             }
             let metadata_ms = metadata_started
@@ -2073,6 +2106,16 @@ impl DynamicConstraint {
                         &mut inner,
                         metadata.projected_terminal_quotients,
                     )?;
+                }
+                if !prepared_master_proofs.is_empty() {
+                    let source_state_count = inner.tokenizer.num_states() as usize;
+                    inner
+                        .dynamic_mask_vocab
+                        .restore_prepared_master_proof_artifact(
+                            prepared_master_proofs,
+                            source_state_count,
+                        )
+                        .map_err(crate::GlrMaskError::Serialization)?;
                 }
                 inner.boundary_trigger = metadata.boundary_trigger.into_trigger();
                 alternatives.push(Self {
@@ -2200,6 +2243,16 @@ impl DynamicConstraint {
                     metadata.projected_terminal_quotients,
                 )?;
             }
+            if !prepared_master_proofs.is_empty() {
+                let source_state_count = inner.tokenizer.num_states() as usize;
+                inner
+                    .dynamic_mask_vocab
+                    .restore_prepared_master_proof_artifact(
+                        prepared_master_proofs,
+                        source_state_count,
+                    )
+                    .map_err(crate::GlrMaskError::Serialization)?;
+            }
             inner.boundary_trigger = metadata.boundary_trigger.into_trigger();
             inner.deferred_table_rules_blob = decoded_table.deferred_rules;
             inner.deferred_table_rules = std::sync::OnceLock::new();
@@ -2246,7 +2299,7 @@ impl DynamicConstraint {
         if let Some(started) = total_started {
             eprintln!(
                 "[glrmask/profile][dynamic_transfer_load] version={} bytes={} backing_ms={:.3} framing_ms={:.3} payload_decode_ms={:.3} finalize_ms={:.3} total_ms={:.3}",
-                DYNAMIC_TRANSFER_VERSION,
+                version,
                 bytes.len(),
                 backing_ms,
                 framing_ms,
@@ -2741,6 +2794,7 @@ impl DynamicConstraint {
                 | LEGACY_DYNAMIC_TRANSFER_VERSION_V9
                 | LEGACY_DYNAMIC_TRANSFER_VERSION_V10
                 | LEGACY_DYNAMIC_TRANSFER_VERSION_V11
+                | LEGACY_DYNAMIC_TRANSFER_VERSION_V12
                 | DYNAMIC_TRANSFER_VERSION
         ) {
             return Err(crate::GlrMaskError::Serialization(format!(
@@ -2762,7 +2816,10 @@ impl DynamicConstraint {
                 "invalid dynamic transfer artifact payload length".to_owned(),
             ));
         }
-        if version == DYNAMIC_TRANSFER_VERSION {
+        if matches!(
+            version,
+            LEGACY_DYNAMIC_TRANSFER_VERSION_V12 | DYNAMIC_TRANSFER_VERSION
+        ) {
             return Self::load_transfer_v12(bytes, vocab);
         }
         if version == LEGACY_DYNAMIC_TRANSFER_VERSION_V11 {
@@ -4254,7 +4311,7 @@ mod tests {
     }
 
     #[test]
-    fn dynamic_transfer_v12_virtual_residuals_round_trip_and_v11_backward_compat() {
+    fn dynamic_transfer_v13_virtual_residuals_round_trip_and_v12_v11_backward_compat() {
         let vocab = Vocab::new(vec![
             (0, b"\"".to_vec()),
             (1, b"a".to_vec()),
@@ -4271,13 +4328,55 @@ mod tests {
         let constraint = DynamicConstraint::from_json_schema(schema, &vocab).unwrap();
         assert!(constraint.inner.tokenizer.has_any_virtual_runtime());
 
-        // Test V12 save and load
-        let v12_bytes = constraint.save_with_external_vocab();
-        assert_eq!(u16::from_le_bytes([v12_bytes[8], v12_bytes[9]]), DYNAMIC_TRANSFER_VERSION);
-        assert_eq!(DYNAMIC_TRANSFER_VERSION, 12);
+        // Test current V13 save and load.
+        let v13_bytes = constraint.save_with_external_vocab();
+        assert_eq!(u16::from_le_bytes([v13_bytes[8], v13_bytes[9]]), DYNAMIC_TRANSFER_VERSION);
+        assert_eq!(DYNAMIC_TRANSFER_VERSION, 13);
+
+        let v13_loaded = DynamicConstraint::load_with_vocab(&v13_bytes, &vocab).unwrap();
+        // Loaded constraint should carry the mask tokenizer projection directly from the wire
+        assert!(v13_loaded.inner.dynamic_mask_vocab.mask_projection_tokenizer().is_some());
+        assert_eq!(v13_loaded.start().mask(), constraint.start().mask());
+
+        // Test V12 backward compatibility. V13 deliberately keeps the V12
+        // six-section framing; only the metadata section is wrapped with the
+        // compact prepared-master-proof artifact. Re-encode the exact same
+        // sections with the legacy base metadata and V12 header.
+        let mut v12_sections =
+            DynamicConstraint::transfer_sections_v12_from_constraint(&constraint.inner);
+        let v13_metadata: DynamicConstraintTransferMetadataV13 =
+            bincode::deserialize(&v12_sections.metadata).unwrap();
+        v12_sections.metadata = bincode::serialize(&v13_metadata.base).unwrap();
+        let lengths = [
+            v12_sections.table.len(),
+            v12_sections.tokenizer.len(),
+            v12_sections.terminal_exprs_compressed.len(),
+            v12_sections.recursive_constraint_artifact.len(),
+            v12_sections.metadata.len(),
+            v12_sections.virtual_residual_wire.len(),
+        ];
+        let payload_capacity = DYNAMIC_TRANSFER_V12_PAYLOAD_HEADER_LEN
+            + DYNAMIC_TRANSFER_V12_ALT_DESCRIPTOR_LEN
+            + lengths.iter().sum::<usize>();
+        let mut v12_bytes = Vec::with_capacity(DYNAMIC_CONSTRAINT_HEADER_LEN + payload_capacity);
+        v12_bytes.extend_from_slice(&DYNAMIC_TRANSFER_MAGIC);
+        v12_bytes.extend_from_slice(&LEGACY_DYNAMIC_TRANSFER_VERSION_V12.to_le_bytes());
+        v12_bytes.extend_from_slice(&0u64.to_le_bytes());
+        v12_bytes.extend_from_slice(&1u32.to_le_bytes());
+        v12_bytes.extend_from_slice(&0u32.to_le_bytes());
+        for &length in &lengths {
+            v12_bytes.extend_from_slice(&(length as u64).to_le_bytes());
+        }
+        v12_bytes.extend_from_slice(&v12_sections.table);
+        v12_bytes.extend_from_slice(&v12_sections.tokenizer);
+        v12_bytes.extend_from_slice(&v12_sections.terminal_exprs_compressed);
+        v12_bytes.extend_from_slice(&v12_sections.recursive_constraint_artifact);
+        v12_bytes.extend_from_slice(&v12_sections.metadata);
+        v12_bytes.extend_from_slice(&v12_sections.virtual_residual_wire);
+        let payload_len = v12_bytes.len() - DYNAMIC_CONSTRAINT_HEADER_LEN;
+        v12_bytes[10..18].copy_from_slice(&(payload_len as u64).to_le_bytes());
 
         let v12_loaded = DynamicConstraint::load_with_vocab(&v12_bytes, &vocab).unwrap();
-        // Loaded constraint should carry the mask tokenizer projection directly from the wire
         assert!(v12_loaded.inner.dynamic_mask_vocab.mask_projection_tokenizer().is_some());
         assert_eq!(v12_loaded.start().mask(), constraint.start().mask());
 

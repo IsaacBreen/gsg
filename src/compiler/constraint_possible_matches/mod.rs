@@ -153,6 +153,14 @@ struct OrderedVocabTrieArtifacts {
     /// materialized. Kept separate so non-slicer users never pay this one-time
     /// preparation cost, while every slicer-enabled constraint Arc-shares it.
     runtime_dynamic_vocab_llg: Arc<OnceLock<Arc<DynamicMaskVocab>>>,
+    /// Vocabulary-global byte support of whole tokens admitted by the exact
+    /// llguidance safe-string language. Producer-side proof preparation needs
+    /// only this tiny set; caching it avoids materializing the full runtime
+    /// dynamic vocabulary just to select proof candidates.
+    llg_safe_slice_token_bytes: Arc<OnceLock<U8Set>>,
+    /// Largest Unicode-scalar length of any whole token in the exact safe
+    /// language. Bounded master proofs only need radii up to this value.
+    llg_master_max_safe_chars: Arc<OnceLock<u16>>,
 }
 
 impl VocabDerivedArtifact for OrderedVocabTrieArtifacts {}
@@ -164,6 +172,8 @@ impl OrderedVocabTrieArtifacts {
             trie,
             runtime_dynamic_vocab: Arc::new(OnceLock::new()),
             runtime_dynamic_vocab_llg: Arc::new(OnceLock::new()),
+            llg_safe_slice_token_bytes: Arc::new(OnceLock::new()),
+            llg_master_max_safe_chars: Arc::new(OnceLock::new()),
         }
     }
 }
@@ -3190,6 +3200,7 @@ fn prepared_runtime_dynamic_vocab(
 
 fn prepare_llg_slice_leftovers_for_ordered_vocab(
     ordered_vocab: &OrderedVocab,
+    safe_token_bytes: U8Set,
     vocab: &mut DynamicMaskVocab,
 ) {
     if vocab.has_llg_slice_leftovers() {
@@ -3217,7 +3228,6 @@ fn prepare_llg_slice_leftovers_for_ordered_vocab(
     let word_len = vocab.all_original_token_words().len();
     let mut safe_words = vec![0u32; word_len];
     let mut whitespace_words = vec![0u32; word_len];
-    let mut safe_token_bytes = U8Set::empty();
     let mut whitespace_token_bytes = U8Set::empty();
     let mut safe_max_token_byte_len = 0u32;
     let mut whitespace_max_token_byte_len = 0u32;
@@ -3249,9 +3259,6 @@ fn prepare_llg_slice_leftovers_for_ordered_vocab(
         };
         if is_safe {
             safe_max_token_byte_len = safe_max_token_byte_len.max(bytes.len() as u32);
-            for &byte in bytes {
-                safe_token_bytes.insert(byte);
-            }
         }
         if is_whitespace {
             whitespace_max_token_byte_len = whitespace_max_token_byte_len.max(bytes.len() as u32);
@@ -3350,12 +3357,73 @@ fn prepare_llg_slice_leftovers_for_ordered_vocab(
     vocab.set_llg_slice_leftovers(slices);
 }
 
+fn llg_safe_slice_token_bytes_for_artifacts(artifacts: &OrderedVocabTrieArtifacts) -> U8Set {
+    *artifacts.llg_safe_slice_token_bytes.get_or_init(|| {
+        let safe_plus = VocabPartitionDfa::compile_utf8_regex(
+            "llg-safe+",
+            r#"[^"\\\x00-\x1F\x7F]+"#,
+        )
+        .expect("safe-string slice regex must compile");
+        let mut bytes = U8Set::empty();
+        for token in &artifacts.ordered_vocab.ordered_token_bytes {
+            if safe_plus.is_match(token) {
+                for &byte in token {
+                    bytes.insert(byte);
+                }
+            }
+        }
+        bytes
+    })
+}
+
+/// Return only the vocabulary-global byte support needed to choose exact
+/// safe-slice containment candidates. This deliberately does not construct the
+/// dynamic-mask trie or the full llguidance slice runtime template.
+pub(crate) fn llg_safe_slice_token_bytes_for_vocab(vocab: &Vocab) -> U8Set {
+    let artifacts = get_ordered_vocab_trie_artifacts_for_vocab(vocab).0;
+    llg_safe_slice_token_bytes_for_artifacts(&artifacts)
+}
+
+fn llg_master_max_safe_chars_for_artifacts(artifacts: &OrderedVocabTrieArtifacts) -> u16 {
+    *artifacts.llg_master_max_safe_chars.get_or_init(|| {
+        let safe_plus = VocabPartitionDfa::compile_utf8_regex(
+            "llg-safe+",
+            r#"[^"\\\x00-\x1F\x7F]+"#,
+        )
+        .expect("safe-string slice regex must compile");
+        artifacts
+            .ordered_vocab
+            .ordered_token_bytes
+            .iter()
+            .filter_map(|token| {
+                safe_plus.is_match(token).then(|| {
+                    let chars = std::str::from_utf8(token)
+                        .expect("safe-string UTF-8 regex matched invalid UTF-8")
+                        .chars()
+                        .count();
+                    u16::try_from(chars).expect("model token exceeds u16 Unicode-scalar count")
+                })
+            })
+            .max()
+            .unwrap_or(0)
+    })
+}
+
+pub(crate) fn llg_master_max_safe_chars_for_vocab(vocab: &Vocab) -> u16 {
+    let artifacts = get_ordered_vocab_trie_artifacts_for_vocab(vocab).0;
+    llg_master_max_safe_chars_for_artifacts(&artifacts)
+}
+
 fn prepared_runtime_dynamic_vocab_with_llg(
     artifacts: &OrderedVocabTrieArtifacts,
 ) -> &Arc<DynamicMaskVocab> {
     artifacts.runtime_dynamic_vocab_llg.get_or_init(|| {
         let mut vocab = prepared_runtime_dynamic_vocab(artifacts).fresh_runtime_instance();
-        prepare_llg_slice_leftovers_for_ordered_vocab(artifacts.ordered_vocab.as_ref(), &mut vocab);
+        prepare_llg_slice_leftovers_for_ordered_vocab(
+            artifacts.ordered_vocab.as_ref(),
+            llg_safe_slice_token_bytes_for_artifacts(artifacts),
+            &mut vocab,
+        );
         Arc::new(vocab)
     })
 }

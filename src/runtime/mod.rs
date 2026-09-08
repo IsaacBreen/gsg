@@ -18,6 +18,7 @@ pub(crate) use artifact::{
     CompositionGrammarSummary, ConstraintRuntimeBackend, DynamicMaskTrie, DynamicMaskVocab,
     DynamicMaskVocabArtifact, DeferredTerminalExprBytes, FastCommitTemplateDfas,
     FastTokenizerTransitions, LateGrammarSlot,
+    PreparedMasterProofArtifact,
     SegmentedBoundaryParser, SegmentedBoundaryShard, SegmentedBoundaryShardBackend,
     SegmentedBoundaryTerminalTrie, SegmentedParserComponent, SegmentedParserComponentTables,
     SegmentedParserLink, SpecialTokenTerminal, StaticDynamicOverlayMetadata,
