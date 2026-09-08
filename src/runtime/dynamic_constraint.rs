@@ -1799,27 +1799,28 @@ impl DynamicConstraint {
             let table_start = table_range.start;
             let tokenizer_start = tokenizer_range.start;
             let table_tokenizer_started = profile.then(std::time::Instant::now);
-            let ((table_result, tokenizer_result), ()) = rayon::join(
-                || {
-                    rayon::join(
-                        || {
-                            crate::compiler::glr::table::artifact_serde::from_compact_bytes_deferred_backed(
-                                &backing[table_range],
-                                Arc::clone(&backing),
-                                table_start,
-                            )
-                        },
-                        || {
-                            crate::automata::lexer::tokenizer::artifact_serde::from_fast_bytes_backed(
-                                &backing[tokenizer_range],
-                                Arc::clone(&backing),
-                                tokenizer_start,
-                            )
-                        },
-                    )
-                },
-                || (),
-            );
+            let decode_table = || {
+                crate::compiler::glr::table::artifact_serde::from_compact_bytes_deferred_backed(
+                    &backing[table_range],
+                    Arc::clone(&backing),
+                    table_start,
+                )
+            };
+            let decode_tokenizer = || {
+                crate::automata::lexer::tokenizer::artifact_serde::from_fast_bytes_backed(
+                    &backing[tokenizer_range],
+                    Arc::clone(&backing),
+                    tokenizer_start,
+                )
+            };
+            const PARALLEL_TRANSFER_DECODE_MIN_BYTES: usize = 64 * 1024;
+            let parallel_decode = rayon::current_num_threads() > 1
+                && lengths[0].saturating_add(lengths[1]) >= PARALLEL_TRANSFER_DECODE_MIN_BYTES;
+            let (table_result, tokenizer_result) = if parallel_decode {
+                rayon::join(decode_table, decode_tokenizer)
+            } else {
+                (decode_table(), decode_tokenizer())
+            };
             let decoded_table = table_result.map_err(crate::GlrMaskError::Serialization)?;
             let mut tokenizer = tokenizer_result.map_err(crate::GlrMaskError::Serialization)?;
             let table_tokenizer_ms = table_tokenizer_started

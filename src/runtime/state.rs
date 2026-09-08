@@ -381,6 +381,12 @@ pub(crate) struct CommitBuffers {
 
 impl Default for CommitBuffers {
     fn default() -> Self {
+        Self::with_flat_frontier_preallocation(256)
+    }
+}
+
+impl CommitBuffers {
+    fn with_flat_frontier_preallocation(preallocated_gss: usize) -> Self {
         Self {
             advance_result_cache: FxHashMap::default(),
             semantic_frontier_keys: GssSemanticKeyInterner::with_capacity(256),
@@ -399,12 +405,26 @@ impl Default for CommitBuffers {
             prune_tokenizer_exec:
                 crate::runtime::commit::tokenizer_scan::ReusableTokenizerExecScratch::default(),
             small_queue: crate::runtime::commit::SmallCommitQueueScratch::default(),
-            flat_frontier: crate::runtime::commit::FlatFrontierScratch::default(),
+            flat_frontier:
+                crate::runtime::commit::FlatFrontierScratch::with_preallocated_gss(preallocated_gss),
             linear_stack_original: Vec::with_capacity(LINEAR_STACK_RESERVE),
             linear_stack_work: Vec::with_capacity(LINEAR_STACK_RESERVE),
             processing_queue: Vec::new(),
             template_advance_runtime:
                 crate::runtime::commit::TemplateAdvanceRuntime::default(),
+        }
+    }
+
+    pub(crate) fn for_constraint(constraint: &Constraint) -> Self {
+        const ORDINARY_DYNAMIC_PREALLOCATED_GSS: usize = 32;
+        let ordinary_dynamic = constraint.uses_dynamic_runtime()
+            && constraint.static_dynamic_overlay.is_none()
+            && !constraint.table_has_ambiguity()
+            && !constraint.tokenizer_has_epsilon_transitions;
+        if ordinary_dynamic {
+            Self::with_flat_frontier_preallocation(ORDINARY_DYNAMIC_PREALLOCATED_GSS)
+        } else {
+            Self::default()
         }
     }
 }
@@ -470,7 +490,7 @@ impl<'a> Clone for ConstraintState<'a> {
         ConstraintState {
             constraint: self.constraint,
             state: self.state.clone(),
-            buffers: self.buffers.clone(),
+            buffers: CommitBuffers::for_constraint(self.constraint),
             generation: self.generation,
             mask_cache: Mutex::new(None),
             mask_scratch: Arc::new(Mutex::new(MaskScratch::for_constraint(self.constraint))),

@@ -48,7 +48,7 @@ use crate::automata::weighted::terminal_automaton::TerminalAutomaton;
 use crate::compiler::constraint_possible_matches as cpm;
 use crate::compiler::glr::analysis::AnalyzedGrammar;
 use crate::compiler::glr::table::{GLRTable, GlrTableConstruction};
-use crate::compiler::grammar::transforms::prepare_grammar_transforms_only;
+use crate::compiler::grammar::transforms::{prepare_dynamic_grammar_transforms_only, prepare_grammar_transforms_only};
 use crate::compiler::stages::id_map_and_terminal_dwa::classify::{
     SharedClassifyCache,
     prewarm_shared_classify_cache,
@@ -94,7 +94,7 @@ use crate::ds::u8set::U8Set;
 use crate::grammar::flat::{GrammarDef, Terminal, TerminalID};
 use crate::runtime::{Constraint, SpecialTokenTerminal};
 use crate::DynamicConstraint;
-use super::{macro_join, macro_parallelism_disabled};
+use super::{macro_join, macro_join_if, macro_parallelism_disabled};
 
 fn env_flag_enabled(name: &str) -> bool {
     std::env::var(name)
@@ -346,6 +346,14 @@ static COMPILE_THREAD_POOL: Lazy<Option<rayon::ThreadPool>> = Lazy::new(|| {
         .ok()
 });
 
+static SINGLE_THREAD_COMPILE_POOL: Lazy<Option<rayon::ThreadPool>> = Lazy::new(|| {
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(1)
+        .start_handler(|_| configure_compile_worker_thread())
+        .build()
+        .ok()
+});
+
 pub(crate) fn run_with_compile_thread_pool<F, R>(f: F) -> R
 where
     F: FnOnce() -> R + Send,
@@ -355,6 +363,18 @@ where
         pool.install(f)
     } else {
         f()
+    }
+}
+
+fn run_with_dynamic_compile_thread_pool<F, R>(single_thread: bool, f: F) -> R
+where
+    F: FnOnce() -> R + Send,
+    R: Send,
+{
+    if single_thread && let Some(pool) = &*SINGLE_THREAD_COMPILE_POOL {
+        pool.install(f)
+    } else {
+        run_with_compile_thread_pool(f)
     }
 }
 
@@ -596,17 +616,70 @@ fn compute_disallowed_follows_from_ever(
     disallowed_by_terminal
 }
 
+// Factoring recursively rebuilds expression trees and can dominate tokenizer construction
+// for importer-generated grammars with very large pre-parsed expression forests.  Count
+// only nodes that already exist here: parsing pattern strings merely to choose a scheduling
+// policy would duplicate the work this gate is intended to avoid.
+fn expression_tree_reaches_budget(expr: &Expr, remaining: &mut usize) -> bool {
+    if *remaining <= 1 {
+        *remaining = 0;
+        return true;
+    }
+    *remaining -= 1;
+    match expr {
+        Expr::Seq(parts) | Expr::Choice(parts) => parts
+            .iter()
+            .any(|part| expression_tree_reaches_budget(part, remaining)),
+        Expr::Repeat { expr, .. } => expression_tree_reaches_budget(expr, remaining),
+        Expr::Exclude { expr, exclude } => {
+            expression_tree_reaches_budget(expr, remaining)
+                || expression_tree_reaches_budget(exclude, remaining)
+        }
+        Expr::Intersect { expr, intersect } => {
+            expression_tree_reaches_budget(expr, remaining)
+                || expression_tree_reaches_budget(intersect, remaining)
+        }
+        Expr::Shared(expr) => expression_tree_reaches_budget(expr, remaining),
+        Expr::U8Seq(_) | Expr::U8Class(_) | Expr::Dfa(_) | Expr::Epsilon => false,
+    }
+}
+
+fn should_parallelize_terminal_factoring(grammar: &GrammarDef) -> bool {
+    // Keep small/ordinary grammars on the serial path.  At this scale the bounded tree
+    // walk and Rayon scheduling are comfortably amortized by the factoring work.
+    const MIN_PREPARSED_EXPR_NODES: usize = 64 * 1024;
+    if rayon::current_num_threads() <= 1 {
+        return false;
+    }
+    let mut remaining = MIN_PREPARSED_EXPR_NODES;
+    grammar.terminals.iter().any(|terminal| match terminal {
+        Terminal::Expr { expr, .. } => expression_tree_reaches_budget(expr, &mut remaining),
+        Terminal::Literal { .. } | Terminal::Pattern { .. } | Terminal::SpecialToken { .. } => {
+            false
+        }
+    })
+}
+
 pub(crate) fn build_tokenizer(grammar: &GrammarDef) -> Tokenizer {
     let profile_timing = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
     let profile_detail = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_DETAIL").is_some()
         || std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TRACE").is_some();
     let factor_started_at = Instant::now();
-    let exprs: Vec<Expr> = grammar
-        .terminals
-        .iter()
-        .map(terminal_expr)
-        .map(factor_regex_expr)
-        .collect();
+    let exprs: Vec<Expr> = if should_parallelize_terminal_factoring(grammar) {
+        grammar
+            .terminals
+            .par_iter()
+            .map(terminal_expr)
+            .map(factor_regex_expr)
+            .collect()
+    } else {
+        grammar
+            .terminals
+            .iter()
+            .map(terminal_expr)
+            .map(factor_regex_expr)
+            .collect()
+    };
     if profile_timing {
         eprintln!(
             "[glrmask/profile][tokenizer] factor_terminals terminals={} elapsed_ms={:.3}",
@@ -5580,7 +5653,7 @@ fn compile_dynamic_owned_impl(
         if force_cfg_runtime {
             grammar.direct_regular_automaton = None;
         }
-        prepare_grammar(grammar)
+        prepare_dynamic_grammar_transforms_only(grammar)
     };
     let prepare_ms = prepare_started_at.map_or(0.0, elapsed_ms);
     let prepared_has_giant_repeat = prepared_grammar
@@ -5589,7 +5662,32 @@ fn compile_dynamic_owned_impl(
         .map(terminal_expr)
         .map(factor_regex_expr)
         .any(|expression| expression_contains_large_bounded_repeat(&expression));
-    run_with_compile_thread_pool(|| -> crate::Result<DynamicConstraint> {
+    const TINY_DYNAMIC_MAX_TERMINALS: usize = 16;
+    const TINY_DYNAMIC_MAX_RULES: usize = 64;
+    const TINY_DYNAMIC_MAX_TOTAL_STATE_ESTIMATE: u128 = 4_096;
+    const TINY_DYNAMIC_MAX_TERMINAL_STATE_ESTIMATE: u128 = 2_048;
+    let tiny_structure = !prepared_has_giant_repeat
+        && prepared_grammar.terminals.len() <= TINY_DYNAMIC_MAX_TERMINALS
+        && prepared_grammar.rules.len() <= TINY_DYNAMIC_MAX_RULES
+        && prepared_grammar
+            .direct_regular_automaton
+            .as_ref()
+            .is_none_or(|automaton| automaton.states.len() <= 64);
+    let (estimated_total_states, estimated_max_states) = if tiny_structure {
+        prepared_grammar.terminals.iter().map(terminal_expr).fold(
+            (0u128, 0u128),
+            |(total, max), expr| {
+                let estimate = estimated_synthesis_state_volume(&factor_regex_expr(expr));
+                (total.saturating_add(estimate), max.max(estimate))
+            },
+        )
+    } else {
+        (u128::MAX, u128::MAX)
+    };
+    let tiny_dynamic_compile = tiny_structure
+        && estimated_total_states <= TINY_DYNAMIC_MAX_TOTAL_STATE_ESTIMATE
+        && estimated_max_states <= TINY_DYNAMIC_MAX_TERMINAL_STATE_ESTIMATE;
+    run_with_dynamic_compile_thread_pool(tiny_dynamic_compile, || -> crate::Result<DynamicConstraint> {
         if std::env::var_os("GLRMASK_PROFILE_DYNAMIC_MASK_QUOTIENT").is_some()
             && !prepared_has_giant_repeat
         {
@@ -5686,8 +5784,26 @@ fn compile_dynamic_owned_impl(
             .as_ref()
             .map(|automaton| automaton.states.len());
         let analysis_ms = analysis_started_at.map_or(0.0, elapsed_ms);
+        // Rayon scheduling is a measurable fraction of total build time for
+        // genuinely tiny dynamic grammars. Keep those cores sequential; a
+        // large lexer can still arise from a compact grammar, but in that case
+        // the tiny table/vocab sibling cannot hide meaningful work anyway.
+        let parallel_dynamic_core = !tiny_dynamic_compile;
+        if profile {
+            eprintln!(
+                "[glrmask/profile][dynamic_core_schedule] tiny_single_thread={} parallel={} terminals={} rules={} direct_states={:?} estimated_total_states={} estimated_max_states={}",
+                tiny_dynamic_compile,
+                parallel_dynamic_core,
+                prepared_grammar.terminals.len(),
+                prepared_grammar.rules.len(),
+                direct_state_count,
+                estimated_total_states,
+                estimated_max_states,
+            );
+        }
 
-        let (tokenizer_result, ((table, table_ms), (dynamic_mask_vocab, dynamic_vocab_ms))) = macro_join(
+        let (tokenizer_result, ((table, table_ms), (dynamic_mask_vocab, dynamic_vocab_ms))) = macro_join_if(
+            parallel_dynamic_core,
             "dynamic_tokenizer_and_table_vocab",
             || -> crate::Result<((
                 Tokenizer,
@@ -5809,7 +5925,8 @@ fn compile_dynamic_owned_impl(
                     prebuilt_virtual_residual_projection,
                 ), elapsed_ms(started_at)))
             },
-            || macro_join(
+            || macro_join_if(
+                parallel_dynamic_core,
                 "dynamic_table_and_vocab",
                 || {
                     let started_at = Instant::now();

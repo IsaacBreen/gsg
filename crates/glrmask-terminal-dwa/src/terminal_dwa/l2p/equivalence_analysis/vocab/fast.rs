@@ -45,6 +45,11 @@ const VOCAB_LARGE_WORK_BATCH_MATCH_POSITION_BYTES: usize = 768 * 1024;
 // token×state work, running it directly avoids nested Rayon scheduling while
 // retaining full lexical-prefix sharing. Larger analyses remain chunk-parallel.
 const VOCAB_SEQUENTIAL_TRIE_WORK_MAX_DEFAULT: usize = 10_000_000;
+// Once the compile pool is genuinely wide, coarse 128-token trie chunks stop
+// competing for scarce macro-parallel workers. Let moderate one-batch analyses
+// use that path while retaining the historical conservative cutoff on smaller pools.
+const VOCAB_SEQUENTIAL_TRIE_WORK_MAX_LARGE_POOL: usize = 40_000;
+const VOCAB_SEQUENTIAL_TRIE_LARGE_POOL_THREADS: usize = 32;
 const SELF_LOOP_ACTIVE_LEN_LIMIT: usize = 512;
 
 #[inline]
@@ -798,11 +803,22 @@ fn vocab_parallel_state_batch_size(num_states: usize, num_tokens: usize) -> Opti
         .filter(|&batch_size| batch_size > 0)
 }
 
+fn vocab_sequential_trie_work_max_for_threads(threads: usize) -> usize {
+    if threads >= VOCAB_SEQUENTIAL_TRIE_LARGE_POOL_THREADS {
+        VOCAB_SEQUENTIAL_TRIE_WORK_MAX_LARGE_POOL
+    } else {
+        VOCAB_SEQUENTIAL_TRIE_WORK_MAX_DEFAULT
+    }
+}
+
 fn vocab_sequential_trie_work_max() -> usize {
-    std::env::var("GLRMASK_VOCAB_SEQUENTIAL_TRIE_WORK_MAX")
+    if let Some(value) = std::env::var("GLRMASK_VOCAB_SEQUENTIAL_TRIE_WORK_MAX")
         .ok()
         .and_then(|value| value.trim().parse::<usize>().ok())
-        .unwrap_or(VOCAB_SEQUENTIAL_TRIE_WORK_MAX_DEFAULT)
+    {
+        return value;
+    }
+    vocab_sequential_trie_work_max_for_threads(rayon::current_num_threads())
 }
 
 fn first_transition_factor_enabled() -> bool {
@@ -815,6 +831,16 @@ fn first_transition_factor_strict_reference_enabled() -> bool {
 
 fn first_transition_literal_row_quotient_enabled() -> bool {
     !env_flag_enabled("GLRMASK_DISABLE_VOCAB_FIRST_TRANSITION_LITERAL_ROW_QUOTIENT")
+}
+
+fn first_transition_literal_row_quotient_max_work() -> usize {
+    // The quotient scans every DFA state across every active suffix-byte class.
+    // Keep that dense preprocessing bounded so it cannot dominate a factor pass
+    // that already removed most token×state coordinates.
+    std::env::var("GLRMASK_VOCAB_LITERAL_ROW_QUOTIENT_MAX_WORK")
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(8_000_000)
 }
 
 fn literal_row_quotient_coarsening_rounds() -> usize {
@@ -877,6 +903,20 @@ fn first_transition_factor_max_work_ratio(
 
 fn first_transition_factor_parallel_buckets_override() -> Option<bool> {
     env_flag_override("GLRMASK_VOCAB_FIRST_TRANSITION_FACTOR_PARALLEL_BUCKETS")
+}
+
+fn first_transition_factor_token_chunk_size() -> usize {
+    std::env::var("GLRMASK_VOCAB_FIRST_TRANSITION_FACTOR_TOKEN_CHUNK_SIZE")
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(1_024)
+}
+
+fn first_transition_factor_token_chunk_min_work() -> usize {
+    std::env::var("GLRMASK_VOCAB_FIRST_TRANSITION_FACTOR_TOKEN_CHUNK_MIN_WORK")
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(8_000_000)
 }
 
 fn first_transition_factor_final_single_batch_enabled() -> bool {
@@ -3588,6 +3628,9 @@ fn finish_token_signature_sparse_dirty(
 }
 
 fn token_indices_in_lexical_order<S: AsRef<[u8]>>(strings: &[S]) -> Vec<usize> {
+    if strings.windows(2).all(|pair| pair[0].as_ref() <= pair[1].as_ref()) {
+        return (0..strings.len()).collect();
+    }
     let mut order = (0..strings.len()).collect::<Vec<_>>();
     order.sort_unstable_by(|&left, &right| {
         strings[left]
@@ -4128,9 +4171,15 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
                 active_suffix_classes[dfa.byte_to_class[byte as usize] as usize] = true;
             }
         }
-        if let Some((behavior_classes, representatives)) =
+        let active_suffix_class_count = active_suffix_classes.iter().filter(|&&active| active).count();
+        let quotient_row_work = dfa.num_states.saturating_mul(active_suffix_class_count);
+        let quotient_max_work = first_transition_literal_row_quotient_max_work();
+        let quotient = if quotient_row_work <= quotient_max_work {
             exact_literal_state_row_quotient(dfa, &active_suffix_classes, profiling)
-        {
+        } else {
+            None
+        };
+        if let Some((behavior_classes, representatives)) = quotient {
             let bucket_states_before = buckets
                 .iter()
                 .map(|bucket| bucket.initial_outcomes.len())
@@ -4200,6 +4249,14 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
                     quotient_started_at.elapsed().as_secs_f64() * 1000.0,
                 );
             }
+        } else if profiling && quotient_row_work > quotient_max_work {
+            eprintln!(
+                "[glrmask/profile][vocab_first_transition_literal_row_quotient_skip] dfa_states={} active_byte_classes={} row_work={} max_work={}",
+                dfa.num_states,
+                active_suffix_class_count,
+                quotient_row_work,
+                quotient_max_work,
+            );
         }
     }
 
@@ -4215,7 +4272,7 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
     }
     let setup_ms = setup_started_at.elapsed().as_secs_f64() * 1000.0;
 
-    let process_bucket = |bucket: &FirstTransitionBucket| {
+    let process_token_chunk = |bucket: &FirstTransitionBucket, token_indices: &[usize]| {
         let signature_started_at = Instant::now();
         let mut lease = scratch_pool.checkout(bucket.initial_outcomes.len(), dfa.num_groups);
         let worker = lease.worker_mut();
@@ -4223,7 +4280,7 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
         let (active_sigs, trie_walk) = trie_walk_chunk_signatures_from_prefix(
             dfa,
             strings,
-            &bucket.token_indices,
+            token_indices,
             &bucket.initial_outcomes,
             state_group_size,
             1,
@@ -4231,8 +4288,14 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
             &mut worker.trie_state,
             profiling,
         );
-        let signature_ms = signature_started_at.elapsed().as_secs_f64() * 1000.0;
+        (
+            active_sigs,
+            trie_walk,
+            signature_started_at.elapsed().as_secs_f64() * 1000.0,
+        )
+    };
 
+    let group_active_sigs = |active_sigs: Vec<(usize, u64)>| {
         let grouping_started_at = Instant::now();
         // Equal outcome vectors may share one suffix trie walk, but retain the
         // original semantic leading-byte domain in the preliminary partition.
@@ -4251,8 +4314,16 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
             class.sort_unstable();
         }
         classes.sort_unstable_by_key(|class| class[0]);
-        let grouping_ms = grouping_started_at.elapsed().as_secs_f64() * 1000.0;
+        (
+            classes,
+            grouping_started_at.elapsed().as_secs_f64() * 1000.0,
+        )
+    };
 
+    let process_bucket = |bucket: &FirstTransitionBucket| {
+        let (active_sigs, trie_walk, signature_ms) =
+            process_token_chunk(bucket, &bucket.token_indices);
+        let (classes, grouping_ms) = group_active_sigs(active_sigs);
         FirstTransitionBucketResult {
             classes,
             signature_ms,
@@ -4275,12 +4346,89 @@ fn try_first_transition_factor_plan<S: AsRef<[u8]> + Sync>(
                     initial_states.len(),
                 )
         });
-    let bucket_results = if parallel_buckets {
+
+    // A first-byte bucket can still dominate the factor critical path after the
+    // source-coordinate reduction. Split only very large bucket work into a flat
+    // Rayon task queue. This preserves the existing bucket partition and final
+    // signature grouping while avoiding nested parallelism and retaining suffix
+    // trie sharing within each token chunk. A zero chunk size disables the split
+    // for controlled A/B diagnostics.
+    let token_chunk_size = first_transition_factor_token_chunk_size();
+    let token_chunk_min_work = first_transition_factor_token_chunk_min_work();
+    let split_active = parallel_buckets
+        && token_chunk_size > 0
+        && buckets.iter().any(|bucket| {
+            bucket.token_indices.len() > token_chunk_size
+                && bucket
+                    .token_indices
+                    .len()
+                    .saturating_mul(bucket.initial_outcomes.len())
+                    >= token_chunk_min_work
+        });
+
+    let bucket_results = if split_active {
+        let mut tasks = Vec::<(usize, usize, usize)>::new();
+        let mut split_bucket_count = 0usize;
+        for (bucket_idx, bucket) in buckets.iter().enumerate() {
+            let len = bucket.token_indices.len();
+            let bucket_work = len.saturating_mul(bucket.initial_outcomes.len());
+            if len > token_chunk_size && bucket_work >= token_chunk_min_work {
+                split_bucket_count += 1;
+                for start in (0..len).step_by(token_chunk_size) {
+                    tasks.push((bucket_idx, start, (start + token_chunk_size).min(len)));
+                }
+            } else {
+                tasks.push((bucket_idx, 0, len));
+            }
+        }
+        if profiling || env_flag_enabled("GLRMASK_PROFILE_VOCAB_FACTOR_TOKEN_SPLIT") {
+            eprintln!(
+                "[glrmask/profile][vocab_first_transition_factor_token_split] buckets={} split_buckets={} tasks={} chunk_size={} min_work={}",
+                buckets.len(),
+                split_bucket_count,
+                tasks.len(),
+                token_chunk_size,
+                token_chunk_min_work,
+            );
+        }
+
+        let task_results = tasks
+            .par_iter()
+            .map(|&(bucket_idx, start, end)| {
+                let bucket = &buckets[bucket_idx];
+                let (active_sigs, trie_walk, signature_ms) =
+                    process_token_chunk(bucket, &bucket.token_indices[start..end]);
+                (bucket_idx, active_sigs, trie_walk, signature_ms)
+            })
+            .collect::<Vec<_>>();
+        let mut bucket_sigs = (0..buckets.len())
+            .map(|_| Vec::<(usize, u64)>::new())
+            .collect::<Vec<_>>();
+        let mut bucket_walk = vec![TrieWalkChunkStats::default(); buckets.len()];
+        let mut bucket_signature_ms = vec![0.0f64; buckets.len()];
+        for (bucket_idx, task_sigs, task_walk, task_signature_ms) in task_results {
+            bucket_sigs[bucket_idx].extend(task_sigs);
+            bucket_walk[bucket_idx].add_assign(task_walk);
+            bucket_signature_ms[bucket_idx] += task_signature_ms;
+        }
+        bucket_sigs
+            .into_iter()
+            .enumerate()
+            .map(|(bucket_idx, active_sigs)| {
+                let (classes, grouping_ms) = group_active_sigs(active_sigs);
+                FirstTransitionBucketResult {
+                    classes,
+                    signature_ms: bucket_signature_ms[bucket_idx],
+                    grouping_ms,
+                    trie_walk: bucket_walk[bucket_idx],
+                }
+            })
+            .collect::<Vec<_>>()
+    } else if parallel_buckets {
         buckets.par_iter().map(process_bucket).collect::<Vec<_>>()
     } else {
         buckets.iter().map(process_bucket).collect::<Vec<_>>()
     };
-
     let mut stats = FirstTransitionFactorStats {
         semantic_buckets,
         factored_buckets: buckets.len(),
@@ -5811,6 +5959,26 @@ mod shared_base_tests {
         FlatDfa, FlatDfaState, TokenizerView,
     };
     use std::sync::Arc;
+
+    #[test]
+    fn sequential_trie_work_limit_relaxes_only_for_wide_pools() {
+        assert_eq!(
+            vocab_sequential_trie_work_max_for_threads(1),
+            VOCAB_SEQUENTIAL_TRIE_WORK_MAX_DEFAULT
+        );
+        assert_eq!(
+            vocab_sequential_trie_work_max_for_threads(31),
+            VOCAB_SEQUENTIAL_TRIE_WORK_MAX_DEFAULT
+        );
+        assert_eq!(
+            vocab_sequential_trie_work_max_for_threads(32),
+            VOCAB_SEQUENTIAL_TRIE_WORK_MAX_LARGE_POOL
+        );
+        assert_eq!(
+            vocab_sequential_trie_work_max_for_threads(96),
+            VOCAB_SEQUENTIAL_TRIE_WORK_MAX_LARGE_POOL
+        );
+    }
 
     #[test]
     fn first_transition_factor_bucket_policy_tracks_pool_and_state_domain() {

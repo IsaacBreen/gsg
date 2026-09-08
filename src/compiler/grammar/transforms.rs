@@ -995,6 +995,42 @@ pub(crate) fn prepare_grammar_transforms_only(grammar: GrammarDef) -> GrammarDef
     std::mem::take(&mut normalized)
 }
 
+/// Dynamic compilation can discard rules unreachable from the declared start
+/// before running the expensive normalization fixed point. The shared pipeline
+/// already removes the same rules during normalization, so this only moves a
+/// semantics-preserving prune earlier and avoids transforming dead frontend
+/// scaffolding.
+pub(crate) fn prepare_dynamic_grammar_transforms_only(grammar: GrammarDef) -> GrammarDef {
+    let profiling = compile_profile_enabled();
+    let mut normalized = grammar;
+    let rules_before = normalized.rules.len();
+    let prune_started_at = profiling.then(Instant::now);
+    normalized.rules = prune_unreachable_rules(&normalized.rules, normalized.start);
+    if let Some(started_at) = prune_started_at {
+        emit_grammar_transform_profile(
+            "early_prune_unreachable_rules",
+            elapsed_ms(started_at),
+            rules_before,
+            normalized.rules.len(),
+            " dynamic=true",
+        );
+    }
+    let nullable_rules_before = normalized.rules.len();
+    let nullable_started_at = profiling.then(Instant::now);
+    let nullable_terminals = nullable_terminals_for_grammar(&normalized);
+    if let Some(started_at) = nullable_started_at {
+        emit_grammar_transform_profile(
+            "nullable_terminals_for_grammar",
+            elapsed_ms(started_at),
+            nullable_rules_before,
+            nullable_rules_before,
+            &format!(" nullable_terminals={}", nullable_terminals.len()),
+        );
+    }
+    prepare_grammar_transforms_impl(&mut normalized, &nullable_terminals, profiling);
+    normalized
+}
+
 /// Dynamic-runtime preparation that preserves CFG recursion and performs only
 /// the normalization required by the GLR execution table.
 pub(crate) fn prepare_dynamic_glr_transforms_only(grammar: GrammarDef) -> GrammarDef {

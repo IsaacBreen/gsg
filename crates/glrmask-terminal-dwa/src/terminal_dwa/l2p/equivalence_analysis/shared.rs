@@ -1,6 +1,14 @@
+use std::sync::Arc;
+
 use super::compat::TokenizerView;
 use super::vocab::fast::VocabEquivalenceResult;
 
+/// Child-vocabulary entry positions in the parent vocabulary's byte-lexical order.
+pub struct VocabLexicalEntryOrder {
+    pub entry_indices: Arc<[u32]>,
+}
+
+impl crate::vocab::VocabDerivedArtifact for VocabLexicalEntryOrder {}
 pub struct TokenDedup<'a> {
     pub representative_token_bytes: Vec<&'a [u8]>,
     /// Input-token position that supplied each representative byte string.

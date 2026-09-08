@@ -231,6 +231,7 @@ impl<'a> FollowContextTable<'a> {
     }
 }
 
+#[cfg(test)]
 #[derive(Clone, Default)]
 struct SuffixNode {
     end_state: Option<usize>,
@@ -270,6 +271,7 @@ fn build_future_group_hashes_by_context(
         .collect()
 }
 
+#[cfg(test)]
 fn hash_suffix_node(
     context: usize,
     pos: usize,
@@ -334,6 +336,7 @@ fn hash_suffix_node(
     result
 }
 
+#[cfg(test)]
 fn build_token_suffix_hashes(
     nodes: Vec<SuffixNode>,
     follow_contexts: &FollowContextTable<'_>,
@@ -357,6 +360,113 @@ fn build_token_suffix_hashes(
                 &mut ready,
             );
         }
+    }
+
+    TokenSuffixHashes {
+        len,
+        num_contexts,
+        hashes,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_token_suffix_hashes_fused(
+    token: &[u8],
+    tokenizer_start: usize,
+    dfa_transitions: &[u32],
+    byte_to_class: &[u8; 256],
+    num_bc: usize,
+    dfa_finalizers: &[&[usize]],
+    state_has_future: &[bool],
+    skip_groups: &[bool],
+    positions: &mut [i32],
+    active_bits: &mut [u64],
+    follow_contexts: &FollowContextTable<'_>,
+    future_group_hashes_by_context: &[Vec<u128>],
+) -> TokenSuffixHashes {
+    const DEAD_NODE_TAG: u128 = 0xDEAD_DEAD_DEAD_DEAD;
+    const ACCEPT_SINK_HASH: u128 = 0xA11C_EA5E_A11C_EA5E;
+    const EDGE_COUNT_TAG: u128 = 0xEDEC_EDEC_EDEC_EDEC;
+    const EDGE_GID_TAG: u128 = 0xE001_E001_E001_E001;
+    const EDGE_POS_TAG: u128 = 0xE002_E002_E002_E002;
+    const EDGE_CHILD_TAG: u128 = 0xE003_E003_E003_E003;
+
+    let len = token.len();
+    let num_contexts = follow_contexts.num_contexts();
+    let num_groups = positions.len();
+    let skip_groups_enabled = !skip_groups.is_empty();
+    let mut hashes = vec![0u128; len * num_contexts];
+
+    clear_active_positions(positions, active_bits);
+    for pos in (0..len).rev() {
+        let mut current = tokenizer_start;
+        let mut current_ct_base = current * num_bc;
+        let mut done = !state_has_future[current];
+
+        for (offset, &byte) in token[pos..].iter().enumerate() {
+            if done {
+                break;
+            }
+            let next = dfa_transitions[current_ct_base + byte_to_class[byte as usize] as usize];
+            if next == u32::MAX {
+                done = true;
+                break;
+            }
+            current = next as usize;
+            current_ct_base = current * num_bc;
+            let absolute_pos = (pos + offset + 1) as i32;
+            for &gid in dfa_finalizers[current] {
+                if gid >= num_groups || (skip_groups_enabled && skip_groups[gid]) {
+                    continue;
+                }
+                if positions[gid] < 0 {
+                    bitset_set(active_bits, gid);
+                }
+                positions[gid] = absolute_pos;
+            }
+            if !state_has_future[current] {
+                done = true;
+            }
+        }
+
+        for context in 0..num_contexts {
+            let mut edge_count = 0usize;
+            let mut hash = if done {
+                mix_u128(DEAD_NODE_TAG)
+            } else {
+                mix_tagged(
+                    0x51A7_E000_0000_0001,
+                    0xF070_F070_F070_F070,
+                    future_group_hashes_by_context[context][current],
+                )
+            };
+            for (word_idx, &word) in active_bits.iter().enumerate() {
+                let mut bits = word;
+                while bits != 0 {
+                    let bit = bits.trailing_zeros() as usize;
+                    let gid = word_idx * 64 + bit;
+                    bits &= bits - 1;
+                    if !follow_contexts.allows_follow(context, gid) {
+                        continue;
+                    }
+                    edge_count += 1;
+                    let target_pos = positions[gid] as usize;
+                    debug_assert!(target_pos > pos);
+                    let child_hash = if target_pos >= len {
+                        ACCEPT_SINK_HASH
+                    } else {
+                        let child_context = follow_contexts.context_for_gid(gid);
+                        hashes[child_context * len + target_pos]
+                    };
+                    hash = mix_tagged(hash, EDGE_GID_TAG, gid as u128);
+                    hash = mix_tagged(hash, EDGE_POS_TAG, target_pos as u128);
+                    hash = mix_tagged(hash, EDGE_CHILD_TAG, child_hash);
+                }
+            }
+            hashes[context * len + pos] = mix_tagged(hash, EDGE_COUNT_TAG, edge_count as u128);
+        }
+
+        clear_active_positions(positions, active_bits);
     }
 
     TokenSuffixHashes {
@@ -462,6 +572,7 @@ fn build_discovery_sample(sorted_tokens: &[&[u8]], sample_size: usize) -> Vec<us
         .collect()
 }
 
+#[cfg(test)]
 fn build_start_state_suffix_nodes(
     token: &[u8],
     tokenizer_start: usize,
@@ -1115,7 +1226,7 @@ fn find_state_equivalence_classes_token_based<S: AsRef<[u8]> + Sync>(
                         if !needed_token_flags[token_idx] {
                             None
                         } else {
-                            let nodes = build_start_state_suffix_nodes(
+                            Some(build_token_suffix_hashes_fused(
                                 token,
                                 reset_state,
                                 compact_transitions.as_ref(),
@@ -1126,9 +1237,6 @@ fn find_state_equivalence_classes_token_based<S: AsRef<[u8]> + Sync>(
                                 skip_groups,
                                 positions,
                                 active_bits,
-                            );
-                            Some(build_token_suffix_hashes(
-                                nodes,
                                 &follow_contexts,
                                 &future_group_hashes_by_context,
                             ))
@@ -1138,7 +1246,6 @@ fn find_state_equivalence_classes_token_based<S: AsRef<[u8]> + Sync>(
                 .collect()
         })
         .collect();
-
     let common_prefix_len = |a: &[u8], b: &[u8]| -> usize {
         let len = a.len().min(b.len());
         let mut i = 0usize;
@@ -1641,6 +1748,79 @@ mod state_batch_scratch_pool_tests {
             clear_active_positions(&mut scratch.positions, &mut scratch.active_bits);
             assert!(scratch.positions.iter().all(|&position| position == -1));
             assert!(scratch.active_bits.iter().all(|&word| word == 0));
+        }
+    }
+
+    #[test]
+    fn fused_suffix_hashes_match_reference_builder() {
+        let state_count = 4usize;
+        let mut transitions = vec![u32::MAX; state_count * 256];
+        transitions[b'a' as usize] = 1;
+        transitions[b'b' as usize] = 2;
+        transitions[256 + b'a' as usize] = 1;
+        transitions[256 + b'b' as usize] = 3;
+        transitions[2 * 256 + b'a' as usize] = 3;
+
+        let finalizers = [vec![], vec![0], vec![1], vec![0, 1]];
+        let future_groups = [vec![0, 1], vec![0, 1], vec![1], vec![]];
+        let dfa_finalizers = finalizers.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let dfa_future_groups = future_groups.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let state_has_future = dfa_future_groups
+            .iter()
+            .map(|groups| !groups.is_empty())
+            .collect::<Vec<_>>();
+        let byte_to_class: [u8; 256] = std::array::from_fn(|index| index as u8);
+
+        let mut row0 = BitSet::new(2);
+        row0.set(1);
+        let mut row1 = BitSet::new(2);
+        row1.set(0);
+        let follow_rows = vec![row0, row1];
+        let follow_contexts = FollowContextTable::new(2, FollowRows::Dense(Some(&follow_rows)));
+        let future_hashes =
+            build_future_group_hashes_by_context(&dfa_future_groups, &follow_contexts);
+
+        let tokens: &[&[u8]] = &[b"", b"a", b"b", b"ab", b"aa", b"ba", b"aba", b"bbb"];
+        let skip_group_one = [false, true];
+        for skip_groups in [&[][..], &skip_group_one[..]] {
+            for &token in tokens {
+                let mut ref_positions = vec![-1i32; 2];
+                let mut ref_active_bits = vec![0u64; bit_words(2)];
+                let nodes = build_start_state_suffix_nodes(
+                    token,
+                    0,
+                    &transitions,
+                    &byte_to_class,
+                    256,
+                    &dfa_finalizers,
+                    &state_has_future,
+                    skip_groups,
+                    &mut ref_positions,
+                    &mut ref_active_bits,
+                );
+                let reference = build_token_suffix_hashes(nodes, &follow_contexts, &future_hashes);
+
+                let mut fused_positions = vec![-1i32; 2];
+                let mut fused_active_bits = vec![0u64; bit_words(2)];
+                let fused = build_token_suffix_hashes_fused(
+                    token,
+                    0,
+                    &transitions,
+                    &byte_to_class,
+                    256,
+                    &dfa_finalizers,
+                    &state_has_future,
+                    skip_groups,
+                    &mut fused_positions,
+                    &mut fused_active_bits,
+                    &follow_contexts,
+                    &future_hashes,
+                );
+
+                assert_eq!(fused.len, reference.len, "token={token:?}");
+                assert_eq!(fused.num_contexts, reference.num_contexts, "token={token:?}");
+                assert_eq!(fused.hashes, reference.hashes, "token={token:?}");
+            }
         }
     }
 
