@@ -5615,39 +5615,58 @@ pub(crate) fn compile_dynamic_owned_with_table_construction(
     compile_dynamic_owned_impl(grammar, vocab, default_table_construction, true)
 }
 
-/// Compile the ordinary low-latency dynamic runtime, then replace only its
-/// mask-walk vocabulary with a grammar-equivalence quotient. The complete
-/// original vocabulary retained by `Constraint` remains authoritative for
-/// commit, composition compatibility, and boundary-trigger construction.
+/// Compile the dynamic parser/lexer without constructing the ordinary full
+/// mask vocabulary, attach a grammar-equivalence quotient directly, then build
+/// the runtime caches against that quotient. The complete original vocabulary
+/// retained by `Constraint` remains authoritative for commit, composition
+/// compatibility, and boundary-trigger construction.
 pub(crate) fn compile_dynamic_owned_with_vocab_partition_with_table_construction(
     grammar: GrammarDef,
     vocab: &Vocab,
     default_table_construction: GlrTableConstruction,
 ) -> crate::Result<DynamicConstraint> {
+    let profile = compile_profile_enabled();
+    let total_started = profile.then(Instant::now);
     let partition_grammar = grammar.clone();
+    let core_started = profile.then(Instant::now);
     let mut constraint =
-        compile_dynamic_owned_impl(grammar, vocab, default_table_construction, true)?;
+        compile_dynamic_owned_impl(grammar, vocab, default_table_construction, false)?;
+    let core_ms = core_started.map_or(0.0, elapsed_ms);
+    let partition_started = profile.then(Instant::now);
     let partition = crate::compiler::vocab_partition::compile_vocab_partition_owned(
         partition_grammar,
         vocab,
         crate::VocabPartitionStrategy::Automatic,
     );
+    let partition_ms = partition_started.map_or(0.0, elapsed_ms);
+    let class_count = partition.internal_to_originals.len();
+    let quotient_started = profile.then(Instant::now);
     let mut quotient =
         crate::compiler::constraint_possible_matches::runtime_dynamic_vocab_for_partition(
             vocab,
             &partition,
         )
         .map_err(crate::GlrMaskError::Compilation)?;
+    let quotient_ms = quotient_started.map_or(0.0, elapsed_ms);
+    let quotient_tokens = quotient.canonical_token_count();
+    let quotient_ops = quotient.trie.full_walk_ops().len();
 
-    // Lexer-side mask projections are independent of the vocabulary trie. Reuse
-    // them when possible, then let the quotient prepare any runtime artifacts
-    // whose shape does depend on its smaller representative vocabulary.
+    // Unfinalized dynamic compilation may already have prepared lexer-derived
+    // projections (notably symbolic/virtual residual projections). They are
+    // independent of the ordinary vocabulary trie, so carry them onto the
+    // quotient before finalization instead of rebuilding or discarding them.
     quotient.inherit_dynamic_lexer_metadata_from(&constraint.inner.dynamic_mask_vocab);
-    constraint
-        .inner
-        .prepare_dynamic_mask_runtime_artifacts(&mut quotient);
     constraint.inner.dynamic_mask_vocab = quotient;
     constraint.inner.lazy_dynamic_mask_vocab = std::sync::OnceLock::new();
+    let rebuild_started = profile.then(Instant::now);
+    constraint.inner.rebuild_dynamic_runtime_caches();
+    let rebuild_ms = rebuild_started.map_or(0.0, elapsed_ms);
+    if let Some(total_started) = total_started {
+        eprintln!(
+            "[glrmask/profile][dynamic_vocab_partition_compile] core_ms={core_ms:.3} partition_ms={partition_ms:.3} quotient_ms={quotient_ms:.3} rebuild_ms={rebuild_ms:.3} classes={class_count} canonical_tokens={quotient_tokens} trie_ops={quotient_ops} total_ms={:.3}",
+            elapsed_ms(total_started),
+        );
+    }
     Ok(constraint)
 }
 

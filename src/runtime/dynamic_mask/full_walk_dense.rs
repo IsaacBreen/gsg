@@ -1233,7 +1233,13 @@ fn precollapse_master_decision(
                 }
             }
 
-            if !eligible.is_empty() {
+            // A grammar-quotiented dynamic vocabulary has already paid to
+            // reduce the model vocabulary to grammar-equivalence representatives.
+            // Building a second terminal-projection quotient lazily here can cost
+            // orders of magnitude more than simply walking that small trie. Keep
+            // consuming explicitly/prepared quotients when present, but do not
+            // synthesize them online for the O2 runtime.
+            if !eligible.is_empty() && !vocab.is_grammar_quotiented() {
                 vocab.prepare_runtime_projected_terminal_quotients(
                     &state.constraint.tokenizer,
                     &safe_plus_slice.slice_token_bytes(),
