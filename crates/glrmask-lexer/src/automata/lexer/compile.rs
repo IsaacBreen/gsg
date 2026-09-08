@@ -5495,113 +5495,111 @@ pub fn build_partitioned_tokenizer_with_product_trace_terminal_residuals(
                     return Some(None);
                 }
                 let (exclusions, intersections) = complex_ops[local_group].as_ref()?;
-                let component_expr = |logical_group: usize| -> Option<Expr> {
-                    let coordinate = *coordinate_for_logical_group.get(logical_group)?;
-                    trace.components
-                        .get(coordinate)?
-                        .terminal_residual_dfa_arc()
-                        .map(Expr::Dfa)
-                };
-                let mut source_partition_groups = Vec::with_capacity(
-                    1usize
-                        .saturating_add(exclusions.len())
-                        .saturating_add(intersections.len()),
-                );
-                source_partition_groups.push(local_group);
-                source_partition_groups.extend(exclusions.iter().map(|&group| group as usize));
-                source_partition_groups.extend(intersections.iter().map(|&group| group as usize));
-
-                let source_exprs = source_partition_groups
-                    .iter()
-                    .map(|&logical_group| component_expr(logical_group))
-                    .collect::<Option<Vec<_>>>()?;
-                let mut source_exclusions = BTreeMap::new();
-                if !exclusions.is_empty() {
-                    source_exclusions.insert(
-                        0,
-                        (1..=exclusions.len()).map(|group| group as u32).collect(),
-                    );
-                }
-                let mut source_intersections = BTreeMap::new();
-                if !intersections.is_empty() {
-                    let first = 1 + exclusions.len();
-                    source_intersections.insert(
-                        0,
-                        (first..first + intersections.len())
-                            .map(|group| group as u32)
-                            .collect(),
-                    );
-                }
-                let source_plan = ExclusionCompilePlan {
-                    compiled_exprs: source_exprs,
-                    exclusions: source_exclusions,
-                    intersections: source_intersections,
-                    visible_groups: 1,
-                    profile_labels: None,
-                    local_small_product: true,
-                };
                 let source_compile_started = Instant::now();
-                let (source, source_trace) =
-                    compile_with_plan_internal_options(source_plan, true, true, false);
-                let source = Arc::new(source);
-                let source_trace = source_trace?;
-                let source_compile_ms = source_compile_started.elapsed().as_secs_f64() * 1000.0;
-                if source.has_epsilon_transitions() {
-                    return None;
+                // The already-built partition product contains every component
+                // coordinate needed by this exclusion/intersection terminal.
+                // Project only those coordinates, deduplicate the resulting
+                // tuples, then minimize that much smaller residual DFA. This
+                // avoids recompiling the group expression and avoids running
+                // Hopcroft once per terminal over the whole partition DFA.
+                let mut relevant_coordinates = SmallVec::<[usize; 4]>::new();
+                for logical_group in std::iter::once(local_group)
+                    .chain(exclusions.iter().map(|&group| group as usize))
+                    .chain(intersections.iter().map(|&group| group as usize))
+                {
+                    let coordinate = *coordinate_for_logical_group.get(logical_group)?;
+                    if !relevant_coordinates.contains(&coordinate) {
+                        relevant_coordinates.push(coordinate);
+                    }
                 }
+                relevant_coordinates.sort_unstable();
 
                 let partition_live = |state: u32| {
                     dfa.finalizers(state).contains(local_group)
                         || dfa.possible_future_group_ids(state).contains(local_group)
                 };
+                if !partition_live(0) {
+                    return None;
+                }
+
+                let mut raw_state_by_key = FxHashMap::<SmallVec<[u32; 4]>, u32>::default();
+                let mut raw_representatives = Vec::<u32>::new();
+                let mut partition_to_raw = vec![u32::MAX; dfa.num_states()];
+                for partition_state in 0..dfa.num_states() {
+                    if !partition_live(partition_state as u32) {
+                        continue;
+                    }
+                    let key = relevant_coordinates
+                        .iter()
+                        .map(|&coordinate| partition_coordinate_states[partition_state][coordinate])
+                        .collect::<SmallVec<[u32; 4]>>();
+                    let raw_state = if let Some(&existing) = raw_state_by_key.get(&key) {
+                        existing
+                    } else {
+                        let next = raw_representatives.len() as u32;
+                        raw_state_by_key.insert(key, next);
+                        raw_representatives.push(partition_state as u32);
+                        next
+                    };
+                    partition_to_raw[partition_state] = raw_state;
+                }
+                if partition_to_raw[0] != 0 {
+                    return None;
+                }
+
+                let mut raw = DFA::new(raw_representatives.len());
+                raw.ensure_group_capacity(1);
+                raw.set_group_u8set(0, *dfa.group_id_to_u8set(local_group as u32));
+                for (raw_state, &representative) in raw_representatives.iter().enumerate() {
+                    let mut transitions = Vec::<(u8, u32)>::new();
+                    for (byte, target) in dfa.transitions(representative) {
+                        let mapped = partition_to_raw[target as usize];
+                        if mapped != u32::MAX {
+                            transitions.push((byte, mapped));
+                        }
+                    }
+                    raw.set_transitions_from_sorted_entries(raw_state as u32, transitions);
+                    let mut finalizers = BitSet::new(1);
+                    if dfa.finalizers(representative).contains(local_group) {
+                        finalizers.set(0);
+                    }
+                    raw.overwrite_state_metadata(raw_state as u32, finalizers, BitSet::new(1));
+                }
+                raw.recompute_possible_futures();
+                let (source, raw_to_source) = raw.minimize_with_state_mapping();
+                let mapping = partition_to_raw
+                    .into_iter()
+                    .map(|raw_state| {
+                        if raw_state == u32::MAX {
+                            u32::MAX
+                        } else {
+                            raw_to_source[raw_state as usize]
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let source = Arc::new(source);
+                let source_compile_ms = source_compile_started.elapsed().as_secs_f64() * 1000.0;
+                if source.has_epsilon_transitions() {
+                    return None;
+                }
+
                 let source_live = |state: u32| {
                     source.finalizers(state).contains(0)
                         || source.possible_future_group_ids(state).contains(0)
                 };
-                if partition_live(0) != source_live(0) {
+                if mapping.len() != dfa.num_states()
+                    || partition_live(0) != source_live(*mapping.first()?)
+                {
                     return None;
                 }
 
-                const UNMAPPED: u32 = u32::MAX;
                 let mapping_started = Instant::now();
-                let mut mapping = vec![UNMAPPED; dfa.num_states()];
                 for partition_state in 0..dfa.num_states() {
-                    let mut source_tuple = ProductStateTuple::new();
-                    for (source_coordinate, source_groups) in
-                        source_trace.coordinate_groups.iter().enumerate()
-                    {
-                        let mut coordinate_state = None::<u32>;
-                        for &source_group in source_groups {
-                            let partition_group = *source_partition_groups.get(source_group)?;
-                            let partition_coordinate =
-                                *coordinate_for_logical_group.get(partition_group)?;
-                            let state = *partition_coordinate_states
-                                .get(partition_state)?
-                                .get(partition_coordinate)?;
-                            if state == UNMAPPED {
-                                continue;
-                            }
-                            if let Some(previous) = coordinate_state {
-                                if previous != state {
-                                    return None;
-                                }
-                            } else {
-                                coordinate_state = Some(state);
-                            }
-                        }
-                        if let Some(state) = coordinate_state {
-                            source_tuple.push((source_coordinate as u32, state));
-                        }
-                    }
-
-                    let source_state = source_trace.state_lookup.get(&source_tuple);
+                    let source_state = *mapping.get(partition_state)?;
                     let partition_is_live = partition_live(partition_state as u32);
-                    let source_is_live = source_state.is_some_and(source_live);
+                    let source_is_live = source_state != u32::MAX && source_live(source_state);
                     if partition_is_live != source_is_live {
                         return None;
-                    }
-                    if partition_is_live {
-                        mapping[partition_state] = source_state?;
                     }
                 }
                 if std::env::var_os("GLRMASK_PROFILE_L1_IMPLEMENTATIONS").is_some() {
