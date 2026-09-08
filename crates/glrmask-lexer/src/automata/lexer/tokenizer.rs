@@ -6375,45 +6375,10 @@ impl Tokenizer {
                 transitions.push(row.into_boxed_slice());
                 index += 1;
             }
-            let mut classes = observations.iter().map(|&obs| u32::from(obs)).collect::<Vec<_>>();
-            let mut rounds = 0usize;
-            loop {
-                rounds += 1;
-                type Signature = SmallVec<[(u8, u32); 128]>;
-                let mut ids = FxHashMap::<(u8, Signature), u32>::default();
-                let mut next_id = 1u32;
-                let mut next = vec![0u32; raws.len()];
-                for state in 0..raws.len() {
-                    let mut signature = Signature::new();
-                    for &(byte, target) in transitions[state].iter() {
-                        signature.push((byte, classes[target as usize]));
-                    }
-                    let key = (observations[state], signature);
-                    next[state] = if let Some(&id) = ids.get(&key) {
-                        id
-                    } else {
-                        let id = next_id;
-                        next_id = next_id.saturating_add(1);
-                        ids.insert(key, id);
-                        id
-                    };
-                }
-
-                let mut old_to_new = FxHashMap::<u32, u32>::default();
-                let mut new_to_old = FxHashMap::<u32, u32>::default();
-                let stable = classes.iter().zip(next.iter()).all(|(&old, &new)| {
-                    let forward = old_to_new.entry(old).or_insert(new);
-                    if *forward != new {
-                        return false;
-                    }
-                    let backward = new_to_old.entry(new).or_insert(old);
-                    *backward == old
-                });
-                classes = next;
-                if stable {
-                    break;
-                }
-            }
+            let classes = super::minimize::hopcroft_projected_observation_partition(
+                &transitions,
+                &observations,
+            );
             let mut mapped = vec![0u32; state_count];
             for (local, &raw) in raws.iter().enumerate() {
                 mapped[raw as usize] = classes[local];
@@ -6438,7 +6403,7 @@ impl Tokenizer {
                     next_uncovered_class = next_uncovered_class.saturating_add(1);
                 }
             }
-            return Some((mapped.into_boxed_slice(), raws.len(), rounds));
+            return Some((mapped.into_boxed_slice(), raws.len(), 0));
         }
 
         type Config = Box<[u32]>;

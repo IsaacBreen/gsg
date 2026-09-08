@@ -319,6 +319,47 @@ impl InverseTransitions {
         Self { offsets, edges }
     }
 
+    fn build_from_projected_rows(rows: &[Box<[(u8, u32)]>]) -> Self {
+        const PACKED_SOURCE_LIMIT: usize = 1 << 24;
+        let num_states = rows.len();
+        let mut counts = vec![0u32; num_states];
+        for row in rows {
+            for &(_, target) in row.iter() {
+                counts[target as usize] += 1;
+            }
+        }
+        let mut offsets = vec![0u32; num_states + 1];
+        for state in 0..num_states {
+            offsets[state + 1] = offsets[state] + counts[state];
+        }
+        let edge_count = offsets[num_states] as usize;
+        let mut cursor = offsets[..num_states].to_vec();
+        let edges = if num_states < PACKED_SOURCE_LIMIT {
+            let mut edges = vec![0u32; edge_count];
+            for (src, row) in rows.iter().enumerate() {
+                for &(input, target) in row.iter() {
+                    let target = target as usize;
+                    let index = cursor[target] as usize;
+                    edges[index] = ((input as u32) << 24) | src as u32;
+                    cursor[target] += 1;
+                }
+            }
+            InverseEdges::Packed(edges)
+        } else {
+            let mut edges = vec![(0u8, 0u32); edge_count];
+            for (src, row) in rows.iter().enumerate() {
+                for &(input, target) in row.iter() {
+                    let target = target as usize;
+                    let index = cursor[target] as usize;
+                    edges[index] = (input, src as u32);
+                    cursor[target] += 1;
+                }
+            }
+            InverseEdges::Wide(edges)
+        };
+        Self { offsets, edges }
+    }
+
     #[inline]
     fn for_each_predecessor(&self, target: usize, mut f: impl FnMut(u8, u32)) {
         let start = self.offsets[target] as usize;
@@ -358,11 +399,24 @@ impl InverseTransitions {
 
 fn hopcroft_refine_partition_impl<const CANONICAL_OUTPUT: bool>(
     dfa: &DFA,
+    partition: Vec<u32>,
+    blocks: Vec<Vec<u32>>,
+    inverse: &InverseTransitions,
+) -> Vec<Vec<u32>> {
+    hopcroft_refine_partition_impl_for_state_count::<CANONICAL_OUTPUT>(
+        dfa.states().len(),
+        partition,
+        blocks,
+        inverse,
+    )
+}
+
+fn hopcroft_refine_partition_impl_for_state_count<const CANONICAL_OUTPUT: bool>(
+    num_states: usize,
     mut partition: Vec<u32>,
     mut blocks: Vec<Vec<u32>>,
     inverse: &InverseTransitions,
 ) -> Vec<Vec<u32>> {
-    let num_states = dfa.states().len();
 
     let mut worklist: VecDeque<u32> = (0..blocks.len() as u32).collect();
     let mut in_worklist = vec![true; blocks.len()];
@@ -561,6 +615,44 @@ fn hopcroft_refine_partition_impl<const CANONICAL_OUTPUT: bool>(
     }
 
     blocks
+}
+
+/// Exact Moore-machine equivalence classes for an already-projected scalar
+/// byte automaton. Missing byte edges have the common implicit dead behavior.
+/// Class zero is reserved by the caller, so returned live classes start at 1.
+pub(super) fn hopcroft_projected_observation_partition(
+    rows: &[Box<[(u8, u32)]>],
+    observations: &[u8],
+) -> Vec<u32> {
+    debug_assert_eq!(rows.len(), observations.len());
+    let num_states = rows.len();
+    let mut partition = vec![0u32; num_states];
+    let mut blocks = Vec::<Vec<u32>>::new();
+    let mut by_observation = FxHashMap::<u8, u32>::default();
+    for (state, &observation) in observations.iter().enumerate() {
+        let block = *by_observation.entry(observation).or_insert_with(|| {
+            let id = blocks.len() as u32;
+            blocks.push(Vec::new());
+            id
+        });
+        partition[state] = block;
+        blocks[block as usize].push(state as u32);
+    }
+    let inverse = InverseTransitions::build_from_projected_rows(rows);
+    let blocks = hopcroft_refine_partition_impl_for_state_count::<false>(
+        num_states,
+        partition,
+        blocks,
+        &inverse,
+    );
+    let mut classes = vec![0u32; num_states];
+    for (block, states) in blocks.into_iter().enumerate() {
+        let class = block as u32 + 1;
+        for state in states {
+            classes[state as usize] = class;
+        }
+    }
+    classes
 }
 
 fn hopcroft_refine_partition(
