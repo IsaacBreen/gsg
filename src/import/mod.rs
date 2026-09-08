@@ -602,6 +602,7 @@ fn compile_dynamic_serialized_from_source_profiled(
                         "" | "0" | "false" | "no" | "off"
                     )
                 });
+        let mut terminal_observation_prepared_in_parallel = false;
         if direct_residual_master_provers_enabled
             && constraint
                 .inner
@@ -624,18 +625,40 @@ fn compile_dynamic_serialized_from_source_profiled(
                 crate::compiler::constraint_possible_matches::llg_safe_slice_token_bytes_for_vocab(vocab);
             let max_safe_chars =
                 crate::compiler::constraint_possible_matches::llg_master_max_safe_chars_for_vocab(vocab);
-            let started = std::time::Instant::now();
-            let result = constraint
+            let prepare_observation_classes = !constraint
                 .inner
                 .dynamic_mask_vocab
-                .prepare_master_provers_from_residual_coordinates(
-                    &constraint.inner.tokenizer,
-                    constraint.inner.tokenizer.num_states() as usize,
-                    &safe_plus,
-                    &whitespace,
-                    safe_slice_bytes,
-                    max_safe_chars,
-                );
+                .has_terminal_observation_classes()
+                && std::env::var("GLRMASK_DYNAMIC_TERMINAL_OBSERVATION_CLASSES")
+                    .ok()
+                    .is_none_or(|value| {
+                        !matches!(value.trim(), "0" | "false" | "no" | "off")
+                    });
+            let source_state_count = constraint.inner.tokenizer.num_states() as usize;
+            let mut dynamic_mask_vocab = std::mem::take(&mut constraint.inner.dynamic_mask_vocab);
+            let ((result, proof_elapsed_ms), observation_classes) = rayon::join(
+                || {
+                    let started = std::time::Instant::now();
+                    let result = dynamic_mask_vocab.prepare_master_provers_from_residual_coordinates(
+                        &constraint.inner.tokenizer,
+                        source_state_count,
+                        &safe_plus,
+                        &whitespace,
+                        safe_slice_bytes,
+                        max_safe_chars,
+                    );
+                    (result, started.elapsed().as_secs_f64() * 1e3)
+                },
+                || {
+                    prepare_observation_classes
+                        .then(|| constraint.inner.build_dynamic_terminal_observation_classes())
+                },
+            );
+            if let Some(classes) = observation_classes {
+                dynamic_mask_vocab.set_terminal_observation_classes(classes);
+                terminal_observation_prepared_in_parallel = true;
+            }
+            constraint.inner.dynamic_mask_vocab = dynamic_mask_vocab;
             if profile
                 || std::env::var_os("GLRMASK_PROFILE_DIRECT_RESIDUAL_MASTER_PROVERS").is_some()
             {
@@ -646,17 +669,19 @@ fn compile_dynamic_serialized_from_source_profiled(
                         product_pairs,
                         edges,
                         max_safe_chars,
-                        started.elapsed().as_secs_f64() * 1e3,
+                        proof_elapsed_ms,
                     );
                 } else {
                     eprintln!(
                         "[glrmask/profile][direct_residual_master_provers] unavailable elapsed_ms={:.3}",
-                        started.elapsed().as_secs_f64() * 1e3,
+                        proof_elapsed_ms,
                     );
                 }
             }
         }
-        constraint.inner.prepare_dynamic_terminal_observation_classes_for_artifact();
+        if !terminal_observation_prepared_in_parallel {
+            constraint.inner.prepare_dynamic_terminal_observation_classes_for_artifact();
+        }
         constraint.inner.prepare_dynamic_virtual_residual_mask_projections_for_artifact();
         compiled.push(constraint);
     }

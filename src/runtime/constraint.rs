@@ -6874,7 +6874,7 @@ impl Constraint {
         aliases
     }
 
-    fn build_dynamic_terminal_observation_classes(
+    pub(crate) fn build_dynamic_terminal_observation_classes(
         &self,
     ) -> Vec<(TerminalID, Arc<[u32]>)> {
         if std::env::var_os("GLRMASK_DISABLE_DYNAMIC_TERMINAL_OBSERVATION_CACHE").is_some() {
