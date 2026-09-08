@@ -214,6 +214,8 @@ pub struct Lowerer<'a> {
     pub terminal_partition_classes: BTreeMap<String, JsonTerminalPartitionClass>,
     pub terminal_pattern_partition_keys: BTreeMap<String, JsonPatternPartitionKey>,
     pub(crate) repeated_pattern_property_keys: BTreeSet<JsonPatternPartitionKey>,
+    pub(super) shared_integer_atoms: Vec<super::number::SharedIntegerAtom>,
+    pub(super) shared_integer_atom_rules_installed: bool,
     terminal_partition_class: JsonTerminalPartitionClass,
     definition_rules: BTreeMap<String, String>,
     definition_by_pointer: BTreeMap<String, &'a Schema>,
@@ -333,6 +335,7 @@ impl<'a> Lowerer<'a> {
 
     fn new(document: &'a SchemaDocument, config: JsonSchemaConfig) -> Self {
         let (shared_ap_literal_keys, shared_ap_patterns) = collect_shared_ap_exclusion_plan(document);
+        let shared_integer_atoms = super::number::collect_shared_integer_atoms(document);
         let mut definition_by_pointer = BTreeMap::new();
         for definition in &document.definitions {
             definition_by_pointer.insert(definition.pointer.clone(), &definition.schema);
@@ -379,6 +382,8 @@ impl<'a> Lowerer<'a> {
             terminal_partition_classes: BTreeMap::new(),
             terminal_pattern_partition_keys: BTreeMap::new(),
             repeated_pattern_property_keys,
+            shared_integer_atoms,
+            shared_integer_atom_rules_installed: false,
             terminal_partition_class: JsonTerminalPartitionClass::Other,
             definition_rules: BTreeMap::new(),
             definition_by_pointer,
@@ -424,6 +429,8 @@ impl<'a> Lowerer<'a> {
             terminal_partition_classes: BTreeMap::new(),
             terminal_pattern_partition_keys: BTreeMap::new(),
             repeated_pattern_property_keys: self.repeated_pattern_property_keys.clone(),
+            shared_integer_atoms: self.shared_integer_atoms.clone(),
+            shared_integer_atom_rules_installed: false,
             terminal_partition_class: JsonTerminalPartitionClass::Other,
             definition_rules: BTreeMap::new(),
             definition_by_pointer: self.definition_by_pointer.clone(),
@@ -2396,8 +2403,14 @@ pub fn choice(mut alternatives: Vec<GrammarExpr>) -> GrammarExpr {
         .iter()
         .any(|expr| matches!(expr, GrammarExpr::Ref(name) if name == JSON_NUMBER_RULE))
     {
-        alternatives
-            .retain(|expr| !matches!(expr, GrammarExpr::Ref(name) if name == JSON_INTEGER_RULE));
+        alternatives.retain(|expr| {
+            !matches!(
+                expr,
+                GrammarExpr::Ref(name)
+                    if name == JSON_INTEGER_RULE
+                        || name.starts_with(super::number::JSON_INTEGER_ATOM_RULE_PREFIX)
+            )
+        });
     }
     match alternatives.len() {
         0 => never(),

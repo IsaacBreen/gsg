@@ -1066,6 +1066,33 @@ impl DynamicConstraint {
         ConstraintSpec::builder(grammar, vocab)?.build()?.compile_dynamic()
     }
 
+
+    /// Compile `grammar` into a dynamic constraint whose local mask walk uses
+    /// one representative per proven vocabulary-equivalence class.
+    ///
+    /// The complete original vocabulary is still retained for commits,
+    /// composition compatibility, and boundary triggers. Consequently a
+    /// partition-optimized constraint can be composed with ordinary static or
+    /// dynamic constraints without changing the public token coordinate.
+    pub fn compile_with_vocab_partition(grammar: Grammar<'_>, vocab: &Vocab) -> Result<Self> {
+        if !grammar.grammar_bindings.is_empty() {
+            return Err(Error::Compilation(
+                "compile_with_vocab_partition does not yet compile source-level bound subgrammars; compile the components first and bind the compiled constraints"
+                    .to_owned(),
+            ));
+        }
+        match grammar.source {
+            GrammarSource::Ebnf(source) => Self::from_ebnf_with_vocab_partition(source, vocab),
+            GrammarSource::Lark(source) => Self::from_lark_with_vocab_partition(source, vocab),
+            GrammarSource::JsonSchema(source) => {
+                Self::from_json_schema_with_vocab_partition(source, vocab)
+            }
+            GrammarSource::Glrm(source) => {
+                Self::from_glrm_grammar_with_vocab_partition(source, vocab)
+            }
+        }
+    }
+
     /// Bind one retained `extern grammar` slot using a fully compiled boundary.
     ///
     /// Dynamic parent alternatives and dynamic component-local masking remain
@@ -1279,6 +1306,13 @@ mod tests {
     use super::*;
     use crate::automata::lexer::tokenizer::Lexer;
 
+    fn token_allowed(mask: &[u32], token_id: u32) -> bool {
+        let word = token_id as usize / 32;
+        let bit = token_id % 32;
+        mask.get(word)
+            .is_some_and(|bits| bits & (1u32 << bit) != 0)
+    }
+
     #[test]
     fn vocab_partition_covers_sparse_vocab_and_merges_identical_tokens() {
         let vocab = Vocab::new(vec![
@@ -1401,6 +1435,178 @@ mod tests {
         .unwrap();
         let error = VocabPartition::compile(grammar, &vocab).unwrap_err();
         assert!(error.to_string().contains("bound subgrammars"));
+    }
+
+    #[test]
+    fn partition_optimized_dynamic_mask_matches_ordinary_dynamic() {
+        let vocab = Vocab::new(vec![
+            (0, b"a".to_vec()),
+            (1, b"b".to_vec()),
+            (2, b"aa".to_vec()),
+            (3, b"bb".to_vec()),
+            (4, b"ab".to_vec()),
+            (5, b"ba".to_vec()),
+            (6, b"x".to_vec()),
+        ]);
+        let grammar = Grammar::ebnf(r#"start ::= [ab]+"#);
+        let partition = VocabPartition::compile(grammar.clone(), &vocab).unwrap();
+        assert_eq!(partition.class_of(0), partition.class_of(1));
+        assert!(partition.num_classes() < vocab.len());
+
+        let ordinary = DynamicConstraint::compile(grammar.clone(), &vocab).unwrap();
+        let optimized =
+            DynamicConstraint::compile_with_vocab_partition(grammar, &vocab).unwrap();
+
+        assert_eq!(optimized.inner.token_bytes_count(), vocab.len());
+        assert!(
+            optimized
+                .inner
+                .dynamic_mask_vocab_for_runtime()
+                .canonical_token_count()
+                < ordinary
+                    .inner
+                    .dynamic_mask_vocab_for_runtime()
+                    .canonical_token_count(),
+            "optimized dynamic runtime did not reduce the mask vocabulary",
+        );
+
+        let ordinary_start = ordinary.start();
+        let optimized_start = optimized.start();
+        assert_eq!(ordinary_start.mask(), optimized_start.mask());
+
+        for token in [0u32, 1, 2, 3, 4, 5] {
+            let mut ordinary_state = ordinary.start();
+            let mut optimized_state = optimized.start();
+            ordinary_state.commit_token(token).unwrap();
+            optimized_state.commit_token(token).unwrap();
+            assert_eq!(ordinary_state.is_accepting(), optimized_state.is_accepting());
+            assert_eq!(ordinary_state.mask(), optimized_state.mask(), "token {token}");
+        }
+    }
+
+    #[test]
+    fn partition_optimized_dynamic_save_load_preserves_quotient_mask() {
+        let vocab = Vocab::new(vec![
+            (0, b"a".to_vec()),
+            (1, b"b".to_vec()),
+            (2, b"aa".to_vec()),
+            (3, b"bb".to_vec()),
+            (4, b"x".to_vec()),
+        ]);
+        let optimized = DynamicConstraint::compile_with_vocab_partition(
+            Grammar::ebnf(r#"start ::= [ab]+"#),
+            &vocab,
+        )
+        .unwrap();
+        let original_canonical = optimized
+            .inner
+            .dynamic_mask_vocab_for_runtime()
+            .canonical_token_count();
+        assert!(original_canonical < vocab.len());
+        let bytes = optimized.save_with_external_vocab();
+        let loaded = DynamicConstraint::load_with_vocab(&bytes, &vocab).unwrap();
+        assert_eq!(loaded.start().mask(), optimized.start().mask());
+        assert_eq!(
+            loaded
+                .inner
+                .dynamic_mask_vocab_for_runtime()
+                .canonical_token_count(),
+            original_canonical,
+            "save/load must retain the representative vocabulary rather than rebuilding the full vocabulary",
+        );
+    }
+
+    #[test]
+    fn partition_optimized_multi_alternative_roundtrips_without_sharing_one_quotient() {
+        let vocab = Vocab::new(vec![
+            (0, b"a".to_vec()),
+            (1, b"b".to_vec()),
+            (2, b"aa".to_vec()),
+            (3, b"bb".to_vec()),
+            (4, b"ab".to_vec()),
+            (5, b"ba".to_vec()),
+            (6, b"x".to_vec()),
+        ]);
+        let first = DynamicConstraint::compile_with_vocab_partition(
+            Grammar::ebnf(r#"start ::= [ab]+"#),
+            &vocab,
+        )
+        .unwrap();
+        let second = DynamicConstraint::compile_with_vocab_partition(
+            Grammar::ebnf(r#"start ::= "a"+"#),
+            &vocab,
+        )
+        .unwrap();
+        let optimized = DynamicConstraint::from_alternatives(vec![first, second]);
+        assert_eq!(optimized.clone_constraints().len(), 2);
+        let expected_mask = optimized.start().mask();
+
+        // The self-contained wire has one shared vocab accelerator, so this
+        // case intentionally drops the per-alternative quotients and rebuilds
+        // the full vocab lazily after load rather than applying one quotient to
+        // every alternative.
+        let loaded = DynamicConstraint::load(&optimized.save()).unwrap();
+        assert_eq!(loaded.start().mask(), expected_mask);
+
+        // The external-vocab transfer has per-alternative metadata and can keep
+        // each quotient independently.
+        let transferred = DynamicConstraint::load_with_vocab(
+            &optimized.save_with_external_vocab(),
+            &vocab,
+        )
+        .unwrap();
+        assert_eq!(transferred.start().mask(), expected_mask);
+    }
+
+    #[test]
+    fn partition_optimized_component_keeps_boundary_token_distinctions() {
+        let vocab = Vocab::new(vec![
+            (0, b"a".to_vec()),
+            (1, b"b".to_vec()),
+            (2, b"ax".to_vec()),
+            (3, b"ay".to_vec()),
+            (4, b"bx".to_vec()),
+            (5, b"by".to_vec()),
+            (6, b"x".to_vec()),
+            (7, b"y".to_vec()),
+        ]);
+        let child_grammar = Grammar::ebnf(r#"start ::= [ab]"#);
+        let child_partition = VocabPartition::compile(child_grammar.clone(), &vocab).unwrap();
+        assert_eq!(child_partition.class_of(2), child_partition.class_of(3));
+        assert_eq!(child_partition.class_of(4), child_partition.class_of(5));
+
+        let ordinary_child = DynamicConstraint::compile(child_grammar.clone(), &vocab).unwrap();
+        let optimized_child =
+            DynamicConstraint::compile_with_vocab_partition(child_grammar, &vocab).unwrap();
+        assert_eq!(optimized_child.inner.token_bytes_count(), vocab.len());
+
+        let parent = Grammar::glrm(
+            "glrm 1; start start; extern grammar child; nt start = child \"x\";",
+        );
+        let ordinary = ConstraintSpec::builder(parent.clone(), &vocab)
+            .unwrap()
+            .bind_grammar("child", &ordinary_child)
+            .unwrap()
+            .build()
+            .unwrap()
+            .compile_dynamic()
+            .unwrap();
+        let optimized = ConstraintSpec::builder(parent, &vocab)
+            .unwrap()
+            .bind_grammar("child", &optimized_child)
+            .unwrap()
+            .build()
+            .unwrap()
+            .compile_dynamic()
+            .unwrap();
+
+        let ordinary_mask = ordinary.start().mask();
+        let optimized_mask = optimized.start().mask();
+        assert_eq!(ordinary_mask, optimized_mask);
+        assert!(token_allowed(&optimized_mask, 2), "ax must cross child -> parent boundary");
+        assert!(!token_allowed(&optimized_mask, 3), "ay must remain rejected by the parent boundary");
+        assert!(token_allowed(&optimized_mask, 4), "bx must cross child -> parent boundary");
+        assert!(!token_allowed(&optimized_mask, 5), "by must remain rejected by the parent boundary");
     }
 
     #[test]

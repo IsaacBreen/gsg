@@ -920,38 +920,55 @@ impl PyDynamicConstraint {
 #[pymethods]
 impl PyDynamicConstraint {
     #[staticmethod]
-    #[pyo3(signature = (schema, vocab))]
-    fn from_json_schema(schema: &str, vocab: &PyVocab) -> PyResult<Self> {
-        Self::from_constraint_result(
-            glrmask::DynamicConstraint::compile(
-                glrmask::Grammar::json_schema(schema),
-                &vocab.inner
-            ),
-            vocab,
-        )
+    #[pyo3(signature = (schema, vocab, vocab_partition=false))]
+    fn from_json_schema(schema: &str, vocab: &PyVocab, vocab_partition: bool) -> PyResult<Self> {
+        let grammar = glrmask::Grammar::json_schema(schema);
+        let constraint = if vocab_partition {
+            glrmask::DynamicConstraint::compile_with_vocab_partition(grammar, &vocab.inner)
+        } else {
+            glrmask::DynamicConstraint::compile(grammar, &vocab.inner)
+        };
+        Self::from_constraint_result(constraint, vocab)
     }
 
     #[staticmethod]
-    #[pyo3(signature = (lark_source, vocab))]
-    fn from_lark(lark_source: &str, vocab: &PyVocab) -> PyResult<Self> {
-        Self::from_constraint_result(
-            glrmask::DynamicConstraint::compile(
-                glrmask::Grammar::lark(lark_source),
-                &vocab.inner
-            ),
-            vocab,
-        )
+    #[pyo3(signature = (lark_source, vocab, vocab_partition=false))]
+    fn from_lark(lark_source: &str, vocab: &PyVocab, vocab_partition: bool) -> PyResult<Self> {
+        let grammar = glrmask::Grammar::lark(lark_source);
+        let constraint = if vocab_partition {
+            glrmask::DynamicConstraint::compile_with_vocab_partition(grammar, &vocab.inner)
+        } else {
+            glrmask::DynamicConstraint::compile(grammar, &vocab.inner)
+        };
+        Self::from_constraint_result(constraint, vocab)
     }
 
     #[staticmethod]
-    #[pyo3(signature = (glrm_source, vocab, subgrammars=None, bindings=None))]
+    #[pyo3(signature = (glrm_source, vocab, subgrammars=None, bindings=None, vocab_partition=false))]
     fn from_glrm_grammar(
         py: Python<'_>,
         glrm_source: &str,
         vocab: &PyVocab,
         subgrammars: Option<BTreeMap<String, Py<PyConstraint>>>,
         bindings: Option<&Bound<'_, PyDict>>,
+        vocab_partition: bool,
     ) -> PyResult<Self> {
+        if vocab_partition {
+            if subgrammars.as_ref().is_some_and(|children| !children.is_empty())
+                || bindings.is_some()
+            {
+                return Err(PyValueError::new_err(
+                    "vocab_partition=True is not yet supported together with GLRM subgrammars or token bindings",
+                ));
+            }
+            return Self::from_constraint_result(
+                glrmask::DynamicConstraint::compile_with_vocab_partition(
+                    glrmask::Grammar::glrm(glrm_source),
+                    &vocab.inner,
+                ),
+                vocab,
+            );
+        }
         let mut builder = glrmask::ConstraintSpec::builder(
             glrmask::Grammar::glrm(glrm_source),
             &vocab.inner,
@@ -980,15 +997,15 @@ impl PyDynamicConstraint {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (ebnf_source, vocab))]
-    fn from_ebnf(ebnf_source: &str, vocab: &PyVocab) -> PyResult<Self> {
-        Self::from_constraint_result(
-            glrmask::DynamicConstraint::compile(
-                glrmask::Grammar::ebnf(ebnf_source),
-                &vocab.inner
-            ),
-            vocab,
-        )
+    #[pyo3(signature = (ebnf_source, vocab, vocab_partition=false))]
+    fn from_ebnf(ebnf_source: &str, vocab: &PyVocab, vocab_partition: bool) -> PyResult<Self> {
+        let grammar = glrmask::Grammar::ebnf(ebnf_source);
+        let constraint = if vocab_partition {
+            glrmask::DynamicConstraint::compile_with_vocab_partition(grammar, &vocab.inner)
+        } else {
+            glrmask::DynamicConstraint::compile(grammar, &vocab.inner)
+        };
+        Self::from_constraint_result(constraint, vocab)
     }
 
     #[staticmethod]

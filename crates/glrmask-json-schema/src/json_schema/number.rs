@@ -3,12 +3,108 @@ use std::collections::BTreeSet;
 use crate::import::ast::GrammarExpr;
 use crate::import::numeric_range::{rx_float_range, rx_int_range};
 
-use super::ast::NumberSchema;
+use super::ast::{NumberSchema, Schema, SchemaAssertions, SchemaDocument, SchemaKind, SchemaType};
 use super::error::{ImportResult, SchemaImportError};
 use super::lower::{choice, lit_bytes, never, r, Lowerer, JSON_INTEGER_RULE, JSON_NUMBER_RULE};
 
 const MAX_EXPLICIT_INTEGER_RANGE: i64 = 512;
 const MAX_EXPLICIT_INTEGER_MULTIPLES: i64 = 2048;
+pub(super) const JSON_INTEGER_ATOM_RULE_PREFIX: &str = "JSON_INTEGER_ATOM_";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct SharedIntegerAtom {
+    pub lower: Option<i64>,
+    pub upper: Option<i64>,
+    pub rule_name: String,
+}
+
+pub(super) fn collect_shared_integer_atoms(document: &SchemaDocument) -> Vec<SharedIntegerAtom> {
+    let mut cuts = BTreeSet::<i64>::new();
+    let mut representable = true;
+    collect_plain_integer_range_cuts(&document.root, &mut cuts, &mut representable);
+    for definition in &document.definitions {
+        collect_plain_integer_range_cuts(&definition.schema, &mut cuts, &mut representable);
+    }
+    for target in &document.ref_targets {
+        collect_plain_integer_range_cuts(&target.schema, &mut cuts, &mut representable);
+    }
+    // `Option<i64>` atoms use None for the two unbounded sides. A cut at
+    // i64::MIN or immediately after i64::MAX cannot represent the outside atom
+    // without extending the numeric-range machinery beyond i64. Fall back to
+    // the previous per-range exact lowering for such documents.
+    if !representable || cuts.is_empty() {
+        return Vec::new();
+    }
+    let cuts = cuts.into_iter().collect::<Vec<_>>();
+    let mut atoms = Vec::with_capacity(cuts.len() + 1);
+    if cuts[0] != i64::MIN {
+        atoms.push((None, Some(cuts[0] - 1)));
+    }
+    for window in cuts.windows(2) {
+        let lower = window[0];
+        let upper = window[1] - 1;
+        if lower <= upper {
+            atoms.push((Some(lower), Some(upper)));
+        }
+    }
+    atoms.push((Some(*cuts.last().expect("non-empty integer partition cuts")), None));
+    atoms.into_iter().enumerate().map(|(index, (lower, upper))| SharedIntegerAtom {
+        lower, upper, rule_name: format!("{JSON_INTEGER_ATOM_RULE_PREFIX}{index}"),
+    }).collect()
+}
+
+fn collect_plain_integer_range_cuts(
+    schema: &Schema,
+    cuts: &mut BTreeSet<i64>,
+    representable: &mut bool,
+) {
+    let SchemaKind::Assertions(assertions) = &schema.kind else { return; };
+    if plain_integer_assertions(assertions) {
+        if let Some(number) = &assertions.number
+            && number.multiple_of.is_none()
+        {
+            let lower = integer_lower_bound(number);
+            let upper = integer_upper_bound(number);
+            if lower == Some(i64::MIN) || upper == Some(i64::MAX) {
+                *representable = false;
+            } else {
+                if let Some(lower) = lower { cuts.insert(lower); }
+                if let Some(upper) = upper { cuts.insert(upper + 1); }
+            }
+        }
+    }
+    if let Some(object) = &assertions.object {
+        for property in &object.properties {
+            collect_plain_integer_range_cuts(&property.schema, cuts, representable);
+        }
+        for property in &object.pattern_properties {
+            collect_plain_integer_range_cuts(&property.schema, cuts, representable);
+        }
+        if let super::ast::AdditionalProperties::Schema(additional) = &object.additional_properties {
+            collect_plain_integer_range_cuts(additional, cuts, representable);
+        }
+        if let Some(property_names) = &object.property_names {
+            collect_plain_integer_range_cuts(property_names, cuts, representable);
+        }
+    }
+    if let Some(array) = &assertions.array {
+        collect_plain_integer_range_cuts(&array.items, cuts, representable);
+        for item in &array.prefix_items {
+            collect_plain_integer_range_cuts(item, cuts, representable);
+        }
+    }
+    for branch in assertions.any_of.iter().chain(&assertions.one_of).chain(&assertions.all_of) {
+        collect_plain_integer_range_cuts(branch, cuts, representable);
+    }
+    if let Some(not) = &assertions.not {
+        collect_plain_integer_range_cuts(not, cuts, representable);
+    }
+}
+
+fn plain_integer_assertions(assertions: &SchemaAssertions) -> bool {
+    let Some(types) = &assertions.types else { return false; };
+    types.contains(&SchemaType::Integer) && !types.contains(&SchemaType::Number)
+}
 
 impl<'a> Lowerer<'a> {
     pub fn lower_number(&mut self, schema: &NumberSchema) -> ImportResult<GrammarExpr> {
@@ -56,6 +152,45 @@ impl<'a> Lowerer<'a> {
         Ok(base_expr)
     }
 
+    fn ensure_shared_integer_atom_rules(&mut self) -> ImportResult<()> {
+        if self.shared_integer_atom_rules_installed || self.shared_integer_atoms.is_empty() {
+            return Ok(());
+        }
+        let atoms = self.shared_integer_atoms.clone();
+        for atom in atoms {
+            let regex = rx_int_range(atom.lower, atom.upper).map_err(SchemaImportError::new)?;
+            self.add_terminal_rule(&atom.rule_name, GrammarExpr::RawRegex(regex));
+        }
+        self.shared_integer_atom_rules_installed = true;
+        Ok(())
+    }
+
+    fn shared_integer_range_expr(
+        &mut self,
+        lower: Option<i64>,
+        upper: Option<i64>,
+    ) -> ImportResult<Option<GrammarExpr>> {
+        if self.shared_integer_atoms.is_empty() {
+            return Ok(None);
+        }
+        // Fail closed to the old exact lowering when this range was synthesized
+        // after the document-global cut scan and therefore would split an atom.
+        for atom in &self.shared_integer_atoms {
+            let intersects = atom.upper.is_none_or(|a| lower.is_none_or(|l| a >= l))
+                && atom.lower.is_none_or(|a| upper.is_none_or(|u| a <= u));
+            if !intersects { continue; }
+            let contained = lower.is_none_or(|l| atom.lower.is_some_and(|a| a >= l))
+                && upper.is_none_or(|u| atom.upper.is_some_and(|a| a <= u));
+            if !contained { return Ok(None); }
+        }
+        self.ensure_shared_integer_atom_rules()?;
+        let refs = self.shared_integer_atoms.iter().filter(|atom| {
+            lower.is_none_or(|l| atom.lower.is_some_and(|a| a >= l))
+                && upper.is_none_or(|u| atom.upper.is_some_and(|a| a <= u))
+        }).map(|atom| r(&atom.rule_name)).collect::<Vec<_>>();
+        Ok(Some(choice(refs)))
+    }
+
     fn lower_integer(&mut self, schema: &NumberSchema) -> ImportResult<GrammarExpr> {
         let mut lower = integer_lower_bound(schema);
         let upper = integer_upper_bound(schema);
@@ -66,10 +201,23 @@ impl<'a> Lowerer<'a> {
         {
             lower = Some(0);
         }
-        if let (Some(lower), Some(upper)) = (lower, upper) {
-            if lower > upper {
-                return Ok(never());
+        if let (Some(lower), Some(upper)) = (lower, upper)
+            && lower > upper
+        {
+            return Ok(never());
+        }
+        if schema.multiple_of.is_none() {
+            if let Some(expr) = self.shared_integer_range_expr(lower, upper)? {
+                return Ok(expr);
             }
+            if lower.is_some() || upper.is_some() {
+                let regex = rx_int_range(lower, upper).map_err(SchemaImportError::new)?;
+                return Ok(GrammarExpr::RawRegex(regex));
+            }
+            return Ok(r(JSON_INTEGER_RULE));
+        }
+
+        if let (Some(lower), Some(upper)) = (lower, upper) {
             if upper.saturating_sub(lower) <= MAX_EXPLICIT_INTEGER_RANGE {
                 let alternatives = (lower..=upper)
                     .filter(|value| integer_satisfies_multiple(*value, schema.multiple_of))
@@ -80,10 +228,6 @@ impl<'a> Lowerer<'a> {
             if let Some(expr) = bounded_integer_multiple_choice(lower, upper, schema.multiple_of) {
                 return Ok(expr);
             }
-        }
-        if schema.multiple_of.is_none() && (lower.is_some() || upper.is_some()) {
-            let regex = rx_int_range(lower, upper).map_err(SchemaImportError::new)?;
-            return Ok(GrammarExpr::RawRegex(regex));
         }
 
         if let Some(multiple) = schema.multiple_of {

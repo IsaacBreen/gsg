@@ -182,6 +182,17 @@ constraint = glrmask.DynamicConstraint.from_json_schema(schema, vocab)
 state = constraint.start()
 ```
 
+For a higher-build-cost dynamic mode, pass `vocab_partition=True`. This computes a
+grammar-specific vocabulary equivalence partition once and runs local dynamic mask
+generation over one representative per class while returning masks in the original
+model-token coordinate:
+
+```python
+constraint = glrmask.DynamicConstraint.from_json_schema(
+    schema, vocab, vocab_partition=True
+)
+```
+
 `DynamicConstraintState` has the same decoding methods as `ConstraintState`.
 
 ## Grammar formats

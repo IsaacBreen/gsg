@@ -2938,6 +2938,8 @@ pub(crate) struct DynamicMaskVocabArtifact {
     aliases: Vec<u32>,
     mask_tokenizer: Option<Tokenizer>,
     full_to_mask_state: Vec<u32>,
+    #[serde(default)]
+    grammar_quotiented: bool,
 }
 
 /// Runtime-only lazily determinized subset-state cache for scalar-dispatch mask execution.
@@ -3054,6 +3056,8 @@ pub(crate) struct DynamicMaskVocab {
     token_aliases: DynamicMaskAliasStore,
     canonical_original_token_offsets: Arc<Vec<u32>>,
     canonical_original_tokens: Arc<Vec<u32>>,
+    canonical_original_word_offsets: Arc<Vec<u32>>,
+    canonical_original_word_masks: Arc<Vec<(u32, u32)>>,
     node_token_markers: Arc<Vec<u64>>,
     /// Token markers in the exact order token endpoints are encountered by
     /// `full_walk_ops`. This removes an extra node-id indirection from the
@@ -3099,6 +3103,9 @@ pub(crate) struct DynamicMaskVocab {
     prepared_safe_radius_entries: Arc<[(TerminalID, u16)]>,
     pending_source: Option<DynamicMaskVocabSource>,
     initialized: bool,
+    /// True only when trie endpoints represent grammar-proven vocabulary
+    /// equivalence classes rather than byte-identical token aliases.
+    grammar_quotiented: bool,
     mask_cache: Arc<Mutex<DynamicMaskCache>>,
     dense_subset16_cache: Arc<Mutex<FxHashMap<Vec<u32>, Arc<DynamicDenseSubset16>>>>,
     lazy_union_cache: Arc<Mutex<DynamicLazyUnionCache>>,
@@ -3316,6 +3323,11 @@ impl DynamicMaskVocab {
         let token_aliases = DynamicMaskAliasStore::Ordered(token_aliases);
         let (canonical_original_token_offsets, canonical_original_tokens) =
             Self::flatten_canonical_original_tokens(&token_aliases);
+        let (canonical_original_word_offsets, canonical_original_word_masks) =
+            Self::build_canonical_original_word_masks(
+                &canonical_original_token_offsets,
+                &canonical_original_tokens,
+            );
         let node_token_markers = Self::build_node_token_markers(
             trie.as_ref(),
             &canonical_original_token_offsets,
@@ -3336,6 +3348,8 @@ impl DynamicMaskVocab {
             token_aliases,
             canonical_original_token_offsets,
             canonical_original_tokens,
+            canonical_original_word_offsets,
+            canonical_original_word_masks,
             node_token_markers,
             full_walk_token_markers,
             subtree_original_token_offsets,
@@ -3353,6 +3367,7 @@ impl DynamicMaskVocab {
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: true,
+            grammar_quotiented: false,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3402,6 +3417,8 @@ impl DynamicMaskVocab {
                 &self.canonical_original_token_offsets,
             ),
             canonical_original_tokens: Arc::clone(&self.canonical_original_tokens),
+            canonical_original_word_offsets: Arc::clone(&self.canonical_original_word_offsets),
+            canonical_original_word_masks: Arc::clone(&self.canonical_original_word_masks),
             node_token_markers: Arc::clone(&self.node_token_markers),
             full_walk_token_markers: Arc::clone(&self.full_walk_token_markers),
             subtree_original_token_offsets: Arc::clone(
@@ -3421,6 +3438,7 @@ impl DynamicMaskVocab {
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: true,
+            grammar_quotiented: self.grammar_quotiented,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3463,6 +3481,8 @@ impl DynamicMaskVocab {
             token_aliases: DynamicMaskAliasStore::Packed(Arc::new(Vec::new())),
             canonical_original_token_offsets: Arc::new(vec![0]),
             canonical_original_tokens: Arc::new(Vec::new()),
+            canonical_original_word_offsets: Arc::new(vec![0]),
+            canonical_original_word_masks: Arc::new(Vec::new()),
             node_token_markers: Arc::new(vec![0]),
             full_walk_token_markers: Arc::new(Vec::new()),
             subtree_original_token_offsets: Arc::new(vec![0]),
@@ -3480,6 +3500,7 @@ impl DynamicMaskVocab {
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: Some(source),
             initialized: false,
+            grammar_quotiented: false,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3512,6 +3533,14 @@ impl DynamicMaskVocab {
         }
     }
 
+    pub(crate) fn mark_grammar_quotiented(&mut self) {
+        self.grammar_quotiented = true;
+    }
+
+    pub(crate) fn is_grammar_quotiented(&self) -> bool {
+        self.grammar_quotiented
+    }
+
     pub(crate) fn from_packed(
         trie: Arc<DynamicMaskTrie>,
         token_aliases: Arc<Vec<Option<PackedDynamicMaskTokenAliases>>>,
@@ -3519,6 +3548,11 @@ impl DynamicMaskVocab {
         let token_aliases = DynamicMaskAliasStore::Packed(token_aliases);
         let (canonical_original_token_offsets, canonical_original_tokens) =
             Self::flatten_canonical_original_tokens(&token_aliases);
+        let (canonical_original_word_offsets, canonical_original_word_masks) =
+            Self::build_canonical_original_word_masks(
+                &canonical_original_token_offsets,
+                &canonical_original_tokens,
+            );
         let node_token_markers = Self::build_node_token_markers(
             trie.as_ref(),
             &canonical_original_token_offsets,
@@ -3539,6 +3573,8 @@ impl DynamicMaskVocab {
             token_aliases,
             canonical_original_token_offsets,
             canonical_original_tokens,
+            canonical_original_word_offsets,
+            canonical_original_word_masks,
             node_token_markers,
             full_walk_token_markers,
             subtree_original_token_offsets,
@@ -3556,6 +3592,7 @@ impl DynamicMaskVocab {
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: true,
+            grammar_quotiented: false,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3600,6 +3637,11 @@ impl DynamicMaskVocab {
         self.token_aliases = DynamicMaskAliasStore::Ordered(source.token_aliases);
         (self.canonical_original_token_offsets, self.canonical_original_tokens) =
             Self::flatten_canonical_original_tokens(&self.token_aliases);
+        (self.canonical_original_word_offsets, self.canonical_original_word_masks) =
+            Self::build_canonical_original_word_masks(
+                &self.canonical_original_token_offsets,
+                &self.canonical_original_tokens,
+            );
         self.node_token_markers = Self::build_node_token_markers(
             self.trie.as_ref(),
             &self.canonical_original_token_offsets,
@@ -3650,6 +3692,43 @@ impl DynamicMaskVocab {
             offsets.push(originals.len() as u32);
         }
         (Arc::new(offsets), Arc::new(originals))
+    }
+
+    fn build_canonical_original_word_masks(
+        canonical_offsets: &[u32],
+        canonical_original_tokens: &[u32],
+    ) -> (Arc<Vec<u32>>, Arc<Vec<(u32, u32)>>) {
+        let canonical_count = canonical_offsets.len().saturating_sub(1);
+        let word_len = canonical_original_tokens
+            .iter()
+            .copied()
+            .max()
+            .map_or(0, |token| token as usize / 32 + 1);
+        let mut scratch = vec![0u32; word_len];
+        let mut touched = Vec::<u32>::new();
+        let mut offsets = Vec::<u32>::with_capacity(canonical_count + 1);
+        let mut masks = Vec::<(u32, u32)>::new();
+        offsets.push(0);
+        for canonical in 0..canonical_count {
+            let start = canonical_offsets[canonical] as usize;
+            let end = canonical_offsets[canonical + 1] as usize;
+            for &token_id in &canonical_original_tokens[start..end] {
+                let word = token_id / 32;
+                let slot = unsafe { scratch.get_unchecked_mut(word as usize) };
+                if *slot == 0 {
+                    touched.push(word);
+                }
+                *slot |= 1u32 << (token_id % 32);
+            }
+            for word in touched.drain(..) {
+                let bits = unsafe { *scratch.get_unchecked(word as usize) };
+                debug_assert_ne!(bits, 0);
+                masks.push((word, bits));
+                unsafe { *scratch.get_unchecked_mut(word as usize) = 0; }
+            }
+            offsets.push(masks.len() as u32);
+        }
+        (Arc::new(offsets), Arc::new(masks))
     }
 
     fn build_all_original_token_words(originals: &[u32]) -> Arc<Vec<u32>> {
@@ -5212,6 +5291,14 @@ impl DynamicMaskVocab {
     }
 
     #[inline(always)]
+    pub(crate) fn token_word_masks(&self, canonical_token_id: u32) -> &[(u32, u32)] {
+        let index = canonical_token_id as usize;
+        let start = unsafe { *self.canonical_original_word_offsets.get_unchecked(index) } as usize;
+        let end = unsafe { *self.canonical_original_word_offsets.get_unchecked(index + 1) } as usize;
+        unsafe { self.canonical_original_word_masks.get_unchecked(start..end) }
+    }
+
+    #[inline(always)]
     pub(crate) fn node_token_marker(&self, node: u32) -> u64 {
         debug_assert!((node as usize) < self.node_token_markers.len());
         unsafe { *self.node_token_markers.get_unchecked(node as usize) }
@@ -6768,6 +6855,7 @@ impl DynamicMaskVocab {
             full_to_mask_state: mask_quotient
                 .map(|(_, full_to_mask_state)| full_to_mask_state)
                 .unwrap_or_default(),
+            grammar_quotiented: self.grammar_quotiented,
         })
     }
 
@@ -6926,6 +7014,7 @@ impl DynamicMaskVocab {
             });
         }
         let mut result = DynamicMaskVocab::from_packed(Arc::new(trie), Arc::new(packed_aliases));
+        result.grammar_quotiented = artifact.grammar_quotiented;
         match artifact.mask_tokenizer {
             Some(tokenizer) => {
                 if artifact.full_to_mask_state.is_empty()
@@ -7013,15 +7102,15 @@ impl DynamicMaskVocab {
     /// self-contained dynamic artifact: the persisted trie is an accelerator,
     /// never an independent source of vocabulary semantics.
     pub(crate) fn matches_token_bytes_exact(&self, token_bytes: &BTreeMap<u32, Vec<u8>>) -> bool {
+        if self.grammar_quotiented {
+            return self.matches_grammar_quotiented_token_bytes(token_bytes);
+        }
         if self.canonical_original_tokens.len() != token_bytes.len() {
             return false;
         }
 
-        // Canonical token ids are assigned before trie partitioning by sorting
-        // original vocabulary entries first by bytes and then by original id.
-        // Reconstruct just that ordering (not the trie), validate every alias
-        // group exactly, and retain one borrowed byte slice per canonical token
-        // for the topology walk below.
+        // Ordinary dynamic vocabularies canonicalize only byte-identical model
+        // tokens. Keep the historical strong validation for those artifacts.
         let mut sorted_tokens = token_bytes
             .iter()
             .map(|(&token_id, bytes)| (token_id, bytes.as_slice()))
@@ -7110,6 +7199,79 @@ impl DynamicMaskVocab {
 
         canonical_seen.into_iter().all(|seen| seen)
     }
+
+    fn matches_grammar_quotiented_token_bytes(
+        &self,
+        token_bytes: &BTreeMap<u32, Vec<u8>>,
+    ) -> bool {
+        if self.canonical_original_tokens.len() != token_bytes.len() {
+            return false;
+        }
+        let mut covered = FxHashSet::<u32>::default();
+        for &token_id in self.canonical_original_tokens.iter() {
+            if !token_bytes.contains_key(&token_id) || !covered.insert(token_id) {
+                return false;
+            }
+        }
+        if covered.len() != token_bytes.len() {
+            return false;
+        }
+
+        struct Frame {
+            node: u32,
+            next_child: usize,
+            prefix_len: usize,
+        }
+        let mut canonical_seen = vec![false; self.canonical_token_count()];
+        let mut prefix = Vec::<u8>::new();
+        let mut frames = vec![Frame {
+            node: 0,
+            next_child: 0,
+            prefix_len: 0,
+        }];
+        while !frames.is_empty() {
+            let frame_index = frames.len() - 1;
+            let node_id = frames[frame_index].node;
+            if frames[frame_index].next_child == 0 {
+                if let Some(canonical) = self.trie.node(node_id).token_id {
+                    let canonical = canonical as usize;
+                    if canonical >= canonical_seen.len() || canonical_seen[canonical] {
+                        return false;
+                    }
+                    let Some(originals) = self.token_ids(canonical as u32) else {
+                        return false;
+                    };
+                    let Some(representative) = originals.first() else {
+                        return false;
+                    };
+                    if token_bytes
+                        .get(representative)
+                        .is_none_or(|bytes| bytes.as_slice() != prefix.as_slice())
+                    {
+                        return false;
+                    }
+                    canonical_seen[canonical] = true;
+                }
+            }
+            let children = self.trie.children(node_id);
+            if frames[frame_index].next_child < children.len() {
+                let edge = children[frames[frame_index].next_child].clone();
+                frames[frame_index].next_child += 1;
+                let prefix_len = prefix.len();
+                prefix.extend_from_slice(self.trie.edge_bytes(&edge));
+                frames.push(Frame {
+                    node: edge.child,
+                    next_child: 0,
+                    prefix_len,
+                });
+            } else {
+                let prefix_len = frames[frame_index].prefix_len;
+                frames.pop();
+                prefix.truncate(prefix_len);
+            }
+        }
+        canonical_seen.into_iter().all(|seen| seen)
+    }
 }
 
 impl Default for DynamicMaskVocab {
@@ -7119,6 +7281,8 @@ impl Default for DynamicMaskVocab {
             token_aliases: DynamicMaskAliasStore::Packed(Arc::new(Vec::new())),
             canonical_original_token_offsets: Arc::new(vec![0]),
             canonical_original_tokens: Arc::new(Vec::new()),
+            canonical_original_word_offsets: Arc::new(vec![0]),
+            canonical_original_word_masks: Arc::new(Vec::new()),
             node_token_markers: Arc::new(vec![0]),
             full_walk_token_markers: Arc::new(Vec::new()),
             subtree_original_token_offsets: Arc::new(vec![0]),
@@ -7136,6 +7300,7 @@ impl Default for DynamicMaskVocab {
             prepared_safe_radius_entries: Arc::from(Vec::<(TerminalID, u16)>::new()),
             pending_source: None,
             initialized: false,
+            grammar_quotiented: false,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),

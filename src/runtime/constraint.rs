@@ -7233,8 +7233,19 @@ impl Constraint {
         self.prepare_llg_slice_leftovers(&mut dynamic_mask_vocab);
         let slice_leftovers_ms = slice_leftovers_started_at
             .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
-        let eager_containment_quotients =
-            std::env::var_os("GLRMASK_EXPERIMENT_EAGER_CONTAINMENT_QUOTIENTS").is_some();
+        // Grammar-quotiented (O2) constraints pay a small build-time cost to
+        // prepare exact parser-independent safe+/whitespace certificates. This
+        // removes the largest steady-state TBM cliffs: broad JSON-string
+        // residuals can consume a compact certificate instead of walking most
+        // of the quotient trie. Restrict projected-terminal construction to
+        // terminals whose byte support can actually contain the safe+ alphabet;
+        // preparing every terminal was measurably more expensive with no tail
+        // benefit. The experimental flags remain available for O1 experiments
+        // and for deliberately forcing the old all-terminal preparation.
+        let o2_prepared_master = dynamic_mask_vocab.is_grammar_quotiented()
+            && std::env::var_os("GLRMASK_DISABLE_O2_PREPARED_MASTER_PROVERS").is_none();
+        let eager_containment_quotients = o2_prepared_master
+            || std::env::var_os("GLRMASK_EXPERIMENT_EAGER_CONTAINMENT_QUOTIENTS").is_some();
         if eager_containment_quotients {
             let started = std::time::Instant::now();
             if std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_PARTITION_PROVERS").is_some() {
@@ -7246,18 +7257,22 @@ impl Constraint {
             } else {
                 let safe_plus = dynamic_mask_vocab
                     .llg_slice_by_cache_id(0)
-                    .expect("safe+ slice prepared before eager quotient experiment");
+                    .expect("safe+ slice prepared before containment quotient construction");
                 dynamic_mask_vocab.prepare_runtime_projected_terminal_quotients(
                     &self.tokenizer,
                     &safe_plus.slice_token_bytes(),
                 );
             }
-            eprintln!(
-                "[glrmask/profile][eager_containment_quotients] prepared={} elapsed_ms={:.3}",
-                dynamic_mask_vocab.has_projected_terminal_quotients(),
-                started.elapsed().as_secs_f64() * 1e3,
-            );
-            if std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_MASTER_PROVERS").is_some() {
+            if profile || std::env::var_os("GLRMASK_PROFILE_PREPARED_MASTER_PROVERS").is_some() {
+                eprintln!(
+                    "[glrmask/profile][eager_containment_quotients] prepared={} elapsed_ms={:.3}",
+                    dynamic_mask_vocab.has_projected_terminal_quotients(),
+                    started.elapsed().as_secs_f64() * 1e3,
+                );
+            }
+            let prepare_master = o2_prepared_master
+                || std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_MASTER_PROVERS").is_some();
+            if prepare_master {
                 let proof_started = std::time::Instant::now();
                 let include_safe_radii =
                     std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_SAFE_RADII").is_some();
@@ -7267,12 +7282,16 @@ impl Constraint {
                         self.tokenizer.num_states() as usize,
                         include_safe_radii,
                     );
-                eprintln!(
-                    "[glrmask/profile][prepared_master_provers] entries={} product_pairs={} elapsed_ms={:.3}",
-                    entries,
-                    product_pairs,
-                    proof_started.elapsed().as_secs_f64() * 1e3,
-                );
+                if profile
+                    || std::env::var_os("GLRMASK_PROFILE_PREPARED_MASTER_PROVERS").is_some()
+                {
+                    eprintln!(
+                        "[glrmask/profile][prepared_master_provers] entries={} product_pairs={} elapsed_ms={:.3}",
+                        entries,
+                        product_pairs,
+                        proof_started.elapsed().as_secs_f64() * 1e3,
+                    );
+                }
                 let max_safe_chars = u32::from(dynamic_mask_vocab.llg_master_max_safe_chars());
                 for &slice_id in &[0u32, 3u32] {
                     if let Some(slice) = dynamic_mask_vocab.llg_slice_by_cache_id(slice_id) {

@@ -1248,7 +1248,13 @@ fn precollapse_master_decision(
                     })
                     .is_none()
             });
-            if needs_quotient {
+            // A grammar-quotiented dynamic vocabulary has already paid to
+            // reduce the model vocabulary to grammar-equivalence representatives.
+            // Building a second terminal-projection quotient lazily here can cost
+            // orders of magnitude more than simply walking that small trie. Keep
+            // consuming explicitly/prepared quotients when present, but do not
+            // synthesize them online for the O2 runtime.
+            if needs_quotient && !eligible.is_empty() && !vocab.is_grammar_quotiented() {
                 vocab.prepare_runtime_projected_terminal_quotients(
                     &state.constraint.tokenizer,
                     &safe_plus_slice.slice_token_bytes(),
@@ -3469,7 +3475,10 @@ fn full_walk_maybe_commit_deferred_positive(
     deferred_dead_subtrees: &mut Vec<u32>,
     buf: &mut [u32],
 ) {
-    if !*deferred_output || deferred_negative_mutations <= total_original_tokens / 2 {
+    if vocab.is_grammar_quotiented()
+        || !*deferred_output
+        || deferred_negative_mutations <= total_original_tokens / 2
+    {
         return;
     }
 
@@ -3520,6 +3529,16 @@ fn dynamic_token_marker_original_count(vocab: &DynamicMaskVocab, marker: u64) ->
         .token_ids(canonical_token)
         .expect("dynamic vocabulary trie node lacks token ids")
         .len()
+}
+
+#[inline(always)]
+fn dynamic_token_marker_materialization_cost(vocab: &DynamicMaskVocab, marker: u64) -> usize {
+    debug_assert_ne!(marker, 0);
+    if marker & DYNAMIC_TOKEN_MARKER_FALLBACK == 0 {
+        return 1;
+    }
+    let canonical_token = ((marker & !DYNAMIC_TOKEN_MARKER_FALLBACK) - 1) as u32;
+    vocab.token_word_masks(canonical_token).len()
 }
 
 /// Exact direct dynamic-mask path for bounded deterministic lexer coordinates.
@@ -4150,12 +4169,21 @@ fn try_full_walk_mask_with_table_from_initial<
             .and_then(|safe_plus| {
                 let admitted = parser_cache.admitted(state.constraint, root_parser_nodes[0]);
                 let mut candidates = SmallVec::<[TerminalID; 4]>::new();
+                let lexer_state = root_branches[0].tokenizer_config;
                 for terminal in admitted.iter_ones().map(|terminal| terminal as TerminalID) {
-                    if state
-                        .constraint
-                        .tokenizer
-                        .terminal_byte_support(terminal)
-                        .is_some_and(|support| safe_plus.slice_token_bytes().is_subset(&support))
+                    let lexer_live = transitions.future_contains(
+                        lexer_scan_cache.tokenizer(),
+                        lexer_state,
+                        terminal,
+                    ) || transitions
+                        .matched_terminals(lexer_scan_cache.tokenizer(), lexer_state)
+                        .contains(&terminal);
+                    if lexer_live
+                        && state
+                            .constraint
+                            .tokenizer
+                            .terminal_byte_support(terminal)
+                            .is_some_and(|support| safe_plus.slice_token_bytes().is_subset(&support))
                     {
                         candidates.push(terminal);
                     }
@@ -4374,10 +4402,17 @@ fn try_full_walk_mask_with_table_from_initial<
             .iter()
             .all(|branch| branch.initial_prune_guard.is_passed())
         && vocab.residual_original_token_words_for(trie).is_none();
+    // Grammar-quotiented O2 masks can be extremely dense even when the parser
+    // admits only one terminal: one quotient terminal may represent nearly the
+    // whole model vocabulary.  Do not let parser singleton-ness force a sparse
+    // positive rebuild in that case.  Record the exact walk result and choose
+    // the cheaper output polarity after the walk instead.  O1 retains the
+    // existing singleton-positive policy.
+    let quotient_adaptive_polarity = vocab.is_grammar_quotiented();
     let mut deferred_output = !force_positive_rebuild
         && llg_master_decision.is_none()
-        && !singleton_positive_rebuild
-        && !effective_singleton_positive_rebuild
+        && (quotient_adaptive_polarity
+            || (!singleton_positive_rebuild && !effective_singleton_positive_rebuild))
         && state.constraint.ignore_terminal.is_none()
         && root_branches
             .iter()
@@ -4394,9 +4429,10 @@ fn try_full_walk_mask_with_table_from_initial<
             buf[copy_len..].fill(0);
         }
         true
-    } else if singleton_positive_rebuild
-        || effective_singleton_positive_rebuild
-        || force_positive_rebuild
+    } else if !deferred_output
+        && (singleton_positive_rebuild
+            || effective_singleton_positive_rebuild
+            || force_positive_rebuild)
     {
         buf.fill(0);
         true
@@ -4592,6 +4628,8 @@ fn try_full_walk_mask_with_table_from_initial<
     let mut deferred_dead_subtrees = Vec::<u32>::new();
     let mut deferred_positive_mutations = 0usize;
     let mut deferred_negative_mutations = 0usize;
+    let mut deferred_positive_work = 0usize;
+    let mut deferred_negative_work = 0usize;
     let total_original_tokens = if deferred_output {
         vocab.subtree_original_tokens_for(trie, 0).len()
     } else {
@@ -4761,6 +4799,7 @@ fn try_full_walk_mask_with_table_from_initial<
                     profile_dead_tokens_cleared += rejected;
                     if deferred_output {
                         deferred_negative_mutations += rejected;
+                        deferred_negative_work += rejected;
                         full_walk_maybe_commit_deferred_positive(
                             vocab,
                             total_original_tokens,
@@ -4809,6 +4848,7 @@ fn try_full_walk_mask_with_table_from_initial<
                             profile_dead_tokens_cleared += rejected;
                             if deferred_output {
                                 deferred_negative_mutations += rejected;
+                                deferred_negative_work += rejected;
                                 full_walk_maybe_commit_deferred_positive(
                                     vocab,
                                     total_original_tokens,
@@ -5018,6 +5058,7 @@ fn try_full_walk_mask_with_table_from_initial<
                             profile_dead_tokens_cleared += rejected;
                             if deferred_output {
                                 deferred_negative_mutations += rejected;
+                                deferred_negative_work += rejected;
                                 full_walk_maybe_commit_deferred_positive(
                                     vocab,
                                     total_original_tokens,
@@ -5113,6 +5154,7 @@ fn try_full_walk_mask_with_table_from_initial<
                             profile_dead_tokens_cleared += rejected;
                             if deferred_output {
                                 deferred_negative_mutations += rejected;
+                                deferred_negative_work += rejected;
                                 full_walk_maybe_commit_deferred_positive(
                                     vocab,
                                     total_original_tokens,
@@ -5213,6 +5255,7 @@ fn try_full_walk_mask_with_table_from_initial<
                         profile_dead_tokens_cleared += rejected;
                         if deferred_output {
                             deferred_negative_mutations += rejected;
+                            deferred_negative_work += rejected;
                             full_walk_maybe_commit_deferred_positive(
                                 vocab,
                                 total_original_tokens,
@@ -5281,6 +5324,7 @@ fn try_full_walk_mask_with_table_from_initial<
                                 profile_dead_tokens_cleared += rejected;
                                 if deferred_output {
                                     deferred_negative_mutations += rejected;
+                                    deferred_negative_work += rejected;
                                     full_walk_maybe_commit_deferred_positive(
                                         vocab,
                                         total_original_tokens,
@@ -5447,13 +5491,16 @@ fn try_full_walk_mask_with_table_from_initial<
                 };
                 if deferred_output {
                     let mutations = dynamic_token_marker_original_count(vocab, token_marker);
+                    let marker_work = dynamic_token_marker_materialization_cost(vocab, token_marker);
                     if allowed {
                         deferred_positive_mutations =
                             deferred_positive_mutations.saturating_add(mutations);
+                        deferred_positive_work = deferred_positive_work.saturating_add(marker_work);
                         deferred_allowed_markers.push(token_marker);
                     } else {
                         deferred_negative_mutations =
                             deferred_negative_mutations.saturating_add(mutations);
+                        deferred_negative_work = deferred_negative_work.saturating_add(marker_work);
                         deferred_rejected_markers.push(token_marker);
                         full_walk_maybe_commit_deferred_positive(
                             vocab,
@@ -5513,16 +5560,23 @@ fn try_full_walk_mask_with_table_from_initial<
     if deferred_output {
         if profile_kernel {
             eprintln!(
-                "[glrmask/profile][dynamic_output_deferred] generation={} allowed_markers={} rejected_markers={} dead_subtrees={} positive_mutations={} negative_mutations={}",
+                "[glrmask/profile][dynamic_output_deferred] generation={} allowed_markers={} rejected_markers={} dead_subtrees={} positive_mutations={} negative_mutations={} positive_work={} negative_work={}",
                 state.generation,
                 deferred_allowed_markers.len(),
                 deferred_rejected_markers.len(),
                 deferred_dead_subtrees.len(),
                 deferred_positive_mutations,
                 deferred_negative_mutations,
+                deferred_positive_work,
+                deferred_negative_work,
             );
         }
-        if deferred_positive_mutations <= deferred_negative_mutations {
+        let choose_positive = if quotient_adaptive_polarity {
+            deferred_positive_work <= deferred_negative_work
+        } else {
+            deferred_positive_mutations <= deferred_negative_mutations
+        };
+        if choose_positive {
             buf.fill(0);
             for marker in deferred_allowed_markers {
                 mark_dynamic_token_marker(vocab, marker, buf);

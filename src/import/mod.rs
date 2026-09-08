@@ -17,6 +17,7 @@ use crate::compiler::compile::{
 use crate::compiler::pipeline::{
     compile_dynamic_owned_unfinalized_with_table_construction,
     compile_dynamic_owned_with_table_construction,
+    compile_dynamic_owned_with_vocab_partition_with_table_construction,
 };
 use crate::grammar::factoring::factor_named_grammar;
 use crate::grammar::flat::GrammarDef;
@@ -529,6 +530,29 @@ fn compile_dynamic_from_source(
         );
     }
     Ok(result)
+}
+
+fn compile_dynamic_from_source_with_vocab_partition(
+    source: &str,
+    vocab: &crate::Vocab,
+    default_table_construction: GlrTableConstruction,
+    parse: NamedGrammarParser,
+    transform: Option<NamedGrammarTransform>,
+    end_token_ids: &[u32],
+) -> crate::Result<DynamicConstraint> {
+    let alternatives = dynamic_named_alternatives(source, parse, transform, end_token_ids)?;
+    let mut compiled = Vec::with_capacity(alternatives.len());
+    for alternative in alternatives {
+        let grammar = ast::lower(&alternative)?;
+        compiled.push(
+            compile_dynamic_owned_with_vocab_partition_with_table_construction(
+                grammar,
+                vocab,
+                default_table_construction,
+            )?,
+        );
+    }
+    Ok(DynamicConstraint::from_alternatives(compiled))
 }
 
 fn compile_dynamic_serialized_from_source_profiled(
@@ -1398,6 +1422,24 @@ impl DynamicConstraint {
         Self::from_ebnf_with_end_tokens(ebnf, vocab, &[])
     }
 
+    /// Compile an EBNF grammar using the grammar-specific vocabulary quotient
+    /// for local dynamic mask generation.
+    pub(crate) fn from_ebnf_with_vocab_partition(
+        ebnf: &str,
+        vocab: &crate::Vocab,
+    ) -> crate::Result<Self> {
+        with_large_import_stack(ebnf.len(), || {
+            compile_dynamic_from_source_with_vocab_partition(
+                ebnf,
+                vocab,
+                GlrTableConstruction::ExperimentalCoreMerged,
+                parse_ebnf_to_named,
+                None,
+                &[],
+            )
+        })
+    }
+
     /// Compile an EBNF grammar with reduced latency and model end-token IDs.
     pub(crate) fn from_ebnf_with_end_tokens(
         ebnf: &str,
@@ -1419,6 +1461,24 @@ impl DynamicConstraint {
     /// Compile a Lark grammar with reduced compilation latency.
     pub(crate) fn from_lark(lark: &str, vocab: &crate::Vocab) -> crate::Result<Self> {
         Self::from_lark_with_end_tokens(lark, vocab, &[])
+    }
+
+    /// Compile a Lark grammar using the grammar-specific vocabulary quotient
+    /// for local dynamic mask generation.
+    pub(crate) fn from_lark_with_vocab_partition(
+        lark: &str,
+        vocab: &crate::Vocab,
+    ) -> crate::Result<Self> {
+        with_large_import_stack(lark.len(), || {
+            compile_dynamic_from_source_with_vocab_partition(
+                lark,
+                vocab,
+                GlrTableConstruction::ExperimentalCoreMerged,
+                parse_lark_to_named,
+                None,
+                &[],
+            )
+        })
     }
 
     /// Compile a Lark grammar with reduced latency and model end-token IDs.
@@ -1444,6 +1504,24 @@ impl DynamicConstraint {
         Self::from_json_schema_with_end_tokens(schema, vocab, &[])
     }
 
+    /// Compile JSON Schema using the grammar-specific vocabulary quotient for
+    /// local dynamic mask generation.
+    pub(crate) fn from_json_schema_with_vocab_partition(
+        schema: &str,
+        vocab: &crate::Vocab,
+    ) -> crate::Result<Self> {
+        with_large_import_stack(schema.len(), || {
+            compile_dynamic_from_source_with_vocab_partition(
+                schema,
+                vocab,
+                GlrTableConstruction::Lalr,
+                parse_json_schema_to_named_dynamic,
+                Some(prepare_json_schema_named),
+                &[],
+            )
+        })
+    }
+
     /// Compile a JSON Schema with reduced latency and model end-token IDs.
     pub(crate) fn from_json_schema_with_end_tokens(
         schema: &str,
@@ -1465,6 +1543,25 @@ impl DynamicConstraint {
     /// Compile a GLRM grammar with reduced compilation latency.
     pub(crate) fn from_glrm_grammar(glrm: &str, vocab: &crate::Vocab) -> crate::Result<Self> {
         Self::from_glrm_grammar_with_end_tokens(glrm, vocab, &[])
+    }
+
+
+    /// Compile GLRM using the grammar-specific vocabulary quotient for local
+    /// dynamic mask generation.
+    pub(crate) fn from_glrm_grammar_with_vocab_partition(
+        glrm: &str,
+        vocab: &crate::Vocab,
+    ) -> crate::Result<Self> {
+        with_large_import_stack(glrm.len(), || {
+            compile_dynamic_from_source_with_vocab_partition(
+                glrm,
+                vocab,
+                GlrTableConstruction::ExperimentalCoreMerged,
+                parse_glrm_to_named,
+                None,
+                &[],
+            )
+        })
     }
 
     /// Compile a GLRM grammar with reduced latency and model end-token IDs.
