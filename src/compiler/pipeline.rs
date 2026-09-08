@@ -746,18 +746,30 @@ pub(crate) fn build_tokenizer(grammar: &GrammarDef) -> Tokenizer {
     )
 }
 
-fn build_dynamic_virtual_tokenizer(
+fn prepare_factored_terminal_expressions(grammar: &GrammarDef) -> Vec<Expr> {
+    if should_parallelize_terminal_factoring(grammar) {
+        grammar
+            .terminals
+            .par_iter()
+            .map(terminal_expr)
+            .map(factor_regex_expr)
+            .collect()
+    } else {
+        grammar
+            .terminals
+            .iter()
+            .map(terminal_expr)
+            .map(factor_regex_expr)
+            .collect()
+    }
+}
+
+fn build_dynamic_virtual_tokenizer_from_exprs(
     grammar: &GrammarDef,
+    expressions: &[Expr],
     preserve_residual_oracle_coordinates: bool,
 ) -> crate::Result<Option<Tokenizer>> {
     const HYBRID_MIN_BOUND: usize = 4_096;
-
-    let expressions = grammar
-        .terminals
-        .iter()
-        .map(terminal_expr)
-        .map(factor_regex_expr)
-        .collect::<Vec<_>>();
     let giant_terminals = expressions
         .iter()
         .enumerate()
@@ -885,7 +897,7 @@ fn build_dynamic_virtual_tokenizer(
     };
 
     let build_general_residual = || -> crate::Result<Option<Tokenizer>> {
-        let mut proxy_expressions = expressions.clone();
+        let mut proxy_expressions = expressions.to_vec();
         for &terminal in general_residual_terminals {
             proxy_expressions[terminal as usize] = Expr::U8Class(U8Set::empty());
         }
@@ -907,7 +919,7 @@ fn build_dynamic_virtual_tokenizer(
         );
         tokenizer.isolate_start_state_and_drain_nullable_terminals();
         tokenizer
-            .restore_terminal_exprs_without_virtual_runtime(Some(expressions.clone()))
+            .restore_terminal_exprs_without_virtual_runtime(Some(expressions.to_vec()))
             .map_err(|detail| build_error(&format!("terminal expression restoration failed: {detail}")))?;
         let residual_components = general_residual_terminals
             .iter()
@@ -1017,7 +1029,7 @@ fn build_dynamic_virtual_tokenizer(
         profile_kind = "hybrid_virtual_repeat_components";
     }
     tokenizer
-        .restore_terminal_exprs(Some(expressions))
+        .restore_terminal_exprs(Some(expressions.to_vec()))
         .map_err(|detail| build_error(&format!("terminal expression restoration failed: {detail}")))?;
     if compile_profile_enabled() {
         eprintln!(
@@ -1028,6 +1040,18 @@ fn build_dynamic_virtual_tokenizer(
         );
     }
     Ok(Some(tokenizer))
+}
+
+fn build_dynamic_virtual_tokenizer(
+    grammar: &GrammarDef,
+    preserve_residual_oracle_coordinates: bool,
+) -> crate::Result<Option<Tokenizer>> {
+    let expressions = prepare_factored_terminal_expressions(grammar);
+    build_dynamic_virtual_tokenizer_from_exprs(
+        grammar,
+        &expressions,
+        preserve_residual_oracle_coordinates,
+    )
 }
 
 fn build_vocab_partition_direct_mask_tokenizer(
@@ -1294,24 +1318,12 @@ fn static_virtual_residual_candidate(
         })
 }
 
-fn build_dynamic_tokenizer(grammar: &GrammarDef) -> crate::Result<Tokenizer> {
+fn build_dynamic_tokenizer(grammar: &GrammarDef, expressions: &[Expr]) -> crate::Result<Tokenizer> {
     const LARGE_DYNAMIC_LEXER_TERMINALS: usize = 96;
-
-    // Select the virtual lane before any general regex/NFA construction: the
-    // latter is exactly where a huge bounded repeat would be materialized.
-    if let Some(tokenizer) = build_dynamic_virtual_tokenizer(grammar, false)? {
-        return Ok(tokenizer);
-    }
 
     let explicit_policy = std::env::var_os("GLRMASK_LEXER_SINGLETONS").is_some()
         || std::env::var_os("GLRMASK_LEXER_ADAPTIVE").is_some()
         || std::env::var_os("GLRMASK_ADAPTIVE_LEXER_MAX_DEPTH").is_some();
-    let expressions = grammar
-        .terminals
-        .iter()
-        .map(terminal_expr)
-        .map(factor_regex_expr)
-        .collect::<Vec<_>>();
     if !explicit_policy {
         let labels = grammar
             .terminals
@@ -1366,9 +1378,39 @@ fn build_dynamic_tokenizer(grammar: &GrammarDef) -> crate::Result<Tokenizer> {
         // combined product tokenizer instead: it preserves terminal identities
         // while sharing prefix states and gives the runtime a deterministic
         // transition structure.
-        Ok(build_tokenizer_with_partition_options(grammar, false, false))
+        let labels = grammar
+            .terminals
+            .iter()
+            .enumerate()
+            .map(|(index, _)| grammar.terminal_display_name(index as u32))
+            .collect::<Vec<_>>();
+        let partition_ids = lexer_partition_ids_with_options(grammar, false);
+        let residual_isolation_classes = lexer_residual_isolation_classes(grammar);
+        Ok(build_tokenizer_from_exprs_partitioned_impl(
+            expressions,
+            Some(&labels),
+            &partition_ids,
+            Some(&residual_isolation_classes),
+            Some(false),
+            false,
+        ))
     } else {
-        Ok(build_tokenizer(grammar))
+        let labels = grammar
+            .terminals
+            .iter()
+            .enumerate()
+            .map(|(index, _)| grammar.terminal_display_name(index as u32))
+            .collect::<Vec<_>>();
+        let partition_ids = lexer_partition_ids(grammar);
+        let residual_isolation_classes = lexer_residual_isolation_classes(grammar);
+        Ok(build_tokenizer_from_exprs_partitioned_impl(
+            expressions,
+            Some(&labels),
+            &partition_ids,
+            Some(&residual_isolation_classes),
+            None,
+            false,
+        ))
     }
 }
 
@@ -5658,12 +5700,10 @@ fn compile_dynamic_owned_impl(
         prepare_dynamic_glr_transforms_only(grammar)
     };
     let prepare_ms = prepare_started_at.map_or(0.0, elapsed_ms);
-    let prepared_has_giant_repeat = prepared_grammar
-        .terminals
+    let prepared_expressions = prepare_factored_terminal_expressions(&prepared_grammar);
+    let prepared_has_giant_repeat = prepared_expressions
         .iter()
-        .map(terminal_expr)
-        .map(factor_regex_expr)
-        .any(|expression| expression_contains_large_bounded_repeat(&expression));
+        .any(expression_contains_large_bounded_repeat);
     const TINY_DYNAMIC_MAX_TERMINALS: usize = 16;
     const TINY_DYNAMIC_MAX_RULES: usize = 64;
     const TINY_DYNAMIC_MAX_TOTAL_STATE_ESTIMATE: u128 = 4_096;
@@ -5676,10 +5716,10 @@ fn compile_dynamic_owned_impl(
             .as_ref()
             .is_none_or(|automaton| automaton.states.len() <= 64);
     let (estimated_total_states, estimated_max_states) = if tiny_structure {
-        prepared_grammar.terminals.iter().map(terminal_expr).fold(
+        prepared_expressions.iter().fold(
             (0u128, 0u128),
             |(total, max), expr| {
-                let estimate = estimated_synthesis_state_volume(&factor_regex_expr(expr));
+                let estimate = estimated_synthesis_state_volume(expr);
                 (total.saturating_add(estimate), max.max(estimate))
             },
         )
@@ -5816,7 +5856,11 @@ fn compile_dynamic_owned_impl(
                 let quotient_enabled = std::env::var_os("GLRMASK_DYNAMIC_MASK_TOKEN_QUOTIENT")
                     .is_some()
                     && !prepared_has_giant_repeat;
-                let virtual_tokenizer = build_dynamic_virtual_tokenizer(&prepared_grammar, false)?;
+                let virtual_tokenizer = build_dynamic_virtual_tokenizer_from_exprs(
+                    &prepared_grammar,
+                    &prepared_expressions,
+                    false,
+                )?;
                 let quotient_pair = (virtual_tokenizer.is_none() && quotient_enabled)
                     .then(|| plan_synthetic_tokenizer(&prepared_grammar, vocab))
                     .flatten()
@@ -5843,7 +5887,7 @@ fn compile_dynamic_owned_impl(
                 } else {
                     let mut tokenizer = match virtual_tokenizer {
                         Some(tokenizer) => tokenizer,
-                        None => build_dynamic_tokenizer(&prepared_grammar)?,
+                        None => build_dynamic_tokenizer(&prepared_grammar, &prepared_expressions)?,
                     };
                     tokenizer.isolate_start_state_and_drain_nullable_terminals();
                     (tokenizer, None)
