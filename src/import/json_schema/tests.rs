@@ -6827,7 +6827,48 @@ fn bounded_number_lowers_to_range_regex_not_plain_json_number() {
 }
 
 #[test]
-fn large_bounded_integer_lowers_to_range_regex_not_plain_json_integer() {
+fn overlapping_plain_integer_ranges_share_disjoint_interval_terminals() {
+    let schema = json!({
+        "anyOf": [
+            {"type": "integer", "minimum": 0, "maximum": 359},
+            {"type": "integer", "minimum": 100, "maximum": 599}
+        ]
+    });
+    let grammar = schema_to_named_grammar(&schema).unwrap();
+    let atoms = grammar
+        .rules
+        .iter()
+        .filter(|rule| rule.name.starts_with("JSON_INTEGER_ATOM_"))
+        .collect::<Vec<_>>();
+    assert_eq!(atoms.len(), 5, "expected cuts at 0, 100, 360, 600: {atoms:?}");
+    assert!(schema_accepts_bytes(&schema, b"0"));
+    assert!(schema_accepts_bytes(&schema, b"99"));
+    assert!(schema_accepts_bytes(&schema, b"100"));
+    assert!(schema_accepts_bytes(&schema, b"359"));
+    assert!(schema_accepts_bytes(&schema, b"360"));
+    assert!(schema_accepts_bytes(&schema, b"599"));
+    assert!(!schema_accepts_bytes(&schema, b"-1"));
+    assert!(!schema_accepts_bytes(&schema, b"600"));
+}
+
+#[test]
+fn plain_integer_range_uses_shared_atoms_instead_of_value_enumeration() {
+    let schema = json!({"type": "integer", "minimum": 100, "maximum": 599});
+    let grammar = schema_to_named_grammar(&schema).unwrap();
+    let atoms = grammar
+        .rules
+        .iter()
+        .filter(|rule| rule.name.starts_with("JSON_INTEGER_ATOM_"))
+        .collect::<Vec<_>>();
+    assert_eq!(atoms.len(), 3, "one bounded range should create three number-line atoms");
+    assert!(schema_accepts_bytes(&schema, b"100"));
+    assert!(schema_accepts_bytes(&schema, b"599"));
+    assert!(!schema_accepts_bytes(&schema, b"99"));
+    assert!(!schema_accepts_bytes(&schema, b"600"));
+}
+
+#[test]
+fn large_bounded_integer_uses_exact_shared_atoms_not_plain_json_integer() {
     let schema = json!({
         "type": "integer",
         "minimum": 0,
@@ -6835,8 +6876,41 @@ fn large_bounded_integer_lowers_to_range_regex_not_plain_json_integer() {
     });
 
     let grammar = schema_to_named_grammar(&schema).unwrap();
-    assert!(matches!(start_expr(&grammar), GrammarExpr::RawRegex(_)));
+    assert!(grammar.rules.iter().any(|rule| rule.name.starts_with("JSON_INTEGER_ATOM_")));
     assert!(!contains_ref_named(start_expr(&grammar), "JSON_INTEGER"));
+    assert!(schema_accepts_bytes(&schema, b"0"));
+    assert!(schema_accepts_bytes(&schema, b"65535"));
+    assert!(!schema_accepts_bytes(&schema, b"-1"));
+    assert!(!schema_accepts_bytes(&schema, b"65536"));
+    lower(&grammar).unwrap();
+}
+
+#[test]
+fn extreme_integer_bound_disables_shared_partition_fail_closed() {
+    let schema = json!({
+        "type": "integer",
+        "maximum": 9223372036854775807i64
+    });
+    let grammar = schema_to_named_grammar(&schema).unwrap();
+    assert!(
+        !grammar.rules.iter().any(|rule| rule.name.starts_with("JSON_INTEGER_ATOM_")),
+        "i64::MAX cannot have a representable shared atom above it"
+    );
+    assert!(schema_accepts_bytes(&schema, b"9223372036854775807"));
+    assert!(!schema_accepts_bytes(&schema, b"9223372036854775808"));
+}
+
+#[test]
+fn number_union_subsumes_bounded_integer_atom_choice() {
+    let schema = json!({
+        "anyOf": [
+            {"type": "number"},
+            {"type": "integer", "minimum": 100, "maximum": 599}
+        ]
+    });
+    let grammar = schema_to_named_grammar(&schema).unwrap();
+    assert!(schema_accepts_bytes(&schema, b"12.5"));
+    assert!(schema_accepts_bytes(&schema, b"250"));
     lower(&grammar).unwrap();
 }
 

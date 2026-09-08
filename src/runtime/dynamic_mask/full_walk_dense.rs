@@ -4128,12 +4128,21 @@ fn try_full_walk_mask_with_table_from_initial<
             .and_then(|safe_plus| {
                 let admitted = parser_cache.admitted(state.constraint, root_parser_nodes[0]);
                 let mut candidates = SmallVec::<[TerminalID; 4]>::new();
+                let lexer_state = root_branches[0].tokenizer_config;
                 for terminal in admitted.iter_ones().map(|terminal| terminal as TerminalID) {
-                    if state
-                        .constraint
-                        .tokenizer
-                        .terminal_byte_support(terminal)
-                        .is_some_and(|support| safe_plus.slice_token_bytes().is_subset(&support))
+                    let lexer_live = transitions.future_contains(
+                        lexer_scan_cache.tokenizer(),
+                        lexer_state,
+                        terminal,
+                    ) || transitions
+                        .matched_terminals(lexer_scan_cache.tokenizer(), lexer_state)
+                        .contains(&terminal);
+                    if lexer_live
+                        && state
+                            .constraint
+                            .tokenizer
+                            .terminal_byte_support(terminal)
+                            .is_some_and(|support| safe_plus.slice_token_bytes().is_subset(&support))
                     {
                         candidates.push(terminal);
                     }
