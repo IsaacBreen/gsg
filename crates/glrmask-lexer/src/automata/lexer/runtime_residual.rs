@@ -2268,10 +2268,6 @@ pub(crate) struct PreparedBoundedCodeMaskComponent {
 }
 
 impl PreparedBoundedCodeMaskComponent {
-    pub(crate) fn body_dfa(&self) -> &DFA {
-        self.oracle.body.as_ref()
-    }
-
     pub(crate) fn finish_for_vocab(
         self,
         vocab: &Vocab,
@@ -2291,6 +2287,36 @@ impl PreparedBoundedCodeMaskComponent {
                     .saturating_add(1)
             });
         let horizon_ms = horizon_started.elapsed().as_secs_f64() * 1000.0;
+        Self::finish_with_crossed_boundaries(oracle, crossed_boundaries, horizon_ms, total_started)
+    }
+
+    /// Finish the finite one-token component using the byte-length upper bound
+    /// rather than scanning the complete vocabulary for a tighter repeat
+    /// horizon. This is exact: it is the same conservative fallback used by
+    /// `finish_for_vocab` when the exact horizon proof is unavailable. It is
+    /// useful for vocabulary-partition compilation, where a slightly larger
+    /// finite observation DFA is cheaper than an additional full-vocabulary
+    /// scan on the critical path.
+    pub(crate) fn finish_for_vocab_conservative(
+        self,
+        max_token_len: usize,
+    ) -> Option<(DFA, u32)> {
+        let total_started = std::time::Instant::now();
+        let oracle = self.oracle;
+        let minimum_body_width = oracle.body.min_match_byte_len().unwrap_or(1).max(1);
+        let crossed_boundaries = max_token_len
+            .div_ceil(minimum_body_width)
+            .saturating_add(1);
+        Self::finish_with_crossed_boundaries(oracle, crossed_boundaries, 0.0, total_started)
+    }
+
+    fn finish_with_crossed_boundaries(
+        oracle: BoundedCodeIntersectionOracle,
+        crossed_boundaries: usize,
+        horizon_ms: f64,
+        total_started: std::time::Instant,
+    ) -> Option<(DFA, u32)> {
+        let profile = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
         if oracle.min > crossed_boundaries.saturating_add(1) {
             return None;
         }

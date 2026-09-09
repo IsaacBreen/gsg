@@ -1527,6 +1527,59 @@ mod tests {
     }
 
     #[test]
+    fn partition_optimized_bounded_string_schema_does_not_fall_back_to_ordinary_dynamic() {
+        let vocab = Vocab::new(vec![
+            (0, b"\"abcdefgh\"".to_vec()),
+            (1, b"\"ijklmnop\"".to_vec()),
+            (2, b"true".to_vec()),
+            (3, b"false".to_vec()),
+            (4, b"{".to_vec()),
+            (5, b"}".to_vec()),
+            (6, b":".to_vec()),
+            (7, b",".to_vec()),
+            (8, b" ".to_vec()),
+        ]);
+        let mut properties = serde_json::Map::new();
+        properties.insert(
+            "bounded".to_owned(),
+            serde_json::json!({"type":"string", "minLength":8, "maxLength":8}),
+        );
+        for index in 0..20 {
+            properties.insert(format!("flag_{index}"), serde_json::json!({"type":"boolean"}));
+        }
+        let schema = serde_json::json!({
+            "type":"object",
+            "properties": properties,
+            "additionalProperties": false
+        })
+        .to_string();
+
+        let optimized = DynamicConstraint::compile_with_vocab_partition(
+            Grammar::json_schema(&schema),
+            &vocab,
+        )
+        .unwrap();
+        assert!(
+            optimized
+                .inner
+                .dynamic_mask_vocab_for_runtime()
+                .is_grammar_quotiented(),
+            "O2 must retain its grammar quotient for bounded-string residual schemas",
+        );
+
+        let bytes = optimized.save_with_external_vocab();
+        let loaded = DynamicConstraint::load_with_vocab(&bytes, &vocab).unwrap();
+        assert!(
+            loaded
+                .inner
+                .dynamic_mask_vocab_for_runtime()
+                .is_grammar_quotiented(),
+            "external-vocab transfer must preserve the O2 grammar quotient",
+        );
+        assert_eq!(loaded.start().mask(), optimized.start().mask());
+    }
+
+    #[test]
     fn partition_optimized_multi_alternative_roundtrips_without_sharing_one_quotient() {
         let vocab = Vocab::new(vec![
             (0, b"a".to_vec()),

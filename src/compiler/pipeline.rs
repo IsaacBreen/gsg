@@ -1069,47 +1069,6 @@ fn expression_contains_intersection(expr: &Expr) -> bool {
     }
 }
 
-/// Cheap structural test for the bounded-code direct-mask vocabulary lane.
-/// This deliberately stops before preparing any finite residual component.
-fn vocab_partition_direct_mask_candidate(grammar: &GrammarDef) -> bool {
-    let has_intersection = grammar.terminals.iter().any(|terminal| match terminal {
-        Terminal::Expr { expr, .. } => expression_contains_intersection(expr),
-        Terminal::Literal { .. } | Terminal::Pattern { .. } | Terminal::SpecialToken { .. } => {
-            false
-        }
-    });
-    if !has_intersection {
-        return false;
-    }
-
-    let expressions = grammar
-        .terminals
-        .iter()
-        .map(terminal_expr)
-        .map(factor_regex_expr)
-        .collect::<Vec<_>>();
-    let giant_terminals = expressions
-        .iter()
-        .enumerate()
-        .filter_map(|(terminal, expression)| {
-            expression_contains_large_bounded_repeat(expression)
-                .then_some(terminal as TerminalID)
-        })
-        .collect::<Vec<_>>();
-    let bounded_code_terminals = expressions
-        .iter()
-        .enumerate()
-        .filter_map(|(terminal, expression)| {
-            expression_may_support_bounded_code_residual_runtime(expression)
-                .then_some(terminal as TerminalID)
-        })
-        .collect::<Vec<_>>();
-    !bounded_code_terminals.is_empty()
-        && giant_terminals
-            .iter()
-            .all(|terminal| bounded_code_terminals.contains(terminal))
-}
-
 fn build_vocab_partition_direct_mask_tokenizer(
     grammar: &GrammarDef,
     vocab: &Vocab,
@@ -1217,8 +1176,6 @@ fn build_vocab_partition_direct_mask_tokenizer(
         })?;
     let restore_ms = restore_started.map_or(0.0, elapsed_ms);
 
-    let repeat_horizons =
-        crate::automata::lexer::compile::VocabularyRepeatHorizonCache::new();
     let max_token_len = vocab.max_token_byte_len();
     let components_started = profile.then(Instant::now);
     let mut unique_terminals = Vec::<TerminalID>::with_capacity(bounded_code_terminals.len());
@@ -1256,15 +1213,17 @@ fn build_vocab_partition_direct_mask_tokenizer(
     let Some(prepared) = prepared else {
         return Ok(None);
     };
-    let horizon_started = profile.then(Instant::now);
-    repeat_horizons.prewarm_dfas(prepared.iter().map(|prepared| prepared.body_dfa()), vocab);
-    let horizon_prewarm_ms = horizon_started.map_or(0.0, elapsed_ms);
+    // VocabularyPartition needs only an exact one-token observation coordinate.
+    // Use the conservative byte-length repeat horizon here instead of paying a
+    // separate complete-vocabulary scan to tighten it. The conservative bound
+    // is the exact-safe fallback used by the runtime component builder itself.
+    let horizon_prewarm_ms = 0.0;
     let finite_started = profile.then(Instant::now);
     let unique_components = prepared
         .into_par_iter()
         .map(|prepared| {
             prepared
-                .finish_for_vocab(vocab, max_token_len, &repeat_horizons)
+                .finish_for_vocab_conservative(max_token_len)
                 .map(|(dfa, root)| (Arc::new(dfa), root))
         })
         .collect::<Option<Vec<_>>>();
@@ -5818,13 +5777,6 @@ fn compile_dynamic_owned_with_vocab_partition_impl(
     // grammars too, so paying that fixed cost can invert O1 <= O2 <= O3 build
     // ordering by a large factor. Keep the ordinary dynamic representation.
     const O2_SMALL_TERMINAL_LIMIT: usize = 16;
-    // Direct bounded-code residuals are only a build-order pathology for the
-    // relatively compact prepared grammars where the finite-residual tokenizer
-    // dominates the whole O2 compile. Large prepared grammars (notably the
-    // Snowplow non-sparse object family) still benefit materially from the O2
-    // quotient at runtime, and Static has enough work that declining O2 is both
-    // unnecessary and harmful.
-    const O2_DIRECT_MASK_FALLBACK_TERMINAL_LIMIT: usize = 128;
     let prepared_terminal_count = if grammar.terminals.len() <= O2_SMALL_TERMINAL_LIMIT {
         grammar.terminals.len()
     } else {
@@ -5850,15 +5802,6 @@ fn compile_dynamic_owned_with_vocab_partition_impl(
     };
     let fallback_reason = if prepared_terminal_count <= O2_SMALL_TERMINAL_LIMIT {
         Some("small_terminal_set")
-    } else if prepared_terminal_count <= O2_DIRECT_MASK_FALLBACK_TERMINAL_LIMIT
-        && vocab_partition_direct_mask_candidate(&grammar)
-    {
-        // The current direct bounded-code partition lane constructs a second
-        // large finite residual tokenizer. Until that lane can reuse the O1
-        // tokenizer, its build work can approach or exceed Static's entire
-        // compile even though ordinary dynamic is much cheaper. Preserve the
-        // tier contract by declining O2 for this shape.
-        Some("direct_mask_residual")
     } else {
         None
     };

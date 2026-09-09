@@ -168,10 +168,6 @@ pub struct PreparedBoundedCodeMaskComponent(
 );
 
 impl PreparedBoundedCodeMaskComponent {
-    pub fn body_dfa(&self) -> &DFA {
-        self.0.body_dfa()
-    }
-
     pub fn finish_for_vocab(
         self,
         vocab: &Vocab,
@@ -180,6 +176,13 @@ impl PreparedBoundedCodeMaskComponent {
     ) -> Option<(DFA, u32)> {
         self.0
             .finish_for_vocab(vocab, max_token_len, repeat_horizons)
+    }
+
+    pub fn finish_for_vocab_conservative(
+        self,
+        max_token_len: usize,
+    ) -> Option<(DFA, u32)> {
+        self.0.finish_for_vocab_conservative(max_token_len)
     }
 }
 
