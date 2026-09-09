@@ -1437,10 +1437,44 @@ impl DynamicConstraint {
         let total_started = profile_transfer.then(std::time::Instant::now);
         let base_started = profile_transfer.then(std::time::Instant::now);
         let table = Self::compact_table_bytes_for_transfer(constraint);
-        let tokenizer =
+        let tokenizer = if constraint.tokenizer.has_deterministic_dispatch() {
+            // TKF3 serialization is longer than the live scalar-dispatch proof on
+            // the dynamic tail. Run them together, then add the proof certificate
+            // to the already-built header. Tokenizers without reset dispatch keep
+            // the old serial path and pay no Rayon scheduling overhead.
+            let ((mut tokenizer, tokenizer_ms), (scalar_dispatch, scalar_proof_ms)) = rayon::join(
+                || {
+                    let started = profile_transfer.then(std::time::Instant::now);
+                    let tokenizer = crate::automata::lexer::tokenizer::artifact_serde::to_fast_bytes_with_packed_metadata(
+                        &constraint.tokenizer,
+                    );
+                    let elapsed = started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1e3);
+                    (tokenizer, elapsed)
+                },
+                || {
+                    let started = profile_transfer.then(std::time::Instant::now);
+                    let scalar_dispatch = constraint.tokenizer.has_scalar_deterministic_dispatch();
+                    let elapsed = started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1e3);
+                    (scalar_dispatch, elapsed)
+                },
+            );
+            if scalar_dispatch {
+                crate::automata::lexer::tokenizer::artifact_serde::mark_fast_wire_scalar_deterministic_dispatch(
+                    &mut tokenizer,
+                );
+            }
+            if profile_transfer {
+                eprintln!(
+                    "[glrmask/profile][dynamic_transfer_scalar_proof_overlap] tokenizer_ms={:.3} scalar_proof_ms={:.3} scalar_dispatch={}",
+                    tokenizer_ms, scalar_proof_ms, scalar_dispatch,
+                );
+            }
+            tokenizer
+        } else {
             crate::automata::lexer::tokenizer::artifact_serde::to_fast_bytes_with_packed_metadata(
                 &constraint.tokenizer,
-            );
+            )
+        };
         let decoded_fallback_exprs;
         let (terminal_exprs_compressed, fallback_exprs) = if let Some(exprs) = constraint.tokenizer.terminal_exprs() {
             (

@@ -1815,6 +1815,10 @@ impl<'de> Deserialize<'de> for CompressedTransitionEntries {
 pub mod artifact_serde {
     use super::*;
 
+    const FAST_WIRE_FLAG_SCALAR_DETERMINISTIC_DISPATCH: u8 = 1 << 0;
+    const FAST_WIRE_KNOWN_FLAGS: u8 = FAST_WIRE_FLAG_SCALAR_DETERMINISTIC_DISPATCH;
+    pub(super) const FAST_WIRE_FLAGS_OFFSET: usize = 30;
+
     #[inline]
     fn u16_values_all_below(bytes: &[u8], limit: usize) -> bool {
         debug_assert_eq!(bytes.len() % 2, 0);
@@ -2410,10 +2414,26 @@ pub mod artifact_serde {
         write_fast_bytes_for_dfa(tokenizer, dfa, layout, &mut out, true)
             .expect("exact TKF3 transition-prefix layout should always write successfully");
         out[..4].copy_from_slice(b"TKF3");
+        if tokenizer.scalar_deterministic_dispatch_cache.get() == Some(&true) {
+            out[FAST_WIRE_FLAGS_OFFSET] |= FAST_WIRE_FLAG_SCALAR_DETERMINISTIC_DISPATCH;
+        }
         let metadata = fast_packed_metadata_artifact(dfa);
         bincode::serialize_into(&mut out, &metadata)
             .expect("TKF3 packed metadata serialization should succeed");
         out
+    }
+
+    /// Add the already-proven scalar-dispatch certificate to an ordinary TKF3
+    /// wire after its expensive payload has been serialized. This lets callers
+    /// overlap the proof with serialization without making the serializer wait
+    /// for it.
+    #[doc(hidden)]
+    pub fn mark_fast_wire_scalar_deterministic_dispatch(out: &mut [u8]) {
+        assert!(
+            out.len() > FAST_WIRE_FLAGS_OFFSET && out.starts_with(b"TKF3"),
+            "scalar-dispatch fast-wire flag requires a TKF3 payload",
+        );
+        out[FAST_WIRE_FLAGS_OFFSET] |= FAST_WIRE_FLAG_SCALAR_DETERMINISTIC_DISPATCH;
     }
 
     /// Runtime-native current-format tokenizer wire. Unlike the older packed
@@ -4268,6 +4288,7 @@ pub mod artifact_serde {
         if state_count == 0 {
             return Err("fast tokenizer has no states".to_owned());
         }
+        let mut fast_wire_flags = 0u8;
         let (state_id_width, terminal_id_width) = if tkf3 || tkf2 {
             let state_width = *input
                 .get(pos)
@@ -4277,16 +4298,26 @@ pub mod artifact_serde {
                 .get(pos + 1)
                 .ok_or_else(|| "truncated fast tokenizer terminal-id width".to_owned())?
                 as usize;
-            let reserved = input
-                .get(pos + 2..pos + 4)
-                .ok_or_else(|| "truncated fast tokenizer width header".to_owned())?;
+            let flags = *input
+                .get(pos + 2)
+                .ok_or_else(|| "truncated fast tokenizer flags".to_owned())?;
+            let reserved = *input
+                .get(pos + 3)
+                .ok_or_else(|| "truncated fast tokenizer reserved byte".to_owned())?;
             pos += 4;
+            let invalid_flags = if tkf3 {
+                flags & !FAST_WIRE_KNOWN_FLAGS != 0
+            } else {
+                flags != 0
+            };
             if !matches!(state_width, 2 | 4)
                 || !matches!(terminal_width, 2 | 4)
-                || reserved != [0, 0]
+                || invalid_flags
+                || reserved != 0
             {
-                return Err("invalid fast tokenizer id widths".to_owned());
+                return Err("invalid fast tokenizer id widths or flags".to_owned());
             }
+            fast_wire_flags = flags;
             if state_width == 2 && state_count > u16::MAX as usize + 1 {
                 return Err("fast tokenizer u16 state ids cannot address all states".to_owned());
             }
@@ -4545,6 +4576,10 @@ pub mod artifact_serde {
                     total_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
                 );
             }
+            let scalar_deterministic_dispatch_cache = OnceLock::new();
+            if fast_wire_flags & FAST_WIRE_FLAG_SCALAR_DETERMINISTIC_DISPATCH != 0 {
+                let _ = scalar_deterministic_dispatch_cache.set(true);
+            }
             return Ok(Tokenizer {
                 dfa,
                 num_terminals,
@@ -4569,7 +4604,7 @@ pub mod artifact_serde {
                 all_self_loop_bytes_cache: OnceLock::new(),
                 transition_count_cache: OnceLock::new(),
                 forced_minimized_state_count_cache: OnceLock::new(),
-                scalar_deterministic_dispatch_cache: OnceLock::new(),
+                scalar_deterministic_dispatch_cache,
             });
         }
 
@@ -14140,6 +14175,13 @@ mod tests {
             }
         }
 
+        let mut unknown_flags = wire.clone();
+        unknown_flags[artifact_serde::FAST_WIRE_FLAGS_OFFSET] |= 0x80;
+        assert!(
+            artifact_serde::from_fast_bytes(&unknown_flags).is_err(),
+            "unknown TKF3 flags must fail closed",
+        );
+
         let mut corrupted = wire;
         corrupted[8..12].copy_from_slice(&0u32.to_le_bytes());
         assert!(
@@ -15972,6 +16014,11 @@ mod tests {
         let loaded = artifact_serde::from_fast_bytes(&wire).expect("fast tokenizer roundtrip");
 
         assert_eq!(loaded.deterministic_dispatch_roots(), Some(&[1, 3][..]));
+        assert_eq!(
+            loaded.scalar_deterministic_dispatch_cache.get(),
+            Some(&true),
+            "TKF3 must restore the worker-side scalar-dispatch proof without rescanning",
+        );
         assert!(
             loaded.has_scalar_deterministic_dispatch(),
             "packed runtime storage must not change the reset-dispatch topology proof",
