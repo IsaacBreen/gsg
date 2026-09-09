@@ -4789,7 +4789,7 @@ impl DynamicMaskVocab {
         let index = |p: u32, q: u32| p as usize * q_count + q as usize;
         let mut reverse = vec![SmallVec::<[(u32, u8); 8]>::new(); pair_count];
         let mut distance = vec![u32::MAX; pair_count];
-        let mut heap = BinaryHeap::<(Reverse<u32>, u32)>::new();
+        let mut max_seed_distance = 0u32;
         let mut edge_count = 0usize;
 
         for p in 0..p_count as u32 {
@@ -4800,7 +4800,6 @@ impl DynamicMaskVocab {
                 let current = index(p, q);
                 if !state_live(q) {
                     distance[current] = 0;
-                    heap.push((Reverse(0), current as u32));
                     continue;
                 }
                 for &(class, p_target, enter_cost) in &relevant_classes[p as usize] {
@@ -4810,7 +4809,7 @@ impl DynamicMaskVocab {
                             let candidate = u32::from(enter_cost).saturating_add(completion);
                             if candidate < distance[current] {
                                 distance[current] = candidate;
-                                heap.push((Reverse(candidate), current as u32));
+                                max_seed_distance = max_seed_distance.max(candidate);
                             }
                         }
                     }
@@ -4823,15 +4822,50 @@ impl DynamicMaskVocab {
             }
         }
 
-        while let Some((Reverse(dist), target)) = heap.pop() {
-            if distance[target as usize] != dist {
-                continue;
+        // Product edges are 0/1-weighted. When the counterexample seeds are too,
+        // 0-1 BFS avoids heap traffic; larger seed distances still use Dijkstra.
+        if max_seed_distance <= 1 {
+            let mut queue = VecDeque::<(u32, u32)>::new();
+            for (state, &dist) in distance.iter().enumerate() {
+                match dist {
+                    0 => queue.push_front((state as u32, 0)),
+                    1 => queue.push_back((state as u32, 1)),
+                    _ => {}
+                }
             }
-            for &(pred, cost) in &reverse[target as usize] {
-                let candidate = dist.saturating_add(u32::from(cost));
-                if candidate < distance[pred as usize] {
-                    distance[pred as usize] = candidate;
-                    heap.push((Reverse(candidate), pred));
+            while let Some((target, dist)) = queue.pop_front() {
+                if distance[target as usize] != dist {
+                    continue;
+                }
+                for &(pred, cost) in &reverse[target as usize] {
+                    let candidate = dist.saturating_add(u32::from(cost));
+                    if candidate < distance[pred as usize] {
+                        distance[pred as usize] = candidate;
+                        if cost == 0 {
+                            queue.push_front((pred, candidate));
+                        } else {
+                            queue.push_back((pred, candidate));
+                        }
+                    }
+                }
+            }
+        } else {
+            let mut heap = BinaryHeap::<(Reverse<u32>, u32)>::new();
+            for (state, &dist) in distance.iter().enumerate() {
+                if dist != u32::MAX {
+                    heap.push((Reverse(dist), state as u32));
+                }
+            }
+            while let Some((Reverse(dist), target)) = heap.pop() {
+                if distance[target as usize] != dist {
+                    continue;
+                }
+                for &(pred, cost) in &reverse[target as usize] {
+                    let candidate = dist.saturating_add(u32::from(cost));
+                    if candidate < distance[pred as usize] {
+                        distance[pred as usize] = candidate;
+                        heap.push((Reverse(candidate), pred));
+                    }
                 }
             }
         }
