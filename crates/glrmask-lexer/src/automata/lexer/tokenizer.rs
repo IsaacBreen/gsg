@@ -9073,6 +9073,63 @@ impl Tokenizer {
         self.terminal_residual_coordinates.as_deref()
     }
 
+    /// Sound, potentially non-maximal observation partition for one terminal
+    /// derived directly from retained standalone-terminal residual coordinates.
+    /// Equal nonzero IDs imply equal exact terminal residuals. Raw states that
+    /// are terminal-live but lack a retained coordinate remain distinct rather
+    /// than being confused with the class-zero dead residual.
+    pub fn terminal_residual_coordinate_observation_partition(
+        &self,
+        terminal: TerminalID,
+    ) -> Option<(Box<[u32]>, usize, bool)> {
+        let coordinates = self.terminal_residual_coordinates.as_deref()?;
+        let (terminal_dfa, group) = coordinates.terminal_dfa_and_group(terminal)?;
+        let state_count = self.num_states() as usize;
+        let mut classes = vec![0u32; state_count];
+        let mut seen_residuals = vec![false; terminal_dfa.num_states()];
+        let mut distinct = 0usize;
+        let mut useful_alias = false;
+        let physical_rows = coordinates.len().min(state_count);
+
+        for raw in 0..physical_rows {
+            let row = coordinates.row(raw as u32)?;
+            let Ok(index) = row.binary_search_by_key(&terminal, |&(candidate, _)| candidate)
+            else {
+                continue;
+            };
+            let residual = row[index].1;
+            if residual >= terminal_dfa.num_states() as u32 {
+                return None;
+            }
+            let live = terminal_dfa.finalizers(residual).contains(group as usize)
+                || terminal_dfa
+                    .possible_future_group_ids(residual)
+                    .contains(group as usize);
+            if live {
+                classes[raw] = residual.checked_add(1)?;
+                let seen = seen_residuals.get_mut(residual as usize)?;
+                if *seen {
+                    useful_alias = true;
+                } else {
+                    *seen = true;
+                    distinct += 1;
+                }
+            }
+        }
+
+        let mut next_uncovered_class = u32::try_from(terminal_dfa.num_states())
+            .ok()?
+            .checked_add(1)?;
+        for raw in 0..self.num_states() {
+            if classes[raw as usize] == 0 && self.state_live_for_terminal(raw, terminal) {
+                classes[raw as usize] = next_uncovered_class;
+                next_uncovered_class = next_uncovered_class.checked_add(1)?;
+                distinct += 1;
+            }
+        }
+        Some((classes.into_boxed_slice(), distinct, useful_alias))
+    }
+
     pub fn set_terminal_residual_coordinates(
         &mut self,
         coordinates: TerminalResidualCoordinates,
@@ -13898,6 +13955,24 @@ mod tests {
         assert_eq!(coordinates.len(), grouped.dfa.num_states());
         assert_eq!(coordinates.row(1), Some(&[(1, 0), (2, 0)][..]));
         assert_eq!(coordinates.row(2), Some(&[(1, 1), (2, 1)][..]));
+
+        let (coordinate_partition, _, _) = grouped
+            .terminal_residual_coordinate_observation_partition(1)
+            .expect("retained residual coordinates should yield an observation partition");
+        let (exact_partition, _, _) = grouped
+            .exact_terminal_observation_partition(1, 1_024, 100_000)
+            .expect("small deterministic fixture should admit the exact partition");
+        let mut exact_by_coordinate = FxHashMap::<u32, u32>::default();
+        for (&coordinate_class, &exact_class) in
+            coordinate_partition.iter().zip(exact_partition.iter())
+        {
+            assert_eq!(coordinate_class == 0, exact_class == 0);
+            if coordinate_class != 0 {
+                if let Some(previous) = exact_by_coordinate.insert(coordinate_class, exact_class) {
+                    assert_eq!(previous, exact_class);
+                }
+            }
+        }
     }
 
     #[test]

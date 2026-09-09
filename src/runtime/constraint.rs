@@ -7040,16 +7040,26 @@ impl Constraint {
             .into_par_iter()
             .filter_map(|terminal| {
                 let started = std::time::Instant::now();
-                let (classes, configs, rounds) = self
+                let has_alias = |classes: &[u32]| {
+                    let mut seen = BTreeSet::<u32>::new();
+                    classes
+                        .iter()
+                        .copied()
+                        .filter(|&class| class != 0)
+                        .any(|class| !seen.insert(class))
+                };
+                let coordinate_classes = self
                     .tokenizer
-                    .exact_terminal_observation_partition(terminal, 100_000, 20_000_000)?;
+                    .terminal_residual_coordinate_observation_partition(terminal)
+                    .filter(|(_, _, useful_alias)| *useful_alias);
+                let (classes, configs, rounds) = if let Some((classes, distinct, _)) = coordinate_classes {
+                    (classes, distinct, 0)
+                } else {
+                    self.tokenizer
+                        .exact_terminal_observation_partition(terminal, 100_000, 20_000_000)?
+                };
 
-                let mut seen = BTreeSet::<u32>::new();
-                let useful = classes
-                    .iter()
-                    .copied()
-                    .filter(|&class| class != 0)
-                    .any(|class| !seen.insert(class));
+                let useful = has_alias(&classes);
                 if profile {
                     eprintln!(
                         "[glrmask/profile][dynamic_terminal_observation_cache_build] terminal={} singleton_rows={} fallback={} configs={} rounds={} useful={} elapsed_ms={:.3}",
