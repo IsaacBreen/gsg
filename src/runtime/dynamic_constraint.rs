@@ -1417,7 +1417,7 @@ impl DynamicConstraint {
             grammar_quotient_vocab: constraint
                 .dynamic_mask_vocab
                 .is_grammar_quotiented()
-                .then(|| constraint.dynamic_mask_vocab.to_vocab_artifact())
+                .then(|| constraint.dynamic_mask_vocab.to_external_vocab_artifact())
                 .flatten(),
         };
         DynamicConstraintTransferSectionsV11 {
@@ -1507,7 +1507,7 @@ impl DynamicConstraint {
             grammar_quotient_vocab: constraint
                 .dynamic_mask_vocab
                 .is_grammar_quotiented()
-                .then(|| constraint.dynamic_mask_vocab.to_vocab_artifact())
+                .then(|| constraint.dynamic_mask_vocab.to_external_vocab_artifact())
                 .flatten(),
         };
         let metadata = DynamicConstraintTransferMetadataV13 {
@@ -2809,15 +2809,35 @@ impl DynamicConstraint {
                 crate::compiler::constraint_possible_matches::runtime_dynamic_vocab_for_vocab(vocab),
             );
         };
-        let mut quotient = DynamicMaskVocab::from_artifact(artifact)
-            .map_err(crate::GlrMaskError::Serialization)?;
-        if !quotient.matches_token_bytes_exact(vocab.entries_map()) {
+        let profile = std::env::var_os("GLRMASK_PROFILE_DYNAMIC_LOAD").is_some();
+        let from_started = profile.then(std::time::Instant::now);
+        let full_vocab_template =
+            crate::compiler::constraint_possible_matches::prepared_runtime_dynamic_vocab_for_vocab(
+                vocab,
+            );
+        let quotient = DynamicMaskVocab::from_external_vocab_artifact(
+            artifact,
+            full_vocab_template.as_ref(),
+        )
+        .map_err(crate::GlrMaskError::Serialization)?;
+        let from_ms = from_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        let validate_started = profile.then(std::time::Instant::now);
+        if quotient.source_vocab_digest()
+            != Some(crate::compiler::compile::vocab_content_digest(vocab))
+        {
             return Err(crate::GlrMaskError::Serialization(
-                "dynamic transfer grammar-quotient vocabulary does not match supplied token bytes"
+                "dynamic transfer grammar-quotient vocabulary does not match supplied vocabulary"
                     .to_owned(),
             ));
         }
-        quotient.restore_root_layout_metadata_from_token_bytes(vocab.entries_map());
+        let validate_ms = validate_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        if profile {
+            eprintln!(
+                "[glrmask/profile][dynamic_transfer_quotient_assemble] from_artifact_ms={from_ms:.3} validate_ms={validate_ms:.3}",
+            );
+        }
         Ok(quotient)
     }
 

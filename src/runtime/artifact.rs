@@ -1370,7 +1370,7 @@ pub(crate) struct SpecialTokenTerminal {
 /// Compact runtime-only vocabulary trie. It deliberately stores only the
 /// information dynamic mask traversal consumes: compressed byte edges, child
 /// ranges, and canonical token leaves.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DynamicMaskTrieNode {
     pub(crate) token_id: Option<u32>,
     pub(crate) first_child: u32,
@@ -1401,7 +1401,7 @@ pub(crate) struct DynamicMaskTrieNode {
     pub(crate) subtree_max_byte_len: u32,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DynamicMaskTrieEdge {
     pub(crate) byte_start: u32,
     pub(crate) byte_len: u32,
@@ -1411,7 +1411,7 @@ pub(crate) struct DynamicMaskTrieEdge {
 /// One radix edge in depth-first preorder. `subtree_end` is the first walk
 /// entry after the child subtree, so a failed edge or accepted whole subtree
 /// can be skipped with one index assignment.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DynamicMaskTrieWalkEdge {
     pub(crate) byte_start: u32,
     pub(crate) child: u32,
@@ -1424,7 +1424,7 @@ pub(crate) struct DynamicMaskTrieWalkEdge {
 /// radix edge contributes at least one op; non-empty edges contribute one op
 /// per consumed byte. This is purely a flatter view of the vocabulary trie: it
 /// does not omit or summarize any edge.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DynamicMaskTrieFullWalkOp {
     meta: u32,
 }
@@ -1451,7 +1451,7 @@ impl DynamicMaskTrieFullWalkOp {
     pub(crate) fn child_is_token(&self) -> bool { self.meta & Self::TOKEN != 0 }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DynamicMaskTrie {
     pub(crate) nodes: Vec<DynamicMaskTrieNode>,
     pub(crate) edges: Vec<DynamicMaskTrieEdge>,
@@ -1469,6 +1469,7 @@ pub(crate) struct DynamicMaskTrie {
     /// directly to the first strict-walk op for its root child. `u32::MAX`
     /// means the vocabulary has no token beginning with that byte. Structural
     /// zero-byte roots deliberately leave this unavailable.
+    #[serde(with = "optional_u32_256_serde")]
     full_walk_root_byte_op_starts: Option<Box<[u32; 256]>>,
     full_walk_token_nodes: Vec<u32>,
     /// Maximum structural radix-edge parent depth encoded by `full_walk_ops`.
@@ -1483,6 +1484,37 @@ pub(crate) struct DynamicMaskTrie {
     /// class is valid UTF-8. Logical-scalar subtree proofs require this exact
     /// vocabulary property before treating non-ASCII bytes as UTF-8 scalars.
     root_layout_all_valid_utf8: Vec<bool>,
+}
+
+mod optional_u32_256_serde {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S>(
+        value: &Option<Box<[u32; 256]>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        value.as_deref().map(|row| row.as_slice()).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Box<[u32; 256]>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = Option::<Vec<u32>>::deserialize(deserializer)?;
+        value
+            .map(|row| {
+                row.try_into()
+                    .map(Box::new)
+                    .map_err(|row: Vec<u32>| serde::de::Error::custom(format!(
+                        "expected 256 root-byte entries, got {}",
+                        row.len()
+                    )))
+            })
+            .transpose()
+    }
 }
 
 /// Stable structural class used by the dynamic-mask radix trie.
@@ -2115,13 +2147,13 @@ impl Default for DynamicMaskTrie {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) enum PackedDynamicMaskTokenAliases {
     Single(u32),
     Many(Box<[u32]>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) enum DynamicMaskAliasStore {
     Ordered(Arc<Vec<Vec<u32>>>),
     Packed(Arc<Vec<Option<PackedDynamicMaskTokenAliases>>>),
@@ -2992,30 +3024,14 @@ impl DynamicBoundedObservationSets {
 
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub(crate) struct DynamicMaskVocabArtifactNode {
-    token_id: u32,
-    first_child: u32,
-    child_len: u32,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub(crate) struct DynamicMaskVocabArtifactEdge {
-    byte_start: u32,
-    byte_len: u32,
-    child: u32,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DynamicMaskVocabArtifact {
-    nodes: Vec<DynamicMaskVocabArtifactNode>,
-    edges: Vec<DynamicMaskVocabArtifactEdge>,
-    edge_bytes: Vec<u8>,
-    alias_offsets: Vec<u32>,
-    aliases: Vec<u32>,
+    trie: DynamicMaskTrie,
+    token_aliases: DynamicMaskAliasStore,
+    llg_slice_leftovers: Vec<Arc<DynamicMaskSliceTrie>>,
     mask_tokenizer: Option<Tokenizer>,
     full_to_mask_state: Vec<u32>,
-    #[serde(default)]
     grammar_quotiented: bool,
+    source_vocab_digest: Option<[u8; 32]>,
 }
 
 /// Runtime-only lazily determinized subset-state cache for scalar-dispatch mask execution.
@@ -3064,7 +3080,7 @@ pub(crate) struct DynamicDenseSubset16 {
 /// One overlapping runtime slice language and the residual vocabulary trie
 /// to walk after that language has been proved contained. The slice language
 /// itself is not a compiler partition and may overlap/nest with other slices.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DynamicMaskSliceTrie {
     cache_id: u32,
     dfa: Arc<VocabPartitionDfa>,
@@ -3185,6 +3201,10 @@ pub(crate) struct DynamicMaskVocab {
     /// True only when trie endpoints represent grammar-proven vocabulary
     /// equivalence classes rather than byte-identical token aliases.
     grammar_quotiented: bool,
+    /// Strong identity of the complete original model vocabulary from which a
+    /// grammar quotient was built. Ordinary dynamic vocabularies leave this
+    /// unset; compiler-created O2 quotients carry it into transfer metadata.
+    source_vocab_digest: Option<[u8; 32]>,
     mask_cache: Arc<Mutex<DynamicMaskCache>>,
     dense_subset16_cache: Arc<Mutex<FxHashMap<Vec<u32>, Arc<DynamicDenseSubset16>>>>,
     lazy_union_cache: Arc<Mutex<DynamicLazyUnionCache>>,
@@ -3450,6 +3470,7 @@ impl DynamicMaskVocab {
             pending_source: None,
             initialized: true,
             grammar_quotiented: false,
+            source_vocab_digest: None,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3489,6 +3510,23 @@ impl DynamicMaskVocab {
     /// accelerator whose contents can depend on parser, lexer, or constraint
     /// state is recreated empty, so repeated schema builds cannot inherit
     /// schema-derived runtime state.
+    /// Minimal producer-side representation for an external-vocabulary
+    /// transfer artifact. The worker never executes masks with this value: the
+    /// execution parent reconstructs all runtime-only indexes from trie+aliases
+    /// after load. Keeping those indexes lazy here avoids doing the same O(vocab)
+    /// work twice per schema.
+    pub(crate) fn from_materialized_ordered_for_transfer(
+        trie: Arc<DynamicMaskTrie>,
+        token_aliases: Arc<Vec<Vec<u32>>>,
+    ) -> Self {
+        let mut vocab = Self::default();
+        vocab.trie = trie;
+        vocab.token_aliases = DynamicMaskAliasStore::Ordered(token_aliases);
+        vocab.pending_source = None;
+        vocab.initialized = true;
+        vocab
+    }
+
     pub(crate) fn fresh_runtime_instance(&self) -> Self {
         debug_assert!(self.initialized);
         debug_assert!(self.pending_source.is_none());
@@ -3524,6 +3562,7 @@ impl DynamicMaskVocab {
             pending_source: None,
             initialized: true,
             grammar_quotiented: self.grammar_quotiented,
+            source_vocab_digest: self.source_vocab_digest,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3589,6 +3628,7 @@ impl DynamicMaskVocab {
             pending_source: Some(source),
             initialized: false,
             grammar_quotiented: false,
+            source_vocab_digest: None,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3625,6 +3665,14 @@ impl DynamicMaskVocab {
         self.grammar_quotiented = true;
     }
 
+    pub(crate) fn set_source_vocab_digest(&mut self, digest: [u8; 32]) {
+        self.source_vocab_digest = Some(digest);
+    }
+
+    pub(crate) fn source_vocab_digest(&self) -> Option<[u8; 32]> {
+        self.source_vocab_digest
+    }
+
     pub(crate) fn is_grammar_quotiented(&self) -> bool {
         self.grammar_quotiented
     }
@@ -3633,14 +3681,43 @@ impl DynamicMaskVocab {
         trie: Arc<DynamicMaskTrie>,
         token_aliases: Arc<Vec<Option<PackedDynamicMaskTokenAliases>>>,
     ) -> Self {
-        let token_aliases = DynamicMaskAliasStore::Packed(token_aliases);
+        Self::from_alias_store(trie, DynamicMaskAliasStore::Packed(token_aliases))
+    }
+
+    fn from_alias_store(trie: Arc<DynamicMaskTrie>, token_aliases: DynamicMaskAliasStore) -> Self {
+        Self::from_alias_store_with_slices(trie, token_aliases, None)
+    }
+
+    fn from_alias_store_with_slices(
+        trie: Arc<DynamicMaskTrie>,
+        token_aliases: DynamicMaskAliasStore,
+        slices: Option<&[Arc<DynamicMaskSliceTrie>]>,
+    ) -> Self {
         let (canonical_original_token_offsets, canonical_original_tokens) =
             Self::flatten_canonical_original_tokens(&token_aliases);
-        let (canonical_original_word_offsets, canonical_original_word_masks) =
-            Self::build_canonical_original_word_masks(
+        let master_layout_classes = slices.and_then(|slices| {
+            Self::llg_master_layout_classes_from_slices(
+                slices,
+                canonical_original_token_offsets.len().saturating_sub(1),
+            )
+        });
+        let (
+            canonical_original_word_offsets,
+            canonical_original_word_masks,
+            fused_master_admission,
+        ) = if let Some(classes) = master_layout_classes.as_deref() {
+            Self::build_canonical_original_word_masks_and_master_admission(
+                &canonical_original_token_offsets,
+                &canonical_original_tokens,
+                classes,
+            )
+        } else {
+            let (offsets, masks) = Self::build_canonical_original_word_masks(
                 &canonical_original_token_offsets,
                 &canonical_original_tokens,
             );
+            (offsets, masks, None)
+        };
         let node_token_markers = Self::build_node_token_markers(
             trie.as_ref(),
             &canonical_original_token_offsets,
@@ -3669,8 +3746,10 @@ impl DynamicMaskVocab {
             subtree_original_tokens,
             all_original_token_words,
             llg_slice_leftovers: Arc::new(Vec::new()),
-            llg_master_admitted_words: Arc::new(Vec::new()),
-            llg_master_max_safe_chars: 0,
+            llg_master_admitted_words: fused_master_admission
+                .as_ref()
+                .map_or_else(|| Arc::new(Vec::new()), |(_, words)| Arc::clone(words)),
+            llg_master_max_safe_chars: fused_master_admission.map_or(0, |(max_safe_chars, _)| max_safe_chars),
             prepared_master_prover_row_ids: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_offsets: Arc::from(Vec::<u32>::new()),
             prepared_master_prover_terminals: Arc::from(Vec::<TerminalID>::new()),
@@ -3684,6 +3763,7 @@ impl DynamicMaskVocab {
             pending_source: None,
             initialized: true,
             grammar_quotiented: false,
+            source_vocab_digest: None,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -3785,6 +3865,136 @@ impl DynamicMaskVocab {
         (Arc::new(offsets), Arc::new(originals))
     }
 
+    fn llg_master_layout_classes_from_slices(
+        slices: &[Arc<DynamicMaskSliceTrie>],
+        canonical_count: usize,
+    ) -> Option<Vec<u16>> {
+        let master = slices
+            .iter()
+            .find(|slice| slice.cache_id() == DYNAMIC_MASK_LLG_MASTER_CACHE_ID)?;
+        let trie = master.trie();
+        let mut classes = vec![0u16; canonical_count];
+        let mut seen = vec![false; canonical_count];
+        if let Some(root_token) = trie.node(0).token_id {
+            let slot = root_token as usize;
+            if slot >= canonical_count {
+                return None;
+            }
+            seen[slot] = true;
+        }
+        let all_tokens = trie.all_subtree_tokens();
+        for (root_slot, edge) in trie.children(0).iter().enumerate() {
+            let class = trie.root_layout_class(root_slot)?;
+            let canonical_tokens = all_tokens.get(trie.subtree_token_index_range(edge.child))?;
+            for &canonical in canonical_tokens {
+                let slot = canonical as usize;
+                if slot >= canonical_count {
+                    return None;
+                }
+                if seen[slot] && classes[slot] != class {
+                    return None;
+                }
+                classes[slot] = class;
+                seen[slot] = true;
+            }
+        }
+        seen.iter().all(|&value| value).then_some(classes)
+    }
+
+    fn build_canonical_original_word_masks_and_master_admission(
+        canonical_offsets: &[u32],
+        canonical_original_tokens: &[u32],
+        master_layout_classes: &[u16],
+    ) -> (
+        Arc<Vec<u32>>,
+        Arc<Vec<(u32, u32)>>,
+        Option<(u16, Arc<Vec<Vec<u32>>>)>,
+    ) {
+        let canonical_count = canonical_offsets.len().saturating_sub(1);
+        if master_layout_classes.len() != canonical_count {
+            let (offsets, masks) = Self::build_canonical_original_word_masks(
+                canonical_offsets,
+                canonical_original_tokens,
+            );
+            return (offsets, masks, None);
+        }
+        let word_len = canonical_original_tokens
+            .iter()
+            .copied()
+            .max()
+            .map_or(0, |token| token as usize / 32 + 1);
+        let max_safe_chars = master_layout_classes
+            .iter()
+            .copied()
+            .map(dynamic_mask_llg_master_safe_chars)
+            .max()
+            .unwrap_or(0);
+        let mut exact_safe_words =
+            vec![vec![0u32; word_len]; usize::from(max_safe_chars) + 1];
+        let mut whitespace_words = vec![0u32; word_len];
+        let mut scratch = vec![0u32; word_len];
+        let mut touched = Vec::<u32>::new();
+        let mut offsets = Vec::<u32>::with_capacity(canonical_count + 1);
+        let mut masks = Vec::<(u32, u32)>::new();
+        offsets.push(0);
+        for canonical in 0..canonical_count {
+            let class = master_layout_classes[canonical];
+            let safe_chars = dynamic_mask_llg_master_safe_chars(class);
+            let is_whitespace = dynamic_mask_llg_master_is_whitespace(class);
+            let start = canonical_offsets[canonical] as usize;
+            let end = canonical_offsets[canonical + 1] as usize;
+            for &token_id in &canonical_original_tokens[start..end] {
+                let word = token_id / 32;
+                let word_slot = word as usize;
+                let bit = 1u32 << (token_id % 32);
+                let slot = unsafe { scratch.get_unchecked_mut(word_slot) };
+                if *slot == 0 {
+                    touched.push(word);
+                }
+                *slot |= bit;
+                if safe_chars != 0 {
+                    unsafe {
+                        *exact_safe_words
+                            .get_unchecked_mut(usize::from(safe_chars))
+                            .get_unchecked_mut(word_slot) |= bit;
+                    }
+                }
+                if is_whitespace {
+                    unsafe { *whitespace_words.get_unchecked_mut(word_slot) |= bit; }
+                }
+            }
+            for word in touched.drain(..) {
+                let bits = unsafe { *scratch.get_unchecked(word as usize) };
+                debug_assert_ne!(bits, 0);
+                masks.push((word, bits));
+                unsafe { *scratch.get_unchecked_mut(word as usize) = 0; }
+            }
+            offsets.push(masks.len() as u32);
+        }
+
+        let mut admitted_words =
+            Vec::<Vec<u32>>::with_capacity((usize::from(max_safe_chars) + 1) * 2);
+        let mut safe_prefix = vec![0u32; word_len];
+        for radius in 0..=usize::from(max_safe_chars) {
+            if radius != 0 {
+                for (target, &source) in safe_prefix.iter_mut().zip(&exact_safe_words[radius]) {
+                    *target |= source;
+                }
+            }
+            admitted_words.push(safe_prefix.clone());
+            let mut with_whitespace = safe_prefix.clone();
+            for (target, &source) in with_whitespace.iter_mut().zip(&whitespace_words) {
+                *target |= source;
+            }
+            admitted_words.push(with_whitespace);
+        }
+        (
+            Arc::new(offsets),
+            Arc::new(masks),
+            Some((max_safe_chars, Arc::new(admitted_words))),
+        )
+    }
+
     fn build_canonical_original_word_masks(
         canonical_offsets: &[u32],
         canonical_original_tokens: &[u32],
@@ -3838,6 +4048,24 @@ impl DynamicMaskVocab {
     #[inline]
     pub(crate) fn all_original_token_words(&self) -> &[u32] {
         self.all_original_token_words.as_ref()
+    }
+
+    /// Reuse only vocabulary-global proof languages and admitted-token masks.
+    /// The master walk trie itself is deliberately excluded: a grammar quotient
+    /// can merge tokens that differ in safe-string length/whitespace class, so
+    /// sharing the full-vocabulary master trie would both lose the O2 runtime
+    /// reduction and couple the wrong canonical coordinate to this constraint.
+    pub(crate) fn inherit_llg_vocab_acceleration_without_master_from(&mut self, source: &Self) {
+        self.llg_slice_leftovers = Arc::new(
+            source
+                .llg_slice_leftovers
+                .iter()
+                .filter(|slice| slice.cache_id() != DYNAMIC_MASK_LLG_MASTER_CACHE_ID)
+                .cloned()
+                .collect(),
+        );
+        self.llg_master_admitted_words = Arc::clone(&source.llg_master_admitted_words);
+        self.llg_master_max_safe_chars = source.llg_master_max_safe_chars;
     }
 
     pub(crate) fn set_llg_slice_leftovers(
@@ -3917,6 +4145,71 @@ impl DynamicMaskVocab {
     #[inline(always)]
     pub(crate) fn llg_master_max_safe_chars(&self) -> u16 {
         self.llg_master_max_safe_chars
+    }
+
+    /// Reconstruct cumulative admitted-token bitsets from the already-transferred
+    /// master slice trie. Each root subtree has one exact `(safe_chars, whitespace)`
+    /// language class, so this is linear in original-token membership plus the
+    /// small number of cumulative rows and avoids serializing those dense rows.
+    fn rebuild_llg_master_admitted_words_from_master_trie(&mut self) {
+        let Some(master) = self.llg_master_trie() else {
+            self.llg_master_admitted_words = Arc::new(Vec::new());
+            self.llg_master_max_safe_chars = 0;
+            return;
+        };
+        let root_children = master.trie().children(0);
+        let max_safe_chars = root_children
+            .iter()
+            .enumerate()
+            .filter_map(|(slot, _)| master.trie().root_layout_class(slot))
+            .map(dynamic_mask_llg_master_safe_chars)
+            .max()
+            .unwrap_or(0);
+        let word_len = self.all_original_token_words.len();
+        let mut exact_safe_words =
+            vec![vec![0u32; word_len]; usize::from(max_safe_chars) + 1];
+        let mut whitespace_words = vec![0u32; word_len];
+        for (slot, edge) in root_children.iter().enumerate() {
+            let Some(class) = master.trie().root_layout_class(slot) else {
+                continue;
+            };
+            let safe_chars = dynamic_mask_llg_master_safe_chars(class);
+            let whitespace = dynamic_mask_llg_master_is_whitespace(class);
+            if safe_chars == 0 && !whitespace {
+                continue;
+            }
+            for &token in master.subtree_original_tokens(edge.child) {
+                let word = token as usize / 32;
+                if word >= word_len {
+                    continue;
+                }
+                let bit = 1u32 << (token % 32);
+                if safe_chars != 0 {
+                    exact_safe_words[usize::from(safe_chars)][word] |= bit;
+                }
+                if whitespace {
+                    whitespace_words[word] |= bit;
+                }
+            }
+        }
+        let mut admitted_words =
+            Vec::<Vec<u32>>::with_capacity((usize::from(max_safe_chars) + 1) * 2);
+        let mut safe_prefix = vec![0u32; word_len];
+        for radius in 0..=usize::from(max_safe_chars) {
+            if radius != 0 {
+                for (target, &source) in safe_prefix.iter_mut().zip(&exact_safe_words[radius]) {
+                    *target |= source;
+                }
+            }
+            admitted_words.push(safe_prefix.clone());
+            let mut with_whitespace = safe_prefix.clone();
+            for (target, &source) in with_whitespace.iter_mut().zip(&whitespace_words) {
+                *target |= source;
+            }
+            admitted_words.push(with_whitespace);
+        }
+        self.llg_master_max_safe_chars = max_safe_chars;
+        self.llg_master_admitted_words = Arc::new(admitted_words);
     }
 
     #[inline(always)]
@@ -4108,6 +4401,24 @@ impl DynamicMaskVocab {
         self.prepared_master_prover_row_ids
             .get(row + Self::PREPARED_PROOF_SLOT_COUNT - 1)
             .is_some()
+    }
+
+    /// Whether the compact prepared-master artifact contains row framing for
+    /// every exact tokenizer source.  Transfer artifacts restore these rows
+    /// verbatim; when they are complete, rebuilding the terminal projection
+    /// quotients and solving the same source×slice products again on load is
+    /// redundant.
+    #[inline]
+    pub(crate) fn has_complete_prepared_master_prover_rows(
+        &self,
+        source_state_count: usize,
+    ) -> bool {
+        source_state_count
+            .checked_mul(Self::PREPARED_PROOF_SLOT_COUNT)
+            .and_then(|rows| rows.checked_add(1))
+            .is_some_and(|expected_offsets| {
+                self.prepared_master_prover_offsets.len() == expected_offsets
+            })
     }
 
     /// Exact build-time master-slice answer when this `(terminal, source)` is
@@ -5278,6 +5589,14 @@ impl DynamicMaskVocab {
 
     #[inline(always)]
     pub(crate) fn llg_master_trie(&self) -> Option<&DynamicMaskSliceTrie> {
+        // O2 already walks a grammar quotient that is orders of magnitude
+        // smaller than the model vocabulary. Switching to a separately
+        // structured master trie loses that quotient and is unnecessary; the
+        // exact ordinary quotient walk is both the semantic authority and the
+        // cheaper coordinate here.
+        if self.grammar_quotiented {
+            return None;
+        }
         self.llg_slice_by_cache_id(DYNAMIC_MASK_LLG_MASTER_CACHE_ID)
     }
 
@@ -5434,7 +5753,14 @@ impl DynamicMaskVocab {
 
     #[inline]
     pub(crate) fn canonical_token_count(&self) -> usize {
-        self.canonical_original_token_offsets.len().saturating_sub(1)
+        let indexed = self.canonical_original_token_offsets.len().saturating_sub(1);
+        if indexed != 0 {
+            return indexed;
+        }
+        match &self.token_aliases {
+            DynamicMaskAliasStore::Ordered(aliases) => aliases.len(),
+            DynamicMaskAliasStore::Packed(aliases) => aliases.len(),
+        }
     }
 
     pub(crate) fn token_ids(&self, canonical_token_id: u32) -> Option<&[u32]> {
@@ -6964,63 +7290,16 @@ impl DynamicMaskVocab {
         let mask_quotient = include_mask_quotient
             .then(|| self.mask_tokenizer_quotient_for_transfer())
             .flatten();
-        let nodes = self
-            .trie
-            .nodes
-            .iter()
-            .map(|node| DynamicMaskVocabArtifactNode {
-                token_id: node.token_id.unwrap_or(u32::MAX),
-                first_child: node.first_child,
-                child_len: node.child_len,
-            })
-            .collect();
-        let edges = self
-            .trie
-            .edges
-            .iter()
-            .map(|edge| DynamicMaskVocabArtifactEdge {
-                byte_start: edge.byte_start,
-                byte_len: edge.byte_len,
-                child: edge.child,
-            })
-            .collect();
-        let mut alias_offsets = Vec::new();
-        let mut aliases = Vec::new();
-        let alias_count = match &self.token_aliases {
-            DynamicMaskAliasStore::Ordered(entries) => entries.len(),
-            DynamicMaskAliasStore::Packed(entries) => entries.len(),
-        };
-        alias_offsets.reserve(alias_count + 1);
-        alias_offsets.push(0);
-        for index in 0..alias_count {
-            match &self.token_aliases {
-                DynamicMaskAliasStore::Ordered(entries) => {
-                    aliases.extend_from_slice(&entries[index]);
-                }
-                DynamicMaskAliasStore::Packed(entries) => {
-                    if let Some(entry) = entries[index].as_ref() {
-                        match entry {
-                            PackedDynamicMaskTokenAliases::Single(token) => aliases.push(*token),
-                            PackedDynamicMaskTokenAliases::Many(tokens) => {
-                                aliases.extend_from_slice(tokens)
-                            }
-                        }
-                    }
-                }
-            }
-            alias_offsets.push(aliases.len() as u32);
-        }
         Some(DynamicMaskVocabArtifact {
-            nodes,
-            edges,
-            edge_bytes: self.trie.edge_bytes.clone(),
-            alias_offsets,
-            aliases,
+            trie: self.trie.as_ref().clone(),
+            token_aliases: self.token_aliases.clone(),
+            llg_slice_leftovers: self.llg_slice_leftovers.as_ref().clone(),
             mask_tokenizer: mask_quotient.as_ref().map(|(tokenizer, _)| tokenizer.clone()),
             full_to_mask_state: mask_quotient
                 .map(|(_, full_to_mask_state)| full_to_mask_state)
                 .unwrap_or_default(),
             grammar_quotiented: self.grammar_quotiented,
+            source_vocab_digest: self.source_vocab_digest,
         })
     }
 
@@ -7034,152 +7313,63 @@ impl DynamicMaskVocab {
         self.to_artifact_impl(false)
     }
 
+    /// External-vocabulary transfer can omit model-vocabulary-only slice/master
+    /// acceleration for grammar quotients. `load_with_vocab` reattaches the
+    /// already-prepared full-vocabulary structure in the parent process.
+    pub(crate) fn to_external_vocab_artifact(&self) -> Option<DynamicMaskVocabArtifact> {
+        let mut artifact = self.to_artifact_impl(false)?;
+        if artifact.grammar_quotiented {
+            artifact.llg_slice_leftovers.clear();
+        }
+        Some(artifact)
+    }
+
     pub(crate) fn from_artifact(artifact: DynamicMaskVocabArtifact) -> Result<Self, String> {
-        if artifact.nodes.is_empty() {
+        Self::from_artifact_impl(artifact, None)
+    }
+
+    pub(crate) fn from_external_vocab_artifact(
+        artifact: DynamicMaskVocabArtifact,
+        full_vocab_template: &DynamicMaskVocab,
+    ) -> Result<Self, String> {
+        Self::from_artifact_impl(artifact, Some(full_vocab_template))
+    }
+
+    fn from_artifact_impl(
+        artifact: DynamicMaskVocabArtifact,
+        full_vocab_template: Option<&DynamicMaskVocab>,
+    ) -> Result<Self, String> {
+        if artifact.trie.nodes.is_empty() {
             return Err("dynamic-mask vocabulary artifact has no trie root".to_owned());
         }
-        if artifact.alias_offsets.first().copied() != Some(0)
-            || artifact.alias_offsets.last().copied().map(|v| v as usize)
-                != Some(artifact.aliases.len())
-            || artifact.alias_offsets.windows(2).any(|pair| pair[0] > pair[1])
-        {
-            return Err("dynamic-mask vocabulary artifact has invalid alias offsets".to_owned());
-        }
-        let node_count = artifact.nodes.len();
-        let edge_count = artifact.edges.len();
-
-        // The compact runtime assumes one rooted tree. Validate ownership and
-        // reachability before any recursive metadata reconstruction so malformed
-        // artifacts cannot smuggle overlapping child ranges, cycles, or detached
-        // components into the trie.
-        let mut edge_owned = vec![false; edge_count];
-        let mut incoming = vec![0u8; node_count];
-        for (node_index, node) in artifact.nodes.iter().enumerate() {
-            let first = node.first_child as usize;
-            let len = node.child_len as usize;
-            let Some(end) = first.checked_add(len) else {
-                return Err(format!(
-                    "dynamic-mask vocabulary node {node_index} has an invalid child range"
-                ));
-            };
-            if end > edge_count {
-                return Err(format!(
-                    "dynamic-mask vocabulary node {node_index} has an invalid child range"
-                ));
-            }
-            for edge_index in first..end {
-                if std::mem::replace(&mut edge_owned[edge_index], true) {
-                    return Err("dynamic-mask vocabulary artifact has overlapping child ranges".to_owned());
-                }
-                let child = artifact.edges[edge_index].child as usize;
-                if child >= node_count || child == 0 {
-                    return Err(format!(
-                        "dynamic-mask vocabulary edge {edge_index} references an invalid child"
-                    ));
-                }
-                incoming[child] = incoming[child].saturating_add(1);
-                if incoming[child] != 1 {
-                    return Err("dynamic-mask vocabulary artifact is not a tree".to_owned());
-                }
-            }
-        }
-        if edge_owned.iter().any(|owned| !*owned)
-            || incoming.iter().skip(1).any(|&count| count != 1)
-        {
-            return Err("dynamic-mask vocabulary artifact is not one rooted tree".to_owned());
-        }
-        let mut reachable = vec![false; node_count];
-        let mut stack = vec![0usize];
-        while let Some(node) = stack.pop() {
-            if std::mem::replace(&mut reachable[node], true) {
-                continue;
-            }
-            let raw = &artifact.nodes[node];
-            let first = raw.first_child as usize;
-            let end = first + raw.child_len as usize;
-            stack.extend(artifact.edges[first..end].iter().map(|edge| edge.child as usize));
-        }
-        if reachable.iter().any(|seen| !*seen) {
-            return Err("dynamic-mask vocabulary artifact has unreachable trie nodes".to_owned());
-        }
-
-        let mut nodes = Vec::with_capacity(node_count);
-        let alias_count = artifact.alias_offsets.len().saturating_sub(1);
-        for (index, node) in artifact.nodes.into_iter().enumerate() {
-            let first = node.first_child as usize;
-            let len = node.child_len as usize;
-            if first.checked_add(len).is_none_or(|end| end > edge_count) {
-                return Err(format!(
-                    "dynamic-mask vocabulary node {index} has an invalid child range"
-                ));
-            }
-            let token_id = (node.token_id != u32::MAX).then_some(node.token_id);
-            if token_id.is_some_and(|token| token as usize >= alias_count) {
-                return Err(format!(
-                    "dynamic-mask vocabulary node {index} references an invalid canonical token"
-                ));
-            }
-            nodes.push(DynamicMaskTrieNode {
-                token_id,
-                first_child: node.first_child,
-                child_len: node.child_len,
-                subtree_token_start: 0,
-                subtree_token_end: 0,
-                subtree_bytes: [0; 4],
-                subtree_first_bytes: [0; 4],
-                prefix_byte_len: 0,
-                subtree_max_byte_len: 0,
-            });
-        }
-        let mut edges = Vec::with_capacity(edge_count);
-        for (index, edge) in artifact.edges.into_iter().enumerate() {
-            let start = edge.byte_start as usize;
-            let len = edge.byte_len as usize;
-            if start
-                .checked_add(len)
-                .is_none_or(|end| end > artifact.edge_bytes.len())
-            {
-                return Err(format!(
-                    "dynamic-mask vocabulary edge {index} has an invalid byte range"
-                ));
-            }
-            edges.push(DynamicMaskTrieEdge {
-                byte_start: edge.byte_start,
-                byte_len: edge.byte_len,
-                child: edge.child,
-            });
-        }
-        let mut trie = DynamicMaskTrie {
-            nodes,
-            edges,
-            edge_bytes: artifact.edge_bytes,
-            subtree_tokens: Vec::new(),
-            walk_edges: Vec::new(),
-            full_walk_ops: Vec::new(),
-            full_walk_op_edges: Vec::new(),
-            full_walk_edge_op_starts: Vec::new(),
-            full_walk_root_byte_op_starts: None,
-            full_walk_token_nodes: Vec::new(),
-            full_walk_max_parent_depth: 0,
-            root_layout_classes: Vec::new(),
-            root_layout_all_valid_utf8: Vec::new(),
+        let llg_slice_leftovers = artifact.llg_slice_leftovers;
+        let external_acceleration = artifact.grammar_quotiented
+            && llg_slice_leftovers.is_empty()
+            && full_vocab_template.is_some();
+        let mut result = if external_acceleration {
+            DynamicMaskVocab::from_alias_store(
+                Arc::new(artifact.trie),
+                artifact.token_aliases,
+            )
+        } else {
+            DynamicMaskVocab::from_alias_store_with_slices(
+                Arc::new(artifact.trie),
+                artifact.token_aliases,
+                Some(&llg_slice_leftovers),
+            )
         };
-        trie.finalize_subtree_metadata();
-
-        let mut packed_aliases = Vec::with_capacity(alias_count);
-        for index in 0..alias_count {
-            let start = artifact.alias_offsets[index] as usize;
-            let end = artifact.alias_offsets[index + 1] as usize;
-            packed_aliases.push(match &artifact.aliases[start..end] {
-                [] => None,
-                [token] => Some(PackedDynamicMaskTokenAliases::Single(*token)),
-                tokens => Some(PackedDynamicMaskTokenAliases::Many(
-                    tokens.to_vec().into_boxed_slice(),
-                )),
-            });
+        if external_acceleration {
+            result.inherit_llg_vocab_acceleration_without_master_from(
+                full_vocab_template.expect("external acceleration template checked above"),
+            );
+        } else {
+            result.llg_slice_leftovers = Arc::new(llg_slice_leftovers);
+            if result.llg_master_admitted_words.is_empty() {
+                result.rebuild_llg_master_admitted_words_from_master_trie();
+            }
         }
-        let mut result = DynamicMaskVocab::from_packed(Arc::new(trie), Arc::new(packed_aliases));
         result.grammar_quotiented = artifact.grammar_quotiented;
+        result.source_vocab_digest = artifact.source_vocab_digest;
         match artifact.mask_tokenizer {
             Some(tokenizer) => {
                 if artifact.full_to_mask_state.is_empty()
@@ -7469,6 +7659,7 @@ impl Default for DynamicMaskVocab {
             pending_source: None,
             initialized: false,
             grammar_quotiented: false,
+            source_vocab_digest: None,
             mask_cache: Arc::new(Mutex::new(DynamicMaskCache::default())),
             dense_subset16_cache: Arc::new(Mutex::new(FxHashMap::default())),
             lazy_union_cache: Arc::new(Mutex::new(DynamicLazyUnionCache::default())),
@@ -9967,7 +10158,7 @@ mod dynamic_mask_vocab_cache_boundary_tests {
             .expect("initialized vocabulary should serialize");
         assert!(artifact.mask_tokenizer.is_none());
         assert!(artifact.full_to_mask_state.is_empty());
-        artifact.nodes.clear();
+        artifact.trie.nodes.clear();
         let error = DynamicMaskVocab::from_artifact(artifact).unwrap_err();
         assert!(error.contains("no trie root"));
     }
@@ -10043,29 +10234,6 @@ mod dynamic_mask_vocab_cache_boundary_tests {
     }
 
     #[test]
-    fn vocab_artifact_rejects_overlapping_child_ranges() {
-        let vocab = DynamicMaskVocab::from_materialized_ordered(
-            Arc::new(DynamicMaskTrie::new()),
-            Arc::new(Vec::new()),
-        );
-        let mut artifact = vocab.to_vocab_artifact().unwrap();
-        artifact.nodes.push(DynamicMaskVocabArtifactNode {
-            token_id: u32::MAX,
-            first_child: 0,
-            child_len: 1,
-        });
-        artifact.edges.push(DynamicMaskVocabArtifactEdge {
-            byte_start: 0,
-            byte_len: 0,
-            child: 1,
-        });
-        artifact.nodes[0].first_child = 0;
-        artifact.nodes[0].child_len = 1;
-        let error = DynamicMaskVocab::from_artifact(artifact).unwrap_err();
-        assert!(error.contains("overlapping child ranges"));
-    }
-
-    #[test]
     fn vocab_artifact_restores_root_layout_metadata_from_token_bytes() {
         let token_bytes = BTreeMap::from([
             (0u32, b"abc".to_vec()),
@@ -10096,11 +10264,7 @@ mod dynamic_mask_vocab_cache_boundary_tests {
             Arc::new(vec![vec![0], vec![1]]),
         );
         let artifact = vocab.to_vocab_artifact().unwrap();
-        let mut loaded = DynamicMaskVocab::from_artifact(artifact).unwrap();
-        assert!(loaded.trie.root_layout_classes.is_empty());
-        assert!(loaded.trie.root_layout_all_valid_utf8.is_empty());
-
-        loaded.restore_root_layout_metadata_from_token_bytes(&token_bytes);
+        let loaded = DynamicMaskVocab::from_artifact(artifact).unwrap();
         assert_eq!(loaded.trie.root_layout_classes, expected_classes);
         assert_eq!(loaded.trie.root_layout_all_valid_utf8, expected_utf8);
     }

@@ -259,21 +259,25 @@ pub mod __private {
             source: &str,
             vocab: &Vocab,
             end_token_ids: &[u32],
+            vocab_partition: bool,
         ) -> Result<(Vec<u8>, u64, u64)>;
         fn compile_lark_serialized_profiled_with_end_tokens(
             source: &str,
             vocab: &Vocab,
             end_token_ids: &[u32],
+            vocab_partition: bool,
         ) -> Result<(Vec<u8>, u64, u64)>;
         fn compile_json_schema_serialized_profiled_with_end_tokens(
             source: &str,
             vocab: &Vocab,
             end_token_ids: &[u32],
+            vocab_partition: bool,
         ) -> Result<(Vec<u8>, u64, u64)>;
         fn compile_glrm_serialized_profiled_with_end_tokens(
             source: &str,
             vocab: &Vocab,
             end_token_ids: &[u32],
+            vocab_partition: bool,
         ) -> Result<(Vec<u8>, u64, u64)>;
         fn compile_ebnf_serialized_with_end_tokens(
             source: &str,
@@ -490,11 +494,13 @@ pub mod __private {
             source: &str,
             vocab: &Vocab,
             end_token_ids: &[u32],
+            vocab_partition: bool,
         ) -> Result<(Vec<u8>, u64, u64)> {
             DynamicConstraint::compile_ebnf_serialized_profiled_with_end_tokens(
                 source,
                 vocab,
                 end_token_ids,
+                vocab_partition,
             )
         }
 
@@ -502,11 +508,13 @@ pub mod __private {
             source: &str,
             vocab: &Vocab,
             end_token_ids: &[u32],
+            vocab_partition: bool,
         ) -> Result<(Vec<u8>, u64, u64)> {
             DynamicConstraint::compile_lark_serialized_profiled_with_end_tokens(
                 source,
                 vocab,
                 end_token_ids,
+                vocab_partition,
             )
         }
 
@@ -514,11 +522,13 @@ pub mod __private {
             source: &str,
             vocab: &Vocab,
             end_token_ids: &[u32],
+            vocab_partition: bool,
         ) -> Result<(Vec<u8>, u64, u64)> {
             DynamicConstraint::compile_json_schema_serialized_profiled_with_end_tokens(
                 source,
                 vocab,
                 end_token_ids,
+                vocab_partition,
             )
         }
 
@@ -526,11 +536,13 @@ pub mod __private {
             source: &str,
             vocab: &Vocab,
             end_token_ids: &[u32],
+            vocab_partition: bool,
         ) -> Result<(Vec<u8>, u64, u64)> {
             DynamicConstraint::compile_glrm_serialized_profiled_with_end_tokens(
                 source,
                 vocab,
                 end_token_ids,
+                vocab_partition,
             )
         }
 

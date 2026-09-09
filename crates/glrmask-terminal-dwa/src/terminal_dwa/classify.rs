@@ -1068,13 +1068,35 @@ impl VocabPartitionLanguage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct VocabPartitionDfa {
+    #[serde(with = "u8_256_serde")]
     byte_to_class: [u8; 256],
     class_count: usize,
     transitions: Vec<u32>,
     accepting: Vec<bool>,
     can_reach_accepting: Vec<bool>,
+}
+
+mod u8_256_serde {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S>(value: &[u8; 256], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        value.as_slice().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<[u8; 256], D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = Vec::<u8>::deserialize(deserializer)?;
+        value.try_into().map_err(|value: Vec<u8>| {
+            serde::de::Error::custom(format!("expected 256 byte classes, got {}", value.len()))
+        })
+    }
 }
 
 impl VocabPartitionDfa {

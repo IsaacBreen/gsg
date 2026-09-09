@@ -398,9 +398,28 @@ pub fn schema_to_named_grammar_for_dynamic(
     schema_to_named_grammar_with_config(schema, config)
 }
 
+/// Convert JSON Schema for the vocabulary-partitioned dynamic compiler.
+///
+/// O2 deliberately keeps large optional objects on the ordinary dynamic
+/// lowering path. The sparse parser representation reduces O1 build work, but
+/// destroys the compact parser/lexer shape that the vocabulary quotient relies
+/// on for fast masks on large all-optional objects.
+pub fn schema_to_named_grammar_for_dynamic_vocab_partition(
+    schema: &Value,
+) -> Result<NamedGrammar, GlrMaskError> {
+    let mut config = JsonSchemaConfig::from_env();
+    config.lazy_ordinary_bounded_strings = true;
+    config.split_pattern_property_prefix = true;
+    config.sparse_large_optional_objects = false;
+    schema_to_named_grammar_with_config(schema, config)
+}
+
 #[cfg(test)]
 mod dynamic_fixed_object_policy_tests {
-    use super::{schema_to_named_grammar, schema_to_named_grammar_for_dynamic};
+    use super::{
+        schema_to_named_grammar, schema_to_named_grammar_for_dynamic,
+        schema_to_named_grammar_for_dynamic_vocab_partition,
+    };
     use crate::grammar::ast::GrammarExpr;
     use serde_json::{Map, Value, json};
 
@@ -449,6 +468,13 @@ mod dynamic_fixed_object_policy_tests {
 
         let enough_optional = schema_to_named_grammar_for_dynamic(&object_schema(128, 64)).unwrap();
         assert_eq!(sparse_object_rules(&enough_optional), 1);
+    }
+
+    #[test]
+    fn vocab_partition_dynamic_does_not_use_sparse_large_optional_objects() {
+        let grammar =
+            schema_to_named_grammar_for_dynamic_vocab_partition(&object_schema(128, 0)).unwrap();
+        assert_eq!(sparse_object_rules(&grammar), 0);
     }
 
     #[test]

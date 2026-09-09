@@ -17,6 +17,7 @@ use crate::compiler::compile::{
 use crate::compiler::pipeline::{
     compile_dynamic_owned_unfinalized_with_table_construction,
     compile_dynamic_owned_with_table_construction,
+    compile_dynamic_owned_with_vocab_partition_unfinalized_with_table_construction,
     compile_dynamic_owned_with_vocab_partition_with_table_construction,
 };
 use crate::grammar::factoring::factor_named_grammar;
@@ -184,7 +185,7 @@ fn lower_factored_named_grammar(
 fn lower_json_schema_for_vocab_partition(source: &str) -> crate::Result<GrammarDef> {
     let lower_started_at = emit_import_phase_start("lower_factored_named_grammar");
     let parse_named_started_at = emit_import_phase_start("parse_named");
-    let named = parse_json_schema_to_named_dynamic(source)?;
+    let named = parse_json_schema_to_named_dynamic_vocab_partition(source)?;
     emit_import_phase_end("parse_named", parse_named_started_at);
 
     let factor_started_at = emit_import_phase_start("factor_named_grammar");
@@ -562,6 +563,7 @@ fn compile_dynamic_serialized_from_source_profiled(
     parse: NamedGrammarParser,
     transform: Option<NamedGrammarTransform>,
     end_token_ids: &[u32],
+    vocab_partition: bool,
 ) -> crate::Result<(Vec<u8>, u64, u64)> {
     let wall_started = std::time::Instant::now();
     let profile = compile_profile_enabled() || compile_top_profile_enabled();
@@ -578,11 +580,19 @@ fn compile_dynamic_serialized_from_source_profiled(
         let grammar = ast::lower(&alternative)?;
         lower_ms += lower_started
             .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
-        let mut constraint = compile_dynamic_owned_unfinalized_with_table_construction(
-            grammar,
-            vocab,
-            default_table_construction,
-        )?;
+        let mut constraint = if vocab_partition {
+            compile_dynamic_owned_with_vocab_partition_unfinalized_with_table_construction(
+                grammar,
+                vocab,
+                default_table_construction,
+            )?
+        } else {
+            compile_dynamic_owned_unfinalized_with_table_construction(
+                grammar,
+                vocab,
+                default_table_construction,
+            )?
+        };
         let direct_residual_master_provers_enabled = std::env::var(
             "GLRMASK_DYNAMIC_DIRECT_RESIDUAL_MASTER_PROVERS",
         )
@@ -699,7 +709,8 @@ fn compile_dynamic_serialized_from_source_profiled(
         .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
     if let Some(total_started) = total_started {
         eprintln!(
-            "[glrmask/profile][dynamic_serialized_source] import_ms={:.3} lower_ms={:.3} compile_with_lower_ms={:.3} serialize_ms={:.3} bytes={} total_ms={:.3}",
+            "[glrmask/profile][dynamic_serialized_source] vocab_partition={} import_ms={:.3} lower_ms={:.3} compile_with_lower_ms={:.3} serialize_ms={:.3} bytes={} total_ms={:.3}",
+            vocab_partition,
             import_ms,
             lower_ms,
             compile_ms,
@@ -726,6 +737,7 @@ fn compile_dynamic_serialized_from_source(
         parse,
         transform,
         end_token_ids,
+        false,
     )
     .map(|(bytes, _, _)| bytes)
 }
@@ -777,6 +789,20 @@ fn parse_json_schema_to_named_dynamic(schema_json: &str) -> crate::Result<ast::N
 
     let schema_to_named_started_at = emit_import_phase_start("schema_to_named_grammar");
     let named = json_schema::schema_to_named_grammar_for_dynamic(&schema);
+    emit_import_phase_end("schema_to_named_grammar", schema_to_named_started_at);
+    Ok(named?)
+}
+
+fn parse_json_schema_to_named_dynamic_vocab_partition(
+    schema_json: &str,
+) -> crate::Result<ast::NamedGrammar> {
+    let json_parse_started_at = emit_import_phase_start("serde_json_from_str");
+    let schema: serde_json::Value = serde_json::from_str(schema_json)
+        .map_err(|e| crate::GlrMaskError::GrammarParse(format!("invalid JSON: {e}")))?;
+    emit_import_phase_end("serde_json_from_str", json_parse_started_at);
+
+    let schema_to_named_started_at = emit_import_phase_start("schema_to_named_grammar");
+    let named = json_schema::schema_to_named_grammar_for_dynamic_vocab_partition(&schema);
     emit_import_phase_end("schema_to_named_grammar", schema_to_named_started_at);
     Ok(named?)
 }
@@ -1298,6 +1324,7 @@ impl DynamicConstraint {
         ebnf: &str,
         vocab: &crate::Vocab,
         end_token_ids: &[u32],
+        vocab_partition: bool,
     ) -> crate::Result<(Vec<u8>, u64, u64)> {
         with_large_import_stack(ebnf.len(), || {
             compile_dynamic_serialized_from_source_profiled(
@@ -1307,6 +1334,7 @@ impl DynamicConstraint {
                 parse_ebnf_to_named,
                 None,
                 end_token_ids,
+                vocab_partition,
             )
         })
     }
@@ -1316,6 +1344,7 @@ impl DynamicConstraint {
         lark: &str,
         vocab: &crate::Vocab,
         end_token_ids: &[u32],
+        vocab_partition: bool,
     ) -> crate::Result<(Vec<u8>, u64, u64)> {
         with_large_import_stack(lark.len(), || {
             compile_dynamic_serialized_from_source_profiled(
@@ -1325,6 +1354,7 @@ impl DynamicConstraint {
                 parse_lark_to_named,
                 None,
                 end_token_ids,
+                vocab_partition,
             )
         })
     }
@@ -1334,6 +1364,7 @@ impl DynamicConstraint {
         schema: &str,
         vocab: &crate::Vocab,
         end_token_ids: &[u32],
+        vocab_partition: bool,
     ) -> crate::Result<(Vec<u8>, u64, u64)> {
         with_large_import_stack(schema.len(), || {
             compile_dynamic_serialized_from_source_profiled(
@@ -1343,6 +1374,7 @@ impl DynamicConstraint {
                 parse_json_schema_to_named_dynamic,
                 Some(prepare_json_schema_named),
                 end_token_ids,
+                vocab_partition,
             )
         })
     }
@@ -1352,6 +1384,7 @@ impl DynamicConstraint {
         glrm: &str,
         vocab: &crate::Vocab,
         end_token_ids: &[u32],
+        vocab_partition: bool,
     ) -> crate::Result<(Vec<u8>, u64, u64)> {
         with_large_import_stack(glrm.len(), || {
             compile_dynamic_serialized_from_source_profiled(
@@ -1361,6 +1394,7 @@ impl DynamicConstraint {
                 parse_glrm_to_named,
                 None,
                 end_token_ids,
+                vocab_partition,
             )
         })
     }
@@ -1540,7 +1574,7 @@ impl DynamicConstraint {
                 schema,
                 vocab,
                 GlrTableConstruction::Lalr,
-                parse_json_schema_to_named_dynamic,
+                parse_json_schema_to_named_dynamic_vocab_partition,
                 Some(prepare_json_schema_named),
                 &[],
             )

@@ -31,6 +31,7 @@ range-set-blaze = "0.3.0"
 rayon = "1"
 regex-syntax = "0.8"
 rustc-hash = "1"
+serde = { version = "1", features = ["derive"] }
 smallvec = { version = "1", features = ["serde"] }
 thiserror = "1"
 

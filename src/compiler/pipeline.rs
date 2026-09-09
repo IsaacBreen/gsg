@@ -1054,6 +1054,62 @@ fn build_dynamic_virtual_tokenizer(
     )
 }
 
+fn expression_contains_intersection(expr: &Expr) -> bool {
+    match expr {
+        Expr::Intersect { .. } => true,
+        Expr::Seq(parts) | Expr::Choice(parts) => {
+            parts.iter().any(expression_contains_intersection)
+        }
+        Expr::Exclude { expr, exclude } => {
+            expression_contains_intersection(expr) || expression_contains_intersection(exclude)
+        }
+        Expr::Repeat { expr, .. } => expression_contains_intersection(expr),
+        Expr::Shared(expr) => expression_contains_intersection(expr),
+        Expr::U8Seq(_) | Expr::U8Class(_) | Expr::Dfa(_) | Expr::Epsilon => false,
+    }
+}
+
+/// Cheap structural test for the bounded-code direct-mask vocabulary lane.
+/// This deliberately stops before preparing any finite residual component.
+fn vocab_partition_direct_mask_candidate(grammar: &GrammarDef) -> bool {
+    let has_intersection = grammar.terminals.iter().any(|terminal| match terminal {
+        Terminal::Expr { expr, .. } => expression_contains_intersection(expr),
+        Terminal::Literal { .. } | Terminal::Pattern { .. } | Terminal::SpecialToken { .. } => {
+            false
+        }
+    });
+    if !has_intersection {
+        return false;
+    }
+
+    let expressions = grammar
+        .terminals
+        .iter()
+        .map(terminal_expr)
+        .map(factor_regex_expr)
+        .collect::<Vec<_>>();
+    let giant_terminals = expressions
+        .iter()
+        .enumerate()
+        .filter_map(|(terminal, expression)| {
+            expression_contains_large_bounded_repeat(expression)
+                .then_some(terminal as TerminalID)
+        })
+        .collect::<Vec<_>>();
+    let bounded_code_terminals = expressions
+        .iter()
+        .enumerate()
+        .filter_map(|(terminal, expression)| {
+            expression_may_support_bounded_code_residual_runtime(expression)
+                .then_some(terminal as TerminalID)
+        })
+        .collect::<Vec<_>>();
+    !bounded_code_terminals.is_empty()
+        && giant_terminals
+            .iter()
+            .all(|terminal| bounded_code_terminals.contains(terminal))
+}
+
 fn build_vocab_partition_direct_mask_tokenizer(
     grammar: &GrammarDef,
     vocab: &Vocab,
@@ -1066,21 +1122,9 @@ fn build_vocab_partition_direct_mask_tokenizer(
     // Expr grammars without an intersection anywhere) cannot enter this lane.
     // This matters for VocabPartition because a failed direct-mask probe would
     // otherwise duplicate much of the ordinary tokenizer's regex preparation.
-    fn contains_intersection(expr: &Expr) -> bool {
-        match expr {
-            Expr::Intersect { .. } => true,
-            Expr::Seq(parts) | Expr::Choice(parts) => parts.iter().any(contains_intersection),
-            Expr::Exclude { expr, exclude } => {
-                contains_intersection(expr) || contains_intersection(exclude)
-            }
-            Expr::Repeat { expr, .. } => contains_intersection(expr),
-            Expr::Shared(expr) => contains_intersection(expr),
-            Expr::U8Seq(_) | Expr::U8Class(_) | Expr::Dfa(_) | Expr::Epsilon => false,
-        }
-    }
     let preflight_started = Instant::now();
     let has_intersection = grammar.terminals.iter().any(|terminal| match terminal {
-        Terminal::Expr { expr, .. } => contains_intersection(expr),
+        Terminal::Expr { expr, .. } => expression_contains_intersection(expr),
         Terminal::Literal { .. } | Terminal::Pattern { .. } | Terminal::SpecialToken { .. } => {
             false
         }
@@ -5737,29 +5781,141 @@ pub(crate) fn compile_dynamic_owned_with_vocab_partition_with_table_construction
     vocab: &Vocab,
     default_table_construction: GlrTableConstruction,
 ) -> crate::Result<DynamicConstraint> {
+    compile_dynamic_owned_with_vocab_partition_impl(
+        grammar,
+        vocab,
+        default_table_construction,
+        true,
+    )
+}
+
+pub(crate) fn compile_dynamic_owned_with_vocab_partition_unfinalized_with_table_construction(
+    grammar: GrammarDef,
+    vocab: &Vocab,
+    default_table_construction: GlrTableConstruction,
+) -> crate::Result<DynamicConstraint> {
+    compile_dynamic_owned_with_vocab_partition_impl(
+        grammar,
+        vocab,
+        default_table_construction,
+        false,
+    )
+}
+
+fn compile_dynamic_owned_with_vocab_partition_impl(
+    grammar: GrammarDef,
+    vocab: &Vocab,
+    default_table_construction: GlrTableConstruction,
+    finalize_runtime: bool,
+) -> crate::Result<DynamicConstraint> {
     let profile = compile_profile_enabled();
     let total_started = profile.then(Instant::now);
+
+    // O2 is an opportunistic middle tier, not a requirement to quotient every
+    // grammar. Tiny grammars already compile to the ordinary dynamic runtime
+    // in around a millisecond, while even successful partition analysis has a
+    // several-millisecond fixed cost. Static is cheapest on exactly these
+    // grammars too, so paying that fixed cost can invert O1 <= O2 <= O3 build
+    // ordering by a large factor. Keep the ordinary dynamic representation.
+    const O2_SMALL_TERMINAL_LIMIT: usize = 16;
+    // Direct bounded-code residuals are only a build-order pathology for the
+    // relatively compact prepared grammars where the finite-residual tokenizer
+    // dominates the whole O2 compile. Large prepared grammars (notably the
+    // Snowplow non-sparse object family) still benefit materially from the O2
+    // quotient at runtime, and Static has enough work that declining O2 is both
+    // unnecessary and harmful.
+    const O2_DIRECT_MASK_FALLBACK_TERMINAL_LIMIT: usize = 128;
+    let prepared_terminal_count = if grammar.terminals.len() <= O2_SMALL_TERMINAL_LIMIT {
+        grammar.terminals.len()
+    } else {
+        // JSON-schema/lowering cleanup can collapse a seemingly non-trivial raw
+        // grammar to a tiny terminal set. Mirror the dynamic compiler's
+        // preparation just far enough to make the O2 eligibility decision on
+        // the representation that actually reaches tokenizer construction.
+        // This preparation is sub-millisecond on the small schemas where it
+        // matters and avoids tens to hundreds of milliseconds of pointless
+        // quotient work.
+        let force_cfg_runtime = std::env::var_os("GLRMASK_DYNAMIC_FORCE_CFG_RUNTIME").is_some();
+        if grammar.direct_regular_automaton.is_some() && !force_cfg_runtime {
+            grammar.terminals.len()
+        } else {
+            let mut eligibility_grammar = grammar.clone();
+            if force_cfg_runtime {
+                eligibility_grammar.direct_regular_automaton = None;
+            }
+            prepare_dynamic_glr_transforms_only(eligibility_grammar)
+                .terminals
+                .len()
+        }
+    };
+    let fallback_reason = if prepared_terminal_count <= O2_SMALL_TERMINAL_LIMIT {
+        Some("small_terminal_set")
+    } else if prepared_terminal_count <= O2_DIRECT_MASK_FALLBACK_TERMINAL_LIMIT
+        && vocab_partition_direct_mask_candidate(&grammar)
+    {
+        // The current direct bounded-code partition lane constructs a second
+        // large finite residual tokenizer. Until that lane can reuse the O1
+        // tokenizer, its build work can approach or exceed Static's entire
+        // compile even though ordinary dynamic is much cheaper. Preserve the
+        // tier contract by declining O2 for this shape.
+        Some("direct_mask_residual")
+    } else {
+        None
+    };
+    if let Some(reason) = fallback_reason {
+        let constraint = compile_dynamic_owned_impl(grammar, vocab, default_table_construction, true)?;
+        if let Some(total_started) = total_started {
+            eprintln!(
+                "[glrmask/profile][dynamic_vocab_partition_compile] fallback=ordinary_dynamic reason={reason} total_ms={:.3}",
+                elapsed_ms(total_started),
+            );
+        }
+        return Ok(constraint);
+    }
+
     let partition_grammar = grammar.clone();
-    let core_started = profile.then(Instant::now);
-    let mut constraint =
-        compile_dynamic_owned_impl(grammar, vocab, default_table_construction, false)?;
-    let core_ms = core_started.map_or(0.0, elapsed_ms);
-    let partition_started = profile.then(Instant::now);
-    let partition = crate::compiler::vocab_partition::compile_vocab_partition_owned(
-        partition_grammar,
-        vocab,
-        crate::VocabPartitionStrategy::Automatic,
-    );
-    let partition_ms = partition_started.map_or(0.0, elapsed_ms);
-    let class_count = partition.internal_to_originals.len();
-    let quotient_started = profile.then(Instant::now);
-    let mut quotient =
-        crate::compiler::constraint_possible_matches::runtime_dynamic_vocab_for_partition(
-            vocab,
-            &partition,
-        )
-        .map_err(crate::GlrMaskError::Compilation)?;
-    let quotient_ms = quotient_started.map_or(0.0, elapsed_ms);
+    // The ordinary dynamic parser/lexer core and the vocabulary quotient are
+    // independent until the final runtime vocabulary is attached. Build them
+    // concurrently so O2's critical path is max(core, partition+quotient), not
+    // their sum.
+    let ((constraint, core_ms), (class_count, quotient, partition_ms, quotient_ms)) =
+        run_with_compile_thread_pool(|| {
+            crate::compiler::macro_join(
+                "dynamic_vocab_partition_core_quotient",
+                || {
+                    let started = Instant::now();
+                    let constraint = compile_dynamic_owned_impl(
+                        grammar,
+                        vocab,
+                        default_table_construction,
+                        false,
+                    );
+                    (constraint, elapsed_ms(started))
+                },
+                || {
+                    let partition_started = Instant::now();
+                    let partition = crate::compiler::vocab_partition::compile_vocab_partition_owned(
+                        partition_grammar,
+                        vocab,
+                        crate::VocabPartitionStrategy::Dedicated,
+                    );
+                    let partition_ms = elapsed_ms(partition_started);
+                    let quotient_started = Instant::now();
+                    let class_count = partition.internal_to_originals.len();
+                    let quotient =
+                        crate::compiler::constraint_possible_matches::runtime_dynamic_vocab_for_partition(
+                            vocab,
+                            partition,
+                            finalize_runtime,
+                        )
+                        .map_err(crate::GlrMaskError::Compilation);
+                    let quotient_ms = elapsed_ms(quotient_started);
+                    (class_count, quotient, partition_ms, quotient_ms)
+                },
+            )
+        });
+    let mut constraint = constraint?;
+    let mut quotient = quotient?;
     let quotient_tokens = quotient.canonical_token_count();
     let quotient_ops = quotient.trie.full_walk_ops().len();
 
@@ -5771,11 +5927,13 @@ pub(crate) fn compile_dynamic_owned_with_vocab_partition_with_table_construction
     constraint.inner.dynamic_mask_vocab = quotient;
     constraint.inner.lazy_dynamic_mask_vocab = std::sync::OnceLock::new();
     let rebuild_started = profile.then(Instant::now);
-    constraint.inner.rebuild_dynamic_runtime_caches();
+    if finalize_runtime {
+        constraint.inner.rebuild_dynamic_runtime_caches();
+    }
     let rebuild_ms = rebuild_started.map_or(0.0, elapsed_ms);
     if let Some(total_started) = total_started {
         eprintln!(
-            "[glrmask/profile][dynamic_vocab_partition_compile] core_ms={core_ms:.3} partition_ms={partition_ms:.3} quotient_ms={quotient_ms:.3} rebuild_ms={rebuild_ms:.3} classes={class_count} canonical_tokens={quotient_tokens} trie_ops={quotient_ops} total_ms={:.3}",
+            "[glrmask/profile][dynamic_vocab_partition_compile] core_ms={core_ms:.3} partition_ms={partition_ms:.3} quotient_ms={quotient_ms:.3} rebuild_ms={rebuild_ms:.3} finalize_runtime={finalize_runtime} classes={class_count} canonical_tokens={quotient_tokens} trie_ops={quotient_ops} total_ms={:.3}",
             elapsed_ms(total_started),
         );
     }

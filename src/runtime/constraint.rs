@@ -7067,14 +7067,26 @@ impl Constraint {
             .collect()
     }
 
+    fn dynamic_terminal_observation_classes_enabled(
+        &self,
+        vocab: &DynamicMaskVocab,
+    ) -> bool {
+        match std::env::var("GLRMASK_DYNAMIC_TERMINAL_OBSERVATION_CLASSES") {
+            Ok(value) => !matches!(value.trim(), "0" | "false" | "no" | "off"),
+            // O2 already collapses the model vocabulary to the exact grammar
+            // quotient. On the canonical runtime cohort this additional lexer
+            // observation quotient costs build time without improving TBM, so
+            // leave it off by default for grammar-quotiented constraints. An
+            // explicit truthy env value remains an opt-in for experiments.
+            Err(_) => !vocab.is_grammar_quotiented(),
+        }
+    }
+
     pub(crate) fn prepare_dynamic_terminal_observation_classes_for_artifact(&mut self) {
         if self.dynamic_mask_vocab.has_terminal_observation_classes() {
             return;
         }
-        if std::env::var("GLRMASK_DYNAMIC_TERMINAL_OBSERVATION_CLASSES")
-            .ok()
-            .is_some_and(|value| matches!(value.trim(), "0" | "false" | "no" | "off"))
-        {
+        if !self.dynamic_terminal_observation_classes_enabled(&self.dynamic_mask_vocab) {
             return;
         }
         let classes = self.build_dynamic_terminal_observation_classes();
@@ -7233,28 +7245,29 @@ impl Constraint {
         self.prepare_llg_slice_leftovers(&mut dynamic_mask_vocab);
         let slice_leftovers_ms = slice_leftovers_started_at
             .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
-        // Grammar-quotiented (O2) constraints pay a small build-time cost to
-        // prepare exact parser-independent safe+/whitespace certificates. This
-        // removes the largest steady-state TBM cliffs: broad JSON-string
-        // residuals can consume a compact certificate instead of walking most
-        // of the quotient trie. Restrict projected-terminal construction to
-        // terminals whose byte support can actually contain the safe+ alphabet;
-        // preparing every terminal was measurably more expensive with no tail
-        // benefit. The experimental flags remain available for O1 experiments
-        // and for deliberately forcing the old all-terminal preparation.
+        // Master-slice prover preparation remains available for O1 experiments
+        // and for artifacts that actually carry a master trie. O2 deliberately
+        // keeps its grammar quotient as the walk coordinate, so its master trie
+        // accessor returns None and none of this eager prover work is charged to
+        // the O2 build path.
         let o2_prepared_master = dynamic_mask_vocab.is_grammar_quotiented()
+            && dynamic_mask_vocab.llg_master_trie().is_some()
             && std::env::var_os("GLRMASK_DISABLE_O2_PREPARED_MASTER_PROVERS").is_none();
+        let restored_complete_master = dynamic_mask_vocab
+            .has_complete_prepared_master_prover_rows(self.tokenizer.num_states() as usize);
         let eager_containment_quotients = o2_prepared_master
             || std::env::var_os("GLRMASK_EXPERIMENT_EAGER_CONTAINMENT_QUOTIENTS").is_some();
         if eager_containment_quotients {
             let started = std::time::Instant::now();
-            if std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_PARTITION_PROVERS").is_some() {
+            let force_partition_provers =
+                std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_PARTITION_PROVERS").is_some();
+            if force_partition_provers {
                 let candidates = (0..self.tokenizer.num_terminals()).collect::<Vec<_>>();
                 let quotients = self
                     .tokenizer
                     .build_terminal_projected_quotients_for_containment_candidates(&candidates);
                 dynamic_mask_vocab.set_projected_terminal_quotients(quotients);
-            } else {
+            } else if !restored_complete_master {
                 let safe_plus = dynamic_mask_vocab
                     .llg_slice_by_cache_id(0)
                     .expect("safe+ slice prepared before containment quotient construction");
@@ -7274,21 +7287,27 @@ impl Constraint {
                 || std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_MASTER_PROVERS").is_some();
             if prepare_master {
                 let proof_started = std::time::Instant::now();
-                let include_safe_radii =
-                    std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_SAFE_RADII").is_some();
-                let (entries, product_pairs) = dynamic_mask_vocab
-                    .prepare_master_provers_all_sources(
+                let force_master =
+                    std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_MASTER_PROVERS").is_some();
+                let (entries, product_pairs) = if restored_complete_master && !force_master {
+                    (0, 0)
+                } else {
+                    let include_safe_radii =
+                        std::env::var_os("GLRMASK_EXPERIMENT_PREPARED_SAFE_RADII").is_some();
+                    dynamic_mask_vocab.prepare_master_provers_all_sources(
                         &self.tokenizer,
                         self.tokenizer.num_states() as usize,
                         include_safe_radii,
-                    );
+                    )
+                };
                 if profile
                     || std::env::var_os("GLRMASK_PROFILE_PREPARED_MASTER_PROVERS").is_some()
                 {
                     eprintln!(
-                        "[glrmask/profile][prepared_master_provers] entries={} product_pairs={} elapsed_ms={:.3}",
+                        "[glrmask/profile][prepared_master_provers] entries={} product_pairs={} restored={} elapsed_ms={:.3}",
                         entries,
                         product_pairs,
+                        restored_complete_master && !force_master,
                         proof_started.elapsed().as_secs_f64() * 1e3,
                     );
                 }
@@ -7323,9 +7342,8 @@ impl Constraint {
         }
         let has_dense_mask_projection =
             dynamic_mask_vocab.has_dense_mask_tokenizer_projection();
-        let terminal_observation_enabled = std::env::var("GLRMASK_DYNAMIC_TERMINAL_OBSERVATION_CLASSES")
-            .ok()
-            .is_none_or(|value| !matches!(value.trim(), "0" | "false" | "no" | "off"));
+        let terminal_observation_enabled =
+            self.dynamic_terminal_observation_classes_enabled(&dynamic_mask_vocab);
         let terminal_observation_started_at = profile.then(std::time::Instant::now);
         let terminal_observation_classes = if !terminal_observation_enabled {
             Vec::new()

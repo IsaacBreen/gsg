@@ -3441,9 +3441,13 @@ fn runtime_dynamic_vocab_artifacts(
     }
 }
 
-pub(crate) fn runtime_dynamic_vocab_for_vocab(vocab: &Vocab) -> DynamicMaskVocab {
+pub(crate) fn prepared_runtime_dynamic_vocab_for_vocab(vocab: &Vocab) -> Arc<DynamicMaskVocab> {
     let artifacts = get_ordered_vocab_trie_artifacts_for_vocab(vocab).0;
-    runtime_dynamic_vocab_artifacts(&artifacts).vocab
+    Arc::clone(prepared_runtime_dynamic_vocab_with_llg(&artifacts))
+}
+
+pub(crate) fn runtime_dynamic_vocab_for_vocab(vocab: &Vocab) -> DynamicMaskVocab {
+    prepared_runtime_dynamic_vocab_for_vocab(vocab).fresh_runtime_instance()
 }
 
 /// Build the runtime vocabulary used by the partition-optimized dynamic masker.
@@ -3456,108 +3460,119 @@ pub(crate) fn runtime_dynamic_vocab_for_vocab(vocab: &Vocab) -> DynamicMaskVocab
 /// in original-token space; only the local dynamic mask walk is quotient-sized.
 pub(crate) fn runtime_dynamic_vocab_for_partition(
     vocab: &Vocab,
-    partition: &ManyToOneIdMap,
+    partition: ManyToOneIdMap,
+    materialize_runtime_indexes: bool,
 ) -> Result<DynamicMaskVocab, String> {
     if partition.internal_to_originals.len() != partition.representative_original_ids.len() {
         return Err("vocabulary partition has inconsistent class metadata".to_owned());
     }
 
+    let profile = crate::compiler::compile::compile_profile_enabled();
+    let total_started = profile.then(Instant::now);
+    let destructure_started = profile.then(Instant::now);
     let token_slots = if vocab.is_empty() {
         0
     } else {
         vocab.max_token_id() as usize + 1
     };
-    let mut seen = vec![false; token_slots];
-    let mut representative_bytes = BTreeMap::<u32, Vec<u8>>::new();
+    let ManyToOneIdMap {
+        original_to_internal: _,
+        internal_to_originals,
+        representative_original_ids,
+    } = partition;
+    let destructure_ms = destructure_started.map_or(0.0, elapsed_ms);
+    let classes_started = profile.then(Instant::now);
 
-    for (class, members) in partition.internal_to_originals.iter().enumerate() {
-        let Some(&representative) = partition.representative_original_ids.get(class) else {
-            return Err("vocabulary partition class has no representative".to_owned());
-        };
-        if members.is_empty() || !members.contains(&representative) {
-            return Err(format!(
-                "vocabulary partition class {class} has an invalid representative"
-            ));
-        }
-        let bytes = vocab.get(representative).ok_or_else(|| {
-            format!(
-                "vocabulary partition representative {representative} is absent from the vocabulary"
-            )
-        })?;
-        representative_bytes.insert(class as u32, bytes.to_vec());
+    // Sort only class representatives. Class membership vectors are moved into
+    // the runtime coordinate below instead of copying every original token ID.
+    let mut classes = representative_original_ids
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(class, representative)| {
+            let bytes = vocab.get(representative).ok_or_else(|| {
+                format!(
+                    "vocabulary partition representative {representative} is absent from the vocabulary"
+                )
+            })?;
+            Ok((class, representative, bytes))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    classes.sort_unstable_by(|left, right| left.2.cmp(right.2).then_with(|| left.0.cmp(&right.0)));
+    let classes_ms = classes_started.map_or(0.0, elapsed_ms);
+    let groups_started = profile.then(Instant::now);
 
-        for &token_id in members {
-            let slot = token_id as usize;
-            if slot >= seen.len() || vocab.get(token_id).is_none() {
-                return Err(format!(
-                    "vocabulary partition contains token {token_id} outside the vocabulary"
-                ));
-            }
-            if seen[slot] {
-                return Err(format!(
-                    "vocabulary partition contains token {token_id} in more than one class"
-                ));
-            }
-            if partition.original_to_internal.get(slot).copied() != Some(class as u32) {
-                return Err(format!(
-                    "vocabulary partition reverse map disagrees for token {token_id}"
-                ));
-            }
-            seen[slot] = true;
+    let mut groups = internal_to_originals
+        .into_iter()
+        .map(Some)
+        .collect::<Vec<_>>();
+    let mut ordered_token_bytes = Vec::<Vec<u8>>::with_capacity(classes.len());
+    let mut expanded_groups = Vec::<Vec<u32>>::with_capacity(classes.len());
+    let mut index = 0usize;
+    while index < classes.len() {
+        let bytes = classes[index].2;
+        let group_start = index;
+        while index < classes.len() && classes[index].2 == bytes {
+            index += 1;
         }
-    }
 
-    for (token_id, _) in vocab.iter() {
-        if !seen.get(token_id as usize).copied().unwrap_or(false) {
-            return Err(format!(
-                "vocabulary partition does not cover vocabulary token {token_id}"
-            ));
+        let first_class = classes[group_start].0;
+        let mut originals = groups[first_class]
+            .take()
+            .expect("partition class consumed twice");
+        for &(class, _, _) in &classes[group_start + 1..index] {
+            let mut duplicate_group = groups[class]
+                .take()
+                .expect("partition class consumed twice");
+            originals.append(&mut duplicate_group);
         }
-    }
-
-    // First canonicalize representatives by byte string. A conservative
-    // partition is allowed to keep exact duplicate byte strings in distinct
-    // classes; the runtime can safely collapse those duplicates because the
-    // lexer sees identical input bytes.
-    let mut ordered = build_ordered_vocab(&representative_bytes);
-    let class_groups = Arc::clone(&ordered.ordered_to_originals);
-    let mut expanded_groups = Vec::<Vec<u32>>::with_capacity(class_groups.len());
-    for classes in class_groups.iter() {
-        let &first_class = classes
-            .first()
-            .ok_or_else(|| "vocabulary partition produced an empty representative group".to_owned())?;
-        let representative = partition
-            .representative_original_ids
-            .get(first_class as usize)
-            .copied()
-            .ok_or_else(|| format!("vocabulary partition class {first_class} has no representative"))?;
-        let mut rest = Vec::<u32>::new();
-        for &class in classes {
-            let members = partition
-                .internal_to_originals
-                .get(class as usize)
-                .ok_or_else(|| format!("vocabulary partition class {class} is out of range"))?;
-            rest.extend(members.iter().copied().filter(|&token| token != representative));
-        }
-        rest.sort_unstable();
-        rest.dedup();
-        let mut originals = Vec::with_capacity(rest.len() + 1);
-        originals.push(representative);
-        originals.extend(rest);
+        ordered_token_bytes.push(bytes.to_vec());
         expanded_groups.push(originals);
     }
-    ordered.original_slot_count = token_slots;
-    ordered.ordered_to_originals = Arc::new(expanded_groups);
+    let groups_ms = groups_started.map_or(0.0, elapsed_ms);
 
+    let ordered = OrderedVocab {
+        original_slot_count: token_slots,
+        ordered_to_originals: Arc::new(expanded_groups),
+        ordered_token_bytes,
+    };
+
+    let prefix_started = profile.then(Instant::now);
     let prefix = build_ordered_vocab_prefix_tree(&ordered);
+    let prefix_ms = prefix_started.map_or(0.0, elapsed_ms);
+    let trie_started = profile.then(Instant::now);
     let runtime_trie = Arc::new(DynamicMaskTrie::from_vocab_prefix_tree(&prefix));
-    let mut runtime = DynamicMaskVocab::from_materialized_ordered(
-        runtime_trie,
-        Arc::clone(&ordered.ordered_to_originals),
-    );
-    let safe_token_bytes = llg_safe_slice_token_bytes_for_ordered_vocab(&ordered);
-    prepare_llg_slice_leftovers_for_ordered_vocab(&ordered, safe_token_bytes, &mut runtime);
+    let trie_ms = trie_started.map_or(0.0, elapsed_ms);
+    let runtime_started = profile.then(Instant::now);
+    let mut runtime = if materialize_runtime_indexes {
+        DynamicMaskVocab::from_materialized_ordered(
+            runtime_trie,
+            Arc::clone(&ordered.ordered_to_originals),
+        )
+    } else {
+        DynamicMaskVocab::from_materialized_ordered_for_transfer(
+            runtime_trie,
+            Arc::clone(&ordered.ordered_to_originals),
+        )
+    };
+    let runtime_ms = runtime_started.map_or(0.0, elapsed_ms);
+
+    // O2's main grammar quotient is already the small exact walk coordinate.
+    // Reuse only the vocabulary-global safe/whitespace proof definitions; never
+    // attach a separate master walk trie, which would discard the grammar
+    // quotient and is unnecessary for this tier.
+    let full_vocab_template = prepared_runtime_dynamic_vocab_for_vocab(vocab);
+    runtime.inherit_llg_vocab_acceleration_without_master_from(full_vocab_template.as_ref());
+    let inherit_started = profile.then(Instant::now);
     runtime.mark_grammar_quotiented();
+    runtime.set_source_vocab_digest(crate::compiler::compile::vocab_content_digest(vocab));
+    let inherit_ms = inherit_started.map_or(0.0, elapsed_ms);
+    if let Some(total_started) = total_started {
+        eprintln!(
+            "[glrmask/profile][o2_quotient_materialize] materialize_runtime_indexes={materialize_runtime_indexes} destructure_ms={destructure_ms:.3} classes_ms={classes_ms:.3} groups_ms={groups_ms:.3} prefix_ms={prefix_ms:.3} trie_ms={trie_ms:.3} runtime_ms={runtime_ms:.3} inherit_ms={inherit_ms:.3} total_ms={:.3}",
+            elapsed_ms(total_started),
+        );
+    }
     Ok(runtime)
 }
 

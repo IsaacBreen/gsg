@@ -1534,58 +1534,66 @@ fn compose_compiled_subgrammars(
 }
 
 #[pyfunction]
-#[pyo3(signature = (ebnf_source, vocab, end_token_ids=None))]
+#[pyo3(signature = (ebnf_source, vocab, end_token_ids=None, vocab_partition=false))]
 fn compile_ebnf_serialized_profiled(
     ebnf_source: &str,
     vocab: &PyVocab,
     end_token_ids: Option<Vec<u32>>,
+    vocab_partition: bool,
 ) -> PyResult<(Vec<u8>, u64, u64)> {
     constraint_result(glrmask::DynamicConstraint::compile_ebnf_serialized_profiled_with_end_tokens(
         ebnf_source,
         &vocab.inner,
         end_token_ids.as_deref().unwrap_or(&[]),
+        vocab_partition,
     ))
 }
 
 #[pyfunction]
-#[pyo3(signature = (lark_source, vocab, end_token_ids=None))]
+#[pyo3(signature = (lark_source, vocab, end_token_ids=None, vocab_partition=false))]
 fn compile_lark_serialized_profiled(
     lark_source: &str,
     vocab: &PyVocab,
     end_token_ids: Option<Vec<u32>>,
+    vocab_partition: bool,
 ) -> PyResult<(Vec<u8>, u64, u64)> {
     constraint_result(glrmask::DynamicConstraint::compile_lark_serialized_profiled_with_end_tokens(
         lark_source,
         &vocab.inner,
         end_token_ids.as_deref().unwrap_or(&[]),
+        vocab_partition,
     ))
 }
 
 #[pyfunction]
-#[pyo3(signature = (schema, vocab, end_token_ids=None))]
+#[pyo3(signature = (schema, vocab, end_token_ids=None, vocab_partition=false))]
 fn compile_json_schema_serialized_profiled(
     schema: &str,
     vocab: &PyVocab,
     end_token_ids: Option<Vec<u32>>,
+    vocab_partition: bool,
 ) -> PyResult<(Vec<u8>, u64, u64)> {
     constraint_result(glrmask::DynamicConstraint::compile_json_schema_serialized_profiled_with_end_tokens(
         schema,
         &vocab.inner,
         end_token_ids.as_deref().unwrap_or(&[]),
+        vocab_partition,
     ))
 }
 
 #[pyfunction]
-#[pyo3(signature = (glrm_source, vocab, end_token_ids=None))]
+#[pyo3(signature = (glrm_source, vocab, end_token_ids=None, vocab_partition=false))]
 fn compile_glrm_serialized_profiled(
     glrm_source: &str,
     vocab: &PyVocab,
     end_token_ids: Option<Vec<u32>>,
+    vocab_partition: bool,
 ) -> PyResult<(Vec<u8>, u64, u64)> {
     constraint_result(glrmask::DynamicConstraint::compile_glrm_serialized_profiled_with_end_tokens(
         glrm_source,
         &vocab.inner,
         end_token_ids.as_deref().unwrap_or(&[]),
+        vocab_partition,
     ))
 }
 

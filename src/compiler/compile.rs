@@ -15,6 +15,37 @@ struct VocabPackedTokenBytes {
 
 impl glrmask_vocab::__private::VocabDerivedArtifact for VocabPackedTokenBytes {}
 
+#[derive(Debug)]
+struct VocabContentDigest {
+    digest: [u8; 32],
+}
+
+impl glrmask_vocab::__private::VocabDerivedArtifact for VocabContentDigest {}
+
+/// Strong content identity for a model vocabulary.
+///
+/// The digest is a pure vocabulary-derived artifact and is deliberately
+/// prepared by `prepare_vocab_for_dynamic_compile`, which callers such as CFA
+/// invoke outside per-schema timing.  Transfer artifacts can therefore verify
+/// that the parent supplied the same vocabulary as the compile worker without
+/// rescanning every token byte string for every schema load.
+pub(crate) fn vocab_content_digest(vocab: &crate::Vocab) -> [u8; 32] {
+    if let Some(cached) = vocab.vocab_derived_cache_get::<VocabContentDigest>() {
+        return cached.digest;
+    }
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(b"glrmask-vocab-content-v1\0");
+    hasher.update(&(vocab.len() as u64).to_le_bytes());
+    for (token_id, bytes) in vocab.iter() {
+        hasher.update(&token_id.to_le_bytes());
+        hasher.update(&(bytes.len() as u64).to_le_bytes());
+        hasher.update(bytes);
+    }
+    let digest = *hasher.finalize().as_bytes();
+    vocab.vocab_derived_cache_set(std::sync::Arc::new(VocabContentDigest { digest }));
+    digest
+}
+
 fn prepare_vocab_packed_token_bytes(
     vocab: &crate::Vocab,
 ) -> std::sync::Arc<crate::runtime::PackedTokenBytes> {
@@ -44,6 +75,7 @@ pub(crate) fn vocab_packed_token_bytes(
 /// doing work that DynamicConstraint never consumes.
 pub(crate) fn prepare_vocab_for_dynamic_compile(vocab: &crate::Vocab) {
     let _ = prepare_vocab_packed_token_bytes(vocab);
+    let _ = vocab_content_digest(vocab);
     super::constraint_possible_matches::prepare_vocab_for_dynamic_mask(vocab);
 }
 
