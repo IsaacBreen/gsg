@@ -4682,12 +4682,15 @@ impl DynamicMaskVocab {
             return Some((vec![false; q_count], vec![0; q_count], 0, 0));
         }
 
-        let state_live = |state: u32| {
-            dfa.finalizers(state).contains(group as usize)
-                || dfa
-                    .possible_future_group_ids(state)
-                    .contains(group as usize)
-        };
+        let live_states = (0..q_count as u32)
+            .map(|state| {
+                dfa.finalizers(state).contains(group as usize)
+                    || dfa
+                        .possible_future_group_ids(state)
+                        .contains(group as usize)
+            })
+            .collect::<Vec<_>>();
+        let state_live = |state: u32| live_states[state as usize];
 
         let mut class_sizes = vec![0usize; class_count];
         let mut class_representatives = vec![u8::MAX; class_count];
