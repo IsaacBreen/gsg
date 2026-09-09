@@ -4997,34 +4997,36 @@ impl DynamicMaskVocab {
         };
         let (proofs, safe_jobs) = rayon::join(build_whitespace, build_safe);
 
-        let mut by_terminal_slot = FxHashMap::<(TerminalID, usize), Vec<bool>>::default();
+        let terminal_count = tokenizer.num_terminals();
+        let mut by_terminal_slot = (0..terminal_count)
+            .map(|_| [None::<Vec<bool>>, None::<Vec<bool>>])
+            .collect::<Vec<_>>();
         let mut product_pairs = 0usize;
         let mut edges = 0usize;
         for proof in proofs {
             product_pairs = product_pairs.saturating_add(proof.product_pairs);
             edges = edges.saturating_add(proof.edges);
-            by_terminal_slot.insert((proof.terminal, proof.slice_slot), proof.transparent);
+            by_terminal_slot[proof.terminal as usize][proof.slice_slot] = Some(proof.transparent);
         }
-        let mut radius_by_terminal = FxHashMap::<TerminalID, Vec<u32>>::default();
+        let mut radius_by_terminal =
+            (0..terminal_count).map(|_| None::<Vec<u32>>).collect::<Vec<_>>();
         for proof in safe_jobs {
             product_pairs = product_pairs.saturating_add(proof.product_pairs);
             edges = edges.saturating_add(proof.edges);
             if let Some(transparent) = proof.transparent {
-                by_terminal_slot.insert(
-                    (proof.terminal, Self::PREPARED_SAFE_PLUS_SLOT),
-                    transparent,
-                );
+                by_terminal_slot[proof.terminal as usize][Self::PREPARED_SAFE_PLUS_SLOT] =
+                    Some(transparent);
             }
             if let Some(radii) = proof.radii {
-                radius_by_terminal.insert(proof.terminal, radii);
+                radius_by_terminal[proof.terminal as usize] = Some(radii);
             }
         }
         let mut safe_plus_complete_terminals = candidates
             .iter()
             .copied()
             .filter(|terminal| {
-                by_terminal_slot.contains_key(&(*terminal, Self::PREPARED_SAFE_PLUS_SLOT))
-                    && radius_by_terminal.contains_key(terminal)
+                by_terminal_slot[*terminal as usize][Self::PREPARED_SAFE_PLUS_SLOT].is_some()
+                    && radius_by_terminal[*terminal as usize].is_some()
             })
             .collect::<Vec<_>>();
         safe_plus_complete_terminals.sort_unstable();
@@ -5048,8 +5050,9 @@ impl DynamicMaskVocab {
                     return;
                 };
                 for &(terminal, residual) in entries {
+                    let proof_slots = &by_terminal_slot[terminal as usize];
                     for slice_slot in 0..Self::PREPARED_PROOF_SLOT_COUNT {
-                        let Some(transparent) = by_terminal_slot.get(&(terminal, slice_slot)) else {
+                        let Some(transparent) = proof_slots[slice_slot].as_ref() else {
                             continue;
                         };
                         coverage_rows[slice_slot].push(terminal);
@@ -5057,7 +5060,7 @@ impl DynamicMaskVocab {
                             positive_rows[slice_slot].push(terminal);
                         }
                     }
-                    if let Some(radii) = radius_by_terminal.get(&terminal) {
+                    if let Some(radii) = radius_by_terminal[terminal as usize].as_ref() {
                         let radius = radii
                             .get(residual as usize)
                             .copied()
