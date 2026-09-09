@@ -5770,52 +5770,6 @@ fn compile_dynamic_owned_with_vocab_partition_impl(
     let profile = compile_profile_enabled();
     let total_started = profile.then(Instant::now);
 
-    // O2 is an opportunistic middle tier, not a requirement to quotient every
-    // grammar. Tiny grammars already compile to the ordinary dynamic runtime
-    // in around a millisecond, while even successful partition analysis has a
-    // several-millisecond fixed cost. Static is cheapest on exactly these
-    // grammars too, so paying that fixed cost can invert O1 <= O2 <= O3 build
-    // ordering by a large factor. Keep the ordinary dynamic representation.
-    const O2_SMALL_TERMINAL_LIMIT: usize = 16;
-    let prepared_terminal_count = if grammar.terminals.len() <= O2_SMALL_TERMINAL_LIMIT {
-        grammar.terminals.len()
-    } else {
-        // JSON-schema/lowering cleanup can collapse a seemingly non-trivial raw
-        // grammar to a tiny terminal set. Mirror the dynamic compiler's
-        // preparation just far enough to make the O2 eligibility decision on
-        // the representation that actually reaches tokenizer construction.
-        // This preparation is sub-millisecond on the small schemas where it
-        // matters and avoids tens to hundreds of milliseconds of pointless
-        // quotient work.
-        let force_cfg_runtime = std::env::var_os("GLRMASK_DYNAMIC_FORCE_CFG_RUNTIME").is_some();
-        if grammar.direct_regular_automaton.is_some() && !force_cfg_runtime {
-            grammar.terminals.len()
-        } else {
-            let mut eligibility_grammar = grammar.clone();
-            if force_cfg_runtime {
-                eligibility_grammar.direct_regular_automaton = None;
-            }
-            prepare_dynamic_glr_transforms_only(eligibility_grammar)
-                .terminals
-                .len()
-        }
-    };
-    let fallback_reason = if prepared_terminal_count <= O2_SMALL_TERMINAL_LIMIT {
-        Some("small_terminal_set")
-    } else {
-        None
-    };
-    if let Some(reason) = fallback_reason {
-        let constraint = compile_dynamic_owned_impl(grammar, vocab, default_table_construction, true)?;
-        if let Some(total_started) = total_started {
-            eprintln!(
-                "[glrmask/profile][dynamic_vocab_partition_compile] fallback=ordinary_dynamic reason={reason} total_ms={:.3}",
-                elapsed_ms(total_started),
-            );
-        }
-        return Ok(constraint);
-    }
-
     let partition_grammar = grammar.clone();
     // The ordinary dynamic parser/lexer core and the vocabulary quotient are
     // independent until the final runtime vocabulary is attached. Build them

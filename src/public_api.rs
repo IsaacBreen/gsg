@@ -1448,12 +1448,7 @@ mod tests {
             (5, b"ba".to_vec()),
             (6, b"x".to_vec()),
         ]);
-        let grammar_source = format!(
-            "start ::= [ab]+{}",
-            (0..17)
-                .map(|index| format!(r#" | "unused_{index}""#))
-                .collect::<String>()
-        );
+        let grammar_source = "start ::= [ab]+".to_owned();
         let grammar = Grammar::ebnf(&grammar_source);
         let partition = VocabPartition::compile(grammar.clone(), &vocab).unwrap();
         assert_eq!(partition.class_of(0), partition.class_of(1));
@@ -1464,6 +1459,13 @@ mod tests {
             DynamicConstraint::compile_with_vocab_partition(grammar, &vocab).unwrap();
 
         assert_eq!(optimized.inner.token_bytes_count(), vocab.len());
+        assert!(
+            optimized
+                .inner
+                .dynamic_mask_vocab_for_runtime()
+                .is_grammar_quotiented(),
+            "O2 must not silently fall back to ordinary dynamic for tiny grammars",
+        );
         assert!(
             optimized
                 .inner
