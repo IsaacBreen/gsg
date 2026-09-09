@@ -1765,7 +1765,11 @@ impl CompressedTransitionEntries {
     }
 
     #[inline]
-    fn iter_range(&self, start: usize, end: usize) -> impl Iterator<Item = (u8, u32)> + '_ {
+    pub(super) fn iter_range(
+        &self,
+        start: usize,
+        end: usize,
+    ) -> impl Iterator<Item = (u8, u32)> + '_ {
         self.classes[start..end]
             .iter()
             .copied()

@@ -2326,7 +2326,25 @@ impl PreparedBoundedCodeMaskComponent {
             .checked_add(1)?;
         let mask_max = oracle.max.min(desired_mask_max);
         let finite_started = std::time::Instant::now();
-        let (dfa, _segment, root, _dense_to_mask) = oracle.finite_mask_dfa(mask_max)?;
+        let (mut dfa, segment, root, _dense_to_mask) = oracle.finite_mask_dfa(mask_max)?;
+        // `finite_mask_dfa` keeps its minimized transition graph in a compressed
+        // sidecar and clears the ordinary DFA rows. Runtime residual projections
+        // retain that sidecar, but this API deliberately returns a standalone
+        // DFA for vocabulary-equivalence compilation. Materialize the sidecar
+        // back into the DFA here; dropping it would leave a state-only shell
+        // with no byte transitions and make terminal classification incorrectly
+        // treat the bounded language as unreachable.
+        debug_assert_eq!(segment.state_offset, 0);
+        for source in 0..segment.state_count {
+            let row_start = segment.row_offsets[source as usize] as usize;
+            let row_end = segment.row_offsets[source as usize + 1] as usize;
+            for (class, target) in segment.entries.iter_range(row_start, row_end) {
+                for &byte in segment.class_members[class as usize].iter() {
+                    dfa.add_transition(source, byte, target);
+                }
+            }
+        }
+        debug_assert_eq!(dfa.transition_count(), segment.expanded_transition_count);
         let finite_ms = finite_started.elapsed().as_secs_f64() * 1000.0;
         if profile {
             eprintln!(
@@ -5600,6 +5618,38 @@ mod tests {
             oracle.has_future(oracle.root_coordinate()),
             materialized.possible_future_group_ids(0).contains(0),
         );
+    }
+
+    #[test]
+    fn standalone_bounded_code_mask_component_retains_byte_transitions() {
+        let unbounded = Expr::Seq(vec![
+            bytes(b"<"),
+            Expr::Repeat {
+                expr: Box::new(bounded_code_body()),
+                min: 0,
+                max: None,
+            },
+            bytes(b">"),
+        ]);
+        let expr = Expr::Intersect {
+            expr: Box::new(unbounded),
+            intersect: Box::new(bounded_code_envelope_expr(0, 100)),
+        };
+
+        let (dfa, root) = prepare_bounded_code_mask_component(&expr)
+            .expect("bounded-code expression should prepare")
+            .finish_for_vocab_conservative(8)
+            .expect("bounded-code mask component should compile");
+
+        assert!(
+            dfa.transition_count() > 0,
+            "standalone mask component must materialize its compressed transition sidecar"
+        );
+        assert!(dfa.possible_future_group_ids(root).contains(0));
+        let after_prefix = dfa
+            .step(root, b'<')
+            .expect("standalone mask component must execute its prefix byte");
+        assert!(dfa.possible_future_group_ids(after_prefix).contains(0));
     }
 
     #[test]

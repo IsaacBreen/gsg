@@ -1582,6 +1582,45 @@ mod tests {
     }
 
     #[test]
+    fn partition_optimized_plain_bounded_string_builds_a_real_quotient() {
+        let vocab = Vocab::new(vec![
+            (0, b"\"".to_vec()),
+            (1, b"a".to_vec()),
+            (2, b"b".to_vec()),
+            (3, b"aa".to_vec()),
+            (4, b"bb".to_vec()),
+            (5, b"ab".to_vec()),
+            (6, b"ba".to_vec()),
+            (7, b"\"a".to_vec()),
+            (8, b"\"b".to_vec()),
+            (9, b"x".to_vec()),
+        ]);
+        let schema = r#"{"type":"string","maxLength":100}"#;
+
+        let ordinary =
+            DynamicConstraint::compile(Grammar::json_schema(schema), &vocab).unwrap();
+        let optimized = DynamicConstraint::compile_with_vocab_partition(
+            Grammar::json_schema(schema),
+            &vocab,
+        )
+        .unwrap();
+
+        let optimized_vocab = optimized.inner.dynamic_mask_vocab_for_runtime();
+        assert!(optimized_vocab.is_grammar_quotiented());
+        assert!(
+            optimized_vocab.canonical_token_count() < vocab.len(),
+            "bounded-string O2 must not degrade to the identity vocabulary quotient",
+        );
+        assert_eq!(ordinary.start().mask(), optimized.start().mask());
+
+        let mut ordinary_state = ordinary.start();
+        let mut optimized_state = optimized.start();
+        ordinary_state.commit_token(0).unwrap();
+        optimized_state.commit_token(0).unwrap();
+        assert_eq!(ordinary_state.mask(), optimized_state.mask());
+    }
+
+    #[test]
     fn partition_optimized_multi_alternative_roundtrips_without_sharing_one_quotient() {
         let vocab = Vocab::new(vec![
             (0, b"a".to_vec()),
