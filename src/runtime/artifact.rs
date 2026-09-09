@@ -5068,11 +5068,29 @@ impl DynamicMaskVocab {
             });
 
         let positive_entry_count = positive_rows.iter().map(SmallVec::len).sum::<usize>();
-        let (positive_row_ids, positive_offsets, positive_terminals) =
-            intern_terminal_rows(positive_rows);
-        let (coverage_row_ids, coverage_offsets, coverage_terminals) =
-            intern_terminal_rows(coverage_rows);
-        let (radius_row_ids, radius_offsets, radius_entries) = intern_radius_rows(radius_rows);
+        let parallel_intern = candidates.len() >= 64 && rayon::current_num_threads() > 1;
+        let ((positive, coverage), radius) = if parallel_intern {
+            rayon::join(
+                || {
+                    rayon::join(
+                        || intern_terminal_rows(positive_rows),
+                        || intern_terminal_rows(coverage_rows),
+                    )
+                },
+                || intern_radius_rows(radius_rows),
+            )
+        } else {
+            (
+                (
+                    intern_terminal_rows(positive_rows),
+                    intern_terminal_rows(coverage_rows),
+                ),
+                intern_radius_rows(radius_rows),
+            )
+        };
+        let (positive_row_ids, positive_offsets, positive_terminals) = positive;
+        let (coverage_row_ids, coverage_offsets, coverage_terminals) = coverage;
+        let (radius_row_ids, radius_offsets, radius_entries) = radius;
 
         self.prepared_master_prover_row_ids = Arc::from(positive_row_ids);
         self.prepared_master_prover_offsets = Arc::from(positive_offsets);
