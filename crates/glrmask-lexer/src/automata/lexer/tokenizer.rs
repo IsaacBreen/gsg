@@ -8524,6 +8524,18 @@ impl Tokenizer {
             || !self.packed_runtime_transition_segments.is_empty()
     }
 
+    /// Return whether runtime transitions borrow their byte rows directly from
+    /// an artifact backing. Fresh compiler tokenizers can also own packed
+    /// transition sidecars, so this is intentionally narrower than
+    /// `has_packed_runtime_transitions()`.
+    pub fn has_backed_runtime_transitions(&self) -> bool {
+        self.packed_runtime_transitions.as_deref().is_some_and(|packed| {
+            matches!(packed.bytes, PackedRuntimeBytes::Backed { .. })
+        }) || self.packed_runtime_transition_segments.iter().any(|segment| {
+            matches!(segment.transitions.bytes, PackedRuntimeBytes::Backed { .. })
+        })
+    }
+
     /// Move packed observation/epsilon metadata back into the structural DFA
     /// without expanding packed byte-transition rows. This is needed before a
     /// tokenizer is structurally mutated: packed metadata is otherwise the

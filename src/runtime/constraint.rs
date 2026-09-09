@@ -9735,9 +9735,17 @@ impl Constraint {
 
     fn compute_tokenizer_fast_transitions_for(tokenizer: &Tokenizer) -> FastTokenizerTransitions {
         let num_states = tokenizer.num_states();
-        // The strict full-vocabulary dynamic walker uses one compact direct
-        // transition cell per consumed byte. Keep this bounded so large exact
-        // tokenizers retain their existing sparse/packed runtime layout.
+        // Current backed fast-wire loads already retain an allocation-light exact packed
+        // transition table. Rebuilding a second state x 256 Flat16 slab here is
+        // duplicate load-time work; ordinary commit/scan can call through to the
+        // packed tokenizer directly. The strict dynamic mask walker owns a
+        // separate mask-projection transition table, so this does not remove its
+        // dense full-walk acceleration.
+        if tokenizer.has_backed_runtime_transitions() {
+            return FastTokenizerTransitions::Fallback(num_states as usize);
+        }
+        // Fresh compiler tokenizers do not yet own packed runtime rows. Give small
+        // exact tokenizers one compact direct transition cell per consumed byte.
         if num_states <= 8_192
             && let Some(flat16) = FastTokenizerTransitions::flat16_transitions_only_for(tokenizer)
         {
