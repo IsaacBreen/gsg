@@ -2082,16 +2082,31 @@ pub mod artifact_serde {
         fast_layout_for_write(tokenizer).map(FastLayout::len)
     }
 
+    #[inline]
+    fn fast_transition_prefix_len(layout: FastLayout) -> usize {
+        32usize
+            + layout.terminal_count * 32
+            + (layout.state_count + 1) * 4
+            + layout.transition_count
+            + layout.transition_count * layout.state_id_width
+    }
+
     fn write_fast_bytes_for_dfa(
         tokenizer: &Tokenizer,
         dfa: &DFA,
         layout: FastLayout,
         out: &mut [u8],
+        transition_prefix_only: bool,
     ) -> Result<(), String> {
-        if out.len() != layout.len {
+        let expected_len = if transition_prefix_only {
+            fast_transition_prefix_len(layout)
+        } else {
+            layout.len
+        };
+        if out.len() != expected_len {
             return Err(format!(
                 "fast tokenizer output has length {}, expected {}",
-                out.len(), layout.len
+                out.len(), expected_len
             ));
         }
         let states = dfa.states();
@@ -2227,6 +2242,10 @@ pub mod artifact_serde {
                 }
             }
         }
+        if transition_prefix_only {
+            debug_assert_eq!(pos, out.len());
+            return Ok(());
+        }
         put_offsets(
             out,
             &mut pos,
@@ -2276,7 +2295,7 @@ pub mod artifact_serde {
             return Err("direct fast tokenizer write requires materialized transitions".to_owned());
         }
         let layout = fast_layout(tokenizer, &tokenizer.dfa);
-        write_fast_bytes_for_dfa(tokenizer, &tokenizer.dfa, layout, out)
+        write_fast_bytes_for_dfa(tokenizer, &tokenizer.dfa, layout, out, false)
     }
 
     /// Write TKF2 using an exact layout already computed by the caller. This
@@ -2296,9 +2315,9 @@ pub mod artifact_serde {
             || !tokenizer.packed_runtime_transition_segments.is_empty()
         {
             let materialized = tokenizer.materialized_dfa();
-            return write_fast_bytes_for_dfa(tokenizer, &materialized, layout, out);
+            return write_fast_bytes_for_dfa(tokenizer, &materialized, layout, out, false);
         }
-        write_fast_bytes_for_dfa(tokenizer, &tokenizer.dfa, layout, out)
+        write_fast_bytes_for_dfa(tokenizer, &tokenizer.dfa, layout, out, false)
     }
 
     #[derive(serde::Serialize, serde::Deserialize)]
@@ -2386,13 +2405,10 @@ pub mod artifact_serde {
             &materialized
         };
         let layout = fast_layout(tokenizer, dfa);
-        let mut out = to_fast_bytes(tokenizer);
-        let transition_end = 32usize
-            + layout.terminal_count * 32
-            + (layout.state_count + 1) * 4
-            + layout.transition_count
-            + layout.transition_count * layout.state_id_width;
-        out.truncate(transition_end);
+        let transition_end = fast_transition_prefix_len(layout);
+        let mut out = vec![0u8; transition_end];
+        write_fast_bytes_for_dfa(tokenizer, dfa, layout, &mut out, true)
+            .expect("exact TKF3 transition-prefix layout should always write successfully");
         out[..4].copy_from_slice(b"TKF3");
         let metadata = fast_packed_metadata_artifact(dfa);
         bincode::serialize_into(&mut out, &metadata)
@@ -2423,7 +2439,7 @@ pub mod artifact_serde {
         unsafe {
             out.set_len(len);
         }
-        write_fast_bytes_for_dfa(tokenizer, dfa, layout, &mut out)
+        write_fast_bytes_for_dfa(tokenizer, dfa, layout, &mut out, false)
             .expect("exact fast tokenizer layout should always write successfully");
         out
     }
@@ -14042,6 +14058,34 @@ mod tests {
         assert_eq!(reloaded.num_terminals(), TERMINALS as u32);
         assert!(reloaded.matched_terminal_bitset(3).contains(WIDE_TERMINAL));
         assert!(reloaded.possible_future_terminals(1).contains(WIDE_TERMINAL));
+    }
+
+    #[test]
+    fn fast_wire_with_packed_metadata_preserves_tkf2_transition_prefix() {
+        let mut dfa = DFA::new(4);
+        dfa.ensure_group_capacity(2);
+        dfa.add_transition(0, b'a', 1);
+        dfa.add_transition(0, b'b', 2);
+        dfa.add_transition(1, b'b', 3);
+        dfa.recompute_possible_futures();
+        let tokenizer = Tokenizer::from_parts(dfa, 2, None);
+
+        let tkf3 = artifact_serde::to_fast_bytes_with_packed_metadata(&tokenizer);
+        let mut legacy_prefix = artifact_serde::to_fast_bytes(&tokenizer);
+        let terminal_count = u32::from_le_bytes(legacy_prefix[4..8].try_into().unwrap()) as usize;
+        let state_count = u32::from_le_bytes(legacy_prefix[8..12].try_into().unwrap()) as usize;
+        let transition_count =
+            u32::from_le_bytes(legacy_prefix[12..16].try_into().unwrap()) as usize;
+        let state_id_width = legacy_prefix[28] as usize;
+        let transition_end = 32
+            + terminal_count * 32
+            + (state_count + 1) * 4
+            + transition_count
+            + transition_count * state_id_width;
+        legacy_prefix.truncate(transition_end);
+        legacy_prefix[..4].copy_from_slice(b"TKF3");
+
+        assert_eq!(&tkf3[..transition_end], legacy_prefix.as_slice());
     }
 
     #[test]
