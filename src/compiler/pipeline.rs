@@ -5878,29 +5878,42 @@ fn compile_dynamic_owned_impl(
         prepare_dynamic_glr_transforms_only(grammar)
     };
     let prepare_ms = prepare_started_at.map_or(0.0, elapsed_ms);
-    let prepared_expressions = prepare_factored_terminal_expressions(&prepared_grammar);
-    let prepared_has_giant_repeat = prepared_expressions
-        .iter()
-        .any(expression_contains_large_bounded_repeat);
     const TINY_DYNAMIC_MAX_TERMINALS: usize = 16;
     const TINY_DYNAMIC_MAX_RULES: usize = 64;
     const TINY_DYNAMIC_MAX_TOTAL_STATE_ESTIMATE: u128 = 4_096;
     const TINY_DYNAMIC_MAX_TERMINAL_STATE_ESTIMATE: u128 = 2_048;
-    let tiny_structure = !prepared_has_giant_repeat
-        && prepared_grammar.terminals.len() <= TINY_DYNAMIC_MAX_TERMINALS
+    let structurally_tiny = prepared_grammar.terminals.len() <= TINY_DYNAMIC_MAX_TERMINALS
         && prepared_grammar.rules.len() <= TINY_DYNAMIC_MAX_RULES
         && prepared_grammar
             .direct_regular_automaton
             .as_ref()
             .is_none_or(|automaton| automaton.states.len() <= 64);
+    let profile_dynamic_mask_quotient =
+        std::env::var_os("GLRMASK_PROFILE_DYNAMIC_MASK_QUOTIENT").is_some();
+    // Tiny grammars need the factored expressions to decide whether their whole
+    // compile should stay on the single-thread pool. Larger grammars are never
+    // eligible for that path, so defer factoring until we are inside the compile
+    // pool. Besides overlapping grammar analysis, this ensures large expression
+    // trees see the intended compile Rayon context. The quotient diagnostic keeps
+    // the historical eager path so its probe remains directly comparable.
+    let defer_factoring = !structurally_tiny && !profile_dynamic_mask_quotient;
+    let prefactored_expressions = (!defer_factoring)
+        .then(|| prepare_factored_terminal_expressions(&prepared_grammar));
+    let prefactored_has_giant_repeat = prefactored_expressions.as_ref().is_some_and(|expressions| {
+        expressions
+            .iter()
+            .any(expression_contains_large_bounded_repeat)
+    });
+    let tiny_structure = structurally_tiny && !prefactored_has_giant_repeat;
     let (estimated_total_states, estimated_max_states) = if tiny_structure {
-        prepared_expressions.iter().fold(
-            (0u128, 0u128),
-            |(total, max), expr| {
+        prefactored_expressions
+            .as_ref()
+            .expect("tiny dynamic compile prefactors terminal expressions")
+            .iter()
+            .fold((0u128, 0u128), |(total, max), expr| {
                 let estimate = estimated_synthesis_state_volume(expr);
                 (total.saturating_add(estimate), max.max(estimate))
-            },
-        )
+            })
     } else {
         (u128::MAX, u128::MAX)
     };
@@ -5908,8 +5921,7 @@ fn compile_dynamic_owned_impl(
         && estimated_total_states <= TINY_DYNAMIC_MAX_TOTAL_STATE_ESTIMATE
         && estimated_max_states <= TINY_DYNAMIC_MAX_TERMINAL_STATE_ESTIMATE;
     run_with_dynamic_compile_thread_pool(tiny_dynamic_compile, || -> crate::Result<DynamicConstraint> {
-        if std::env::var_os("GLRMASK_PROFILE_DYNAMIC_MASK_QUOTIENT").is_some()
-            && !prepared_has_giant_repeat
+        if profile_dynamic_mask_quotient && !prefactored_has_giant_repeat
         {
             let quotient_started_at = Instant::now();
             let plan = plan_synthetic_tokenizer(&prepared_grammar, vocab);
@@ -5982,28 +5994,48 @@ fn compile_dynamic_owned_impl(
                 );
             }
         }
-        let analysis_started_at = profile.then(Instant::now);
         // Move a complete direct automaton out of the grammar instead of
         // cloning its 20k-state graph into AnalyzedGrammar and cloning it again
         // into the runtime artifact. Generic grammars still use full analysis.
         let direct_regular_automaton = prepared_grammar.direct_regular_automaton.take();
-        let analyzed_grammar = if direct_regular_automaton.is_none() {
-            let analyzed = AnalyzedGrammar::from_grammar_def(&prepared_grammar);
-            if let Err(message) = analyzed.check_dynamic_table_build_normal_form() {
-                panic!("[glrmask] grammar precondition violations:\n{}", message);
-            }
-            Some(analyzed)
-        } else {
-            None
-        };
+        let direct_state_count = direct_regular_automaton
+            .as_ref()
+            .map(|automaton| automaton.states.len());
+        let ((prepared_expressions, factor_ms), (analyzed_grammar, analysis_ms)) = macro_join_if(
+            defer_factoring,
+            "dynamic_factor_and_analysis",
+            || {
+                let started_at = profile.then(Instant::now);
+                let expressions = prefactored_expressions
+                    .unwrap_or_else(|| prepare_factored_terminal_expressions(&prepared_grammar));
+                (expressions, started_at.map_or(0.0, elapsed_ms))
+            },
+            || {
+                let started_at = profile.then(Instant::now);
+                let analyzed_grammar = if direct_regular_automaton.is_none() {
+                    let analyzed = AnalyzedGrammar::from_grammar_def(&prepared_grammar);
+                    if let Err(message) = analyzed.check_dynamic_table_build_normal_form() {
+                        panic!("[glrmask] grammar precondition violations:\n{}", message);
+                    }
+                    Some(analyzed)
+                } else {
+                    None
+                };
+                (analyzed_grammar, started_at.map_or(0.0, elapsed_ms))
+            },
+        );
+        let prepared_has_giant_repeat = prepared_expressions
+            .iter()
+            .any(expression_contains_large_bounded_repeat);
         let num_terminals = prepared_grammar.num_terminals();
         let terminal_display_names = (0..num_terminals)
             .map(|terminal| prepared_grammar.terminal_display_name(terminal))
             .collect::<Vec<_>>();
-        let direct_state_count = direct_regular_automaton
-            .as_ref()
-            .map(|automaton| automaton.states.len());
-        let analysis_ms = analysis_started_at.map_or(0.0, elapsed_ms);
+        if profile && defer_factoring {
+            eprintln!(
+                "[glrmask/profile][dynamic_factor_overlap] factor_ms={factor_ms:.3} analysis_ms={analysis_ms:.3}"
+            );
+        }
         // Rayon scheduling is a measurable fraction of total build time for
         // genuinely tiny dynamic grammars. Keep those cores sequential; a
         // large lexer can still arise from a compact grammar, but in that case
