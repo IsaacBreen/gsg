@@ -4720,33 +4720,41 @@ impl DynamicMaskVocab {
         let mut positive_rows = vec![SmallVec::<[TerminalID; 4]>::new(); row_count];
         let mut coverage_rows = vec![SmallVec::<[TerminalID; 4]>::new(); row_count];
         let mut radius_rows = vec![SmallVec::<[(TerminalID, u16); 4]>::new(); source_state_count];
-        for source in 0..source_state_count.min(coordinates.len()) {
-            let Some(entries) = coordinates.row(source as u32) else {
-                continue;
-            };
-            for &(terminal, residual) in entries {
-                for slice_slot in 0..Self::PREPARED_PROOF_SLOT_COUNT {
-                    let Some(transparent) = by_terminal_slot.get(&(terminal, slice_slot)) else {
-                        continue;
-                    };
-                    let row = source * Self::PREPARED_PROOF_SLOT_COUNT + slice_slot;
-                    coverage_rows[row].push(terminal);
-                    if transparent.get(residual as usize).copied().unwrap_or(false) {
-                        positive_rows[row].push(terminal);
+        let source_limit = source_state_count.min(coordinates.len());
+        positive_rows[..source_limit * Self::PREPARED_PROOF_SLOT_COUNT]
+            .par_chunks_mut(Self::PREPARED_PROOF_SLOT_COUNT)
+            .zip(
+                coverage_rows[..source_limit * Self::PREPARED_PROOF_SLOT_COUNT]
+                    .par_chunks_mut(Self::PREPARED_PROOF_SLOT_COUNT),
+            )
+            .zip(radius_rows[..source_limit].par_iter_mut())
+            .enumerate()
+            .for_each(|(source, ((positive_rows, coverage_rows), radius_row))| {
+                let Some(entries) = coordinates.row(source as u32) else {
+                    return;
+                };
+                for &(terminal, residual) in entries {
+                    for slice_slot in 0..Self::PREPARED_PROOF_SLOT_COUNT {
+                        let Some(transparent) = by_terminal_slot.get(&(terminal, slice_slot)) else {
+                            continue;
+                        };
+                        coverage_rows[slice_slot].push(terminal);
+                        if transparent.get(residual as usize).copied().unwrap_or(false) {
+                            positive_rows[slice_slot].push(terminal);
+                        }
+                    }
+                    if let Some(radii) = radius_by_terminal.get(&terminal) {
+                        let radius = radii
+                            .get(residual as usize)
+                            .copied()
+                            .unwrap_or(0)
+                            .min(u32::from(max_safe_chars)) as u16;
+                        if radius != 0 {
+                            radius_row.push((terminal, radius));
+                        }
                     }
                 }
-                if let Some(radii) = radius_by_terminal.get(&terminal) {
-                    let radius = radii
-                        .get(residual as usize)
-                        .copied()
-                        .unwrap_or(0)
-                        .min(u32::from(max_safe_chars)) as u16;
-                    if radius != 0 {
-                        radius_rows[source].push((terminal, radius));
-                    }
-                }
-            }
-        }
+            });
 
         let positive_entry_count = positive_rows.iter().map(SmallVec::len).sum::<usize>();
         let (positive_row_ids, positive_offsets, positive_terminals) =
