@@ -419,6 +419,80 @@ impl FullWalkTransitionTable for FullWalkConfigTransitions<'_, '_> {
         } else if self.profile {
             self.config_cell_calls += 1;
         }
+        // Virtual residual states are substantially more expensive to query
+        // one byte at a time than ordinary packed tokenizer states: each
+        // scalar transition crosses the virtual-runtime boundary and takes its
+        // store lock. A strict vocabulary walk typically asks for dozens of
+        // distinct bytes from the same raw state, so materialize that virtual
+        // row once and reuse it for the rest of this mask call.
+        if let Some(raw_state) = raw_state
+            && raw_state >= self.cache.tokenizer().num_states()
+            && self.error.is_none()
+        {
+            let transition_started = self.profile.then(std::time::Instant::now);
+            let transitions = self
+                .cache
+                .tokenizer()
+                .transitions_from(raw_state)
+                .collect::<Vec<_>>();
+            if let Some(started) = transition_started {
+                self.virtual_raw_transition_ns = self
+                    .virtual_raw_transition_ns
+                    .saturating_add(started.elapsed().as_nanos() as u64);
+            }
+
+            let dead_packed = u64::from(u32::MAX);
+            let mut row = Box::new([dead_packed; 256]);
+            let mut target_cells = FxHashMap::<u32, FullWalkConfigCell>::default();
+            for (transition_byte, raw_target) in transitions {
+                let target_cell = if let Some(&cached) = target_cells.get(&raw_target) {
+                    cached
+                } else {
+                    let config_started = self.profile.then(std::time::Instant::now);
+                    let target = match self.cache.config_for_raw_start(raw_target) {
+                        Ok(target) => target,
+                        Err(error) => {
+                            self.error = Some(error);
+                            break;
+                        }
+                    };
+                    if let Some(started) = config_started {
+                        self.raw_config_for_start_ns = self
+                            .raw_config_for_start_ns
+                            .saturating_add(started.elapsed().as_nanos() as u64);
+                    }
+                    let finalizer_started = self.profile.then(std::time::Instant::now);
+                    let has_finalizer = self.cache.config_has_finalizer(target);
+                    if let Some(started) = finalizer_started {
+                        self.raw_has_finalizer_ns = self
+                            .raw_has_finalizer_ns
+                            .saturating_add(started.elapsed().as_nanos() as u64);
+                    }
+                    let cell = FullWalkConfigCell {
+                        target,
+                        has_finalizer,
+                    };
+                    target_cells.insert(raw_target, cell);
+                    cell
+                };
+                row[transition_byte as usize] = u64::from(target_cell.target)
+                    | ((target_cell.has_finalizer as u64) << 32);
+            }
+            if self.error.is_none() {
+                let raw_index = raw_state as usize;
+                if self.raw_cell_rows.len() <= raw_index {
+                    self.raw_cell_rows.resize_with(raw_index + 1, || None);
+                }
+                self.raw_cell_rows[raw_index] = Some(row);
+                let packed = self.raw_cell_rows[raw_index]
+                    .as_ref()
+                    .expect("virtual raw row was just materialized")[byte as usize];
+                return FullWalkConfigCell {
+                    target: packed as u32,
+                    has_finalizer: (packed >> 32) & 1 != 0,
+                };
+            }
+        }
         if self.error.is_some() {
             return FullWalkConfigCell {
                 target: u32::MAX,

@@ -3619,7 +3619,7 @@ fn build_bounded_repeat_with_suffix_dfa(parts: &[Expr]) -> Option<(DFA, bool)> {
 /// At body completion, the counter increments and the suffix may start. If two
 /// live paths cannot be represented by one `(body_state, suffix_state, counter)`
 /// tuple, this function falls back to the general compiler.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct ZeroMinRepeatSuffixState {
     /// Minimum completed-copy count reaching each body DFA residual. A smaller
     /// count dominates every larger count at the same residual.
@@ -3713,7 +3713,8 @@ struct ZeroMinRepeatSuffixBuild {
 /// repeat followed by a non-nullable suffix. Product construction can then
 /// visit only component residuals that survive the other intersection
 /// coordinate instead of materializing every repeat-count layer first.
-struct LazyZeroMinRepeatSuffixComponent {
+#[derive(Debug)]
+pub(super) struct LazyZeroMinRepeatSuffixComponent {
     prefix: Vec<u8>,
     body_dfa: DFA,
     suffix_dfa: DFA,
@@ -3729,6 +3730,10 @@ const LAZY_ZERO_MIN_REPEAT_SUFFIX_MIN_BOUND: usize = 1_024;
 
 impl LazyZeroMinRepeatSuffixComponent {
     fn from_expr(expr: &Expr) -> Option<Self> {
+        Self::from_expr_with_min_bound(expr, LAZY_ZERO_MIN_REPEAT_SUFFIX_MIN_BOUND)
+    }
+
+    fn from_expr_with_min_bound(expr: &Expr, min_bound: usize) -> Option<Self> {
         let unwrapped = unwrap_shared(expr);
         let Expr::Seq(parts) = unwrapped else {
             return None;
@@ -3754,7 +3759,7 @@ impl LazyZeroMinRepeatSuffixComponent {
             // whose eager constituent DFA would dominate compilation. Smaller
             // repeats are already cheap to materialize and preserve better
             // downstream state locality through the ordinary product path.
-            if *max < LAZY_ZERO_MIN_REPEAT_SUFFIX_MIN_BOUND {
+            if *max < min_bound {
                 continue;
             }
             // `u32::MAX` is the unreachable sentinel in body_min_counts, so it
@@ -3811,6 +3816,10 @@ impl LazyZeroMinRepeatSuffixComponent {
         None
     }
 
+    pub(super) fn from_expr_for_virtual_runtime(expr: &Expr) -> Option<Self> {
+        Self::from_expr_with_min_bound(expr, 24)
+    }
+
     fn prefix_len(&self) -> usize {
         self.prefix.len()
     }
@@ -3819,7 +3828,7 @@ impl LazyZeroMinRepeatSuffixComponent {
         self.prefix.len() + self.tail_states.len()
     }
 
-    fn start_state(&self) -> u32 {
+    pub(super) fn start_state(&self) -> u32 {
         0
     }
 
@@ -3830,7 +3839,7 @@ impl LazyZeroMinRepeatSuffixComponent {
         self.class_targets = vec![u32::MAX; self.num_states().saturating_mul(class_count)];
     }
 
-    fn is_accepting(&self, state: u32) -> bool {
+    pub(super) fn is_accepting(&self, state: u32) -> bool {
         let Some(tail) = (state as usize)
             .checked_sub(self.prefix.len())
             .and_then(|index| self.tail_states.get(index))
@@ -3842,7 +3851,7 @@ impl LazyZeroMinRepeatSuffixComponent {
             .any(|&suffix_state| self.suffix_dfa.finalizers(suffix_state).contains(0))
     }
 
-    fn has_future(&self, state: u32) -> bool {
+    pub(super) fn has_future(&self, state: u32) -> bool {
         if (state as usize) < self.prefix.len() {
             return true;
         }
@@ -3878,7 +3887,7 @@ impl LazyZeroMinRepeatSuffixComponent {
         }
     }
 
-    fn step_uncached(&mut self, state: u32, byte: u8) -> Option<u32> {
+    pub(super) fn step_uncached(&mut self, state: u32, byte: u8) -> Option<u32> {
         let state = state as usize;
         if state < self.prefix.len() {
             if self.prefix[state] != byte {
@@ -3982,6 +3991,171 @@ impl LazyZeroMinRepeatSuffixComponent {
             dfa,
             trace: Arc::new(trace),
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(super) struct LazyZeroMinRepeatSuffixRuntimeState {
+    main: Option<u32>,
+    bypass: Option<u32>,
+}
+
+/// Exact lazy observation coordinate for dynamic residuals whose expensive
+/// language is a zero-min bounded repeat followed by an arbitrary regex suffix.
+///
+/// JSON structural terminals commonly wrap that continuation in
+/// `Choice(Epsilon, continuation)`.  The ordinary lazy component represents the
+/// non-empty continuation; a tiny bypass DFA represents the epsilon arm plus
+/// the fixed outer tail.  Advancing both coordinates is exactly the union of
+/// those two branches without materializing the bounded repeat count layers.
+#[derive(Debug)]
+pub(super) struct LazyZeroMinRepeatSuffixRuntimeComponent {
+    main: LazyZeroMinRepeatSuffixComponent,
+    bypass_dfa: Option<DFA>,
+    byte_to_class: Vec<u8>,
+    class_members: Vec<Vec<u8>>,
+}
+
+impl LazyZeroMinRepeatSuffixRuntimeComponent {
+    pub(super) fn from_expr(expr: &Expr) -> Option<Self> {
+        if let Some(mut main) = LazyZeroMinRepeatSuffixComponent::from_expr_for_virtual_runtime(expr) {
+            let (byte_to_class, class_members) =
+                compute_lazy_zero_min_repeat_product_equivalence_classes(&main, &main.suffix_dfa);
+            main.prepare_classes(class_members.len());
+            return Some(Self {
+                main,
+                bypass_dfa: None,
+                byte_to_class,
+                class_members,
+            });
+        }
+
+        let Expr::Seq(parts) = unwrap_shared(expr) else {
+            return None;
+        };
+        let mut flat_outer = Vec::<Expr>::new();
+        for part in parts {
+            match unwrap_shared(part) {
+                Expr::Seq(inner) => flat_outer.extend(inner.iter().cloned()),
+                _ => flat_outer.push(part.clone()),
+            }
+        }
+
+        for choice_index in 0..flat_outer.len() {
+            let Some(non_epsilon) = optional_choice_non_epsilon(&flat_outer[choice_index]) else {
+                continue;
+            };
+            let mut continuation = match unwrap_shared(non_epsilon) {
+                Expr::Seq(parts) => parts.clone(),
+                other => vec![other.clone()],
+            };
+
+            let mut main_parts = flat_outer[..choice_index].to_vec();
+            main_parts.append(&mut continuation);
+            main_parts.extend_from_slice(&flat_outer[choice_index + 1..]);
+            let main_expr = seq_from_parts(main_parts);
+            let Some(mut main) = LazyZeroMinRepeatSuffixComponent::from_expr_for_virtual_runtime(&main_expr)
+            else {
+                continue;
+            };
+
+            let mut bypass_parts = flat_outer[..choice_index].to_vec();
+            bypass_parts.extend_from_slice(&flat_outer[choice_index + 1..]);
+            let bypass_expr = seq_from_parts(bypass_parts);
+            let bypass_dfa = compile_expr_to_dfa(&bypass_expr);
+            if bypass_dfa.num_states() == 0
+                || bypass_dfa.finalizers(0).contains(0)
+                || !bypass_dfa.possible_future_group_ids(0).contains(0)
+            {
+                continue;
+            }
+            let (byte_to_class, class_members) =
+                compute_lazy_zero_min_repeat_product_equivalence_classes(&main, &bypass_dfa);
+            main.prepare_classes(class_members.len());
+            return Some(Self {
+                main,
+                bypass_dfa: Some(bypass_dfa),
+                byte_to_class,
+                class_members,
+            });
+        }
+        None
+    }
+
+    pub(super) fn start_state(&self) -> LazyZeroMinRepeatSuffixRuntimeState {
+        LazyZeroMinRepeatSuffixRuntimeState {
+            main: Some(self.main.start_state()),
+            bypass: self.bypass_dfa.as_ref().map(|_| 0),
+        }
+    }
+
+    pub(super) fn step(
+        &mut self,
+        state: LazyZeroMinRepeatSuffixRuntimeState,
+        byte: u8,
+    ) -> Option<LazyZeroMinRepeatSuffixRuntimeState> {
+        let class = self.byte_to_class[byte as usize];
+        let main = state
+            .main
+            .and_then(|state| self.main.step_class(state, class, byte));
+        let bypass = state.bypass.and_then(|state| {
+            self.bypass_dfa
+                .as_ref()
+                .and_then(|dfa| dfa.step(state, byte))
+        });
+        (main.is_some() || bypass.is_some()).then_some(LazyZeroMinRepeatSuffixRuntimeState {
+            main,
+            bypass,
+        })
+    }
+
+    pub(super) fn transitions(
+        &mut self,
+        state: LazyZeroMinRepeatSuffixRuntimeState,
+    ) -> Vec<(u8, LazyZeroMinRepeatSuffixRuntimeState)> {
+        let mut out = Vec::new();
+        for class in 0..self.class_members.len() {
+            let representative = self.class_members[class][0];
+            let main = state.main.and_then(|state| {
+                self.main
+                    .step_class(state, class as u8, representative)
+            });
+            let bypass = state.bypass.and_then(|state| {
+                self.bypass_dfa
+                    .as_ref()
+                    .and_then(|dfa| dfa.step(state, representative))
+            });
+            let Some(target) = (main.is_some() || bypass.is_some()).then_some(
+                LazyZeroMinRepeatSuffixRuntimeState { main, bypass },
+            ) else {
+                continue;
+            };
+            out.extend(
+                self.class_members[class]
+                    .iter()
+                    .copied()
+                    .map(|byte| (byte, target)),
+            );
+        }
+        out
+    }
+
+    pub(super) fn is_accepting(&self, state: LazyZeroMinRepeatSuffixRuntimeState) -> bool {
+        state.main.is_some_and(|state| self.main.is_accepting(state))
+            || state.bypass.is_some_and(|state| {
+                self.bypass_dfa
+                    .as_ref()
+                    .is_some_and(|dfa| dfa.finalizers(state).contains(0))
+            })
+    }
+
+    pub(super) fn has_future(&self, state: LazyZeroMinRepeatSuffixRuntimeState) -> bool {
+        state.main.is_some_and(|state| self.main.has_future(state))
+            || state.bypass.is_some_and(|state| {
+                self.bypass_dfa.as_ref().is_some_and(|dfa| {
+                    dfa.possible_future_group_ids(state).contains(0)
+                })
+            })
     }
 }
 
@@ -13685,6 +13859,13 @@ pub fn expression_supports_deferred_dense_runtime(expr: &Expr) -> bool {
         && pure_binary_intersection(&plan.exclusions, &plan.intersections)
 }
 
+/// Whether an exact lazy zero-min bounded-repeat + regex-suffix observation
+/// coordinate can accompany the general residual runtime for this expression.
+/// This is currently an experimental dynamic representation selector.
+pub fn expression_supports_zero_min_repeat_suffix_virtual_runtime(expr: &Expr) -> bool {
+    LazyZeroMinRepeatSuffixRuntimeComponent::from_expr(expr).is_some()
+}
+
 /// Whether the exact general residual runtime has the bounded-code liveness
 /// certificate needed to make this expression a safe protected dynamic
 /// component. This is an internal representation-policy predicate; it does not
@@ -14071,6 +14252,85 @@ mod tests {
         let trace = super::zero_min_repeat_suffix_component_trace(&expr)
             .expect("zero-prefix structural trace must rebuild from the expression");
         assert_eq!(trace.prefix_len, 0);
+    }
+
+    #[test]
+    fn lazy_zero_min_repeat_suffix_runtime_matches_optional_regex_suffix_wrapper() {
+        let expr = Expr::Seq(vec![
+            byte_expr(b'p'),
+            Expr::Choice(vec![
+                Expr::Epsilon,
+                Expr::Seq(vec![
+                    Expr::Repeat {
+                        expr: Box::new(byte_expr(b'a')),
+                        min: 0,
+                        max: Some(100),
+                    },
+                    // Deliberately overlaps the repeat body so the body/suffix
+                    // boundary is ambiguous, like the patterned JSON-string
+                    // terminals this runtime coordinate is intended for.
+                    Expr::Repeat {
+                        expr: Box::new(byte_expr(b'a')),
+                        min: 1,
+                        max: Some(3),
+                    },
+                    byte_expr(b'b'),
+                ]),
+            ]),
+            byte_expr(b'z'),
+        ]);
+        let eager = super::compile_expr_to_dfa(&expr);
+
+        let check = |input: Vec<u8>| {
+            let mut lazy = super::LazyZeroMinRepeatSuffixRuntimeComponent::from_expr(&expr)
+                .expect("optional bounded-repeat + regex-suffix wrapper");
+            let mut lazy_state = Some(lazy.start_state());
+            let mut eager_state = Some(0u32);
+            for prefix_len in 0..=input.len() {
+                match (lazy_state, eager_state) {
+                    (Some(lazy_state), Some(eager_state)) => {
+                        assert_eq!(
+                            lazy.is_accepting(lazy_state),
+                            eager.finalizers(eager_state).contains(0),
+                            "acceptance mismatch at prefix {prefix_len} for {input:?}",
+                        );
+                        assert_eq!(
+                            lazy.has_future(lazy_state),
+                            eager.possible_future_group_ids(eager_state).contains(0),
+                            "future mismatch at prefix {prefix_len} for {input:?}",
+                        );
+                    }
+                    (None, None) => {}
+                    other => panic!(
+                        "liveness mismatch at prefix {prefix_len} for {input:?}: {other:?}"
+                    ),
+                }
+                if prefix_len == input.len() {
+                    break;
+                }
+                let byte = input[prefix_len];
+                lazy_state = lazy_state.and_then(|state| lazy.step(state, byte));
+                eager_state = eager_state.and_then(|state| eager.step(state, byte));
+            }
+        };
+
+        for input in [
+            b"pz".to_vec(),
+            b"pabz".to_vec(),
+            b"paaabz".to_vec(),
+            b"paz".to_vec(),
+            b"pxz".to_vec(),
+        ] {
+            check(input);
+        }
+        let mut upper = vec![b'p'];
+        upper.extend(std::iter::repeat_n(b'a', 103));
+        upper.extend_from_slice(b"bz");
+        check(upper);
+        let mut beyond = vec![b'p'];
+        beyond.extend(std::iter::repeat_n(b'a', 104));
+        beyond.extend_from_slice(b"bz");
+        check(beyond);
     }
 
     fn terminal_matches(expr: Expr, input: &[u8]) -> bool {

@@ -9464,6 +9464,9 @@ impl Tokenizer {
         let physical_state_count = self.num_states();
         let mut required_virtual_terminals = BTreeSet::<TerminalID>::new();
         let mut certified_bounded_code_terminals = BTreeSet::<TerminalID>::new();
+        let mut certified_patterned_repeat_suffix_terminals = BTreeSet::<TerminalID>::new();
+        let allow_patterned_repeat_suffix_residuals =
+            std::env::var_os("GLRMASK_EXPERIMENT_PATTERNED_REPEAT_SUFFIX_RESIDUAL").is_some();
         // Dynamic transfer loading used to construct an exact bounded-code
         // oracle here solely to certify each below-threshold residual owner,
         // drop it, and then construct the identical oracle again while
@@ -9481,6 +9484,13 @@ impl Tokenizer {
         }
         for (terminal, expression) in expressions.iter().enumerate() {
             let terminal = terminal as TerminalID;
+            if allow_patterned_repeat_suffix_residuals
+                && super::compile::expression_supports_zero_min_repeat_suffix_virtual_runtime(
+                    expression,
+                )
+            {
+                certified_patterned_repeat_suffix_terminals.insert(terminal);
+            }
             if super::compile::expression_contains_large_bounded_repeat(expression) {
                 required_virtual_terminals.insert(terminal);
                 continue;
@@ -9531,9 +9541,10 @@ impl Tokenizer {
             }
             if entry.kind != VirtualTokenizerRuntimeKind::ResidualExpr
                 || !certified_bounded_code_terminals.contains(&entry.terminal)
+                    && !certified_patterned_repeat_suffix_terminals.contains(&entry.terminal)
             {
                 return Err(format!(
-                    "serialized virtual runtime terminal ownership mismatch: terminal {} is not a required giant component or a certified bounded-code residual",
+                    "serialized virtual runtime terminal ownership mismatch: terminal {} is not a required giant component, a certified bounded-code residual, or a certified patterned repeat+suffix residual",
                     entry.terminal,
                 ));
             }

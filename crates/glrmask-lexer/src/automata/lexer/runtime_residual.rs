@@ -14,7 +14,11 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use rayon::prelude::*;
 
 use super::ast::Expr;
-use super::compile::{compile_terminal_expr_dfa, expression_contains_large_bounded_repeat, VocabularyRepeatHorizonCache};
+use super::compile::{
+    compile_terminal_expr_dfa, expression_contains_large_bounded_repeat,
+    LazyZeroMinRepeatSuffixRuntimeComponent, LazyZeroMinRepeatSuffixRuntimeState,
+    VocabularyRepeatHorizonCache,
+};
 use super::dfa::DFA;
 use super::runtime_repeat_product::{VirtualRuntimeStateOwners, VirtualStateAllocator};
 use super::tokenizer::{CompressedTransitionEntries, CompressedTransitionSegment};
@@ -3340,6 +3344,9 @@ struct ResidualRuntimeStore {
     state_by_residual_coordinate:
         FxHashMap<(ResidualId, BoundedCodeOracleCoordinate), u32>,
     coordinate_by_state: FxHashMap<u32, BoundedCodeOracleCoordinate>,
+    zero_min_repeat_suffix: Option<LazyZeroMinRepeatSuffixRuntimeComponent>,
+    zero_min_repeat_suffix_by_state: FxHashMap<u32, LazyZeroMinRepeatSuffixRuntimeSlot>,
+    state_by_zero_min_repeat_suffix: FxHashMap<LazyZeroMinRepeatSuffixRuntimeState, u32>,
     oracle_future_by_state: FxHashMap<u32, bool>,
     liveness_oracle: Option<BoundedCodeIntersectionOracle>,
     oracle_byte_to_class: Option<Box<[u8; 256]>>,
@@ -3351,6 +3358,12 @@ struct ResidualRuntimeStore {
     slice_atom_pattern_targets_cache: FxHashMap<(u64, u32), Option<BitSet>>,
     body_boundary_future_by_completed: Option<Arc<Vec<BitSet>>>,
     transition_rows_by_state: FxHashMap<u32, Box<[u32; 256]>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LazyZeroMinRepeatSuffixRuntimeSlot {
+    Exact(LazyZeroMinRepeatSuffixRuntimeState),
+    Ambiguous,
 }
 
 /// Exact general symbolic tokenizer component. The regex upper bounds live in
@@ -3556,6 +3569,13 @@ impl VirtualResidualRuntime {
         let arena_ms = arena_started
             .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
         let arena_states = arena.state_count();
+        let zero_min_repeat_suffix = (!preserve_oracle_coordinate
+            && std::env::var_os("GLRMASK_EXPERIMENT_PATTERNED_REPEAT_SUFFIX_RESIDUAL").is_some())
+        .then(|| LazyZeroMinRepeatSuffixRuntimeComponent::from_expr(expr))
+        .flatten();
+        let root_zero_min_repeat_suffix = zero_min_repeat_suffix
+            .as_ref()
+            .map(LazyZeroMinRepeatSuffixRuntimeComponent::start_state);
         let build_dynamic_liveness_oracle = !suppress_dynamic_liveness_oracle
             && std::env::var("GLRMASK_DYNAMIC_RESIDUAL_LIVENESS_ORACLE")
                 .ok()
@@ -3597,7 +3617,11 @@ impl VirtualResidualRuntime {
         // the fallible `exact_has_future` boundary. Construction therefore does
         // not run the generic potentially expensive emptiness solver merely to
         // populate serialized proxy metadata.
-        let root_live = arena.conservative_has_future(root);
+        let root_live = zero_min_repeat_suffix
+            .as_ref()
+            .zip(root_zero_min_repeat_suffix)
+            .map(|(component, state)| component.has_future(state))
+            .unwrap_or_else(|| arena.conservative_has_future(root));
         let mut state_by_residual = vec![u32::MAX; root as usize + 1];
         state_by_residual[root as usize] = root_state;
         let mut oracle_coordinates = vec![BoundedCodeOracleSlot::Unknown; arena.state_count()];
@@ -3607,6 +3631,15 @@ impl VirtualResidualRuntime {
         }
         let mut state_by_residual_coordinate = FxHashMap::default();
         let mut coordinate_by_state = FxHashMap::default();
+        let mut zero_min_repeat_suffix_by_state = FxHashMap::default();
+        let mut state_by_zero_min_repeat_suffix = FxHashMap::default();
+        if let Some(state) = root_zero_min_repeat_suffix {
+            zero_min_repeat_suffix_by_state.insert(
+                root_state,
+                LazyZeroMinRepeatSuffixRuntimeSlot::Exact(state),
+            );
+            state_by_zero_min_repeat_suffix.insert(state, root_state);
+        }
         if preserve_oracle_coordinate {
             let coordinate = root_oracle_coordinate?;
             state_by_residual_coordinate.insert((root, coordinate), root_state);
@@ -3641,6 +3674,9 @@ impl VirtualResidualRuntime {
                 residual_by_state: FxHashMap::default(),
                 state_by_residual_coordinate,
                 coordinate_by_state,
+                zero_min_repeat_suffix,
+                zero_min_repeat_suffix_by_state,
+                state_by_zero_min_repeat_suffix,
                 oracle_future_by_state: FxHashMap::default(),
                 liveness_oracle,
                 oracle_byte_to_class,
@@ -3723,6 +3759,28 @@ impl VirtualResidualRuntime {
         Some(state)
     }
 
+    fn intern_zero_min_repeat_suffix_locked(
+        &self,
+        store: &mut ResidualRuntimeStore,
+        coordinate: LazyZeroMinRepeatSuffixRuntimeState,
+    ) -> Option<u32> {
+        if let Some(&state) = store.state_by_zero_min_repeat_suffix.get(&coordinate) {
+            return Some(state);
+        }
+        let state = self.state_allocator.allocate().expect(
+            "exact patterned repeat+suffix tokenizer state-id space exhausted below the dynamic-NFA high-bit tag",
+        );
+        self.state_owners
+            .register_virtual(state, self.runtime_index)
+            .expect("patterned repeat+suffix virtual state owner index must follow shared allocator");
+        store.state_by_zero_min_repeat_suffix.insert(coordinate, state);
+        store.zero_min_repeat_suffix_by_state.insert(
+            state,
+            LazyZeroMinRepeatSuffixRuntimeSlot::Exact(coordinate),
+        );
+        Some(state)
+    }
+
     pub(super) fn handles_state(&self, state: u32) -> bool {
         self.state_owners.owner_index(state) == Some(self.runtime_index as usize)
     }
@@ -3751,6 +3809,23 @@ impl VirtualResidualRuntime {
                 .get(residual as usize)
                 .copied()
                 .unwrap_or(BoundedCodeOracleSlot::Unknown)
+        };
+        let source_zero_min_slot = store.zero_min_repeat_suffix_by_state.get(&state).copied();
+        let target_zero_min_slot = match source_zero_min_slot {
+            Some(LazyZeroMinRepeatSuffixRuntimeSlot::Exact(source)) => {
+                match store
+                    .zero_min_repeat_suffix
+                    .as_mut()
+                    .and_then(|component| component.step(source, byte))
+                {
+                    Some(target) => Some(LazyZeroMinRepeatSuffixRuntimeSlot::Exact(target)),
+                    None => Some(LazyZeroMinRepeatSuffixRuntimeSlot::Ambiguous),
+                }
+            }
+            Some(LazyZeroMinRepeatSuffixRuntimeSlot::Ambiguous) => {
+                Some(LazyZeroMinRepeatSuffixRuntimeSlot::Ambiguous)
+            }
+            None => None,
         };
         let target = store.arena.step(residual, byte)?;
         if store.arena.is_empty(target) {
@@ -3823,7 +3898,26 @@ impl VirtualResidualRuntime {
                 store.oracle_futures[target_index] = None;
             }
         }
-        self.intern_locked(store, target, None)
+        let target_state = self.intern_locked(store, target, None)?;
+        if let Some(incoming) = target_zero_min_slot {
+            let merged = match store.zero_min_repeat_suffix_by_state.get(&target_state).copied() {
+                None => incoming,
+                Some(LazyZeroMinRepeatSuffixRuntimeSlot::Exact(existing)) => match incoming {
+                    LazyZeroMinRepeatSuffixRuntimeSlot::Exact(next) if next == existing => {
+                        LazyZeroMinRepeatSuffixRuntimeSlot::Exact(existing)
+                    }
+                    LazyZeroMinRepeatSuffixRuntimeSlot::Exact(_)
+                    | LazyZeroMinRepeatSuffixRuntimeSlot::Ambiguous => {
+                        LazyZeroMinRepeatSuffixRuntimeSlot::Ambiguous
+                    }
+                },
+                Some(LazyZeroMinRepeatSuffixRuntimeSlot::Ambiguous) => {
+                    LazyZeroMinRepeatSuffixRuntimeSlot::Ambiguous
+                }
+            };
+            store.zero_min_repeat_suffix_by_state.insert(target_state, merged);
+        }
+        Some(target_state)
     }
 
     pub(super) fn step(&self, state: u32, byte: u8) -> Option<u32> {
@@ -3845,6 +3939,20 @@ impl VirtualResidualRuntime {
             if cached != TRANSITION_UNKNOWN {
                 return (cached != TRANSITION_DEAD).then_some(cached);
             }
+        }
+        if let Some(LazyZeroMinRepeatSuffixRuntimeSlot::Exact(source)) =
+            store.zero_min_repeat_suffix_by_state.get(&state).copied()
+        {
+            let target = store.zero_min_repeat_suffix.as_mut()?.step(source, byte)?;
+            let target_state = self.intern_zero_min_repeat_suffix_locked(&mut store, target)?;
+            if persist_transitions {
+                let row = store
+                    .transition_rows_by_state
+                    .entry(state)
+                    .or_insert_with(|| Box::new([TRANSITION_UNKNOWN; 256]));
+                row[byte as usize] = target_state;
+            }
+            return Some(target_state);
         }
         let residual = Self::residual_for_state(&store, self.root_state, state)?;
         let target = self.step_residual_locked(&mut store, state, residual, byte);
@@ -3899,6 +4007,15 @@ impl VirtualResidualRuntime {
 
     fn observation(&self, state: u32) -> Option<(bool, bool)> {
         let mut store = self.store.lock().unwrap();
+        if let Some(LazyZeroMinRepeatSuffixRuntimeSlot::Exact(coordinate)) =
+            store.zero_min_repeat_suffix_by_state.get(&state).copied()
+        {
+            let component = store.zero_min_repeat_suffix.as_ref()?;
+            return Some((
+                state != self.root_state && component.is_accepting(coordinate),
+                component.has_future(coordinate),
+            ));
+        }
         let residual = Self::residual_for_state(&store, self.root_state, state)?;
         // Match the existing virtual-runtime convention: the physical proxy
         // root is the drained zero-byte configuration and must not emit a
@@ -3914,7 +4031,23 @@ impl VirtualResidualRuntime {
         // Unknown/ambiguous coordinates deliberately retain the old
         // conservative contract. Their exact query remains fallible and is
         // resolved only at the explicit dynamic residual boundary.
-        let future = if let Some(future) =
+        let zero_min_future = match store.zero_min_repeat_suffix_by_state.get(&state).copied() {
+            Some(LazyZeroMinRepeatSuffixRuntimeSlot::Exact(coordinate)) => store
+                .zero_min_repeat_suffix
+                .as_ref()
+                .map(|component| {
+                    debug_assert_eq!(
+                        state != self.root_state && component.is_accepting(coordinate),
+                        accepting,
+                        "lazy zero-min repeat+suffix acceptance diverged from exact residual arena",
+                    );
+                    component.has_future(coordinate)
+                }),
+            Some(LazyZeroMinRepeatSuffixRuntimeSlot::Ambiguous) | None => None,
+        };
+        let future = if let Some(future) = zero_min_future {
+            future
+        } else if let Some(future) =
             self.certified_oracle_future_for_state(&mut store, state, residual)
         {
             future
@@ -3935,6 +4068,14 @@ impl VirtualResidualRuntime {
     #[inline]
     fn accepting_now(&self, state: u32) -> Option<bool> {
         let store = self.store.lock().unwrap();
+        if let Some(LazyZeroMinRepeatSuffixRuntimeSlot::Exact(coordinate)) =
+            store.zero_min_repeat_suffix_by_state.get(&state).copied()
+        {
+            return Some(
+                state != self.root_state
+                    && store.zero_min_repeat_suffix.as_ref()?.is_accepting(coordinate),
+            );
+        }
         let residual = Self::residual_for_state(&store, self.root_state, state)?;
         Some(state != self.root_state && store.arena.is_nullable(residual))
     }
@@ -4072,6 +4213,9 @@ impl VirtualResidualRuntime {
             store: Mutex::new(ResidualRuntimeStore {
                 arena, root, state_by_residual, residual_by_state: FxHashMap::default(),
                 state_by_residual_coordinate, coordinate_by_state,
+                zero_min_repeat_suffix: None,
+                zero_min_repeat_suffix_by_state: FxHashMap::default(),
+                state_by_zero_min_repeat_suffix: FxHashMap::default(),
                 oracle_future_by_state: FxHashMap::default(),
                 liveness_oracle: Some(liveness_oracle), oracle_byte_to_class,
                 oracle_language_finite, oracle_coordinates, oracle_futures,
@@ -4093,9 +4237,23 @@ impl VirtualResidualRuntime {
     /// being collapsed into a dead transition.
     pub(super) fn exact_has_future(&self, state: u32) -> Result<Option<bool>, String> {
         let mut store = self.store.lock().unwrap();
+        if let Some(LazyZeroMinRepeatSuffixRuntimeSlot::Exact(coordinate)) =
+            store.zero_min_repeat_suffix_by_state.get(&state).copied()
+        {
+            return Ok(store
+                .zero_min_repeat_suffix
+                .as_ref()
+                .map(|component| component.has_future(coordinate)));
+        }
         let Some(residual) = Self::residual_for_state(&store, self.root_state, state) else {
             return Ok(None);
         };
+        if let Some(LazyZeroMinRepeatSuffixRuntimeSlot::Exact(coordinate)) =
+            store.zero_min_repeat_suffix_by_state.get(&state).copied()
+            && let Some(component) = store.zero_min_repeat_suffix.as_ref()
+        {
+            return Ok(Some(component.has_future(coordinate)));
+        }
         if let Some(future) =
             self.certified_oracle_future_for_state(&mut store, state, residual)
         {
@@ -4852,6 +5010,21 @@ impl VirtualResidualRuntime {
             return Some(Vec::new());
         }
         let mut store = self.store.lock().unwrap();
+        if let Some(LazyZeroMinRepeatSuffixRuntimeSlot::Exact(source)) =
+            store.zero_min_repeat_suffix_by_state.get(&state).copied()
+        {
+            let transitions = store
+                .zero_min_repeat_suffix
+                .as_mut()?
+                .transitions(source);
+            let mut out = Vec::with_capacity(transitions.len());
+            for (byte, target) in transitions {
+                let target_state =
+                    self.intern_zero_min_repeat_suffix_locked(&mut store, target)?;
+                out.push((byte, target_state));
+            }
+            return Some(out);
+        }
         let residual = Self::residual_for_state(&store, self.root_state, state)?;
         let bytes = store.arena.first_bytes(residual)?;
         let mut out = Vec::new();
@@ -5079,7 +5252,12 @@ impl VirtualResidualRuntime {
     }
 
     pub(super) fn interned_state_count(&self) -> usize {
-        self.store.lock().unwrap().residual_by_state.len()
+        let store = self.store.lock().unwrap();
+        if store.zero_min_repeat_suffix.is_some() {
+            store.state_by_zero_min_repeat_suffix.len().saturating_sub(1)
+        } else {
+            store.residual_by_state.len()
+        }
     }
 }
 

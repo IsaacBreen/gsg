@@ -30,6 +30,7 @@ use crate::automata::lexer::compile::{
     expression_may_support_bounded_code_residual_runtime,
     expression_supports_bounded_code_residual_runtime,
     expression_supports_deferred_dense_runtime,
+    expression_supports_zero_min_repeat_suffix_virtual_runtime,
     factor_regex_expr,
     prepare_bounded_code_mask_component,
     prepare_partitioned_expression_pair_with_structural_map,
@@ -801,6 +802,20 @@ fn build_dynamic_virtual_tokenizer_from_exprs(
             supported.then_some(terminal as TerminalID)
         })
         .collect::<Vec<_>>();
+    let patterned_repeat_suffix_terminals = if !preserve_residual_oracle_coordinates
+        && std::env::var_os("GLRMASK_EXPERIMENT_PATTERNED_REPEAT_SUFFIX_RESIDUAL").is_some()
+    {
+        expressions
+            .iter()
+            .enumerate()
+            .filter_map(|(terminal, expression)| {
+                expression_supports_zero_min_repeat_suffix_virtual_runtime(expression)
+                    .then_some(terminal as TerminalID)
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     // If every giant component is already certified by the same bounded-code
     // oracle, keep the complete certified family symbolic together. Otherwise a
     // mixed schema (for example maxLength 255 plus 32767) virtualizes only the
@@ -812,7 +827,10 @@ fn build_dynamic_virtual_tokenizer_from_exprs(
         .all(|terminal| bounded_code_terminals.contains(terminal));
     let prefer_general_bounded =
         !bounded_code_terminals.is_empty() && all_giants_bounded_code;
-    if giant_terminals.is_empty() && bounded_code_terminals.is_empty() {
+    if giant_terminals.is_empty()
+        && bounded_code_terminals.is_empty()
+        && patterned_repeat_suffix_terminals.is_empty()
+    {
         return Ok(None);
     }
     if !prefer_general_bounded
@@ -875,10 +893,11 @@ fn build_dynamic_virtual_tokenizer_from_exprs(
         };
         let specialized = specialized_terminals.iter().copied().collect::<Vec<_>>();
         eprintln!(
-            "[glrmask/profile][dynamic_virtual_selection] preserve_coordinates={} giants=[{}] bounded=[{}] specialized=[{}] prefer_general_bounded={} all_giants_specialized={}",
+            "[glrmask/profile][dynamic_virtual_selection] preserve_coordinates={} giants=[{}] bounded=[{}] patterned_repeat_suffix=[{}] specialized=[{}] prefer_general_bounded={} all_giants_specialized={}",
             preserve_residual_oracle_coordinates,
             labels(&giant_terminals),
             labels(&bounded_code_terminals),
+            labels(&patterned_repeat_suffix_terminals),
             labels(&specialized),
             prefer_general_bounded,
             all_giants_specialized,
@@ -890,15 +909,18 @@ fn build_dynamic_virtual_tokenizer_from_exprs(
             "validated protected tokenizer component could not stay on its exact virtual runtime path ({detail}); refusing eager materialization"
         ))
     };
-    let general_residual_terminals = if prefer_general_bounded || giant_terminals.is_empty() {
-        &bounded_code_terminals
+    let mut general_residual_terminals = if prefer_general_bounded || giant_terminals.is_empty() {
+        bounded_code_terminals.clone()
     } else {
-        &giant_terminals
+        giant_terminals.clone()
     };
+    general_residual_terminals.extend(patterned_repeat_suffix_terminals.iter().copied());
+    general_residual_terminals.sort_unstable();
+    general_residual_terminals.dedup();
 
     let build_general_residual = || -> crate::Result<Option<Tokenizer>> {
         let mut proxy_expressions = expressions.to_vec();
-        for &terminal in general_residual_terminals {
+        for &terminal in &general_residual_terminals {
             proxy_expressions[terminal as usize] = Expr::U8Class(U8Set::empty());
         }
         let terminal_labels = grammar
@@ -944,7 +966,11 @@ fn build_dynamic_virtual_tokenizer_from_exprs(
         Ok(Some(tokenizer))
     };
 
-    if prefer_general_bounded || giant_terminals.is_empty() || !all_giants_specialized {
+    if prefer_general_bounded
+        || giant_terminals.is_empty()
+        || !all_giants_specialized
+        || !patterned_repeat_suffix_terminals.is_empty()
+    {
         return build_general_residual();
     }
 
