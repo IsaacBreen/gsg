@@ -4236,6 +4236,19 @@ fn residual_finite_switch_states(input: BuildInput<'_>) -> usize {
 /// Keep Static's established handoffs above unchanged and apply the larger
 /// residual budget only to the dedicated vocabulary-equivalence calculation.
 fn vocab_only_residual_finite_switch_states(input: BuildInput<'_>) -> usize {
+    // On very large tokenizer machines the finite kernel's state×vocabulary
+    // scan is itself the pathological side.  The dedicated vocab-only path
+    // does not need a projected transition artifact, and the residual kernel
+    // remains substantially cheaper for the large p1/p2/p5 families while
+    // producing the same exact token partition.  Keep the ordinary small and
+    // medium-tokenizer crossovers below unchanged; this guard only removes the
+    // stale finite safety handoff in the large-state regime.
+    if input.subset_parent_order.is_none()
+        && matches!(input.partition_label, "p1" | "p2" | "p5")
+        && input.tokenizer.num_states() > 50_000
+    {
+        return usize::MAX;
+    }
     let (env_name, default) = if input.subset_parent_order.is_none()
         && input.partition_label == "p2"
         && input.vocab.len() >= 50_000

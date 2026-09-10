@@ -70,12 +70,18 @@ pub(crate) fn vocab_packed_token_bytes(
 
 /// Populate only vocabulary artifacts used by DynamicConstraint compilation/runtime.
 ///
-/// This deliberately excludes static terminal-DWA and static possible-match
-/// preparation so dynamic build benchmarks can prewarm pure-vocab state without
-/// doing work that DynamicConstraint never consumes.
+/// O2 vocabulary partitioning reuses the terminal-DWA module's *pure vocabulary*
+/// L1/partition caches (identity orders, bounded-analysis tries, char-type
+/// sub-vocabs, finite vocab projections).  Those are model-vocabulary state, not
+/// grammar/constraint state, so prepare them here rather than lazily charging
+/// the first O2 constraint that happens to request a vocabulary partition.
+///
+/// This still deliberately excludes grammar-specific terminal-DWA construction
+/// and static possible-match preparation.
 pub(crate) fn prepare_vocab_for_dynamic_compile(vocab: &crate::Vocab) {
     let _ = prepare_vocab_packed_token_bytes(vocab);
     let _ = vocab_content_digest(vocab);
+    super::stages::id_map_and_terminal_dwa::prepare_vocab_for_terminal_dwa(vocab);
     super::constraint_possible_matches::prepare_vocab_for_dynamic_mask(vocab);
 }
 

@@ -26,6 +26,7 @@ use crate::automata::lexer::compile::{
     compile_terminal_expr_dfa,
     compile_terminal_expression_pair_with_structural_map,
     compile_terminal_expression_pair_with_vocabulary_token_quotient,
+    max_direct_bounded_suffix_state_count_estimate,
     expression_contains_large_bounded_repeat,
     expression_may_support_bounded_code_residual_runtime,
     expression_supports_bounded_code_residual_runtime,
@@ -2676,13 +2677,12 @@ pub(crate) fn build_vocab_partition_compile_context(
         crate::compiler::stages::id_map_and_terminal_dwa::synthetic_state_map::certify_vocabulary_exact_state_candidates,
     );
 
-    // VocabPartition consumes only the finite one-token observation coordinate.
-    // Do not construct the exact dynamic runtime tokenizer (or its exact->mask
-    // mapping) merely to throw both away afterward.
-    if let Ok(Some(mask)) = build_vocab_partition_direct_mask_tokenizer(grammar, vocab) {
-        return (mask, None, None, true);
-    }
-
+    // Prefer the same certified synthetic compile coordinate used by Static
+    // before considering the bounded-code direct-mask coordinate.  The latter
+    // can be much larger than the synthetic vocabulary-exact coordinate on
+    // wide bounded-intersection grammars, making the nominal fast path slower
+    // than O3.  It remains the exact fallback when synthesis is unavailable or
+    // not profitable.
     let plan = plan_synthetic_tokenizer(grammar, vocab);
     let partition_local_synthesis_plan = plan.as_ref().map(|plan| {
         Arc::new(
@@ -2722,7 +2722,47 @@ pub(crate) fn build_vocab_partition_compile_context(
         )
     };
 
-    if let Some(plan) = plan.as_ref() {
+    // Structural certification currently materializes the full layered DFA
+    // before proving its vocabulary-horizon quotient.  VocabPartition already
+    // has an exact one-token direct-mask fallback, so its selector must be much
+    // stricter than Static's general synthesis policy: even tens of thousands
+    // of layered states can make O2 spend hundreds of milliseconds proving an
+    // optimization whose direct-mask equivalent builds in a few milliseconds.
+    // Vocabulary-aware giant-terminal synthesis collapses the important
+    // o21135-family components below this bound (~7.5k states), while the
+    // unprofitable conservative bounded-string products are larger.  This is
+    // only a compile-strategy choice and cannot change partition semantics.
+    const MAX_STRUCTURAL_CERT_LAYERED_STATES: usize = 10_000;
+    let structural_pair_preflight_ok = plan.as_ref().is_none_or(|plan| {
+        plan.changed_terminal_ids.iter().copied().all(|terminal| {
+            max_direct_bounded_suffix_state_count_estimate(
+                &plan.full_expressions[terminal as usize],
+            )
+            .is_none_or(|states| states <= MAX_STRUCTURAL_CERT_LAYERED_STATES)
+        })
+    });
+    if std::env::var_os("GLRMASK_PROFILE_SYNTHETIC_PLAN").is_some()
+        && let Some(plan) = plan.as_ref()
+    {
+        let estimates = plan
+            .changed_terminal_ids
+            .iter()
+            .copied()
+            .filter_map(|terminal| {
+                max_direct_bounded_suffix_state_count_estimate(
+                    &plan.full_expressions[terminal as usize],
+                )
+                .map(|states| (terminal, states))
+            })
+            .collect::<Vec<_>>();
+        eprintln!(
+            "[glrmask/profile][vocab_partition_structural_preflight] allowed={} layered_state_estimates={:?}",
+            structural_pair_preflight_ok,
+            estimates,
+        );
+    }
+
+    if structural_pair_preflight_ok && let Some(plan) = plan.as_ref() {
         if let Some((synthesized, deferred_full, certified)) = select_pair(plan) {
             let direct_token_quotient_compile =
                 env_flag_enabled_by_default("GLRMASK_DIRECT_TOKEN_QUOTIENT_COMPILE");
@@ -2755,6 +2795,14 @@ pub(crate) fn build_vocab_partition_compile_context(
                 false,
             );
         }
+    }
+
+    // VocabPartition consumes only the finite one-token observation coordinate.
+    // If the certified synthetic route above did not apply, try the specialized
+    // bounded-code finite mask coordinate before falling back to the ordinary
+    // compile tokenizer.
+    if let Ok(Some(mask)) = build_vocab_partition_direct_mask_tokenizer(grammar, vocab) {
+        return (mask, None, None, true);
     }
 
     let mut tokenizer = build_vocab_partition_ordinary_compile_tokenizer(grammar);
@@ -5794,7 +5842,7 @@ fn compile_dynamic_owned_with_vocab_partition_impl(
                     let partition = crate::compiler::vocab_partition::compile_vocab_partition_owned(
                         partition_grammar,
                         vocab,
-                        crate::VocabPartitionStrategy::Dedicated,
+                        crate::VocabPartitionStrategy::Automatic,
                     );
                     let partition_ms = elapsed_ms(partition_started);
                     let quotient_started = Instant::now();
@@ -5826,6 +5874,7 @@ fn compile_dynamic_owned_with_vocab_partition_impl(
     let rebuild_started = profile.then(Instant::now);
     if finalize_runtime {
         constraint.inner.rebuild_dynamic_runtime_caches();
+        constraint.cache_external_vocab_artifact_for_save();
     }
     let rebuild_ms = rebuild_started.map_or(0.0, elapsed_ms);
     if let Some(total_started) = total_started {
@@ -6251,6 +6300,9 @@ fn compile_dynamic_owned_impl(
             .table
             .set_embedded_start_nullable(start_nullable);
         constraint.set_composition_grammar(prepared_grammar);
+        if finalize_runtime {
+            constraint.cache_external_vocab_artifact_for_save();
+        }
         if let Some(total_started_at) = total_started_at {
             eprintln!(
                 "[glrmask/profile][dynamic_compile] finalize_runtime={} prepare_ms={:.3} analysis_ms={:.3} tokenizer_ms={:.3} table_ms={:.3} dynamic_vocab_ms={:.3} finalize_ms={:.3} parallel_core_wall_ms={:.3} total_ms={:.3}",
