@@ -895,6 +895,19 @@ struct BoundedCodeOracleCoordinate {
     envelope: BoundedCodeEnvelopeState,
 }
 
+/// Opaque exact bounded-code residual coordinate for the dynamic masker's
+/// parser-transparent first-match lane. The runtime index is part of the key
+/// so coordinates from distinct terminals cannot be mixed accidentally.
+///
+/// This is lexer state only. It contains no parser state, token result, or DWA
+/// effect.
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct VirtualResidualDirectCoordinate {
+    pub(super) runtime_index: u32,
+    coordinate: BoundedCodeOracleCoordinate,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BoundedCodeOracleSlot {
     Unknown,
@@ -2242,6 +2255,61 @@ impl BoundedCodeIntersectionOracle {
             }
         }
     }
+
+    /// Exact future query using the build-time backwards-DP table instead of
+    /// relation powers.  The table contains, for every completed body count,
+    /// exactly the pattern states from which some legal continuation reaches
+    /// the fixed suffix.  A partial body word is completed once, then tested
+    /// against the next boundary row.
+    fn has_future_with_boundary_table(
+        &mut self,
+        coordinate: BoundedCodeOracleCoordinate,
+        future: &[BitSet],
+    ) -> Option<bool> {
+        if future.len() != self.max.checked_add(1)?
+            || future.iter().any(|row| row.len() != self.pattern.num_states())
+        {
+            return None;
+        }
+        let boundary_live = |completed: usize, pattern_state: u32| {
+            future
+                .get(completed)
+                .is_some_and(|row| row.contains(pattern_state as usize))
+        };
+        Some(match coordinate.envelope {
+            BoundedCodeEnvelopeState::Done => false,
+            BoundedCodeEnvelopeState::Prefix { next } => {
+                let Some(pattern_state) =
+                    step_fixed_bytes(&self.pattern, coordinate.pattern_state, &self.prefix[next..])
+                else {
+                    return Some(false);
+                };
+                boundary_live(0, pattern_state)
+            }
+            BoundedCodeEnvelopeState::Body {
+                completed,
+                body_state: 0,
+            } => boundary_live(completed, coordinate.pattern_state),
+            BoundedCodeEnvelopeState::Body {
+                completed,
+                body_state,
+            } => {
+                if completed >= self.max {
+                    false
+                } else {
+                    let after_current = self.completion_row(body_state, coordinate.pattern_state);
+                    let Some(boundary) = future.get(completed + 1) else {
+                        return Some(false);
+                    };
+                    !after_current.is_disjoint(boundary)
+                }
+            }
+            BoundedCodeEnvelopeState::Suffix { next } => {
+                step_fixed_bytes(&self.pattern, coordinate.pattern_state, &self.suffix[next..])
+                    .is_some_and(|state| !self.pattern.finalizers(state).is_empty())
+            }
+        })
+    }
 }
 
 /// Build only the finite one-token observation component for a certified
@@ -2426,6 +2494,108 @@ pub struct VirtualResidualMaskProjectionArtifactRef<'a> {
     state_offset: u32,
     local_to_mask_state: &'a [u32],
     oracle_bytes: Vec<u8>,
+}
+
+/// Compact immutable preparation carried across DynamicConstraint transfer so
+/// loading an already-built constraint does not rebuild the bounded-code
+/// backward-future table. This is a deterministic derivative of the residual
+/// oracle, not runtime history from a mask call.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[doc(hidden)]
+pub(crate) struct CompactResidualDfaArtifact {
+    state_count: u32,
+    transition_offsets: Vec<u32>,
+    transition_bytes: Vec<u8>,
+    transition_targets: Vec<u16>,
+    accepting_words: Vec<u64>,
+    future_words: Vec<u64>,
+    group_bytes: U8Set,
+}
+
+impl CompactResidualDfaArtifact {
+    fn from_dfa(dfa: &DFA) -> Option<Self> {
+        if dfa.has_epsilon_transitions() || dfa.num_states() > u16::MAX as usize {
+            return None;
+        }
+        let state_count = dfa.num_states();
+        let word_count = state_count.div_ceil(64);
+        let mut transition_offsets = Vec::with_capacity(state_count + 1);
+        let mut transition_bytes = Vec::new();
+        let mut transition_targets = Vec::new();
+        let mut accepting_words = vec![0u64; word_count];
+        let mut future_words = vec![0u64; word_count];
+        let mut group_bytes = U8Set::empty();
+        for group in 0..dfa.num_groups() {
+            group_bytes |= *dfa.group_id_to_u8set(group as u32);
+        }
+        for state in 0..state_count {
+            transition_offsets.push(u32::try_from(transition_bytes.len()).ok()?);
+            if !dfa.finalizers(state as u32).is_empty() {
+                accepting_words[state / 64] |= 1u64 << (state % 64);
+            }
+            if !dfa.possible_future_group_ids(state as u32).is_empty() {
+                future_words[state / 64] |= 1u64 << (state % 64);
+            }
+            for (byte, target) in dfa.transitions(state as u32) {
+                transition_bytes.push(byte);
+                transition_targets.push(u16::try_from(target).ok()?);
+            }
+        }
+        transition_offsets.push(u32::try_from(transition_bytes.len()).ok()?);
+        Some(Self {
+            state_count: u32::try_from(state_count).ok()?,
+            transition_offsets,
+            transition_bytes,
+            transition_targets,
+            accepting_words,
+            future_words,
+            group_bytes,
+        })
+    }
+
+    fn into_dfa(self) -> Option<DFA> {
+        let state_count = self.state_count as usize;
+        DFA::new_from_compact_single_group(
+            state_count,
+            &self.transition_offsets,
+            &self.transition_bytes,
+            &self.transition_targets,
+            &self.accepting_words,
+            &self.future_words,
+            self.group_bytes,
+        )
+    }
+
+    #[inline]
+    fn state_count(&self) -> usize {
+        self.state_count as usize
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[doc(hidden)]
+pub struct VirtualResidualMasterSliceArtifact {
+    pub(crate) terminal: TerminalID,
+    pub(crate) root_state: u32,
+    /// Already-compiled bounded-code liveness program.  Keeping these DFAs in
+    /// the build artifact avoids recompiling the pattern language during load;
+    /// `words` below replaces the much larger relation-power tables for exact
+    /// future queries at whole-body boundaries.
+    pub(crate) pattern: CompactResidualDfaArtifact,
+    pub(crate) body: CompactResidualDfaArtifact,
+    pub(crate) body_productive: Vec<bool>,
+    pub(crate) prefix: Vec<u8>,
+    pub(crate) suffix: Vec<u8>,
+    pub(crate) min: usize,
+    pub(crate) max: usize,
+    pub(crate) suffix_accepting: BitSet,
+    pub(crate) pattern_states: u32,
+    pub(crate) rows: u32,
+    pub(crate) words: Vec<u64>,
+    #[serde(default)]
+    pub(crate) body_exact: Vec<(u64, bool)>,
+    #[serde(default)]
+    pub(crate) pattern_targets: Vec<(u64, u32, Option<Vec<u64>>)>,
 }
 
 impl VirtualResidualMaskProjectionArtifact {
@@ -2781,8 +2951,10 @@ impl FiniteMaskLayout {
         };
         u32::try_from(local).ok()
     }
+
 }
 
+#[derive(Debug, Clone)]
 struct FiniteMaskClassTransitions {
     class_count: usize,
     pattern: Box<[u32]>,
@@ -3337,6 +3509,7 @@ struct ResidualRuntimeStore {
     root: ResidualId,
     state_by_residual: Vec<u32>,
     residual_by_state: FxHashMap<u32, ResidualId>,
+    state_by_oracle_coordinate: FxHashMap<BoundedCodeOracleCoordinate, u32>,
     state_by_residual_coordinate:
         FxHashMap<(ResidualId, BoundedCodeOracleCoordinate), u32>,
     coordinate_by_state: FxHashMap<u32, BoundedCodeOracleCoordinate>,
@@ -3353,6 +3526,137 @@ struct ResidualRuntimeStore {
     transition_rows_by_state: FxHashMap<u32, Box<[u32; 256]>>,
 }
 
+/// Immutable byte-step view of a certified bounded-code residual. This is the
+/// same transition semantics as `BoundedCodeIntersectionOracle::step_coordinate`
+/// but keeps only immutable data outside the residual store mutex so a
+/// parser-transparent trie walk can advance coordinates without allocating or
+/// interning virtual state ids.
+#[derive(Debug, Clone)]
+struct DirectCoordinateStepper {
+    pattern: Arc<DFA>,
+    body: Arc<DFA>,
+    byte_to_class: Box<[u8; 256]>,
+    class_transitions: FiniteMaskClassTransitions,
+    body_productive: Arc<[bool]>,
+    prefix: Arc<[u8]>,
+    suffix: Arc<[u8]>,
+    min: usize,
+    max: usize,
+}
+
+impl DirectCoordinateStepper {
+    fn new(oracle: &BoundedCodeIntersectionOracle) -> Option<Self> {
+        let byte_classes = bounded_code_byte_classes(
+            &oracle.pattern,
+            &oracle.body,
+            &oracle.prefix,
+            &oracle.suffix,
+        );
+        let mut byte_to_class = Box::new([0u8; 256]);
+        for (class, members) in byte_classes.iter().enumerate() {
+            let class = u8::try_from(class).ok()?;
+            for &byte in members {
+                byte_to_class[byte as usize] = class;
+            }
+        }
+        let class_transitions = FiniteMaskClassTransitions::new(oracle, &byte_classes)?;
+        Some(Self {
+            pattern: Arc::clone(&oracle.pattern),
+            body: Arc::clone(&oracle.body),
+            byte_to_class,
+            class_transitions,
+            body_productive: Arc::from(oracle.body_productive.clone()),
+            prefix: Arc::clone(&oracle.prefix),
+            suffix: Arc::clone(&oracle.suffix),
+            min: oracle.min,
+            max: oracle.max,
+        })
+    }
+
+    #[inline(always)]
+    fn step(
+        &self,
+        coordinate: BoundedCodeOracleCoordinate,
+        byte: u8,
+    ) -> Option<BoundedCodeOracleCoordinate> {
+        let class = self.byte_to_class[byte as usize] as usize;
+        let pattern_state = self
+            .class_transitions
+            .pattern_step(coordinate.pattern_state, class)?;
+        let envelope = match coordinate.envelope {
+            BoundedCodeEnvelopeState::Prefix { next } => {
+                if self.prefix.get(next).copied()? != byte {
+                    return None;
+                }
+                if next + 1 == self.prefix.len() {
+                    BoundedCodeEnvelopeState::Body {
+                        completed: 0,
+                        body_state: 0,
+                    }
+                } else {
+                    BoundedCodeEnvelopeState::Prefix { next: next + 1 }
+                }
+            }
+            BoundedCodeEnvelopeState::Body {
+                completed,
+                body_state,
+            } => {
+                if body_state == 0
+                    && completed >= self.min
+                    && self.suffix.first().copied()? == byte
+                {
+                    if self.suffix.len() == 1 {
+                        BoundedCodeEnvelopeState::Done
+                    } else {
+                        BoundedCodeEnvelopeState::Suffix { next: 1 }
+                    }
+                } else {
+                    if completed >= self.max {
+                        return None;
+                    }
+                    let target = self
+                        .class_transitions
+                        .body_step(&self.body, body_state, byte, class)?;
+                    if !self.body.finalizers(target).is_empty() {
+                        BoundedCodeEnvelopeState::Body {
+                            completed: completed.checked_add(1)?,
+                            body_state: 0,
+                        }
+                    } else if self.body_productive[target as usize] {
+                        BoundedCodeEnvelopeState::Body {
+                            completed,
+                            body_state: target,
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+            }
+            BoundedCodeEnvelopeState::Suffix { next } => {
+                if self.suffix.get(next).copied()? != byte {
+                    return None;
+                }
+                if next + 1 == self.suffix.len() {
+                    BoundedCodeEnvelopeState::Done
+                } else {
+                    BoundedCodeEnvelopeState::Suffix { next: next + 1 }
+                }
+            }
+            BoundedCodeEnvelopeState::Done => return None,
+        };
+        Some(BoundedCodeOracleCoordinate {
+            pattern_state,
+            envelope,
+        })
+    }
+
+    #[inline(always)]
+    fn accepting(&self, coordinate: BoundedCodeOracleCoordinate) -> bool {
+        matches!(coordinate.envelope, BoundedCodeEnvelopeState::Done)
+            && !self.pattern.finalizers(coordinate.pattern_state).is_empty()
+    }
+}
+
 /// Exact general symbolic tokenizer component. The regex upper bounds live in
 /// `ResidualNode::Repeat`; this store grows only when runtime bytes discover a
 /// new canonical language residual.
@@ -3364,6 +3668,8 @@ pub(super) struct VirtualResidualRuntime {
     root_state: u32,
     root_has_future: bool,
     preserve_oracle_coordinate: bool,
+    coordinate_runtime: bool,
+    direct_coordinate_stepper: Option<DirectCoordinateStepper>,
     state_allocator: Arc<VirtualStateAllocator>,
     state_owners: Arc<VirtualRuntimeStateOwners>,
     accepting: BitSet,
@@ -3389,6 +3695,187 @@ pub(super) struct FiniteMaskProjectionLanguageKey {
 }
 
 impl VirtualResidualRuntime {
+    fn intern_oracle_coordinate_locked(
+        &self,
+        store: &mut ResidualRuntimeStore,
+        coordinate: BoundedCodeOracleCoordinate,
+    ) -> Option<u32> {
+        if let Some(&state) = store.state_by_oracle_coordinate.get(&coordinate) {
+            return Some(state);
+        }
+        let state = self.state_allocator.allocate().expect(
+            "exact residual tokenizer state-id space exhausted below the dynamic-NFA high-bit tag",
+        );
+        self.state_owners
+            .register_virtual(state, self.runtime_index)
+            .expect("residual virtual state owner index must follow shared allocator");
+        store.state_by_oracle_coordinate.insert(coordinate, state);
+        store.coordinate_by_state.insert(state, coordinate);
+        Some(state)
+    }
+
+    fn coordinate_future_locked(
+        store: &mut ResidualRuntimeStore,
+        state: u32,
+        coordinate: BoundedCodeOracleCoordinate,
+    ) -> Option<bool> {
+        if let Some(&future) = store.oracle_future_by_state.get(&state) {
+            return Some(future);
+        }
+        let boundary_future = store
+            .body_boundary_future_by_completed
+            .as_ref()
+            .map(Arc::clone);
+        let oracle = store.liveness_oracle.as_mut()?;
+        let future = boundary_future
+            .as_deref()
+            .and_then(|rows| oracle.has_future_with_boundary_table(coordinate, rows))
+            .unwrap_or_else(|| oracle.has_future(coordinate));
+        store.oracle_future_by_state.insert(state, future);
+        Some(future)
+    }
+
+    pub(super) fn master_slice_artifact(&self) -> Option<VirtualResidualMasterSliceArtifact> {
+        let store = self.store.lock().unwrap();
+        let oracle = store.liveness_oracle.as_ref()?;
+        let rows = store.body_boundary_future_by_completed.as_ref()?;
+        let pattern_states = oracle.pattern.num_states();
+        let row_words = pattern_states.div_ceil(64);
+        if rows.len() != oracle.max.checked_add(1)?
+            || rows.iter().any(|row| row.len() != pattern_states || row.words().len() != row_words)
+        {
+            return None;
+        }
+        let mut words = Vec::with_capacity(rows.len().saturating_mul(row_words));
+        for row in rows.iter() {
+            words.extend_from_slice(row.words());
+        }
+        Some(VirtualResidualMasterSliceArtifact {
+            terminal: self.terminal,
+            root_state: self.root_state,
+            pattern: CompactResidualDfaArtifact::from_dfa(oracle.pattern.as_ref())?,
+            body: CompactResidualDfaArtifact::from_dfa(oracle.body.as_ref())?,
+            body_productive: oracle.body_productive.to_vec(),
+            prefix: oracle.prefix.to_vec(),
+            suffix: oracle.suffix.to_vec(),
+            min: oracle.min,
+            max: oracle.max,
+            suffix_accepting: oracle.suffix_accepting.clone(),
+            pattern_states: u32::try_from(pattern_states).ok()?,
+            rows: u32::try_from(rows.len()).ok()?,
+            words,
+            body_exact: store
+                .slice_atom_body_exact_cache
+                .iter()
+                .map(|(&fingerprint, &exact)| (fingerprint, exact))
+                .collect(),
+            pattern_targets: store
+                .slice_atom_pattern_targets_cache
+                .iter()
+                .map(|(&(fingerprint, pattern_state), targets)| {
+                    (
+                        fingerprint,
+                        pattern_state,
+                        targets.as_ref().map(|targets| targets.words().to_vec()),
+                    )
+                })
+                .collect(),
+        })
+    }
+
+    pub(super) fn restore_master_slice_artifact(
+        &self,
+        artifact: VirtualResidualMasterSliceArtifact,
+    ) -> Result<(), String> {
+        if artifact.terminal != self.terminal || artifact.root_state != self.root_state {
+            return Err("virtual residual master-slice artifact runtime mismatch".to_owned());
+        }
+        let mut store = self.store.lock().unwrap();
+        let oracle = store
+            .liveness_oracle
+            .as_ref()
+            .ok_or_else(|| "virtual residual master-slice artifact has no liveness oracle".to_owned())?;
+        let pattern_states = oracle.pattern.num_states();
+        let expected_rows = oracle.max.saturating_add(1);
+        if artifact.pattern_states as usize != pattern_states || artifact.rows as usize != expected_rows {
+            return Err("virtual residual master-slice artifact shape mismatch".to_owned());
+        }
+        let row_words = pattern_states.div_ceil(64);
+        if artifact.words.len() != expected_rows.saturating_mul(row_words) {
+            return Err("virtual residual master-slice artifact word count mismatch".to_owned());
+        }
+        let mut rows = Vec::with_capacity(expected_rows);
+        for words in artifact.words.chunks_exact(row_words) {
+            rows.push(
+                BitSet::from_dense_words(pattern_states, words)
+                    .ok_or_else(|| "virtual residual master-slice artifact has invalid dense row".to_owned())?,
+            );
+        }
+        let mut body_exact = FxHashMap::default();
+        for (fingerprint, exact) in artifact.body_exact {
+            body_exact.insert(fingerprint, exact);
+        }
+        let mut pattern_targets = FxHashMap::default();
+        for (fingerprint, pattern_state, words) in artifact.pattern_targets {
+            if pattern_state as usize >= pattern_states {
+                return Err(
+                    "virtual residual master-slice artifact pattern state is out of range"
+                        .to_owned(),
+                );
+            }
+            let targets = words
+                .map(|words| {
+                    BitSet::from_dense_words(pattern_states, &words).ok_or_else(|| {
+                        "virtual residual master-slice artifact has invalid target row".to_owned()
+                    })
+                })
+                .transpose()?;
+            pattern_targets.insert((fingerprint, pattern_state), targets);
+        }
+        store.body_boundary_future_by_completed = Some(Arc::new(rows));
+        store.slice_atom_body_exact_cache = body_exact;
+        store.slice_atom_pattern_targets_cache = pattern_targets;
+        Ok(())
+    }
+
+    pub(super) fn compact_liveness_oracle_from_master_slice_artifact(
+        artifact: &VirtualResidualMasterSliceArtifact,
+    ) -> Option<BoundedCodeIntersectionOracle> {
+        let pattern_states = artifact.pattern.state_count();
+        let body_states = artifact.body.state_count();
+        if pattern_states == 0
+            || pattern_states != artifact.pattern_states as usize
+            || body_states == 0
+            || artifact.body_productive.len() != body_states
+            || artifact.min > artifact.max
+            || artifact.max != artifact.rows.checked_sub(1)? as usize
+            || artifact.prefix.is_empty()
+            || artifact.suffix.is_empty()
+            || artifact.suffix_accepting.len() != pattern_states
+        {
+            return None;
+        }
+        let pattern = Arc::new(artifact.pattern.clone().into_dfa()?);
+        let body = Arc::new(artifact.body.clone().into_dfa()?);
+        Some(BoundedCodeIntersectionOracle {
+            pattern,
+            body,
+            body_productive: artifact.body_productive.clone().into_boxed_slice(),
+            prefix: Arc::from(artifact.prefix.clone().into_boxed_slice()),
+            suffix: Arc::from(artifact.suffix.clone().into_boxed_slice()),
+            min: artifact.min,
+            max: artifact.max,
+            suffix_accepting: artifact.suffix_accepting.clone(),
+            completion_relations: vec![None; body_states],
+            completion_row_cache: FxHashMap::default(),
+            // The transferred backward-future table is the exact dynamic-
+            // programming replacement for these relation powers. Loaded
+            // runtimes route future queries through that table below.
+            exact_powers: Vec::new(),
+            prefix_sums: Vec::new(),
+        })
+    }
+
     pub(super) fn finite_mask_projection_language_key(
         &self,
     ) -> Option<FiniteMaskProjectionLanguageKey> {
@@ -3445,6 +3932,39 @@ impl VirtualResidualRuntime {
             state_owners,
             false,
             false,
+            false,
+            None,
+        )
+    }
+
+    /// Construct a residual runtime for direct dynamic masking. When the
+    /// expression admits a certified bounded-code oracle, keep that exact
+    /// coordinate as the runtime state representation; otherwise this is
+    /// identical to `new`. Keeping this choice out of `new` preserves the
+    /// legacy/general residual semantics used by callers that do not opt into
+    /// the dynamic-mask representation.
+    pub(super) fn new_dynamic(
+        expr: &Expr,
+        runtime_index: u32,
+        terminal: TerminalID,
+        num_terminals: u32,
+        physical_state_count: u32,
+        root_state: u32,
+        state_allocator: Arc<VirtualStateAllocator>,
+        state_owners: Arc<VirtualRuntimeStateOwners>,
+    ) -> Option<Self> {
+        Self::new_impl(
+            expr,
+            runtime_index,
+            terminal,
+            num_terminals,
+            physical_state_count,
+            root_state,
+            state_allocator,
+            state_owners,
+            false,
+            false,
+            true,
             None,
         )
     }
@@ -3475,6 +3995,7 @@ impl VirtualResidualRuntime {
             state_owners,
             false,
             true,
+            false,
             None,
         )
     }
@@ -3501,6 +4022,7 @@ impl VirtualResidualRuntime {
             state_owners,
             false,
             false,
+            true,
             Some(liveness_oracle),
         )
     }
@@ -3526,6 +4048,7 @@ impl VirtualResidualRuntime {
             state_owners,
             true,
             false,
+            false,
             None,
         )
     }
@@ -3541,6 +4064,7 @@ impl VirtualResidualRuntime {
         state_owners: Arc<VirtualRuntimeStateOwners>,
         preserve_oracle_coordinate: bool,
         suppress_dynamic_liveness_oracle: bool,
+        coordinate_runtime: bool,
         prebuilt_liveness_oracle: Option<BoundedCodeIntersectionOracle>,
     ) -> Option<Self> {
         if terminal >= num_terminals
@@ -3588,6 +4112,12 @@ impl VirtualResidualRuntime {
         let root_oracle_coordinate = liveness_oracle
             .as_ref()
             .map(BoundedCodeIntersectionOracle::root_coordinate);
+        let coordinate_runtime = coordinate_runtime
+            && !preserve_oracle_coordinate
+            && liveness_oracle.is_some();
+        let direct_coordinate_stepper = coordinate_runtime
+            .then(|| liveness_oracle.as_ref().and_then(DirectCoordinateStepper::new))
+            .flatten();
         // Keep the physical proxy root's serialized future bit conservative.
         // Old artifacts and load-time validation use that physical metadata, so
         // installing an exact liveness sidecar must not silently change the wire
@@ -3607,9 +4137,14 @@ impl VirtualResidualRuntime {
         }
         let mut state_by_residual_coordinate = FxHashMap::default();
         let mut coordinate_by_state = FxHashMap::default();
+        let mut state_by_oracle_coordinate = FxHashMap::default();
         if preserve_oracle_coordinate {
             let coordinate = root_oracle_coordinate?;
             state_by_residual_coordinate.insert((root, coordinate), root_state);
+            coordinate_by_state.insert(root_state, coordinate);
+        } else if coordinate_runtime {
+            let coordinate = root_oracle_coordinate?;
+            state_by_oracle_coordinate.insert(coordinate, root_state);
             coordinate_by_state.insert(root_state, coordinate);
         }
         let mut accepting = BitSet::new(num_terminals as usize);
@@ -3628,6 +4163,8 @@ impl VirtualResidualRuntime {
             root_state,
             root_has_future: root_live,
             preserve_oracle_coordinate,
+            coordinate_runtime,
+            direct_coordinate_stepper,
             state_allocator,
             state_owners,
             accepting,
@@ -3639,6 +4176,7 @@ impl VirtualResidualRuntime {
                 root,
                 state_by_residual,
                 residual_by_state: FxHashMap::default(),
+                state_by_oracle_coordinate,
                 state_by_residual_coordinate,
                 coordinate_by_state,
                 oracle_future_by_state: FxHashMap::default(),
@@ -3831,6 +4369,14 @@ impl VirtualResidualRuntime {
             return None;
         }
         let mut store = self.store.lock().unwrap();
+        if self.coordinate_runtime {
+            let source_coordinate = store.coordinate_by_state.get(&state).copied()?;
+            let target_coordinate = store
+                .liveness_oracle
+                .as_ref()?
+                .step_coordinate(source_coordinate, byte)?;
+            return self.intern_oracle_coordinate_locked(&mut store, target_coordinate);
+        }
         static PERSIST_TRANSITIONS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
         let persist_transitions = *PERSIST_TRANSITIONS.get_or_init(|| {
             std::env::var_os("GLRMASK_EXPERIMENT_PERSIST_VIRTUAL_RESIDUAL_TRANSITIONS")
@@ -3858,6 +4404,86 @@ impl VirtualResidualRuntime {
         target
     }
 
+    pub(super) fn direct_coordinate_for_state(
+        &self,
+        state: u32,
+    ) -> Option<VirtualResidualDirectCoordinate> {
+        if !self.coordinate_runtime || self.direct_coordinate_stepper.is_none() {
+            return None;
+        }
+        let store = self.store.lock().ok()?;
+        let coordinate = store.coordinate_by_state.get(&state).copied()?;
+        Some(VirtualResidualDirectCoordinate {
+            runtime_index: self.runtime_index,
+            coordinate,
+        })
+    }
+
+    #[inline(always)]
+    pub(super) fn direct_coordinate_step(
+        &self,
+        source: VirtualResidualDirectCoordinate,
+        byte: u8,
+    ) -> Option<VirtualResidualDirectCoordinate> {
+        if source.runtime_index != self.runtime_index {
+            return None;
+        }
+        let coordinate = self
+            .direct_coordinate_stepper
+            .as_ref()?
+            .step(source.coordinate, byte)?;
+        Some(VirtualResidualDirectCoordinate {
+            runtime_index: self.runtime_index,
+            coordinate,
+        })
+    }
+
+    #[inline(always)]
+    pub(super) fn direct_coordinate_accepting(
+        &self,
+        source: VirtualResidualDirectCoordinate,
+    ) -> Option<bool> {
+        (source.runtime_index == self.runtime_index).then(|| {
+            self.direct_coordinate_stepper
+                .as_ref()
+                .is_some_and(|stepper| stepper.accepting(source.coordinate))
+        })
+    }
+
+    pub(super) fn direct_coordinate_has_future(
+        &self,
+        source: VirtualResidualDirectCoordinate,
+    ) -> Option<bool> {
+        if source.runtime_index != self.runtime_index {
+            return None;
+        }
+        let mut store = self.store.lock().ok()?;
+        let boundary_future = store
+            .body_boundary_future_by_completed
+            .as_ref()
+            .map(Arc::clone);
+        let oracle = store.liveness_oracle.as_mut()?;
+        Some(
+            boundary_future
+                .as_deref()
+                .and_then(|rows| {
+                    oracle.has_future_with_boundary_table(source.coordinate, rows)
+                })
+                .unwrap_or_else(|| oracle.has_future(source.coordinate)),
+        )
+    }
+
+    pub(super) fn state_for_direct_coordinate(
+        &self,
+        source: VirtualResidualDirectCoordinate,
+    ) -> Option<u32> {
+        if source.runtime_index != self.runtime_index || !self.coordinate_runtime {
+            return None;
+        }
+        let mut store = self.store.lock().ok()?;
+        self.intern_oracle_coordinate_locked(&mut store, source.coordinate)
+    }
+
     fn certified_oracle_future(
         store: &mut ResidualRuntimeStore,
         residual: ResidualId,
@@ -3874,7 +4500,12 @@ impl VirtualResidualRuntime {
         if let Some(cached) = store.oracle_futures.get(index).copied().flatten() {
             return Some(cached);
         }
-        let future = store.liveness_oracle.as_mut()?.has_future(coordinate);
+        let boundary_future = store.body_boundary_future_by_completed.as_ref().map(Arc::clone);
+        let oracle = store.liveness_oracle.as_mut()?;
+        let future = boundary_future
+            .as_deref()
+            .and_then(|rows| oracle.has_future_with_boundary_table(coordinate, rows))
+            .unwrap_or_else(|| oracle.has_future(coordinate));
         store.oracle_futures[index] = Some(future);
         Some(future)
     }
@@ -3892,13 +4523,28 @@ impl VirtualResidualRuntime {
             return Some(future);
         }
         let coordinate = *store.coordinate_by_state.get(&state)?;
-        let future = store.liveness_oracle.as_mut()?.has_future(coordinate);
+        let boundary_future = store.body_boundary_future_by_completed.as_ref().map(Arc::clone);
+        let oracle = store.liveness_oracle.as_mut()?;
+        let future = boundary_future
+            .as_deref()
+            .and_then(|rows| oracle.has_future_with_boundary_table(coordinate, rows))
+            .unwrap_or_else(|| oracle.has_future(coordinate));
         store.oracle_future_by_state.insert(state, future);
         Some(future)
     }
 
     fn observation(&self, state: u32) -> Option<(bool, bool)> {
         let mut store = self.store.lock().unwrap();
+        if self.coordinate_runtime {
+            let coordinate = *store.coordinate_by_state.get(&state)?;
+            let accepting = state != self.root_state
+                && store
+                    .liveness_oracle
+                    .as_ref()?
+                    .coordinate_accepting(coordinate);
+            let future = Self::coordinate_future_locked(&mut store, state, coordinate)?;
+            return Some((accepting, future));
+        }
         let residual = Self::residual_for_state(&store, self.root_state, state)?;
         // Match the existing virtual-runtime convention: the physical proxy
         // root is the drained zero-byte configuration and must not emit a
@@ -3935,6 +4581,16 @@ impl VirtualResidualRuntime {
     #[inline]
     fn accepting_now(&self, state: u32) -> Option<bool> {
         let store = self.store.lock().unwrap();
+        if self.coordinate_runtime {
+            let coordinate = *store.coordinate_by_state.get(&state)?;
+            return Some(
+                state != self.root_state
+                    && store
+                        .liveness_oracle
+                        .as_ref()?
+                        .coordinate_accepting(coordinate),
+            );
+        }
         let residual = Self::residual_for_state(&store, self.root_state, state)?;
         Some(state != self.root_state && store.arena.is_nullable(residual))
     }
@@ -4066,11 +4722,14 @@ impl VirtualResidualRuntime {
         let oracle_language_finite = Some(dfa_language_is_finite(&liveness_oracle.body));
         Some(Self {
             runtime_index, terminal, physical_state_count, root_state, root_has_future: root_live,
-            preserve_oracle_coordinate: true, state_allocator, state_owners, accepting, live,
+            preserve_oracle_coordinate: true, coordinate_runtime: false,
+            direct_coordinate_stepper: None,
+            state_allocator, state_owners, accepting, live,
             dead: BitSet::new(num_terminals as usize),
             accepting_list: vec![terminal].into_boxed_slice(),
             store: Mutex::new(ResidualRuntimeStore {
                 arena, root, state_by_residual, residual_by_state: FxHashMap::default(),
+                state_by_oracle_coordinate: FxHashMap::default(),
                 state_by_residual_coordinate, coordinate_by_state,
                 oracle_future_by_state: FxHashMap::default(),
                 liveness_oracle: Some(liveness_oracle), oracle_byte_to_class,
@@ -4093,6 +4752,12 @@ impl VirtualResidualRuntime {
     /// being collapsed into a dead transition.
     pub(super) fn exact_has_future(&self, state: u32) -> Result<Option<bool>, String> {
         let mut store = self.store.lock().unwrap();
+        if self.coordinate_runtime {
+            let Some(&coordinate) = store.coordinate_by_state.get(&state) else {
+                return Ok(None);
+            };
+            return Ok(Self::coordinate_future_locked(&mut store, state, coordinate));
+        }
         let Some(residual) = Self::residual_for_state(&store, self.root_state, state) else {
             return Ok(None);
         };
@@ -4277,12 +4942,23 @@ impl VirtualResidualRuntime {
                 .map(Arc::new);
             if let Some(started) = started {
                 let oracle = store.liveness_oracle.as_ref();
+                let (rows, words, set_bits) = built.as_ref().map_or((0, 0, 0), |rows| {
+                    (
+                        rows.len(),
+                        rows.iter().map(|row| row.words().len()).sum::<usize>(),
+                        rows.iter().map(BitSet::count_ones).sum::<usize>(),
+                    )
+                });
                 eprintln!(
-                    "[glrmask/profile][virtual_radius_future_table_prep] terminal={} pattern_states={} max={} built={} ms={:.3}",
+                    "[glrmask/profile][virtual_radius_future_table_prep] terminal={} pattern_states={} max={} built={} rows={} words={} raw_word_bytes={} set_bits={} ms={:.3}",
                     self.terminal,
                     oracle.map_or(0, |oracle| oracle.pattern.num_states()),
                     oracle.map_or(0, |oracle| oracle.max),
                     built.is_some(),
+                    rows,
+                    words,
+                    words * std::mem::size_of::<u64>(),
+                    set_bits,
                     started.elapsed().as_secs_f64() * 1e3,
                 );
             }
@@ -4403,6 +5079,7 @@ impl VirtualResidualRuntime {
                 }
             }
         }
+
     }
 
     pub(super) fn parser_transparent_byte_dfa_repeat_radius(
@@ -4852,6 +5529,22 @@ impl VirtualResidualRuntime {
             return Some(Vec::new());
         }
         let mut store = self.store.lock().unwrap();
+        if self.coordinate_runtime {
+            let coordinate = *store.coordinate_by_state.get(&state)?;
+            let mut out = Vec::new();
+            for byte in 0u16..=255 {
+                let Some(target_coordinate) = store
+                    .liveness_oracle
+                    .as_ref()?
+                    .step_coordinate(coordinate, byte as u8)
+                else {
+                    continue;
+                };
+                let target = self.intern_oracle_coordinate_locked(&mut store, target_coordinate)?;
+                out.push((byte as u8, target));
+            }
+            return Some(out);
+        }
         let residual = Self::residual_for_state(&store, self.root_state, state)?;
         let bytes = store.arena.first_bytes(residual)?;
         let mut out = Vec::new();
@@ -4865,6 +5558,9 @@ impl VirtualResidualRuntime {
 
     fn oracle_coordinate(&self, state: u32) -> Option<BoundedCodeOracleCoordinate> {
         let store = self.store.lock().unwrap();
+        if self.coordinate_runtime {
+            return store.coordinate_by_state.get(&state).copied();
+        }
         if self.preserve_oracle_coordinate {
             return store.coordinate_by_state.get(&state).copied();
         }
@@ -5594,6 +6290,63 @@ mod tests {
     }
 
     #[test]
+    fn dynamic_direct_coordinate_matches_owned_runtime_state_semantics() {
+        let unbounded = Expr::Seq(vec![
+            bytes(b"<"),
+            Expr::Repeat {
+                expr: Box::new(bounded_code_body()),
+                min: 0,
+                max: None,
+            },
+            bytes(b">")
+        ]);
+        let expr = Expr::Intersect {
+            expr: Box::new(unbounded),
+            intersect: Box::new(bounded_code_envelope_expr(0, 4)),
+        };
+        let allocator = Arc::new(VirtualStateAllocator::new(2).unwrap());
+        let owners = Arc::new(VirtualRuntimeStateOwners::new(2, &[1]).unwrap());
+        let runtime = VirtualResidualRuntime::new_dynamic(
+            &expr, 0, 0, 1, 2, 1, allocator, owners,
+        )
+        .expect("bounded-code dynamic runtime should certify a direct coordinate");
+
+        for input in [
+            &b"<>"[..],
+            &b"<a>"[..],
+            &b"<bc>"[..],
+            &b"<abc>"[..],
+            &b"<aaaa>"[..],
+            &b"<aaaaa>"[..],
+            &b"<b>"[..],
+        ] {
+            let mut direct = runtime
+                .direct_coordinate_for_state(1)
+                .expect("dynamic runtime root should expose a direct coordinate");
+            let mut state = Some(1u32);
+            for &byte in input {
+                let direct_next = runtime.direct_coordinate_step(direct, byte);
+                let state_next = state.and_then(|source| runtime.step(source, byte));
+                assert_eq!(direct_next.is_some(), state_next.is_some(), "step liveness mismatch for {input:?} at byte {byte:?}");
+                let (Some(next_direct), Some(next_state)) = (direct_next, state_next) else {
+                    break;
+                };
+                direct = next_direct;
+                state = Some(next_state);
+                let direct_accepting = runtime
+                    .direct_coordinate_accepting(direct)
+                    .expect("coordinate belongs to this runtime");
+                assert_eq!(direct_accepting, runtime.accepting_now(next_state).unwrap());
+                let direct_future = runtime
+                    .direct_coordinate_has_future(direct)
+                    .expect("coordinate belongs to this runtime");
+                assert_eq!(direct_future, runtime.exact_has_future(next_state).unwrap().unwrap());
+                assert_eq!(runtime.state_for_direct_coordinate(direct), Some(next_state));
+            }
+        }
+    }
+
+    #[test]
     fn bounded_code_oracle_drops_redundant_unbounded_envelope_pattern() {
         let unbounded = Expr::Seq(vec![
             bytes(b"<"),
@@ -5945,6 +6698,106 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn master_slice_artifact_round_trips_prepared_runtime_and_rejects_bad_shape() {
+        let expr = Expr::Intersect {
+            expr: Box::new(Expr::Seq(vec![
+                bytes(b"<"),
+                Expr::Repeat {
+                    expr: Box::new(bounded_code_body()),
+                    min: 0,
+                    max: None,
+                },
+                bytes(b">"),
+            ])),
+            intersect: Box::new(bounded_code_envelope_expr(0, 8)),
+        };
+        let allocator = Arc::new(VirtualStateAllocator::new(2).unwrap());
+        let owners = Arc::new(VirtualRuntimeStateOwners::new(2, &[1]).unwrap());
+        let original = VirtualResidualRuntime::new(
+            &expr,
+            0,
+            0,
+            1,
+            2,
+            1,
+            Arc::clone(&allocator),
+            Arc::clone(&owners),
+        )
+        .unwrap();
+
+        // A compact DFA for (a|bc)+. State 1 marks an atom boundary and also
+        // accepts the next atom, matching the master-slice contract.
+        let mut byte_to_class = [0u8; 256];
+        for (byte, class) in byte_to_class.iter_mut().enumerate() {
+            *class = byte as u8;
+        }
+        let state_count = 3usize;
+        let class_count = 256usize;
+        let dead = state_count as u32;
+        let mut transitions = vec![dead; state_count * class_count];
+        transitions[b'a' as usize] = 1;
+        transitions[b'b' as usize] = 2;
+        transitions[class_count + b'a' as usize] = 1;
+        transitions[class_count + b'b' as usize] = 2;
+        transitions[2 * class_count + b'c' as usize] = 1;
+        let accepting = [false, true, false];
+        let productive = [true, true, true];
+        original.prepare_master_slice_artifacts(
+            0,
+            class_count,
+            &byte_to_class,
+            &transitions,
+            &accepting,
+            &productive,
+            8,
+        );
+        let artifact = original
+            .master_slice_artifact()
+            .expect("master-slice preparation should produce a transfer artifact");
+        assert!(!artifact.words.is_empty());
+        assert!(!artifact.body_exact.is_empty());
+        assert!(!artifact.pattern_targets.is_empty());
+
+        let oracle_bytes = original.serialized_bounded_code_oracle();
+        let loaded_allocator = Arc::new(VirtualStateAllocator::new(2).unwrap());
+        let loaded_owners = Arc::new(VirtualRuntimeStateOwners::new(2, &[1]).unwrap());
+        let loaded = VirtualResidualRuntime::new_preserving_oracle_coordinate_from_oracle_bytes(
+            &expr,
+            &oracle_bytes,
+            0,
+            0,
+            1,
+            2,
+            1,
+            loaded_allocator,
+            loaded_owners,
+        )
+        .unwrap();
+        loaded.restore_master_slice_artifact(artifact.clone()).unwrap();
+
+        let original_store = original.store.lock().unwrap();
+        let loaded_store = loaded.store.lock().unwrap();
+        assert_eq!(
+            loaded_store.body_boundary_future_by_completed,
+            original_store.body_boundary_future_by_completed,
+        );
+        assert_eq!(
+            loaded_store.slice_atom_body_exact_cache,
+            original_store.slice_atom_body_exact_cache,
+        );
+        assert_eq!(
+            loaded_store.slice_atom_pattern_targets_cache,
+            original_store.slice_atom_pattern_targets_cache,
+        );
+        drop(loaded_store);
+        drop(original_store);
+
+        let mut malformed = artifact;
+        malformed.pattern_states += 1;
+        assert!(loaded.restore_master_slice_artifact(malformed).is_err());
     }
 
     #[test]

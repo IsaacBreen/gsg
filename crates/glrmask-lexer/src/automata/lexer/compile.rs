@@ -9864,6 +9864,52 @@ fn direct_bounded_suffix_shape(expr: &Expr) -> Option<DirectBoundedSuffixShape<'
     None
 }
 
+/// Cheap exact state-count estimate for the direct layered bounded-suffix DFA.
+///
+/// This deliberately compiles only one copy of the repeat body. It is used by
+/// higher-level compile-route selection to avoid materializing a multi-million
+/// state full repeat merely to discover that a finite-horizon/synthetic route
+/// was a bad certification choice.
+pub fn direct_bounded_suffix_state_count_estimate(expr: &Expr) -> Option<usize> {
+    let shape = direct_bounded_suffix_shape(expr)?;
+    if shape.suffix.is_empty() {
+        return None;
+    }
+    let base = compile_direct_bounded_repeat_base_dfa_unconditionally(shape.body)?;
+    shape
+        .prefix
+        .len()
+        .checked_add((shape.max + 1).checked_mul(base.num_states())?)?
+        .checked_add(shape.suffix.len())
+}
+
+/// Largest exact layered bounded-suffix state-count estimate found anywhere
+/// inside an expression tree. Intersections/exclusions can hide the expensive
+/// materialized component one level below the terminal root, so compile-route
+/// preflight must inspect those children before deciding to certify a
+/// synthetic tokenizer by constructing the full product.
+pub fn max_direct_bounded_suffix_state_count_estimate(expr: &Expr) -> Option<usize> {
+    let own = direct_bounded_suffix_state_count_estimate(expr);
+    let child = match expr {
+        Expr::Intersect { expr, intersect } => [expr.as_ref(), intersect.as_ref()]
+            .into_iter()
+            .filter_map(max_direct_bounded_suffix_state_count_estimate)
+            .max(),
+        Expr::Exclude { expr, exclude } => [expr.as_ref(), exclude.as_ref()]
+            .into_iter()
+            .filter_map(max_direct_bounded_suffix_state_count_estimate)
+            .max(),
+        Expr::Seq(parts) | Expr::Choice(parts) => parts
+            .iter()
+            .filter_map(max_direct_bounded_suffix_state_count_estimate)
+            .max(),
+        Expr::Repeat { expr, .. } => max_direct_bounded_suffix_state_count_estimate(expr),
+        Expr::Shared(expr) => max_direct_bounded_suffix_state_count_estimate(expr),
+        Expr::U8Seq(_) | Expr::U8Class(_) | Expr::Dfa(_) | Expr::Epsilon => None,
+    };
+    own.into_iter().chain(child).max()
+}
+
 /// Exact finite-token-horizon transport for the direct DFA emitted for
 /// `Repeat(body, min..=max) + literal_suffix`.
 ///
@@ -14022,6 +14068,33 @@ mod tests {
 
     fn byte_choice(bytes: &[u8]) -> Expr {
         Expr::Choice(bytes.iter().copied().map(byte_expr).collect())
+    }
+
+    #[test]
+    fn bounded_suffix_preflight_finds_expensive_nested_component() {
+        let inner = Expr::Seq(vec![
+            byte_expr(b'<'),
+            Expr::Repeat {
+                expr: Box::new(byte_expr(b'a')),
+                min: 0,
+                max: Some(20_000),
+            },
+            byte_expr(b'>'),
+        ]);
+        let own = super::direct_bounded_suffix_state_count_estimate(&inner)
+            .expect("direct bounded suffix should have an exact state estimate");
+        assert!(own > 10_000);
+
+        let wrapped = Expr::Intersect {
+            expr: Box::new(Expr::Choice(vec![byte_expr(b'x'), inner.clone()])),
+            intersect: Box::new(Expr::Repeat {
+                expr: Box::new(byte_expr(b'a')),
+                min: 0,
+                max: None,
+            }),
+        };
+        assert_eq!(super::direct_bounded_suffix_state_count_estimate(&wrapped), None);
+        assert_eq!(super::max_direct_bounded_suffix_state_count_estimate(&wrapped), Some(own));
     }
 
     #[test]

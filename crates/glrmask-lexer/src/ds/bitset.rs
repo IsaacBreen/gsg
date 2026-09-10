@@ -8,6 +8,20 @@ pub struct BitSet {
 }
 
 impl BitSet {
+    pub(crate) fn from_dense_words(len: usize, words: &[u64]) -> Option<Self> {
+        if words.len() != len.div_ceil(64) {
+            return None;
+        }
+        let dense = SmallVec::from_slice(words);
+        if let Some(&last) = dense.last() {
+            let rem = len % 64;
+            if rem != 0 && last & !((1u64 << rem) - 1) != 0 {
+                return None;
+            }
+        }
+        Some(Self { words: dense, len })
+    }
+
     #[inline]
     fn assert_same_len(&self, other: &Self) {
         debug_assert_eq!(self.len, other.len);

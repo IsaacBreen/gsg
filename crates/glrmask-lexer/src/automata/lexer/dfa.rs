@@ -671,6 +671,74 @@ impl DFA {
         }
     }
 
+    /// Restore the compact one-group residual-oracle representation in one
+    /// pass. This is deliberately narrower than the general persisted DFA
+    /// format: bounded-code liveness DFAs are deterministic, epsilon-free and
+    /// use only the Boolean observations "accepting" and "has future".
+    pub(super) fn new_from_compact_single_group(
+        state_count: usize,
+        transition_offsets: &[u32],
+        transition_bytes: &[u8],
+        transition_targets: &[u16],
+        accepting_words: &[u64],
+        future_words: &[u64],
+        group_u8set: U8Set,
+    ) -> Option<Self> {
+        if state_count == 0
+            || state_count > u16::MAX as usize
+            || transition_offsets.len() != state_count + 1
+            || transition_offsets.first().copied() != Some(0)
+            || transition_offsets.last().copied()? as usize != transition_bytes.len()
+            || transition_bytes.len() != transition_targets.len()
+            || accepting_words.len() != state_count.div_ceil(64)
+            || future_words.len() != state_count.div_ceil(64)
+        {
+            return None;
+        }
+        let mut states = Vec::with_capacity(state_count);
+        for state in 0..state_count {
+            let start = transition_offsets[state] as usize;
+            let end = transition_offsets[state + 1] as usize;
+            if start > end || end > transition_bytes.len() {
+                return None;
+            }
+            let mut entries = Vec::with_capacity(end - start);
+            let mut previous = None;
+            for index in start..end {
+                let byte = transition_bytes[index];
+                if previous.is_some_and(|previous| previous >= byte) {
+                    return None;
+                }
+                previous = Some(byte);
+                let target = transition_targets[index] as u32;
+                if target as usize >= state_count {
+                    return None;
+                }
+                entries.push((byte, target));
+            }
+            let mut finalizers = BitSet::new(1);
+            if accepting_words[state / 64] & (1u64 << (state % 64)) != 0 {
+                finalizers.set(0);
+            }
+            let mut possible_future_group_ids = BitSet::new(1);
+            if future_words[state / 64] & (1u64 << (state % 64)) != 0 {
+                possible_future_group_ids.set(0);
+            }
+            states.push(DFAState {
+                transitions: CharTransitions::from_sorted_entries(entries),
+                finalizers,
+                possible_future_group_ids,
+                epsilon_transitions: Vec::new(),
+            });
+        }
+        Some(Self {
+            states,
+            group_id_to_u8set: vec![group_u8set],
+            derived_stats: OnceLock::new(),
+            min_match_byte_len_cache: OnceLock::new(),
+        })
+    }
+
     #[inline]
     fn invalidate_min_match_byte_len(&mut self) {
         let _ = self.min_match_byte_len_cache.take();

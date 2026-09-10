@@ -19,7 +19,8 @@ use super::runtime_repeat_product::{
     VirtualBinaryRepeatIntersectionRuntime, VirtualRuntimeStateOwners, VirtualStateAllocator,
 };
 pub use super::runtime_residual::{
-    VirtualResidualMaskProjection, VirtualResidualMaskProjectionArtifact,
+    VirtualResidualDirectCoordinate, VirtualResidualMaskProjection,
+    VirtualResidualMaskProjectionArtifact, VirtualResidualMasterSliceArtifact,
 };
 #[doc(hidden)]
 pub type VirtualResidualMaskProjectionArtifactRef<'a> =
@@ -9183,6 +9184,37 @@ impl Tokenizer {
             .collect()
     }
 
+    #[doc(hidden)]
+    pub fn virtual_residual_master_slice_artifacts(
+        &self,
+    ) -> Vec<VirtualResidualMasterSliceArtifact> {
+        self.virtual_residuals
+            .iter()
+            .filter_map(|runtime| runtime.master_slice_artifact())
+            .collect()
+    }
+
+    #[doc(hidden)]
+    pub fn restore_virtual_residual_master_slice_artifacts(
+        &self,
+        artifacts: Vec<VirtualResidualMasterSliceArtifact>,
+    ) -> Result<(), String> {
+        for artifact in artifacts {
+            let runtime = self
+                .virtual_residuals
+                .iter()
+                .find(|runtime| {
+                    runtime.terminal() == artifact.terminal
+                        && runtime.root_state() == artifact.root_state
+                })
+                .ok_or_else(|| {
+                    "virtual residual master-slice artifact references unknown runtime".to_owned()
+                })?;
+            runtime.restore_master_slice_artifact(artifact)?;
+        }
+        Ok(())
+    }
+
     fn restore_terminal_exprs_arc_only(
         &mut self,
         exprs: Option<Arc<[Expr]>>,
@@ -9419,6 +9451,227 @@ impl Tokenizer {
         Ok(())
     }
 
+    /// Restore a current Dynamic residual runtime from the already-certified
+    /// runtime-owner list and serialized bounded-code oracles. Unlike the
+    /// generic compatibility loader, this path must not rescan every terminal
+    /// expression to rediscover which terminals require a virtual runtime;
+    /// that classification is compile-time work and is already represented by
+    /// `metadata` plus the one oracle carried for each residual owner.
+    #[doc(hidden)]
+    pub fn restore_compiled_dynamic_residual_runtimes(
+        &mut self,
+        expressions: &[Expr],
+        metadata: &[VirtualTokenizerRuntimeMetadata],
+        residual_oracles: &[(TerminalID, Vec<u8>)],
+        master_slice_artifacts: &[VirtualResidualMasterSliceArtifact],
+    ) -> Result<(), String> {
+        let profile_load = std::env::var_os("GLRMASK_PROFILE_DYNAMIC_LOAD").is_some();
+        let total_started = profile_load.then(std::time::Instant::now);
+        if metadata.is_empty() {
+            return Err("compiled dynamic residual runtime list is empty".to_owned());
+        }
+        if metadata
+            .iter()
+            .any(|entry| entry.kind != VirtualTokenizerRuntimeKind::ResidualExpr)
+        {
+            return Err(
+                "compiled dynamic residual fast path requires residual-only virtual runtimes"
+                    .to_owned(),
+            );
+        }
+        self.virtual_unit_repeat = None;
+        self.virtual_repeat_intersections.clear();
+        self.virtual_residuals.clear();
+        self.exprs = None;
+
+        let physical_state_count = self.num_states();
+        let start_state = self.start_state();
+        let validate_started = profile_load.then(std::time::Instant::now);
+        let reset_closure = self.epsilon_closure_states(&[start_state]);
+        let mut seen_terminals = BTreeSet::new();
+        let mut seen_roots = BTreeSet::new();
+        for entry in metadata {
+            if entry.terminal >= self.num_terminals
+                || entry.terminal as usize >= expressions.len()
+                || !seen_terminals.insert(entry.terminal)
+                || !seen_roots.insert(entry.root_state)
+                || entry.root_state == start_state
+                || entry.root_state >= physical_state_count
+                || !reset_closure.contains(&entry.root_state)
+                || self.state_has_epsilon_transitions(entry.root_state)
+                || self.transitions_from(entry.root_state).next().is_some()
+                || !self.state_finalizers(entry.root_state).is_empty()
+            {
+                return Err(
+                    "compiled dynamic residual runtime has invalid terminal/root ownership"
+                        .to_owned(),
+                );
+            }
+        }
+        if !residual_oracles.is_empty() {
+            let oracle_terminals = residual_oracles
+                .iter()
+                .map(|(terminal, _)| *terminal)
+                .collect::<BTreeSet<_>>();
+            if oracle_terminals != seen_terminals
+                || oracle_terminals.len() != residual_oracles.len()
+            {
+                return Err(
+                    "compiled dynamic residual oracle terminal ownership mismatch".to_owned(),
+                );
+            }
+        }
+        let validate_ms = validate_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+
+        let owners_started = profile_load.then(std::time::Instant::now);
+        let allocator = Arc::new(
+            VirtualStateAllocator::new(physical_state_count).ok_or_else(|| {
+                "compiled dynamic residual runtime has no virtual state namespace".to_owned()
+            })?,
+        );
+        let roots = metadata
+            .iter()
+            .map(|entry| entry.root_state)
+            .collect::<Vec<_>>();
+        let owners = Arc::new(
+            VirtualRuntimeStateOwners::new(physical_state_count, &roots).ok_or_else(|| {
+                "compiled dynamic residual runtime has invalid state ownership".to_owned()
+            })?,
+        );
+        let owners_ms = owners_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        let mut runtimes = Vec::with_capacity(metadata.len());
+        for (runtime_index, entry) in metadata.iter().enumerate() {
+            let runtime_started = profile_load.then(std::time::Instant::now);
+            let expression = &expressions[entry.terminal as usize];
+            let support_started = profile_load.then(std::time::Instant::now);
+            if self.terminal_byte_support(entry.terminal)
+                != Some(super::compile::expr_u8set(expression))
+            {
+                return Err(format!(
+                    "compiled dynamic residual terminal {} has inconsistent byte support",
+                    entry.terminal,
+                ));
+            }
+            let support_ms = support_started
+                .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+            let oracle_bytes = residual_oracles
+                .iter()
+                .find(|(terminal, _)| *terminal == entry.terminal)
+                .map(|(_, bytes)| bytes.as_slice());
+            let runtime_index = u32::try_from(runtime_index)
+                .map_err(|_| "compiled dynamic residual runtime count exceeds u32".to_owned())?;
+            let master_slice = master_slice_artifacts.iter().find(|artifact| {
+                artifact.terminal == entry.terminal && artifact.root_state == entry.root_state
+            });
+            let oracle_started = profile_load.then(std::time::Instant::now);
+            let runtime = if let Some(master_slice) = master_slice {
+                let oracle = VirtualResidualRuntime::compact_liveness_oracle_from_master_slice_artifact(
+                    master_slice,
+                )
+                .ok_or_else(|| {
+                    format!(
+                        "compiled dynamic residual master-slice program for terminal {} is invalid",
+                        entry.terminal,
+                    )
+                })?;
+                VirtualResidualRuntime::new_with_liveness_oracle(
+                    expression,
+                    oracle,
+                    runtime_index,
+                    entry.terminal,
+                    self.num_terminals,
+                    physical_state_count,
+                    entry.root_state,
+                    Arc::clone(&allocator),
+                    Arc::clone(&owners),
+                )
+            } else if let Some(oracle_bytes) = oracle_bytes {
+                VirtualResidualRuntime::new_preserving_oracle_coordinate_from_oracle_bytes(
+                    expression,
+                    oracle_bytes,
+                    runtime_index,
+                    entry.terminal,
+                    self.num_terminals,
+                    physical_state_count,
+                    entry.root_state,
+                    Arc::clone(&allocator),
+                    Arc::clone(&owners),
+                )
+            } else {
+                VirtualResidualRuntime::new_preserving_oracle_coordinate(
+                    expression,
+                    runtime_index,
+                    entry.terminal,
+                    self.num_terminals,
+                    physical_state_count,
+                    entry.root_state,
+                    Arc::clone(&allocator),
+                    Arc::clone(&owners),
+                )
+            };
+            let oracle_and_runtime_ms = oracle_started
+                .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+            let runtime = Arc::new(
+                runtime.ok_or_else(|| {
+                    "compiled dynamic residual runtime program is invalid".to_owned()
+                })?,
+            );
+            let restore_started = profile_load.then(std::time::Instant::now);
+            if let Some(master_slice) = master_slice {
+                runtime.restore_master_slice_artifact(master_slice.clone())?;
+            }
+            let restore_ms = restore_started
+                .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+            let mut expected_future = BitSet::new(self.num_terminals as usize);
+            if runtime.root_has_future() {
+                expected_future.set(entry.terminal as usize);
+            }
+            if self.state_futures(entry.root_state) != &expected_future {
+                return Err(format!(
+                    "compiled dynamic residual root {} has inconsistent future metadata",
+                    entry.root_state,
+                ));
+            }
+            if runtime.root_has_future()
+                && !self.state_futures(start_state).contains(entry.terminal as usize)
+            {
+                return Err(format!(
+                    "compiled dynamic residual terminal {} is missing from reset-state futures",
+                    entry.terminal,
+                ));
+            }
+            runtimes.push(runtime);
+            if profile_load {
+                eprintln!(
+                    "[glrmask/profile][dynamic_residual_restore_runtime] terminal={} support_ms={:.3} oracle_runtime_ms={:.3} restore_rows_ms={:.3} total_ms={:.3}",
+                    entry.terminal,
+                    support_ms,
+                    oracle_and_runtime_ms,
+                    restore_ms,
+                    runtime_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
+                );
+            }
+        }
+        self.virtual_residuals = runtimes;
+        let invalidate_started = profile_load.then(std::time::Instant::now);
+        self.invalidate_derived_caches();
+        let invalidate_ms = invalidate_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        if profile_load {
+            eprintln!(
+                "[glrmask/profile][dynamic_residual_restore] runtimes={} validate_ms={:.3} owners_ms={:.3} invalidate_ms={:.3} total_ms={:.3}",
+                metadata.len(),
+                validate_ms,
+                owners_ms,
+                invalidate_ms,
+                total_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
+            );
+        }
+        Ok(())
+    }
+
     #[doc(hidden)]
     pub fn restore_terminal_exprs_with_precompiled_static_residual_oracles(
         &mut self,
@@ -9446,6 +9699,8 @@ impl Tokenizer {
         precompiled_static_residual_projections: Option<&[VirtualResidualMaskProjectionArtifact]>,
         precompiled_dynamic_residual_oracles: Option<&[(TerminalID, Vec<u8>)]>,
     ) -> Result<(), String> {
+        let load_profile = std::env::var_os("GLRMASK_PROFILE_DYNAMIC_LOAD").is_some();
+        let whole_started = load_profile.then(std::time::Instant::now);
         self.restore_terminal_exprs_only(exprs)?;
         self.virtual_unit_repeat = None;
         self.virtual_repeat_intersections.clear();
@@ -9473,12 +9728,16 @@ impl Tokenizer {
             BTreeMap::<TerminalID, super::runtime_residual::BoundedCodeIntersectionOracle>::new();
         let mut any_finalizer = BitSet::new(self.num_terminals as usize);
         let mut any_future = BitSet::new(self.num_terminals as usize);
+        let state_scan_started = load_profile.then(std::time::Instant::now);
         if precompiled_static_residual_projections.is_some() {
             for state in 0..physical_state_count {
                 any_finalizer.union_with(self.state_finalizers(state));
                 any_future.union_with(self.state_futures(state));
             }
         }
+        let state_scan_ms = state_scan_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        let expr_scan_started = load_profile.then(std::time::Instant::now);
         for (terminal, expression) in expressions.iter().enumerate() {
             let terminal = terminal as TerminalID;
             if super::compile::expression_contains_large_bounded_repeat(expression) {
@@ -9512,6 +9771,8 @@ impl Tokenizer {
                 required_virtual_terminals.insert(terminal);
             }
         }
+        let expr_scan_ms = expr_scan_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
         if metadata.len() != declared_terminals.len() {
             return Err("serialized virtual runtime metadata contains duplicate terminal owners".to_owned());
         }
@@ -9543,6 +9804,7 @@ impl Tokenizer {
         }
 
         let start_state = self.start_state();
+        let root_validation_started = load_profile.then(std::time::Instant::now);
         let reset_closure = self.epsilon_closure_states(&[start_state]);
         let validate_root = |tokenizer: &Self,
                              entry: &VirtualTokenizerRuntimeMetadata|
@@ -9574,6 +9836,17 @@ impl Tokenizer {
                 return Err("serialized virtual runtime metadata has invalid terminal/root ownership".to_owned());
             }
             validate_root(self, entry)?;
+        }
+        let root_validation_ms = root_validation_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+        if load_profile {
+            eprintln!(
+                "[glrmask/profile][virtual_runtime_restore_preamble] state_scan_ms={:.3} expr_scan_ms={:.3} root_validation_ms={:.3} elapsed_ms={:.3}",
+                state_scan_ms,
+                expr_scan_ms,
+                root_validation_ms,
+                whole_started.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0),
+            );
         }
 
         if metadata.iter().any(|entry| entry.kind == VirtualTokenizerRuntimeKind::UnitRepeat) {
@@ -9655,10 +9928,15 @@ impl Tokenizer {
             let mut runtimes = Vec::with_capacity(metadata.len());
             let mut legacy_exact_dead_roots = Vec::<(u32, TerminalID, BitSet)>::new();
             for (runtime_index, entry) in metadata.into_iter().enumerate() {
+                let runtime_profile = std::env::var_os("GLRMASK_PROFILE_DYNAMIC_LOAD").is_some();
+                let runtime_started = runtime_profile.then(std::time::Instant::now);
                 let expression = expressions
                     .get(entry.terminal as usize)
                     .ok_or_else(|| "serialized residual terminal is out of range".to_owned())?;
+                let support_started = runtime_profile.then(std::time::Instant::now);
                 let expected_support = super::compile::expr_u8set(expression);
+                let support_ms = support_started
+                    .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
                 if self.terminal_byte_support(entry.terminal) != Some(expected_support) {
                     return Err(format!(
                         "serialized residual terminal {} has inconsistent byte support",
@@ -9668,6 +9946,7 @@ impl Tokenizer {
                 let runtime_index = u32::try_from(runtime_index).map_err(|_| {
                     "serialized residual runtime count exceeds u32".to_owned()
                 })?;
+                let construct_started = runtime_profile.then(std::time::Instant::now);
                 let runtime = if preserve_residual_oracle_coordinates {
                     if let Some(projections) = precompiled_static_residual_projections {
                         let projection = projections
@@ -9726,7 +10005,7 @@ impl Tokenizer {
                         Arc::clone(&owners),
                     )
                 } else {
-                    VirtualResidualRuntime::new(
+                    VirtualResidualRuntime::new_dynamic(
                         expression,
                         runtime_index,
                         entry.terminal,
@@ -9737,9 +10016,20 @@ impl Tokenizer {
                         Arc::clone(&owners),
                     )
                 };
+                let construct_ms = construct_started
+                    .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
                 let runtime = Arc::new(
                     runtime.ok_or_else(|| "serialized residual runtime metadata is invalid".to_owned())?,
                 );
+                if let Some(started) = runtime_started {
+                    eprintln!(
+                        "[glrmask/profile][virtual_residual_restore] terminal={} support_ms={:.3} construct_ms={:.3} total_ms={:.3}",
+                        entry.terminal,
+                        support_ms,
+                        construct_ms,
+                        started.elapsed().as_secs_f64() * 1000.0,
+                    );
+                }
                 let mut expected_future = BitSet::new(self.num_terminals as usize);
                 if runtime.root_has_future() {
                     expected_future.set(entry.terminal as usize);
@@ -10186,7 +10476,7 @@ impl Tokenizer {
                         Arc::clone(&owners),
                     )?
                 } else {
-                    VirtualResidualRuntime::new(
+                    VirtualResidualRuntime::new_dynamic(
                         &expression,
                         runtime_index,
                         terminal,
@@ -10302,6 +10592,16 @@ impl Tokenizer {
         Ok(!self.is_end(state))
     }
 
+    /// Exact single-byte transition used by the dynamic masker's
+    /// first-match raw-residual lane. This deliberately exposes only the
+    /// ordinary tokenizer transition semantics; it does not consult any DWA
+    /// or token-effect cache.
+    #[doc(hidden)]
+    #[inline]
+    pub fn dynamic_direct_transition(&self, state: u32, byte: u8) -> u32 {
+        self.get_transition(state, byte)
+    }
+
     /// Parser-transparent finite-horizon byte-family proof for an exact
     /// bounded-code virtual residual state. This deliberately avoids building
     /// the finite mask projection; `None` means this state cannot be certified
@@ -10400,6 +10700,58 @@ impl Tokenizer {
     pub fn virtual_residual_terminal_for_state(&self, state: u32) -> Option<TerminalID> {
         self.virtual_residual_runtime_for_state(state)
             .map(VirtualResidualRuntime::terminal)
+    }
+
+    #[doc(hidden)]
+    pub fn virtual_residual_direct_coordinate(
+        &self,
+        state: u32,
+    ) -> Option<VirtualResidualDirectCoordinate> {
+        self.virtual_residual_runtime_for_state(state)?
+            .direct_coordinate_for_state(state)
+    }
+
+    #[doc(hidden)]
+    #[inline(always)]
+    pub fn virtual_residual_direct_coordinate_step(
+        &self,
+        source: VirtualResidualDirectCoordinate,
+        byte: u8,
+    ) -> Option<VirtualResidualDirectCoordinate> {
+        self.virtual_residuals
+            .get(source.runtime_index as usize)?
+            .direct_coordinate_step(source, byte)
+    }
+
+    #[doc(hidden)]
+    #[inline(always)]
+    pub fn virtual_residual_direct_coordinate_accepting(
+        &self,
+        source: VirtualResidualDirectCoordinate,
+    ) -> Option<bool> {
+        self.virtual_residuals
+            .get(source.runtime_index as usize)?
+            .direct_coordinate_accepting(source)
+    }
+
+    #[doc(hidden)]
+    pub fn virtual_residual_direct_coordinate_has_future(
+        &self,
+        source: VirtualResidualDirectCoordinate,
+    ) -> Option<bool> {
+        self.virtual_residuals
+            .get(source.runtime_index as usize)?
+            .direct_coordinate_has_future(source)
+    }
+
+    #[doc(hidden)]
+    pub fn virtual_residual_state_for_direct_coordinate(
+        &self,
+        source: VirtualResidualDirectCoordinate,
+    ) -> Option<u32> {
+        self.virtual_residuals
+            .get(source.runtime_index as usize)?
+            .state_for_direct_coordinate(source)
     }
 
     #[doc(hidden)]
