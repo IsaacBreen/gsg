@@ -2680,6 +2680,16 @@ fn projected_kernel_auto(input: BuildInput<'_>) -> ProjectedKernel {
     let vocab_tokens = input.vocab.len();
     let vocab_bytes = input.vocab.relevant_bytes().len();
 
+    // p9 sits directly on the generic narrow-family crossover in the current
+    // vocabulary split.  The 17.5k-token p9 family with only ~65 active
+    // terminals is still a small residual problem, while finite projection can
+    // spend hundreds of milliseconds scanning its state×vocabulary product.
+    // Keep genuinely wide p9 families (notably the 300+ terminal Kubernetes
+    // shapes) on the existing finite/auto policy; their finite scan is cheap.
+    if input.partition_label == "p9" && active_terminals <= 96 {
+        return ProjectedKernel::Residual;
+    }
+
     // Both kernels are exact projections of the same finite-vocabulary L1
     // relation. Residual projection is strongest for small terminal families,
     // tiny vocabularies, and very wide vocabularies where enumerating trie
@@ -4250,6 +4260,20 @@ fn vocab_only_residual_finite_switch_states(input: BuildInput<'_>) -> usize {
         return usize::MAX;
     }
     let (env_name, default) = if input.subset_parent_order.is_none()
+        && input.partition_label == "p1"
+        && input.vocab.len() >= 10_000
+        && input.tokenizer.terminal_residual_coordinates().is_some()
+    {
+        // Vocab-only p1 has the same shifted crossover as p2/p5. Static's
+        // 3.5k residual ceiling is tuned for materializing a downstream DWA;
+        // here we only need the token quotient. Restrict the larger budget to
+        // tokenizers exposing exact terminal-residual coordinates: those are
+        // the direct-mask families where the residual construction is cheap.
+        // Ordinary tokenizers keep Static's established crossover. Keep a
+        // 200k projected-state safety ceiling so genuinely explosive residual
+        // machines still fall back to the exact finite kernel.
+        ("GLRMASK_VOCAB_P1_RESIDUAL_FINITE_SWITCH_STATES", 200_000)
+    } else if input.subset_parent_order.is_none()
         && input.partition_label == "p2"
         && input.vocab.len() >= 50_000
     {
