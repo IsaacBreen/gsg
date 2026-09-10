@@ -179,14 +179,14 @@ impl<'a> FullWalkLazyUnion<'a> {
             Self::clear_cache(&mut cache);
             cache.base_state_count = base_state_count;
         }
-        if cache.subsets.len() >= Self::SOFT_MAX_EXTENSION_STATES {
-            Self::clear_cache(&mut cache);
-            cache.base_state_count = base_state_count;
-        }
         if cache.base_rows.len() != base_state_count as usize {
             cache
                 .base_rows
                 .resize_with(base_state_count as usize, || None);
+        }
+        if cache.subsets.len() >= Self::SOFT_MAX_EXTENSION_STATES {
+            Self::clear_cache(&mut cache);
+            cache.base_state_count = base_state_count;
         }
         let table = Self {
             base_transitions16,
@@ -284,33 +284,44 @@ impl<'a> FullWalkLazyUnion<'a> {
                     .get_unchecked((state as usize).wrapping_mul(256) + byte as usize)
             };
         }
+        // Scalar-dispatch tokenizers can expose thousands of physical states,
+        // while one mask normally probes only a few bytes from each newly seen
+        // state. Building a complete 256-cell row on the first probe creates a
+        // large tail spike; never caching the probe makes common repeated states
+        // needlessly expensive. Allocate the row lazily and fill only requested
+        // cells, so each exact physical (state, byte) transition is paid once.
         let cached = unsafe {
-            (&*self.cache.get())
-                .base_rows
-                .get_unchecked(state as usize)
-                .as_ref()
-        }
-        .map(|row| row[byte as usize]);
-        if let Some(cell) = cached {
-            return cell;
+            let cache = &mut *self.cache.get();
+            let slot = cache.base_rows.get_unchecked_mut(state as usize);
+            let row = slot.get_or_insert_with(|| Box::new([Self::UNBUILT; 256]));
+            *row.get_unchecked(byte as usize)
+        };
+        if cached != Self::UNBUILT {
+            return cached;
         }
         let tokenizer = unsafe { &*self.tokenizer };
-        let mut row = Box::new([u32::MAX; 256]);
-        for (edge_byte, target) in tokenizer.transitions_from(state) {
+        let target = tokenizer.dynamic_direct_transition(state, byte);
+        let value = if target == u32::MAX {
+            u32::MAX
+        } else {
             debug_assert!(target < 0x8000_0000);
-            let mut encoded = target;
-            if !tokenizer.matched_terminals_slice(target).is_empty() {
-                encoded |= 0x8000_0000;
-            }
-            row[edge_byte as usize] = encoded;
-        }
-        let cell = row[byte as usize];
+            target
+                | if tokenizer.matched_terminals_slice(target).is_empty() {
+                    0
+                } else {
+                    0x8000_0000
+                }
+        };
         unsafe {
-            *(&mut *self.cache.get())
+            let cache = &mut *self.cache.get();
+            *cache
                 .base_rows
-                .get_unchecked_mut(state as usize) = Some(row);
+                .get_unchecked_mut(state as usize)
+                .as_mut()
+                .unwrap_unchecked()
+                .get_unchecked_mut(byte as usize) = value;
         }
-        cell
+        value
     }
 
     #[inline(always)]

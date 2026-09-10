@@ -7337,19 +7337,13 @@ impl Constraint {
                 }
             }
         }
-        // Finite projections of symbolic residual lexers are pure mask-runtime
-        // accelerators. Do not charge them to dynamic compilation: the first
-        // exact mask request materializes them into `lazy_dynamic_mask_vocab`.
-        // Non-virtual lexers (and loaded constraints that already carry a
-        // serialized projection) can prepare their cheap derived tables now.
-        let eager_mask_runtime_artifacts =
-            std::env::var_os("GLRMASK_EXPERIMENT_EAGER_MASK_RUNTIME_ARTIFACTS").is_some();
-        if eager_mask_runtime_artifacts
-            || !self.tokenizer.has_any_virtual_runtime()
-            || dynamic_mask_vocab.mask_projection_tokenizer().is_some()
-        {
-            self.prepare_dynamic_mask_runtime_artifacts(&mut dynamic_mask_vocab);
-        }
+        // Mask-runtime acceleration derived solely from the compiled
+        // constraint belongs to build/finalization, not to the first token.
+        // In particular, symbolic/virtual residual master-slice preparation can
+        // cost milliseconds on pathological schemas. Deferring it would turn
+        // build work into an unaccounted first-mask latency spike and make
+        // warmup semantics affect measured TBM.
+        self.prepare_dynamic_mask_runtime_artifacts(&mut dynamic_mask_vocab);
         let has_dense_mask_projection =
             dynamic_mask_vocab.has_dense_mask_tokenizer_projection();
         let terminal_observation_enabled =
@@ -9763,6 +9757,14 @@ impl Constraint {
 
     fn compute_tokenizer_fast_transitions_for(tokenizer: &Tokenizer) -> FastTokenizerTransitions {
         let num_states = tokenizer.num_states();
+        // A tokenizer with lazy virtual runtimes can transition from one of
+        // the physical rows below into a runtime state whose id lies outside
+        // `0..num_states`. The compact physical-only slabs cannot represent
+        // that target (and cannot service its subsequent row), so route this
+        // family through the generic tokenizer transition API instead.
+        if tokenizer.has_any_virtual_runtime() {
+            return FastTokenizerTransitions::Fallback(num_states as usize);
+        }
         // Current backed fast-wire loads already retain an allocation-light exact packed
         // transition table. Rebuilding a second state x 256 Flat16 slab here is
         // duplicate load-time work; ordinary commit/scan can call through to the

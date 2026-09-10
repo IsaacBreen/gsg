@@ -3049,11 +3049,11 @@ pub(crate) struct DynamicLazyUnionMetadata {
 #[derive(Debug, Default)]
 pub(crate) struct DynamicLazyUnionCache {
     pub(crate) base_state_count: u32,
-    /// Physical scalar-dispatch rows materialized on demand for mask
-    /// projections. Cells use the same u32 target/finalizer encoding as the
-    /// lazy subset rows so tokenizers beyond the Flat16 state boundary do not
-    /// require eager whole-product determinization. These rows are derived
-    /// runtime cache only.
+    /// Sparse-on-demand physical scalar-dispatch transition rows. Each row is
+    /// allocated only after the first touched byte, and individual cells stay
+    /// UNBUILT until requested by the vocabulary walk. This retains O(1)
+    /// repeated probes without paying to enumerate all 256 bytes of a newly
+    /// encountered physical state.
     pub(crate) base_rows: Vec<Option<Box<[u32; 256]>>>,
     pub(crate) state_by_subset: FxHashMap<SmallVec<[u32; 8]>, u32>,
     pub(crate) subsets: Vec<SmallVec<[u32; 8]>>,
@@ -3422,26 +3422,50 @@ impl DynamicMaskVocab {
         let token_aliases = DynamicMaskAliasStore::Ordered(token_aliases);
         let (canonical_original_token_offsets, canonical_original_tokens) =
             Self::flatten_canonical_original_tokens(&token_aliases);
-        let (canonical_original_word_offsets, canonical_original_word_masks) =
+        let build_words = || {
             Self::build_canonical_original_word_masks(
                 &canonical_original_token_offsets,
                 &canonical_original_tokens,
-            );
-        let node_token_markers = Self::build_node_token_markers(
-            trie.as_ref(),
-            &canonical_original_token_offsets,
-            &canonical_original_tokens,
-        );
-        let full_walk_token_markers =
-            Self::build_full_walk_token_markers(trie.as_ref(), &node_token_markers);
-        let (subtree_original_token_offsets, subtree_original_tokens) =
-            Self::flatten_subtree_original_tokens(
+            )
+        };
+        let build_markers = || {
+            let node_token_markers = Self::build_node_token_markers(
                 trie.as_ref(),
                 &canonical_original_token_offsets,
                 &canonical_original_tokens,
             );
-        let all_original_token_words =
-            Self::build_all_original_token_words(&subtree_original_tokens);
+            let full_walk_token_markers =
+                Self::build_full_walk_token_markers(trie.as_ref(), &node_token_markers);
+            (node_token_markers, full_walk_token_markers)
+        };
+        let build_subtree = || {
+            Self::flatten_subtree_original_tokens(
+                trie.as_ref(),
+                &canonical_original_token_offsets,
+                &canonical_original_tokens,
+            )
+        };
+        let build_all_words = || Self::build_all_original_token_words(&canonical_original_tokens);
+
+        let (
+            (canonical_original_word_offsets, canonical_original_word_masks),
+            (node_token_markers, full_walk_token_markers),
+            (subtree_original_token_offsets, subtree_original_tokens),
+            all_original_token_words,
+        ) = if canonical_original_tokens.len() >= 4_096 && rayon::current_num_threads() > 1 {
+            let ((word_masks, markers), (subtree, all_words)) = rayon::join(
+                || rayon::join(build_words, build_markers),
+                || rayon::join(build_subtree, build_all_words),
+            );
+            (word_masks, markers, subtree, all_words)
+        } else {
+            (
+                build_words(),
+                build_markers(),
+                build_subtree(),
+                build_all_words(),
+            )
+        };
         Self {
             trie,
             token_aliases,

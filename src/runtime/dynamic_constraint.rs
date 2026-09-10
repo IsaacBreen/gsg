@@ -575,6 +575,9 @@ struct DynamicConstraintTransferMetadataV11 {
 struct DynamicConstraintTransferMetadataV13 {
     base: DynamicConstraintTransferMetadataV11,
     prepared_master_proofs: crate::runtime::PreparedMasterProofArtifact,
+    #[serde(default)]
+    virtual_residual_master_slice_artifacts:
+        Vec<crate::automata::lexer::tokenizer::VirtualResidualMasterSliceArtifact>,
 }
 
 struct DynamicConstraintTransferSectionsV11 {
@@ -661,6 +664,10 @@ pub struct DynamicConstraint {
     // materialized as an exact static composer input without bloating its
     // serialized representation. Entries align with inner + alternatives.
     composition_grammars: Vec<Option<GrammarDef>>,
+    /// Canonical current external-vocabulary artifact prepared as part of
+    /// constraint finalization (or retained verbatim by load).  `save()` is a
+    /// persistence operation, not a second compilation/finalization pass.
+    external_vocab_artifact_cache: Option<Arc<Vec<u8>>>,
 }
 
 impl DynamicConstraint {
@@ -751,6 +758,7 @@ impl DynamicConstraint {
             ),
             alternatives: Vec::new(),
             composition_grammars: vec![None],
+            external_vocab_artifact_cache: None,
         }
     }
 
@@ -852,6 +860,7 @@ impl DynamicConstraint {
             inner,
             alternatives: Vec::new(),
             composition_grammars: vec![None],
+            external_vocab_artifact_cache: None,
         }
     }
 
@@ -990,16 +999,22 @@ impl DynamicConstraint {
     pub(crate) fn from_alternatives(mut alternatives: Vec<Self>) -> Self {
         assert!(!alternatives.is_empty(), "dynamic union requires at least one alternative");
         let first = alternatives.remove(0);
+        let mut external_vocab_artifact_cache = first.external_vocab_artifact_cache;
         let mut result = Self {
             inner: first.inner,
             alternatives: first.alternatives,
             composition_grammars: first.composition_grammars,
+            external_vocab_artifact_cache: None,
         };
         for alternative in alternatives {
+            // Combining alternatives changes the serialized payload; none of
+            // the per-alternative cached artifacts represents the new union.
+            external_vocab_artifact_cache = None;
             result.alternatives.push(alternative.inner);
             result.alternatives.extend(alternative.alternatives);
             result.composition_grammars.extend(alternative.composition_grammars);
         }
+        result.external_vocab_artifact_cache = external_vocab_artifact_cache;
         result
     }
 
@@ -1007,7 +1022,7 @@ impl DynamicConstraint {
         assert!(!constraints.is_empty(), "dynamic union requires at least one alternative");
         let inner = constraints.remove(0);
         let composition_grammars = vec![None; constraints.len() + 1];
-        Self { inner, alternatives: constraints, composition_grammars }
+        Self { inner, alternatives: constraints, composition_grammars, external_vocab_artifact_cache: None }
     }
 
     pub(crate) fn clone_constraints(&self) -> Vec<Constraint> {
@@ -1015,6 +1030,7 @@ impl DynamicConstraint {
     }
 
     pub(crate) fn constraints_mut(&mut self) -> impl Iterator<Item = &mut Constraint> {
+        self.external_vocab_artifact_cache = None;
         std::iter::once(&mut self.inner).chain(&mut self.alternatives)
     }
 
@@ -1028,6 +1044,7 @@ impl DynamicConstraint {
         &mut self,
         placeholders: &[(u32, String)],
     ) -> crate::Result<()> {
+        self.external_vocab_artifact_cache = None;
         for constraint in std::iter::once(&mut self.inner).chain(&mut self.alternatives) {
             constraint.late_grammar_slots.clear();
             for (placeholder_token_id, binding_name) in placeholders {
@@ -1055,6 +1072,7 @@ impl DynamicConstraint {
     }
 
     pub(crate) fn set_composition_grammar(&mut self, grammar: GrammarDef) {
+        self.external_vocab_artifact_cache = None;
         assert_eq!(self.composition_grammars.len(), 1);
         self.composition_grammars[0] = Some(grammar);
     }
@@ -1142,6 +1160,7 @@ impl DynamicConstraint {
     }
 
     pub(crate) fn bind_vocab_exact(&mut self, vocab: &Vocab) -> Result<(), String> {
+        self.external_vocab_artifact_cache = None;
         self.inner.bind_vocab_exact(vocab)?;
         for alternative in &mut self.alternatives {
             alternative.bind_vocab_exact(vocab)?;
@@ -1549,6 +1568,9 @@ impl DynamicConstraint {
             prepared_master_proofs: constraint
                 .dynamic_mask_vocab
                 .prepared_master_proof_artifact(),
+            virtual_residual_master_slice_artifacts: constraint
+                .tokenizer
+                .virtual_residual_master_slice_artifacts(),
         };
 
         let base_ms = base_started
@@ -1626,10 +1648,7 @@ impl DynamicConstraint {
         }
     }
 
-    /// Compact transfer artifact that deliberately omits vocabulary bytes.
-    /// Pair with `load_with_vocab`. This is the natural persisted format for
-    /// APIs (such as Python) whose load operation already requires a Vocab.
-    pub fn save_with_external_vocab(&self) -> Vec<u8> {
+    fn build_external_vocab_artifact_bytes(&self) -> Vec<u8> {
         let profile_transfer = std::env::var_os("GLRMASK_PROFILE_SERIALIZATION").is_some();
         let total_started = profile_transfer.then(std::time::Instant::now);
         let sections_started = profile_transfer.then(std::time::Instant::now);
@@ -1703,6 +1722,28 @@ impl DynamicConstraint {
             );
         }
         bytes
+    }
+
+    /// Materialize the current external-vocabulary artifact while the
+    /// constraint is still inside compilation/finalization. This keeps
+    /// persistence honest: `save()` later copies bytes rather than running
+    /// another serializer/finalizer whose cost would be hidden outside build.
+    pub(crate) fn cache_external_vocab_artifact_for_save(&mut self) {
+        if self.external_vocab_artifact_cache.is_some() {
+            return;
+        }
+        let bytes = self.build_external_vocab_artifact_bytes();
+        self.external_vocab_artifact_cache = Some(Arc::new(bytes));
+    }
+
+    /// Compact transfer artifact that deliberately omits vocabulary bytes.
+    /// Pair with `load_with_vocab`. This is the natural persisted format for
+    /// APIs (such as Python) whose load operation already requires a Vocab.
+    pub fn save_with_external_vocab(&self) -> Vec<u8> {
+        if let Some(bytes) = &self.external_vocab_artifact_cache {
+            return bytes.as_ref().clone();
+        }
+        self.build_external_vocab_artifact_bytes()
     }
 
     pub(crate) fn into_saved(self) -> Vec<u8> {
@@ -1857,6 +1898,7 @@ impl DynamicConstraint {
                     inner,
                     alternatives: Vec::new(),
                     composition_grammars: vec![None],
+                    external_vocab_artifact_cache: None,
                 });
                 continue;
             }
@@ -1983,6 +2025,7 @@ impl DynamicConstraint {
                 inner,
                 alternatives: Vec::new(),
                 composition_grammars: vec![None],
+                external_vocab_artifact_cache: None,
             });
         }
         let payload_decode_ms = decode_started
@@ -2120,14 +2163,18 @@ impl DynamicConstraint {
             let virtual_residual_range = section(&mut cursor, lengths[5]);
 
             let metadata_started = profile.then(std::time::Instant::now);
-            let (metadata, prepared_master_proofs) = if version == DYNAMIC_TRANSFER_VERSION {
+            let (metadata, prepared_master_proofs, virtual_residual_master_slice_artifacts) = if version == DYNAMIC_TRANSFER_VERSION {
                 let wire: DynamicConstraintTransferMetadataV13 =
                     bincode::deserialize(&backing[metadata_range]).map_err(|err| {
                         crate::GlrMaskError::Serialization(format!(
                             "invalid dynamic v13 transfer metadata: {err}"
                         ))
                     })?;
-                (wire.base, wire.prepared_master_proofs)
+                (
+                    wire.base,
+                    wire.prepared_master_proofs,
+                    wire.virtual_residual_master_slice_artifacts,
+                )
             } else {
                 let metadata: DynamicConstraintTransferMetadataV11 =
                     bincode::deserialize(&backing[metadata_range]).map_err(|err| {
@@ -2138,6 +2185,7 @@ impl DynamicConstraint {
                 (
                     metadata,
                     crate::runtime::PreparedMasterProofArtifact::default(),
+                    Vec::new(),
                 )
             };
             if profile {
@@ -2154,6 +2202,12 @@ impl DynamicConstraint {
 
             if !recursive_range.is_empty() {
                 let mut inner = Constraint::load_with_vocab(&backing[recursive_range], vocab)?;
+                inner
+                    .tokenizer
+                    .restore_virtual_residual_master_slice_artifacts(
+                        virtual_residual_master_slice_artifacts,
+                    )
+                    .map_err(crate::GlrMaskError::Serialization)?;
                 if metadata.projected_terminal_quotients_prepared {
                     Self::restore_projected_terminal_quotients(
                         &mut inner,
@@ -2175,6 +2229,7 @@ impl DynamicConstraint {
                     inner,
                     alternatives: Vec::new(),
                     composition_grammars: vec![None],
+                    external_vocab_artifact_cache: None,
                 });
                 continue;
             }
@@ -2221,6 +2276,7 @@ impl DynamicConstraint {
             // by the worker when it built the finite mask projection. Reusing
             // those oracle bytes keeps the source runtime and sparse projection
             // in the same exact coordinate system.
+            let residual_decode_started = profile.then(std::time::Instant::now);
             let mut decoded_residual = if virtual_residual_range.is_empty() {
                 None
             } else {
@@ -2232,36 +2288,65 @@ impl DynamicConstraint {
                     .map_err(crate::GlrMaskError::Serialization)?,
                 )
             };
+            let residual_decode_ms = residual_decode_started
+                .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+            let mut terminal_expr_decode_ms = 0.0;
+            let mut virtual_runtime_restore_ms = 0.0;
             if !metadata.virtual_runtimes.is_empty() {
-                let expressions = deferred_terminal_exprs
-                    .as_ref()
-                    .ok_or_else(|| {
-                        crate::GlrMaskError::Serialization(
-                            "dynamic v12 virtual runtime metadata has no terminal expressions"
-                                .to_owned(),
-                        )
-                    })?
-                    .decode_exprs()
-                    .map_err(crate::GlrMaskError::Serialization)?;
+                let restore_started = profile.then(std::time::Instant::now);
                 let restore_result = if let Some(residual) = decoded_residual.as_ref() {
-                    tokenizer.restore_terminal_exprs_with_precompiled_static_residual_oracles(
-                        Some(expressions),
+                    tokenizer.restore_compiled_static_residual_runtimes(
                         &metadata.virtual_runtimes,
                         residual.projections(),
-                        false,
                     )
                 } else {
-                    tokenizer
-                        .restore_terminal_exprs_with_virtual_runtime_metadata_and_oracles_preserving_coordinates(
-                            Some(expressions),
+                    let expr_started = profile.then(std::time::Instant::now);
+                    let expressions = deferred_terminal_exprs
+                        .as_ref()
+                        .ok_or_else(|| {
+                            crate::GlrMaskError::Serialization(
+                                "dynamic v12 virtual runtime metadata has no terminal expressions"
+                                    .to_owned(),
+                            )
+                        })?
+                        .decode_exprs()
+                        .map_err(crate::GlrMaskError::Serialization)?;
+                    terminal_expr_decode_ms = expr_started
+                        .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+                    let can_use_compiled_dynamic_residual = metadata
+                        .virtual_runtimes
+                        .iter()
+                        .all(|entry| {
+                            entry.kind
+                                == crate::automata::lexer::tokenizer::VirtualTokenizerRuntimeKind::ResidualExpr
+                        });
+                    if can_use_compiled_dynamic_residual {
+                        tokenizer.restore_compiled_dynamic_residual_runtimes(
+                            &expressions,
                             &metadata.virtual_runtimes,
                             &metadata.residual_runtime_oracles,
-                            false,
-                            false,
+                            &virtual_residual_master_slice_artifacts,
                         )
+                    } else {
+                        tokenizer
+                            .restore_terminal_exprs_with_virtual_runtime_metadata_and_oracles_preserving_coordinates(
+                                Some(expressions),
+                                &metadata.virtual_runtimes,
+                                &metadata.residual_runtime_oracles,
+                                false,
+                                false,
+                            )
+                    }
                 };
                 restore_result.map_err(crate::GlrMaskError::Serialization)?;
+                virtual_runtime_restore_ms = restore_started
+                    .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
             }
+            tokenizer
+                .restore_virtual_residual_master_slice_artifacts(
+                    virtual_residual_master_slice_artifacts,
+                )
+                .map_err(crate::GlrMaskError::Serialization)?;
 
             let assemble_started = profile.then(std::time::Instant::now);
             let dynamic_mask_vocab = Self::dynamic_vocab_from_transfer_artifact(
@@ -2337,9 +2422,12 @@ impl DynamicConstraint {
                 .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
             if profile {
                 eprintln!(
-                    "[glrmask/profile][dynamic_transfer_v12_alt] metadata_ms={:.3} table_tokenizer_ms={:.3} assemble_ms={:.3} rebuild_ms={:.3}",
+                    "[glrmask/profile][dynamic_transfer_v12_alt] metadata_ms={:.3} table_tokenizer_ms={:.3} residual_decode_ms={:.3} terminal_expr_decode_ms={:.3} virtual_runtime_restore_ms={:.3} assemble_ms={:.3} rebuild_ms={:.3}",
                     metadata_ms,
                     table_tokenizer_ms,
+                    residual_decode_ms,
+                    terminal_expr_decode_ms,
+                    virtual_runtime_restore_ms,
                     assemble_ms,
                     rebuild_ms,
                 );
@@ -2348,11 +2436,18 @@ impl DynamicConstraint {
                 inner,
                 alternatives: Vec::new(),
                 composition_grammars: vec![None],
+                external_vocab_artifact_cache: None,
             });
         }
         let payload_decode_ms = decode_started
             .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
-        let loaded = Self::from_alternatives(alternatives);
+        let mut loaded = Self::from_alternatives(alternatives);
+        // Current transfer bytes already are the canonical save artifact.
+        // Retain the same backing allocation so a load->save round trip does
+        // not re-run any serializer/finalizer work.
+        if version == DYNAMIC_TRANSFER_VERSION {
+            loaded.external_vocab_artifact_cache = Some(Arc::clone(&backing));
+        }
         if let Some(started) = total_started {
             eprintln!(
                 "[glrmask/profile][dynamic_transfer_load] version={} bytes={} backing_ms={:.3} framing_ms={:.3} payload_decode_ms={:.3} finalize_ms={:.3} total_ms={:.3}",
@@ -2517,6 +2612,7 @@ impl DynamicConstraint {
                 inner,
                 alternatives: Vec::new(),
                 composition_grammars: vec![None],
+                external_vocab_artifact_cache: None,
             });
         }
         if alternatives.is_empty() {
@@ -2625,6 +2721,7 @@ impl DynamicConstraint {
                 inner,
                 alternatives: Vec::new(),
                 composition_grammars: vec![None],
+                external_vocab_artifact_cache: None,
             });
         }
         if alternatives.is_empty() {
@@ -3208,6 +3305,7 @@ impl DynamicConstraint {
                         inner,
                         alternatives: Vec::new(),
                         composition_grammars: vec![None],
+                        external_vocab_artifact_cache: None,
                     });
                 }
                 if exact_virtual_metadata {
@@ -3284,6 +3382,7 @@ impl DynamicConstraint {
                     inner,
                     alternatives: Vec::new(),
                     composition_grammars: vec![None],
+                    external_vocab_artifact_cache: None,
                 })
             })
             .collect::<crate::Result<Vec<_>>>()?;

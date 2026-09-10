@@ -14,6 +14,7 @@ use smallvec::SmallVec;
 use crate::automata::lexer::Lexer;
 use crate::automata::lexer::tokenizer::{
     Tokenizer, TokenizerExecResult, TokenizerMatch, TokenizerStateSet,
+    VirtualResidualDirectCoordinate,
 };
 use crate::compiler::glr::accumulator::TerminalsDisallowed;
 use crate::compiler::glr::parser::{advance_stacks, stack_admissible_terminals, ParserGSS};
@@ -89,6 +90,10 @@ trait FullWalkTransitionTable {
         parser_node: u32,
     ) -> bool;
 
+    /// Return the exact raw tokenizer state when this transition coordinate is
+    /// a singleton raw state. The direct first-match lane uses this only as a
+    /// safety check before bypassing the generic subset/config representation.
+    fn exact_raw_state(&self, state: u32) -> Option<u32>;
 }
 
 #[derive(Clone, Copy)]
@@ -179,6 +184,9 @@ impl FullWalkTransitionTable for FullWalkFlat16<'_> {
             parser_node,
         )
     }
+
+    #[inline(always)]
+    fn exact_raw_state(&self, state: u32) -> Option<u32> { Some(state) }
 
 }
 
@@ -271,6 +279,9 @@ impl FullWalkTransitionTable for FullWalkFlat32<'_> {
         )
     }
 
+    #[inline(always)]
+    fn exact_raw_state(&self, state: u32) -> Option<u32> { Some(state) }
+
 }
 
 #[derive(Clone, Copy)]
@@ -345,6 +356,26 @@ impl FullWalkConfigTransitions<'_, '_> {
                 self.raw_cell_rows.len(),
                 self.raw_cell_rows.iter().filter(|row| row.is_some()).count(),
             );
+            eprintln!(
+                "[glrmask/profile][config_member_transition_work] physical_calls={} physical_ms={:.3} virtual_residual_calls={} virtual_residual_ms={:.3}",
+                self.cache.profile_member_physical_transitions,
+                self.cache.profile_member_physical_transition_ns as f64 / 1e6,
+                self.cache.profile_member_virtual_residual_transitions,
+                self.cache.profile_member_virtual_residual_transition_ns as f64 / 1e6,
+            );
+            if !self.cache.profile_member_virtual_residual_by_terminal.is_empty() {
+                let mut rows = self
+                    .cache
+                    .profile_member_virtual_residual_by_terminal
+                    .iter()
+                    .map(|(&terminal, &(calls, ns))| (terminal, calls, ns))
+                    .collect::<Vec<_>>();
+                rows.sort_unstable_by_key(|&(terminal, _, _)| terminal);
+                eprintln!(
+                    "[glrmask/profile][config_virtual_transition_by_terminal] {:?}",
+                    rows
+                );
+            }
             eprintln!(
                 "[glrmask/profile][config_query_work] future_contains_calls={} future_contains_ms={:.3} future_intersects_calls={} future_intersects_ms={:.3} single_finalizer_continues_calls={} single_finalizer_continues_ms={:.3}",
                 self.future_contains_calls,
@@ -601,6 +632,11 @@ impl FullWalkTransitionTable for FullWalkConfigTransitions<'_, '_> {
             return true;
         }
         parser_cache.token_boundary_allowed_sparse(constraint, self, lexer_state, parser_node)
+    }
+
+    #[inline(always)]
+    fn exact_raw_state(&self, state: u32) -> Option<u32> {
+        self.cache.raw_state_for_config(state)
     }
 }
 
@@ -1983,6 +2019,44 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
         root_branches,
         transitions.dense_state_count(),
     );
+    let first_match_root_candidate = if HOT_SINGLE_ROOT
+        && root_branches.len() == 1
+        && root_branches[0].initial_prune_guard.is_passed()
+        // This lane consumes exact source-tokenizer state ids directly. A
+        // finite/determinized mask tokenizer has a different coordinate and
+        // must use the ordinary exact walker.
+        && vocab.mask_runtime_tokenizer().is_none()
+        && let Some(source) = root_branches[0].exact_tokenizer_state
+        && vocab.mask_runtime_state(source) == source
+        && transitions.exact_raw_state(root_branches[0].tokenizer_config) == Some(source)
+        && !state.constraint.tokenizer.state_has_epsilon_transitions(source)
+        && state.constraint.tokenizer.matched_terminals_slice(source).is_empty()
+        && let Some(terminal) = state
+            .constraint
+            .tokenizer
+            .virtual_residual_terminal_for_state(source)
+        && Some(terminal) != state.constraint.ignore_terminal
+        && state
+            .constraint
+            .tokenizer
+            .possible_future_terminals_iter(source)
+            .eq(std::iter::once(terminal))
+        && parser_cache
+            .admitted(state.constraint, root_parser_nodes[0])
+            .contains(terminal as usize)
+    {
+        Some((source, root_parser_nodes[0], terminal))
+    } else {
+        None
+    };
+    let first_match_direct_root =
+        first_match_root_candidate.and_then(|(source, parser_node, terminal)| {
+            state
+                .constraint
+                .tokenizer
+                .virtual_residual_direct_coordinate(source)
+                .map(|coordinate| (coordinate, parser_node, terminal))
+        });
     // The config walker is the exact fallback for virtual residual coordinates
     // that were not materialized into a finite mask projection. Use the same
     // language-defined master slicer as the dense walker when one exact source
@@ -2199,6 +2273,17 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
     let trie = master_decision
         .and_then(|_| vocab.llg_master_trie())
         .map_or(trie, |slice| slice.trie());
+    let deferred_output = vocab.is_grammar_quotiented()
+        && master_decision.is_none()
+        && state.constraint.ignore_terminal.is_none()
+        && root_branches
+            .iter()
+            .all(|branch| branch.initial_prune_guard.is_passed());
+    let mut deferred_allowed_markers = Vec::<u64>::new();
+    let mut deferred_rejected_markers = Vec::<u64>::new();
+    let mut deferred_dead_subtrees = Vec::<u32>::new();
+    let mut deferred_positive_work = 0usize;
+    let mut deferred_negative_work = 0usize;
     // Scalar is overwhelmingly dominant. Encode dead/multi directly in the
     // lexer-state coordinate so the common DFS path needs no separate kind
     // load/store. Full-walk lexer states are bounded far below these u32
@@ -2221,6 +2306,16 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
         heap_lexer.resize(stack_len, FULL_WALK_LEXER_DEAD);
         heap_lexer.as_mut_slice()
     };
+    let mut inline_first_match_direct: [Option<VirtualResidualDirectCoordinate>; 256] =
+        [None; 256];
+    let mut heap_first_match_direct = Vec::<Option<VirtualResidualDirectCoordinate>>::new();
+    let stack_first_match_direct: &mut [Option<VirtualResidualDirectCoordinate>] =
+        if stack_len <= inline_first_match_direct.len() {
+            &mut inline_first_match_direct[..stack_len]
+        } else {
+            heap_first_match_direct.resize(stack_len, None);
+            heap_first_match_direct.as_mut_slice()
+        };
     let mut inline_parser = [0u32; 256];
     let mut heap_parser = Vec::<u32>::new();
     let stack_parser: &mut [u32] = if stack_len <= inline_parser.len() {
@@ -2254,6 +2349,9 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
     if root_branches.len() == 1 && root_branches[0].initial_prune_guard.is_passed() {
         stack_lexer[0] = root_branches[0].tokenizer_config;
         stack_parser[0] = root_parser_nodes[0];
+        if let Some((coordinate, _, _)) = first_match_direct_root {
+            stack_first_match_direct[0] = Some(coordinate);
+        }
     } else if root_branches.len() == 2
         && root_branches.iter().all(|root| root.initial_prune_guard.is_passed())
     {
@@ -2307,6 +2405,10 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
     let mut token_marker_index = 0usize;
     let mut scalar_lexer = FULL_WALK_LEXER_DEAD;
     let mut scalar_parser = 0u32;
+    let mut first_match_direct = None::<VirtualResidualDirectCoordinate>;
+    let first_match_terminal = first_match_direct_root.map(|(_, _, terminal)| terminal);
+    let mut first_match_direct_future_cache =
+        FxHashMap::<VirtualResidualDirectCoordinate, bool>::default();
     let mut current_two = ((0u32, 0u32), (0u32, 0u32));
     let mut current_many = FullWalkManyState::Branches(FullWalkBranches::new());
     let mut partition_root_slot = 0usize;
@@ -2319,6 +2421,14 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
     let mut profile_multi_byte_ops = 0usize;
     let mut profile_dead_byte_ops = 0usize;
     let mut profile_token_endpoints = 0usize;
+    let mut profile_allowed_token_endpoints = 0usize;
+    let mut profile_blocked_token_endpoints = 0usize;
+    let mut profile_blocked_dead_endpoints = 0usize;
+    let mut profile_blocked_original_tokens = 0usize;
+    let mut profile_dead_subtree_original_tokens = 0usize;
+    let mut profile_first_match_direct_byte_ops = 0usize;
+    let mut profile_first_match_direct_finalizers = 0usize;
+    let mut profile_first_match_direct_endpoints = 0usize;
     let mut condition_consecutive_non_pruning = 0u32;
     static CONDITION_CONFIG_SCALAR: std::sync::OnceLock<bool> =
         std::sync::OnceLock::new();
@@ -2354,11 +2464,11 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
     });
     let condition_walk_enabled = condition_config_scalar
         && (!condition_initial_only || state.generation == 0);
-
     while let Some(&op) = remaining_ops.next() {
         let parent_depth = op.parent_depth() as usize;
         if op.starts_edge() {
             scalar_lexer = unsafe { *stack_lexer.get_unchecked(parent_depth) };
+            first_match_direct = unsafe { *stack_first_match_direct.get_unchecked(parent_depth) };
             if scalar_lexer < FULL_WALK_LEXER_TWO_DISTINCT {
                 scalar_parser = unsafe { *stack_parser.get_unchecked(parent_depth) };
             } else if scalar_lexer == FULL_WALK_LEXER_TWO_DISTINCT || scalar_lexer == FULL_WALK_LEXER_TWO {
@@ -2410,7 +2520,77 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
                 }
             }
             let byte = op.byte();
-            if scalar_lexer == FULL_WALK_LEXER_DEAD {
+            let mut first_match_consumed = false;
+            if let Some(source_coordinate) = first_match_direct {
+                if profile_generic_work {
+                    profile_first_match_direct_byte_ops += 1;
+                }
+                let target_coordinate = state
+                    .constraint
+                    .tokenizer
+                    .virtual_residual_direct_coordinate_step(source_coordinate, byte);
+                let Some(target_coordinate) = target_coordinate else {
+                    first_match_direct = None;
+                    scalar_lexer = FULL_WALK_LEXER_DEAD;
+                    let cleared = if deferred_output {
+                        let (child, count) = full_walk_skip_dead_subtree_generic_deferred(
+                            vocab,
+                            trie,
+                            walk_ops,
+                            &mut remaining_ops,
+                            &mut token_marker_index,
+                        );
+                        deferred_dead_subtrees.push(child);
+                        deferred_negative_work += count;
+                        count
+                    } else {
+                        full_walk_skip_dead_subtree_generic(
+                            vocab,
+                            trie,
+                            walk_ops,
+                            &mut remaining_ops,
+                            &mut token_marker_index,
+                            buf,
+                        )
+                    };
+                    if profile_generic_work {
+                        profile_dead_subtree_original_tokens += cleared;
+                    }
+                    continue;
+                };
+                let accepting = state
+                    .constraint
+                    .tokenizer
+                    .virtual_residual_direct_coordinate_accepting(target_coordinate)
+                    .unwrap_or(false);
+                if !accepting {
+                    first_match_direct = Some(target_coordinate);
+                    first_match_consumed = true;
+                } else {
+                    // Materialize exactly one source state only at the first
+                    // terminal boundary, then replay this finalizing byte in
+                    // the ordinary config walker. No intermediate coordinate
+                    // on the parser-transparent prefix needs a virtual state
+                    // id at all.
+                    if profile_generic_work {
+                        profile_first_match_direct_finalizers += 1;
+                    }
+                    let raw_source = state
+                        .constraint
+                        .tokenizer
+                        .virtual_residual_state_for_direct_coordinate(source_coordinate)
+                        .ok_or_else(|| {
+                            "direct first-match coordinate could not materialize its source state"
+                                .to_owned()
+                        })?;
+                    first_match_direct = None;
+                    scalar_lexer = transitions.root_state(raw_source)?;
+                }
+            }
+            if first_match_consumed {
+                // Parser state is intentionally unchanged until the first
+                // terminal finalization.
+            } else if scalar_lexer == FULL_WALK_LEXER_DEAD {
             } else if scalar_lexer < FULL_WALK_LEXER_TWO_DISTINCT {
                 let cell = transitions.cell(scalar_lexer, byte);
                 if T::cell_is_dead(cell) {
@@ -2418,14 +2598,30 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
                     // A lexically dead scalar configuration cannot revive below
                     // this vocabulary prefix. Mirror the dense walk and jump to
                     // the subtree end instead of iterating dead descendants.
-                    full_walk_skip_dead_subtree_generic(
-                        vocab,
-                        trie,
-                        walk_ops,
-                        &mut remaining_ops,
-                        &mut token_marker_index,
-                        buf,
-                    );
+                    let cleared = if deferred_output {
+                        let (child, count) = full_walk_skip_dead_subtree_generic_deferred(
+                            vocab,
+                            trie,
+                            walk_ops,
+                            &mut remaining_ops,
+                            &mut token_marker_index,
+                        );
+                        deferred_dead_subtrees.push(child);
+                        deferred_negative_work += count;
+                        count
+                    } else {
+                        full_walk_skip_dead_subtree_generic(
+                            vocab,
+                            trie,
+                            walk_ops,
+                            &mut remaining_ops,
+                            &mut token_marker_index,
+                            buf,
+                        )
+                    };
+                    if profile_generic_work {
+                        profile_dead_subtree_original_tokens += cleared;
+                    }
                     continue;
                 } else {
                     let target = T::cell_target(cell);
@@ -2452,14 +2648,27 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
                         } else {
                             scalar_lexer = FULL_WALK_LEXER_DEAD;
                             if condition_dead_skip {
-                                let pruned = full_walk_skip_dead_subtree_generic(
-                                    vocab,
-                                    trie,
-                                    walk_ops,
-                                    &mut remaining_ops,
-                                    &mut token_marker_index,
-                                    buf,
-                                );
+                                let pruned = if deferred_output {
+                                    let (child, count) = full_walk_skip_dead_subtree_generic_deferred(
+                                        vocab,
+                                        trie,
+                                        walk_ops,
+                                        &mut remaining_ops,
+                                        &mut token_marker_index,
+                                    );
+                                    deferred_dead_subtrees.push(child);
+                                    deferred_negative_work += count;
+                                    count
+                                } else {
+                                    full_walk_skip_dead_subtree_generic(
+                                        vocab,
+                                        trie,
+                                        walk_ops,
+                                        &mut remaining_ops,
+                                        &mut token_marker_index,
+                                        buf,
+                                    )
+                                };
                                 if pruned > 0 {
                                     condition_consecutive_non_pruning = 0;
                                 } else {
@@ -2781,16 +2990,32 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
                 }
                 let token_marker = unsafe { *token_markers.get_unchecked(token_marker_index) };
                 token_marker_index += 1;
-                let allowed = if scalar_lexer == FULL_WALK_LEXER_DEAD {
+                let allowed = if let Some(coordinate) = first_match_direct {
+                    if profile_generic_work {
+                        profile_first_match_direct_endpoints += 1;
+                    }
+                    debug_assert!(first_match_terminal.is_some());
+                    if let Some(&cached) = first_match_direct_future_cache.get(&coordinate) {
+                        cached
+                    } else {
+                        let future = state
+                            .constraint
+                            .tokenizer
+                            .virtual_residual_direct_coordinate_has_future(coordinate)
+                            .unwrap_or(false);
+                        first_match_direct_future_cache.insert(coordinate, future);
+                        future
+                    }
+                } else if scalar_lexer == FULL_WALK_LEXER_DEAD {
                     false
                 } else if scalar_lexer < FULL_WALK_LEXER_TWO_DISTINCT {
                     transitions.token_boundary_allowed(
-                        &mut parser_cache,
-                        state.constraint,
-                        initial_lexer_state,
-                        scalar_lexer,
-                        scalar_parser,
-                    )
+                            &mut parser_cache,
+                            state.constraint,
+                            initial_lexer_state,
+                            scalar_lexer,
+                            scalar_parser,
+                        )
                 } else if scalar_lexer == FULL_WALK_LEXER_TWO_DISTINCT || scalar_lexer == FULL_WALK_LEXER_TWO {
                     transitions.token_boundary_allowed(
                         &mut parser_cache,
@@ -2842,14 +3067,47 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
                 } else {
                     false
                 };
-                if !allowed {
-                    clear_dynamic_token_marker(vocab, token_marker, buf);
+                if allowed {
+                    if profile_generic_work {
+                        profile_allowed_token_endpoints += 1;
+                    }
+                    if deferred_output {
+                        deferred_positive_work += dynamic_token_marker_original_count(vocab, token_marker);
+                        deferred_allowed_markers.push(token_marker);
+                    }
+                } else {
+                    if profile_generic_work {
+                        profile_blocked_token_endpoints += 1;
+                        profile_blocked_dead_endpoints +=
+                            usize::from(scalar_lexer == FULL_WALK_LEXER_DEAD);
+                        if token_marker & DYNAMIC_TOKEN_MARKER_FALLBACK == 0 {
+                            profile_blocked_original_tokens += (token_marker as u32).count_ones() as usize;
+                        } else {
+                            let canonical_token =
+                                ((token_marker & !DYNAMIC_TOKEN_MARKER_FALLBACK) - 1) as u32;
+                            profile_blocked_original_tokens += vocab
+                                .token_word_masks(canonical_token)
+                                .iter()
+                                .map(|&(_, bits)| bits.count_ones() as usize)
+                                .sum::<usize>();
+                        }
+                    }
+                    if deferred_output {
+                        deferred_negative_work += dynamic_token_marker_original_count(vocab, token_marker);
+                        deferred_rejected_markers.push(token_marker);
+                    } else {
+                        clear_dynamic_token_marker(vocab, token_marker, buf);
+                    }
                 }
             }
 
             unsafe {
+                *stack_first_match_direct.get_unchecked_mut(parent_depth + 1) =
+                    first_match_direct;
                 *stack_lexer.get_unchecked_mut(parent_depth + 1) = scalar_lexer;
-                if scalar_lexer == FULL_WALK_LEXER_DEAD {
+                if first_match_direct.is_some() {
+                    *stack_parser.get_unchecked_mut(parent_depth + 1) = scalar_parser;
+                } else if scalar_lexer == FULL_WALK_LEXER_DEAD {
                 } else if scalar_lexer < FULL_WALK_LEXER_TWO_DISTINCT {
                     *stack_parser.get_unchecked_mut(parent_depth + 1) = scalar_parser;
                 } else if scalar_lexer == FULL_WALK_LEXER_TWO_DISTINCT || scalar_lexer == FULL_WALK_LEXER_TWO {
@@ -2865,20 +3123,59 @@ fn try_full_walk_mask_with_table<T: FullWalkTransitionTable, const HOT_SINGLE_RO
             }
         }
     }
+    if deferred_output {
+        if deferred_positive_work <= deferred_negative_work {
+            buf.fill(0);
+            for marker in deferred_allowed_markers {
+                mark_dynamic_token_marker(vocab, marker, buf);
+            }
+        } else {
+            let all_words = vocab.all_original_token_words();
+            let copy_len = buf.len().min(all_words.len());
+            buf[..copy_len].copy_from_slice(&all_words[..copy_len]);
+            if copy_len < buf.len() {
+                buf[copy_len..].fill(0);
+            }
+            for child in deferred_dead_subtrees {
+                for &token_id in vocab.subtree_original_tokens_for(trie, child) {
+                    clear_mask_bit_known_in_range(buf, token_id);
+                }
+            }
+            for marker in deferred_rejected_markers {
+                clear_dynamic_token_marker(vocab, marker, buf);
+            }
+        }
+        if profile_generic_work {
+            eprintln!(
+                "[glrmask/profile][generic_adaptive_output] generation={} positive_work={} negative_work={}",
+                state.generation,
+                deferred_positive_work,
+                deferred_negative_work,
+            );
+        }
+    }
     if profile_generic_work {
         eprintln!(
-            "[glrmask/profile][generic_walk_work] byte_ops={} scalar_byte_ops={} two_byte_ops={} multi_byte_ops={} dead_byte_ops={} token_endpoints={} boundary_calls={} boundary_hits={} boundary_misses={} admitted_builds={} parser_nodes={}",
+            "[glrmask/profile][generic_walk_work] byte_ops={} scalar_byte_ops={} two_byte_ops={} multi_byte_ops={} dead_byte_ops={} token_endpoints={} allowed_endpoints={} blocked_endpoints={} blocked_dead_endpoints={} blocked_original_tokens={} dead_subtree_original_tokens={} boundary_calls={} boundary_hits={} boundary_misses={} admitted_builds={} parser_nodes={} first_match_direct_bytes={} first_match_direct_finalizers={} first_match_direct_endpoints={}",
             profile_byte_ops,
             profile_scalar_byte_ops,
             profile_two_byte_ops,
             profile_multi_byte_ops,
             profile_dead_byte_ops,
             profile_token_endpoints,
+            profile_allowed_token_endpoints,
+            profile_blocked_token_endpoints,
+            profile_blocked_dead_endpoints,
+            profile_blocked_original_tokens,
+            profile_dead_subtree_original_tokens,
             parser_cache.profile_boundary_calls,
             parser_cache.profile_boundary_hits,
             parser_cache.profile_boundary_misses,
             parser_cache.profile_admitted_builds,
             parser_cache.nodes.len(),
+            profile_first_match_direct_byte_ops,
+            profile_first_match_direct_finalizers,
+            profile_first_match_direct_endpoints,
         );
     }
     // Ordinary vocabulary bytes and exact special-token-ID paths are a union.
@@ -2939,6 +3236,28 @@ fn full_walk_skip_dead_subtree_generic<'a>(
     tokens.len()
 }
 
+#[inline(always)]
+fn full_walk_skip_dead_subtree_generic_deferred<'a>(
+    vocab: &DynamicMaskVocab,
+    trie: &DynamicMaskTrie,
+    walk_ops: &'a [DynamicMaskTrieFullWalkOp],
+    remaining_ops: &mut std::slice::Iter<'a, DynamicMaskTrieFullWalkOp>,
+    token_marker_index: &mut usize,
+) -> (u32, usize) {
+    let op_index = walk_ops.len() - remaining_ops.as_slice().len() - 1;
+    let (child, subtree_end_op) = trie.full_walk_dead_subtree(op_index);
+    let token_count = vocab.subtree_original_tokens_for(trie, child).len();
+    let root_token_offset = usize::from(trie.node(0).token_id.is_some());
+    let token_end = trie
+        .subtree_token_index_range(child)
+        .end
+        .saturating_sub(root_token_offset);
+    debug_assert!(*token_marker_index <= token_end);
+    *token_marker_index = token_end;
+    *remaining_ops = walk_ops[subtree_end_op as usize..].iter();
+    (child, token_count)
+}
+
 #[derive(Clone)]
 struct DynamicBranch {
     tokenizer_config: u32,
@@ -2994,6 +3313,20 @@ fn clear_mask_bit_known_in_range(buf: &mut [u32], token_id: u32) {
 
 
 const DYNAMIC_TOKEN_MARKER_FALLBACK: u64 = 1u64 << 63;
+
+#[inline(always)]
+fn dynamic_token_marker_original_count(vocab: &DynamicMaskVocab, marker: u64) -> usize {
+    if marker & DYNAMIC_TOKEN_MARKER_FALLBACK == 0 {
+        (marker as u32).count_ones() as usize
+    } else {
+        let canonical_token = ((marker & !DYNAMIC_TOKEN_MARKER_FALLBACK) - 1) as u32;
+        vocab
+            .token_word_masks(canonical_token)
+            .iter()
+            .map(|&(_, bits)| bits.count_ones() as usize)
+            .sum()
+    }
+}
 
 #[inline(always)]
 fn mark_dynamic_token_marker(vocab: &DynamicMaskVocab, marker: u64, buf: &mut [u32]) {
@@ -3078,6 +3411,11 @@ struct DynamicNfaScanCache<'a> {
     profile_intern_calls: usize,
     profile_intern_hits: usize,
     profile_intern_new: usize,
+    profile_member_physical_transition_ns: u64,
+    profile_member_virtual_residual_transition_ns: u64,
+    profile_member_physical_transitions: usize,
+    profile_member_virtual_residual_transitions: usize,
+    profile_member_virtual_residual_by_terminal: FxHashMap<TerminalID, (usize, u64)>,
 }
 
 struct DynamicConfigExecResult {
@@ -3153,6 +3491,11 @@ impl<'a> DynamicNfaScanCache<'a> {
             profile_intern_calls: 0,
             profile_intern_hits: 0,
             profile_intern_new: 0,
+            profile_member_physical_transition_ns: 0,
+            profile_member_virtual_residual_transition_ns: 0,
+            profile_member_physical_transitions: 0,
+            profile_member_virtual_residual_transitions: 0,
+            profile_member_virtual_residual_by_terminal: FxHashMap::default(),
         }
     }
 
@@ -3265,6 +3608,10 @@ impl<'a> DynamicNfaScanCache<'a> {
         Ok(config)
     }
 
+    fn config_for_mask_root(&mut self, state: u32) -> Result<u32, String> {
+        self.config_for_raw_start(state)
+    }
+
     /// Expand one runtime configuration into its exact epsilon-closed physical
     /// tokenizer states without taking a byte step. This is used only by the
     /// scalar-dispatch bridge; general NFA execution continues to use
@@ -3331,7 +3678,32 @@ impl<'a> DynamicNfaScanCache<'a> {
             let config_len = self.configs[config_index].len();
             for state_index in 0..config_len {
                 let state = self.configs[config_index][state_index];
+                let virtual_residual_terminal = self
+                    .profile_transition_work
+                    .then(|| self.tokenizer.virtual_residual_terminal_for_state(state))
+                    .flatten();
+                let transition_started = self.profile_transition_work.then(std::time::Instant::now);
                 let target = self.transition(state, byte);
+                if let Some(started) = transition_started {
+                    let elapsed = started.elapsed().as_nanos() as u64;
+                    if let Some(terminal) = virtual_residual_terminal {
+                        self.profile_member_virtual_residual_transitions += 1;
+                        self.profile_member_virtual_residual_transition_ns = self
+                            .profile_member_virtual_residual_transition_ns
+                            .saturating_add(elapsed);
+                        let entry = self
+                            .profile_member_virtual_residual_by_terminal
+                            .entry(terminal)
+                            .or_insert((0, 0));
+                        entry.0 += 1;
+                        entry.1 = entry.1.saturating_add(elapsed);
+                    } else {
+                        self.profile_member_physical_transitions += 1;
+                        self.profile_member_physical_transition_ns = self
+                            .profile_member_physical_transition_ns
+                            .saturating_add(elapsed);
+                    }
+                }
                 if target != u32::MAX {
                     let target_config = self.config_for_raw_start(target)?;
                     if let Some(target_state) = self.raw_state_for_config(target_config) {
@@ -5046,7 +5418,8 @@ fn fill_mask_dynamic_impl(
                         .count(),
                 );
             }
-            let tokenizer_config = lexer_scan_cache.config_for_raw_start(projected_tokenizer_state)?;
+            let tokenizer_config =
+                lexer_scan_cache.config_for_mask_root(projected_tokenizer_state)?;
             root_branches.push(DynamicBranch {
                 tokenizer_config,
                 exact_tokenizer_state: Some(tokenizer_state),
