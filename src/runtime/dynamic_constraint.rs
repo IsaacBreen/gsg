@@ -4827,6 +4827,14 @@ mod tests {
         let metadata = constraint.inner.tokenizer.virtual_runtime_metadata();
         assert!(!metadata.is_empty());
 
+        // This test mutates private persistence metadata after public
+        // compilation has already frozen the canonical transfer artifact.
+        // Refresh that cache explicitly so the transfer half of the test
+        // continues to cover the wire representation produced from the
+        // mutated fixture. Production constraints are immutable after build.
+        constraint.external_vocab_artifact_cache = None;
+        constraint.cache_external_vocab_artifact_for_save();
+
         let saved = constraint.save();
         assert_eq!(
             u16::from_le_bytes([saved[8], saved[9]]),
@@ -5045,17 +5053,20 @@ mod tests {
                 .inner
                 .dynamic_mask_vocab
                 .mask_projection_tokenizer()
-                .is_none(),
-            "finite mask projection should be deferred until the first exact mask request",
+                .is_some(),
+            "finite mask projection is an immutable runtime accelerator and must be prepared during build finalization",
         );
 
-        let start_mask = constraint.start().mask();
         let mask_tokenizer = constraint
             .inner
-            .lazy_dynamic_mask_vocab
-            .get()
-            .and_then(|vocab| vocab.mask_projection_tokenizer())
-            .expect("first mask must materialize the finite lazy exact product");
+            .dynamic_mask_vocab
+            .mask_projection_tokenizer()
+            .expect("build finalization must prepare the finite exact product");
+        let start_mask = constraint.start().mask();
+        assert!(
+            constraint.inner.lazy_dynamic_mask_vocab.get().is_none(),
+            "first mask must not hide projection construction in a lazy runtime cache",
+        );
         assert!(
             mask_tokenizer.num_states() < 2_000,
             "mask tokenizer must scale with vocab horizon/body DFAs, not N*M",
@@ -7115,6 +7126,12 @@ mod tests {
             .projected_terminal_quotients_for_artifact();
         assert!(!expected.is_empty());
 
+        // The private mutation above occurs after public finalization froze the
+        // canonical transfer artifact. Refresh it explicitly for wire-format
+        // coverage; ordinary callers cannot mutate a compiled constraint.
+        constraint.external_vocab_artifact_cache = None;
+        constraint.cache_external_vocab_artifact_for_save();
+
         let saved = constraint.save();
         assert_eq!(
             u16::from_le_bytes([saved[8], saved[9]]),
@@ -7187,6 +7204,11 @@ mod tests {
             .set_projected_terminal_quotients(Vec::new());
         assert!(constraint.inner.dynamic_mask_vocab.projected_terminal_quotients_prepared());
         assert!(!constraint.inner.dynamic_mask_vocab.has_projected_terminal_quotients());
+
+        // See the nonempty sidecar test above: this is a test-only mutation of
+        // otherwise immutable post-build persistence metadata.
+        constraint.external_vocab_artifact_cache = None;
+        constraint.cache_external_vocab_artifact_for_save();
 
         let loaded = DynamicConstraint::load(&constraint.save()).unwrap();
         assert!(loaded.inner.dynamic_mask_vocab.projected_terminal_quotients_prepared());

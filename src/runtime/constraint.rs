@@ -1769,11 +1769,23 @@ impl Constraint {
             return true;
         }
         if let Some(packed) = &self.packed_token_bytes {
-            // Validate the supplied vocabulary directly. Do not manufacture a
-            // second packed wire through a process-global cache: that made the
-            // first load for a vocabulary pay work that every later benchmark
-            // load got for free. PackedTokenBytes iteration is zero-copy, so a
-            // fresh load now pays only the actual exact comparison.
+            // Current artifacts and Vocab's prepared packed-token artifact use
+            // the same canonical TBP2 encoding. Comparing those byte strings is
+            // an exact vocabulary equality proof and lets a 128k-token bind use
+            // one contiguous memcmp instead of 128k map/offset lookups. The
+            // packed Vocab artifact is owned by the caller's Vocab-derived
+            // cache, not a process-global load cache, so this remains honest
+            // model-vocabulary preparation and does not make later constraints
+            // cheaper merely because an earlier constraint was loaded.
+            if let Some(vocab_packed) =
+                crate::compiler::compile::prepared_vocab_packed_token_bytes(vocab)
+                && packed.wire() == vocab_packed.wire()
+            {
+                return true;
+            }
+            // Legacy/noncanonical packed encodings can still describe the same
+            // vocabulary. Preserve the exact structural fallback rather than
+            // treating unequal wire encodings as unequal vocabularies.
             return packed.len() == vocab.entries_map().len()
                 && packed.iter().eq(
                     vocab
@@ -13657,6 +13669,34 @@ mod dense_internal_token_mask_tests {
         let bound = Arc::clone(&constraint.token_bytes);
         assert!(constraint.bind_vocab_exact(&vocab_bad).is_err());
         assert!(Arc::ptr_eq(&constraint.token_bytes, &bound));
+    }
+
+    #[test]
+    fn loaded_constraint_binds_prepared_equal_vocab_and_rejects_mismatch() {
+        let vocab_a = Vocab::new(vec![(0, b"a".to_vec()), (1, b"b".to_vec())]);
+        let vocab_b = Vocab::new(vec![(0, b"a".to_vec()), (1, b"b".to_vec())]);
+        let vocab_bad = Vocab::new(vec![(0, b"a".to_vec()), (1, b"c".to_vec())]);
+        let constraint = Constraint::from_glrm_grammar(
+            "start start;\nt A ::= \"a\";\nnt start ::= A;\n",
+            &vocab_a,
+        )
+        .unwrap();
+        let saved = constraint.save();
+
+        // Prepare exactly the pure Vocab artifact used by the packed-wire fast
+        // path, then bind a current-format loaded constraint. This exercises
+        // the path used by serving/CFA where vocabulary preparation is shared
+        // across many independently loaded constraints.
+        let _ = crate::compiler::compile::vocab_packed_token_bytes(&vocab_b);
+        let mut loaded = Constraint::load(saved.clone()).unwrap();
+        assert!(loaded.packed_token_bytes.is_some());
+        loaded.bind_vocab_exact(&vocab_b).unwrap();
+        assert!(Arc::ptr_eq(&loaded.token_bytes, &vocab_b.entries_arc()));
+
+        let _ = crate::compiler::compile::vocab_packed_token_bytes(&vocab_bad);
+        let mut mismatched = Constraint::load(saved).unwrap();
+        assert!(mismatched.packed_token_bytes.is_some());
+        assert!(mismatched.bind_vocab_exact(&vocab_bad).is_err());
     }
     use crate::Vocab;
 

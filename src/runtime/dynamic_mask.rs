@@ -6472,16 +6472,19 @@ nt start ::= A;
             "the exact billion-bound lexer must remain an arithmetic runtime state",
         );
         assert!(
-            billion.inner.dynamic_mask_vocab.mask_projection_tokenizer().is_none(),
-            "virtual mask projection should be deferred until an exact mask is requested",
+            billion.inner.dynamic_mask_vocab.mask_projection_tokenizer().is_some(),
+            "virtual mask projection is immutable build-derived runtime data and must be prepared before the first mask",
         );
-        let billion_mask = billion.inner.start().mask();
         let mask_tokenizer = billion
             .inner
-            .lazy_dynamic_mask_vocab
-            .get()
-            .and_then(|vocab| vocab.mask_projection_tokenizer())
-            .expect("first mask must materialize the finite virtual mask projection");
+            .dynamic_mask_vocab
+            .mask_projection_tokenizer()
+            .expect("build finalization must prepare the finite virtual mask projection");
+        let billion_mask = billion.inner.start().mask();
+        assert!(
+            billion.inner.lazy_dynamic_mask_vocab.get().is_none(),
+            "first mask must not materialize hidden projection state",
+        );
         assert_eq!(
             mask_tokenizer.num_states(),
             vocab.max_token_byte_len() as u32 + 3,

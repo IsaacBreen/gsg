@@ -68,6 +68,14 @@ pub(crate) fn vocab_packed_token_bytes(
     prepare_vocab_packed_token_bytes(vocab)
 }
 
+pub(crate) fn prepared_vocab_packed_token_bytes(
+    vocab: &crate::Vocab,
+) -> Option<std::sync::Arc<crate::runtime::PackedTokenBytes>> {
+    vocab
+        .vocab_derived_cache_get::<VocabPackedTokenBytes>()
+        .map(|cached| std::sync::Arc::clone(&cached.packed))
+}
+
 /// Populate only vocabulary artifacts used by DynamicConstraint compilation/runtime.
 ///
 /// O2 vocabulary partitioning reuses the terminal-DWA module's *pure vocabulary*
