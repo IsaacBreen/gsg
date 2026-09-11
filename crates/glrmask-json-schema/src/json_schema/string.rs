@@ -205,7 +205,15 @@ impl<'a> Lowerer<'a> {
                         lowerer.add_terminal_rule(&name, seq(parts));
                         return Ok(r(&name));
                     }
-                    if let Some(expr) = lowerer.lower_anchored_prefix_any_suffix_bounded_pattern_expr(schema)? {
+                    // Static compilation still benefits from splitting a long anchored-prefix
+                    // pattern into parser-visible fixed-size chunks. Dynamic compilation has an
+                    // exact lazy bounded-residual runtime, so keep the pattern and its length
+                    // envelope inside one semantic terminal instead. Exposing 64-byte chunks to
+                    // the parser makes a mid-string mask walk almost the entire model vocabulary.
+                    if !use_lazy_ordinary_bounded_string(&lowerer.config)
+                        && let Some(expr) = lowerer
+                            .lower_anchored_prefix_any_suffix_bounded_pattern_expr(schema)?
+                    {
                         lowerer.add_nonterminal_rule(&name, expr);
                         return Ok(r(&name));
                     }

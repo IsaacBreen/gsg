@@ -3413,6 +3413,23 @@ fn large_simple_bounded_string_pattern_uses_exact_chunked_prefix_tail() {
 }
 
 #[test]
+fn dynamic_bounded_anchored_prefix_pattern_stays_one_semantic_terminal() {
+    let schema = json!({
+        "type": "string",
+        "maxLength": 512,
+        "pattern": "^/.*"
+    });
+
+    let grammar = schema_to_named_grammar_for_dynamic(&schema).unwrap();
+    let glrm = to_glrm(&grammar);
+    assert!(glrm.contains("json_string_constrained_bounded"), "{glrm}");
+    assert!(!glrm.contains("json_string_anchored_prefix_open"), "{glrm}");
+    assert!(!glrm.contains("json_string_char_exact_64"), "{glrm}");
+    assert!(glrm.contains(" & "), "{glrm}");
+    lower(&grammar).unwrap();
+}
+
+#[test]
 fn chunked_anchored_prefix_pattern_preserves_bounds_and_search_semantics() {
     let schema = json!({
         "type": "string",
