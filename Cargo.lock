@@ -12,6 +12,7 @@ dependencies = [
  "numpy",
  "pyo3",
  "self_cell",
+ "serde_json",
 ]
 
 [[package]]

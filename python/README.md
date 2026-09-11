@@ -195,6 +195,21 @@ constraint = glrmask.DynamicConstraint.from_json_schema(
 
 `DynamicConstraintState` has the same decoding methods as `ConstraintState`.
 
+For JSON Schema, `AutoConstraint` chooses among the ordinary dynamic mode (O1),
+the vocabulary-partitioned dynamic mode (O2), and the fully static compiler
+(O3) from cheap schema-shape features. It is intended for callers that want a
+better build-time/runtime-tail tradeoff without selecting a tier manually:
+
+```python
+constraint = glrmask.AutoConstraint.from_json_schema(schema, vocab)
+print(constraint.selected_tier)  # "o1", "o2", or "o3"
+state = constraint.start()
+```
+
+`AutoConstraint.save()` records the selected backend and `AutoConstraint.load()`
+restores that backend directly; loading does not rerun the policy. The current
+policy is exposed as `constraint.policy` for benchmark/reproducibility metadata.
+
 ## Grammar formats
 
 GLRM is GLRMask's native grammar format. A grammar begins with `glrm 1;` and a `start` declaration. Rules use `=`; regexes use full-match semantics, and unsupported or non-regular constructs are rejected:
