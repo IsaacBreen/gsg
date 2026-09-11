@@ -3643,6 +3643,20 @@ fn complete_empty_possible_matches_computation(
     }
 }
 
+/// Runtime dynamic-mask state is not part of a complete static PM artifact.
+///
+/// Keep it unmaterialized when the PM analysis proves there are no delayed
+/// terminals at all. `Constraint::dynamic_mask_vocab_for_runtime()` already
+/// reconstructs this vocabulary from the retained token bytes if an unusual
+/// runtime path later asks for exact dynamic masking, so constructing the full
+/// byte-sorted vocabulary/trie here would only charge vocabulary-global setup
+/// to the first otherwise-trivial static constraint.
+fn lazy_runtime_dynamic_vocab_artifacts() -> RuntimeDynamicMaskVocabArtifacts {
+    RuntimeDynamicMaskVocabArtifacts {
+        vocab: DynamicMaskVocab::default(),
+    }
+}
+
 fn compute_constraint_possible_matches_with_artifacts(
     tokenizer: &Tokenizer,
     original_token_count: usize,
@@ -4028,6 +4042,21 @@ fn compute_constraint_possible_matches_for_vocab_impl(
         );
     }
 
+    // This is a grammar/tokenizer fact, independent of the model vocabulary.
+    // Check it before touching the vocabulary-global ordered-trie cache.  For
+    // simple exact languages (for example the JSON schema that accepts only
+    // `{}`), there is no delayed terminal whose possible-token relation needs
+    // collecting, so a full Llama-sized trie build and dynamic-mask template
+    // are pure first-use overhead.
+    if delayed_terminal_demand(tokenizer).terminals.is_zero() {
+        return complete_empty_possible_matches_computation(
+            tokenizer,
+            vocab.entries_map().len(),
+            lazy_runtime_dynamic_vocab_artifacts(),
+            0.0,
+        );
+    }
+
     if pm_vocab_equiv_enabled() && pm_vocab_equiv_supported(tokenizer) {
         let (full_artifacts, full_profile) = get_ordered_vocab_trie_artifacts_for_vocab(vocab);
         let runtime_dynamic_vocab = runtime_dynamic_vocab_artifacts(&full_artifacts);
@@ -4335,6 +4364,10 @@ mod tests {
         );
         assert!(computation.complete);
         assert!(computation.mapped_possible_matches.artifact().is_empty());
+        assert!(
+            !computation.runtime_dynamic_vocab.vocab.is_initialized(),
+            "complete empty PM must not eagerly build the dynamic-mask vocabulary",
+        );
         assert!(computation
             .mapped_possible_matches
             .id_map()

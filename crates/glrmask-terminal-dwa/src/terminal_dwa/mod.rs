@@ -1011,7 +1011,7 @@ pub fn prepare_partition_local_tokenizers(
         return None;
     }
     use rayon::prelude::*;
-    let sub_vocabs = build_char_type_sub_vocabs(vocab, true, None);
+    let sub_vocabs = build_char_type_sub_vocabs(vocab, true, None, None);
     let entries = sub_vocabs
         .par_iter()
         .enumerate()
@@ -1139,7 +1139,37 @@ struct CharTypeSubVocabKey {
 #[derive(Debug)]
 struct CharTypeSubVocabVariant {
     key: CharTypeSubVocabKey,
-    sub_vocabs: Arc<[Vocab]>,
+    partitions: Arc<[CharTypeSubVocabPartition]>,
+}
+
+#[derive(Debug)]
+struct CharTypeSubVocabPartition {
+    token_ids: Box<[u32]>,
+    bytes: U8Set,
+    vocab: OnceLock<Vocab>,
+}
+
+impl CharTypeSubVocabPartition {
+    fn materialize(&self, parent: &Vocab) -> Vocab {
+        self.vocab
+            .get_or_init(|| {
+                let mut entries = Vec::with_capacity(self.token_ids.len());
+                let mut follow_bytes = [U8Set::empty(); 256];
+                for &token_id in self.token_ids.iter() {
+                    let bytes = parent
+                        .get(token_id)
+                        .expect("char-type partition token must exist in parent vocab");
+                    for pair in bytes.windows(2) {
+                        follow_bytes[pair[0] as usize].insert(pair[1]);
+                    }
+                    entries.push((token_id, bytes.to_vec()));
+                }
+                let vocab = Vocab::new(entries);
+                classify::cache_vocab_classification_facts(&vocab, self.bytes, follow_bytes);
+                vocab
+            })
+            .clone()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -1244,6 +1274,7 @@ fn build_char_type_sub_vocabs(
     vocab: &Vocab,
     automatic_bounded_synthesis_overflow: bool,
     automatic_p2_overflow_threshold: Option<usize>,
+    relevant_bytes: Option<U8Set>,
 ) -> Arc<[Vocab]> {
     let key = char_type_partition_config(
         automatic_bounded_synthesis_overflow,
@@ -1259,7 +1290,21 @@ fn build_char_type_sub_vocabs(
     if let Ok(variants) = cache.variants.lock()
         && let Some(cached) = variants.iter().find(|variant| variant.key == key)
     {
-        return Arc::clone(&cached.sub_vocabs);
+        let empty = Vocab::new(Vec::new());
+        return cached
+            .partitions
+            .iter()
+            .map(|partition| {
+                if relevant_bytes
+                    .is_some_and(|bytes| partition.bytes.is_disjoint(&bytes))
+                {
+                    empty.clone()
+                } else {
+                    partition.materialize(vocab)
+                }
+            })
+            .collect::<Vec<_>>()
+            .into();
     }
 
 
@@ -1271,12 +1316,7 @@ fn build_char_type_sub_vocabs(
         regular_partition::char_type_partition_count(regular_key.expect("default partition key"))
     };
 
-    let mut partition_entries: Vec<Vec<(u32, Vec<u8>)>> =
-        (0..partition_count).map(|_| Vec::new()).collect();
-    let mut partition_bytes = vec![U8Set::empty(); partition_count];
-    let mut partition_follow_bytes: Vec<[U8Set; 256]> =
-        (0..partition_count).map(|_| [U8Set::empty(); 256]).collect();
-    for (&token_id, bytes) in vocab.entries_map().iter() {
+    let partition_index = |bytes: &[u8]| {
         let idx = if custom_partition {
             classify::classify_vocab_char_type(bytes) as usize
         } else {
@@ -1287,40 +1327,88 @@ fn build_char_type_sub_vocabs(
                 regular_key.expect("default partition key"),
             )
         };
-        for &byte in bytes {
-            partition_bytes[idx].insert(byte);
+        idx
+    };
+    let new_partition_accumulator = || {
+        (
+            (0..partition_count)
+                .map(|_| Vec::<u32>::new())
+                .collect::<Vec<_>>(),
+            vec![U8Set::empty(); partition_count],
+        )
+    };
+    let (partition_token_ids, partition_bytes) = if vocab.len() >= 16_384
+        && !macro_parallelism_disabled()
+    {
+        use rayon::prelude::*;
+        vocab
+            .entries_map()
+            .par_iter()
+            .fold(new_partition_accumulator, |mut acc, (&token_id, bytes)| {
+                let idx = partition_index(bytes);
+                for &byte in bytes {
+                    acc.1[idx].insert(byte);
+                }
+                acc.0[idx].push(token_id);
+                acc
+            })
+            .reduce(new_partition_accumulator, |mut left, mut right| {
+                for idx in 0..partition_count {
+                    left.0[idx].append(&mut right.0[idx]);
+                    left.1[idx] = left.1[idx].union(&right.1[idx]);
+                }
+                left
+            })
+    } else {
+        let mut acc = new_partition_accumulator();
+        for (&token_id, bytes) in vocab.entries_map().iter() {
+            let idx = partition_index(bytes);
+            for &byte in bytes {
+                acc.1[idx].insert(byte);
+            }
+            acc.0[idx].push(token_id);
         }
-        for pair in bytes.windows(2) {
-            partition_follow_bytes[idx][pair[0] as usize].insert(pair[1]);
-        }
-        partition_entries[idx].push((token_id, bytes.clone()));
-    }
-    let sub_vocabs: Arc<[Vocab]> = partition_entries
+        acc
+    };
+    let partitions: Arc<[CharTypeSubVocabPartition]> = partition_token_ids
         .into_iter()
         .enumerate()
-        .map(|(idx, entries)| {
-            let vocab = Vocab::new(entries);
-            classify::cache_vocab_classification_facts(
-                &vocab,
-                partition_bytes[idx],
-                partition_follow_bytes[idx],
-            );
-            vocab
+        .map(|(idx, token_ids)| CharTypeSubVocabPartition {
+            token_ids: token_ids.into_boxed_slice(),
+            bytes: partition_bytes[idx],
+            vocab: OnceLock::new(),
         })
         .collect::<Vec<_>>()
         .into();
-    if let Ok(mut variants) = cache.variants.lock() {
-        // Another compile can race the expensive construction.  Keep exactly
-        // one canonical variant and share it with all future compiles.
+    let partitions = if let Ok(mut variants) = cache.variants.lock() {
+        // Another compile can race the vocabulary-only layout construction.
+        // Keep exactly one canonical layout; each partition materializes its
+        // owned `Vocab` lazily on first relevant use.
         if let Some(cached) = variants.iter().find(|variant| variant.key == key) {
-            return Arc::clone(&cached.sub_vocabs);
+            Arc::clone(&cached.partitions)
+        } else {
+            variants.push(CharTypeSubVocabVariant {
+                key,
+                partitions: Arc::clone(&partitions),
+            });
+            partitions
         }
-        variants.push(CharTypeSubVocabVariant {
-            key,
-            sub_vocabs: Arc::clone(&sub_vocabs),
-        });
-    }
-    sub_vocabs
+    } else {
+        partitions
+    };
+
+    let empty = Vocab::new(Vec::new());
+    partitions
+        .iter()
+        .map(|partition| {
+            if relevant_bytes.is_some_and(|bytes| partition.bytes.is_disjoint(&bytes)) {
+                empty.clone()
+            } else {
+                partition.materialize(vocab)
+            }
+        })
+        .collect::<Vec<_>>()
+        .into()
 }
 
 pub fn prepare_vocab_for_terminal_dwa(vocab: &Vocab) {
@@ -1344,6 +1432,7 @@ pub fn prepare_vocab_for_terminal_dwa(vocab: &Vocab) {
                 vocab,
                 automatic_bounded_synthesis_overflow,
                 None,
+                None,
             )
             .iter()
             {
@@ -1360,6 +1449,7 @@ pub fn prepare_vocab_for_terminal_dwa(vocab: &Vocab) {
                 vocab,
                 automatic_bounded_synthesis_overflow,
                 Some(8),
+                None,
             );
             for partition in [2usize, 9usize] {
                 if let Some(sub_vocab) = overflow_sub_vocabs.get(partition) {
@@ -1713,6 +1803,7 @@ pub fn build_vocab_equivalence_partition_with_precomputed_global_max_length(
         vocab,
         partition_local_synthesis_plan.is_some(),
         automatic_p2_overflow_threshold(tokenizer.num_states()),
+        None,
     );
     let partition_labels = (0..sub_vocabs.len())
         .map(|idx| format!("p{idx}"))
@@ -1930,12 +2021,20 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
     let requested_partition_scheme =
         std::env::var("GLRMASK_PARTITION_SCHEME").unwrap_or_else(|_| "char_type".to_string());
     let partition_scheme = requested_partition_scheme.as_str();
+    let char_type_relevant_bytes = (partition_scheme == "char_type").then(|| {
+        shared_classify_cache
+            .get_or_init(|| {
+                classify::SharedClassifyBytesets::build(tokenizer, grammar.num_terminals)
+            })
+            .reachable_bytes_union()
+    });
 
     let sub_vocabs: Arc<[Vocab]> = match partition_scheme {
         "char_type" => build_char_type_sub_vocabs(
             vocab,
             partition_local_synthesis_plan.is_some(),
             automatic_p2_overflow_threshold(tokenizer.num_states()),
+            char_type_relevant_bytes,
         ),
         "l2p_cost" => {
             let cost_fn = l2p_partition_cost_fn_from_env();
@@ -2834,14 +2933,17 @@ mod tests {
         AutomaticBranchActiveStateMapStrategy,
         DEFAULT_GLOBAL_MAX_LENGTH_STABLE_SIGNATURE_CELL_LIMIT,
         automatic_branch_active_state_map_strategy,
+        build_char_type_sub_vocabs,
         short_horizon_partition_local_synthesis_estimate_is_profitable,
         short_horizon_partition_local_synthesis_probe_selected,
         should_auto_use_global_max_length, use_global_single_terminal_l1,
     };
     use crate::compiler::glr::analysis::AnalyzedGrammar;
+    use crate::ds::u8set::U8Set;
     use crate::grammar::flat::{
         DirectRegularAutomaton, DirectRegularState, GrammarDef, Rule, Symbol, Terminal,
     };
+    use crate::Vocab;
 
     fn analyzed_single_terminal(rules: Vec<Rule>, start: u32) -> AnalyzedGrammar {
         AnalyzedGrammar::from_grammar_def(&GrammarDef {
@@ -2878,6 +2980,36 @@ mod tests {
             }),
             ..GrammarDef::default()
         })
+    }
+
+    #[test]
+    fn char_type_relevance_filter_skips_disjoint_partitions_without_poisoning_vocab_cache() {
+        if super::classify::vocab_partition_is_custom() {
+            return;
+        }
+
+        let vocab = Vocab::new(vec![(0, b"{}".to_vec()), (1, b"hello".to_vec())]);
+        let all = build_char_type_sub_vocabs(&vocab, false, None, None);
+        let structural_partition = all
+            .iter()
+            .position(|partition| partition.get(0).is_some())
+            .expect("structural token should be assigned to one partition");
+        let word_partition = all
+            .iter()
+            .position(|partition| partition.get(1).is_some())
+            .expect("word token should be assigned to one partition");
+        assert_ne!(structural_partition, word_partition);
+
+        let mut relevant = U8Set::empty();
+        relevant.insert(b'{');
+        let filtered = build_char_type_sub_vocabs(&vocab, false, None, Some(relevant));
+        assert!(filtered[structural_partition].get(0).is_some());
+        assert!(filtered[word_partition].is_empty());
+
+        // Grammar-specific relevance must never mutate the vocabulary-pure
+        // cached partition layout/materializations.
+        let all_again = build_char_type_sub_vocabs(&vocab, false, None, None);
+        assert!(all_again[word_partition].get(1).is_some());
     }
 
     #[test]

@@ -887,7 +887,7 @@ fn build_partition_id_map_and_terminal_dwa_impl(
         })
         .unwrap_or(true);
     let shared_l1_token_trie = if use_prebuilt_l1_token_trie && (has_l1 || has_l2p) {
-        super::l1::prepared_l1_token_bounded_analysis_trie(vocab)
+        super::l1::cached_l1_token_bounded_analysis_trie(vocab)
     } else {
         None
     };
@@ -979,8 +979,16 @@ fn build_partition_id_map_and_terminal_dwa_impl(
             trimmed.is_empty() || (trimmed != "0" && !trimmed.eq_ignore_ascii_case("false"))
         })
         .unwrap_or(true);
-    let shared_l1_parent_order = derive_l1_subset_order
-        .then(|| super::l1::prepared_l1_identity_vocab_order(vocab));
+    // The parent identity order is consumed only by the split-off L2P-single
+    // branch below.  Building it for partitions with no such branch is pure
+    // vocabulary work; on Llama-sized vocabs an inactive char-type partition
+    // can otherwise spend many milliseconds sorting tens of thousands of
+    // tokens before returning `None`.
+    let shared_l1_parent_order = (derive_l1_subset_order
+        && has_split_l1
+        && !combine_l1_single)
+        .then(|| super::l1::cached_l1_identity_vocab_order(vocab))
+        .flatten();
 
     let effective_l2p_initial_state_map = initial_state_map;
 
