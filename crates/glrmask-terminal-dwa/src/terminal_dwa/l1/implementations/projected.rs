@@ -679,23 +679,32 @@ fn minimize_direct_residual_union(
     // states in the same seed block; the exact Hopcroft pass below splits them.
     let mut hashes = vec![0x9e37_79b9_7f4a_7c15u64; transitions.len()];
     let mut class_counts = Vec::with_capacity(ROUNDS);
+    // Rayon setup dominates these two fingerprint rounds for tiny direct
+    // residual unions. Keep genuinely small machines on the calling worker;
+    // larger unions retain parallel hashing. The work metric counts exactly
+    // the states and live edges visited by each round.
+    const SEQUENTIAL_SEED_WORK_LIMIT: usize = 64;
+    let transition_work = transitions.len()
+        + transitions.iter().map(Vec::len).sum::<usize>();
     for _ in 0..ROUNDS {
-        hashes = transitions
-            .par_iter()
-            .map(|row| {
-                let mut hash = 0x243f_6a88_85a3_08d3u64 ^ row.len() as u64;
-                for &(symbol, target) in row {
-                    let value = hashes[target as usize]
-                        ^ (u64::from(symbol) + 1).wrapping_mul(0x9e37_79b1_85eb_ca87);
-                    hash ^= value.wrapping_mul(0xc2b2_ae3d_27d4_eb4f);
-                    hash = hash
-                        .rotate_left(27)
-                        .wrapping_mul(0x1656_67b1_9e37_79f9)
-                        .wrapping_add(0x85eb_ca77_c2b2_ae63);
-                }
-                hash
-            })
-            .collect();
+        let hash_row = |row: &Vec<(u8, u32)>| {
+            let mut hash = 0x243f_6a88_85a3_08d3u64 ^ row.len() as u64;
+            for &(symbol, target) in row {
+                let value = hashes[target as usize]
+                    ^ (u64::from(symbol) + 1).wrapping_mul(0x9e37_79b1_85eb_ca87);
+                hash ^= value.wrapping_mul(0xc2b2_ae3d_27d4_eb4f);
+                hash = hash
+                    .rotate_left(27)
+                    .wrapping_mul(0x1656_67b1_9e37_79f9)
+                    .wrapping_add(0x85eb_ca77_c2b2_ae63);
+            }
+            hash
+        };
+        hashes = if transition_work <= SEQUENTIAL_SEED_WORK_LIMIT {
+            transitions.iter().map(hash_row).collect()
+        } else {
+            transitions.par_iter().map(hash_row).collect()
+        };
         if profile {
             let mut unique = FxHashMap::<u64, ()>::default();
             for &hash in &hashes {
