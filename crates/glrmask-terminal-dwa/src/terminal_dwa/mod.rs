@@ -1881,7 +1881,7 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
     let direct_single_terminal = use_global_single_terminal_l1(grammar, ignore_terminal);
     if direct_single_terminal {
         let active_terminals = vec![true];
-        if let Some(result) = l1::build_l1_id_map_and_terminal_dwa(
+        if let Some(result) = l1::build_l1_id_map_and_terminal_dwa_mode(
             "single_terminal_global",
             tokenizer,
             vocab,
@@ -1896,6 +1896,7 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
             None,
             None,
             None,
+            id_map_only,
         ) {
             let total_ms = total_started_at.elapsed().as_secs_f64() * 1000.0;
             let mut profile = result.profile;
@@ -2171,13 +2172,26 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
         let mut original_to_internal = vec![u32::MAX; vocab.max_token_id() as usize + 1];
         let mut class_offset = 0u32;
         for (sub_vocab, map) in sub_vocabs.iter().zip(&maps) {
-            let Some(map) = map.as_ref() else { continue };
-            for &token_id in sub_vocab.entries_map().keys() {
-                let local = map.original_to_internal[token_id as usize];
-                assert_ne!(local, u32::MAX, "vocab ID-map-only partition left token unmapped");
-                original_to_internal[token_id as usize] = class_offset + local;
+            if let Some(map) = map.as_ref() {
+                for &token_id in sub_vocab.entries_map().keys() {
+                    let local = map.original_to_internal[token_id as usize];
+                    assert_ne!(local, u32::MAX, "vocab ID-map-only partition left token unmapped");
+                    original_to_internal[token_id as usize] = class_offset + local;
+                }
+                class_offset += map.num_internal_ids();
+            } else if !sub_vocab.is_empty() {
+                // A non-empty character partition can return no map only when no
+                // active terminal branch observes any token in it (all terminal
+                // path lengths are zero, or a candidate branch finds no match).
+                // Those tokens all have the same dead/no-match observation.  The
+                // old outer fallback made every one a singleton, exploding tiny
+                // punctuation-only grammars back toward the full model vocab.
+                let dead_class = class_offset;
+                class_offset += 1;
+                for &token_id in sub_vocab.entries_map().keys() {
+                    original_to_internal[token_id as usize] = dead_class;
+                }
             }
-            class_offset += map.num_internal_ids();
         }
         for &token_id in vocab.entries_map().keys() {
             if original_to_internal[token_id as usize] == u32::MAX {

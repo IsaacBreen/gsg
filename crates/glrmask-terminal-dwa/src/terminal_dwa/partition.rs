@@ -712,7 +712,10 @@ fn partition_parts_vocab_map(
     match maps.as_slice() {
         [] => None,
         [only] => Some(only.clone()),
-        _ => Some(common_refine_partition_maps(vocab, &maps)),
+        // In the vocab-map-only path a token absent from every branch is likewise
+        // unobservable by every active terminal family represented by those maps.
+        // Preserve all proved branch distinctions, but merge that common dead set.
+        _ => Some(common_refine_partition_maps_impl(vocab, &maps, true)),
     }
 }
 
@@ -1770,6 +1773,14 @@ fn singleton_vocab_map(vocab: &Vocab) -> ManyToOneIdMap {
 }
 
 fn common_refine_partition_maps(vocab: &Vocab, maps: &[ManyToOneIdMap]) -> ManyToOneIdMap {
+    common_refine_partition_maps_impl(vocab, maps, false)
+}
+
+fn common_refine_partition_maps_impl(
+    vocab: &Vocab,
+    maps: &[ManyToOneIdMap],
+    merge_uncovered: bool,
+) -> ManyToOneIdMap {
     use rustc_hash::FxHashMap;
     let force_generic = std::env::var("GLRMASK_VOCAB_PARTITION_GENERIC_REFINE")
         .ok()
@@ -1777,7 +1788,11 @@ fn common_refine_partition_maps(vocab: &Vocab, maps: &[ManyToOneIdMap]) -> ManyT
             let value = value.trim();
             value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
         });
-    if !force_generic && maps.len() == 2 {
+    // The specialized two-map paths preserve the historical conservative
+    // singleton treatment for uncovered tokens.  The O2 vocab-map-only caller
+    // has an exact dead-token certificate and explicitly requests those tokens
+    // be merged, so use the generic keyed refinement in that mode.
+    if !merge_uncovered && !force_generic && maps.len() == 2 {
         let left_singleton = maps[0].internal_to_originals.iter().all(|class| class.len() == 1);
         let right_singleton = maps[1].internal_to_originals.iter().all(|class| class.len() == 1);
         let left_full = vocab.entries_map().keys().all(|&token_id| {
@@ -1816,6 +1831,7 @@ fn common_refine_partition_maps(vocab: &Vocab, maps: &[ManyToOneIdMap]) -> ManyT
     let mut original_to_internal = vec![u32::MAX; vocab.max_token_id() as usize + 1];
     let mut classes = FxHashMap::<Vec<u32>, u32>::default();
     let mut next = 0u32;
+    let mut uncovered_class = None::<u32>;
     for &token_id in vocab.entries_map().keys() {
         let mut key = Vec::with_capacity(maps.len());
         let mut covered = false;
@@ -1830,6 +1846,12 @@ fn common_refine_partition_maps(vocab: &Vocab, maps: &[ManyToOneIdMap]) -> ManyT
         }
         let class = if covered {
             *classes.entry(key).or_insert_with(|| {
+                let class = next;
+                next += 1;
+                class
+            })
+        } else if merge_uncovered {
+            *uncovered_class.get_or_insert_with(|| {
                 let class = next;
                 next += 1;
                 class
@@ -1925,8 +1947,35 @@ fn concatenate_disjoint_partition_maps(
 mod tests {
     use super::{
         automatic_combine_l1_single, automatic_structural_branch_tokenizer_selected,
-        parse_vocab_partition_exact_l2p_override,
+        common_refine_partition_maps_impl, parse_vocab_partition_exact_l2p_override,
     };
+    use crate::compiler::stages::equiv_types::ManyToOneIdMap;
+    use crate::Vocab;
+
+    #[test]
+    fn vocab_map_only_refinement_merges_tokens_unobserved_by_every_branch() {
+        let vocab = Vocab::new(vec![
+            (0, b"a".to_vec()),
+            (1, b"b".to_vec()),
+            (2, b"x".to_vec()),
+            (3, b"y".to_vec()),
+        ]);
+        let left = ManyToOneIdMap {
+            original_to_internal: vec![0, 0, u32::MAX, u32::MAX],
+            internal_to_originals: vec![vec![0, 1]],
+            representative_original_ids: vec![0],
+        };
+        let right = ManyToOneIdMap {
+            original_to_internal: vec![0, 1, u32::MAX, u32::MAX],
+            internal_to_originals: vec![vec![0], vec![1]],
+            representative_original_ids: vec![0, 1],
+        };
+
+        let merged = common_refine_partition_maps_impl(&vocab, &[left, right], true);
+        assert_ne!(merged.original_to_internal[0], merged.original_to_internal[1]);
+        assert_eq!(merged.original_to_internal[2], merged.original_to_internal[3]);
+        assert_eq!(merged.num_internal_ids(), 3);
+    }
 
     #[test]
     fn exact_l2p_override_accepts_global_and_partition_selectors() {
