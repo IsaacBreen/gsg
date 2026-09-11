@@ -2169,16 +2169,25 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
                 .map(|(idx, sub_vocab)| build_one(idx, sub_vocab))
                 .collect()
         };
-        let mut original_to_internal = vec![u32::MAX; vocab.max_token_id() as usize + 1];
-        let mut class_offset = 0u32;
+        // O2's consumer needs class membership and representatives, not the
+        // dense original-token -> class vector.  Character partitions are
+        // disjoint and exhaustive, so concatenate their already-proved class
+        // groups directly.  This avoids writing the full model-vocabulary map
+        // here and then immediately discarding it in
+        // `runtime_dynamic_vocab_for_partition`.
+        let mut internal_to_originals = Vec::<Vec<u32>>::new();
+        let mut representative_original_ids = Vec::<u32>::new();
+        let mut covered_tokens = 0usize;
         for (sub_vocab, map) in sub_vocabs.iter().zip(&maps) {
             if let Some(map) = map.as_ref() {
-                for &token_id in sub_vocab.entries_map().keys() {
-                    let local = map.original_to_internal[token_id as usize];
-                    assert_ne!(local, u32::MAX, "vocab ID-map-only partition left token unmapped");
-                    original_to_internal[token_id as usize] = class_offset + local;
+                for class in &map.internal_to_originals {
+                    if class.is_empty() {
+                        continue;
+                    }
+                    covered_tokens += class.len();
+                    representative_original_ids.push(class[0]);
+                    internal_to_originals.push(class.clone());
                 }
-                class_offset += map.num_internal_ids();
             } else if !sub_vocab.is_empty() {
                 // A non-empty character partition can return no map only when no
                 // active terminal branch observes any token in it (all terminal
@@ -2186,23 +2195,22 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
                 // Those tokens all have the same dead/no-match observation.  The
                 // old outer fallback made every one a singleton, exploding tiny
                 // punctuation-only grammars back toward the full model vocab.
-                let dead_class = class_offset;
-                class_offset += 1;
-                for &token_id in sub_vocab.entries_map().keys() {
-                    original_to_internal[token_id as usize] = dead_class;
-                }
+                let dead_class = sub_vocab.entries_map().keys().copied().collect::<Vec<_>>();
+                covered_tokens += dead_class.len();
+                representative_original_ids.push(dead_class[0]);
+                internal_to_originals.push(dead_class);
             }
         }
-        for &token_id in vocab.entries_map().keys() {
-            if original_to_internal[token_id as usize] == u32::MAX {
-                original_to_internal[token_id as usize] = class_offset;
-                class_offset += 1;
-            }
-        }
-        let vocab_tokens = ManyToOneIdMap::from_original_to_internal_allowing_unmapped(
-            original_to_internal,
-            class_offset,
+        debug_assert_eq!(
+            covered_tokens,
+            vocab.len(),
+            "disjoint exhaustive vocab partitions must cover every model token exactly once",
         );
+        let vocab_tokens = ManyToOneIdMap {
+            original_to_internal: Vec::new(),
+            internal_to_originals,
+            representative_original_ids,
+        };
         let id_map = InternalIdMap {
             tokenizer_states: global_max_length_state_map.clone(),
             vocab_tokens,

@@ -442,16 +442,40 @@ fn build_direct_terminal_residual_machine_with_coordinates<'a>(
     let local_max_ms: f64;
     let (configs, transitions, state_maps, index_ms, edges_ms) = {
         let local_started = profile.then(Instant::now);
-        let locals = terminals
-            .par_iter()
-            .map(|&terminal| {
-                coordinates
-                    .terminal_dfa_and_group(terminal)
-                    .map(|(dfa, group)| {
-                        build_direct_local_residual(dfa, group, bytes, &symbol_for_representative)
-                    })
-            })
-            .collect::<Vec<_>>();
+        // Rayon scheduling is material when this branch contains only a few
+        // tiny terminal residual DFAs (common for structural JSON terminals).
+        // Choose from actual residual work, not partition/schema identity: keep
+        // small unions on the calling worker and retain parallel construction
+        // for larger local automata where it amortizes scheduling.
+        const SEQUENTIAL_DIRECT_LOCAL_MAX_TERMINALS: usize = 4;
+        const SEQUENTIAL_DIRECT_LOCAL_MAX_TRANSITIONS: usize = 4_096;
+        let direct_local_transition_work = terminals
+            .iter()
+            .filter_map(|&terminal| coordinates.terminal_dfa_and_group(terminal))
+            .map(|(dfa, _)| dfa.transition_count())
+            .sum::<usize>();
+        let sequential_direct_locals = terminals.len() <= SEQUENTIAL_DIRECT_LOCAL_MAX_TERMINALS
+            && direct_local_transition_work <= SEQUENTIAL_DIRECT_LOCAL_MAX_TRANSITIONS;
+        let build_local = |terminal: u32| {
+            coordinates
+                .terminal_dfa_and_group(terminal)
+                .map(|(dfa, group)| {
+                    build_direct_local_residual(dfa, group, bytes, &symbol_for_representative)
+                })
+        };
+        let locals = if sequential_direct_locals {
+            terminals
+                .iter()
+                .copied()
+                .map(build_local)
+                .collect::<Vec<_>>()
+        } else {
+            terminals
+                .par_iter()
+                .copied()
+                .map(build_local)
+                .collect::<Vec<_>>()
+        };
         if locals.iter().any(Option::is_none) {
             return None;
         }
@@ -5325,13 +5349,22 @@ fn build_finite_projected_vocab_only(
         .then(|| finite_vocab.original_order.as_deref())
         .flatten();
     let token_classes = token_class.iter().copied().max().map_or(0, |class| class + 1);
-    let vocab_tokens = common::direct_vocab_id_map(
-        input.vocab.max_token_id(),
-        aliases,
-        &token_class,
-        token_classes,
-        preordered_vocab,
-    );
+    let vocab_tokens = if input.id_map_only {
+        common::grouped_vocab_id_map(
+            aliases,
+            &token_class,
+            token_classes,
+            preordered_vocab,
+        )
+    } else {
+        common::direct_vocab_id_map(
+            input.vocab.max_token_id(),
+            aliases,
+            &token_class,
+            token_classes,
+            preordered_vocab,
+        )
+    };
     let compact_wall_ms = compact_timer.elapsed().as_secs_f64() * 1000.0;
     let compact_cpu_ms = 0.0;
     let total_wall_ms = total_timer.elapsed().as_secs_f64() * 1000.0;
@@ -5630,13 +5663,22 @@ fn build_binary_vocab_only_with_switch(
         .then(|| prepared_vocab.as_ref().and_then(|p| p.original_order.as_deref()))
         .flatten();
     let token_classes = token_class.iter().copied().max().map_or(0, |class| class + 1);
-    let vocab_tokens = common::direct_vocab_id_map(
-        input.vocab.max_token_id(),
-        aliases,
-        &token_class,
-        token_classes,
-        preordered_vocab,
-    );
+    let vocab_tokens = if input.id_map_only {
+        common::grouped_vocab_id_map(
+            aliases,
+            &token_class,
+            token_classes,
+            preordered_vocab,
+        )
+    } else {
+        common::direct_vocab_id_map(
+            input.vocab.max_token_id(),
+            aliases,
+            &token_class,
+            token_classes,
+            preordered_vocab,
+        )
+    };
     let compact_wall_ms = compact_timer.elapsed().as_secs_f64() * 1000.0;
     let compact_cpu_ms = 0.0;
     let total_wall_ms = total_timer.elapsed().as_secs_f64() * 1000.0;

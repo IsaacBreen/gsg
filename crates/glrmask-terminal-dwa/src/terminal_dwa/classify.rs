@@ -193,7 +193,22 @@ impl L2pVocabBoundarySplit {
     }
 
     pub fn single_vocab(&self, vocab: &Vocab) -> Vocab {
-        Self::materialize_vocab(vocab, &self.single_token_ids)
+        // The single side is consumed only by the projected-L1 builder. It
+        // does not need the L2P common-atom suffix provenance propagated by
+        // `materialize_vocab`. For the usual sparse split, direct token-ID
+        // lookups avoid walking the entire parent partition merely to extract
+        // a few dozen entries.
+        Vocab::new(
+            self.single_token_ids
+                .iter()
+                .filter_map(|&token_id| {
+                    vocab
+                        .entries_map()
+                        .get(&token_id)
+                        .map(|bytes| (token_id, bytes.clone()))
+                })
+                .collect(),
+        )
     }
 }
 
@@ -3198,11 +3213,46 @@ fn exact_terminal_path_two_plus_finite_literals(
         }
     }
 
+    // Every exact within-token boundary between two finite literal terminals
+    // necessarily contains the final byte of the left literal immediately
+    // followed by the first byte of the right literal.  Use the immutable
+    // per-vocabulary adjacent-pair index to restrict the expensive witness
+    // scan to tokens that contain at least one such *allowed* pair.  This is a
+    // strict necessary-condition filter only; the unchanged trie walk below
+    // remains the authority for the actual terminal/path relation.
+    let mut allowed_boundary_pairs = [U8Set::empty(); 256];
+    for (local_1, left_literals) in literals_by_local.iter().enumerate() {
+        let allowed = allowed_after[local_1];
+        if allowed == 0 {
+            continue;
+        }
+        for left in left_literals {
+            let Some(&left_last) = left.last() else {
+                continue;
+            };
+            let mut followers = allowed;
+            while followers != 0 {
+                let local_2 = followers.trailing_zeros() as usize;
+                followers &= followers - 1;
+                for right in &literals_by_local[local_2] {
+                    if let Some(&right_first) = right.first() {
+                        allowed_boundary_pairs[left_last as usize].insert(right_first);
+                    }
+                }
+            }
+        }
+    }
+    let candidate_token_ids = vocab_tokens_with_adjacent_pairs(vocab, &allowed_boundary_pairs);
+
     let started_at = std::time::Instant::now();
     let mut found = 0u64;
     let mut witnesses = vec![None; candidates.len()];
     let mut checked_prefix_matches = 0usize;
-    'tokens: for (&token_id, bytes) in vocab.entries_map().iter() {
+    'tokens: for token_id in candidate_token_ids.iter().copied() {
+        let bytes = vocab
+            .entries_map()
+            .get(&token_id)
+            .expect("prepared adjacent-pair index returned a token absent from its vocabulary");
         if bytes.len() < 2 {
             continue;
         }
@@ -3334,8 +3384,9 @@ fn exact_terminal_path_two_plus_finite_literals(
     }
     if super::types::compile_profile_enabled() {
         eprintln!(
-            "[glrmask/profile][terminal_path_finite_literals] tokens={} candidates={} trie_nodes={} checked_prefix_matches={} two_plus={} total_ms={:.3}",
+            "[glrmask/profile][terminal_path_finite_literals] tokens={} candidate_tokens={} candidates={} trie_nodes={} checked_prefix_matches={} two_plus={} total_ms={:.3}",
             vocab.len(),
+            candidate_token_ids.len(),
             candidate_ids.len(),
             trie.len(),
             checked_prefix_matches,

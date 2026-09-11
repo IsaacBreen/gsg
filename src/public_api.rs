@@ -161,6 +161,23 @@ impl VocabPartition {
             );
         }
         let classes = map.internal_to_originals;
+        // Internal O2/vocab-only compilation is allowed to carry only grouped
+        // class membership and deliberately omit the model-vocab-sized dense
+        // original-token -> class vector. `VocabPartition` is a public API,
+        // however, and explicitly exposes that dense coordinate through
+        // `class_of()` / `original_to_class()`. Materialize it once at this
+        // boundary rather than forcing every internal fast path to carry it.
+        let original_to_class = if map.original_to_internal.is_empty() && !classes.is_empty() {
+            let mut dense = vec![u32::MAX; vocab.max_token_id() as usize + 1];
+            for (class_id, class) in classes.iter().enumerate() {
+                for &token_id in class {
+                    dense[token_id as usize] = class_id as u32;
+                }
+            }
+            dense
+        } else {
+            map.original_to_internal
+        };
         let class_output_masks = classes
             .iter()
             .map(|class| {
@@ -180,7 +197,7 @@ impl VocabPartition {
             })
             .collect();
         Ok(Self {
-            original_to_class: map.original_to_internal,
+            original_to_class,
             classes,
             representatives: map.representative_original_ids,
             class_output_masks,

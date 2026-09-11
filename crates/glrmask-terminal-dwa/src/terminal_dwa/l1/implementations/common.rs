@@ -65,6 +65,53 @@ pub(super) fn direct_vocab_id_map(
     }
 }
 
+/// Class-group-only vocabulary map for callers that never query
+/// original-token -> class coordinates. O2's vocabulary-only compiler consumes
+/// `internal_to_originals` directly when constructing the final runtime
+/// quotient, so allocating and zeroing a model-vocabulary-sized dense vector in
+/// every partition is pure overhead.
+pub(super) fn grouped_vocab_id_map(
+    aliases: &[Vec<u32>],
+    token_class: &[u32],
+    token_classes: u32,
+    preordered_originals: Option<&[(u32, u32)]>,
+) -> ManyToOneIdMap {
+    let mut internal_to_originals = vec![Vec::<u32>::new(); token_classes as usize];
+    let mut representative_original_ids = vec![u32::MAX; token_classes as usize];
+
+    if let Some(preordered) = preordered_originals {
+        debug_assert_eq!(preordered.len(), aliases.iter().map(Vec::len).sum::<usize>());
+        for &(original, unique) in preordered {
+            let class = token_class[unique as usize] as usize;
+            debug_assert!(class < internal_to_originals.len());
+            if representative_original_ids[class] == u32::MAX {
+                representative_original_ids[class] = original;
+            }
+            internal_to_originals[class].push(original);
+        }
+    } else {
+        for (unique, originals) in aliases.iter().enumerate() {
+            let class = token_class[unique] as usize;
+            debug_assert!(class < internal_to_originals.len());
+            let members = &mut internal_to_originals[class];
+            for &original in originals {
+                representative_original_ids[class] =
+                    representative_original_ids[class].min(original);
+                members.push(original);
+            }
+        }
+        for originals in &mut internal_to_originals {
+            originals.sort_unstable();
+        }
+    }
+
+    ManyToOneIdMap {
+        original_to_internal: Vec::new(),
+        internal_to_originals,
+        representative_original_ids,
+    }
+}
+
 fn direct_vocab_map_enabled(input: &BuildInput<'_>) -> bool {
     std::env::var("GLRMASK_L1_DIRECT_VOCAB_MAP")
         .map(|value| {
@@ -166,7 +213,14 @@ pub(super) fn finish_compacted(
         state_reps,
     );
     let token_classes = token_class.iter().copied().max().map_or(0, |class| class + 1);
-    let vocab_tokens = if direct_vocab_map_enabled(&input) {
+    let vocab_tokens = if input.id_map_only {
+        grouped_vocab_id_map(
+            aliases,
+            &token_class,
+            token_classes,
+            preordered_originals,
+        )
+    } else if direct_vocab_map_enabled(&input) {
         direct_vocab_id_map(
             input.vocab.max_token_id(),
             aliases,

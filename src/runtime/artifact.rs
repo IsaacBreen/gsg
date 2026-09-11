@@ -3419,11 +3419,23 @@ impl DynamicMaskVocab {
         trie: Arc<DynamicMaskTrie>,
         token_aliases: Arc<Vec<Vec<u32>>>,
     ) -> Self {
+        Self::from_materialized_ordered_with_all_original_token_words(
+            trie,
+            token_aliases,
+            None,
+        )
+    }
+
+    pub(crate) fn from_materialized_ordered_with_all_original_token_words(
+        trie: Arc<DynamicMaskTrie>,
+        token_aliases: Arc<Vec<Vec<u32>>>,
+        prepared_all_original_token_words: Option<Arc<Vec<u32>>>,
+    ) -> Self {
         let token_aliases = DynamicMaskAliasStore::Ordered(token_aliases);
         let (canonical_original_token_offsets, canonical_original_tokens) =
             Self::flatten_canonical_original_tokens(&token_aliases);
         let build_words = || {
-            Self::build_canonical_original_word_masks(
+            Self::build_canonical_original_word_masks_sorted(
                 &canonical_original_token_offsets,
                 &canonical_original_tokens,
             )
@@ -3439,13 +3451,37 @@ impl DynamicMaskVocab {
             (node_token_markers, full_walk_token_markers)
         };
         let build_subtree = || {
-            Self::flatten_subtree_original_tokens(
-                trie.as_ref(),
-                &canonical_original_token_offsets,
-                &canonical_original_tokens,
-            )
+            // `from_materialized_ordered` receives canonical tokens in lexical
+            // trie order. `DynamicMaskTrie::all_subtree_tokens()` therefore
+            // enumerates canonical IDs as 0..N, so the canonical flattened
+            // aliases are already exactly the subtree-order flattened aliases.
+            // Reuse the same immutable buffers instead of copying every model
+            // token ID a second time. Fall back defensively if a future caller
+            // violates the ordered-coordinate contract.
+            let subtree_identity = trie
+                .all_subtree_tokens()
+                .iter()
+                .copied()
+                .enumerate()
+                .all(|(index, canonical)| index as u32 == canonical);
+            if subtree_identity {
+                (
+                    Arc::clone(&canonical_original_token_offsets),
+                    Arc::clone(&canonical_original_tokens),
+                )
+            } else {
+                Self::flatten_subtree_original_tokens(
+                    trie.as_ref(),
+                    &canonical_original_token_offsets,
+                    &canonical_original_tokens,
+                )
+            }
         };
-        let build_all_words = || Self::build_all_original_token_words(&canonical_original_tokens);
+        let build_all_words = || {
+            prepared_all_original_token_words
+                .clone()
+                .unwrap_or_else(|| Self::build_all_original_token_words(&canonical_original_tokens))
+        };
 
         let (
             (canonical_original_word_offsets, canonical_original_word_masks),
@@ -4056,6 +4092,45 @@ impl DynamicMaskVocab {
         (Arc::new(offsets), Arc::new(masks))
     }
 
+    /// Faster exact mask construction for the ordered vocabulary coordinate.
+    /// Each canonical alias list is sorted by original token ID before this
+    /// constructor is called, so equal 32-token words are contiguous.  Build
+    /// sparse word masks in one linear pass rather than clearing/probing a
+    /// model-vocabulary-sized scratch bitset for every canonical class.
+    fn build_canonical_original_word_masks_sorted(
+        canonical_offsets: &[u32],
+        canonical_original_tokens: &[u32],
+    ) -> (Arc<Vec<u32>>, Arc<Vec<(u32, u32)>>) {
+        let canonical_count = canonical_offsets.len().saturating_sub(1);
+        let mut offsets = Vec::<u32>::with_capacity(canonical_count + 1);
+        let mut masks = Vec::<(u32, u32)>::new();
+        offsets.push(0);
+        for canonical in 0..canonical_count {
+            let start = canonical_offsets[canonical] as usize;
+            let end = canonical_offsets[canonical + 1] as usize;
+            let aliases = &canonical_original_tokens[start..end];
+            debug_assert!(aliases.windows(2).all(|pair| pair[0] <= pair[1]));
+            let mut current_word = u32::MAX;
+            let mut bits = 0u32;
+            for &token_id in aliases {
+                let word = token_id / 32;
+                if word != current_word {
+                    if current_word != u32::MAX {
+                        masks.push((current_word, bits));
+                    }
+                    current_word = word;
+                    bits = 0;
+                }
+                bits |= 1u32 << (token_id % 32);
+            }
+            if current_word != u32::MAX {
+                masks.push((current_word, bits));
+            }
+            offsets.push(masks.len() as u32);
+        }
+        (Arc::new(offsets), Arc::new(masks))
+    }
+
     fn build_all_original_token_words(originals: &[u32]) -> Arc<Vec<u32>> {
         let word_len = originals
             .iter()
@@ -4072,6 +4147,10 @@ impl DynamicMaskVocab {
     #[inline]
     pub(crate) fn all_original_token_words(&self) -> &[u32] {
         self.all_original_token_words.as_ref()
+    }
+
+    pub(crate) fn all_original_token_words_arc(&self) -> Arc<Vec<u32>> {
+        Arc::clone(&self.all_original_token_words)
     }
 
     /// Reuse only vocabulary-global proof languages and admitted-token masks.

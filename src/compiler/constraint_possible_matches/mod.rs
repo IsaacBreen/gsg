@@ -3526,6 +3526,14 @@ pub(crate) fn runtime_dynamic_vocab_for_partition(
                 .expect("partition class consumed twice");
             originals.append(&mut duplicate_group);
         }
+        if index - group_start > 1 {
+            // The grouped O2 partition keeps every class sorted by original
+            // token ID.  Merging byte-identical canonical representatives can
+            // concatenate multiple such classes, so restore that ordering only
+            // in the uncommon duplicate-byte case.  The ordered runtime
+            // constructor can then build sparse word masks linearly.
+            originals.sort_unstable();
+        }
         ordered_token_bytes.push(bytes.to_vec());
         expanded_groups.push(originals);
     }
@@ -3543,11 +3551,17 @@ pub(crate) fn runtime_dynamic_vocab_for_partition(
     let trie_started = profile.then(Instant::now);
     let runtime_trie = Arc::new(DynamicMaskTrie::from_vocab_prefix_tree(&prefix));
     let trie_ms = trie_started.map_or(0.0, elapsed_ms);
+    // This mask depends only on the model vocabulary, never on the grammar
+    // quotient. Reuse the prepared Vocab-global copy instead of scanning all
+    // original token IDs for every O2 constraint.
+    let full_vocab_template = prepared_runtime_dynamic_vocab_for_vocab(vocab);
+    let prepared_all_original_token_words = full_vocab_template.all_original_token_words_arc();
     let runtime_started = profile.then(Instant::now);
     let mut runtime = if materialize_runtime_indexes {
-        DynamicMaskVocab::from_materialized_ordered(
+        DynamicMaskVocab::from_materialized_ordered_with_all_original_token_words(
             runtime_trie,
             Arc::clone(&ordered.ordered_to_originals),
+            Some(prepared_all_original_token_words),
         )
     } else {
         DynamicMaskVocab::from_materialized_ordered_for_transfer(
@@ -3561,7 +3575,6 @@ pub(crate) fn runtime_dynamic_vocab_for_partition(
     // Reuse only the vocabulary-global safe/whitespace proof definitions; never
     // attach a separate master walk trie, which would discard the grammar
     // quotient and is unnecessary for this tier.
-    let full_vocab_template = prepared_runtime_dynamic_vocab_for_vocab(vocab);
     runtime.inherit_llg_vocab_acceleration_without_master_from(full_vocab_template.as_ref());
     let inherit_started = profile.then(Instant::now);
     runtime.mark_grammar_quotiented();

@@ -5672,6 +5672,17 @@ fn find_vocab_equivalence_classes_with_group_filter_profiled_impl<S: AsRef<[u8]>
             flat_results
         } else {
             let signature_started_at = profiling.then(Instant::now);
+            // Dispatching one Rayon job per token is substantially more
+            // expensive than the exact scan itself when both axes are tiny
+            // (for example 58 tokens x 4 quotient states).  Select serial
+            // execution from the actual state-token work, independent of
+            // partition or grammar shape.  Larger matrices retain the
+            // parallel path.
+            const SEQUENTIAL_DIRECT_SIGNATURE_MAX_PAIRS: usize = 256;
+            let use_sequential_direct = active_indices
+                .len()
+                .saturating_mul(batch.len())
+                <= SEQUENTIAL_DIRECT_SIGNATURE_MAX_PAIRS;
             let result = if let Some(scratch) = single_thread_scratch.as_mut() {
                 active_indices
                     .iter()
@@ -5685,6 +5696,25 @@ fn find_vocab_equivalence_classes_with_group_filter_profiled_impl<S: AsRef<[u8]>
                                 batch,
                                 state_group_size,
                                 scratch,
+                                false,
+                            ),
+                        )
+                    })
+                    .collect()
+            } else if use_sequential_direct {
+                let mut scratch = Scratch::new(batch.len(), num_groups);
+                active_indices
+                    .iter()
+                    .map(|&token_idx| {
+                        let token = strings[token_idx].as_ref();
+                        (
+                            token_idx,
+                            token_signature(
+                                dfa_ref,
+                                token,
+                                batch,
+                                state_group_size,
+                                &mut scratch,
                                 false,
                             ),
                         )

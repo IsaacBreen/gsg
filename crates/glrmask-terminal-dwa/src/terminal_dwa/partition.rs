@@ -97,9 +97,9 @@ fn vocab_partition_exact_l2p_selected(
     boundary_tokens >= min_tokens
 }
 
-fn singleton_id_map_only_artifact(
+fn singleton_id_map_only_artifact_from_token_ids(
     tokenizer: &Tokenizer,
-    vocab: &Vocab,
+    token_ids: &[u32],
     initial_state_map: Option<&ManyToOneIdMap>,
 ) -> LocalIdMapTerminalDwa {
     let tokenizer_states = initial_state_map.cloned().unwrap_or_else(|| {
@@ -109,9 +109,18 @@ fn singleton_id_map_only_artifact(
             ids,
         )
     });
+    let internal_to_originals = token_ids
+        .iter()
+        .copied()
+        .map(|token_id| vec![token_id])
+        .collect::<Vec<_>>();
     let id_map = InternalIdMap {
         tokenizer_states,
-        vocab_tokens: singleton_vocab_map(vocab),
+        vocab_tokens: ManyToOneIdMap {
+            original_to_internal: Vec::new(),
+            internal_to_originals,
+            representative_original_ids: token_ids.to_vec(),
+        },
         deferred_vocab_singleton_original_ids: None,
     };
     let dwa = crate::automata::weighted_u32::dwa::DWA::new(
@@ -1185,17 +1194,16 @@ fn build_partition_id_map_and_terminal_dwa_impl(
                             (None, 0.0)
                         } else {
                             let started_at = Instant::now();
-                            let boundary_vocab = split.boundary_vocab(vocab);
                             if id_map_only
                                 && !vocab_partition_exact_l2p_selected(
                                     partition_label,
-                                    boundary_vocab.len(),
+                                    split.boundary_tokens,
                                     vocab_partition_exact_l2p_min_tokens(),
                                 )
                             {
-                                let result = singleton_id_map_only_artifact(
+                                let result = singleton_id_map_only_artifact_from_token_ids(
                                     tokenizer,
-                                    &boundary_vocab,
+                                    split.boundary_token_ids(),
                                     effective_l2p_initial_state_map,
                                 );
                                 return (
@@ -1203,6 +1211,7 @@ fn build_partition_id_map_and_terminal_dwa_impl(
                                     started_at.elapsed().as_secs_f64() * 1000.0,
                                 );
                             }
+                            let boundary_vocab = split.boundary_vocab(vocab);
                             if std::env::var_os("GLRMASK_DUMP_L2P_BOUNDARY_VOCAB").is_some()
                                 && matches!(partition_label, "p7" | "p8")
                             {
@@ -1772,6 +1781,20 @@ fn singleton_vocab_map(vocab: &Vocab) -> ManyToOneIdMap {
     ManyToOneIdMap::from_original_to_internal_allowing_unmapped(original_to_internal, next)
 }
 
+fn singleton_group_vocab_map(vocab: &Vocab) -> ManyToOneIdMap {
+    let internal_to_originals = vocab
+        .entries_map()
+        .keys()
+        .map(|&token_id| vec![token_id])
+        .collect::<Vec<_>>();
+    let representative_original_ids = vocab.entries_map().keys().copied().collect::<Vec<_>>();
+    ManyToOneIdMap {
+        original_to_internal: Vec::new(),
+        internal_to_originals,
+        representative_original_ids,
+    }
+}
+
 fn common_refine_partition_maps(vocab: &Vocab, maps: &[ManyToOneIdMap]) -> ManyToOneIdMap {
     common_refine_partition_maps_impl(vocab, maps, false)
 }
@@ -1782,6 +1805,60 @@ fn common_refine_partition_maps_impl(
     merge_uncovered: bool,
 ) -> ManyToOneIdMap {
     use rustc_hash::FxHashMap;
+    if merge_uncovered {
+        // The O2 vocab-only path carries partition results as class groups and
+        // intentionally omits model-vocabulary-sized dense original->class
+        // vectors. Reconstruct only the sparse per-partition membership needed
+        // for this local common refinement, then keep the result grouped as
+        // well. Class numbering follows token-id order, matching the historical
+        // generic refinement.
+        let memberships = maps
+            .iter()
+            .map(|map| {
+                let mut membership = FxHashMap::<u32, u32>::default();
+                for (class, originals) in map.internal_to_originals.iter().enumerate() {
+                    for &token_id in originals {
+                        membership.insert(token_id, class as u32);
+                    }
+                }
+                membership
+            })
+            .collect::<Vec<_>>();
+        let mut classes = FxHashMap::<Vec<u32>, u32>::default();
+        let mut uncovered_class = None::<u32>;
+        let mut internal_to_originals = Vec::<Vec<u32>>::new();
+        let mut representative_original_ids = Vec::<u32>::new();
+        for &token_id in vocab.entries_map().keys() {
+            let mut key = Vec::with_capacity(memberships.len());
+            let mut covered = false;
+            for membership in &memberships {
+                let class = membership.get(&token_id).copied().unwrap_or(u32::MAX);
+                covered |= class != u32::MAX;
+                key.push(class);
+            }
+            let class = if covered {
+                *classes.entry(key).or_insert_with(|| {
+                    let class = internal_to_originals.len() as u32;
+                    internal_to_originals.push(Vec::new());
+                    representative_original_ids.push(token_id);
+                    class
+                })
+            } else {
+                *uncovered_class.get_or_insert_with(|| {
+                    let class = internal_to_originals.len() as u32;
+                    internal_to_originals.push(Vec::new());
+                    representative_original_ids.push(token_id);
+                    class
+                })
+            };
+            internal_to_originals[class as usize].push(token_id);
+        }
+        return ManyToOneIdMap {
+            original_to_internal: Vec::new(),
+            internal_to_originals,
+            representative_original_ids,
+        };
+    }
     let force_generic = std::env::var("GLRMASK_VOCAB_PARTITION_GENERIC_REFINE")
         .ok()
         .is_some_and(|value| {
@@ -1789,10 +1866,8 @@ fn common_refine_partition_maps_impl(
             value.is_empty() || (value != "0" && !value.eq_ignore_ascii_case("false"))
         });
     // The specialized two-map paths preserve the historical conservative
-    // singleton treatment for uncovered tokens.  The O2 vocab-map-only caller
-    // has an exact dead-token certificate and explicitly requests those tokens
-    // be merged, so use the generic keyed refinement in that mode.
-    if !merge_uncovered && !force_generic && maps.len() == 2 {
+    // singleton treatment for uncovered tokens.
+    if !force_generic && maps.len() == 2 {
         let left_singleton = maps[0].internal_to_originals.iter().all(|class| class.len() == 1);
         let right_singleton = maps[1].internal_to_originals.iter().all(|class| class.len() == 1);
         let left_full = vocab.entries_map().keys().all(|&token_id| {
@@ -1831,7 +1906,6 @@ fn common_refine_partition_maps_impl(
     let mut original_to_internal = vec![u32::MAX; vocab.max_token_id() as usize + 1];
     let mut classes = FxHashMap::<Vec<u32>, u32>::default();
     let mut next = 0u32;
-    let mut uncovered_class = None::<u32>;
     for &token_id in vocab.entries_map().keys() {
         let mut key = Vec::with_capacity(maps.len());
         let mut covered = false;
@@ -1846,12 +1920,6 @@ fn common_refine_partition_maps_impl(
         }
         let class = if covered {
             *classes.entry(key).or_insert_with(|| {
-                let class = next;
-                next += 1;
-                class
-            })
-        } else if merge_uncovered {
-            *uncovered_class.get_or_insert_with(|| {
                 let class = next;
                 next += 1;
                 class
@@ -1972,8 +2040,19 @@ mod tests {
         };
 
         let merged = common_refine_partition_maps_impl(&vocab, &[left, right], true);
-        assert_ne!(merged.original_to_internal[0], merged.original_to_internal[1]);
-        assert_eq!(merged.original_to_internal[2], merged.original_to_internal[3]);
+        assert!(
+            merged.original_to_internal.is_empty(),
+            "vocab-map-only refinement should stay in grouped form",
+        );
+        let class_for = |token_id| {
+            merged
+                .internal_to_originals
+                .iter()
+                .position(|class| class.contains(&token_id))
+                .expect("every vocab token must appear in one grouped class")
+        };
+        assert_ne!(class_for(0), class_for(1));
+        assert_eq!(class_for(2), class_for(3));
         assert_eq!(merged.num_internal_ids(), 3);
     }
 

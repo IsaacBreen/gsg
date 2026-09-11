@@ -1011,12 +1011,41 @@ pub fn build_l1_id_map_and_terminal_dwa_mode(
     subset_parent_order: Option<&L1IdentityVocabOrder>,
     id_map_only: bool,
 ) -> Option<LocalIdMapTerminalDwa> {
-    implementations::build_from_env(implementations::BuildInput {
+    let input = implementations::BuildInput {
         partition_label, tokenizer, vocab, terminal_coloring, use_terminal_coloring,
         ignore_terminal, grammar, active_terminals, flat_trans, transitions_by_byte,
         initial_state_map, shared_generic_nfa_topology, shared_generic_nfa_trie,
         subset_parent_order, id_map_only,
-    })
+    };
+    if id_map_only {
+        // Vocabulary-partition compilation consumes only the exact L1 token
+        // quotient.  Use the dedicated vocab-equivalence kernel rather than
+        // constructing tokenizer-state/DWA-shaped artifacts and discarding
+        // them immediately afterwards.
+        let result = implementations::build_projected_vocab_equivalence(input)?;
+        let tokenizer_states = initial_state_map.cloned().unwrap_or_else(|| {
+            let ids = (0..tokenizer.num_states()).collect::<Vec<_>>();
+            ManyToOneIdMap::from_singleton_original_to_internal_with_representatives(
+                ids.clone(),
+                ids,
+            )
+        });
+        let id_map = InternalIdMap {
+            tokenizer_states,
+            vocab_tokens: result.vocab_map,
+            deferred_vocab_singleton_original_ids: None,
+        };
+        return Some(LocalIdMapTerminalDwa {
+            dwa: DWA::new(id_map.num_tsids(), id_map.max_internal_token_id()),
+            id_map,
+            profile: TerminalDwaPhaseProfile {
+                id_map_ms: result.total_wall_ms,
+                compact_ms: result.compact_ms,
+                ..TerminalDwaPhaseProfile::default()
+            },
+        });
+    }
+    implementations::build_from_env(input)
 }
 
 /// Build an L1 id_map and terminal DWA for the given vocab and terminal set.

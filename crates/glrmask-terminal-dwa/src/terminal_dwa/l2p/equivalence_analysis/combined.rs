@@ -12,11 +12,12 @@ use crate::compiler::stages::equiv_types::{InternalIdMap, ManyToOneIdMap};
 use super::state_equivalence::global_token_position::GlobalTokenPositionStatePartition;
 use crate::compiler::stages::id_map_and_terminal_dwa::grammar_helpers::ignore_transparent_disallowed_follows;
 use super::state_equivalence::{
-    build_state_map_from_subset_representatives, resolve_l2p_pipeline_config,
+    build_state_map_from_subset_representatives, identity_state_map, resolve_l2p_pipeline_config,
     run_state_equivalence_pipeline,
     run_state_equivalence_pipeline_with_initial_restricted_observation_certificate,
     StateEquivalenceScope,
 };
+use super::state_equivalence::pipeline::StateEquivalencePipelineProfile;
 use super::state_equivalence::nfa::{
     PrebuiltSparsePowersetRefinement, TokenBoundedAnalysisTrie, build_bounded_analysis_view,
     build_bounded_analysis_view_with_trie,
@@ -517,6 +518,38 @@ fn build_vocab_map(
         original_to_internal,
         internal_to_originals,
         representative_original_ids,
+    }
+}
+
+fn build_vocab_group_map(
+    vocab_classes: &BTreeSet<Vec<usize>>,
+    token_ids: &[u32],
+) -> ManyToOneIdMap {
+    let mut ordered_vocab_classes: Vec<(u32, Vec<u32>)> = vocab_classes
+        .iter()
+        .map(|class| {
+            let mut min_tid = u32::MAX;
+            let mut originals = Vec::with_capacity(class.len());
+            for &idx in class {
+                let tid = token_ids[idx];
+                originals.push(tid);
+                min_tid = min_tid.min(tid);
+            }
+            originals.sort_unstable();
+            (min_tid, originals)
+        })
+        .collect();
+    ordered_vocab_classes.sort_unstable_by_key(|(rep_tid, _)| *rep_tid);
+    ManyToOneIdMap {
+        original_to_internal: Vec::new(),
+        representative_original_ids: ordered_vocab_classes
+            .iter()
+            .map(|(representative, _)| *representative)
+            .collect(),
+        internal_to_originals: ordered_vocab_classes
+            .into_iter()
+            .map(|(_, originals)| originals)
+            .collect(),
     }
 }
 
@@ -1803,6 +1836,12 @@ fn try_analyze_equivalences_with_raw_quotient(
         (representatives, exact_rep_confirmation_used)
     };
 
+    // For vocab-only compilation the final tokenizer-state quotient is dead
+    // output: callers retain only `vocab_tokens`.  The exact token quotient on
+    // the restricted-observation pre-state quotient is already sufficient, and
+    // state/vocab refinement commute.  Therefore always take vocabulary-first
+    // order here and return before the final state refinement.  Full terminal
+    // builds keep the historical selector because they consume both quotients.
     let vocab_first = !matches!(partition_label, "p7" | "p8")
         && dedup.representative_token_bytes.len() >= 512
         && pre_reduced_states.len() >= 256;
@@ -2514,7 +2553,14 @@ fn analyze_equivalences_impl(
         let auto_skip_pipeline_prepass = partition_label == "p1"
             && prepared.initial_states.len() >= 20_000
             && dedup.representative_token_bytes.len() >= 10_000;
-        let skip_pipeline_prepass = auto_skip_pipeline_prepass
+        // A vocab-only caller never consumes the final tokenizer-state
+        // quotient.  When the incoming state domain is already small, keeping
+        // it exact (identity / inherited map) is cheaper than computing a
+        // preliminary state quotient and is strictly conservative for the
+        // subsequent exact vocabulary relation.
+        let vocab_only_direct_states = vocab_only && prepared.initial_states.len() <= 256;
+        let skip_pipeline_prepass = vocab_only_direct_states
+            || auto_skip_pipeline_prepass
             || std::env::var("GLRMASK_SKIP_L2P_STATE_EQUIV_PIPELINE_PARTITIONS")
                 .ok()
                 .is_some_and(|scope| {
@@ -2534,19 +2580,40 @@ fn analyze_equivalences_impl(
                 pipeline_config.passes,
             );
         }
-        let (tokenizer_states, pipeline_profile) =
+        let (tokenizer_states, pipeline_profile) = if vocab_only_direct_states {
+            // `vocab_only_direct_states` deliberately keeps the incoming state
+            // coordinate exact: there are no state-equivalence passes to run.
+            // Avoid entering the generic pipeline here. Even with an empty
+            // pass list it computes the cached max-length vocabulary statistic,
+            // which is pure setup overhead for this vocab-only result and is
+            // never consumed before returning.
+            let tokenizer_states = initial_state_map
+                .cloned()
+                .unwrap_or_else(|| identity_state_map(tokenizer.num_states() as usize));
+            let reps = tokenizer_states.num_internal_ids() as usize;
+            (
+                tokenizer_states,
+                StateEquivalencePipelineProfile {
+                    restricted_observation_reps: reps,
+                    max_length_skipped: true,
+                    max_length_reps: reps,
+                    ..StateEquivalencePipelineProfile::default()
+                },
+            )
+        } else {
             run_state_equivalence_pipeline_with_initial_restricted_observation_certificate(
-            tokenizer,
-            vocab,
-            initial_state_map,
-            active_groups,
-            StateEquivalenceScope::L2p,
-            &pipeline_config,
-            prebuilt_nfa_refinement.as_ref(),
-            None,
-            None,
-            initial_state_map_has_stable_restricted_observation,
-        );
+                tokenizer,
+                vocab,
+                initial_state_map,
+                active_groups,
+                StateEquivalenceScope::L2p,
+                &pipeline_config,
+                prebuilt_nfa_refinement.as_ref(),
+                None,
+                None,
+                initial_state_map_has_stable_restricted_observation,
+            )
+        };
         if initial_state_map_has_stable_restricted_observation
             && std::env::var_os("GLRMASK_VALIDATE_TI_RESTRICTED_OBSERVATION_REUSE").is_some()
         {
@@ -2795,7 +2862,8 @@ fn analyze_equivalences_impl(
         // per vocabulary class is sufficient for the subsequent state scan.
         // Keep the established large-state route, and also use vocab-first when
         // the direct state×token scan is large enough to amortize the vocab pass.
-        let vocab_first = p0_vocab_first
+        let vocab_first = vocab_only
+            || p0_vocab_first
             || prefer_vocab_first_equivalence(
                 dedup.representative_token_bytes.len(),
                 query_view_states.len(),
@@ -2812,7 +2880,9 @@ fn analyze_equivalences_impl(
         let mut staged_query_representatives = None::<Vec<usize>>;
         let mut staged_exact_state_equiv_ms = 0.0f64;
         let mut staged_exact_rep_confirmation_used = false;
-        let staged_requested = vocab_first && staged_vocab_state_refinement_enabled(partition_label);
+        let staged_requested = vocab_first
+            && !vocab_only
+            && staged_vocab_state_refinement_enabled(partition_label);
         let (precomputed_vocab, state_tokens, vocab_equiv_ms) = if staged_requested {
             let vocab_equiv_started_at = Instant::now();
             let precomputed_vocab =
@@ -3042,6 +3112,53 @@ fn analyze_equivalences_impl(
                 )
             };
             let vocab_equiv_ms = vocab_equiv_started_at.elapsed().as_secs_f64() * 1000.0;
+            if vocab_only {
+                let id_map_finalize_started_at = Instant::now();
+                let vocab_classes = expand_vocab_classes(
+                    precomputed_vocab.0,
+                    &dedup.original_to_repr,
+                    dedup.representative_token_bytes.len(),
+                );
+                let vocab_tokens = build_vocab_group_map(&vocab_classes, &prepared.token_ids);
+                let exact_reps = tokenizer_states.num_internal_ids() as usize;
+                let id_map_finalize_ms =
+                    id_map_finalize_started_at.elapsed().as_secs_f64() * 1000.0;
+                return (
+                    InternalIdMap {
+                        tokenizer_states,
+                        vocab_tokens,
+                        deferred_vocab_singleton_original_ids: None,
+                    },
+                    CombinedEquivalenceProfile {
+                        initial_states_considered: prepared.initial_states.len(),
+                        max_length_skipped: pipeline_profile.max_length_skipped,
+                        max_token_len,
+                        token_len_gt_4: token_len_stats.gt_4,
+                        token_len_gt_8: token_len_stats.gt_8,
+                        token_len_gt_16: token_len_stats.gt_16,
+                        token_len_gt_32: token_len_stats.gt_32,
+                        token_len_gt_64: token_len_stats.gt_64,
+                        raw_analysis_base_init_ms: 0.0,
+                        analysis_view_build_ms,
+                        active_mask_filter_ms,
+                        effective_follows_normalize_ms,
+                        prepare_inputs_ms,
+                        byte_class_setup_ms,
+                        vocab_analysis_dfa_build_ms: precomputed_vocab.1,
+                        token_dedup_ms,
+                        restricted_observation_state_equiv_ms: pipeline_profile
+                            .restricted_observation_state_equiv_ms,
+                        max_length_state_equiv_ms: pipeline_profile.max_length_state_equiv_ms,
+                        vocab_equiv_ms,
+                        exact_state_equiv_ms: 0.0,
+                        id_map_finalize_ms,
+                        restricted_observation_reps: pipeline_profile.restricted_observation_reps,
+                        max_length_reps: pipeline_profile.max_length_reps,
+                        exact_reps,
+                        exact_rep_confirmation_used: false,
+                    },
+                );
+            }
             let state_tokens = representative_tokens_for_vocab_classes(
                 &precomputed_vocab.0,
                 &dedup.representative_token_bytes,
@@ -3385,8 +3502,16 @@ fn analyze_equivalences_impl(
     // historical state-then-vocab order (see the commutativity regression
     // below), but the expensive state trellis sees hundreds of tokens instead
     // of tens of thousands.
-    let vocab_first = dedup.representative_token_bytes.len() >= 8_192
-        && pre_reduced_states.len() >= 256;
+    // A vocabulary-only caller never consumes the final tokenizer-state
+    // quotient.  State and vocabulary equivalence commute, and the vocabulary
+    // relation computed against the complete pre-state quotient is already
+    // exact before the final state refinement.  Prefer that order regardless
+    // of problem size instead of paying to compute a state quotient that is
+    // immediately discarded.  Full L2P builds retain the historical
+    // size-based selector because they do consume both quotients.
+    let vocab_first = vocab_only
+        || (dedup.representative_token_bytes.len() >= 8_192
+            && pre_reduced_states.len() >= 256);
     if std::env::var_os("GLRMASK_PROFILE_L2P_TIMING").is_some() {
         eprintln!(
             "[glrmask/profile][combined_equivalence_order] partition={} dedup_tokens={} pre_states={} vocab_first={}",
@@ -3424,8 +3549,7 @@ fn analyze_equivalences_impl(
                 &dedup.original_to_repr,
                 dedup.representative_token_bytes.len(),
             );
-            let vocab_tokens =
-                build_vocab_map(&vocab_classes, &prepared.token_ids, prepared.max_token_id);
+            let vocab_tokens = build_vocab_group_map(&vocab_classes, &prepared.token_ids);
             let tokenizer_states = pre_state_map.clone();
             let exact_reps = tokenizer_states.num_internal_ids() as usize;
             let internal_id_map = InternalIdMap {
