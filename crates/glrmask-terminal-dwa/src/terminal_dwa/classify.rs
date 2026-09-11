@@ -622,6 +622,17 @@ impl L2pPartitionBucket {
 }
 
 impl SharedClassifyBytesets {
+    /// Union of bytes that can make progress toward any terminal.
+    ///
+    /// A vocabulary partition whose observed bytes are disjoint from this set
+    /// classifies every terminal as `TerminalPathLength::Zero`, so callers may
+    /// skip materializing that partition's token-byte map entirely.
+    pub fn reachable_bytes_union(&self) -> U8Set {
+        self.reachable_bytes
+            .iter()
+            .fold(U8Set::empty(), |acc, bytes| acc.union(bytes))
+    }
+
     #[inline]
     pub fn transitions_by_byte(&self) -> &[u32] {
         &self.transitions_by_byte
@@ -870,28 +881,53 @@ pub(crate) fn fast_eval_char_type_regular_partition(bytes: &[u8]) -> u8 {
     if bytes.is_empty() {
         return 5;
     }
+    let leading_space = bytes[0] == b' ';
+    let content = if leading_space { &bytes[1..] } else { bytes };
+    let literal_collision = is_json_literal_collision(content);
     // Bare ASCII word pieces that overlap a JSON literal spelling are ordinary
     // P2 material. Only their leading-space variants need to stay isolated at
     // the structural boundary.
-    if !bytes.starts_with(b" ") && is_json_literal_collision(bytes) {
+    if !leading_space && literal_collision {
         return 2;
     }
     if is_quoted_identifier_boundary_token(bytes) {
         return 8;
     }
-    if is_structural_boundary_lexical_token(bytes) {
+    if structural_boundary_lexical_partition_enabled()
+        && (literal_collision
+            || bytes == b" -"
+            || (bytes.starts_with(b"[") && is_json_literal_collision(&bytes[1..])))
+    {
         return 7;
     }
     // Strip optional leading ASCII space (GPT-2 BPE decodes Ġ → 0x20 before we see it)
-    let content = if bytes[0] == b' ' {
-        &bytes[1..]
-    } else {
-        bytes
-    };
     if content.is_empty() {
         return 5; // Just a space marker → auxiliary non-alnum
     }
     if content.len() == 1 && matches!(content[0], b'+' | b'-') {
+        return 1;
+    }
+    // Most model-vocabulary entries are ASCII. Byte predicates are exactly
+    // equivalent to the Unicode predicates below for ASCII input, while
+    // avoiding UTF-8 validation and repeated `chars()` walks on this hot path.
+    if content.is_ascii() {
+        let all_word = content
+            .iter()
+            .copied()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_');
+        if all_word {
+            if content.iter().copied().any(is_partition_ascii_alpha) {
+                return 2;
+            }
+            return 3;
+        }
+        if bytes
+            .iter()
+            .copied()
+            .all(|byte| !byte.is_ascii_alphanumeric() && byte != b'_')
+        {
+            return classify_nonalnum(bytes);
+        }
         return 1;
     }
     // Try to decode as UTF-8 for Unicode-aware classification.
@@ -940,30 +976,102 @@ pub(crate) fn fast_eval_char_type_regular_partition(bytes: &[u8]) -> u8 {
     1 // Mixed
 }
 
-fn is_json_literal_collision(content: &[u8]) -> bool {
+#[cfg(test)]
+fn reference_char_type_regular_partition(bytes: &[u8]) -> u8 {
+    if bytes.is_empty() {
+        return 5;
+    }
+    if !bytes.starts_with(b" ") && reference_json_literal_collision(bytes) {
+        return 2;
+    }
+    if is_quoted_identifier_boundary_token(bytes) {
+        return 8;
+    }
+    if structural_boundary_lexical_partition_enabled() {
+        let content = bytes.strip_prefix(b" ").unwrap_or(bytes);
+        if reference_json_literal_collision(content)
+            || bytes == b" -"
+            || (bytes.starts_with(b"[") && reference_json_literal_collision(&bytes[1..]))
+        {
+            return 7;
+        }
+    }
+    let content = if bytes[0] == b' ' {
+        &bytes[1..]
+    } else {
+        bytes
+    };
+    if content.is_empty() {
+        return 5;
+    }
+    if content.len() == 1 && matches!(content[0], b'+' | b'-') {
+        return 1;
+    }
+    if let Ok(s) = std::str::from_utf8(content) {
+        let all_word = s.chars().all(|c| c.is_alphanumeric() || c == '_');
+        if all_word {
+            let has_alpha = s.chars().any(|c| c.is_alphabetic() || c == '_');
+            if has_alpha {
+                let has_ascii_alpha = content.iter().copied().any(is_partition_ascii_alpha);
+                if has_ascii_alpha {
+                    return 2;
+                }
+                return 4;
+            }
+            return 3;
+        }
+        if let Ok(full) = std::str::from_utf8(bytes)
+            && !full.chars().any(|c| c.is_alphanumeric() || c == '_')
+        {
+            return classify_nonalnum(bytes);
+        }
+        return 1;
+    }
+    if content
+        .iter()
+        .copied()
+        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    {
+        if content.iter().copied().any(is_partition_ascii_alpha) {
+            return 2;
+        }
+        return 3;
+    }
+    if bytes
+        .iter()
+        .copied()
+        .all(|byte| !byte.is_ascii_alphanumeric() && byte != b'_')
+    {
+        return classify_nonalnum(bytes);
+    }
+    1
+}
+
+#[cfg(test)]
+fn reference_json_literal_collision(content: &[u8]) -> bool {
     if content.is_empty() || !content.iter().all(|byte| byte.is_ascii_alphanumeric()) {
         return false;
     }
-
     [b"true".as_slice(), b"false".as_slice(), b"null".as_slice()]
         .iter()
         .any(|literal| literal.starts_with(content) || content.starts_with(literal))
 }
 
-fn is_structural_boundary_lexical_token(bytes: &[u8]) -> bool {
-    if !structural_boundary_lexical_partition_enabled() {
+fn is_json_literal_collision(content: &[u8]) -> bool {
+    if content.is_empty() {
         return false;
     }
-
-    let content = bytes.strip_prefix(b" ").unwrap_or(bytes);
-    if is_json_literal_collision(content) {
-        return true;
-    }
-    if bytes == b" -" {
-        return true;
-    }
-    if bytes.starts_with(b"[") && is_json_literal_collision(&bytes[1..]) {
-        return true;
+    for literal in [b"true".as_slice(), b"false".as_slice(), b"null".as_slice()] {
+        // A shorter matching prefix consists entirely of literal ASCII bytes,
+        // so no separate alphanumeric validation is needed. For a token that
+        // extends a complete literal, retain the historical requirement that
+        // the extension itself remain alphanumeric.
+        if literal.starts_with(content)
+            || (content.starts_with(literal)
+                && content.iter().all(|byte| byte.is_ascii_alphanumeric()))
+        {
+            return true;
+        }
     }
     false
 }
@@ -6805,7 +6913,8 @@ mod tests {
     use super::{
 
         classify_terminal_path_lengths, classify_vocab_char_type, classify_with_partition_set,
-        compile_vocab_partition_set, custom_vocab_partition_rules, fast_eval_char_type_regular_partition,
+        compile_vocab_partition_set, custom_vocab_partition_rules,
+        fast_eval_char_type_regular_partition, reference_char_type_regular_partition,
 
         exact_terminal_path_two_plus, exact_terminal_path_two_plus_candidate_dfa,
         exact_terminal_path_two_plus_finite_literals,
@@ -6821,8 +6930,8 @@ mod tests {
     fn regular_char_type_partition_matches_legacy_decision_tree() {
         let check = |bytes: &[u8]| {
             assert_eq!(
-                classify_vocab_char_type(bytes),
                 fast_eval_char_type_regular_partition(bytes),
+                reference_char_type_regular_partition(bytes),
                 "bytes={bytes:?} utf8={:?}",
                 std::str::from_utf8(bytes).ok(),
             );

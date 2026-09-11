@@ -210,6 +210,20 @@ pub fn prepared_l1_token_bounded_analysis_trie(
     l1_token_bounded_analysis_trie(vocab)
 }
 
+/// Reuse a token-bounded analysis trie only when some earlier vocabulary
+/// preparation or branch has already paid to build it.
+///
+/// Routing callers frequently need only a tiny token subset. Forcing the
+/// whole-partition trie on a cold path can cost much more than the exact
+/// subset analysis it is intended to accelerate.
+pub(crate) fn cached_l1_token_bounded_analysis_trie(
+    vocab: &Vocab,
+) -> Option<Arc<super::l2p::equivalence_analysis::state_equivalence::nfa::TokenBoundedAnalysisTrie>> {
+    vocab.vocab_derived_cache_get::<
+        super::l2p::equivalence_analysis::state_equivalence::nfa::TokenBoundedAnalysisTrie,
+    >()
+}
+
 fn l1_identity_vocab_order(vocab: &Vocab) -> Arc<L1IdentityVocabOrder> {
     if let Some(cached) = vocab.vocab_derived_cache_get::<L1IdentityVocabOrder>() {
         return cached;
@@ -311,6 +325,12 @@ pub fn prepare_l1_identity_vocab_order(vocab: &Vocab) {
 
 pub fn prepared_l1_identity_vocab_order(vocab: &Vocab) -> Arc<L1IdentityVocabOrder> {
     l1_identity_vocab_order(vocab)
+}
+
+/// Reuse an already-prepared parent order without forcing a full-vocabulary
+/// sort solely to accelerate a much smaller subset build.
+pub(crate) fn cached_l1_identity_vocab_order(vocab: &Vocab) -> Option<Arc<L1IdentityVocabOrder>> {
+    vocab.vocab_derived_cache_get::<L1IdentityVocabOrder>()
 }
 
 /// Reuse the parent L1 byte order for an L2P boundary subset when it is already cached.
