@@ -1411,6 +1411,31 @@ fn build_char_type_sub_vocabs(
         .into()
 }
 
+fn char_type_relevance_omitted_token_ids(
+    vocab: &Vocab,
+    automatic_bounded_synthesis_overflow: bool,
+    automatic_p2_overflow_threshold: Option<usize>,
+    relevant_bytes: U8Set,
+) -> Vec<u32> {
+    let key = char_type_partition_config(
+        automatic_bounded_synthesis_overflow,
+        automatic_p2_overflow_threshold,
+    );
+    let cache = char_type_sub_vocab_cache(vocab);
+    let Ok(variants) = cache.variants.lock() else {
+        return Vec::new();
+    };
+    let Some(cached) = variants.iter().find(|variant| variant.key == key) else {
+        return Vec::new();
+    };
+    cached
+        .partitions
+        .iter()
+        .filter(|partition| partition.bytes.is_disjoint(&relevant_bytes))
+        .flat_map(|partition| partition.token_ids.iter().copied())
+        .collect()
+}
+
 pub fn prepare_vocab_for_terminal_dwa(vocab: &Vocab) {
     // Thread-pool construction is pure process setup and the speculative p2
     // pool is reused across compiles. Build it alongside other reusable vocab
@@ -2191,6 +2216,20 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
             "Invalid GLRMASK_PARTITION_SCHEME={other}; expected one of: char_type, l2p_cost, auto_l2p_cost"
         ),
     };
+    let relevance_omitted_token_ids = if id_map_only && partition_scheme == "char_type" {
+        char_type_relevant_bytes
+            .map(|relevant_bytes| {
+                char_type_relevance_omitted_token_ids(
+                    vocab,
+                    partition_local_synthesis_plan.is_some(),
+                    automatic_p2_overflow_threshold(tokenizer.num_states()),
+                    relevant_bytes,
+                )
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
     let partition_vocab_ms = partition_vocab_started_at.elapsed().as_secs_f64() * 1000.0;
     profile.id_map_ms += partition_vocab_ms;
     if compile_profile_enabled() { eprintln!("[glrmask/profile][partition_vocab_end] partitions={} ms={:.3}", sub_vocabs.len(), partition_vocab_ms); }
@@ -2299,6 +2338,11 @@ pub fn build_terminal_dwa_families_with_precomputed_global_max_length_filtered(
                 representative_original_ids.push(dead_class[0]);
                 internal_to_originals.push(dead_class);
             }
+        }
+        if !relevance_omitted_token_ids.is_empty() {
+            covered_tokens += relevance_omitted_token_ids.len();
+            representative_original_ids.push(relevance_omitted_token_ids[0]);
+            internal_to_originals.push(relevance_omitted_token_ids);
         }
         debug_assert_eq!(
             covered_tokens,

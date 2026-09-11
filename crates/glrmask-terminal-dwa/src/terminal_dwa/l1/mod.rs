@@ -333,6 +333,39 @@ pub(crate) fn cached_l1_identity_vocab_order(vocab: &Vocab) -> Option<Arc<L1Iden
     vocab.vocab_derived_cache_get::<L1IdentityVocabOrder>()
 }
 
+/// Resolve exact token-byte groups from the already-prepared identity order.
+///
+/// This never forces preparation: tiny grammar-specific fast paths may use it
+/// when CFA/runtime vocabulary preparation has already paid for the byte order,
+/// but cold standalone callers should remain free to choose a cheaper fallback.
+pub fn cached_l1_exact_token_groups(
+    vocab: &Vocab,
+    byte_strings: &[Vec<u8>],
+) -> Option<Vec<Vec<u32>>> {
+    let order = vocab.vocab_derived_cache_get::<L1IdentityVocabOrder>()?;
+    let entries = order.token_entries_sorted.as_ref();
+    Some(
+        byte_strings
+            .iter()
+            .map(|bytes| {
+                let cmp = |entry: &(u32, Arc<[u8]>)| {
+                    entry
+                        .1
+                        .first()
+                        .cmp(&bytes.first())
+                        .then_with(|| entry.1.as_ref().cmp(bytes.as_slice()))
+                };
+                let start = entries.partition_point(|entry| cmp(entry).is_lt());
+                let end = entries.partition_point(|entry| !cmp(entry).is_gt());
+                entries[start..end]
+                    .iter()
+                    .map(|(token_id, _)| *token_id)
+                    .collect::<Vec<_>>()
+            })
+            .collect(),
+    )
+}
+
 /// Reuse the parent L1 byte order for an L2P boundary subset when it is already cached.
 pub(crate) fn inherit_l2p_lexical_entry_order(
     parent_vocab: &Vocab,

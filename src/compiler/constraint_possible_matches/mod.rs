@@ -3560,13 +3560,13 @@ pub(crate) fn runtime_dynamic_vocab_for_partition(
     let mut runtime = if materialize_runtime_indexes {
         DynamicMaskVocab::from_materialized_ordered_with_all_original_token_words(
             runtime_trie,
-            Arc::clone(&ordered.ordered_to_originals),
+            ordered.ordered_to_originals,
             Some(prepared_all_original_token_words),
         )
     } else {
         DynamicMaskVocab::from_materialized_ordered_for_transfer(
             runtime_trie,
-            Arc::clone(&ordered.ordered_to_originals),
+            ordered.ordered_to_originals,
         )
     };
     let runtime_ms = runtime_started.map_or(0.0, elapsed_ms);

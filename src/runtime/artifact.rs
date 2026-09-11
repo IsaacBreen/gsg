@@ -2156,6 +2156,12 @@ pub(crate) enum PackedDynamicMaskTokenAliases {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) enum DynamicMaskAliasStore {
     Ordered(Arc<Vec<Vec<u32>>>),
+    /// Canonical alias groups already flattened into the runtime hot layout.
+    /// Offsets has `canonical_count + 1` entries into `originals`.
+    Flat {
+        offsets: Arc<Vec<u32>>,
+        originals: Arc<Vec<u32>>,
+    },
     Packed(Arc<Vec<Option<PackedDynamicMaskTokenAliases>>>),
 }
 
@@ -3431,9 +3437,47 @@ impl DynamicMaskVocab {
         token_aliases: Arc<Vec<Vec<u32>>>,
         prepared_all_original_token_words: Option<Arc<Vec<u32>>>,
     ) -> Self {
-        let token_aliases = DynamicMaskAliasStore::Ordered(token_aliases);
+        // Grammar quotients can contain one overwhelmingly large alias group
+        // (for example the permanently-dead class of a singleton language).
+        // When this Arc is uniquely owned and its first group already reserved
+        // enough capacity for the complete flattened list, reuse that Vec as
+        // the canonical runtime storage instead of copying ~the whole model
+        // vocabulary into a second allocation. Small/shared callers retain the
+        // established grouped representation.
+        let (token_aliases, preflattened) = match Arc::try_unwrap(token_aliases) {
+            Ok(groups) => {
+                let total = groups.iter().map(Vec::len).sum::<usize>();
+                let can_reuse_first = groups
+                    .first()
+                    .is_some_and(|first| first.len() >= 4_096 && first.capacity() >= total);
+                if can_reuse_first {
+                    let mut offsets = Vec::with_capacity(groups.len() + 1);
+                    offsets.push(0);
+                    for group in &groups {
+                        offsets.push(offsets.last().copied().unwrap_or(0) + group.len() as u32);
+                    }
+                    let mut iter = groups.into_iter();
+                    let mut originals = iter.next().unwrap_or_default();
+                    for group in iter {
+                        originals.extend_from_slice(&group);
+                    }
+                    let offsets = Arc::new(offsets);
+                    let originals = Arc::new(originals);
+                    (
+                        DynamicMaskAliasStore::Flat {
+                            offsets: Arc::clone(&offsets),
+                            originals: Arc::clone(&originals),
+                        },
+                        Some((offsets, originals)),
+                    )
+                } else {
+                    (DynamicMaskAliasStore::Ordered(Arc::new(groups)), None)
+                }
+            }
+            Err(token_aliases) => (DynamicMaskAliasStore::Ordered(token_aliases), None),
+        };
         let (canonical_original_token_offsets, canonical_original_tokens) =
-            Self::flatten_canonical_original_tokens(&token_aliases);
+            preflattened.unwrap_or_else(|| Self::flatten_canonical_original_tokens(&token_aliases));
         let build_words = || {
             Self::build_canonical_original_word_masks_sorted(
                 &canonical_original_token_offsets,
@@ -3895,8 +3939,12 @@ impl DynamicMaskVocab {
     fn flatten_canonical_original_tokens(
         token_aliases: &DynamicMaskAliasStore,
     ) -> (Arc<Vec<u32>>, Arc<Vec<u32>>) {
+        if let DynamicMaskAliasStore::Flat { offsets, originals } = token_aliases {
+            return (Arc::clone(offsets), Arc::clone(originals));
+        }
         let alias_slots = match token_aliases {
             DynamicMaskAliasStore::Ordered(aliases) => aliases.len(),
+            DynamicMaskAliasStore::Flat { .. } => unreachable!("flat alias store returned above"),
             DynamicMaskAliasStore::Packed(aliases) => aliases.len(),
         };
         let mut offsets = Vec::with_capacity(alias_slots + 1);
@@ -3907,6 +3955,7 @@ impl DynamicMaskVocab {
                 DynamicMaskAliasStore::Ordered(aliases) => {
                     originals.extend_from_slice(&aliases[canonical_token]);
                 }
+                DynamicMaskAliasStore::Flat { .. } => unreachable!("flat alias store returned above"),
                 DynamicMaskAliasStore::Packed(aliases) => {
                     if let Some(alias) = aliases[canonical_token].as_ref() {
                         match alias {
@@ -5920,6 +5969,7 @@ impl DynamicMaskVocab {
         }
         match &self.token_aliases {
             DynamicMaskAliasStore::Ordered(aliases) => aliases.len(),
+            DynamicMaskAliasStore::Flat { offsets, .. } => offsets.len().saturating_sub(1),
             DynamicMaskAliasStore::Packed(aliases) => aliases.len(),
         }
     }

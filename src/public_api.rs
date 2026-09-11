@@ -1510,6 +1510,143 @@ mod tests {
     }
 
     #[test]
+    fn singleton_literal_partition_matches_dynamic_masks_exactly() {
+        let vocab = Vocab::new(vec![
+            (0, b"x".to_vec()),
+            (1, b"{".to_vec()),
+            (2, b"}".to_vec()),
+            (3, b"{}".to_vec()),
+            (4, b"{}x".to_vec()),
+            (5, b"{".to_vec()),
+            (6, b"x{}".to_vec()),
+        ]);
+        let grammar_source = r#"start ::= "{" "}""#.to_owned();
+        let grammar = Grammar::ebnf(&grammar_source);
+        let partition = VocabPartition::compile(grammar.clone(), &vocab).unwrap();
+
+        assert_eq!(partition.num_classes(), 4);
+        assert_eq!(partition.class_of(0), partition.class_of(4));
+        assert_eq!(partition.class_of(0), partition.class_of(6));
+        assert_eq!(partition.class_of(1), partition.class_of(5));
+        assert_ne!(partition.class_of(1), partition.class_of(2));
+        assert_ne!(partition.class_of(1), partition.class_of(3));
+        assert_ne!(partition.class_of(2), partition.class_of(3));
+
+        let ordinary = DynamicConstraint::compile(grammar.clone(), &vocab).unwrap();
+        let optimized =
+            DynamicConstraint::compile_with_vocab_partition(grammar, &vocab).unwrap();
+
+        let ordinary_start = ordinary.start();
+        let optimized_start = optimized.start();
+        assert_eq!(ordinary_start.mask(), optimized_start.mask());
+        for token in [0u32, 1, 2, 3, 4, 5, 6] {
+            assert_eq!(
+                token_allowed(&ordinary_start.mask(), token),
+                token_allowed(&optimized_start.mask(), token),
+                "start mask differs for token {token}",
+            );
+        }
+
+        for open in [1u32, 5] {
+            let mut ordinary_state = ordinary.start();
+            let mut optimized_state = optimized.start();
+            ordinary_state.commit_token(open).unwrap();
+            optimized_state.commit_token(open).unwrap();
+            assert_eq!(ordinary_state.is_accepting(), optimized_state.is_accepting());
+            assert_eq!(ordinary_state.mask(), optimized_state.mask());
+        }
+
+        let mut ordinary_done = ordinary.start();
+        let mut optimized_done = optimized.start();
+        ordinary_done.commit_token(3).unwrap();
+        optimized_done.commit_token(3).unwrap();
+        assert!(ordinary_done.is_accepting());
+        assert!(optimized_done.is_accepting());
+        assert_eq!(ordinary_done.mask(), optimized_done.mask());
+
+        // The production singleton path uses the flat alias representation and
+        // deliberately defers its first transfer-artifact serialization. Verify
+        // that both survive the real external-vocab save/load boundary.
+        let saved = optimized.save_with_external_vocab();
+        let loaded = DynamicConstraint::load_with_vocab(&saved, &vocab).unwrap();
+        assert_eq!(loaded.start().mask(), optimized.start().mask());
+        let mut loaded_done = loaded.start();
+        loaded_done.commit_token(3).unwrap();
+        assert!(loaded_done.is_accepting());
+    }
+
+    #[test]
+    fn singleton_literal_partition_matches_all_reachable_cross_terminal_prefixes() {
+        let vocab = Vocab::new(vec![
+            (0, b"a".to_vec()),
+            (2, b"b".to_vec()),
+            (5, b"c".to_vec()),
+            (9, b"d".to_vec()),
+            (12, b"ab".to_vec()),
+            (18, b"bc".to_vec()),
+            (24, b"cd".to_vec()),
+            (31, b"abc".to_vec()),
+            (37, b"bcd".to_vec()),
+            (44, b"abcd".to_vec()),
+            (51, b"x".to_vec()),
+            (58, b"bd".to_vec()),
+            (63, b"abcx".to_vec()),
+            (71, b"bc".to_vec()),
+        ]);
+        let token_ids = vocab.iter().map(|(token_id, _)| token_id).collect::<Vec<_>>();
+        let grammar_source = r#"start ::= "ab" "cd""#.to_owned();
+        let grammar = Grammar::ebnf(&grammar_source);
+
+        // Compile ordinary first so the optimized compile also exercises the
+        // cached byte-order lookup used by prepared production vocabularies.
+        let ordinary = DynamicConstraint::compile(grammar.clone(), &vocab).unwrap();
+        let optimized =
+            DynamicConstraint::compile_with_vocab_partition(grammar, &vocab).unwrap();
+
+        let mut pending = vec![Vec::<u32>::new()];
+        let mut seen = std::collections::BTreeSet::<Vec<u32>>::new();
+        seen.insert(Vec::new());
+        while let Some(prefix) = pending.pop() {
+            let mut ordinary_state = ordinary.start();
+            let mut optimized_state = optimized.start();
+            for &token in &prefix {
+                ordinary_state.commit_token(token).unwrap();
+                optimized_state.commit_token(token).unwrap();
+            }
+
+            assert_eq!(
+                ordinary_state.is_accepting(),
+                optimized_state.is_accepting(),
+                "acceptance differs after token prefix {prefix:?}",
+            );
+            let ordinary_mask = ordinary_state.mask();
+            let optimized_mask = optimized_state.mask();
+            assert_eq!(
+                ordinary_mask, optimized_mask,
+                "mask differs after token prefix {prefix:?}",
+            );
+
+            for &token in &token_ids {
+                let ordinary_allowed = token_allowed(&ordinary_mask, token);
+                let optimized_allowed = token_allowed(&optimized_mask, token);
+                assert_eq!(
+                    ordinary_allowed, optimized_allowed,
+                    "token {token} differs after token prefix {prefix:?}",
+                );
+                if ordinary_allowed {
+                    let mut next = prefix.clone();
+                    next.push(token);
+                    // Four one-byte tokens can consume the complete language;
+                    // no valid path can require a deeper token prefix.
+                    if next.len() <= 4 && seen.insert(next.clone()) {
+                        pending.push(next);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn partition_optimized_dynamic_save_load_preserves_quotient_mask() {
         let vocab = Vocab::new(vec![
             (0, b"a".to_vec()),

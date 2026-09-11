@@ -5874,7 +5874,17 @@ fn compile_dynamic_owned_with_vocab_partition_impl(
     let rebuild_started = profile.then(Instant::now);
     if finalize_runtime {
         constraint.inner.rebuild_dynamic_runtime_caches();
-        constraint.cache_external_vocab_artifact_for_save();
+        // O2 build time and persistence time are measured independently. For
+        // genuinely tiny runtimes, eagerly serializing the transfer artifact is
+        // a material fraction of compile latency while the first on-demand save
+        // remains comfortably sub-millisecond. Larger quotients/tables keep the
+        // established eager cache so persistence tails stay bounded.
+        let tiny_save_artifact = constraint.inner.dynamic_mask_vocab.canonical_token_count() <= 8
+            && constraint.inner.tokenizer.num_states() <= 64
+            && constraint.inner.table.num_states <= 32;
+        if !tiny_save_artifact {
+            constraint.cache_external_vocab_artifact_for_save();
+        }
     }
     let rebuild_ms = rebuild_started.map_or(0.0, elapsed_ms);
     if let Some(total_started) = total_started {
