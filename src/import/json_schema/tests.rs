@@ -6705,6 +6705,27 @@ fn mixed_type_enum_does_not_use_raw_regex_fast_path() {
 
 
 #[test]
+fn integer_multiple_of_one_uses_plain_range_partition() {
+    let schema = json!({
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 512,
+        "multipleOf": 1
+    });
+    let grammar = schema_to_named_grammar(&schema).unwrap();
+    assert!(
+        matches!(start_expr(&grammar), GrammarExpr::Ref(name) if name.starts_with("JSON_INTEGER_ATOM_")),
+        "vacuous multipleOf=1 must not enumerate 513 literal terminals: {:?}",
+        start_expr(&grammar),
+    );
+    assert!(schema_accepts_bytes(&schema, b"0"));
+    assert!(schema_accepts_bytes(&schema, b"512"));
+    assert!(!schema_accepts_bytes(&schema, b"-1"));
+    assert!(!schema_accepts_bytes(&schema, b"513"));
+    lower(&grammar).unwrap();
+}
+
+#[test]
 fn integer_power_of_ten_multiple_lowers_to_regex() {
     let schema = json!({"type": "integer", "multipleOf": 10});
     let grammar = schema_to_named_grammar(&schema).unwrap();

@@ -61,7 +61,7 @@ fn collect_plain_integer_range_cuts(
     let SchemaKind::Assertions(assertions) = &schema.kind else { return; };
     if plain_integer_assertions(assertions) {
         if let Some(number) = &assertions.number
-            && number.multiple_of.is_none()
+            && integer_multiple_is_vacuous(number.multiple_of)
         {
             let lower = integer_lower_bound(number);
             let upper = integer_upper_bound(number);
@@ -206,7 +206,12 @@ impl<'a> Lowerer<'a> {
         {
             return Ok(never());
         }
-        if schema.multiple_of.is_none() {
+        // `multipleOf: 1` is vacuous for an integer schema. Normalize it to
+        // the ordinary integer-range representation after applying the optional
+        // llguidance compatibility bound adjustment above. This avoids expanding
+        // a finite [L,U] interval into one parser terminal per integer solely
+        // because the schema redundantly states `multipleOf: 1`.
+        if integer_multiple_is_vacuous(schema.multiple_of) {
             if let Some(expr) = self.shared_integer_range_expr(lower, upper)? {
                 return Ok(expr);
             }
@@ -277,6 +282,11 @@ fn integer_upper_bound(schema: &NumberSchema) -> Option<i64> {
         upper -= 1;
     }
     Some(upper)
+}
+
+#[inline]
+fn integer_multiple_is_vacuous(multiple: Option<f64>) -> bool {
+    multiple.is_none_or(|multiple| multiple == 1.0)
 }
 
 fn integer_satisfies_multiple(value: i64, multiple: Option<f64>) -> bool {
