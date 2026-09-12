@@ -25,6 +25,24 @@ use super::nfa::NFA;
 
 type ProductStateTuple = SmallVec<[(u32, u32); 12]>;
 
+const PRODUCT_STATE_FINGERPRINT_SEED: u64 = 0x9e37_79b9_7f4a_7c15;
+
+#[inline]
+fn extend_product_state_fingerprint(fingerprint: u64, group: u32, state: u32) -> u64 {
+    let pair = ((group as u64) << 32) | state as u64;
+    fingerprint
+        .rotate_left(27)
+        .wrapping_add(pair.wrapping_mul(0x9e37_79b1_85eb_ca87))
+        .wrapping_mul(0xc2b2_ae3d_27d4_eb4f)
+}
+
+fn product_state_fingerprint(tuple: &ProductStateTuple) -> u64 {
+    tuple.iter().fold(
+        PRODUCT_STATE_FINGERPRINT_SEED,
+        |fingerprint, &(group, state)| extend_product_state_fingerprint(fingerprint, group, state),
+    )
+}
+
 #[derive(Debug, Clone)]
 pub struct CertifiedVocabularyExactStateCandidates {
     primary: Vec<u32>,
@@ -9357,6 +9375,11 @@ impl ProductStateTuples {
 
 enum ProductStateLookup {
     Hash(FxHashMap<ProductStateTuple, u32>),
+    Fingerprint {
+        state_by_fingerprint: FxHashMap<u64, u32>,
+        canonical_tuples: Vec<ProductStateTuple>,
+        overflow: FxHashMap<ProductStateTuple, u32>,
+    },
     DenseBinary {
         right_states: usize,
         state_by_pair: Vec<u32>,
@@ -9377,6 +9400,18 @@ impl ProductStateLookup {
     fn get(&self, tuple: &ProductStateTuple) -> Option<u32> {
         match self {
             Self::Hash(states) => states.get(tuple).copied(),
+            Self::Fingerprint {
+                state_by_fingerprint,
+                canonical_tuples,
+                overflow,
+            } => {
+                let fingerprint = product_state_fingerprint(tuple);
+                state_by_fingerprint
+                    .get(&fingerprint)
+                    .copied()
+                    .filter(|&state| canonical_tuples[state as usize] == *tuple)
+                    .or_else(|| overflow.get(tuple).copied())
+            }
             Self::DenseBinary {
                 right_states,
                 state_by_pair,
@@ -9392,6 +9427,20 @@ impl ProductStateLookup {
         match self {
             Self::Hash(states) => {
                 states.insert(tuple, state);
+            }
+            Self::Fingerprint {
+                state_by_fingerprint,
+                canonical_tuples,
+                overflow,
+            } => {
+                debug_assert_eq!(canonical_tuples.len(), state as usize);
+                let fingerprint = product_state_fingerprint(&tuple);
+                if state_by_fingerprint.contains_key(&fingerprint) {
+                    overflow.insert(tuple.clone(), state);
+                } else {
+                    state_by_fingerprint.insert(fingerprint, state);
+                }
+                canonical_tuples.push(tuple);
             }
             Self::DenseBinary {
                 right_states,
@@ -11542,6 +11591,21 @@ enum ProductComponentClassTransitions {
     VirtualBoundedRepeat(Vec<Vec<(u8, u32)>>),
 }
 
+fn product_class_transition_entry_count(
+    transitions: &[ProductComponentClassTransitions],
+) -> usize {
+    transitions
+        .iter()
+        .map(|component| match component {
+            ProductComponentClassTransitions::Materialized(rows)
+            | ProductComponentClassTransitions::VirtualFixedSequence(rows)
+            | ProductComponentClassTransitions::VirtualBoundedRepeat(rows) => {
+                rows.iter().map(Vec::len).sum::<usize>()
+            }
+        })
+        .sum()
+}
+
 impl ProductComponent {
     fn partition_dfa(&self) -> &DFA {
         match self {
@@ -12200,18 +12264,32 @@ fn build_product_dfa(
     };
     dfa.overwrite_state_metadata(0, start_finalizers, start_future);
 
+    const PRODUCT_STATE_FINGERPRINT_MIN_CLASS_TRANSITIONS: usize = 20_000;
+    let fingerprint_state_lookup = capture_trace
+        && std::env::var_os("GLRMASK_DISABLE_PRODUCT_STATE_FINGERPRINT").is_none()
+        && (std::env::var_os("GLRMASK_EXPERIMENT_PRODUCT_STATE_FINGERPRINT").is_some()
+            || product_class_transition_entry_count(&component_class_transitions)
+                >= PRODUCT_STATE_FINGERPRINT_MIN_CLASS_TRANSITIONS);
     let mut state_map = FxHashMap::<ProductStateTuple, u32>::default();
+    let mut state_by_fingerprint = FxHashMap::<u64, u32>::default();
+    let mut fingerprint_collisions = FxHashMap::<ProductStateTuple, u32>::default();
+    let mut fingerprint_state_tuples = fingerprint_state_lookup.then(|| vec![start_tuple.clone()]);
     let mut worklist = VecDeque::new();
     let mut pending_class_transitions = vec![Vec::<(u8, u32)>::new()];
     // Pre-allocated buffers for class transition tuples (reused across states)
     let mut class_buffers: Vec<ProductStateTuple> = (0..num_classes)
         .map(|_| ProductStateTuple::new())
         .collect();
+    let mut class_fingerprints = vec![PRODUCT_STATE_FINGERPRINT_SEED; num_classes];
     let mut class_active = vec![false; num_classes];
     let mut used_classes = Vec::<usize>::new();
     let mut growth_recorder = profile_trace.then(|| ProductGrowthRecorder::new(num_coordinates));
     let mut state_tuples = capture_trace.then(|| vec![start_tuple.clone()]);
-    state_map.insert(start_tuple.clone(), 0);
+    if fingerprint_state_lookup {
+        state_by_fingerprint.insert(product_state_fingerprint(&start_tuple), 0);
+    } else {
+        state_map.insert(start_tuple.clone(), 0);
+    }
     if let Some(recorder) = growth_recorder.as_mut() {
         recorder.record(num_coordinates, &start_tuple);
     }
@@ -12233,12 +12311,20 @@ fn build_product_dfa(
                         if !class_active[class_index] {
                             class_active[class_index] = true;
                             used_classes.push(class_index);
+                            class_fingerprints[class_index] = PRODUCT_STATE_FINGERPRINT_SEED;
                         }
                         if component_dead_states[group_index] == Some(target) {
                             continue;
                         }
 
                         class_buffers[class_index].push((group_id, target));
+                        if fingerprint_state_lookup {
+                            class_fingerprints[class_index] = extend_product_state_fingerprint(
+                                class_fingerprints[class_index],
+                                group_id,
+                                target,
+                            );
+                        }
                     }
                 }
                 (
@@ -12250,8 +12336,16 @@ fn build_product_dfa(
                         if !class_active[class_index] {
                             class_active[class_index] = true;
                             used_classes.push(class_index);
+                            class_fingerprints[class_index] = PRODUCT_STATE_FINGERPRINT_SEED;
                         }
                         class_buffers[class_index].push((group_id, target));
+                        if fingerprint_state_lookup {
+                            class_fingerprints[class_index] = extend_product_state_fingerprint(
+                                class_fingerprints[class_index],
+                                group_id,
+                                target,
+                            );
+                        }
                     }
                 }
                 (
@@ -12273,6 +12367,7 @@ fn build_product_dfa(
                         if !class_active[class_index] {
                             class_active[class_index] = true;
                             used_classes.push(class_index);
+                            class_fingerprints[class_index] = PRODUCT_STATE_FINGERPRINT_SEED;
                         }
                         if component_dead_states[group_index] == Some(target_base) {
                             continue;
@@ -12285,6 +12380,13 @@ fn build_product_dfa(
                         };
 
                         class_buffers[class_index].push((group_id, target));
+                        if fingerprint_state_lookup {
+                            class_fingerprints[class_index] = extend_product_state_fingerprint(
+                                class_fingerprints[class_index],
+                                group_id,
+                                target,
+                            );
+                        }
                     }
                 }
                 _ => unreachable!("component and class-transition kinds must match"),
@@ -12294,7 +12396,22 @@ fn build_product_dfa(
         let mut class_transitions = Vec::with_capacity(used_classes.len());
         for &class_index in &used_classes {
             let next_tuple = &class_buffers[class_index];
-            let next_state = if let Some(&existing) = state_map.get(next_tuple) {
+            let existing = if fingerprint_state_lookup {
+                let fingerprint = class_fingerprints[class_index];
+                state_by_fingerprint
+                    .get(&fingerprint)
+                    .copied()
+                    .filter(|&state| {
+                        fingerprint_state_tuples
+                            .as_ref()
+                            .expect("fingerprint lookup retains canonical tuples")[state as usize]
+                            == *next_tuple
+                    })
+                    .or_else(|| fingerprint_collisions.get(next_tuple).copied())
+            } else {
+                state_map.get(next_tuple).copied()
+            };
+            let next_state = if let Some(existing) = existing {
                 existing
             } else {
                 let new_state = dfa.add_state();
@@ -12314,7 +12431,21 @@ fn build_product_dfa(
                     product_state_metadata_with_layout(&components, &coordinate_groups, num_groups, next_tuple)
                 };
                 dfa.overwrite_state_metadata(new_state, finalizers, future);
-                state_map.insert(next_tuple.clone(), new_state);
+                if fingerprint_state_lookup {
+                    let fingerprint = class_fingerprints[class_index];
+                    if state_by_fingerprint.contains_key(&fingerprint) {
+                        fingerprint_collisions.insert(next_tuple.clone(), new_state);
+                    } else {
+                        state_by_fingerprint.insert(fingerprint, new_state);
+                    }
+                    let tuples = fingerprint_state_tuples
+                        .as_mut()
+                        .expect("fingerprint lookup retains canonical tuples");
+                    debug_assert_eq!(tuples.len(), new_state as usize);
+                    tuples.push(next_tuple.clone());
+                } else {
+                    state_map.insert(next_tuple.clone(), new_state);
+                }
                 if let Some(state_tuples) = state_tuples.as_mut() {
                     debug_assert_eq!(state_tuples.len(), new_state as usize);
                     state_tuples.push(next_tuple.clone());
@@ -12328,6 +12459,7 @@ fn build_product_dfa(
             };
             class_transitions.push((class_index as u8, next_state));
             class_buffers[class_index].clear();
+            class_fingerprints[class_index] = PRODUCT_STATE_FINGERPRINT_SEED;
             class_active[class_index] = false;
         }
         used_classes.clear();
@@ -12453,11 +12585,21 @@ fn build_product_dfa(
         );
     }
 
+    let state_lookup = if fingerprint_state_lookup {
+        ProductStateLookup::Fingerprint {
+            state_by_fingerprint,
+            canonical_tuples: fingerprint_state_tuples
+                .expect("fingerprint lookup retains canonical tuples"),
+            overflow: fingerprint_collisions,
+        }
+    } else {
+        ProductStateLookup::Hash(state_map)
+    };
     let trace = state_tuples.map(|state_tuples| ProductBuildTrace {
         components,
         coordinate_groups,
         state_tuples: ProductStateTuples::Generic(state_tuples),
-        state_lookup: ProductStateLookup::Hash(state_map),
+        state_lookup,
         direct_single_visible_group,
     });
     (dfa, direct_single_visible_group, trace)
@@ -18741,6 +18883,34 @@ mod tests {
             tokenizer.execute_from_state(b"a", tokenizer.initial_state()),
             decoded.execute_from_state(b"a", decoded.initial_state()),
         );
+    }
+
+    #[test]
+    fn fingerprint_product_state_lookup_verifies_canonical_tuple_and_overflow() {
+        let mut first = super::ProductStateTuple::new();
+        first.push((0, 7));
+        first.push((3, 11));
+        let mut overflow_tuple = super::ProductStateTuple::new();
+        overflow_tuple.push((1, 5));
+        overflow_tuple.push((4, 13));
+
+        let mut state_by_fingerprint = rustc_hash::FxHashMap::default();
+        state_by_fingerprint.insert(super::product_state_fingerprint(&first), 0);
+        let mut overflow = rustc_hash::FxHashMap::default();
+        overflow.insert(overflow_tuple.clone(), 1);
+        let mut lookup = super::ProductStateLookup::Fingerprint {
+            state_by_fingerprint,
+            canonical_tuples: vec![first.clone(), overflow_tuple.clone()],
+            overflow,
+        };
+
+        assert_eq!(lookup.get(&first), Some(0));
+        assert_eq!(lookup.get(&overflow_tuple), Some(1));
+
+        let mut inserted = super::ProductStateTuple::new();
+        inserted.push((2, 17));
+        lookup.insert(inserted.clone(), 2);
+        assert_eq!(lookup.get(&inserted), Some(2));
     }
 
 }
