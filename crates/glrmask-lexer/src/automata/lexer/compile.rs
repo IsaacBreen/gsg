@@ -5645,6 +5645,7 @@ pub fn build_partitioned_tokenizer_with_product_trace_terminal_residuals(
                     *slot = true;
                 }
             }
+            let complex_group_count = complex.iter().filter(|&&is_complex| is_complex).count();
 
             let compiled_group_count = plan.compiled_exprs.len();
             // Preserve only the logical group-op wiring for the rare complex
@@ -5721,16 +5722,18 @@ pub fn build_partitioned_tokenizer_with_product_trace_terminal_residuals(
             // are themselves small products of these same coordinates, so this
             // lets us translate a partition state directly into the standalone
             // product tuple without replaying every byte edge for every terminal.
-            let mut partition_coordinate_states =
-                vec![vec![u32::MAX; trace.components.len()]; dfa.num_states()];
-            for state in 0..dfa.num_states() {
-                for (coordinate, residual_state) in trace.state_tuples.tuple(state) {
-                    let slot = partition_coordinate_states
-                        .get_mut(state)?
-                        .get_mut(coordinate as usize)?;
-                    *slot = residual_state;
+            let partition_coordinate_states = if complex_group_count == 0 {
+                None
+            } else {
+                let mut states = vec![vec![u32::MAX; trace.components.len()]; dfa.num_states()];
+                for state in 0..dfa.num_states() {
+                    for (coordinate, residual_state) in trace.state_tuples.tuple(state) {
+                        let slot = states.get_mut(state)?.get_mut(coordinate as usize)?;
+                        *slot = residual_state;
+                    }
                 }
-            }
+                Some(states)
+            };
             let mut simple_sources = Vec::<Option<Arc<DFA>>>::with_capacity(visible_groups);
             for local_group in 0..visible_groups {
                 let coordinate = coordinate_for_logical_group[local_group];
@@ -5795,13 +5798,14 @@ pub fn build_partitioned_tokenizer_with_product_trace_terminal_residuals(
                 let mut raw_state_by_key = FxHashMap::<SmallVec<[u32; 4]>, u32>::default();
                 let mut raw_representatives = Vec::<u32>::new();
                 let mut partition_to_raw = vec![u32::MAX; dfa.num_states()];
+                let coordinate_states = partition_coordinate_states.as_ref()?;
                 for partition_state in 0..dfa.num_states() {
                     if !partition_live(partition_state as u32) {
                         continue;
                     }
                     let key = relevant_coordinates
                         .iter()
-                        .map(|&coordinate| partition_coordinate_states[partition_state][coordinate])
+                        .map(|&coordinate| coordinate_states[partition_state][coordinate])
                         .collect::<SmallVec<[u32; 4]>>();
                     let raw_state = if let Some(&existing) = raw_state_by_key.get(&key) {
                         existing
@@ -5887,26 +5891,34 @@ pub fn build_partitioned_tokenizer_with_product_trace_terminal_residuals(
             let mut rows = Vec::with_capacity(dfa.num_states());
             for state in 0..dfa.num_states() {
                 let tuple = trace.state_tuples.tuple(state);
-                let mut row = Vec::<(u32, u32)>::new();
-                for &(coordinate, residual_state) in &tuple {
-                    for &local_group in trace.coordinate_groups.get(coordinate as usize)? {
-                        if local_group >= visible_groups || simple_sources[local_group].is_none() {
+                let mut row = Vec::<(u32, u32)>::with_capacity(
+                    tuple.len().saturating_add(complex_group_count),
+                );
+                if complex_group_count != visible_groups {
+                    for &(coordinate, residual_state) in &tuple {
+                        for &local_group in trace.coordinate_groups.get(coordinate as usize)? {
+                            if local_group >= visible_groups || simple_sources[local_group].is_none() {
+                                continue;
+                            }
+                            row.push((terminal_ids[local_group] as u32, residual_state));
+                        }
+                    }
+                }
+                if complex_group_count != 0 {
+                    for local_group in 0..visible_groups {
+                        if simple_sources[local_group].is_some() {
                             continue;
                         }
-                        row.push((terminal_ids[local_group] as u32, residual_state));
+                        let (_, mapping) = complex_sources[local_group].as_ref()?;
+                        let residual_state = mapping[state];
+                        if residual_state != u32::MAX {
+                            row.push((terminal_ids[local_group] as u32, residual_state));
+                        }
                     }
                 }
-                for local_group in 0..visible_groups {
-                    if simple_sources[local_group].is_some() {
-                        continue;
-                    }
-                    let (_, mapping) = complex_sources[local_group].as_ref()?;
-                    let residual_state = mapping[state];
-                    if residual_state != u32::MAX {
-                        row.push((terminal_ids[local_group] as u32, residual_state));
-                    }
+                if complex_group_count != visible_groups {
+                    row.sort_unstable_by_key(|&(terminal, _)| terminal);
                 }
-                row.sort_unstable_by_key(|&(terminal, _)| terminal);
                 rows.push(row);
             }
 
