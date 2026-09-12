@@ -2417,8 +2417,13 @@ fn build_lalr_table_impl(
     let lr0_ms = started.map_or(0.0, |s| s.elapsed().as_secs_f64() * 1000.0);
 
     let try_slr_fast_path = std::env::var("GLRMASK_LALR_TRY_SLR_FAST_PATH")
-        .ok()
-        .is_some_and(|value| matches!(value.trim(), "1" | "true" | "yes" | "on"));
+        .map(|value| {
+            !matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "0" | "false" | "no" | "off"
+            )
+        })
+        .unwrap_or(true);
 
     let started = profile.then(std::time::Instant::now);
     let (mut pending, goto, forwarded_shifts) = initialize_pending_and_goto(&transitions);
@@ -3737,11 +3742,12 @@ fn grouped_item_lookahead_counts(grammar: &AnalyzedGrammar) -> Vec<Vec<(u32, u32
 mod tests {
     use super::{
         add_completed_lr0_reductions, build_experimental_core_merged_table, build_lalr_table,
-        build_lalr_table_impl,
+        build_lalr_table_impl, compute_lalr_item_lookaheads,
         build_lr0_item_sets, build_lr1_item_sets,
         build_lr1_item_sets_with_preclosure_reuse, build_table,
         build_table_with_default_construction, grouped_item_lookahead_counts,
-        initialize_pending_and_goto, pending_table_has_conflict, slr_reductions_would_conflict,
+        finish_table_with_early_identity_quotient, initialize_pending_and_goto,
+        pending_table_has_conflict, slr_reductions_would_conflict,
         selected_glr_table_construction, try_build_direct_regular_table,
         try_build_direct_regular_table_reference,
     };
@@ -4656,6 +4662,87 @@ mod tests {
             let preflight = slr_reductions_would_conflict(&grammar, &states, &transitions);
             assert_eq!(preflight, materialized);
         }
+    }
+
+    #[test]
+    fn conflict_free_slr_fast_path_matches_lalr_admission_and_recognition() {
+        let mut checked = 0usize;
+        for grammar in [
+            nullable_unit_chain_grammar(),
+            generated_unit_dag_grammar(4, 2, true, false),
+            generated_unit_dag_grammar(5, 3, true, false),
+        ] {
+            let (states, transitions) = build_lr0_item_sets(&grammar);
+            if slr_reductions_would_conflict(&grammar, &states, &transitions) {
+                continue;
+            }
+            checked += 1;
+
+            let (mut slr_pending, slr_goto, slr_forwarded) =
+                initialize_pending_and_goto(&transitions);
+            add_completed_lr0_reductions(&grammar, &states, None, &mut slr_pending);
+            let slr = finish_table_with_early_identity_quotient(
+                &grammar,
+                slr_pending,
+                slr_goto,
+                slr_forwarded,
+                GlrTableConstruction::Lalr,
+                AdmissionPolicy::ExactSimulation,
+                false,
+            );
+
+            let (mut lalr_pending, lalr_goto, lalr_forwarded) =
+                initialize_pending_and_goto(&transitions);
+            let lookaheads = compute_lalr_item_lookaheads(&grammar, &states, &transitions);
+            add_completed_lr0_reductions(
+                &grammar,
+                &states,
+                Some(&lookaheads),
+                &mut lalr_pending,
+            );
+            let lalr = finish_table_with_early_identity_quotient(
+                &grammar,
+                lalr_pending,
+                lalr_goto,
+                lalr_forwarded,
+                GlrTableConstruction::Lalr,
+                AdmissionPolicy::ExactSimulation,
+                false,
+            );
+
+            let start = ParserGSS::from_single_stack(vec![0], TerminalsDisallowed::new());
+            let mut queue = VecDeque::from([(Vec::<u32>::new(), start.clone(), start)]);
+            while let Some((prefix, left, right)) = queue.pop_front() {
+                assert_eq!(
+                    stacks_finished(&slr, &left),
+                    stacks_finished(&lalr, &right),
+                    "completion mismatch at {prefix:?}",
+                );
+                if prefix.len() == 7 {
+                    continue;
+                }
+                for terminal in 0..slr.num_terminals {
+                    assert_eq!(
+                        stack_may_advance_on(&slr, &left, terminal),
+                        stack_may_advance_on(&lalr, &right, terminal),
+                        "admission mismatch at {prefix:?} on {terminal}",
+                    );
+                    let left_next = advance_stacks(&slr, &left, terminal);
+                    let right_next = advance_stacks(&lalr, &right, terminal);
+                    assert_eq!(
+                        left_next.is_empty(),
+                        right_next.is_empty(),
+                        "recognition mismatch at {prefix:?} on {terminal}",
+                    );
+                    if !left_next.is_empty() {
+                        let mut next = prefix.clone();
+                        next.push(terminal);
+                        queue.push_back((next, left_next, right_next));
+                    }
+                }
+            }
+        }
+        assert!(checked > 0, "test corpus must contain an SLR conflict-free grammar");
     }
 
     #[test]
