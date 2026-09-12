@@ -8911,20 +8911,37 @@ fn build_dfas_with_literal_choice(expr: &Expr) -> Option<DFA> {
     let mut components = dfas.iter().map(Arc::as_ref).collect::<Vec<_>>();
     components.push(&literal_dfa);
     let class_started_at = profile_timing.then(Instant::now);
-    let (_, class_members) = compute_dfa_byte_equivalence_classes(&components);
+    let (class_map, class_members) = compute_dfa_byte_equivalence_classes(&components);
     let class_ms = class_started_at.map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
     if class_members.len() > u8::MAX as usize + 1 {
         return None;
     }
+    let class_count = class_members.len();
+    let component_class_transitions = components
+        .iter()
+        .map(|dfa| {
+            build_product_class_transitions_for_dfa(dfa, &class_map)
+                .into_iter()
+                .map(|row| {
+                    let mut dense = vec![u32::MAX; class_count];
+                    for (class, target) in row {
+                        dense[class as usize] = target;
+                    }
+                    dense
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
     let dead_states = components
         .iter()
         .map(|dfa| explicit_dead_sink_state(dfa))
         .collect::<Vec<_>>();
-    let start = vec![0u32; components.len()];
+    let start = std::iter::repeat_n(0u32, components.len())
+        .collect::<SmallVec<[u32; 4]>>();
     let mut result = DFA::new(1);
     result.ensure_group_capacity(1);
     result.set_group_u8set(0, expr_u8set(expr));
-    let mut state_by_tuple = FxHashMap::<Vec<u32>, u32>::default();
+    let mut state_by_tuple = FxHashMap::<SmallVec<[u32; 4]>, u32>::default();
     state_by_tuple.insert(start.clone(), 0);
     let mut queue = VecDeque::from([(0u32, start)]);
     const MAX_DIRECT_CHOICE_STATES: usize = 32_768;
@@ -8944,20 +8961,21 @@ fn build_dfas_with_literal_choice(expr: &Expr) -> Option<DFA> {
         result.overwrite_state_metadata(result_state, finalizers, BitSet::new(1));
 
         let mut transitions = Vec::<(u8, u32)>::new();
-        for (class, members) in class_members.iter().enumerate() {
-            let byte = members[0];
-            let mut next = vec![u32::MAX; components.len()];
+        for class in 0..class_count {
+            let mut next = SmallVec::<[u32; 4]>::with_capacity(components.len());
             let mut any_live = false;
             for (index, dfa) in components.iter().enumerate() {
                 let state = tuple[index];
                 if state == u32::MAX {
+                    next.push(u32::MAX);
                     continue;
                 }
-                if let Some(target) = dfa.step(state, byte)
-                    && dead_states[index] != Some(target)
-                {
-                    next[index] = target;
+                let target = component_class_transitions[index][state as usize][class];
+                if target != u32::MAX && dead_states[index] != Some(target) {
+                    next.push(target);
                     any_live = true;
+                } else {
+                    next.push(u32::MAX);
                 }
             }
             if !any_live {
