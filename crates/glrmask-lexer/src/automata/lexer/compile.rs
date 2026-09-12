@@ -4092,44 +4092,102 @@ fn build_zero_min_repeat_suffix_dominance_dfa_internal(
     let mut worklist = VecDeque::from([(0u32, start)]);
     let (byte_to_class, class_members) =
         compute_dfa_byte_equivalence_classes(&[body_dfa, suffix_dfa]);
+    // Dominance states are dense only as an externally visible coordinate.
+    // In practice their live body frontier is tiny (typically one or two
+    // residuals), while the body DFA can have dozens or hundreds of states.
+    // Reuse one dense scratch row and touch only live residuals while stepping;
+    // materialize a boxed dense row only for a live class edge that must be
+    // interned. This preserves the historical state key exactly while avoiding
+    // one allocation + full body scan for every state/class attempt.
+    let mut next_body_scratch = vec![u32::MAX; body_dfa.num_states()];
 
     while let Some((state_id, state)) = worklist.pop_front() {
+        let live_body = state
+            .body_min_counts
+            .iter()
+            .enumerate()
+            .filter_map(|(body_state, &completed)| {
+                (completed != u32::MAX).then_some((body_state, completed))
+            })
+            .collect::<SmallVec<[(usize, u32); 8]>>();
         let mut target_by_class = vec![u32::MAX; class_members.len()];
         for (class, members) in class_members.iter().enumerate() {
             let byte = members[0];
-            let mut next_body = vec![u32::MAX; body_dfa.num_states()];
-            for (body_state, &completed) in state.body_min_counts.iter().enumerate() {
-                if completed == u32::MAX {
-                    continue;
-                }
+            let mut touched_body = SmallVec::<[usize; 8]>::new();
+            for &(body_state, completed) in &live_body {
                 if let Some(target) = body_dfa.step(body_state as u32, byte) {
-                    let target_count = &mut next_body[target as usize];
-                    *target_count = (*target_count).min(completed);
+                    let target = target as usize;
+                    let target_count = &mut next_body_scratch[target];
+                    if *target_count == u32::MAX {
+                        *target_count = completed;
+                        touched_body.push(target);
+                    } else {
+                        *target_count = (*target_count).min(completed);
+                    }
                 }
             }
 
-            let mut next_suffix = Vec::with_capacity(state.suffix_states.len());
+            let mut next_suffix = SmallVec::<[u32; 4]>::new();
             for &suffix_state in state.suffix_states.iter() {
                 if let Some(target) = suffix_dfa.step(suffix_state, byte) {
                     next_suffix.push(target);
                 }
             }
 
-            close_zero_min_repeat_suffix_state(
-                &mut next_body,
-                &mut next_suffix,
-                body_dfa,
-                suffix_dfa,
-                max,
-            );
-            if next_body.iter().all(|&count| count == u32::MAX) && next_suffix.is_empty() {
+            let mut completed_boundary = u32::MAX;
+            for &body_state in &touched_body {
+                if body_dfa.finalizers(body_state as u32).contains(0) {
+                    completed_boundary = completed_boundary.min(
+                        next_body_scratch[body_state].saturating_add(1),
+                    );
+                }
+            }
+            if completed_boundary != u32::MAX {
+                next_suffix.push(0);
+                if completed_boundary < max as u32 {
+                    if next_body_scratch[0] == u32::MAX {
+                        next_body_scratch[0] = completed_boundary;
+                        touched_body.push(0);
+                    } else {
+                        next_body_scratch[0] =
+                            next_body_scratch[0].min(completed_boundary);
+                    }
+                }
+            }
+
+            touched_body.retain(|body_state| {
+                let body_state = *body_state;
+                if body_dfa
+                    .possible_future_group_ids(body_state as u32)
+                    .contains(0)
+                {
+                    true
+                } else {
+                    next_body_scratch[body_state] = u32::MAX;
+                    false
+                }
+            });
+            next_suffix.retain(|suffix_state| {
+                let suffix_state = *suffix_state;
+                suffix_dfa.finalizers(suffix_state).contains(0)
+                    || suffix_dfa
+                        .possible_future_group_ids(suffix_state)
+                        .contains(0)
+            });
+            next_suffix.sort_unstable();
+            next_suffix.dedup();
+
+            if touched_body.is_empty() && next_suffix.is_empty() {
                 continue;
             }
 
             let next = ZeroMinRepeatSuffixState {
-                body_min_counts: next_body.into_boxed_slice(),
-                suffix_states: next_suffix.into_boxed_slice(),
+                body_min_counts: next_body_scratch.clone().into_boxed_slice(),
+                suffix_states: next_suffix.into_vec().into_boxed_slice(),
             };
+            for &body_state in &touched_body {
+                next_body_scratch[body_state] = u32::MAX;
+            }
             let target = if let Some(&target) = state_map.get(&next) {
                 target
             } else {
@@ -4533,6 +4591,40 @@ fn build_bounded_repeat_with_regex_suffix_with_options(
     )
 }
 
+fn add_disjoint_literal_alternative_from_start(
+    dfa: &mut DFA,
+    literal: &[u8],
+) -> Option<()> {
+    if literal.is_empty() {
+        mark_state_accepting(dfa, 0);
+        return Some(());
+    }
+    // This helper deliberately handles only a branch whose first byte is not
+    // already live from the existing start state.  Under that proof the new
+    // literal path is disjoint after its first byte, so grafting a private
+    // chain is exactly a DFA union and needs no determinization.
+    if dfa.step(0, literal[0]).is_some() {
+        return None;
+    }
+    dfa.ensure_group_capacity(1);
+    let mut source = 0u32;
+    for (index, &byte) in literal.iter().enumerate() {
+        let target = dfa.add_state();
+        let is_last = index + 1 == literal.len();
+        let mut finalizers = BitSet::new(1);
+        let mut futures = BitSet::new(1);
+        if is_last {
+            finalizers.set(0);
+        } else {
+            futures.set(0);
+        }
+        dfa.overwrite_state_metadata(target, finalizers, futures);
+        dfa.add_transition(source, byte, target);
+        source = target;
+    }
+    Some(())
+}
+
 fn build_prefixed_bounded_repeat_with_suffix_dfa_with_options_and_cache(
     parts: &[Expr],
     preserve_coordinates: bool,
@@ -4596,6 +4688,46 @@ fn build_prefixed_bounded_repeat_with_suffix_dfa_with_options_and_cache(
                         cache,
                     )
                 })?;
+        let dfa = prepend_literal_prefix_to_dfa(&prefix_bytes, tail_dfa)?;
+        return Some((dfa, needs_future_recompute));
+    }
+
+    // Fixed literal prefix + optional repeat tail + fixed literal suffix.
+    // JSON property terminals frequently lower to this shape.  Compile the
+    // non-empty arm with the existing bounded-repeat fast path, then graft the
+    // epsilon arm's literal suffix directly when its first byte is disjoint
+    // from the non-empty arm at the tail start.  The byte-disjointness check is
+    // a complete determinism proof for this representation rewrite; otherwise
+    // fail closed to the generic compiler.
+    for optional_index in 1..parts.len().saturating_sub(1) {
+        let Some(mut tail_parts) = optional_tail_parts(&parts[optional_index]) else {
+            continue;
+        };
+        if tail_parts.len() < 2 {
+            continue;
+        }
+        let Some(prefix_bytes) = collect_suffix_bytes(&parts[..optional_index]) else {
+            continue;
+        };
+        let Some(suffix_bytes) = collect_suffix_bytes(&parts[optional_index + 1..]) else {
+            continue;
+        };
+        tail_parts.extend_from_slice(&parts[optional_index + 1..]);
+        let Some((mut tail_dfa, needs_future_recompute)) =
+            build_bounded_repeat_with_suffix_dfa_with_cache(&tail_parts, cache)
+                .or_else(|| {
+                    build_bounded_repeat_with_regex_suffix_with_options_and_cache(
+                        &tail_parts,
+                        preserve_coordinates,
+                        cache,
+                    )
+                })
+        else {
+            continue;
+        };
+        if add_disjoint_literal_alternative_from_start(&mut tail_dfa, &suffix_bytes).is_none() {
+            continue;
+        }
         let dfa = prepend_literal_prefix_to_dfa(&prefix_bytes, tail_dfa)?;
         return Some((dfa, needs_future_recompute));
     }
@@ -17095,6 +17227,38 @@ mod tests {
             "prefixed optional word-list matched leading space unexpectedly: {:?}",
             exec.matches,
         );
+    }
+
+    #[test]
+    fn prefixed_optional_word_list_with_literal_suffix_uses_direct_exact_path() {
+        let base = prefixed_optional_word_list_expr(2);
+        let Expr::Seq(mut parts) = base else { unreachable!() };
+        parts.push(Expr::U8Seq(vec![b'"']));
+        let expr = Expr::Seq(parts);
+
+        let Some((direct, _)) = compile_product_component_dfa_direct(&expr) else {
+            panic!("optional-middle bounded repeat did not use direct component path");
+        };
+        let generic = super::compile_single_expr_dfa(&expr);
+        let samples: &[&[u8]] = &[
+            br#""""#,
+            br#""a""#,
+            br#""a a""#,
+            br#""a  a""#,
+            br#"" a""#,
+            br#""a a a""#,
+            br#""a a a a""#,
+        ];
+        for input in samples {
+            assert_eq!(
+                dfa_accepts(&direct, input),
+                dfa_accepts(&generic, input),
+                "direct optional-middle path changed language for {input:?}",
+            );
+        }
+        assert!(dfa_accepts(&direct, br#""""#));
+        assert!(dfa_accepts(&direct, br#""a""#));
+        assert!(!dfa_accepts(&direct, br#"" a""#));
     }
 
     #[test]

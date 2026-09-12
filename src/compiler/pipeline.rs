@@ -779,6 +779,16 @@ fn build_dynamic_virtual_tokenizer_from_exprs(
                 .then_some(terminal as TerminalID)
         })
         .collect::<Vec<_>>();
+    // Below the giant-repeat threshold, rejecting the symbolic representation
+    // is resource-safe: the ordinary tokenizer remains an exact fallback.  In
+    // that case do not build the expensive bounded-code oracle merely to ask
+    // whether we should try the symbolic path; installation builds the same
+    // oracle again.  Use the cheap necessary shape predicate here, attempt the
+    // exact runtime once below, and fall back to the ordinary tokenizer if the
+    // full proof rejects. Giant repeats still require proof before selection,
+    // because eager fallback could allocate in proportion to their bound.
+    let defer_dynamic_bounded_code_proof =
+        giant_terminals.is_empty() && !preserve_residual_oracle_coordinates;
     // A bounded-code intersection can have a declared bound below the generic
     // 4096 giant-repeat threshold and still explode when eagerly materialized
     // (pattern/format + JSON decoded-length envelopes are a common example).
@@ -797,7 +807,8 @@ fn build_dynamic_virtual_tokenizer_from_exprs(
             // the exact proof when canonical coordinates are required.
             let may_support = expression_may_support_bounded_code_residual_runtime(expression);
             let supported = may_support
-                && (preserve_residual_oracle_coordinates
+                && (defer_dynamic_bounded_code_proof
+                    || preserve_residual_oracle_coordinates
                     || expression_supports_bounded_code_residual_runtime(expression));
             supported.then_some(terminal as TerminalID)
         })
@@ -910,31 +921,67 @@ fn build_dynamic_virtual_tokenizer_from_exprs(
             .collect::<Vec<_>>();
         let partition_ids = lexer_partition_ids(grammar);
         let residual_isolation_classes = lexer_residual_isolation_classes(grammar);
-        let mut tokenizer = build_tokenizer_from_exprs_partitioned_impl(
-            &proxy_expressions,
-            Some(&terminal_labels),
-            &partition_ids,
-            Some(&residual_isolation_classes),
-            None,
-            false,
-        );
+        let residual_components = general_residual_terminals
+            .iter()
+            .map(|&terminal| (expressions[terminal as usize].clone(), terminal))
+            .collect::<Vec<_>>();
+        let prepare_bounded_code_in_parallel = !preserve_residual_oracle_coordinates
+            && (prefer_general_bounded || giant_terminals.is_empty());
+        let (mut tokenizer, prepared_components) = if prepare_bounded_code_in_parallel {
+            let components_to_prepare = residual_components.clone();
+            let (tokenizer, prepared) = rayon::join(
+                || {
+                    build_tokenizer_from_exprs_partitioned_impl(
+                        &proxy_expressions,
+                        Some(&terminal_labels),
+                        &partition_ids,
+                        Some(&residual_isolation_classes),
+                        None,
+                        false,
+                    )
+                },
+                || Tokenizer::prepare_virtual_residual_components(components_to_prepare),
+            );
+            (tokenizer, Some(prepared))
+        } else {
+            (
+                build_tokenizer_from_exprs_partitioned_impl(
+                    &proxy_expressions,
+                    Some(&terminal_labels),
+                    &partition_ids,
+                    Some(&residual_isolation_classes),
+                    None,
+                    false,
+                ),
+                None,
+            )
+        };
         tokenizer.isolate_start_state_and_drain_nullable_terminals();
         tokenizer
             .restore_terminal_exprs_without_virtual_runtime(Some(expressions.to_vec()))
             .map_err(|detail| build_error(&format!("terminal expression restoration failed: {detail}")))?;
-        let residual_components = general_residual_terminals
-            .iter()
-            .map(|&terminal| (expressions[terminal as usize].clone(), terminal))
-            .collect();
-        let installed = if preserve_residual_oracle_coordinates {
+        let installed = if let Some(prepared) = prepared_components {
+            prepared.and_then(|prepared| {
+                tokenizer.install_prepared_virtual_residual_components(prepared)
+            })
+        } else if preserve_residual_oracle_coordinates {
             tokenizer.install_virtual_residual_components_preserving_oracle_coordinates(
                 residual_components,
             )
         } else {
             tokenizer.install_virtual_residual_components(residual_components)
         };
-        installed
-            .ok_or_else(|| build_error("general residual component installation failed"))?;
+        if installed.is_none() {
+            if defer_dynamic_bounded_code_proof {
+                if compile_profile_enabled() {
+                    eprintln!(
+                        "[glrmask/profile][dynamic_tokenizer] path=bounded_code_probe_rejected fallback=ordinary"
+                    );
+                }
+                return Ok(None);
+            }
+            return Err(build_error("general residual component installation failed"));
+        }
         if compile_profile_enabled() {
             eprintln!(
                 "[glrmask/profile][dynamic_tokenizer] path=hybrid_virtual_residuals physical_states={} components={}",

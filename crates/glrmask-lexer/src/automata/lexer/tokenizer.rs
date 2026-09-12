@@ -26,7 +26,7 @@ pub use super::runtime_residual::{
 pub type VirtualResidualMaskProjectionArtifactRef<'a> =
     super::runtime_residual::VirtualResidualMaskProjectionArtifactRef<'a>;
 use super::runtime_residual::{
-    VirtualResidualRuntime, build_bounded_code_liveness_oracle,
+    BoundedCodeIntersectionOracle, VirtualResidualRuntime, build_bounded_code_liveness_oracle,
 };
 pub use super::dfa::SingletonEpsilonClosures;
 use crate::automata::regex::Expr;
@@ -1159,6 +1159,17 @@ pub struct Tokenizer {
     /// vocabulary node or build stage.
     #[serde(default, skip)]
     pub(super) scalar_deterministic_dispatch_cache: OnceLock<bool>,
+}
+
+/// Exact dynamic residual component whose bounded-code liveness proof has
+/// already been constructed. The oracle stays opaque outside the lexer crate;
+/// callers can prepare these independently of a physical tokenizer and later
+/// install them without rebuilding the proof.
+#[doc(hidden)]
+pub struct PreparedVirtualResidualComponent {
+    expression: Expr,
+    terminal: TerminalID,
+    liveness_oracle: BoundedCodeIntersectionOracle,
 }
 
 #[derive(Debug, Clone)]
@@ -10389,6 +10400,123 @@ impl Tokenizer {
         self.install_virtual_residual_components_impl(components, false, false)
     }
 
+    /// Construct exact bounded-code liveness proofs before the physical
+    /// tokenizer exists. Indexed parallel collection preserves component order
+    /// so later installation assigns the same runtime/root IDs as the ordinary
+    /// dynamic path.
+    #[doc(hidden)]
+    pub fn prepare_virtual_residual_components(
+        components: Vec<(Expr, TerminalID)>,
+    ) -> Option<Vec<PreparedVirtualResidualComponent>> {
+        components
+            .into_par_iter()
+            .map(|(expression, terminal)| {
+                let liveness_oracle = build_bounded_code_liveness_oracle(&expression)?;
+                Some(PreparedVirtualResidualComponent {
+                    expression,
+                    terminal,
+                    liveness_oracle,
+                })
+            })
+            .collect()
+    }
+
+    /// Install residual components whose exact dynamic liveness proofs were
+    /// prepared independently of this tokenizer.
+    #[doc(hidden)]
+    pub fn install_prepared_virtual_residual_components(
+        &mut self,
+        components: Vec<PreparedVirtualResidualComponent>,
+    ) -> Option<()> {
+        if self.virtual_unit_repeat.is_some()
+            || !self.virtual_repeat_intersections.is_empty()
+            || !self.virtual_residuals.is_empty()
+            || components.is_empty()
+            || components
+                .iter()
+                .any(|component| component.terminal >= self.num_terminals)
+        {
+            return None;
+        }
+        let mut seen_terminals = BTreeSet::new();
+        if components
+            .iter()
+            .any(|component| !seen_terminals.insert(component.terminal))
+        {
+            return None;
+        }
+
+        let existing_physical_state_count = u32::try_from(self.dfa.num_states()).ok()?;
+        let physical_state_count = existing_physical_state_count
+            .checked_add(u32::try_from(components.len()).ok()?)?;
+        let allocator = Arc::new(VirtualStateAllocator::new(physical_state_count)?);
+        let roots = (0..components.len())
+            .map(|index| existing_physical_state_count.checked_add(u32::try_from(index).ok()?))
+            .collect::<Option<Vec<_>>>()?;
+        let owners = Arc::new(VirtualRuntimeStateOwners::new(physical_state_count, &roots)?);
+
+        let pending = components
+            .into_iter()
+            .enumerate()
+            .map(|(index, component)| {
+                let root_state = roots[index];
+                let byte_support = super::compile::expr_u8set(&component.expression);
+                let runtime_index = u32::try_from(index).ok()?;
+                let runtime = VirtualResidualRuntime::new_with_liveness_oracle(
+                    &component.expression,
+                    component.liveness_oracle,
+                    runtime_index,
+                    component.terminal,
+                    self.num_terminals,
+                    physical_state_count,
+                    root_state,
+                    Arc::clone(&allocator),
+                    Arc::clone(&owners),
+                )?;
+                Some((
+                    component.terminal,
+                    root_state,
+                    byte_support,
+                    Arc::new(runtime),
+                ))
+            })
+            .collect::<Option<Vec<_>>>()?;
+
+        self.invalidate_derived_caches();
+        self.dfa.ensure_group_capacity(self.num_terminals as usize);
+        for &(terminal, expected_root, byte_support, _) in &pending {
+            self.dfa.set_group_u8set(terminal, byte_support);
+            let root_state = self.dfa.add_state();
+            debug_assert_eq!(root_state, expected_root);
+            self.dfa.add_epsilon_transition(self.start_state(), root_state);
+        }
+
+        let mut runtimes = Vec::with_capacity(pending.len());
+        let mut start_futures = self.dfa.possible_future_group_ids(self.start_state()).clone();
+        for (terminal, root_state, _, runtime) in pending {
+            let mut root_futures = BitSet::new(self.num_terminals as usize);
+            if runtime.root_has_future() {
+                root_futures.set(terminal as usize);
+                start_futures.set(terminal as usize);
+            }
+            self.dfa.overwrite_state_metadata(
+                root_state,
+                BitSet::new(self.num_terminals as usize),
+                root_futures,
+            );
+            runtimes.push(runtime);
+        }
+        let start_finalizers = self.dfa.finalizers(self.start_state()).clone();
+        self.dfa.overwrite_state_metadata(
+            self.start_state(),
+            start_finalizers,
+            start_futures,
+        );
+        self.virtual_residuals = runtimes;
+        self.invalidate_derived_caches();
+        Some(())
+    }
+
     /// Install residual proxy/runtime metadata for a transfer-producing
     /// dynamic compile without eagerly constructing bounded-code liveness
     /// oracles that are not serialized in the compact artifact.
@@ -16114,6 +16242,58 @@ mod tests {
                 }
             });
         }
+    }
+
+    #[test]
+    fn prepared_virtual_residual_install_matches_direct_dynamic_install() {
+        let body = Expr::U8Class(U8Set::from_bytes(b"ab"));
+        let envelope = Expr::Seq(vec![
+            bytes(b"\""),
+            Expr::Repeat {
+                expr: Box::new(body.clone()),
+                min: 0,
+                max: Some(4),
+            },
+            bytes(b"\""),
+        ]);
+        let pattern = Expr::Seq(vec![
+            bytes(b"\"a"),
+            Expr::Repeat {
+                expr: Box::new(body),
+                min: 0,
+                max: None,
+            },
+            bytes(b"\""),
+        ]);
+        let expression = Expr::Intersect {
+            expr: Box::new(envelope),
+            intersect: Box::new(pattern),
+        };
+
+        let mut direct = Tokenizer::from_parts(DFA::new(1), 1, None);
+        direct
+            .install_virtual_residual_components(vec![(expression.clone(), 0)])
+            .expect("direct dynamic residual must install");
+
+        let prepared = Tokenizer::prepare_virtual_residual_components(vec![(expression, 0)])
+            .expect("bounded-code residual must prepare");
+        let mut overlapped = Tokenizer::from_parts(DFA::new(1), 1, None);
+        overlapped
+            .install_prepared_virtual_residual_components(prepared)
+            .expect("prepared dynamic residual must install");
+
+        assert_eq!(direct.virtual_runtime_metadata(), overlapped.virtual_runtime_metadata());
+        assert_eq!(
+            direct.virtual_residual_bounded_code_liveness_oracle_count(),
+            overlapped.virtual_residual_bounded_code_liveness_oracle_count(),
+        );
+        enumerate_bytes(b"ab\"", 4, |input| {
+            assert_eq!(
+                normalized_exec(&direct, input, direct.start_state()),
+                normalized_exec(&overlapped, input, overlapped.start_state()),
+                "prepared residual runtime differs on {input:?}",
+            );
+        });
     }
 
     #[test]
