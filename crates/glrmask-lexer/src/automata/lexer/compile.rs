@@ -1453,7 +1453,6 @@ impl SharedDuplicateNestedGroupOpCache {
         ))
     }
 
-    #[cfg(test)]
     fn all_entries_initialized(&self) -> bool {
         let compiled = self
             .compiled
@@ -1878,7 +1877,30 @@ fn shared_duplicate_nested_group_op_cache(
         .values()
         .filter(|terminal_ids| terminal_ids.len() == 1)
         .count();
-    if grouped.len() < 64 || singleton_partitions * 4 < grouped.len() * 3 {
+    // The original policy targets many singleton partitions.  Product-trace
+    // builds also have a distinct expensive shape: one large partition whose
+    // nested group-op plan is itself parallelized.  Private per-expression
+    // caches make duplicated nested exclusions/intersections in that partition
+    // compile repeatedly.  Detect exactly the same minimum work threshold used
+    // by the parallel planner before paying for the cross-partition duplicate
+    // scan, so small/ordinary partitions keep the old zero-overhead path.
+    const PARALLEL_NESTED_GROUP_PLAN_MIN_VISIBLE_GROUPS: usize = 16;
+    const PARALLEL_NESTED_GROUP_PLAN_MIN_GROUP_OPS: usize = 128;
+    let has_large_nested_partition = grouped.values().any(|terminal_ids| {
+        terminal_ids.len() >= PARALLEL_NESTED_GROUP_PLAN_MIN_VISIBLE_GROUPS
+            && terminal_ids
+                .iter()
+                .map(|&terminal_id| group_op_node_count(&exprs[terminal_id]))
+                .sum::<usize>()
+                >= PARALLEL_NESTED_GROUP_PLAN_MIN_GROUP_OPS
+    });
+    let force = std::env::var_os(
+        "GLRMASK_EXPERIMENT_PRODUCT_TRACE_SHARED_NESTED_GROUP_OPS",
+    )
+    .is_some();
+    let many_singleton_partitions =
+        grouped.len() >= 64 && singleton_partitions * 4 >= grouped.len() * 3;
+    if !force && !many_singleton_partitions && !has_large_nested_partition {
         return None;
     }
 
@@ -1944,16 +1966,110 @@ fn expr_structural_size(expr: &Expr) -> usize {
 fn prewarm_shared_duplicate_nested_group_ops(
     shared: &Arc<SharedDuplicateNestedGroupOpCache>,
 ) {
-    let mut duplicated = shared.duplicated.iter().cloned().collect::<Vec<_>>();
-    duplicated.sort_unstable_by_key(expr_structural_size);
+    fn collect_proper_shared_dependencies(
+        expr: &Expr,
+        duplicated: &FxHashSet<Expr>,
+        out: &mut FxHashSet<Expr>,
+        is_root: bool,
+    ) {
+        if !is_root
+            && matches!(expr, Expr::Exclude { .. } | Expr::Intersect { .. })
+            && duplicated.contains(expr)
+        {
+            out.insert(expr.clone());
+        }
+        match expr {
+            Expr::Exclude { expr, exclude } => {
+                collect_proper_shared_dependencies(expr, duplicated, out, false);
+                collect_proper_shared_dependencies(exclude, duplicated, out, false);
+            }
+            Expr::Intersect { expr, intersect } => {
+                collect_proper_shared_dependencies(expr, duplicated, out, false);
+                collect_proper_shared_dependencies(intersect, duplicated, out, false);
+            }
+            Expr::Seq(parts) | Expr::Choice(parts) => {
+                for part in parts {
+                    collect_proper_shared_dependencies(part, duplicated, out, false);
+                }
+            }
+            Expr::Repeat { expr, .. } => {
+                collect_proper_shared_dependencies(expr, duplicated, out, false);
+            }
+            Expr::Shared(expr) => {
+                collect_proper_shared_dependencies(expr, duplicated, out, false);
+            }
+            Expr::U8Seq(_) | Expr::U8Class(_) | Expr::Dfa(_) | Expr::Epsilon => {}
+        }
+    }
 
-    let mut cache = NestedGroupOpCache {
-        shared_duplicates: Some(Arc::clone(shared)),
-        allow_shared_initialization: true,
-        ..NestedGroupOpCache::default()
-    };
-    for expr in duplicated {
-        let _ = materialize_nested_group_ops(expr, &mut cache);
+    let profile = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
+    let started_at = profile.then(Instant::now);
+    let mut pending = shared
+        .duplicated
+        .iter()
+        .cloned()
+        .map(|expr| {
+            let mut dependencies = FxHashSet::default();
+            collect_proper_shared_dependencies(
+                &expr,
+                &shared.duplicated,
+                &mut dependencies,
+                true,
+            );
+            (expr, dependencies.into_iter().collect::<Vec<_>>())
+        })
+        .collect::<Vec<_>>();
+    let mut finished = FxHashSet::<Expr>::default();
+    let mut layer_count = 0usize;
+
+    while !pending.is_empty() {
+        let mut ready = Vec::<Expr>::new();
+        let mut blocked = Vec::new();
+        for (expr, dependencies) in pending {
+            if dependencies.iter().all(|dependency| finished.contains(dependency)) {
+                ready.push(expr);
+            } else {
+                blocked.push((expr, dependencies));
+            }
+        }
+        assert!(
+            !ready.is_empty(),
+            "duplicated nested group-op dependency graph must be acyclic",
+        );
+        layer_count += 1;
+
+        ready.par_iter().for_each(|expr| {
+            let cell = shared
+                .cell_if_duplicated(expr)
+                .expect("prewarm root must be registered as duplicated");
+            if cell.get().is_some() {
+                return;
+            }
+            let mut cache = NestedGroupOpCache {
+                shared_duplicates: Some(Arc::clone(shared)),
+                allow_shared_initialization: false,
+                ..NestedGroupOpCache::default()
+            };
+            let compiled = Arc::new(compile_with_plan(
+                build_exclusion_compile_plan_with_labels_and_cache(
+                    std::slice::from_ref(expr),
+                    None,
+                    &mut cache,
+                ),
+            ));
+            let _ = cell.set(compiled);
+        });
+        finished.extend(ready);
+        pending = blocked;
+    }
+
+    if let Some(started_at) = started_at {
+        eprintln!(
+            "[glrmask/profile][tokenizer] shared_nested_prewarm entries={} layers={} elapsed_ms={:.3}",
+            finished.len(),
+            layer_count,
+            started_at.elapsed().as_secs_f64() * 1000.0,
+        );
     }
 }
 
@@ -2106,15 +2222,24 @@ fn build_exclusion_compile_plan_with_labels_and_cache(
     let nested_group_ops = (visible_groups >= PARALLEL_NESTED_GROUP_PLAN_MIN_VISIBLE_GROUPS)
         .then(|| exprs.iter().map(group_op_node_count).sum::<usize>())
         .unwrap_or(0);
+    let shared_is_prewarmed = nested_group_op_cache
+        .shared_duplicates
+        .as_ref()
+        .is_none_or(|shared| shared.all_entries_initialized());
     let parallel_materialize = visible_groups >= PARALLEL_NESTED_GROUP_PLAN_MIN_VISIBLE_GROUPS
         && nested_group_ops >= PARALLEL_NESTED_GROUP_PLAN_MIN_GROUP_OPS
-        && nested_group_op_cache.shared_duplicates.is_none()
+        && shared_is_prewarmed
         && std::env::var_os("GLRMASK_DISABLE_PARALLEL_NESTED_GROUP_PLAN").is_none();
     if parallel_materialize {
+        let shared_duplicates = nested_group_op_cache.shared_duplicates.clone();
         let materialized = exprs
             .par_iter()
             .map(|expr| {
-                let mut local_cache = NestedGroupOpCache::default();
+                let mut local_cache = NestedGroupOpCache {
+                    shared_duplicates: shared_duplicates.clone(),
+                    allow_shared_initialization: false,
+                    ..NestedGroupOpCache::default()
+                };
                 let (base, excluded, intersections) = split_top_level_group_ops(expr);
                 let base = materialize_nested_group_ops(base, &mut local_cache);
                 let excluded = excluded
