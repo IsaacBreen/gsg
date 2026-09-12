@@ -1985,13 +1985,48 @@ fn build_tokenizer_from_exprs_partitioned_impl(
 ) -> Tokenizer {
     let profile_detail = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_DETAIL").is_some();
     let started_at = Instant::now();
-    let product_trace_terminal_residuals = if prefer_product_trace_terminal_residuals {
+    let requested_product_trace_terminal_residuals = if prefer_product_trace_terminal_residuals {
         env_flag_enabled_by_default("GLRMASK_L1_PRODUCT_TRACE_TERMINAL_RESIDUALS")
     } else {
         env_flag_enabled("GLRMASK_L1_PRODUCT_TRACE_TERMINAL_RESIDUALS")
     };
-    let direct_terminal_residuals = env_flag_enabled("GLRMASK_L1_DIRECT_TERMINAL_RESIDUALS")
+    // In very wide, overwhelmingly-singleton partitionings, product tracing
+    // pays to recover residual coordinates which direct one-terminal DFA
+    // compilation already supplies. Only inspect topology once 48 terminals
+    // make this lane possible, so ordinary small-schema builds pay no map cost.
+    let (partition_count, singleton_partitions) = if requested_product_trace_terminal_residuals
+        && partition_ids.len() >= 48
+    {
+        let mut partition_sizes = rustc_hash::FxHashMap::<u32, usize>::default();
+        partition_sizes.reserve(partition_ids.len());
+        for &partition in partition_ids {
+            *partition_sizes.entry(partition).or_default() += 1;
+        }
+        (
+            partition_sizes.len(),
+            partition_sizes.values().filter(|&&size| size == 1).count(),
+        )
+    } else {
+        (0, 0)
+    };
+    let direct_by_partition_topology = requested_product_trace_terminal_residuals
+        && partition_count >= 48
+        && singleton_partitions * 10 >= partition_count * 9;
+    let product_trace_terminal_residuals =
+        requested_product_trace_terminal_residuals && !direct_by_partition_topology;
+    let direct_terminal_residuals = (env_flag_enabled("GLRMASK_L1_DIRECT_TERMINAL_RESIDUALS")
+        || direct_by_partition_topology)
         && !product_trace_terminal_residuals;
+    if profile_detail || std::env::var_os("GLRMASK_PROFILE_L1_IMPLEMENTATIONS").is_some() {
+        eprintln!(
+            "[glrmask/profile][l1_residual_strategy] partitions={} singleton_partitions={} product_trace={} direct={} direct_by_partition_topology={}",
+            partition_count,
+            singleton_partitions,
+            product_trace_terminal_residuals,
+            direct_terminal_residuals,
+            direct_by_partition_topology,
+        );
+    }
     let precompiled_exprs = direct_terminal_residuals.then(|| {
         let wall_started_at = Instant::now();
         let compiled = exprs
