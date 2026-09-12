@@ -1966,6 +1966,41 @@ fn expr_structural_size(expr: &Expr) -> usize {
 fn prewarm_shared_duplicate_nested_group_ops(
     shared: &Arc<SharedDuplicateNestedGroupOpCache>,
 ) {
+    fn compile_materialized_operand(
+        expr: &Expr,
+        shared: &Arc<SharedDuplicateNestedGroupOpCache>,
+    ) -> Arc<DFA> {
+        let mut cache = NestedGroupOpCache {
+            shared_duplicates: Some(Arc::clone(shared)),
+            allow_shared_initialization: false,
+            ..NestedGroupOpCache::default()
+        };
+        let materialized = materialize_nested_group_ops(expr.clone(), &mut cache);
+        match materialized {
+            Expr::Dfa(dfa) => dfa,
+            other => Arc::new(compile_single_expr_dfa(&other)),
+        }
+    }
+
+    fn try_compile_direct_exclusion(
+        expr: &Expr,
+        shared: &Arc<SharedDuplicateNestedGroupOpCache>,
+    ) -> Option<Arc<DFA>> {
+        let Expr::Exclude { expr: left, exclude: right } = expr else {
+            return None;
+        };
+        let (left, right) = rayon::join(
+            || compile_materialized_operand(left, shared),
+            || compile_materialized_operand(right, shared),
+        );
+        build_dense_binary_exclusion_dfa(
+            left.as_ref(),
+            right.as_ref(),
+            expr_u8set(expr),
+        )
+        .map(Arc::new)
+    }
+
     fn collect_proper_shared_dependencies(
         expr: &Expr,
         duplicated: &FxHashSet<Expr>,
@@ -2050,13 +2085,15 @@ fn prewarm_shared_duplicate_nested_group_ops(
                 allow_shared_initialization: false,
                 ..NestedGroupOpCache::default()
             };
-            let compiled = Arc::new(compile_with_plan(
-                build_exclusion_compile_plan_with_labels_and_cache(
-                    std::slice::from_ref(expr),
-                    None,
-                    &mut cache,
-                ),
-            ));
+            let compiled = try_compile_direct_exclusion(expr, shared).unwrap_or_else(|| {
+                Arc::new(compile_with_plan(
+                    build_exclusion_compile_plan_with_labels_and_cache(
+                        std::slice::from_ref(expr),
+                        None,
+                        &mut cache,
+                    ),
+                ))
+            });
             let _ = cell.set(compiled);
         });
         finished.extend(ready);
@@ -12782,6 +12819,202 @@ fn pure_binary_intersection(
             .is_some_and(|required| required.len() == 1 && required.contains(&1))
 }
 
+/// Exact single-group DFA for `left \\ right`.
+///
+/// Unlike the ordinary two-component product, the RHS is allowed to die while
+/// the LHS remains live.  A dedicated sentinel represents that permanently-dead
+/// RHS coordinate, so reachable states fit in one dense
+/// `(left_state, right_state_or_dead)` table with no tuple hashing.
+fn build_dense_binary_exclusion_dfa(left: &DFA, right: &DFA, support: U8Set) -> Option<DFA> {
+    const MAX_DENSE_PAIR_CELLS: usize = 40_000_000;
+
+    if left.num_states() == 0
+        || right.num_states() == 0
+        || left.num_groups() != 1
+        || right.num_groups() != 1
+        || left.has_epsilon_transitions()
+        || right.has_epsilon_transitions()
+    {
+        return None;
+    }
+
+    let left_states = left.num_states();
+    let right_states = right.num_states();
+    let right_dead_sentinel = u32::try_from(right_states).ok()?;
+    let right_stride = right_states.checked_add(1)?;
+    let pair_cells = left_states.checked_mul(right_stride)?;
+    if pair_cells == 0 || pair_cells > MAX_DENSE_PAIR_CELLS {
+        return None;
+    }
+
+    let profile = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
+    let started_at = profile.then(Instant::now);
+    let class_started_at = profile.then(Instant::now);
+    let (class_map, class_members) = compute_dfa_byte_equivalence_classes(&[left, right]);
+    let class_ms = class_started_at
+        .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+    let left_transitions = build_product_class_transitions_for_dfa(left, &class_map);
+    let right_transitions = build_product_class_transitions_for_dfa(right, &class_map);
+    let left_dead = explicit_dead_sink_state(left);
+    let right_dead = explicit_dead_sink_state(right);
+    if left_dead == Some(0) {
+        let mut dfa = DFA::new(1);
+        dfa.ensure_group_capacity(1);
+        dfa.set_group_u8set(0, support);
+        return Some(dfa);
+    }
+    let right_start = if right_dead == Some(0) {
+        right_dead_sentinel
+    } else {
+        0
+    };
+
+    let pair_index = |left_state: u32, right_state: u32| -> Option<usize> {
+        (left_state as usize)
+            .checked_mul(right_stride)?
+            .checked_add(right_state as usize)
+    };
+
+    let mut state_by_pair = vec![u32::MAX; pair_cells];
+    state_by_pair[pair_index(0, right_start)?] = 0;
+    let mut pairs = vec![(0u32, right_start)];
+    let mut accepting = Vec::<bool>::new();
+    let mut row_offsets = Vec::<u32>::with_capacity(256);
+    let mut row_classes = Vec::<u8>::new();
+    let mut row_targets = Vec::<u32>::new();
+    row_offsets.push(0);
+
+    let is_accepting = |left_state: u32, right_state: u32| {
+        if !left.finalizers(left_state).contains(0) {
+            return false;
+        }
+        right_state == right_dead_sentinel || !right.finalizers(right_state).contains(0)
+    };
+
+    let construct_started_at = profile.then(Instant::now);
+    let mut cursor = 0usize;
+    while cursor < pairs.len() {
+        let (left_state, right_state) = pairs[cursor];
+        accepting.push(is_accepting(left_state, right_state));
+        let left_row = left_transitions.get(left_state as usize)?;
+        let right_row = if right_state == right_dead_sentinel {
+            None
+        } else {
+            Some(right_transitions.get(right_state as usize)?)
+        };
+        let mut right_index = 0usize;
+        for &(class, left_target) in left_row {
+            if left_target == u32::MAX || left_dead == Some(left_target) {
+                continue;
+            }
+
+            let right_target = if let Some(right_row) = right_row {
+                while right_index < right_row.len() && right_row[right_index].0 < class {
+                    right_index += 1;
+                }
+                if right_index < right_row.len() && right_row[right_index].0 == class {
+                    let target = right_row[right_index].1;
+                    if target == u32::MAX || right_dead == Some(target) {
+                        right_dead_sentinel
+                    } else {
+                        target
+                    }
+                } else {
+                    right_dead_sentinel
+                }
+            } else {
+                right_dead_sentinel
+            };
+
+            let index = pair_index(left_target, right_target)?;
+            let target = if state_by_pair[index] != u32::MAX {
+                state_by_pair[index]
+            } else {
+                let target = u32::try_from(pairs.len()).ok()?;
+                state_by_pair[index] = target;
+                pairs.push((left_target, right_target));
+                target
+            };
+            row_classes.push(class);
+            row_targets.push(target);
+        }
+        row_offsets.push(u32::try_from(row_targets.len()).ok()?);
+        cursor += 1;
+    }
+    let construct_ms = construct_started_at
+        .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+
+    let future_started_at = profile.then(Instant::now);
+    let has_future = compute_single_group_futures_from_class_graph_csr(
+        &accepting,
+        &row_offsets,
+        &row_targets,
+        0,
+    );
+    let future_ms = future_started_at
+        .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+
+    let mut dfa = DFA::new(accepting.len());
+    dfa.ensure_group_capacity(1);
+    dfa.set_group_u8set(0, support);
+    for state in 0..dfa.num_states() {
+        let mut finalizers = BitSet::new(1);
+        if accepting[state] {
+            finalizers.set(0);
+        }
+        let mut future = BitSet::new(1);
+        if has_future[state] {
+            future.set(0);
+        }
+        dfa.overwrite_state_metadata(state as u32, finalizers, future);
+    }
+
+    let expand_started_at = profile.then(Instant::now);
+    for state in 0..dfa.num_states() {
+        let start = row_offsets[state] as usize;
+        let end = row_offsets[state + 1] as usize;
+        let byte_capacity = row_classes[start..end]
+            .iter()
+            .map(|class| class_members[*class as usize].len())
+            .sum();
+        let mut transitions = Vec::<(u8, u32)>::with_capacity(byte_capacity);
+        for (&class, &target) in row_classes[start..end]
+            .iter()
+            .zip(&row_targets[start..end])
+        {
+            transitions.extend(
+                class_members[class as usize]
+                    .iter()
+                    .copied()
+                    .map(|byte| (byte, target)),
+            );
+        }
+        if transitions.len() > 1 {
+            transitions.sort_unstable_by_key(|entry| entry.0);
+        }
+        dfa.set_transitions_from_sorted_entries(state as u32, transitions);
+    }
+    let expand_ms = expand_started_at
+        .map_or(0.0, |started| started.elapsed().as_secs_f64() * 1000.0);
+
+    if let Some(started_at) = started_at {
+        eprintln!(
+            "[glrmask/profile][tokenizer] dense_binary_exclusion left_states={} right_states={} pair_cells={} reachable_states={} classes={} class_ms={:.3} construct_ms={:.3} future_ms={:.3} expand_ms={:.3} total_ms={:.3}",
+            left_states,
+            right_states,
+            pair_cells,
+            dfa.num_states(),
+            class_members.len(),
+            class_ms,
+            construct_ms,
+            future_ms,
+            expand_ms,
+            started_at.elapsed().as_secs_f64() * 1000.0,
+        );
+    }
+    Some(dfa)
+}
+
 struct DeferredDenseBinaryIntersectionProduct {
     metadata: DFA,
     accepting: Vec<bool>,
@@ -14512,6 +14745,52 @@ mod tests {
                     queue.push_back(next);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn dense_binary_exclusion_matches_general_exclusion() {
+        let left_expr = Expr::Choice(vec![
+            Expr::U8Seq(b"a".to_vec()),
+            Expr::U8Seq(b"ab".to_vec()),
+            Expr::U8Seq(b"ac".to_vec()),
+            Expr::U8Seq(b"ba".to_vec()),
+            Expr::Seq(vec![
+                Expr::U8Seq(b"c".to_vec()),
+                Expr::Repeat {
+                    expr: Box::new(Expr::U8Class(U8Set::from_bytes(b"ab"))),
+                    min: 0,
+                    max: Some(2),
+                },
+            ]),
+        ]);
+        let right_expr = Expr::Choice(vec![
+            Expr::U8Seq(b"a".to_vec()),
+            Expr::U8Seq(b"ab".to_vec()),
+            Expr::U8Seq(b"c".to_vec()),
+            Expr::U8Seq(b"caa".to_vec()),
+        ]);
+        let expr = Expr::Exclude {
+            expr: Box::new(left_expr.clone()),
+            exclude: Box::new(right_expr.clone()),
+        };
+        let expected = compile_product_component_dfa(&expr);
+        let left = super::compile_expr_to_dfa(&left_expr);
+        let right = super::compile_expr_to_dfa(&right_expr);
+        let direct = super::build_dense_binary_exclusion_dfa(
+            &left,
+            &right,
+            super::expr_u8set(&expr),
+        )
+        .expect("dense binary exclusion should apply");
+
+        assert_dfa_observation_equivalent(&expected, &direct);
+        for input in enumerate_inputs(b"abc", 4) {
+            assert_eq!(
+                dfa_accepts(&expected, &input),
+                dfa_accepts(&direct, &input),
+                "language mismatch for {input:?}",
+            );
         }
     }
 
