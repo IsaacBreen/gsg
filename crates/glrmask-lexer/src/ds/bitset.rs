@@ -123,6 +123,17 @@ impl BitSet {
         self.words.fill(0);
     }
 
+    /// Keep only the prefix `[0, len)` without reallocating when possible.
+    /// Group projection frequently discards internal compiler-only groups from
+    /// an already-owned DFA; rebuilding every bitset merely to shorten its
+    /// domain is unnecessary.
+    pub(crate) fn truncate(&mut self, len: usize) {
+        assert!(len <= self.len, "BitSet::truncate cannot grow the domain");
+        self.words.truncate(len.div_ceil(64));
+        self.len = len;
+        self.mask_unused_bits();
+    }
+
     pub fn count_ones(&self) -> usize {
         self.words.iter().map(|word| word.count_ones() as usize).sum()
     }

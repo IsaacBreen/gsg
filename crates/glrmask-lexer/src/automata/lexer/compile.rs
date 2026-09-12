@@ -5202,14 +5202,27 @@ fn compile_with_plan_internal_options(
     if !product_group_ops_applied && !plan.intersections.is_empty() {
         group_ops_changed |= dfa.apply_group_intersections(&plan.intersections);
     }
-    if group_ops_changed {
+    let project_in_place = !product_group_ops_applied
+        && plan.visible_groups < plan.compiled_exprs.len()
+        && std::env::var_os("GLRMASK_DISABLE_IN_PLACE_GROUP_PROJECTION").is_none();
+    if group_ops_changed && !project_in_place {
         dfa.recompute_possible_futures();
     }
     let group_ops_ms = profile_plan
         .then(|| group_ops_started_at.elapsed().as_secs_f64() * 1000.0);
 
     let project_started_at = Instant::now();
-    let dfa = if !product_group_ops_applied && plan.visible_groups < plan.compiled_exprs.len() {
+    let dfa = if project_in_place {
+        dfa.project_groups_in_place(plan.visible_groups);
+        if group_ops_changed {
+            // Reachability commutes with projection: after applying hidden
+            // exclusion/intersection predicates to finalizers, recomputing the
+            // visible futures directly is equivalent to recomputing all groups
+            // and then projecting, while using narrower bitsets throughout.
+            dfa.recompute_possible_futures();
+        }
+        dfa
+    } else if !product_group_ops_applied && plan.visible_groups < plan.compiled_exprs.len() {
         dfa.project_groups(plan.visible_groups)
     } else {
         dfa

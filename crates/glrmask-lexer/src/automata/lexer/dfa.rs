@@ -1614,6 +1614,18 @@ impl DFA {
         projected
     }
 
+    /// Project to the leading `num_groups` in place. Transitions and state IDs
+    /// are unchanged; only compiler metadata for hidden groups is discarded.
+    pub(super) fn project_groups_in_place(&mut self, num_groups: usize) {
+        assert!(num_groups <= self.num_groups());
+        self.invalidate_structural_caches();
+        for state in &mut self.states {
+            state.finalizers.truncate(num_groups);
+            state.possible_future_group_ids.truncate(num_groups);
+        }
+        self.group_id_to_u8set.truncate(num_groups);
+    }
+
     fn state_mut(&mut self, state: u32) -> Option<&mut DFAState> {
         self.states.get_mut(state as usize)
     }
@@ -1719,6 +1731,66 @@ mod tests {
         dfa.add_epsilon_transition(0, 1);
         assert!(dfa.has_epsilon_transitions());
         assert_eq!(dfa.epsilon_transition_count(), 1);
+    }
+
+    #[test]
+    fn in_place_group_projection_matches_owned_projection() {
+        let mut dfa = DFA::new(3);
+        dfa.ensure_group_capacity(3);
+        dfa.add_transition(0, b'a', 1);
+        dfa.add_transition(1, b'b', 2);
+
+        let mut state1_finalizers = BitSet::new(3);
+        state1_finalizers.set(2);
+        let mut state1_futures = BitSet::new(3);
+        state1_futures.set(0);
+        state1_futures.set(2);
+        dfa.overwrite_state_metadata(1, state1_finalizers, state1_futures);
+
+        let mut state2_finalizers = BitSet::new(3);
+        state2_finalizers.set(0);
+        state2_finalizers.set(1);
+        let mut state2_futures = BitSet::new(3);
+        state2_futures.set(1);
+        dfa.overwrite_state_metadata(2, state2_finalizers, state2_futures);
+
+        let expected = dfa.project_groups(2);
+        let mut actual = dfa;
+        actual.project_groups_in_place(2);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn projection_before_future_recompute_matches_projection_after_recompute() {
+        let mut dfa = DFA::new(4);
+        dfa.ensure_group_capacity(3);
+        dfa.add_transition(0, b'a', 1);
+        dfa.add_transition(1, b'b', 2);
+        dfa.add_transition(1, b'c', 3);
+
+        let mut state2_finalizers = BitSet::new(3);
+        state2_finalizers.set(0);
+        state2_finalizers.set(2);
+        dfa.overwrite_state_metadata(2, state2_finalizers, BitSet::new(3));
+
+        let mut state3_finalizers = BitSet::new(3);
+        state3_finalizers.set(1);
+        dfa.overwrite_state_metadata(3, state3_finalizers, BitSet::new(3));
+
+        let mut excludes = BTreeMap::<GroupId, BTreeSet<GroupId>>::new();
+        excludes.entry(0).or_default().insert(2);
+
+        let mut historical = dfa.clone();
+        assert!(historical.apply_group_exclusions(&excludes));
+        historical.recompute_possible_futures();
+        let historical = historical.project_groups(2);
+
+        let mut projected_first = dfa;
+        assert!(projected_first.apply_group_exclusions(&excludes));
+        projected_first.project_groups_in_place(2);
+        projected_first.recompute_possible_futures();
+
+        assert_eq!(projected_first, historical);
     }
 
     #[test]
