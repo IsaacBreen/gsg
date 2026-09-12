@@ -5779,7 +5779,17 @@ pub fn build_partitioned_tokenizer_with_product_trace_terminal_residuals(
                         || dfa.possible_future_group_ids(state).contains(local_group)
                 };
                 if !partition_live(0) {
-                    return None;
+                    // The group operation is the empty language. Keep an
+                    // exact canonical dead residual instead of discarding the
+                    // successful traced partition and rebuilding via the
+                    // fallback lexer.
+                    let mut source = DFA::new(1);
+                    source.ensure_group_capacity(1);
+                    source.set_group_u8set(0, *dfa.group_id_to_u8set(local_group as u32));
+                    return Some(Some((
+                        Arc::new(source),
+                        vec![u32::MAX; dfa.num_states()],
+                    )));
                 }
 
                 let mut raw_state_by_key = FxHashMap::<SmallVec<[u32; 4]>, u32>::default();
@@ -16740,6 +16750,53 @@ mod tests {
         assert!(!terminal_matches(expr.clone(), b"a"));
         assert!(!terminal_matches(expr.clone(), b"b"));
         assert!(terminal_matches(expr, b"c"));
+    }
+
+    #[test]
+    fn product_trace_residuals_keep_empty_complex_terminal_as_dead_coordinate() {
+        let live = byte_choice(b"ab");
+        let dead = Expr::Exclude {
+            expr: Box::new(byte_choice(b"ab")),
+            exclude: Box::new(byte_choice(b"ab")),
+        };
+        let exprs = vec![live, dead];
+        let partitions = vec![0u32, 0u32];
+        let retained = Arc::from(exprs.clone().into_boxed_slice());
+        let tokenizer = super::build_partitioned_tokenizer_with_product_trace_terminal_residuals(
+            &exprs,
+            None,
+            &partitions,
+            None,
+            retained,
+            Some(false),
+        )
+        .expect("empty complex terminal should not force product-trace fallback");
+
+        for input in [b"a".as_slice(), b"b".as_slice()] {
+            let exec = tokenizer.execute_from_state(input, tokenizer.initial_state());
+            assert!(exec.matches.iter().any(|matched| matched.id == 0));
+            assert!(!exec.matches.iter().any(|matched| matched.id == 1));
+        }
+
+        let coordinates = tokenizer
+            .terminal_residual_coordinates()
+            .expect("product-trace tokenizer should retain terminal residual coordinates");
+        let dead_dfa = coordinates
+            .terminal_dfa(1)
+            .expect("dead terminal should retain a residual DFA");
+        assert_eq!(dead_dfa.num_states(), 1);
+        assert!(dead_dfa.finalizers(0).is_empty());
+        assert!(dead_dfa.possible_future_group_ids(0).is_empty());
+        for state in 0..tokenizer.num_states() {
+            assert!(
+                coordinates
+                    .row(state)
+                    .expect("coordinate row must exist")
+                    .iter()
+                    .all(|&(terminal, _)| terminal != 1),
+                "dead terminal unexpectedly appears in residual row {state}",
+            );
+        }
     }
 
     #[test]
