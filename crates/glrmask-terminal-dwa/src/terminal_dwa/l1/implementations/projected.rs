@@ -5069,12 +5069,6 @@ pub fn build_projected_vocab_equivalence(input: BuildInput<'_>) -> Option<L1Voca
                 .unwrap_or(false));
     let kernel = if force_p5_residual {
         ProjectedKernel::Residual
-    } else if input.partition_label == "p5"
-        && input.subset_parent_order.is_none()
-        && input.vocab.len() >= 4_000
-        && input.tokenizer.num_states() >= 5_000
-    {
-        ProjectedKernel::Finite
     } else {
         projected_kernel(input)
     };

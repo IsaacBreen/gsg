@@ -2385,9 +2385,11 @@ impl PreparedBoundedCodeMaskComponent {
         total_started: std::time::Instant,
     ) -> Option<(DFA, u32)> {
         let profile = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
-        if oracle.min > crossed_boundaries.saturating_add(1) {
-            return None;
-        }
+        // Preserve the complete lower-bound prefix when it is still small enough
+        // for the finite mask coordinate. `finite_mask_dfa` enforces the global
+        // dense-state cap, so a moderate minLength need not fall back to the
+        // full declared-max DFA merely because one token cannot cross the lower
+        // bound from the language root.
         let desired_mask_max = oracle
             .min
             .checked_add(crossed_boundaries)?
@@ -6403,6 +6405,35 @@ mod tests {
             .step(root, b'<')
             .expect("standalone mask component must execute its prefix byte");
         assert!(dfa.possible_future_group_ids(after_prefix).contains(0));
+    }
+
+    #[test]
+    fn standalone_bounded_code_mask_component_accepts_moderate_large_minimum() {
+        let unbounded = Expr::Seq(vec![
+            bytes(b"<"),
+            Expr::Repeat {
+                expr: Box::new(bounded_code_body()),
+                min: 0,
+                max: None,
+            },
+            bytes(b">"),
+        ]);
+        let expr = Expr::Intersect {
+            expr: Box::new(unbounded),
+            intersect: Box::new(bounded_code_envelope_expr(500, 10_000)),
+        };
+
+        let (dfa, root) = prepare_bounded_code_mask_component(&expr)
+            .expect("bounded-code expression should prepare")
+            .finish_for_vocab_conservative(128)
+            .expect("moderate lower bound should stay on the finite mask path");
+
+        assert!(dfa.possible_future_group_ids(root).contains(0));
+        assert!(
+            dfa.num_states() < 20_000,
+            "finite mask coordinate should scale with the lower bound plus one-token stencil, not maxLength: {} states",
+            dfa.num_states(),
+        );
     }
 
     #[test]
