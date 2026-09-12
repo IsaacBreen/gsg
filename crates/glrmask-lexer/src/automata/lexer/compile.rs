@@ -8848,6 +8848,128 @@ fn build_fixed_sequence_dfa(expr: &Expr) -> Option<DFA> {
     })
 }
 
+const MAX_FINITE_LITERAL_ALTERNATIVES: usize = 4096;
+const MAX_FINITE_LITERAL_BYTES: usize = 1 << 20;
+
+fn collect_finite_literal_language(expr: &Expr) -> Option<Vec<Vec<u8>>> {
+    match unwrap_shared(expr) {
+        Expr::U8Seq(bytes) => Some(vec![bytes.clone()]),
+        Expr::Epsilon => Some(vec![Vec::new()]),
+        Expr::Choice(options) => {
+            let mut out = Vec::new();
+            let mut total_bytes = 0usize;
+            for option in options {
+                let alternatives = collect_finite_literal_language(option)?;
+                if out.len().saturating_add(alternatives.len()) > MAX_FINITE_LITERAL_ALTERNATIVES {
+                    return None;
+                }
+                for literal in alternatives {
+                    total_bytes = total_bytes.saturating_add(literal.len());
+                    if total_bytes > MAX_FINITE_LITERAL_BYTES {
+                        return None;
+                    }
+                    out.push(literal);
+                }
+            }
+            Some(out)
+        }
+        Expr::Seq(parts) => {
+            let mut prefixes = vec![Vec::<u8>::new()];
+            for part in parts {
+                let suffixes = collect_finite_literal_language(part)?;
+                let next_count = prefixes.len().checked_mul(suffixes.len())?;
+                if next_count > MAX_FINITE_LITERAL_ALTERNATIVES {
+                    return None;
+                }
+                let mut next = Vec::with_capacity(next_count);
+                let mut total_bytes = 0usize;
+                for prefix in &prefixes {
+                    for suffix in &suffixes {
+                        let len = prefix.len().checked_add(suffix.len())?;
+                        total_bytes = total_bytes.checked_add(len)?;
+                        if total_bytes > MAX_FINITE_LITERAL_BYTES {
+                            return None;
+                        }
+                        let mut literal = Vec::with_capacity(len);
+                        literal.extend_from_slice(prefix);
+                        literal.extend_from_slice(suffix);
+                        next.push(literal);
+                    }
+                }
+                prefixes = next;
+            }
+            Some(prefixes)
+        }
+        _ => None,
+    }
+}
+
+fn build_finite_literal_language_dfa(expr: &Expr) -> Option<DFA> {
+    if std::env::var_os("GLRMASK_DISABLE_FINITE_LITERAL_TRIE_DIRECT").is_some() {
+        return None;
+    }
+    let profile_timing = std::env::var_os("GLRMASK_PROFILE_TOKENIZER_TIMING").is_some();
+    let started_at = profile_timing.then(Instant::now);
+    let literals = collect_finite_literal_language(expr)?;
+    if literals.len() <= 1 {
+        return None;
+    }
+
+    #[derive(Default)]
+    struct Node {
+        children: BTreeMap<u8, usize>,
+        accepting: bool,
+    }
+
+    let mut trie = vec![Node::default()];
+    for literal in &literals {
+        let mut node = 0usize;
+        for &byte in literal {
+            let next = if let Some(&next) = trie[node].children.get(&byte) {
+                next
+            } else {
+                let next = trie.len();
+                trie.push(Node::default());
+                trie[node].children.insert(byte, next);
+                next
+            };
+            node = next;
+        }
+        trie[node].accepting = true;
+    }
+
+    let trie_nodes = trie.len();
+    let mut dfa = DFA::new(trie_nodes);
+    dfa.ensure_group_capacity(1);
+    dfa.set_group_u8set(0, expr_u8set(expr));
+    for (node, trie_node) in trie.iter().enumerate() {
+        dfa.set_transitions_from_sorted_entries(
+            node as u32,
+            trie_node
+                .children
+                .iter()
+                .map(|(&byte, &target)| (byte, target as u32))
+                .collect(),
+        );
+        if trie_node.accepting {
+            mark_state_accepting(&mut dfa, node as u32);
+        }
+    }
+    dfa.recompute_possible_futures();
+    let minimized = dfa.minimize_owned_reachable();
+    if profile_timing {
+        eprintln!(
+            "[glrmask/profile][tokenizer] finite_literal_trie_direct alternatives={} trie_nodes={} final_states={} final_transitions={} total_ms={:.3}",
+            literals.len(),
+            trie_nodes,
+            minimized.num_states(),
+            dfa_transition_count(&minimized),
+            started_at.unwrap().elapsed().as_secs_f64() * 1000.0,
+        );
+    }
+    Some(minimized)
+}
+
 
 /// Exact union of already-deterministic single-group DFAs and fixed byte
 /// strings. General Choice compilation lowers every DFA arm back into an NFA
@@ -9121,6 +9243,7 @@ fn compile_product_component_dfa_direct_with_options_and_cache(
             .map(|dfa| (dfa, false)),
         Expr::Seq(parts) => build_fixed_sequence_dfa(expr)
             .map(|dfa| (dfa, false))
+            .or_else(|| build_finite_literal_language_dfa(expr).map(|dfa| (dfa, false)))
             .or_else(|| build_bounded_repeat_with_suffix_dfa_with_cache(parts, cache))
             .or_else(|| {
                 build_bounded_repeat_with_regex_suffix_with_options_and_cache(
@@ -17892,6 +18015,31 @@ mod tests {
         assert!(dfa_accepts(&direct, br#""""#));
         assert!(dfa_accepts(&direct, br#""a""#));
         assert!(!dfa_accepts(&direct, br#"" a""#));
+    }
+
+    #[test]
+    fn finite_literal_sequence_choice_trie_matches_generic_compilation() {
+        let expr = Expr::Seq(vec![
+            Expr::U8Seq(b"<".to_vec()),
+            Expr::Choice(vec![
+                Expr::U8Seq(b"a".to_vec()),
+                Expr::Seq(vec![Expr::U8Seq(b"a".to_vec()), Expr::U8Seq(b"b".to_vec())]),
+                Expr::U8Seq(b"b".to_vec()),
+            ]),
+            Expr::Choice(vec![Expr::Epsilon, Expr::U8Seq(b">".to_vec())]),
+        ]);
+
+        let direct = super::build_finite_literal_language_dfa(&expr)
+            .expect("finite concatenated literal language should compile as a trie");
+        let generic = super::compile_single_expr_dfa(&expr);
+
+        for input in enumerate_inputs(b"<>abx", 4) {
+            assert_eq!(
+                dfa_state_observation(&direct, 0, &input),
+                dfa_state_observation(&generic, 0, &input),
+                "finite-literal trie changed DFA semantics for input {input:?}",
+            );
+        }
     }
 
     #[test]
